@@ -119,6 +119,16 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content\Icon.ico" />
+    <Content Include="Libraries\Monogame\MonoGame.Framework.dll" />
+    <Content Include="Libraries\Monogame\SharpDX.Direct2D1.dll" />
+    <Content Include="Libraries\Monogame\SharpDX.Direct3D11.dll" />
+    <Content Include="Libraries\Monogame\SharpDX.dll" />
+    <Content Include="Libraries\Monogame\SharpDX.DXGI.dll" />
+    <Content Include="Libraries\Monogame\SharpDX.MediaFoundation.dll" />
+    <Content Include="Libraries\Monogame\SharpDX.XAudio2.dll" />
+    <Content Include="Libraries\Monogame\SharpDX.XInput.dll" />
+    <Content Include="Libraries\Other\ColorSlider.dll" />
+    <Content Include="Libraries\Other\NAudio.dll" />
   </ItemGroup>
   <ItemGroup>
     <MonoGameContentReference Include="Content\Content.mgcb" />
