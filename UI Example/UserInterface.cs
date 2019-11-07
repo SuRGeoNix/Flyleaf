@@ -20,12 +20,13 @@ namespace PartyTime.UI_Example
         frmDisplay              display2;
         frmControl              control;
 
-        MediaRouter player;
+        MediaRouter             player;
         AudioPlayer             audioPlayer;
 
         GraphicsDeviceManager   graphics;
         SpriteBatch             spriteBatch;
         Texture2D               screenPlay;
+        Button                  btnBar;
 
         Thread                  openSilently;
         delegate void           RefereshUIDelegate();
@@ -66,7 +67,7 @@ namespace PartyTime.UI_Example
         const int IDLE_TIME_MS                      = 7000; // Hide Cursor / Clock etc..
         const int INFO_TIME_MS                      = 2000; // Show Audio/Subs/Volume Adjustments Info
         const int NAUDIO_DELAY_MS                   = -330; // Probably waits to fill it's buffer?
-        Button btnBar;
+
         System.Drawing.Color TRANSPARENCY_KEY_COLOR = System.Drawing.Color.FromArgb(1,1,1); // Form Control Transparency
 
         // Constructors
@@ -108,7 +109,10 @@ namespace PartyTime.UI_Example
             // Textures
             screenPlay = new Texture2D(graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
 
-            btnBar                              = control.btnBar;
+            btnBar                              = new Button();
+            btnBar.Enabled                      = false;
+            btnBar.TabStop                      = false;
+            btnBar.UseVisualStyleBackColor      = false;
             btnBar.Height                       = 45;
             btnBar.BackColor                    = System.Drawing.Color.FromArgb(0x26,0x28,0x2b);
             display.Controls.Add(btnBar);
@@ -153,7 +157,7 @@ namespace PartyTime.UI_Example
             control.volBar.ScaleSubDivisions    =   1;
             control.volBar.SmallChange          =   1;
             control.volBar.LargeChange          =   1;
-            control.volBar.Value                =   audioPlayer.Volume;
+            control.volBar.Value                = audioPlayer.Volume;
 
             control.lblInfoText.Location        = new Point(10, 10);
             control.lblInfoText.BackColor       = System.Drawing.Color.FromArgb(0x26,0x28,0x2b);
@@ -286,7 +290,7 @@ namespace PartyTime.UI_Example
                     aspectRatio = (float) player.Width / (float) player.Height;
                     FixAspectRatio();
                 }
-                // Dont Ask Me Why (kind of warm up)
+                
                 ScreenPlay(); ScreenPlay(); ScreenPlay(); ScreenPlay();
 
                 if (openSilently != null && openSilently.IsAlive) openSilently.Abort();
@@ -307,9 +311,8 @@ namespace PartyTime.UI_Example
             {
                 // Subtitles
                 // Identify by BOM else Check if UTF-8, finally convert from (identified or system default codepage) to UTF-8 (supported by MR/FFmpeg)
-                // TODO: Let the user decide through Settings
-                Encoding subsEnc = FixEncodings.Detect(url);
-                if (subsEnc != Encoding.UTF8) url = FixEncodings.Convert(url, subsEnc, Encoding.UTF8);
+                Encoding subsEnc = Subtitles.Detect(url);
+                if (subsEnc != Encoding.UTF8) url = Subtitles.Convert(url, subsEnc, Encoding.UTF8);
                 if (url == null || url.Trim() == "") return;
 
                 ret = player.OpenSubs(url);
@@ -375,7 +378,7 @@ namespace PartyTime.UI_Example
         {
             try
             {
-                // Quicky ASS -> TXT
+                // Lazy ASS -> TXT
                 subText     = text.Substring(text.LastIndexOf(",,") + 2).Replace("\\N", "\n").Trim();
                 subStart    = DateTime.UtcNow.Ticks;
                 subDur      = duration;
@@ -562,7 +565,9 @@ namespace PartyTime.UI_Example
 
             displayMMoveLastPos = e.Location;
 
-            if (graphics.IsFullScreen || graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) { if (!display2.IsMouseVisible) UnIdle(); return; }
+            if (!display2.IsMouseVisible) UnIdle();
+
+            if (graphics.IsFullScreen || graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) return;
 
             if (displayMLDown) // RESIZING or MOVING
             {
@@ -863,8 +868,6 @@ namespace PartyTime.UI_Example
                     }
 
                 }
-
-                lastUserActionTicks = DateTime.UtcNow.Ticks;
             }
         }
 

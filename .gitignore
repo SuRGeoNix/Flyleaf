@@ -338,7 +338,3 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
-
-# Allow
-!/MediaRouter/Libraries/
-!/UI Example/Libraries/
