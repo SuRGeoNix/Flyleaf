@@ -1,9 +1,7 @@
-<div style="text-align:center"><img src="readme2.png" /></div>
-
 # Media Router
-
+<p align="center">
 <div style="text-align:center"><img src="readme1.png" /></div>
-
+</p>
 
 ## Introduction
 The purpose of Media Router is to be a "mediator" between a frontend GUI Audio / Video player and a backend Multimedia Framework. It will be responsible to satisfy frontend's needs such as Open/Play/Pause/Seek/Stop functionalities but also to serve __accurate__ with the right __control flow__ and __synchronized__ the requested media frames such as Audio, Video and Subtitles.
@@ -22,7 +20,7 @@ __Synchronized__ : Ensures that all time the served media frames will be syncron
 
 > <a href="https://www.ffmpeg.org/">FFmpeg 4.2.1</a> library (implemented with C# bindings <a href="https://github.com/Ruslan-B/FFmpeg.AutoGen">FFmpeg.AutoGen</a> 4.2.0)
 
-Demuxers the input file and configures the included media streams. It creates one thread per media stream for decoding. Additionally, it supports hardware acceleration (partially) and accurate seeking by decoding from the previous key/I frame until the requested (in case of B/P frames).
+Demuxes the input file and configures the included media streams. It creates one thread per media stream for decoding. Additionally, it supports hardware acceleration (partially) and accurate seeking by decoding from the previous key/I frame until the requested (in case of B/P frames).
 
 #### Layer 2 - Media Router (MediaRouter.cs)
 
@@ -48,3 +46,6 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 
 ## Final Words
 I have worked on this project for education, fun and programming exercise and I made it available to the public in case you will find it useful for similar reasons. It's always fun as programmers to have our own media player and play around. Any suggestions are always welcome!
+<p align="center">
+<div style="text-align:center"><img src="readme2.png" /></div>
+</p>
