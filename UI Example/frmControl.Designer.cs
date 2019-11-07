@@ -32,7 +32,6 @@ namespace PartyTime.UI_Example
             this.seekBar = new ColorSlider.ColorSlider();
             this.lblSubs = new System.Windows.Forms.Label();
             this.lblInfoText = new System.Windows.Forms.Label();
-            this.btnBar = new System.Windows.Forms.Button();
             this.volBar = new ColorSlider.ColorSlider();
             this.SuspendLayout();
             // 
@@ -48,13 +47,13 @@ namespace PartyTime.UI_Example
             this.seekBar.Font = new System.Drawing.Font("Verdana", 7.25F);
             this.seekBar.ForeColor = System.Drawing.Color.White;
             this.seekBar.LargeChange = ((uint)(1u));
-            this.seekBar.Location = new System.Drawing.Point(0, 592);
+            this.seekBar.Location = new System.Drawing.Point(12, 592);
             this.seekBar.Name = "seekBar";
             this.seekBar.ScaleDivisions = 1;
             this.seekBar.ScaleSubDivisions = 1;
             this.seekBar.ShowDivisionsText = false;
             this.seekBar.ShowSmallScale = false;
-            this.seekBar.Size = new System.Drawing.Size(1231, 29);
+            this.seekBar.Size = new System.Drawing.Size(1080, 29);
             this.seekBar.SmallChange = ((uint)(1u));
             this.seekBar.TabIndex = 4;
             this.seekBar.TabStop = false;
@@ -91,16 +90,6 @@ namespace PartyTime.UI_Example
             this.lblInfoText.TabIndex = 6;
             this.lblInfoText.Text = "Info Text Label";
             // 
-            // btnBar
-            // 
-            this.btnBar.BackColor = System.Drawing.Color.DimGray;
-            this.btnBar.Enabled = false;
-            this.btnBar.Location = new System.Drawing.Point(55, 499);
-            this.btnBar.Name = "btnBar";
-            this.btnBar.Size = new System.Drawing.Size(170, 62);
-            this.btnBar.TabIndex = 7;
-            this.btnBar.UseVisualStyleBackColor = false;
-            // 
             // volBar
             // 
             this.volBar.BackColor = System.Drawing.Color.Black;
@@ -113,7 +102,7 @@ namespace PartyTime.UI_Example
             this.volBar.Font = new System.Drawing.Font("Verdana", 7.25F);
             this.volBar.ForeColor = System.Drawing.Color.White;
             this.volBar.LargeChange = ((uint)(1u));
-            this.volBar.Location = new System.Drawing.Point(1066, 499);
+            this.volBar.Location = new System.Drawing.Point(1121, 592);
             this.volBar.Name = "volBar";
             this.volBar.ScaleDivisions = 1;
             this.volBar.ScaleSubDivisions = 1;
@@ -140,7 +129,6 @@ namespace PartyTime.UI_Example
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1231, 621);
             this.Controls.Add(this.volBar);
-            this.Controls.Add(this.btnBar);
             this.Controls.Add(this.lblInfoText);
             this.Controls.Add(this.lblSubs);
             this.Controls.Add(this.seekBar);
@@ -159,7 +147,6 @@ namespace PartyTime.UI_Example
         public ColorSlider.ColorSlider seekBar;
         public System.Windows.Forms.Label lblSubs;
         public System.Windows.Forms.Label lblInfoText;
-        public System.Windows.Forms.Button btnBar;
         public ColorSlider.ColorSlider volBar;
     }
 }
