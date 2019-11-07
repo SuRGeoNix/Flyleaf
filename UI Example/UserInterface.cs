@@ -66,7 +66,7 @@ namespace PartyTime.UI_Example
         const int RESIZE_CURSOR_DISTANCE            =    6;
         const int IDLE_TIME_MS                      = 7000; // Hide Cursor / Clock etc..
         const int INFO_TIME_MS                      = 2000; // Show Audio/Subs/Volume Adjustments Info
-        const int NAUDIO_DELAY_MS                   = -330; // Probably waits to fill it's buffer?
+        const int NAUDIO_DELAY_MS                   = -330; // Probably waits to fill it's buffer? had to use this for sync https://www.youtube.com/watch?v=ucZl6vQ_8Uo
 
         System.Drawing.Color TRANSPARENCY_KEY_COLOR = System.Drawing.Color.FromArgb(1,1,1); // Form Control Transparency
 
