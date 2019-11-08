@@ -10,11 +10,12 @@ namespace PartyTime
 {
     public class MediaRouter
     {
-        Codecs.FFmpeg decoder;
-        Thread screamer;
+        Codecs.FFmpeg           decoder;
+        Thread                  screamer;
 
         // Audio Output Configuration
         int _BITS = 16; int _CHANNELS = 1; int _RATE = 48000;
+
         long audioFlowTicks     = 0;
         long audioFlowBytes     = 0;
         long audioLastSyncTicks = 0;
@@ -24,13 +25,13 @@ namespace PartyTime
         long subsExternalDelay  = 0;
 
         // Queues
-        Queue<MediaFrame> aFrames;
-        Queue<MediaFrame> vFrames;
-        Queue<MediaFrame> sFrames;
+        Queue<MediaFrame>       aFrames;
+        Queue<MediaFrame>       vFrames;
+        Queue<MediaFrame>       sFrames;
 
         int AUDIO_MIX_QUEUE_SIZE = 40;  int AUDIO_MAX_QUEUE_SIZE = 140;
         int VIDEO_MIX_QUEUE_SIZE =  3;  int VIDEO_MAX_QUEUE_SIZE =   4;
-        int SUBS_MIN_QUEUE_SIZE  =  3;  int SUBS_MAX_QUEUE_SIZE  = 200;
+        int  SUBS_MIN_QUEUE_SIZE =  3;  int  SUBS_MAX_QUEUE_SIZE = 200;
 
         // Status
         enum Status
@@ -49,21 +50,21 @@ namespace PartyTime
         public Action<string, int>            SubFrameClbk;
         
         // Properties (Public)
-        public bool isReady     { get; private set; }
-        public bool isPlaying   { get { return (status == Status.PLAYING); } }
-        public bool isPaused    { get { return (status == Status.PAUSED); } }
-        public bool isSeeking   { get { return (status == Status.SEEKING); } }
-        public bool isStopped   { get { return (status == Status.STOPPED); } }
-        public bool hasAudio    { get; private set; }
-        public bool hasVideo    { get; private set; }
-        public bool hasSubs     { get; private set; }
-        public int  Width       { get; private set; }
-        public int  Height      { get; private set; }
-        public long Duration    { get; private set; }
-        public long CurTime     { get; private set; }
-        public int  verbosity   { get; set; }
-        public bool HighQuality { get { return decoder.HighQuality; } set { decoder.HighQuality = value; } }
-        public bool HWAcceleration { get; set; }
+        public bool isReady         { get; private set; }
+        public bool isPlaying       { get { return (status == Status.PLAYING); } }
+        public bool isPaused        { get { return (status == Status.PAUSED); } }
+        public bool isSeeking       { get { return (status == Status.SEEKING); } }
+        public bool isStopped       { get { return (status == Status.STOPPED); } }
+        public bool hasAudio        { get; private set; }
+        public bool hasVideo        { get; private set; }
+        public bool hasSubs         { get; private set; }
+        public int  Width           { get; private set; }
+        public int  Height          { get; private set; }
+        public long Duration        { get; private set; }
+        public long CurTime         { get; private set; }
+        public int  verbosity       { get; set; }
+        public bool HighQuality     { get { return decoder.HighQuality; } set { decoder.HighQuality = value; } }
+        public bool HWAcceleration  { get; set; }
         public long AudioExternalDelay
         {
             get { return audioExternalDelay; }
@@ -356,7 +357,7 @@ namespace PartyTime
         {
             double curRate = audioFlowBytes / ((DateTime.UtcNow.Ticks - audioFlowTicks) / 10000000.0);
             if (curRate > audioBytesPerSecond) return;
-
+            
             lock (aFrames)
             {
                 int count = 0;
@@ -366,6 +367,10 @@ namespace PartyTime
                     AudioFrameClbk(aFrame.data, 0, aFrame.data.Length);
                     audioFlowBytes += aFrame.data.Length;
                     count++;
+
+                    // Check on every frame that we send to ensure the buffer will not be full
+                    curRate = audioFlowBytes / ((DateTime.UtcNow.Ticks - audioFlowTicks) / 10000000.0);
+                    if (curRate > audioBytesPerSecond) return;
                 }
             }
         }
@@ -504,13 +509,13 @@ namespace PartyTime
             CurTime             = 0;
             audioExternalDelay  = 0;
 
-            hasAudio    = decoder.hasAudio; 
-            hasVideo    = decoder.hasVideo; 
-            hasSubs     = decoder.hasSubs;
+            hasAudio            = decoder.hasAudio; 
+            hasVideo            = decoder.hasVideo; 
+            hasSubs             = decoder.hasSubs;
 
-            Width       = (hasVideo) ? decoder.vStreamInfo.width         : 0;
-            Height      = (hasVideo) ? decoder.vStreamInfo.height        : 0;
-            Duration    = (hasVideo) ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks;
+            Width               = (hasVideo) ? decoder.vStreamInfo.width         : 0;
+            Height              = (hasVideo) ? decoder.vStreamInfo.height        : 0;
+            Duration            = (hasVideo) ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks;
 
             return 0;
         }
@@ -518,10 +523,11 @@ namespace PartyTime
         {
             int ret;
 
-            if (!decoder.hasVideo) return -1;
+            if ( !decoder.hasVideo)                     return -1;
             if ( (ret = decoder.OpenSubs(url)) != 0 )   { hasSubs = false; return ret; }
 
             hasSubs = decoder.hasSubs;
+
             if (!isStopped && decoder.hasSubs)          ResynchSubs(CurTime - subsExternalDelay);
 
             return 0;
@@ -570,12 +576,13 @@ namespace PartyTime
 
             Status old = status;
 
-            if (curPos) { ms += (int)(CurTime / 10000); /*CurTime += ms * 10000;*/ }
-            CurTime = (long)ms * 10000;
+            if (curPos) ms         += (int)  (CurTime / 10000);
 
-            status = Status.SEEKING;
-            if (decoder  != null) decoder.Pause();
-            if (screamer != null) screamer.Abort();
+            CurTime                 = (long) ms * 10000;
+            status                  = Status.SEEKING;
+
+            if (decoder  != null)    decoder.Pause();
+            if (screamer != null)   screamer.Abort();
 
             lock (aFrames)  aFrames = new Queue<MediaFrame>();
             lock (sFrames)  vFrames = new Queue<MediaFrame>();
@@ -583,13 +590,14 @@ namespace PartyTime
 
             if (hasVideo)   decoder.SeekAccurate(ms, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
 
-            if (old == Status.PLAYING) Play();
+            if (old == Status.PLAYING)      Play();
 
             return 0;
         }
         public int Stop()
         {
             if (decoder != null) decoder.Stop();
+
             Initialize();
             CurTime = 0;
 
