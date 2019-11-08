@@ -40,7 +40,7 @@ namespace PartyTime.UI_Example
         int                     displayMoveSideCur;
 
         bool                    seekBarMLDown;
-        int                     lastSeekBarMLDown = 0;
+        int                     lastSeekBarMLDown   =    0;
         long                    lastUserActionTicks =    0;
         long                    lastInfoTextUpdate  =    0;
         long                    seekClockTime       =   -1;
@@ -180,6 +180,7 @@ namespace PartyTime.UI_Example
             control.seekBar.MouseMove       += new MouseEventHandler        (SeekBar_MouseMove);
             control.seekBar.MouseUp         += new MouseEventHandler        (SeekBar_MouseUp);
 
+            control.volBar.MouseUp          += new MouseEventHandler        (VolBar_MouseUp);
             control.volBar.ValueChanged     += new EventHandler             (VolBar_ValueChanged);
         }
 
@@ -905,12 +906,14 @@ namespace PartyTime.UI_Example
             }
         }
 
+        // UI Events [CONTROL VOLBAR]
         private void VolBar_ValueChanged(object sender, EventArgs e)
         {
             UpdateInfoText("[VOLUME] " + control.volBar.Value + "%");
             audioPlayer.Volume = control.volBar.Value;
           
         }
+        private void VolBar_MouseUp(object sender, MouseEventArgs e) { display.Focus(); }
 
         // Full Screen / Aspect Ratio
         private void FullScreenToggle() { if (graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) NormalScreen(); else FullScreen(); }
