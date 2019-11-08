@@ -1,6 +1,6 @@
 # Media Router
 
-<img src="readme1.png" />
+<p align="center"><img src="readme1.png" /></p>
 
 
 ## Introduction
@@ -32,18 +32,22 @@ The main implementation is within the "Screamer" method that routes media frames
 
 A sample GUI has been created to demonstrate Media Router's functionality. It works with both Game Engine (for taking the advantage of GPU and Game Loop) and a classic Windows Form. For subtitles will work with BOM specified, UTF-8 formats otherwise with the default system codepage (lazy support for ASS/SSA). For audio it simple runs with the NAudio library. It currently supports :- 
 
-    Drag & Drop to Open
 
-    (P or Space) for Pause / Play, 
-    (S) for Stop, 
-    (R) for Keep Ratio, 
-    (F or Escape) toggles Fullscreen
-    (Left/Right) for Seeking
+| Keys                  | Action                    |
+| :-------------:       |:-------------:            |
+| Drag & Drop           | Open                      |
+| P or Space            | Pause / Play              |
+| S                     | Stop                      |
+| R                     | Keep Ratio                |
+| F or Escape           | Fullscreen                |
+| Left / Right Arrows   | Seeking                   |
+| Up / Down Arrows      | Volume Adjustment         |
+| [ / ]                 | Audio Adjustment          |
+| ; / '                 | Subtitles Adjustment      |
 
-    (Up/Down) for Volume adjustment
-    ([/]) for Audio adjustment
-    (;/') for Subtitles adjustment
+<br/>
 
 ## Remarks
 I have worked on this project for education, fun and programming exercise and I've made it available to the public in case you will find it useful for similar reasons. It's always fun as programmers to have our own media player and play around. Any suggestions are always welcome!
-<img src="readme2.png" />
+
+<p align="center"><img src="readme2.png" /></p>
