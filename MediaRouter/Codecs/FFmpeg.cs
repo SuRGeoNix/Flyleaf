@@ -19,12 +19,12 @@ namespace PartyTime.Codecs
     unsafe public class FFmpeg
     {
         // Audio Output Parameters [ BITS | CHANNELS | RATE ]
-        AVSampleFormat _SAMPLE_FORMAT = AVSampleFormat.AV_SAMPLE_FMT_S16; int _CHANNELS = 1; int _RATE = 48000;
+        AVSampleFormat _SAMPLE_FORMAT   = AVSampleFormat.AV_SAMPLE_FMT_S16; int _CHANNELS = 1; int _RATE = 48000;
 
         // Video Output Parameters
-        AVPixelFormat _PIXEL_FORMAT = AVPixelFormat.AV_PIX_FMT_RGBA;
-        int _SCALING_HQ = ffmpeg.SWS_ACCURATE_RND | ffmpeg.SWS_BITEXACT | ffmpeg.SWS_LANCZOS | ffmpeg.SWS_FULL_CHR_H_INT | ffmpeg.SWS_FULL_CHR_H_INP;
-        int _SCALING_LQ = ffmpeg.SWS_FAST_BILINEAR;
+        AVPixelFormat _PIXEL_FORMAT     = AVPixelFormat.AV_PIX_FMT_RGBA;
+        int _SCALING_HQ                 = ffmpeg.SWS_ACCURATE_RND | ffmpeg.SWS_BITEXACT | ffmpeg.SWS_LANCZOS | ffmpeg.SWS_FULL_CHR_H_INT | ffmpeg.SWS_FULL_CHR_H_INP;
+        int _SCALING_LQ                 = ffmpeg.SWS_FAST_BILINEAR;
         int vSwsOptFlags;
         
         IntPtr                  outBufferPtr; 
@@ -38,20 +38,24 @@ namespace PartyTime.Codecs
         AVCodecContext*         aCodecCtx,  vCodecCtx,  sCodecCtx;
         AVCodec*                aCodec,     vCodec,     sCodec;
         SwrContext*             swrCtx;
-        SwsContext*             swsCtx;//,                 sSwsCtx;
+        SwsContext*                         swsCtx;   //sSwsCtx;
+
+        Status                  aStatus,    vStatus,    sStatus,    status;
+        Thread                  aDecoder,   vDecoder,   sDecoder;
+
+        Action<MediaFrame, AVMediaType>     SendFrame;
 
         // HW Acceleration
-        List<AVHWDeviceType>    hwDevices;
-        List<HWDeviceSupported> hwDevicesSupported;
+        const int                           AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
+        bool                                hwAccelSuccess;
+        List<AVHWDeviceType>                hwDevices;
+        List<HWDeviceSupported>             hwDevicesSupported;
         struct HWDeviceSupported
         {
             public AVHWDeviceType       type;
             public List<AVPixelFormat>  pixFmts;
         }
-        bool                    hwAccelSuccess;
-        const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
 
-        // Status / Threads / Callbacks
         enum Status
         {
             READY   = 0,
@@ -59,9 +63,6 @@ namespace PartyTime.Codecs
             SEEKING = 3,
             STOPPED = 4
         }
-        Status aStatus,  vStatus,  sStatus,  status;
-        Thread aDecoder, vDecoder, sDecoder;
-        Action<MediaFrame, AVMediaType> SendFrame;
 
         // Public Exposure [Properties & Structures]
         public struct MediaFrame
@@ -96,9 +97,9 @@ namespace PartyTime.Codecs
         public AudioStreamInfo aStreamInfo;
         public VideoStreamInfo vStreamInfo;
         public bool isReady         { get; private set; }
-        public bool isRunning       { get { return (status == Status.RUNNING); } }
-        public bool isSeeking       { get { return (status == Status.SEEKING); } }
-        public bool isStopped       { get { return (status == Status.STOPPED); } }
+        public bool isRunning       { get { return (status  == Status.RUNNING); } }
+        public bool isSeeking       { get { return (status  == Status.SEEKING); } }
+        public bool isStopped       { get { return (status  == Status.STOPPED); } }
         public bool isAudioRunning  { get { return (aStatus == Status.RUNNING); } }
         public bool isVideoRunning  { get { return (vStatus == Status.RUNNING); } }
         public bool isSubsRunning   { get { return (sStatus == Status.RUNNING); } }
@@ -308,10 +309,10 @@ namespace PartyTime.Codecs
             vStreamInfo.width               = vCodecCtx->width;
 
             // Prepare Output Buffer
-            outData         = new byte_ptrArray4();
-            outLineSize     = new int_array4();
-            outBufferSize   = ffmpeg.av_image_get_buffer_size(_PIXEL_FORMAT, vStreamInfo.width, vStreamInfo.height, 1);
-            outBufferPtr    = Marshal.AllocHGlobal(outBufferSize);
+            outData                         = new byte_ptrArray4();
+            outLineSize                     = new int_array4();
+            outBufferSize                   = ffmpeg.av_image_get_buffer_size(_PIXEL_FORMAT, vStreamInfo.width, vStreamInfo.height, 1);
+            outBufferPtr                    = Marshal.AllocHGlobal(outBufferSize);
             ffmpeg.av_image_fill_arrays(ref outData, ref outLineSize, (byte*)outBufferPtr, _PIXEL_FORMAT, vStreamInfo.width, vStreamInfo.height, 1);
 
             return ret;
@@ -506,17 +507,17 @@ namespace PartyTime.Codecs
                     fixed (byte* bufferPtr = &buffer[0])
                     {
                         // Convert
-                        buffers[0] = bufferPtr;
-                        int samplesCount = ffmpeg.swr_convert(swrCtx, buffers, aCodecCtx->sample_rate, (byte**)&frame->data, frame->nb_samples);
-                        var bufferSize = ffmpeg.av_samples_get_buffer_size(null, _CHANNELS, samplesCount, _SAMPLE_FORMAT, 1);
+                        buffers[0]          = bufferPtr;
+                        int samplesCount    = ffmpeg.swr_convert(swrCtx, buffers, aCodecCtx->sample_rate, (byte**)&frame->data, frame->nb_samples);
+                        var bufferSize      = ffmpeg.av_samples_get_buffer_size(null, _CHANNELS, samplesCount, _SAMPLE_FORMAT, 1);
 
                         // Send Frame
                         if (samplesCount > 0)
                         {
-                            MediaFrame mFrame = new MediaFrame();
-                            mFrame.data = new byte[bufferSize]; Buffer.BlockCopy(buffer, 0, mFrame.data, 0, bufferSize);
-                            mFrame.pts = frame->best_effort_timestamp;
-                            mFrame.timestamp = (long)(mFrame.pts * aStreamInfo.timebaseLowTicks);
+                            MediaFrame mFrame   = new MediaFrame();
+                            mFrame.data         = new byte[bufferSize]; Buffer.BlockCopy(buffer, 0, mFrame.data, 0, bufferSize);
+                            mFrame.pts          = frame->best_effort_timestamp;
+                            mFrame.timestamp    = (long)(mFrame.pts * aStreamInfo.timebaseLowTicks);
                             if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
                             SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_AUDIO);
                         }
@@ -538,9 +539,9 @@ namespace PartyTime.Codecs
                 // [HW ACCEL]
                 if (hwAccelSuccess)
                 {
-                    frame       = ffmpeg.av_frame_alloc();
-                    ret         = ffmpeg.av_hwframe_transfer_data(frame, frame2, 0);
-                    frame->pts  = frame2->pts;
+                    frame                        = ffmpeg.av_frame_alloc();
+                    ret                          = ffmpeg.av_hwframe_transfer_data(frame, frame2, 0);
+                    frame->pts                   = frame2->pts;
                     frame->best_effort_timestamp = frame2->best_effort_timestamp;
                     ffmpeg.av_frame_unref(frame2);
 
@@ -892,15 +893,12 @@ namespace PartyTime.Codecs
         // HWAccel Helpers
         private List<AVHWDeviceType>    GetHWDevices()
         {
-            List<AVHWDeviceType> hwDevices = new List<AVHWDeviceType>();
+            List<AVHWDeviceType> hwDevices  = new List<AVHWDeviceType>();
+            AVHWDeviceType       type       = AVHWDeviceType.AV_HWDEVICE_TYPE_NONE;
 
-            AVHWDeviceType type = AVHWDeviceType.AV_HWDEVICE_TYPE_NONE;
-            while ((type = ffmpeg.av_hwdevice_iterate_types(type)) != AVHWDeviceType.AV_HWDEVICE_TYPE_NONE)
-            {
+            while ( (type = ffmpeg.av_hwdevice_iterate_types(type)) != AVHWDeviceType.AV_HWDEVICE_TYPE_NONE )
                 hwDevices.Add(type);
-                //string curDevice = ffmpeg.av_hwdevice_get_type_name(type);
-                //if (curDevice != null && curDevice.Trim() != "") hwDevices.Add(curDevice);
-            }
+
             return hwDevices;
         }
         private List<HWDeviceSupported> GetHWDevicesSupported()
@@ -919,8 +917,8 @@ namespace PartyTime.Codecs
                     if (hwDeviceExists.type == config->device_type) { hwDeviceExists.pixFmts.Add(config->pix_fmt); continue; }
 
                 HWDeviceSupported hwDeviceNew = new HWDeviceSupported();
-                hwDeviceNew.type = config->device_type;
-                hwDeviceNew.pixFmts = new List<AVPixelFormat>();
+                hwDeviceNew.type        = config->device_type;
+                hwDeviceNew.pixFmts     = new List<AVPixelFormat>();
                 hwDeviceNew.pixFmts.Add(config->pix_fmt);
                 hwDevicesSupported.Add(hwDeviceNew);
             }
