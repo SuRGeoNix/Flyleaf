@@ -81,14 +81,16 @@ namespace PartyTime.UI_Example
             // 
             // lblInfoText
             // 
-            this.lblInfoText.AutoSize = true;
+            this.lblInfoText.FlatStyle = System.Windows.Forms.FlatStyle.System;
             this.lblInfoText.Font = new System.Drawing.Font("Arial", 16F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblInfoText.ForeColor = System.Drawing.Color.White;
             this.lblInfoText.Location = new System.Drawing.Point(12, 9);
+            this.lblInfoText.Margin = new System.Windows.Forms.Padding(0);
             this.lblInfoText.Name = "lblInfoText";
             this.lblInfoText.Size = new System.Drawing.Size(153, 25);
             this.lblInfoText.TabIndex = 6;
             this.lblInfoText.Text = "Info Text Label";
+            this.lblInfoText.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // volBar
             // 
@@ -96,9 +98,10 @@ namespace PartyTime.UI_Example
             this.volBar.BarPenColorBottom = System.Drawing.Color.FromArgb(((int)(((byte)(87)))), ((int)(((byte)(94)))), ((int)(((byte)(110)))));
             this.volBar.BarPenColorTop = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
             this.volBar.BorderRoundRectSize = new System.Drawing.Size(1, 1);
-            this.volBar.ElapsedInnerColor = System.Drawing.Color.FromArgb(((int)(((byte)(21)))), ((int)(((byte)(56)))), ((int)(((byte)(152)))));
-            this.volBar.ElapsedPenColorBottom = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(130)))), ((int)(((byte)(208)))));
-            this.volBar.ElapsedPenColorTop = System.Drawing.Color.FromArgb(((int)(((byte)(95)))), ((int)(((byte)(140)))), ((int)(((byte)(180)))));
+            this.volBar.ColorSchema = ColorSlider.ColorSlider.ColorSchemas.GreenColors;
+            this.volBar.ElapsedInnerColor = System.Drawing.Color.Green;
+            this.volBar.ElapsedPenColorBottom = System.Drawing.Color.LightGreen;
+            this.volBar.ElapsedPenColorTop = System.Drawing.Color.SpringGreen;
             this.volBar.Font = new System.Drawing.Font("Verdana", 7.25F);
             this.volBar.ForeColor = System.Drawing.Color.White;
             this.volBar.LargeChange = ((uint)(1u));
@@ -112,8 +115,8 @@ namespace PartyTime.UI_Example
             this.volBar.SmallChange = ((uint)(1u));
             this.volBar.TabIndex = 8;
             this.volBar.TabStop = false;
-            this.volBar.ThumbInnerColor = System.Drawing.Color.FromArgb(((int)(((byte)(21)))), ((int)(((byte)(56)))), ((int)(((byte)(152)))));
-            this.volBar.ThumbPenColor = System.Drawing.Color.FromArgb(((int)(((byte)(21)))), ((int)(((byte)(56)))), ((int)(((byte)(152)))));
+            this.volBar.ThumbInnerColor = System.Drawing.Color.Green;
+            this.volBar.ThumbPenColor = System.Drawing.Color.Green;
             this.volBar.ThumbRoundRectSize = new System.Drawing.Size(16, 16);
             this.volBar.ThumbSize = new System.Drawing.Size(16, 16);
             this.volBar.TickAdd = 0F;
@@ -135,7 +138,7 @@ namespace PartyTime.UI_Example
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "frmControl";
             this.ShowInTaskbar = false;
-            this.Text = "frmControl";
+            this.Text = "`";
             this.Load += new System.EventHandler(this.frmControl_Load);
             this.ResumeLayout(false);
             this.PerformLayout();

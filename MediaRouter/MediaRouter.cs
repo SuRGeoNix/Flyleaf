@@ -508,6 +508,7 @@ namespace PartyTime
             isReady             = true;
             CurTime             = 0;
             audioExternalDelay  = 0;
+            subsExternalDelay   = 0;
 
             hasAudio            = decoder.hasAudio; 
             hasVideo            = decoder.hasVideo; 
@@ -526,9 +527,10 @@ namespace PartyTime
             if ( !decoder.hasVideo)                     return -1;
             if ( (ret = decoder.OpenSubs(url)) != 0 )   { hasSubs = false; return ret; }
 
-            hasSubs = decoder.hasSubs;
+            hasSubs             = decoder.hasSubs;
+            subsExternalDelay   = 0;
 
-            if (!isStopped && decoder.hasSubs)          ResynchSubs(CurTime - subsExternalDelay);
+            if (!isStopped && decoder.hasSubs)          ResynchSubs(CurTime); // - subsExternalDelay);
 
             return 0;
         }
@@ -578,7 +580,17 @@ namespace PartyTime
 
             if (curPos) ms         += (int)  (CurTime / 10000);
 
-            CurTime                 = (long) ms * 10000;
+            if ( (long)ms * 10000 < decoder.vStreamInfo.startTimeTicks )
+            {
+                CurTime                 = decoder.vStreamInfo.startTimeTicks;
+            } else if ( (long)ms * 10000 > decoder.vStreamInfo.durationTicks )
+            {
+                CurTime                 = decoder.vStreamInfo.durationTicks;
+            } else
+            {
+                CurTime                 = (long) ms * 10000;
+            }
+            
             status                  = Status.SEEKING;
 
             if (decoder  != null)    decoder.Pause();

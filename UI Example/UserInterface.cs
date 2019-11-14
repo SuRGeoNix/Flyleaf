@@ -261,11 +261,11 @@ namespace PartyTime.UI_Example
             // Update Info Text [Adjustments]
             if (seekClockTime == -1)
                 if (DateTime.UtcNow.Ticks - lastInfoTextUpdate < INFO_TIME_MS * 10000)
-                    control.lblInfoText.Text = updatedInfoText;
+                    FixWidthInfoText(updatedInfoText);
 
             // Update Into Text [Current Time / Duration]
                 else
-                    control.lblInfoText.Text = "[" + (new TimeSpan(player.CurTime)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + "]";
+                    FixWidthInfoText("[" + (new TimeSpan(player.CurTime)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + "]");
         }
 
         // Processes
@@ -335,12 +335,22 @@ namespace PartyTime.UI_Example
             updatedInfoText = infoText;
             lastInfoTextUpdate = DateTime.UtcNow.Ticks;
         }
+        private void FixWidthInfoText(string infoText)
+        {
+            using (Graphics g = control.lblInfoText.CreateGraphics())
+            {
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                control.lblInfoText.Width = (int) g.MeasureString(infoText, control.lblInfoText.Font).Width - 10;
+            }
+                
+            control.lblInfoText.Text = infoText;
+        }
         private void UpdateSeekClockTime(long ticks)
         {
-            if (ticks / 10000000 < control.seekBar.Minimum) seekClockTime   = control.seekBar.Minimum * 10000000;
-            if (ticks / 10000000 > control.seekBar.Maximum) ticks           = control.seekBar.Maximum * 10000000;
+            if (ticks / 10000000.0 < control.seekBar.Minimum) ticks = (long)control.seekBar.Minimum * 10000000;
+            if (ticks / 10000000.0 > control.seekBar.Maximum) ticks = (long)control.seekBar.Maximum * 10000000;
             seekClockTime = ticks;
-            control.lblInfoText.Text = "[" + (new TimeSpan(ticks)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + "]";
+            FixWidthInfoText("[" + (new TimeSpan(ticks)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + "]");
         }
         private bool IsIdle()
         {
