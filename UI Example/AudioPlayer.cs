@@ -1,14 +1,17 @@
 ﻿using System;
 
 using NAudio.Wave;
+using NAudio.CoreAudioApi;
 
 namespace PartyTime.UI_Example
 {
-    class AudioPlayer
+    class AudioPlayer : NAudio.CoreAudioApi.Interfaces.IMMNotificationClient
     {
         WaveOut player;
         WaveFormat format;
         BufferedWaveProvider buffer;
+
+        MMDeviceEnumerator deviceEnum = new MMDeviceEnumerator();
 
         // Audio Output Configuration
         int _BITS = 16; int _CHANNELS = 1; int _RATE = 48000;
@@ -20,20 +23,20 @@ namespace PartyTime.UI_Example
         {
             format = new WaveFormat(_RATE, _BITS, _CHANNELS);
             player = new WaveOut();
+            deviceEnum.RegisterEndpointNotificationCallback(this);
 
             Initialize();
         }
         public void Initialize()
         {
-            //if (player != null) { player.Stop(); buffer.ClearBuffer(); player = null; }
             lock (player)
             {
                 player = new WaveOut();
+                player.DeviceNumber = 0;
                 buffer = new BufferedWaveProvider(format);
                 buffer.BufferLength = 500 * 1024;
                 player.Init(buffer);
             }
-            
         }
 
         // Public Exposure
@@ -102,6 +105,13 @@ namespace PartyTime.UI_Example
                 if (oldState == PlaybackState.Playing) player.Play();
             }
         }
+
+        // Audio Devices Events
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) { ResetClbk(); }
+        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
+        public void OnDeviceStateChanged(string deviceId, DeviceState newState) { }
+        public void OnDeviceAdded(string pwstrDeviceId) { }
+        public void OnDeviceRemoved(string deviceId) { }
 
         // Logging
         private void Log(string msg) { Console.WriteLine(msg); }

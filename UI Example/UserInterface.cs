@@ -96,8 +96,8 @@ namespace PartyTime.UI_Example
             player.AudioFrameClbk   = audioPlayer.FrameClbk;
             player.AudioResetClbk   = audioPlayer.ResetClbk;
             player.SubFrameClbk     = SubsFrameClbk;
-            player.HWAcceleration   = false;
-            player.HighQuality      = false;
+            player.HWAcceleration   = true;
+            player.HighQuality      = true;
 
             // Forms
             SubscribeEvents();
@@ -576,7 +576,7 @@ namespace PartyTime.UI_Example
 
             displayMMoveLastPos = e.Location;
 
-            if (!display2.IsMouseVisible) UnIdle();
+            if (!display2.IsMouseVisible && !displayMLDown) UnIdle();
 
             if (graphics.IsFullScreen || graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) return;
 
