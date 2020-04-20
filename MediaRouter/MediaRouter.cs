@@ -217,8 +217,8 @@ namespace PartyTime
                 if (decoder.hasAudio)
                     if (vFrame.timestamp + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || vFrame.timestamp + audioExternalDelay > decoder.aStreamInfo.durationTicks) 
                         audioDelayTicks = -10000000; // Force Resync Later (Audio Paused)
-                    else ResynchAudio(vFrame.timestamp - audioExternalDelay);
-
+                    else ResynchAudio(vFrame.timestamp - audioExternalDelay, true);
+                    
                 // Timing
                 long curTicks;
                 long nowTicks;
@@ -374,10 +374,10 @@ namespace PartyTime
                 }
             }
         }
-        private bool ResynchAudio(long syncTimestamp)
+        private bool ResynchAudio(long syncTimestamp, bool force = false)
         {
             // Give it 1 Second
-            if (DateTime.UtcNow.Ticks - audioLastSyncTicks < 10000000) return false;
+            if (DateTime.UtcNow.Ticks - audioLastSyncTicks < 10000000 && !force) return false;
             audioLastSyncTicks = DateTime.UtcNow.Ticks;
 
             lock (aFrames)
