@@ -96,8 +96,8 @@ namespace PartyTime.UI_Example
             player.AudioFrameClbk   = audioPlayer.FrameClbk;
             player.AudioResetClbk   = audioPlayer.ResetClbk;
             player.SubFrameClbk     = SubsFrameClbk;
-            player.HWAcceleration   = true;
-            player.HighQuality      = true;
+            player.HWAcceleration   = false;
+            player.HighQuality      = false;
 
             // Forms
             SubscribeEvents();
