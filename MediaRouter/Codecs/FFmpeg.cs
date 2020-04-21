@@ -878,7 +878,7 @@ namespace PartyTime.Codecs
                     sStatus = Status.SEEKING;
                     calcTimestamp = (long)(calcTimestamp / 10000);
 
-                    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
+                    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, ms, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
                     ffmpeg.avcodec_flush_buffers(sCodecCtx);
 
                     sStatus = oldStatus;
