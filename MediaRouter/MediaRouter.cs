@@ -209,7 +209,7 @@ namespace PartyTime
                 long delayTicks      = vFrame.timestamp;
 
                 // Subs
-                if (hasSubs) ResynchSubs(vFrame.timestamp - subsExternalDelay);
+                if (hasSubs) ResynchSubs(vFrame.timestamp - subsExternalDelay, true);
 
                 // Audio
                 audioFlowTicks = DateTime.UtcNow.Ticks;
@@ -447,13 +447,14 @@ namespace PartyTime
 
                 MediaFrame sFrame = sFrames.Peek();
                 if (Math.Abs((sFrame.timestamp + subsExternalDelay) - CurTime) < decoder.vStreamInfo.frameAvgTicks * 2)
+                //if (Math.Abs((sFrame.timestamp + (sFrame.duration * 10000) + subsExternalDelay) - CurTime) < decoder.vStreamInfo.frameAvgTicks * 2)
                 {
                     SubFrameClbk.BeginInvoke(sFrame.text, sFrame.duration, null, null);
                     sFrames.Dequeue();
                 }
             }
         }
-        private bool ResynchSubs(long syncTimestamp)
+        private bool ResynchSubs(long syncTimestamp, bool force = false)
         {
             lock (sFrames)
             {
@@ -479,7 +480,7 @@ namespace PartyTime
                 // Find Closest Subs Timestamp
                 while (isPlaying)
                 {
-                    if (sFrameNext.timestamp > syncTimestamp) break;
+                    if ((sFrameNext.timestamp + (sFrameNext.duration * 10000) > syncTimestamp && force) || (sFrameNext.timestamp > syncTimestamp && !force)) break;
                     sFrame = sFrames.Dequeue();
                     if (sFrames.Count < 1) return false;
                     sFrameNext = sFrames.Peek();
@@ -488,7 +489,15 @@ namespace PartyTime
 
                 Log("[SUBS] Resynch Successfully to -> " + sFrame.timestamp / 10000 + " ++");
 
-                SendSubFrame();
+                if ( force && sFrame.timestamp < syncTimestamp && sFrame.timestamp + (sFrame.duration * 10000) > syncTimestamp)
+                {
+                    SubFrameClbk.BeginInvoke(sFrame.text, (int)((sFrame.timestamp + (sFrame.duration * 10000) - syncTimestamp)/10000), null, null);
+                    sFrames.Dequeue();
+                }
+                else
+                {
+                    SendSubFrame();
+                }
 
                 return true;
             }
@@ -530,7 +539,7 @@ namespace PartyTime
             hasSubs             = decoder.hasSubs;
             subsExternalDelay   = 0;
 
-            if (!isStopped && decoder.hasSubs)          ResynchSubs(CurTime); // - subsExternalDelay);
+            if (!isStopped && decoder.hasSubs)          ResynchSubs(CurTime, true); // - subsExternalDelay);
 
             return 0;
         }
