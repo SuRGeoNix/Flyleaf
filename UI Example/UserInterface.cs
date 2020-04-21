@@ -12,6 +12,7 @@ using Color     = Microsoft.Xna.Framework.Color;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 using Point     = System.Drawing.Point;
 
+
 namespace PartyTime.UI_Example
 {
     public class UserInterface
@@ -53,6 +54,7 @@ namespace PartyTime.UI_Example
         string                  subText             =   "";
         long                    subStart            =    0;
         int                     subDur              =    0;
+        bool                    SubsNew             = false;
         byte[]                  firstFrameData;
 
         // Constants
@@ -161,6 +163,8 @@ namespace PartyTime.UI_Example
 
             control.lblInfoText.Location        = new Point(10, 10);
             control.lblInfoText.BackColor       = System.Drawing.Color.FromArgb(0x26,0x28,0x2b);
+
+            control.rtbSubs.BackColor           = TRANSPARENCY_KEY_COLOR;
         }
         private void SubscribeEvents()
         {
@@ -182,6 +186,13 @@ namespace PartyTime.UI_Example
 
             control.volBar.MouseUp          += new MouseEventHandler        (VolBar_MouseUp);
             control.volBar.ValueChanged     += new EventHandler             (VolBar_ValueChanged);
+
+            control.rtbSubs.MouseDown       += new MouseEventHandler        (Display_MouseDown);
+            control.rtbSubs.MouseMove       += new MouseEventHandler        (Display_MouseMove);
+            control.rtbSubs.MouseUp         += new MouseEventHandler        (Display_MouseUp);
+            control.rtbSubs.MouseDoubleClick += new MouseEventHandler       (Display_MouseClickDbl);
+            control.rtbSubs.ContentsResized += new ContentsResizedEventHandler (RtbSubsContentsResized);
+            control.rtbSubs.Enter           += new EventHandler             (RtbSubsEnter);
         }
 
         // Screens
@@ -246,17 +257,21 @@ namespace PartyTime.UI_Example
             if (IsIdle()) GoIdle();
 
             // Update Subtitles Show / Hide
-            if (DateTime.UtcNow.Ticks - subStart < subDur * 10000)
+            if (player.CurTime >= subStart && player.CurTime - subStart < subDur * 10000)
             {
-                control.lblSubs.Text = subText;
-                control.lblSubs.Location = new Point((control.Width / 2) - (control.lblSubs.Width / 2), control.Height - (control.lblSubs.Height + 30));
-            }
-            else
-                control.lblSubs.Text = "";
+                if ( SubsNew ) { SubsNew = false; ASSToRichText(control.rtbSubs, subText); }
+
+                if ( IsIdle() )
+                    control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 50));
+                else
+                    control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 80));
+
+            } 
+            else 
+                control.rtbSubs.Text = "";               
 
             // Update SeekBar Value = Cur Time
             if (seekClockTime == -1) control.seekBar.Value = (int)(player.CurTime / 10000000);
-
 
             // Update Info Text [Adjustments]
             if (seekClockTime == -1)
@@ -376,6 +391,61 @@ namespace PartyTime.UI_Example
             if (!btnBar.Visible)                btnBar.Visible              = true;
             display.Focus();
         }
+        private void ASSToRichText(RichTextBox rtb, string text)
+        {
+            rtb.Text = "";
+
+            bool bold = false;
+            bool italic = false;
+            bool changed = false;
+            string cur = "";
+            FontStyle fontStyle = FontStyle.Regular;
+
+            for (int i=0; i<text.Length; i++)
+            {
+
+                if ( changed )
+                {
+                    if ( !bold && !italic ) fontStyle = FontStyle.Regular;
+                    else
+                    if (  bold &&  italic ) fontStyle = FontStyle.Bold | FontStyle.Italic;
+                    else
+                    if (  bold && !italic ) fontStyle = FontStyle.Bold;
+                    else
+                    if ( !bold &&  italic ) 
+                        fontStyle = FontStyle.Italic;
+
+                    rtb.AppendText(cur);
+
+                    cur = "";
+                    changed = false;
+                    rtb.SelectionFont = new Font(rtb.Font, fontStyle); 
+                }
+
+                if ( text.Length > i + 4 && text[i] == '{' &&  text[i+1] == '\\')
+                {
+                    if      ( text[i+2] == 'i' && (text[i+3] == '0' || text[i+3] == '1') && text[i+4] == '}' )
+                    {
+                        italic = text[i+3] == '1' ? true : false;
+                        changed = true;
+                        i += 4;
+                    } 
+                    else if ( text[i+2] == 'b' && (text[i+3] == '0' || text[i+3] == '1') && text[i+4] == '}' )
+                    {
+                        bold = text[i+3] == '1' ? true : false;
+                        changed = true;
+                        i += 4;
+                    }
+                }
+
+                if ( !changed ) cur += text[i];
+
+            }
+
+            rtb.AppendText(cur);
+            rtb.SelectAll();
+            rtb.SelectionAlignment = HorizontalAlignment.Center;
+        }
 
         // UI Callbacks
         private void VideoFrameClbk(byte[] frameData, long timestamp, long screamDistanceTicks)
@@ -391,8 +461,9 @@ namespace PartyTime.UI_Example
             {
                 // Lazy ASS -> TXT
                 subText     = text.Substring(text.LastIndexOf(",,") + 2).Replace("\\N", "\n").Trim();
-                subStart    = DateTime.UtcNow.Ticks;
+                subStart    = player.CurTime;
                 subDur      = duration;
+                SubsNew     = true;
             }
             catch (Exception e)
             {
@@ -924,6 +995,10 @@ namespace PartyTime.UI_Example
           
         }
         private void VolBar_MouseUp(object sender, MouseEventArgs e) { display.Focus(); }
+
+        // UI Events [CONTROL RTBSUBS]
+        private void RtbSubsContentsResized(object sender, ContentsResizedEventArgs e)  { control.rtbSubs.ClientSize = new Size(control.rtbSubs.ClientSize.Width, e.NewRectangle.Height); }
+        private void RtbSubsEnter(object sender, EventArgs e) { control.seekBar.Focus(); }
 
         // Full Screen / Aspect Ratio
         private void FullScreenToggle() { if (graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) NormalScreen(); else FullScreen(); }
