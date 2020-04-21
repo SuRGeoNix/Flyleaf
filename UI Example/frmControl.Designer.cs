@@ -33,6 +33,7 @@ namespace PartyTime.UI_Example
             this.lblSubs = new System.Windows.Forms.Label();
             this.lblInfoText = new System.Windows.Forms.Label();
             this.volBar = new ColorSlider.ColorSlider();
+            this.rtbSubs = new System.Windows.Forms.RichTextBox();
             this.SuspendLayout();
             // 
             // seekBar
@@ -78,6 +79,7 @@ namespace PartyTime.UI_Example
             this.lblSubs.TabIndex = 5;
             this.lblSubs.Text = "Subtitles Label\r\nMore than one Lines Aligned";
             this.lblSubs.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.lblSubs.Visible = false;
             // 
             // lblInfoText
             // 
@@ -125,12 +127,32 @@ namespace PartyTime.UI_Example
             this.volBar.TickStyle = System.Windows.Forms.TickStyle.None;
             this.volBar.Value = 50;
             // 
+            // rtbSubs
+            // 
+            this.rtbSubs.BackColor = System.Drawing.Color.Black;
+            this.rtbSubs.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.rtbSubs.CausesValidation = false;
+            this.rtbSubs.Cursor = System.Windows.Forms.Cursors.Default;
+            this.rtbSubs.DetectUrls = false;
+            this.rtbSubs.Font = new System.Drawing.Font("Arial", 21.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.rtbSubs.ForeColor = System.Drawing.Color.White;
+            this.rtbSubs.Location = new System.Drawing.Point(338, 406);
+            this.rtbSubs.Name = "rtbSubs";
+            this.rtbSubs.ReadOnly = true;
+            this.rtbSubs.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
+            this.rtbSubs.ShortcutsEnabled = false;
+            this.rtbSubs.Size = new System.Drawing.Size(611, 70);
+            this.rtbSubs.TabIndex = 9;
+            this.rtbSubs.TabStop = false;
+            this.rtbSubs.Text = "Subtitles Label\nMore than one Lines Aligned";
+            // 
             // frmControl
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1231, 621);
+            this.Controls.Add(this.rtbSubs);
             this.Controls.Add(this.volBar);
             this.Controls.Add(this.lblInfoText);
             this.Controls.Add(this.lblSubs);
@@ -151,5 +173,6 @@ namespace PartyTime.UI_Example
         public System.Windows.Forms.Label lblSubs;
         public System.Windows.Forms.Label lblInfoText;
         public ColorSlider.ColorSlider volBar;
+        public System.Windows.Forms.RichTextBox rtbSubs;
     }
 }
