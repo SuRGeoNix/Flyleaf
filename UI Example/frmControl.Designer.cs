@@ -134,7 +134,7 @@ namespace PartyTime.UI_Example
             this.rtbSubs.CausesValidation = false;
             this.rtbSubs.Cursor = System.Windows.Forms.Cursors.Default;
             this.rtbSubs.DetectUrls = false;
-            this.rtbSubs.Font = new System.Drawing.Font("Arial", 21.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.rtbSubs.Font = new System.Drawing.Font("Arial", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
             this.rtbSubs.ForeColor = System.Drawing.Color.White;
             this.rtbSubs.Location = new System.Drawing.Point(338, 406);
             this.rtbSubs.Name = "rtbSubs";

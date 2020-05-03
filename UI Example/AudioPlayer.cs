@@ -21,7 +21,7 @@ namespace PartyTime.UI_Example
         // Constructors
         public AudioPlayer()
         {
-            format = new WaveFormat(_RATE, _BITS, _CHANNELS);
+            format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
             player = new WaveOut();
             deviceEnum.RegisterEndpointNotificationCallback(this);
 
