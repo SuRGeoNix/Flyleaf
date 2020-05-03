@@ -30,7 +30,6 @@ namespace PartyTime.UI_Example
         Button                  btnBar;
 
         Thread                  openSilently;
-        delegate void           RefereshUIDelegate();
 
         Size                    displayLastSize;
         Point                   displayLastPos;
@@ -165,6 +164,7 @@ namespace PartyTime.UI_Example
             control.lblInfoText.BackColor       = System.Drawing.Color.FromArgb(0x26,0x28,0x2b);
 
             control.rtbSubs.BackColor           = TRANSPARENCY_KEY_COLOR;
+            control.rtbSubs.SendToBack();
         }
         private void SubscribeEvents()
         {
