@@ -23,6 +23,7 @@ namespace PartyTime
         int  audioBytesPerSecond= 0;
 
         long subsExternalDelay  = 0;
+        bool forceAudioSync     = false;
 
         // Queues
         Queue<MediaFrame>       aFrames;
@@ -74,9 +75,10 @@ namespace PartyTime
                 audioExternalDelay = value;
                 if (!decoder.isReady || !isReady || !isPlaying) return;
 
-                if (CurTime + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || CurTime + audioExternalDelay > decoder.aStreamInfo.durationTicks) return;
+                if (CurTime + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || CurTime + audioExternalDelay > decoder.aStreamInfo.durationTicks)
+                    return;
                 else
-                    ResynchAudio(CurTime - audioExternalDelay);
+                    forceAudioSync = true;
             }
         }
         public long SubsExternalDelay
@@ -162,7 +164,7 @@ namespace PartyTime
                 {
                     Thread.Sleep(sleepMs);
                     escapeInfinity++;
-                    if (escapeInfinity > 30 && mType != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE || escapeInfinity > 100)
+                    if (escapeInfinity > 200 && mType != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE || escapeInfinity > 200)
                     {
                         Log($"[ERROR EI1] {mType} Frames Queue is full ... [{curQueue.Count}/{curMaxSize}]"); decoder.Stop();
                         return;
@@ -175,19 +177,22 @@ namespace PartyTime
             }
             if (!mTypeIsRunning) return;
 
-            // FILL QUEUE
-            switch (mType)
+            // FILL QUEUE | Queue possible not thread-safe
+            try
             {
-                case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO:
-                    lock (aFrames) curQueue.Enqueue(frame);
-                    break;
-                case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO:
-                    lock (vFrames) curQueue.Enqueue(frame);
-                    break;
-                case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                    lock (sFrames) curQueue.Enqueue(frame);
-                    break;
-            }
+                switch (mType)
+                {
+                    case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO:
+                        lock (aFrames) curQueue.Enqueue(frame);
+                        break;
+                    case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO:
+                        lock (vFrames) curQueue.Enqueue(frame);
+                        break;
+                    case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE:
+                        lock (sFrames) curQueue.Enqueue(frame);
+                        break;
+                }
+            } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Func: GetFrame(), Msg: " + e.StackTrace); }
         }
         private void Screamer()
         {
@@ -199,11 +204,6 @@ namespace PartyTime
 
                 MediaFrame vFrame;
 
-                // Debugging
-                int fpscount    = 1;
-                int dropFrames  = 0;
-                int lagFrames   = 0;
-
                 // Video 
                 lock(vFrames) vFrame = vFrames.Dequeue();
                 long delayTicks      = vFrame.timestamp;
@@ -212,12 +212,15 @@ namespace PartyTime
                 if (hasSubs) ResynchSubs(vFrame.timestamp - subsExternalDelay, true);
 
                 // Audio
-                audioFlowTicks = DateTime.UtcNow.Ticks;
-                long audioDelayTicks = delayTicks;
+                long audioDelayTicks    = delayTicks;
+                bool audioSyncPerformed = false;
+                audioFlowTicks          = DateTime.UtcNow.Ticks;
+                audioLastSyncTicks      = 0;
+
                 if (decoder.hasAudio)
                     if (vFrame.timestamp + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || vFrame.timestamp + audioExternalDelay > decoder.aStreamInfo.durationTicks) 
                         audioDelayTicks = -10000000; // Force Resync Later (Audio Paused)
-                    else ResynchAudio(vFrame.timestamp - audioExternalDelay, true);
+                    else ResynchAudio(vFrame.timestamp - audioExternalDelay);
                     
                 // Timing
                 long curTicks;
@@ -231,53 +234,19 @@ namespace PartyTime
                 nowTicks    = DateTime.UtcNow.Ticks;
                 startTicks  = nowTicks;
 
-                //long lastTicks = 0;
-                //long tmp = 0;
-
                 // Video Frames [Callback]
                 CurTime = vFrame.timestamp;
                 VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, 0, null, null);
 
-                while (isPlaying)
+                while ( isPlaying )
                 {
                     if (vFrames.Count < 1 && (decoder == null || !decoder.isRunning)) break;
-                    if (vFrames.Count < 1) { Log(DateTime.UtcNow.Ticks + " [WAITING DECODER ...] " + vFrames.Count + " / " + VIDEO_MIX_QUEUE_SIZE); Thread.Sleep((int)(decoder.vStreamInfo.frameAvgTicks/10000) / 4); continue; }
+                    if (vFrames.Count < 1) { Log("[WAITING DECODER ...] " + vFrames.Count + " / " + VIDEO_MIX_QUEUE_SIZE); Thread.Sleep((int)(decoder.vStreamInfo.frameAvgTicks/10000) / 4); continue; }
 
                     nowTicks                = DateTime.UtcNow.Ticks;
                     lock (vFrames) vFrame   = vFrames.Peek();
                     curTicks                = (nowTicks - startTicks) + delayTicks;
                     distanceTicks           = vFrame.timestamp - curTicks;
-
-                    // FPS DEBUGGING (FPS Calculation)
-                    //if (nowTicks - lastTicks >= 10000 * 1000 - (10000 * 10))
-                    //{
-                    //    Log("[" + (new TimeSpan(vFrame.timestamp)).ToString(@"hh\:mm\:ss") + "/" + (new TimeSpan(decoder.vStreamInfo.durationTicks)).ToString(@"hh\:mm\:ss") + "]\t" +
-                    //         "[SEC] \t" + ((nowTicks - lastTicks) / 10000).ToString() + "\t" +
-                    //         "[FRAME]\t" + vFrame.pts + "\t" +
-                    //         //"[FTIME]\t" + (long)(vFrame.timestamp * videoTimeBaseTicks) + "\t" +
-                    //         "[QUEUE]\t" + vFrames.Count + "/" + VIDEO_MAX_QUEUE_SIZE + "\t" +
-                    //         "[DROP]\t" + dropFrames + "\t" +
-                    //         "[LAGS]\t" + lagFrames + "\t" +
-                    //         "[FPS]\t" + fpscount
-                    //         );
-
-                    //    lastTicks = nowTicks;
-                    //    fpscount = 0;
-                    //    tmp++;
-                    //    if (tmp > 0 && tmp % 5 == 0) {
-                    //        int ms = 5000;
-
-                    //        vFrames = new Queue<MediaFrame>();
-
-                    //        //if (curPos) { ms += (int)(CurTime / 10000); CurTime += ms * 10000; }
-                    //        CurTime = ms * 10000;
-                    //        if (hasVideo) decoder.SeekAccurate(ms, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
-                    //        decoder.RunVideo();
-
-                    //        tmp = -100000; }
-                    //    //if (tmp > 0 && tmp % 10 == 0) Thread.Sleep(1000);
-                    //    //if (tmp > 0) distanceTicks = 5 * 1000 * 10000;
-                    //}
 
                     // ******************* [WAITING] *******************
                     if (distanceTicks > onTimeTicks && distanceTicks < offTimeTicks)
@@ -285,66 +254,91 @@ namespace PartyTime
                         sleepMs = (int)(distanceTicks / 10000) - 2;
                         if (sleepMs > 1) Thread.Sleep(sleepMs);
                     }
-                    else if (Math.Abs(distanceTicks) < onTimeTicks)
+
                     // ******************* [ON TIME] *******************
+                    else if (Math.Abs(distanceTicks) < onTimeTicks)
                     {
-                        //Log("[OnTime]\t\tCurTime: " + curTicks / 10000 + ", Distance: " + distanceTicks / 10000 + ", Frame-> " + vFrame.pts + ", FrameTime: " + vFrame.timestamp / 10000);
-
-                        //Log(
-                        //    "CurTicks: " + curTicks / 10000 +
-                        //    "\t\tdelayTicks: " + delayTicks / 10000 +
-                        //    //"\t\tFirstTS: " + aFirstTimestamp / 10000 +
-                        //    "\t\tcurPos A: " + audioDelayTicks / 10000 +
-                        //    "\t\tFinally A: " + (audioDelayTicks - delayTicks) / 10000
-                        //    //"\t\tcurPos B: " + (nowTicks - aStartTicks) / 10000 +
-                        //    //"\t\tFinally B: " + (curTicks - ((nowTicks - aStartTicks) + delayTicks)) / 10000
-                        //    );
-
                         // Video Frames         [Callback]
                         lock (vFrames) vFrame = vFrames.Dequeue();
                         CurTime = vFrame.timestamp;
                         VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, distanceTicks, null, null);
 
-                        // Audio
+                        // Subtitiles Frames    [Callback]
+                        if (decoder.hasSubs) SendSubFrame();
+
+                        // Audio Frames         [Internal Resync | External Resync | Callback]
                         if (decoder.hasAudio)
                         {
-                            // Audio Sync
-                            if (Math.Abs((audioDelayTicks - delayTicks) / 10000) > 220)
+                            audioSyncPerformed = false; // Only in one frame distance its allowed to correct the distance
+
+                            // Audio Sync (Currently will force Re-sync if is out from vFrames 100 ms)
+                            if (Math.Abs((audioDelayTicks - delayTicks) / 10000) > 100)
                             {
                                 if (curTicks + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || curTicks + audioExternalDelay > decoder.aStreamInfo.durationTicks)
-                                    audioDelayTicks = -10000000; // Force Resync Later (Audio Paused)
-                                else if (ResynchAudio(curTicks - audioExternalDelay)) audioDelayTicks = delayTicks;
+                                {
+                                    audioDelayTicks = -10000000;    // Force Resync Later (Audio Paused)
+                                }
+                                else if ( ResynchAudio((vFrame.timestamp + decoder.vStreamInfo.frameAvgTicks) - audioExternalDelay) )
+                                {
+                                    audioSyncPerformed = true;
+                                    audioDelayTicks = delayTicks;
+                                }
+                            }
+
+                            // External Audio Sync
+                            else if ( forceAudioSync && ResynchAudio((vFrame.timestamp + decoder.vStreamInfo.frameAvgTicks) - audioExternalDelay) )
+                            {
+                                forceAudioSync = false;
+                                audioSyncPerformed = true;
+                                audioDelayTicks = delayTicks;
                             }
 
                             // Audio Frames     [Callback]
-                            if ( aFrames.Count > 0) SendAudioFrames();
+                            else if ( aFrames.Count > 0) 
+                            {
+                                SendAudioFrames();
+                            }
                         }
-
-                        // Subtitiles Frames    [Callback]
-                        if (decoder.hasSubs) SendSubFrame();
-                        
-                        fpscount++;
                     }
+
                     // ******************* [OFF TIME - FOREWARDS] *******************
                     else if (distanceTicks > offTimeTicks)
                     {
                         Log("[OffTime > 0]\t\tCurTime: " + curTicks / 10000 + ", Distance: " + distanceTicks / 10000 + ", Frame-> " + vFrame.pts + ", FrameTime: " + vFrame.timestamp / 10000);
-                        lagFrames   ++;
-                        delayTicks  += distanceTicks;
+
+                        delayTicks += distanceTicks;
                         lock (vFrames) vFrame = vFrames.Dequeue();
                         VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, 0, null, null);
                     }
+
                     // ******************* [OFF TIME - BACKWARDS] *******************
                     else if (distanceTicks < onTimeTicks)
                     {
-                        Log("[OffTime < 0]\t\tCurTime: " + curTicks / 10000 + ", Distance: " + distanceTicks / 10000 + ", Frame-> " + vFrame.pts + ", FrameTime: " + vFrame.timestamp / 10000);
-                        lagFrames   ++;
-                        dropFrames  ++;
-                        delayTicks  += distanceTicks;
-                        lock (vFrames) vFrame = vFrames.Dequeue();
+                        // Expected Delay From Audio Resync [Scream the Video Frame that has the same timestamp with the new Synced Audio Frame]
+                        if ( audioSyncPerformed )
+                        {
+                            Log("[OffTime < 0]\t\tCurTime: " + curTicks / 10000 + ", Distance: " + distanceTicks / 10000 + ", Frame-> " + vFrame.pts + ", FrameTime: " + vFrame.timestamp / 10000 + " Resynced Audio");
+
+                            audioSyncPerformed = false;
+                            delayTicks  += distanceTicks;
+                            audioDelayTicks = delayTicks;
+
+                            lock (vFrames) vFrame = vFrames.Dequeue();
+                            CurTime = vFrame.timestamp;
+                            VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, distanceTicks, null, null);
+                        }
+
+                        // Off Time | Drop Frame
+                        else
+                        {
+                            Log("[OffTime < 0]\t\tCurTime: " + curTicks / 10000 + ", Distance: " + distanceTicks / 10000 + ", Frame-> " + vFrame.pts + ", FrameTime: " + vFrame.timestamp / 10000);
+
+                            delayTicks += distanceTicks;
+                            lock (vFrames) vFrame = vFrames.Dequeue();
+                        }
                     }
 
-                }
+                } // While
 
             } catch (ThreadAbortException) {
             } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Func: Screamer(), Msg: " + e.StackTrace); }
@@ -360,13 +354,12 @@ namespace PartyTime
             
             lock (aFrames)
             {
-                int count = 0;
-                while (aFrames.Count > 0 && isPlaying && decoder.isRunning) //(limit < 1 || count < limit))
+                while (aFrames.Count > 0 && isPlaying && decoder.isRunning)
                 {
                     MediaFrame aFrame = aFrames.Dequeue();
+                    if ( aFrame.data == null ) continue; // Queue possible not thread-safe
                     AudioFrameClbk(aFrame.data, 0, aFrame.data.Length);
                     audioFlowBytes += aFrame.data.Length;
-                    count++;
 
                     // Check on every frame that we send to ensure the buffer will not be full
                     curRate = audioFlowBytes / ((DateTime.UtcNow.Ticks - audioFlowTicks) / 10000000.0);
@@ -374,22 +367,22 @@ namespace PartyTime
                 }
             }
         }
-        private bool ResynchAudio(long syncTimestamp, bool force = false)
+        private bool ResynchAudio(long syncTimestamp)
         {
-            // Give it 1 Second
-            if (DateTime.UtcNow.Ticks - audioLastSyncTicks < 10000000 && !force) return false;
+            // Let Video Frames to Ensure New Position (Give It A Half Second for Retrying)
+            if (DateTime.UtcNow.Ticks - audioLastSyncTicks < 5000000) return false;
             audioLastSyncTicks = DateTime.UtcNow.Ticks;
 
             lock (aFrames)
             {
                 Log("[AUDIO] Resynch Request to -> " + syncTimestamp / 10000);
 
-                // Initialize Audio Player / Clear Audio Frames
-                AudioResetClbk.BeginInvoke(null, null);
+                // Clear Audio Player's Buffer & Wait For It
+                AudioResetClbk.Invoke();
                 aFrames = new Queue<MediaFrame>();
 
                 // Seek Audio Decoder (syncTimestamp - 2 Audio Frames) to ensure audioFirstTimeStamp < syncTimestamp (-50ms to make sure will get a previous Frame within QueueSize)
-                decoder.SeekAccurate((int)((syncTimestamp / 10000) - 50), FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO);
+                decoder.SeekAccurate((int) ((syncTimestamp / 10000) - 50), FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO);
                 decoder.RunAudio();
 
                 // Fill Audio Frames
@@ -414,13 +407,14 @@ namespace PartyTime
                     return false;
                 }
 
-                // Find Closest Audio Timestamp and Cut It precise
+                // Find Closest Audio Timestamp | Cut It in Pieces (Possible not required but whatever)
                 while (aFrame.timestamp <= syncTimestamp && isPlaying)
                 {
                     if (aFrames.Count < 2) return false;
                     aFramePrev = aFrames.Dequeue();
                     aFrame = aFrames.Peek();
                 }
+
                 if (!isPlaying) return false;
 
                 int removeBytes = (int)Math.Round((syncTimestamp - aFramePrev.timestamp) / ((1.0 / audioBytesPerSecond) * 10000 * 1000));
@@ -430,6 +424,15 @@ namespace PartyTime
                 AudioFrameClbk(aFramePrev.data, removeBytes, aFramePrev.data.Length - removeBytes);
                 audioFlowTicks = DateTime.UtcNow.Ticks;
                 audioFlowBytes = 0;
+                
+                // Fill the empty buffer with Size of Min Queue + Whatever the curRate allows
+                int count = 0;
+                while (aFrames.Count > 0 && isPlaying && decoder.isRunning && count < AUDIO_MIX_QUEUE_SIZE - 1)
+                {
+                    aFrame = aFrames.Dequeue();
+                    AudioFrameClbk(aFrame.data, 0, aFrame.data.Length);
+                    count++;
+                }
                 SendAudioFrames();
 
                 Log("[AUDIO] Resynch Successfully to -> " + aFramePrev.timestamp / 10000 + " ++");
@@ -550,7 +553,6 @@ namespace PartyTime
             if (!decoder.isReady || decoder.isRunning || isPlaying) return -1;
 
             if ((ret = decoder.RunVideo()) != 0) return ret;
-            //decoder.RunSubs();
 
             status = Status.PLAYING;
 
