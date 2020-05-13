@@ -67,7 +67,7 @@ namespace PartyTime.UI_Example
         const int RESIZE_CURSOR_DISTANCE            =    6;
         const int IDLE_TIME_MS                      = 7000; // Hide Cursor / Clock etc..
         const int INFO_TIME_MS                      = 2000; // Show Audio/Subs/Volume Adjustments Info
-        const int NAUDIO_DELAY_MS                   = -330; // Probably waits to fill it's buffer? had to use this for sync https://www.youtube.com/watch?v=ucZl6vQ_8Uo
+        const int NAUDIO_DELAY_MS                   =  -80; // Not sure if we still need this, just sounds more accurate with -80 ms
 
         System.Drawing.Color TRANSPARENCY_KEY_COLOR = System.Drawing.Color.FromArgb(1,1,1); // Form Control Transparency
 
@@ -963,6 +963,7 @@ namespace PartyTime.UI_Example
 
             UpdateSeekClockTime((long)(lastSeekBarMLDown) * 10000000);
             control.seekBar.Value   =  lastSeekBarMLDown;
+            if ( player.hasAudio) audioPlayer.ResetClbk(); // Clear Buffer For Silence During Seeking
             player.Seek(lastSeekBarMLDown * 1000, false);
             seekClockTime           =  -1;
             display.Focus();
