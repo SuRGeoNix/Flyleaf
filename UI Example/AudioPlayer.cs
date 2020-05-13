@@ -97,13 +97,7 @@ namespace PartyTime.UI_Example
         }
         public void ResetClbk()
         {
-            lock (player)
-            {
-                PlaybackState oldState = player.PlaybackState;
-                Initialize();
-                //buffer.ClearBuffer();
-                if (oldState == PlaybackState.Playing) player.Play();
-            }
+            lock (player) buffer.ClearBuffer();
         }
 
         // Audio Devices Events
