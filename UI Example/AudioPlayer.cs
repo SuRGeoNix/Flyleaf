@@ -12,19 +12,21 @@ namespace PartyTime.UI_Example
         BufferedWaveProvider buffer;
 
         MMDeviceEnumerator deviceEnum = new MMDeviceEnumerator();
+        MediaRouter mediaRouterHndle;
 
         // Audio Output Configuration
-        int _BITS = 16; int _CHANNELS = 1; int _RATE = 48000;
+        int _BITS = 16; int _CHANNELS = 2; int _RATE = 48000;
 
         public int Volume { get { return (int) (player.Volume * 100); } set { player.Volume = (float)(value / 100.0);} }
 
         // Constructors
-        public AudioPlayer()
+        public AudioPlayer(MediaRouter mediaRouterHndle)
         {
             format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
             player = new WaveOut();
             deviceEnum.RegisterEndpointNotificationCallback(this);
 
+            this.mediaRouterHndle = mediaRouterHndle;
             Initialize();
         }
         public void Initialize()
@@ -34,7 +36,7 @@ namespace PartyTime.UI_Example
                 player = new WaveOut();
                 player.DeviceNumber = 0;
                 buffer = new BufferedWaveProvider(format);
-                buffer.BufferLength = 500 * 1024;
+                buffer.BufferLength = 1500 * 1024;
                 player.Init(buffer);
             }
         }
@@ -95,13 +97,20 @@ namespace PartyTime.UI_Example
             }
             
         }
-        public void ResetClbk()
-        {
-            lock (player) buffer.ClearBuffer();
-        }
+        public void ResetClbk() { lock (player) buffer.ClearBuffer(); }
 
         // Audio Devices Events
-        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) { ResetClbk(); }
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) 
+        {
+            lock( player )
+            {
+                // Reset NAudio to get the new default deivce & Force Audio Resync
+                buffer.ClearBuffer();
+                Initialize();
+                player.Play(); 
+                mediaRouterHndle.AudioExternalDelay = mediaRouterHndle.AudioExternalDelay;
+            } 
+        }
         public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
         public void OnDeviceStateChanged(string deviceId, DeviceState newState) { }
         public void OnDeviceAdded(string pwstrDeviceId) { }

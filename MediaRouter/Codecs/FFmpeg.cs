@@ -19,7 +19,7 @@ namespace PartyTime.Codecs
     unsafe public class FFmpeg
     {
         // Audio Output Parameters [ BITS | CHANNELS | RATE ]
-        AVSampleFormat _SAMPLE_FORMAT   = AVSampleFormat.AV_SAMPLE_FMT_S16; int _CHANNELS = 1; int _RATE = 48000;
+        AVSampleFormat _SAMPLE_FORMAT   = AVSampleFormat.AV_SAMPLE_FMT_S16; int _CHANNELS = 2; int _RATE = 48000;
 
         // Video Output Parameters
         AVPixelFormat _PIXEL_FORMAT     = AVPixelFormat.AV_PIX_FMT_RGBA;
@@ -276,18 +276,18 @@ namespace PartyTime.Codecs
             aStreamInfo.durationTicks               = (aStream->duration > 0) ? (long)(aStream->duration * aStreamInfo.timebaseLowTicks) : aFmtCtx->duration * 10;
             aStreamInfo.frameSize                   = aCodecCtx->frame_size;
 
-            aCodecCtx->request_sample_fmt           = _SAMPLE_FORMAT;
-            aCodecCtx->request_channel_layout       = (ulong)ffmpeg.av_get_default_channel_layout(_CHANNELS);
-
             swrCtx = ffmpeg.swr_alloc();
+
             ffmpeg.av_opt_set_int(swrCtx,           "in_channel_layout",   (int)aCodecCtx->channel_layout, 0);
             ffmpeg.av_opt_set_int(swrCtx,           "in_channel_count",         aCodecCtx->channels, 0);
             ffmpeg.av_opt_set_int(swrCtx,           "in_sample_rate",           aCodecCtx->sample_rate, 0);
+            ffmpeg.av_opt_set_sample_fmt(swrCtx,    "in_sample_fmt",            aCodecCtx->sample_fmt, 0);
+
             ffmpeg.av_opt_set_int(swrCtx,           "out_channel_layout",       ffmpeg.av_get_default_channel_layout(_CHANNELS), 0);
             ffmpeg.av_opt_set_int(swrCtx,           "out_channel_count",        _CHANNELS, 0);
             ffmpeg.av_opt_set_int(swrCtx,           "out_sample_rate",          _RATE, 0);
-            ffmpeg.av_opt_set_sample_fmt(swrCtx,    "in_sample_fmt",            aCodecCtx->sample_fmt, 0);
             ffmpeg.av_opt_set_sample_fmt(swrCtx,    "out_sample_fmt",           _SAMPLE_FORMAT, 0);
+
             ret = ffmpeg.swr_init(swrCtx);
             
             if (ret != 0) Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret));
@@ -520,7 +520,8 @@ namespace PartyTime.Codecs
 
             try
             {
-                byte[] buffer = new byte[frame->sample_rate * 2];
+                var bufferSize  = ffmpeg.av_samples_get_buffer_size(null, _CHANNELS, frame->nb_samples, _SAMPLE_FORMAT, 1);
+                byte[] buffer   = new byte[bufferSize];
 
                 fixed (byte** buffers = new byte*[8])
                 {
@@ -528,11 +529,10 @@ namespace PartyTime.Codecs
                     {
                         // Convert
                         buffers[0]          = bufferPtr;
-                        int samplesCount    = ffmpeg.swr_convert(swrCtx, buffers, aCodecCtx->sample_rate, (byte**)&frame->data, frame->nb_samples);
-                        var bufferSize      = ffmpeg.av_samples_get_buffer_size(null, _CHANNELS, samplesCount, _SAMPLE_FORMAT, 1);
+                        ffmpeg.swr_convert(swrCtx, buffers, frame->nb_samples, (byte**)&frame->data, frame->nb_samples);
 
                         // Send Frame
-                        if (samplesCount > 0)
+                        if (frame->nb_samples > 0)
                         {
                             MediaFrame mFrame   = new MediaFrame();
                             mFrame.data         = new byte[bufferSize]; Buffer.BlockCopy(buffer, 0, mFrame.data, 0, bufferSize);
