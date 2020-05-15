@@ -14,7 +14,7 @@ namespace PartyTime
         Thread                  screamer;
 
         // Audio Output Configuration
-        int _BITS = 16; int _CHANNELS = 1; int _RATE = 48000;
+        int _BITS = 16; int _CHANNELS = 2; int _RATE = 48000;
 
         long audioFlowTicks     = 0;
         long audioFlowBytes     = 0;
@@ -164,7 +164,7 @@ namespace PartyTime
                 {
                     Thread.Sleep(sleepMs);
                     escapeInfinity++;
-                    if (escapeInfinity > 200 && mType != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE || escapeInfinity > 200)
+                    if (escapeInfinity > 150 /*&& mType != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE || escapeInfinity > 100*/)
                     {
                         Log($"[ERROR EI1] {mType} Frames Queue is full ... [{curQueue.Count}/{curMaxSize}]"); decoder.Stop();
                         return;
@@ -364,6 +364,7 @@ namespace PartyTime
                     // Check on every frame that we send to ensure the buffer will not be full
                     curRate = audioFlowBytes / ((DateTime.UtcNow.Ticks - audioFlowTicks) / 10000000.0);
                     if (curRate > audioBytesPerSecond) return;
+                    // For Auio Resync Completeness -> We need to keep track of the last allowed sample left and compare it with the next last (in case of NAudio delay while playing for any reason) - add the possible delay to audioDelayTicks
                 }
             }
         }
@@ -410,7 +411,11 @@ namespace PartyTime
                 // Find Closest Audio Timestamp | Cut It in Pieces (Possible not required but whatever)
                 while (aFrame.timestamp <= syncTimestamp && isPlaying)
                 {
-                    if (aFrames.Count < 2) return false;
+                    if (aFrames.Count < 2)
+                    {
+                        Log("[AUDIO] Failed to find syncTimestamp within the Queue Limits (" + ", audioTimestamp: " + aFrame.timestamp + ", syncTimestamp: " + syncTimestamp + ")");
+                        return false;
+                    }
                     aFramePrev = aFrames.Dequeue();
                     aFrame = aFrames.Peek();
                 }
@@ -450,7 +455,6 @@ namespace PartyTime
 
                 MediaFrame sFrame = sFrames.Peek();
                 if (Math.Abs((sFrame.timestamp + subsExternalDelay) - CurTime) < decoder.vStreamInfo.frameAvgTicks * 2)
-                //if (Math.Abs((sFrame.timestamp + (sFrame.duration * 10000) + subsExternalDelay) - CurTime) < decoder.vStreamInfo.frameAvgTicks * 2)
                 {
                     SubFrameClbk.BeginInvoke(sFrame.text, sFrame.duration, null, null);
                     sFrames.Dequeue();
