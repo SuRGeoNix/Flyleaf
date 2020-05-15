@@ -67,7 +67,7 @@ namespace PartyTime.UI_Example
         const int RESIZE_CURSOR_DISTANCE            =    6;
         const int IDLE_TIME_MS                      = 7000; // Hide Cursor / Clock etc..
         const int INFO_TIME_MS                      = 2000; // Show Audio/Subs/Volume Adjustments Info
-        const int NAUDIO_DELAY_MS                   =  -80; // Not sure if we still need this, just sounds more accurate with -80 ms
+        const int NAUDIO_DELAY_MS                   = -200; // Need to Review this... Possible the time that NAudio buffering the initial samples
 
         System.Drawing.Color TRANSPARENCY_KEY_COLOR = System.Drawing.Color.FromArgb(1,1,1); // Form Control Transparency
 
@@ -91,8 +91,8 @@ namespace PartyTime.UI_Example
         private void Initialize()
         {
             // Players
-            player                  = new MediaRouter(1);
-            audioPlayer             = new AudioPlayer();
+            player                  = new MediaRouter();
+            audioPlayer             = new AudioPlayer(player);
             player.VideoFrameClbk   = VideoFrameClbk;
             player.AudioFrameClbk   = audioPlayer.FrameClbk;
             player.AudioResetClbk   = audioPlayer.ResetClbk;
