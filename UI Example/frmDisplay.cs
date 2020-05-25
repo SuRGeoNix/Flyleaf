@@ -14,7 +14,7 @@ namespace PartyTime.UI_Example
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
         }
-        protected override void Initialize()                { base.Initialize(); }
+        protected override void Initialize()                { base.Initialize(); /*this.TargetElapsedTime = TimeSpan.FromSeconds(1.0f / 60.0f);*/ }
         protected override void LoadContent()
         {
             spriteBatch = new SpriteBatch(GraphicsDevice);
