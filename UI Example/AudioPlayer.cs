@@ -7,34 +7,33 @@ namespace PartyTime.UI_Example
 {
     class AudioPlayer : NAudio.CoreAudioApi.Interfaces.IMMNotificationClient
     {
-        WaveOut player;
-        WaveFormat format;
-        BufferedWaveProvider buffer;
+        WaveOut                 player;
+        WaveFormat              format;
+        BufferedWaveProvider    buffer;
 
-        MMDeviceEnumerator deviceEnum = new MMDeviceEnumerator();
-        MediaRouter mediaRouterHndle;
+        MMDeviceEnumerator      deviceEnum = new MMDeviceEnumerator();
+
+        private static readonly object  locker  = new object();
 
         // Audio Output Configuration
-        int _BITS = 16; int _CHANNELS = 2; int _RATE = 48000;
+        int _BITS = 16; int _CHANNELS = 2; 
+        public int _RATE = 48000; // Will be set from Input Format
 
         public int Volume { get { return (int) (player.Volume * 100); } set { player.Volume = (float)(value / 100.0);} }
 
         // Constructors
-        public AudioPlayer(MediaRouter mediaRouterHndle)
+        public AudioPlayer()
         {
-            format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
-            player = new WaveOut();
             deviceEnum.RegisterEndpointNotificationCallback(this);
-
-            this.mediaRouterHndle = mediaRouterHndle;
             Initialize();
         }
         public void Initialize()
         {
-            lock (player)
+            lock (locker)
             {
                 player = new WaveOut();
                 player.DeviceNumber = 0;
+                format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
                 buffer = new BufferedWaveProvider(format);
                 buffer.BufferLength = 1500 * 1024;
                 player.Init(buffer);
@@ -44,7 +43,7 @@ namespace PartyTime.UI_Example
         // Public Exposure
         public void Play()
         {
-            lock (player)
+            lock (locker)
             {
                 if (player.PlaybackState != PlaybackState.Paused) player.Stop();
                 player.Play();
@@ -52,11 +51,11 @@ namespace PartyTime.UI_Example
         }
         public void Pause()
         {
-            lock (player) player.Pause();
+            lock (locker) player.Pause();
         }
         public void Stop()
         {
-            lock (player)
+            lock (locker)
             {
                 player.Stop();
                 Initialize();
@@ -64,17 +63,13 @@ namespace PartyTime.UI_Example
         }
         public void VolUp(int v)
         {
-            lock (player)
-            {
+            lock (locker)
                 if ((player.Volume * 100) + v > 99) player.Volume = 1; else player.Volume += v / 100f;
-            }
         }
         public void VolDown(int v)
         {
-            lock (player)
-            {
+            lock (locker)
                 if ((player.Volume * 100) - v < 1) player.Volume = 0; else player.Volume -= v / 100f;
-            }
         }
         
         // Callbacks
@@ -82,33 +77,30 @@ namespace PartyTime.UI_Example
         {
             try
             {
-                if (this.buffer.BufferedBytes == 0) Log("[AUDIO] Buffer was empty");
-                if (count < format.BlockAlign) return;
+                if (this.buffer.BufferedBytes == 0) Log("[AUDIO] Buffer was empty ");
+                //Log($"[AUDIO PLAYER] [BufferedBytes: {this.buffer.BufferedBytes}]");
 
                 int fixBlock = 0;
                 while ((count - fixBlock) % format.BlockAlign != 0) fixBlock++;
-                if (count - fixBlock < 1) return;
 
                 this.buffer.AddSamples(buffer, offset + fixBlock, count - fixBlock);
-                //player.Play();
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 Log("[NAUDIO] " + e.Message + " " + e.StackTrace);
             }
             
         }
-        public void ResetClbk() { lock (player) buffer.ClearBuffer(); }
+        public void ResetClbk() { lock (locker) buffer.ClearBuffer(); }
 
         // Audio Devices Events
         public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) 
-        {
-            lock( player )
+        {   
+            Initialize();
+            lock(locker)
             {
-                // Reset NAudio to get the new default deivce & Force Audio Resync
                 buffer.ClearBuffer();
-                Initialize();
                 player.Play(); 
-                mediaRouterHndle.AudioExternalDelay = mediaRouterHndle.AudioExternalDelay;
             } 
         }
         public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }

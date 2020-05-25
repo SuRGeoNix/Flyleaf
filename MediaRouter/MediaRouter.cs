@@ -1,61 +1,80 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
 
 using static PartyTime.Codecs.FFmpeg;
+using System.Diagnostics;
+using System.Media;
+using System.IO;
 
 namespace PartyTime
 {
     public class MediaRouter
     {
+        #region Declaration
+
         Codecs.FFmpeg           decoder;
-        Thread                  screamer;
+        MediaStreamer           streamer;
+        
+        Thread                  screamer, aScreamer, vScreamer, sScreamer;
+        Thread                  openOrBuffer;
 
-        // Audio Output Configuration
-        int _BITS = 16; int _CHANNELS = 2; int _RATE = 48000;
+        Stopwatch               videoClock    = new Stopwatch();
+        long                    videoStartTicks    =-1;
 
-        long audioFlowTicks     = 0;
-        long audioFlowBytes     = 0;
-        long audioLastSyncTicks = 0;
-        long audioExternalDelay = 0;
-        int  audioBytesPerSecond= 0;
-
-        long subsExternalDelay  = 0;
-        bool forceAudioSync     = false;
+        public int              _RATE { get { if (decoder != null ) return decoder._RATE; else return -1; } }
+        long                    audioExternalDelay = 0;
+        long                    subsExternalDelay  = 0;
 
         // Queues
-        Queue<MediaFrame>       aFrames;
-        Queue<MediaFrame>       vFrames;
-        Queue<MediaFrame>       sFrames;
+        ConcurrentQueue<MediaFrame>       aFrames;
+        ConcurrentQueue<MediaFrame>       vFrames;
+        ConcurrentQueue<MediaFrame>       sFrames;
 
-        int AUDIO_MIX_QUEUE_SIZE = 40;  int AUDIO_MAX_QUEUE_SIZE = 140;
-        int VIDEO_MIX_QUEUE_SIZE =  3;  int VIDEO_MAX_QUEUE_SIZE =   4;
-        int  SUBS_MIN_QUEUE_SIZE =  3;  int  SUBS_MAX_QUEUE_SIZE = 200;
+        int AUDIO_MIX_QUEUE_SIZE = 50;  int AUDIO_MAX_QUEUE_SIZE =  60;
+        int VIDEO_MIX_QUEUE_SIZE =  2;  int VIDEO_MAX_QUEUE_SIZE =   3;
+        int  SUBS_MIN_QUEUE_SIZE =  5;  int  SUBS_MAX_QUEUE_SIZE =  10;
 
         // Status
         enum Status
         {
-            PLAYING = 1,
-            PAUSED  = 2,
-            SEEKING = 3,
-            STOPPED = 4
+            OPENING,
+            FAILED,
+            OPENED,
+            BUFFERING,
+            PLAYING,
+            PAUSED,
+            SEEKING,
+            STOPPED
         }
         Status status;
+        Status beforeSeeking = Status.STOPPED;
         
         // Callbacks
         public Action                       AudioResetClbk;
         public Action<byte[], int, int>     AudioFrameClbk;
         public Action<byte[], long, long>   VideoFrameClbk;
-        public Action<string, int>            SubFrameClbk;
-        
+        public Action<string, int>          SubFrameClbk;
+
+        public Action<bool>                 OpenTorrentSuccessClbk;
+        public Action<bool, string>         OpenStreamSuccessClbk;
+        public Action<bool>                 BufferSuccessClbk;
+        public Action<List<string>, List<long>> MediaFilesClbk;
+
+        private static readonly object  lockOpening  = new object();
+
         // Properties (Public)
         public bool isReady         { get; private set; }
         public bool isPlaying       { get { return (status == Status.PLAYING); } }
         public bool isPaused        { get { return (status == Status.PAUSED); } }
         public bool isSeeking       { get { return (status == Status.SEEKING); } }
         public bool isStopped       { get { return (status == Status.STOPPED); } }
+        public bool isFailed        { get { return (status == Status.FAILED); } }
+        public bool isOpened        { get { return (status == Status.OPENED); } }
+        public bool isTorrent       { get; private set; }
         public bool hasAudio        { get; private set; }
         public bool hasVideo        { get; private set; }
         public bool hasSubs         { get; private set; }
@@ -72,13 +91,12 @@ namespace PartyTime
 
             set
             {
+                if (!decoder.isReady || !isReady || !decoder.hasAudio) return;
+                //if (CurTime + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || CurTime + audioExternalDelay > decoder.aStreamInfo.durationTicks) return;
+             
                 audioExternalDelay = value;
-                if (!decoder.isReady || !isReady || !isPlaying) return;
-
-                if (CurTime + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || CurTime + audioExternalDelay > decoder.aStreamInfo.durationTicks)
-                    return;
-                else
-                    forceAudioSync = true;
+                streamer.AudioExternalDelay = (int) (value / 10000);
+                AudioResetClbk.Invoke();
             }
         }
         public long SubsExternalDelay
@@ -87,45 +105,79 @@ namespace PartyTime
 
             set
             {
-                subsExternalDelay = value;
-                if (!decoder.isReady || !isReady || !isPlaying) return;
+                if (!decoder.isReady || !isReady || !decoder.hasSubs) return;
+                //if (CurTime + subsExternalDelay < decoder.vStreamInfo.startTimeTicks || CurTime + subsExternalDelay > decoder.vStreamInfo.durationTicks) return;
 
-                if (CurTime + subsExternalDelay < decoder.vStreamInfo.startTimeTicks || CurTime + subsExternalDelay > decoder.vStreamInfo.durationTicks) return;
-                else
-                    ResynchSubs(CurTime - subsExternalDelay);
+                subsExternalDelay = value;
+                streamer.SubsExternalDelay = (int)(value / 10000);                
             }
         }
+
+        #endregion
 
         // Constructors
         public MediaRouter(int verbosity = 0)
         {
             this.verbosity = verbosity;
+            decoder     = new Codecs.FFmpeg(GetFrame, verbosity);
+            streamer    = new MediaStreamer(verbosity);
 
-            decoder = new Codecs.FFmpeg(GetFrame, verbosity);
-            audioBytesPerSecond =(int)( _RATE * (_BITS / 8.0) * _CHANNELS);
-
-            aFrames = new Queue<MediaFrame>();
-            vFrames = new Queue<MediaFrame>();
-            sFrames = new Queue<MediaFrame>();
+            aFrames     = new ConcurrentQueue<MediaFrame>();
+            vFrames     = new ConcurrentQueue<MediaFrame>();
+            sFrames     = new ConcurrentQueue<MediaFrame>();
 
             Initialize();
         }
         private void Initialize()
         {
-            if (screamer != null) screamer.Abort();
+            if (openOrBuffer!= null) openOrBuffer.Abort();
+            if (streamer    != null && isTorrent) streamer.Pause();
+            if (decoder     != null)   decoder.Pause();
+            if (screamer    != null)  screamer.Abort();
+            if (aScreamer   != null) aScreamer.Abort();
+            if (vScreamer   != null) vScreamer.Abort();
+            if (sScreamer   != null) sScreamer.Abort();
 
-            status = Status.STOPPED;
+            isReady = false;
+            status  = Status.STOPPED;
             decoder.HWAcceleration = HWAcceleration;
 
-            lock (aFrames) aFrames = new Queue<MediaFrame>();
-            vFrames = new Queue<MediaFrame>();
-            lock (sFrames) sFrames = new Queue<MediaFrame>();
+            lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
+            lock (vFrames) vFrames = new ConcurrentQueue<MediaFrame>();
+            lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
+
+            if (streamer != null)
+            {
+                streamer.MediaFilesClbk         = MediaFilesClbk;
+                streamer.BufferingDoneClbk      = BufferingDone;
+                streamer.BufferingAudioDoneClbk = BufferingAudioDone;
+                streamer.BufferingSubsDoneClbk  = BufferingSubsDone;
+                streamer.Stop();
+            }
+        }
+        private void InitializeEnv()
+        {
+            //audioBytesPerSecond = (int)(_RATE * (_BITS / 8.0) * _CHANNELS);
+
+            CurTime             = 0;
+            audioExternalDelay  = 0;
+            subsExternalDelay   = 0;
+
+            hasAudio            = decoder.hasAudio; 
+            hasVideo            = decoder.hasVideo; 
+            hasSubs             = decoder.hasSubs;
+
+            Width               = (hasVideo) ? decoder.vStreamInfo.width         : 0;
+            Height              = (hasVideo) ? decoder.vStreamInfo.height        : 0;
+            Duration            = (hasVideo) ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks;
+
+            isReady = true;
         }
 
         // Implementation
         private void GetFrame(MediaFrame frame, FFmpeg.AutoGen.AVMediaType mType)
         {
-            Queue<MediaFrame> curQueue = null;
+            ConcurrentQueue<MediaFrame> curQueue = null;
             int curMaxSize = 0;
             bool mTypeIsRunning = false;
 
@@ -164,7 +216,7 @@ namespace PartyTime
                 {
                     Thread.Sleep(sleepMs);
                     escapeInfinity++;
-                    if (escapeInfinity > 150 /*&& mType != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE || escapeInfinity > 100*/)
+                    if (escapeInfinity > 1000)
                     {
                         Log($"[ERROR EI1] {mType} Frames Queue is full ... [{curQueue.Count}/{curMaxSize}]"); decoder.Stop();
                         return;
@@ -175,7 +227,7 @@ namespace PartyTime
                     else if (mType == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE) mTypeIsRunning = decoder.isSubsRunning;
                 }
             }
-            if (!mTypeIsRunning) return;
+            if (!mTypeIsRunning && (mType != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO && status != Status.SEEKING) ) return;
 
             // FILL QUEUE | Queue possible not thread-safe
             try
@@ -194,430 +246,541 @@ namespace PartyTime
                 }
             } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Func: GetFrame(), Msg: " + e.StackTrace); }
         }
-        private void Screamer()
+
+        private void VideoScreamer()
         {
-            try { 
-                if (vFrames.Count < 1) return;
+            MediaFrame vFrame;
+            long distanceTicks;
+            long offDistanceMsBackwards = -7;
+            long offDistanceMsForewards = 5000;
+            int  offDistanceCounter     = 0;
+            int  distanceMs;
 
-                Log("[SCREAMER] " + status);
-                TimeBeginPeriod(1);
+            videoClock.Restart(); // CurTime Video Clock
 
-                MediaFrame vFrame;
+            Log($"[VIDEO SCREAMER] Started  -> {videoStartTicks/10000}");
 
-                // Video 
-                lock(vFrames) vFrame = vFrames.Dequeue();
-                long delayTicks      = vFrame.timestamp;
+            while (isPlaying)
+            {
+                if ( vFrames.Count < 1 )
+                { 
+                    if (decoder.isVideoFinish) { status = Status.STOPPED; return; }
 
-                // Subs
-                if (hasSubs) ResynchSubs(vFrame.timestamp - subsExternalDelay, true);
+                    Thread restart = new Thread(() => {
+                        Seek((int) (CurTime/10000));
+                    });
+                    restart.SetApartmentState(ApartmentState.STA);
+                    restart.Start();
+                    return;
+                }
 
-                // Audio
-                long audioDelayTicks    = delayTicks;
-                bool audioSyncPerformed = false;
-                audioFlowTicks          = DateTime.UtcNow.Ticks;
-                audioLastSyncTicks      = 0;
+                if ( offDistanceCounter > VIDEO_MAX_QUEUE_SIZE )
+                {
+                    Thread restart = new Thread(() => {
+                        Seek((int) (CurTime/10000));
+                    });
+                    restart.SetApartmentState(ApartmentState.STA);
+                    restart.Start();
+                    return;
+                }
 
-                if (decoder.hasAudio)
-                    if (vFrame.timestamp + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || vFrame.timestamp + audioExternalDelay > decoder.aStreamInfo.durationTicks) 
-                        audioDelayTicks = -10000000; // Force Resync Later (Audio Paused)
-                    else ResynchAudio(vFrame.timestamp - audioExternalDelay);
-                    
-                // Timing
-                long curTicks;
-                long nowTicks;
-                long startTicks;
-                long distanceTicks;
-                long onTimeTicks    = 3 * 10000;                                                     // -Y < [FRAME] < +Y ms            
-                long offTimeTicks   = (decoder.vStreamInfo.frameAvgTicks * 2) + (onTimeTicks * 2);   // 2 Frames Distance + Allowed //long offTimeDistanceTicks = (decoder.vStreamInfo.frameAvgTicks) + (onTimeDistanceTicks * 2);   // 1 Frames Distance + Allowed
-                int  sleepMs;
+                lock (vFrames) vFrames.TryDequeue(out vFrame);
 
-                nowTicks    = DateTime.UtcNow.Ticks;
-                startTicks  = nowTicks;
+                distanceTicks   = vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks);
+                distanceMs      = (int) (distanceTicks/10000);
 
-                // Video Frames [Callback]
+                if ( distanceMs < offDistanceMsBackwards || distanceMs > offDistanceMsForewards )
+                {
+                    Log($"[VIDEO SCREAMER] Frame Drop   [CurTS: {vFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {distanceMs}] [DiffTicks: {vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                    offDistanceCounter ++;
+                    continue;
+                }
+
+                if ( distanceMs > 1 ) Thread.Sleep(distanceMs);
+
+                // Video Frames         [Callback]
                 CurTime = vFrame.timestamp;
-                VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, 0, null, null);
+                Log($"[VIDEO SCREAMER] Frame Scream [CurTS: {vFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {(vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, distanceTicks, null, null);
+            }
 
-                while ( isPlaying )
-                {
-                    if (vFrames.Count < 1 && (decoder == null || !decoder.isRunning)) break;
-                    if (vFrames.Count < 1) { Log("[WAITING DECODER ...] " + vFrames.Count + " / " + VIDEO_MIX_QUEUE_SIZE); Thread.Sleep((int)(decoder.vStreamInfo.frameAvgTicks/10000) / 4); continue; }
-
-                    nowTicks                = DateTime.UtcNow.Ticks;
-                    lock (vFrames) vFrame   = vFrames.Peek();
-                    curTicks                = (nowTicks - startTicks) + delayTicks;
-                    distanceTicks           = vFrame.timestamp - curTicks;
-
-                    // ******************* [WAITING] *******************
-                    if (distanceTicks > onTimeTicks && distanceTicks < offTimeTicks)
-                    {
-                        sleepMs = (int)(distanceTicks / 10000) - 2;
-                        if (sleepMs > 1) Thread.Sleep(sleepMs);
-                    }
-
-                    // ******************* [ON TIME] *******************
-                    else if (Math.Abs(distanceTicks) < onTimeTicks)
-                    {
-                        // Video Frames         [Callback]
-                        lock (vFrames) vFrame = vFrames.Dequeue();
-                        CurTime = vFrame.timestamp;
-                        VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, distanceTicks, null, null);
-
-                        // Subtitiles Frames    [Callback]
-                        if (decoder.hasSubs) SendSubFrame();
-
-                        // Audio Frames         [Internal Resync | External Resync | Callback]
-                        if (decoder.hasAudio)
-                        {
-                            audioSyncPerformed = false; // Only in one frame distance its allowed to correct the distance
-
-                            // Audio Sync (Currently will force Re-sync if is out from vFrames 100 ms)
-                            if (Math.Abs((audioDelayTicks - delayTicks) / 10000) > 100)
-                            {
-                                if (curTicks + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || curTicks + audioExternalDelay > decoder.aStreamInfo.durationTicks)
-                                {
-                                    audioDelayTicks = -10000000;    // Force Resync Later (Audio Paused)
-                                }
-                                else if ( ResynchAudio((vFrame.timestamp + decoder.vStreamInfo.frameAvgTicks) - audioExternalDelay) )
-                                {
-                                    audioSyncPerformed = true;
-                                    audioDelayTicks = delayTicks;
-                                }
-                            }
-
-                            // External Audio Sync
-                            else if ( forceAudioSync && ResynchAudio((vFrame.timestamp + decoder.vStreamInfo.frameAvgTicks) - audioExternalDelay) )
-                            {
-                                forceAudioSync = false;
-                                audioSyncPerformed = true;
-                                audioDelayTicks = delayTicks;
-                            }
-
-                            // Audio Frames     [Callback]
-                            else if ( aFrames.Count > 0) 
-                            {
-                                SendAudioFrames();
-                            }
-                        }
-                    }
-
-                    // ******************* [OFF TIME - FOREWARDS] *******************
-                    else if (distanceTicks > offTimeTicks)
-                    {
-                        Log("[OffTime > 0]\t\tCurTime: " + curTicks / 10000 + ", Distance: " + distanceTicks / 10000 + ", Frame-> " + vFrame.pts + ", FrameTime: " + vFrame.timestamp / 10000);
-
-                        delayTicks += distanceTicks;
-                        lock (vFrames) vFrame = vFrames.Dequeue();
-                        VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, 0, null, null);
-                    }
-
-                    // ******************* [OFF TIME - BACKWARDS] *******************
-                    else if (distanceTicks < onTimeTicks)
-                    {
-                        // Expected Delay From Audio Resync [Scream the Video Frame that has the same timestamp with the new Synced Audio Frame]
-                        if ( audioSyncPerformed )
-                        {
-                            Log("[OffTime < 0]\t\tCurTime: " + curTicks / 10000 + ", Distance: " + distanceTicks / 10000 + ", Frame-> " + vFrame.pts + ", FrameTime: " + vFrame.timestamp / 10000 + " Resynced Audio");
-
-                            audioSyncPerformed = false;
-                            delayTicks  += distanceTicks;
-                            audioDelayTicks = delayTicks;
-
-                            lock (vFrames) vFrame = vFrames.Dequeue();
-                            CurTime = vFrame.timestamp;
-                            VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, distanceTicks, null, null);
-                        }
-
-                        // Off Time | Drop Frame
-                        else
-                        {
-                            Log("[OffTime < 0]\t\tCurTime: " + curTicks / 10000 + ", Distance: " + distanceTicks / 10000 + ", Frame-> " + vFrame.pts + ", FrameTime: " + vFrame.timestamp / 10000);
-
-                            delayTicks += distanceTicks;
-                            lock (vFrames) vFrame = vFrames.Dequeue();
-                        }
-                    }
-
-                } // While
-
-            } catch (ThreadAbortException) {
-            } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Func: Screamer(), Msg: " + e.StackTrace); }
-
-            TimeEndPeriod(1);
+            Log($"[VIDEO SCREAMER] Finished -> {videoStartTicks/10000}");
         }
-
-        // Audio        [Send / Sync]
-        private void SendAudioFrames()
+        private void AudioScreamer()
         {
-            double curRate = audioFlowBytes / ((DateTime.UtcNow.Ticks - audioFlowTicks) / 10000000.0);
-            if (curRate > audioBytesPerSecond) return;
+            MediaFrame aFrame;
             
-            lock (aFrames)
+            long distanceTicks;
+            int  distanceMs;
+
+            long offDistanceMsBackwards = -7;
+            long offDistanceMsForewards = 1000;
+            int  offDistanceCounter     = 0;
+
+            Log($"[AUDIO SCREAMER] Started  -> {videoStartTicks/10000}");
+
+            while (isPlaying)
             {
-                while (aFrames.Count > 0 && isPlaying && decoder.isRunning)
-                {
-                    MediaFrame aFrame = aFrames.Dequeue();
-                    if ( aFrame.data == null ) continue; // Queue possible not thread-safe
-                    AudioFrameClbk(aFrame.data, 0, aFrame.data.Length);
-                    audioFlowBytes += aFrame.data.Length;
+                if ( aFrames.Count < 1 )
+                { 
+                    if (decoder.isAudioFinish) return;
 
-                    // Check on every frame that we send to ensure the buffer will not be full
-                    curRate = audioFlowBytes / ((DateTime.UtcNow.Ticks - audioFlowTicks) / 10000000.0);
-                    if (curRate > audioBytesPerSecond) return;
-                    // For Auio Resync Completeness -> We need to keep track of the last allowed sample left and compare it with the next last (in case of NAudio delay while playing for any reason) - add the possible delay to audioDelayTicks
-                }
-            }
-        }
-        private bool ResynchAudio(long syncTimestamp)
-        {
-            // Let Video Frames to Ensure New Position (Give It A Half Second for Retrying)
-            if (DateTime.UtcNow.Ticks - audioLastSyncTicks < 5000000) return false;
-            audioLastSyncTicks = DateTime.UtcNow.Ticks;
-
-            lock (aFrames)
-            {
-                Log("[AUDIO] Resynch Request to -> " + syncTimestamp / 10000);
-
-                // Clear Audio Player's Buffer & Wait For It
-                AudioResetClbk.Invoke();
-                aFrames = new Queue<MediaFrame>();
-
-                // Seek Audio Decoder (syncTimestamp - 2 Audio Frames) to ensure audioFirstTimeStamp < syncTimestamp (-50ms to make sure will get a previous Frame within QueueSize)
-                decoder.SeekAccurate((int) ((syncTimestamp / 10000) - 50), FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO);
-                decoder.RunAudio();
-
-                // Fill Audio Frames
-                int escapeInfinity = 0;
-                while (aFrames.Count < AUDIO_MIX_QUEUE_SIZE && isPlaying && decoder.isRunning)
-                {
-                    escapeInfinity++;
-                    Thread.Sleep(10);
-                    if (escapeInfinity > 50) { Log("[ERROR EI2] Audio Frames Queue will not be filled by decoder"); return false; }
-                }
-
-                // Validate We have AudioTimestamp < syncTimestamp
-                MediaFrame aFrame = aFrames.Peek();
-                MediaFrame aFramePrev = new MediaFrame();
-
-                if (aFrame.timestamp > syncTimestamp)
-                {
-                    Log("[AUDIO] Failed to force aFrame.timestamp < syncTimestamp (" + ", audioTimestamp: " + aFrame.timestamp + ", syncTimestamp: " + syncTimestamp + ")");
-                    audioFlowTicks = DateTime.UtcNow.Ticks;
-                    audioFlowBytes = 0;
-                    SendAudioFrames();
-                    return false;
-                }
-
-                // Find Closest Audio Timestamp | Cut It in Pieces (Possible not required but whatever)
-                while (aFrame.timestamp <= syncTimestamp && isPlaying)
-                {
-                    if (aFrames.Count < 2)
+                    if (!decoder.isAudioRunning)
                     {
-                        Log("[AUDIO] Failed to find syncTimestamp within the Queue Limits (" + ", audioTimestamp: " + aFrame.timestamp + ", syncTimestamp: " + syncTimestamp + ")");
-                        return false;
+                        Thread.Sleep(100);
+
+                        Thread restart = new Thread(() => {
+                            if (isTorrent)
+                                streamer.SeekAudio((int) ((CurTime - audioExternalDelay)/10000) - 50);
+                            else
+                                RestartAudio();
+                        });
+                        restart.SetApartmentState(ApartmentState.STA);
+                        restart.Start();
+
+                        return;
                     }
-                    aFramePrev = aFrames.Dequeue();
-                    aFrame = aFrames.Peek();
-                }
 
-                if (!isPlaying) return false;
-
-                int removeBytes = (int)Math.Round((syncTimestamp - aFramePrev.timestamp) / ((1.0 / audioBytesPerSecond) * 10000 * 1000));
-                if (removeBytes > aFramePrev.data.Length) removeBytes = aFramePrev.data.Length;
-
-                // Reset Timers & Fill Audio Player
-                AudioFrameClbk(aFramePrev.data, removeBytes, aFramePrev.data.Length - removeBytes);
-                audioFlowTicks = DateTime.UtcNow.Ticks;
-                audioFlowBytes = 0;
-                
-                // Fill the empty buffer with Size of Min Queue + Whatever the curRate allows
-                int count = 0;
-                while (aFrames.Count > 0 && isPlaying && decoder.isRunning && count < AUDIO_MIX_QUEUE_SIZE - 1)
-                {
-                    aFrame = aFrames.Dequeue();
-                    AudioFrameClbk(aFrame.data, 0, aFrame.data.Length);
-                    count++;
-                }
-                SendAudioFrames();
-
-                Log("[AUDIO] Resynch Successfully to -> " + aFramePrev.timestamp / 10000 + " ++");
-
-                return true;
-            }
-        }
-
-        // Subtitles    [Send / Sync]
-        private void SendSubFrame()
-        {
-            lock (sFrames)
-            {
-                if (sFrames.Count < 1) return;
-
-                MediaFrame sFrame = sFrames.Peek();
-                if (Math.Abs((sFrame.timestamp + subsExternalDelay) - CurTime) < decoder.vStreamInfo.frameAvgTicks * 2)
-                {
-                    SubFrameClbk.BeginInvoke(sFrame.text, sFrame.duration, null, null);
-                    sFrames.Dequeue();
-                }
-            }
-        }
-        private bool ResynchSubs(long syncTimestamp, bool force = false)
-        {
-            lock (sFrames)
-            {
-                Log("[SUBS] Resynch Request to -> " + syncTimestamp / 10000);
-
-                sFrames = new Queue<MediaFrame>();
-                decoder.SeekAccurate((int)((syncTimestamp / 10000) - 50), FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                decoder.RunSubs();
-
-                // Fill Sub Frames
-                int escapeInfinity = 0;
-                while (sFrames.Count < SUBS_MIN_QUEUE_SIZE && isPlaying && decoder.isRunning)
-                {
-                    escapeInfinity++;
-                    Thread.Sleep(10);
-                    if (escapeInfinity > 50) { Log("[ERROR EI2] Sub Frames Queue will not be filled by decoder"); return false; }
-                }
-                if (!isPlaying || !decoder.isRunning) return false;
-
-                MediaFrame sFrame       = sFrames.Peek();
-                MediaFrame sFrameNext   = sFrame;
-
-                // Find Closest Subs Timestamp
-                while (isPlaying)
-                {
-                    if ((sFrameNext.timestamp + (sFrameNext.duration * 10000) > syncTimestamp && force) || (sFrameNext.timestamp > syncTimestamp && !force)) break;
-                    sFrame = sFrames.Dequeue();
-                    if (sFrames.Count < 1) return false;
-                    sFrameNext = sFrames.Peek();
-                }
-                if (!isPlaying) return false;
-
-                Log("[SUBS] Resynch Successfully to -> " + sFrame.timestamp / 10000 + " ++");
-
-                if ( force && sFrame.timestamp < syncTimestamp && sFrame.timestamp + (sFrame.duration * 10000) > syncTimestamp)
-                {
-                    SubFrameClbk.BeginInvoke(sFrame.text, (int)((sFrame.timestamp + (sFrame.duration * 10000) - syncTimestamp)/10000), null, null);
-                    sFrames.Dequeue();
+                    return;
                 }
                 else
                 {
-                    SendSubFrame();
+                    if ( offDistanceCounter > AUDIO_MIX_QUEUE_SIZE )
+                    {
+                        Thread.Sleep(100);
+
+                        Thread restart = new Thread(() => {
+                            if (isTorrent)
+                                streamer.SeekAudio((int) ((CurTime - audioExternalDelay)/10000) - 50);
+                            else
+                                RestartAudio();
+                        });
+                        restart.SetApartmentState(ApartmentState.STA);
+                        restart.Start();
+
+                        return;
+                    }
                 }
 
-                return true;
+                lock (aFrames) aFrames.TryDequeue(out aFrame);
+
+                distanceTicks   = (aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks);
+                distanceMs      = (int) (distanceTicks/10000);
+                
+                if ( distanceMs < offDistanceMsBackwards || distanceMs > offDistanceMsForewards )
+                {
+                    Log($"[AUDIO SCREAMER] Frame Drop   [CurTS: {aFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {aFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                    offDistanceCounter ++;
+                    continue;
+                }
+
+                if ( distanceMs > 3 ) Thread.Sleep(distanceMs - 2);
+
+                // Audio Frames         [Callback]
+                Log($"[AUDIO SCREAMER] Frame Scream [CurTS: {aFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {aFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                AudioFrameClbk(aFrame.data, 0, aFrame.data.Length);
+            }
+
+            Log($"[AUDIO SCREAMER] Finished  -> {videoStartTicks/10000}");
+        }
+        private void SubsScreamer()
+        {
+            MediaFrame sFrame;
+            
+            long distanceTicks;
+            int  distanceMs;
+
+            long offDistanceMsBackwards = -800;
+            int  offDistanceCounter     = 0;
+
+            Log($"[SUBS  SCREAMER] Started  -> {videoStartTicks/10000}");
+
+            while (isPlaying)
+            {
+                if ( sFrames.Count < 1 )
+                { 
+                    if (decoder.isSubsFinish) return;
+
+                    if (!decoder.isSubsRunning)
+                    {
+                        Thread.Sleep(100);
+
+                        Thread restart = new Thread(() => {
+                            if (isTorrent)
+                                streamer.SeekSubs((int) ((CurTime - subsExternalDelay)/10000) - 100);
+                            else
+                                RestartSubs();
+                        });
+                        restart.SetApartmentState(ApartmentState.STA);
+                        restart.Start();
+
+                        return;
+                    }
+
+                    return;
+                }
+                else
+                {
+                    if ( offDistanceCounter > SUBS_MIN_QUEUE_SIZE )
+                    {
+                        Thread.Sleep(100);
+
+                        Thread restart = new Thread(() => {
+                            if (isTorrent)
+                                streamer.SeekSubs((int) ((CurTime - subsExternalDelay)/10000) - 100);
+                            else
+                                RestartSubs();
+                        });
+                        restart.SetApartmentState(ApartmentState.STA);
+                        restart.Start();
+
+                        return;
+                    }
+                }
+
+                lock (sFrames) sFrames.TryDequeue(out sFrame);
+
+                distanceTicks   = (sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks);
+                distanceMs      = (int) (distanceTicks/10000);
+                
+                if ( distanceMs < offDistanceMsBackwards ) //|| distanceMs > offDistanceMsForewards )
+                {
+                    Log($"[SUBS  SCREAMER] Frame Drop   [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                    offDistanceCounter ++;
+                    continue;
+                }
+
+                if ( distanceMs > 3 ) Thread.Sleep(distanceMs - 2);
+
+                // Audio Frames         [Callback]
+                Log($"[SUBS  SCREAMER] Frame Scream [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                SubFrameClbk.BeginInvoke(sFrame.text, sFrame.duration, null, null);
+            }
+
+            Log($"[SUBS  SCREAMER] Finished  -> {videoStartTicks/10000}");
+        }
+
+        private void BufferingDone(bool done) { if ( done ) Play2(); }
+        private void BufferingAudioDone()
+        {
+            Log("[AUDIO SCREAMER] Restarting0 ...");
+            RestartAudio();
+        }
+        private void BufferingSubsDone()
+        {
+            Log("[SUBS  SCREAMER] Restarting0 ...");
+            RestartSubs();
+        }
+
+        private void RestartSubs()
+        {
+            if ( sScreamer != null ) sScreamer.Abort();
+
+            if (decoder.hasSubs)
+            {
+                Log("[SUBS  SCREAMER] Restarting ...");
+                
+                sScreamer = new Thread(() => {
+                    decoder.PauseSubs();
+                    if (!isPlaying || videoStartTicks == -1) return;
+
+                    Thread.Sleep(20);
+
+                    lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
+
+                    decoder.SeekAccurate((int) ((CurTime - subsExternalDelay)/10000) - 100, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE);
+                    decoder.RunSubs();
+
+                    while (isPlaying && decoder.hasSubs && sFrames.Count < SUBS_MIN_QUEUE_SIZE && !decoder.isSubsFinish ) 
+                        Thread.Sleep(20);
+
+                    try
+                    {
+                        SubsScreamer();
+                    } catch (Exception) { }
+                });
+                sScreamer.SetApartmentState(ApartmentState.STA);
+                sScreamer.Start();
+            }
+        }
+        private void RestartAudio()
+        {
+            if ( aScreamer != null ) aScreamer.Abort();
+
+            if (decoder.hasAudio)
+            {
+                Log("[AUDIO SCREAMER] Restarting ...");
+
+                aScreamer = new Thread(() => {
+                    decoder.PauseAudio();
+                    if (!isPlaying || videoStartTicks == -1) return;
+
+                    Thread.Sleep(20);
+
+                    lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
+                    AudioResetClbk.Invoke();
+
+                    decoder.SeekAccurate((int) ((CurTime - audioExternalDelay)/10000) - 50, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO);
+                    decoder.RunAudio();
+
+                    while (isPlaying && (decoder.hasAudio && aFrames.Count < AUDIO_MIX_QUEUE_SIZE) ) 
+                        Thread.Sleep(20);
+
+                    try
+                    {
+                        AudioScreamer();
+                    } catch (Exception) { }
+                });
+                aScreamer.SetApartmentState(ApartmentState.STA);
+                aScreamer.Start();
             }
         }
 
-        // Public Exposure
-        public int Open(string url)
+        public void Open(string url)
         {
             int ret;
 
-            if (decoder != null) decoder.Pause();
-            Initialize();
+            lock (lockOpening)
+            {
+                if ( decoder.status == Codecs.FFmpeg.Status.OPENING) Thread.Sleep(50);
+                if (openOrBuffer!=null) openOrBuffer.Abort();
 
-            if ((ret = decoder.Open(url)) != 0) return ret;
-            if (!decoder.isReady)               return  -1;
+                if (decoder != null) decoder.Pause();
+                Initialize();
 
-            isReady             = true;
-            CurTime             = 0;
-            audioExternalDelay  = 0;
-            subsExternalDelay   = 0;
+                status = Status.OPENING;
+            }
 
-            hasAudio            = decoder.hasAudio; 
-            hasVideo            = decoder.hasVideo; 
-            hasSubs             = decoder.hasSubs;
+            string ext      = url.Substring(url.LastIndexOf(".") + 1);
+            string scheme   = url.Substring(0, url.IndexOf(":"));
 
-            Width               = (hasVideo) ? decoder.vStreamInfo.width         : 0;
-            Height              = (hasVideo) ? decoder.vStreamInfo.height        : 0;
-            Duration            = (hasVideo) ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks;
+            if (ext.ToLower() == "torrent" || scheme.ToLower() == "magnet")
+            {
+                isTorrent = true;
+                openOrBuffer = new Thread(() =>
+                {
+                    try
+                    {
+                        if (scheme.ToLower() == "magnet")
+                            ret = streamer.Open(url, MediaStreamer.StreamType.TORRENT);
+                        else
+                            ret = streamer.Open(url, MediaStreamer.StreamType.TORRENT, false);
 
-            return 0;
+                        if (ret != 0) { status = Status.FAILED; OpenTorrentSuccessClbk?.BeginInvoke(false, null, null); return; }
+
+                        status = Status.OPENED;
+                        OpenTorrentSuccessClbk?.BeginInvoke(true, null, null);
+
+                    } catch (ThreadAbortException) { return; }
+                });
+                openOrBuffer.SetApartmentState(ApartmentState.STA);
+                openOrBuffer.Start();
+            }
+            else
+            {
+                lock (lockOpening)
+                {
+                    if ( decoder.status == Codecs.FFmpeg.Status.OPENING) Thread.Sleep(50);
+                    isTorrent = false;
+                    decoder.Open(url);
+                    if (!decoder.isReady) { status = Status.FAILED; return; }
+                    InitializeEnv();
+                    status = Status.OPENED;
+                }
+                
+            }
         }
         public int OpenSubs(string url)
         {
             int ret;
 
+            if ( sScreamer != null ) sScreamer.Abort();
+            
             if ( !decoder.hasVideo)                     return -1;
             if ( (ret = decoder.OpenSubs(url)) != 0 )   { hasSubs = false; return ret; }
 
             hasSubs             = decoder.hasSubs;
             subsExternalDelay   = 0;
 
-            if (!isStopped && decoder.hasSubs)          ResynchSubs(CurTime, true); // - subsExternalDelay);
+            RestartSubs();
 
             return 0;
         }
-        public int Play()
-        {
-            int ret;
-            
-            if (!decoder.isReady || decoder.isRunning || isPlaying) return -1;
 
-            if ((ret = decoder.RunVideo()) != 0) return ret;
+        public void Play()
+        {
+            if (!decoder.isReady || decoder.isRunning || isPlaying) return;
+
+            if ( isTorrent )
+            {
+                status = Status.BUFFERING;
+                streamer.Seek((int)(CurTime/10000));
+                return;
+            }
+
+            Play2();
+        }
+        private void Play2()
+        {
+            if (screamer    != null)  screamer.Abort();
+            if (aScreamer   != null) aScreamer.Abort();
+            if (vScreamer   != null) vScreamer.Abort();
+            if (sScreamer   != null) sScreamer.Abort();
+
+            lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
+            lock (vFrames) vFrames = new ConcurrentQueue<MediaFrame>();
+            lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
 
             status = Status.PLAYING;
 
-            if (decoder.hasVideo)
+            screamer = new Thread(() =>
             {
-                if (decoder.hasVideo) while (vFrames.Count < VIDEO_MIX_QUEUE_SIZE && isPlaying && decoder != null && decoder.isRunning) Thread.Sleep(10);
+                // Reset AVS Decoders to CurTime
 
-                screamer = new Thread(() =>
+                // Video | Seek | Set First Video Timestamp | Run Decoder
+                videoStartTicks = -1;
+                if (vFrames.Count < 1)
+                    decoder.SeekAccurate((int) (CurTime/10000), FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
+                if (vFrames.Count < 1) return;
+                
+                MediaFrame vFrame;
+                lock (vFrames) vFrames.TryPeek(out vFrame);
+                CurTime         = vFrame.timestamp;
+                videoStartTicks = vFrame.timestamp;
+                TimeBeginPeriod(1);
+
+                if (decoder.RunVideo() != 0) return;
+
+                // Audio | Seek | Run Decoder
+                if (decoder.hasAudio)
                 {
-                    Screamer();
-                    TimeEndPeriod(1);
-                    status = Status.STOPPED;
-                    Log("[SCREAMER] " + status);
-                });
-                screamer.SetApartmentState(ApartmentState.STA);
-                screamer.Priority = ThreadPriority.AboveNormal;
-                screamer.Start();
-            }
+                    AudioResetClbk.Invoke();
+                    decoder.SeekAccurate((int) ((CurTime - audioExternalDelay)/10000) - 50, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO);
+                    decoder.RunAudio();
+                }
 
-            return 0;
+                // Audio | Seek | Run Decoder
+                if (decoder.hasSubs)
+                {
+                    decoder.SeekAccurate((int) ((CurTime - subsExternalDelay)/10000) - 100, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE);
+                    decoder.RunSubs();
+                }
+
+                // Fill Queues at least with Min
+                while (isPlaying && vFrames.Count < VIDEO_MIX_QUEUE_SIZE || (decoder.hasAudio && aFrames.Count < AUDIO_MIX_QUEUE_SIZE) || (decoder.hasSubs && sFrames.Count < SUBS_MIN_QUEUE_SIZE && !decoder.isSubsFinish ) ) 
+                    Thread.Sleep(20);
+
+                vScreamer = new Thread(() => {
+                    try
+                    {
+                        VideoScreamer();
+                    } catch (Exception) { }
+
+                    TimeEndPeriod(1);
+                });
+                vScreamer.SetApartmentState(ApartmentState.STA);
+                
+                if (decoder.hasAudio)
+                {
+                    aScreamer = new Thread(() => {
+                        try
+                        {
+                            AudioScreamer();
+                        } catch (Exception) { }
+                    });
+                    aScreamer.SetApartmentState(ApartmentState.STA);
+                }
+
+                if (decoder.hasSubs)
+                {
+                    sScreamer = new Thread(() =>
+                    {
+                        try
+                        {
+                            SubsScreamer();
+                        } catch (Exception) { }
+                        
+                    });
+                    sScreamer.SetApartmentState(ApartmentState.STA);
+                }
+
+                vScreamer.Start();
+                if (decoder.hasAudio) aScreamer.Start();
+                if (decoder.hasSubs ) sScreamer.Start();
+
+            });
+            screamer.SetApartmentState(ApartmentState.STA);
+            screamer.Priority = ThreadPriority.AboveNormal;
+            screamer.Start();
         }
+
+        public void Seek(int ms, bool curPos = false)
+        {
+            try
+            {
+                if (!isReady) return;
+                if (openOrBuffer != null) openOrBuffer.Abort();
+                if (!isSeeking) beforeSeeking = status;
+
+                if (streamer    != null && isTorrent) streamer.Pause();
+                if (decoder     != null)   decoder.Pause();
+                if (screamer    != null)  screamer.Abort();
+                if (aScreamer   != null) aScreamer.Abort();
+                if (vScreamer   != null) vScreamer.Abort();
+                if (sScreamer   != null) sScreamer.Abort();
+            } catch (Exception) { }
+
+            openOrBuffer = new Thread(() =>
+            {
+                try
+                {
+                    status = Status.SEEKING;
+
+                    while (!decoder.isStopped) Thread.Sleep(10);
+                    Thread.Sleep(20);
+
+                    if (curPos) ms += (int)(CurTime / 10000);
+
+                    if ((long)ms * 10000 < decoder.vStreamInfo.startTimeTicks)
+                        CurTime = decoder.vStreamInfo.startTimeTicks;
+                    else if ((long)ms * 10000 > decoder.vStreamInfo.durationTicks)
+                        CurTime = decoder.vStreamInfo.durationTicks;
+                    else
+                        CurTime = (long)ms * 10000;
+
+                    lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
+                    lock (vFrames) vFrames = new ConcurrentQueue<MediaFrame>();
+                    lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
+
+                    // Scream 1st Seek Frame
+                    videoStartTicks = -1;
+                    decoder.SeekAccurate((int)(CurTime/10000), FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
+                    if (vFrames.Count > 0)
+                    {
+                        MediaFrame vFrame;
+                        lock (vFrames) vFrames.TryPeek(out vFrame);
+                        CurTime         = vFrame.timestamp;
+                        videoStartTicks = vFrame.timestamp;
+                        VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, 0, null, null);
+                    }
+
+                    if (beforeSeeking == Status.PLAYING) Play();
+
+                } catch (Exception) { }
+            });
+            openOrBuffer.SetApartmentState(ApartmentState.STA);
+            openOrBuffer.Start();
+        }
+
         public int Pause()
         {
             status = Status.PAUSED;
 
-            if (screamer != null) screamer.Abort();
             if (decoder  != null) decoder.Pause();
-
-            return 0;
-        }
-        public int Seek(int ms, bool curPos)
-        {
-            if (isSeeking) return -1;
-
-            Status old = status;
-
-            if (curPos) ms         += (int)  (CurTime / 10000);
-
-            if ( (long)ms * 10000 < decoder.vStreamInfo.startTimeTicks )
-            {
-                CurTime                 = decoder.vStreamInfo.startTimeTicks;
-            } else if ( (long)ms * 10000 > decoder.vStreamInfo.durationTicks )
-            {
-                CurTime                 = decoder.vStreamInfo.durationTicks;
-            } else
-            {
-                CurTime                 = (long) ms * 10000;
-            }
-            
-            status                  = Status.SEEKING;
-
-            if (decoder  != null)    decoder.Pause();
-            if (screamer != null)   screamer.Abort();
-
-            lock (aFrames)  aFrames = new Queue<MediaFrame>();
-            lock (sFrames)  vFrames = new Queue<MediaFrame>();
-            lock (sFrames)  sFrames = new Queue<MediaFrame>();
-
-            if (hasVideo)   decoder.SeekAccurate(ms, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
-
-            if (old == Status.PLAYING)      Play();
+            if (screamer != null) screamer.Abort();
+            if (aScreamer != null) aScreamer.Abort();
+            if (vScreamer != null) vScreamer.Abort();
+            if (sScreamer != null) sScreamer.Abort();
 
             return 0;
         }
@@ -630,10 +793,34 @@ namespace PartyTime
 
             return 0;
         }
+
+        public void StopMediaStreamer() { if ( streamer != null ) { streamer.Stop(); streamer = null; } }
+        public void SetMediaFile(string fileName)
+        {
+            if (openOrBuffer != null) { openOrBuffer.Abort(); Thread.Sleep(20); }
+
+            openOrBuffer = new Thread(() => {
+
+                // Open Decoder Buffer
+                int ret = streamer.SetMediaFile(fileName);
+                if (ret != 0) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); }
+
+                // Open Decoder
+                ret = decoder.Open(null, streamer.DecoderRequests, streamer.fileSize);
+                if (ret != 0) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); }
+
+                if (!decoder.isReady) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); }
+
+                InitializeEnv();
+                OpenStreamSuccessClbk?.BeginInvoke(true, fileName, null, null);
+            });
+            openOrBuffer.SetApartmentState(ApartmentState.STA);
+            openOrBuffer.Start();
+        }
         
         // Misc
-        private void Log(string msg) { if (verbosity > 0) Console.WriteLine(msg); }
-        
+        private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.ffff")}] {msg}"); }
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage"), SuppressUnmanagedCodeSecurity]
         [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod", SetLastError = true)]
         private static extern uint TimeBeginPeriod(uint uMilliseconds);
