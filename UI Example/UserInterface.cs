@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
+using System.Runtime.ExceptionServices;
+using System.Security;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using System.Collections.Generic;
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -12,11 +15,12 @@ using Color     = Microsoft.Xna.Framework.Color;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 using Point     = System.Drawing.Point;
 
-
 namespace PartyTime.UI_Example
 {
     public class UserInterface
     {
+        #region Declaration
+
         Form                    display;
         frmDisplay              display2;
         frmControl              control;
@@ -28,8 +32,6 @@ namespace PartyTime.UI_Example
         SpriteBatch             spriteBatch;
         Texture2D               screenPlay;
         Button                  btnBar;
-
-        Thread                  openSilently;
 
         Size                    displayLastSize;
         Point                   displayLastPos;
@@ -71,6 +73,8 @@ namespace PartyTime.UI_Example
 
         System.Drawing.Color TRANSPARENCY_KEY_COLOR = System.Drawing.Color.FromArgb(1,1,1); // Form Control Transparency
 
+        #endregion
+
         // Constructors
         public UserInterface(frmDisplay form, ref GraphicsDeviceManager gdm, ref SpriteBatch sb)
         {
@@ -92,13 +96,19 @@ namespace PartyTime.UI_Example
         {
             // Players
             player                  = new MediaRouter();
-            audioPlayer             = new AudioPlayer(player);
-            player.VideoFrameClbk   = VideoFrameClbk;
-            player.AudioFrameClbk   = audioPlayer.FrameClbk;
-            player.AudioResetClbk   = audioPlayer.ResetClbk;
-            player.SubFrameClbk     = SubsFrameClbk;
+            audioPlayer             = new AudioPlayer();
+
             player.HWAcceleration   = false;
             player.HighQuality      = false;
+
+            player.VideoFrameClbk           = VideoFrameClbk;
+            player.AudioFrameClbk           = audioPlayer.FrameClbk;
+            player.AudioResetClbk           = audioPlayer.ResetClbk;
+            player.SubFrameClbk             = SubsFrameClbk;
+
+            player.OpenTorrentSuccessClbk   = OpenTorrentSuccess;
+            player.OpenStreamSuccessClbk    = OpenStreamSuccess;
+            player.MediaFilesClbk           = MediaFilesReceived;
 
             // Forms
             SubscribeEvents();
@@ -164,6 +174,7 @@ namespace PartyTime.UI_Example
             control.lblInfoText.BackColor       = System.Drawing.Color.FromArgb(0x26,0x28,0x2b);
 
             control.rtbSubs.BackColor           = TRANSPARENCY_KEY_COLOR;
+            control.rtbSubs.Text                = "";
             control.rtbSubs.SendToBack();
         }
         private void SubscribeEvents()
@@ -180,6 +191,8 @@ namespace PartyTime.UI_Example
             display.KeyPress                += new KeyPressEventHandler     (Display_KeyPress);
             display.FormClosing             += new FormClosingEventHandler  (Display_Closing);
 
+            control.FormClosing             += new FormClosingEventHandler  (Display_Closing);
+
             control.seekBar.MouseDown       += new MouseEventHandler        (SeekBar_MouseDown);
             control.seekBar.MouseMove       += new MouseEventHandler        (SeekBar_MouseMove);
             control.seekBar.MouseUp         += new MouseEventHandler        (SeekBar_MouseUp);
@@ -193,6 +206,11 @@ namespace PartyTime.UI_Example
             control.rtbSubs.MouseDoubleClick += new MouseEventHandler       (Display_MouseClickDbl);
             control.rtbSubs.ContentsResized += new ContentsResizedEventHandler (RtbSubsContentsResized);
             control.rtbSubs.Enter           += new EventHandler             (RtbSubsEnter);
+
+            control.lstMediaFiles.MouseDoubleClick+= new MouseEventHandler  (lstMediaFiles_MouseClickDbl);
+            control.lstMediaFiles.KeyPress  += new KeyPressEventHandler     (lstMediaFiles_KeyPress);
+            control.lstMediaFiles.DragEnter += new DragEventHandler         (Display_DragEnter);
+            control.lstMediaFiles.DragDrop  += new DragEventHandler         (Display_DragDrop);
         }
 
         // Screens
@@ -206,11 +224,18 @@ namespace PartyTime.UI_Example
                     spriteBatch.Begin();
                     if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
                     {
-                        spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio)), Color.White);
+                        if (IsIdle())
+                            spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio)), Color.White);
+                        else
+                            spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5), Color.White);
                     }
                     else
                     {
-                        spriteBatch.Draw(screenPlay, new Rectangle(0, 0, display.Width, display.Height), Color.White);
+                        if ( IsIdle() )
+                            spriteBatch.Draw(screenPlay, new Rectangle(0, 0, display.Width, display.Height), Color.White);
+                        else
+                            spriteBatch.Draw(screenPlay, new Rectangle(0, 0, display.Width, display.Height - btnBar.Height + 5), Color.White);
+                        
                     }
                     spriteBatch.End();
                     graphics.GraphicsDevice.Present();
@@ -228,7 +253,6 @@ namespace PartyTime.UI_Example
             {
                 graphics.GraphicsDevice.Clear(Color.Black);
 
-                // Screen Play
                 if (firstFrameData != null)
                 {
                     screenPlay.SetData(firstFrameData);
@@ -254,21 +278,24 @@ namespace PartyTime.UI_Example
         }
         public  void UpdateLoop()
         {
-            if (IsIdle()) GoIdle();
+            if (IsIdle()) { GoIdle(); if (!player.hasSubs) return; }
 
             // Update Subtitles Show / Hide
-            if (player.CurTime >= subStart && player.CurTime - subStart < subDur * 10000)
+            if ( player.hasSubs )
             {
-                if ( SubsNew ) { SubsNew = false; ASSToRichText(control.rtbSubs, subText); }
+                if (player.CurTime >= subStart && player.CurTime - subStart < subDur * 10000)
+                {
+                    if ( SubsNew ) { SubsNew = false; ASSToRichText(control.rtbSubs, subText); }
 
-                if ( IsIdle() )
-                    control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 50));
-                else
-                    control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 80));
+                    if ( IsIdle() )
+                        control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 50));
+                    else
+                        control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 80));
 
-            } 
-            else 
-                control.rtbSubs.Text = "";               
+                } 
+                else 
+                control.rtbSubs.Text = "";
+            }
 
             // Update SeekBar Value = Cur Time
             if (seekClockTime == -1) control.seekBar.Value = (int)(player.CurTime / 10000000);
@@ -288,6 +315,8 @@ namespace PartyTime.UI_Example
         {
             int ret;
             bool isSubs = false;
+            subText = "";
+            control.rtbSubs.Text = "";
 
             string ext = url.Substring(url.LastIndexOf(".") + 1);
             if ((new List<string> { "srt", "txt" }).Contains(ext)) isSubs = true;
@@ -296,32 +325,18 @@ namespace PartyTime.UI_Example
             {
                 player.Stop();
                 if (player.hasAudio) audioPlayer.ResetClbk();
-
+                control.lstMediaFiles.Visible = false;
                 firstFrameData = null;
-                ret = player.Open(url);
-                if (ret != 0) { Log("Error opening " + ret); return; }
-                if (player.hasVideo)
-                {
-                    screenPlay  = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Color);
-                    aspectRatio = (float) player.Width / (float) player.Height;
-                    FixAspectRatio();
-                }
-                
-                ScreenPlay(); ScreenPlay(); ScreenPlay(); ScreenPlay();
 
-                if (openSilently != null && openSilently.IsAlive) openSilently.Abort();
-                openSilently = new Thread(() => 
-                { 
-                    player.Play(); 
-                    if (player.hasAudio) audioPlayer.Play(); 
-                });
-                openSilently.Start();
+                player.Open(url);
+                if (player.isTorrent) { UpdateInfoText($"Opening Torrent ..."); return; }
+                UpdateInfoText($"Opening {Path.GetFileName(url)}");
 
-                graphics.GraphicsDevice.Clear(Color.Black);
-                
-                player.AudioExternalDelay = NAUDIO_DELAY_MS * 10000;
-                control.seekBar.Maximum = (int)(player.Duration / 10000000);
-                control.seekBar.Value = 0;
+                if (player.isFailed) { UpdateInfoText($"Opening {Path.GetFileName(url)} Failed"); Log("Error opening"); return; }
+                if (player.hasAudio) { audioPlayer._RATE = player._RATE; audioPlayer.Initialize(); }
+
+                UpdateInfoText($"Opening {Path.GetFileName(url)} Success");
+                Play();
             }
             else
             {
@@ -335,6 +350,31 @@ namespace PartyTime.UI_Example
                 if (ret != 0) { Log("Error opening " + ret); return; }
             }
 
+        }
+        private void Play()
+        {
+            if (player.isTorrent) UpdateInfoText($"Buffering ...");
+
+            if (player.hasVideo)
+            {
+                if (player.HighQuality)
+                    screenPlay  = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Rgba64); // TODO: Until implementing pitch/linesizes
+                else
+                    screenPlay  = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Color);
+                aspectRatio = (float)player.Width / (float)player.Height;
+                FixAspectRatio();
+            }
+
+            ScreenPlay(); ScreenPlay(); ScreenPlay(); ScreenPlay();
+
+            player.Play();
+            if (player.hasAudio) audioPlayer.Play();
+
+            graphics.GraphicsDevice.Clear(Color.Black);
+
+            player.AudioExternalDelay   = NAUDIO_DELAY_MS * 10000;
+            control.seekBar.Maximum     = (int)(player.Duration / 10000000);
+            control.seekBar.Value       = 0;
         }
         private void Stop()
         {
@@ -375,20 +415,25 @@ namespace PartyTime.UI_Example
         }
         private void GoIdle()
         {
-            if (display2.IsMouseVisible)        display2.IsMouseVisible     = false;
-            if (control.lblInfoText.Visible)    control.lblInfoText.Visible = false;
-            if (control.seekBar.Visible)        control.seekBar.Visible     = false;
-            if (control.volBar.Visible)         control.volBar.Visible      = false;
-            if (btnBar.Visible)                 btnBar.Visible              = false;
+            if (!control.seekBar.Visible) return;
+            display2.IsMouseVisible = false;
+            control.lblInfoText.Visible = false;
+            control.seekBar.Visible = false;
+            control.volBar.Visible = false;
+            btnBar.Visible = false;
+
+            if (player.isStopped || player.isPaused) ScreenPlay();
         }
         private void UnIdle()
         {
             lastUserActionTicks = DateTime.UtcNow.Ticks;
-            if (!display2.IsMouseVisible)       display2.IsMouseVisible     = true;
-            if (!control.lblInfoText.Visible)   control.lblInfoText.Visible = true;
-            if (!control.seekBar.Visible)       control.seekBar.Visible     = true;
-            if (!control.volBar.Visible)        control.volBar.Visible      = true;
-            if (!btnBar.Visible)                btnBar.Visible              = true;
+            display2.IsMouseVisible     = true;
+            control.lblInfoText.Visible = true;
+            control.seekBar.Visible     = true;
+            control.volBar.Visible      = true;
+            btnBar.Visible              = true;
+
+            ScreenPlay();
             display.Focus();
         }
         private void ASSToRichText(RichTextBox rtb, string text)
@@ -447,13 +492,66 @@ namespace PartyTime.UI_Example
             rtb.SelectionAlignment = HorizontalAlignment.Center;
         }
 
+        // Processes Streaming
+        public void OpenTorrentSuccess(bool success)
+        {
+            Log("Player " + player.isOpened);
+            if (player.isFailed) { UpdateInfoText($"Opening Torrent Failed"); Log("Error opening"); return; }
+            UpdateInfoText($"Opening Torrent Success");
+        }
+        public void MediaFilesReceived(List<string> mediaFiles, List<long> mediaFilesSizes)
+        {
+            if ( control.lstMediaFiles.InvokeRequired  )
+            {
+                control.lstMediaFiles.BeginInvoke(new Action(() => MediaFilesReceived(mediaFiles, mediaFilesSizes)));
+                return;
+            }
+
+            control.lstMediaFiles.BeginUpdate();
+            control.lstMediaFiles.Items.Clear();
+
+            for (int i=0; i<mediaFiles.Count; i++)
+                control.lstMediaFiles.Items.Add(mediaFiles[i]);
+
+            control.lstMediaFiles.EndUpdate();
+            control.lstMediaFiles.Visible = true;
+            FixLstMediaFiles();
+        }
+        public void SetMediaFile(string selectedFile)
+        {
+            control.lstMediaFiles.Visible = false;
+            player.SetMediaFile(selectedFile);
+            UpdateInfoText($"Opening {selectedFile} ...");
+        }
+        public void OpenStreamSuccess(bool success, string selectedFile)
+        {
+            if (control.lstMediaFiles.InvokeRequired)
+            {
+                control.lstMediaFiles.BeginInvoke(new Action(() => OpenStreamSuccess(success, selectedFile)));
+                return;
+            }
+
+            if (!success) { UpdateInfoText($"Opening {selectedFile} Failed"); Log("Error opening " + selectedFile); return; }
+
+            UpdateInfoText($"Opening {selectedFile} Success");
+
+            if (player.hasAudio) { audioPlayer._RATE = player._RATE; audioPlayer.Initialize(); }
+
+            Play();
+        }
+
         // UI Callbacks
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         private void VideoFrameClbk(byte[] frameData, long timestamp, long screamDistanceTicks)
         {
-            if (frameData       == null)    return;
-            if (firstFrameData  == null)    firstFrameData   = frameData;
-            lock (screenPlay)               screenPlay.SetData(frameData);
-            ScreenPlay();
+            try
+            {
+                if (frameData       == null)    return;
+                if (firstFrameData  == null)    firstFrameData   = frameData;
+                lock (screenPlay)               screenPlay.SetData(frameData);
+                ScreenPlay();
+            } catch (Exception) { }
         }
         private void SubsFrameClbk(string text, int duration)
         {
@@ -561,16 +659,6 @@ namespace PartyTime.UI_Example
                     player.Seek((int)(seekClockTime / 10000), false);
                     seekSum = 0; seekStep = 0; seekClockTime = -1;
 
-                    if (!player.isPlaying)
-                    {
-                        if (openSilently != null && openSilently.IsAlive) openSilently.Abort();
-                        openSilently = new Thread(() => { player.Play(); });
-                        openSilently.Start();
-                        Thread.Sleep(100);
-                        player.Pause();
-                        audioPlayer.Pause();
-                    }
-
                     break;
 
                 case Keys.Left:
@@ -578,16 +666,6 @@ namespace PartyTime.UI_Example
 
                     player.Seek((int)(seekClockTime / 10000), false);
                     seekSum = 0; seekStep = 0; seekClockTime = -1;
-
-                    if (!player.isPlaying)
-                    {
-                        if (openSilently != null && openSilently.IsAlive) openSilently.Abort();
-                        openSilently = new Thread(() => { player.Play(); });
-                        openSilently.Start();
-                        Thread.Sleep(100);
-                        player.Pause();
-                        audioPlayer.Pause();
-                    }
 
                     break;
             }
@@ -623,12 +701,18 @@ namespace PartyTime.UI_Example
         // UI Events [DISPLAY DRAG]
         private void Display_DragDrop(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            if ( e.Data.GetDataPresent(DataFormats.FileDrop) )
             {
                 // VIDEO / AUDIO / SUBTITLE FILES
                 display.Cursor = Cursors.Default;
                 string[] filenames = (string[])e.Data.GetData(DataFormats.FileDrop, false);
                 if (filenames.Length > 0) Open(filenames[0]);
+            }
+            else if ( e.Data.GetDataPresent(DataFormats.Text) )
+            {
+                display.Cursor = Cursors.Default;
+                string url = e.Data.GetData(DataFormats.Text, false).ToString();
+                if (url.Length > 0) Open(url);
             }
 
             display.Focus();
@@ -884,7 +968,7 @@ namespace PartyTime.UI_Example
                             }
                         }
 
-                        ScreenPlay();
+                        //ScreenPlay();
                         lock (screenPlay) GoIdle();
                     }
 
@@ -954,16 +1038,26 @@ namespace PartyTime.UI_Example
         }
 
         // UI Events [DISPLAY CLOSE]
-        private void Display_Closing(object sender, FormClosingEventArgs e) { player.Stop(); }
+        private void Display_Closing(object sender, FormClosingEventArgs e)
+        {
+            try
+            {
+                player.StopMediaStreamer();
+                Thread.Sleep(20);
+                player.Stop();
+                Thread.Sleep(20);
+            } catch (Exception) { }
+        }
 
         // UI Events [CONTROL SEEKBAR]
         private void SeekBar_MouseUp(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left) seekBarMLDown = false;
+            if (!player.isReady) { display.Focus(); return; }
 
             UpdateSeekClockTime((long)(lastSeekBarMLDown) * 10000000);
             control.seekBar.Value   =  lastSeekBarMLDown;
-            if ( player.hasAudio) audioPlayer.ResetClbk(); // Clear Buffer For Silence During Seeking
+            if ( player.hasAudio ) audioPlayer.ResetClbk(); // Clear Buffer For Silence During Seeking
             player.Seek(lastSeekBarMLDown * 1000, false);
             seekClockTime           =  -1;
             display.Focus();
@@ -1001,7 +1095,34 @@ namespace PartyTime.UI_Example
         private void RtbSubsContentsResized(object sender, ContentsResizedEventArgs e)  { control.rtbSubs.ClientSize = new Size(control.rtbSubs.ClientSize.Width, e.NewRectangle.Height); }
         private void RtbSubsEnter(object sender, EventArgs e) { control.seekBar.Focus(); }
 
+        // UI Events [CONTROL LSTMEDIAFILES]
+        private void lstMediaFiles_MouseClickDbl(object sender, MouseEventArgs e)
+        {
+            if ( control.lstMediaFiles.SelectedItem == null ) return;
+
+            SetMediaFile(control.lstMediaFiles.SelectedItem.ToString());
+        }
+        private void lstMediaFiles_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if ( e.KeyChar != (char)13 ) return;
+            if ( control.lstMediaFiles.SelectedItem == null ) return;
+
+            SetMediaFile(control.lstMediaFiles.SelectedItem.ToString());
+        }
+
         // Full Screen / Aspect Ratio
+        private void GraphicsApplyChanges()
+        {
+            // SharpDX bug when using HW Acceleration
+            try
+            {
+                graphics.ApplyChanges();
+            }
+            catch (Exception)
+            {
+                graphics = new GraphicsDeviceManager(display2);
+            }
+        }
         private void FullScreenToggle() { if (graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) NormalScreen(); else FullScreen(); }
         private void FullScreen()
         {
@@ -1015,8 +1136,8 @@ namespace PartyTime.UI_Example
             graphics.PreferredBackBufferWidth   = graphics.GraphicsDevice.DisplayMode.Width;
             graphics.PreferredBackBufferHeight  = graphics.GraphicsDevice.DisplayMode.Height;
             display.Location = new Point(0, 0);
-            graphics.ApplyChanges();
-
+            
+            GraphicsApplyChanges();
             FixFrmControl();
 
             if (player.isStopped) ScreenStop(); else ScreenPlay();
@@ -1026,8 +1147,8 @@ namespace PartyTime.UI_Example
             graphics.PreferredBackBufferWidth   = displayLastSize.Width;
             graphics.PreferredBackBufferHeight  = displayLastSize.Height;
             display.Location                    = displayLastPos;
-            graphics.ApplyChanges();
-
+            
+            GraphicsApplyChanges();
             FixFrmControl();
 
             if (player.isStopped) ScreenStop(); else ScreenPlay();
@@ -1050,7 +1171,7 @@ namespace PartyTime.UI_Example
                 }
 
                 displayLastSize = new Size(display2.Window.ClientBounds.Width, display2.Window.ClientBounds.Height);
-                graphics.ApplyChanges();
+                GraphicsApplyChanges();
             }
 
             FixFrmControl();
@@ -1068,6 +1189,16 @@ namespace PartyTime.UI_Example
 
             control.volBar.Width        = 70;
             control.volBar.Location     = new Point(control.seekBar.Location.X + control.seekBar.Width + 35, control.seekBar.Location.Y);
+
+            FixLstMediaFiles();
+        }
+        private void FixLstMediaFiles()
+        {
+            if ( !control.lstMediaFiles.Visible ) return;
+
+            control.lstMediaFiles.Width     = Math.Min(850, display.Width  - 200);
+            control.lstMediaFiles.Height    = Math.Min(550, display.Height - 200);
+            control.lstMediaFiles.Location  = new Point((control.Width- control.lstMediaFiles.Width) / 2, (control.Height- control.lstMediaFiles.Height) / 2);
         }
 
         // Logging

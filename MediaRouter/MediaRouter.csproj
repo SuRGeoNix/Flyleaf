@@ -27,10 +27,12 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\any\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>
+    </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -89,10 +91,15 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="TorSwarm">
+      <HintPath>Libraries\Streams\x64\TorSwarm.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Codecs\FFmpeg.cs" />
     <Compile Include="MediaRouter.cs" />
+    <Compile Include="MediaStreamer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -117,6 +124,22 @@
     <Content Include="Libraries\Codecs\FFmpeg\x86\postproc-55.dll" />
     <Content Include="Libraries\Codecs\FFmpeg\x86\swresample-3.dll" />
     <Content Include="Libraries\Codecs\FFmpeg\x86\swscale-5.dll" />
+    <Content Include="Libraries\Streams\x64\BEncode\BencodeNET.dll" />
+    <Content Include="Libraries\Streams\x64\BEncode\System.Buffers.dll" />
+    <Content Include="Libraries\Streams\x64\BEncode\System.IO.Pipelines.dll" />
+    <Content Include="Libraries\Streams\x64\BEncode\System.Memory.dll" />
+    <Content Include="Libraries\Streams\x64\BEncode\System.Numerics.Vectors.dll" />
+    <Content Include="Libraries\Streams\x64\BEncode\System.Runtime.CompilerServices.Unsafe.dll" />
+    <Content Include="Libraries\Streams\x64\BEncode\System.Threading.Tasks.Extensions.dll" />
+    <Content Include="Libraries\Streams\x64\TorSwarm.dll" />
+    <Content Include="Libraries\Streams\x86\BEncode\BencodeNET.dll" />
+    <Content Include="Libraries\Streams\x86\BEncode\System.Buffers.dll" />
+    <Content Include="Libraries\Streams\x86\BEncode\System.IO.Pipelines.dll" />
+    <Content Include="Libraries\Streams\x86\BEncode\System.Memory.dll" />
+    <Content Include="Libraries\Streams\x86\BEncode\System.Numerics.Vectors.dll" />
+    <Content Include="Libraries\Streams\x86\BEncode\System.Runtime.CompilerServices.Unsafe.dll" />
+    <Content Include="Libraries\Streams\x86\BEncode\System.Threading.Tasks.Extensions.dll" />
+    <Content Include="Libraries\Streams\x86\TorSwarm.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
@@ -128,10 +151,12 @@ echo $(PlatformName)
 if $(PlatformName) == x86 (
 echo "x86 -------------"
   xcopy $(ProjectDir)Libraries\Codecs\FFmpeg\x86\* $(TargetDir)\Codecs\FFmpeg\x86\  /E /Y
+  xcopy $(ProjectDir)Libraries\Streams\x86\* $(TargetDir)\Streams\  /E /Y
 )
 if $(PlatformName) == x64 (
 echo "x64 -------------"
   xcopy $(ProjectDir)Libraries\Codecs\FFmpeg\x64\* $(TargetDir)\Codecs\FFmpeg\x64\  /E /Y
+  xcopy $(ProjectDir)Libraries\Streams\x64\* $(TargetDir)\Streams\  /E /Y
 )
 
 xcopy $(ProjectDir)Libraries\Codecs\FFmpeg\* $(TargetDir)\Codecs\FFmpeg\ /Y</PostBuildEvent>

@@ -28,7 +28,7 @@ The main implementation is within the "Screamer" method that routes media frames
 
 ### Layer 3 - User Interface (UserInterface.cs)
 
-> <a href="http://www.monogame.net/">Monogame</a> 3.7.1 & <a href="https://github.com/naudio/NAudio">NAudio</a> 1.9.0 library & <a href="https://www.codeproject.com/Tips/1193311/Csharp-Slider-Trackbar-Control-using-Windows-Forms">ColorSlider</a>
+> <a href="http://www.monogame.net/">Monogame</a> 3.7.1 & <a href="https://github.com/naudio/NAudio">NAudio</a> 1.10.0 library & <a href="https://www.codeproject.com/Tips/1193311/Csharp-Slider-Trackbar-Control-using-Windows-Forms">ColorSlider</a>
 
 A sample GUI has been created to demonstrate Media Router's functionality. It works with both Game Engine (for taking the advantage of GPU and Game Loop) and a classic Windows Form. For subtitles will work with BOM specified, UTF-8 formats otherwise with the default system codepage (lazy support for ASS/SSA). For audio it simple runs with the NAudio library. It currently supports :- 
 
@@ -45,6 +45,26 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 | [ / ]                 | Audio Adjustment          |
 | ; / '                 | Subtitles Adjustment      |
 
+<br/>
+
+## Versioning | Changes
+#### v1.2 - 23/5/2020
+>__Additions__
+
+* Torrent files / Magnet links (Drag & Drop) for torrent streaming (by merging with my other project  <a href="https://github.com/SuRGeoNix/TorSwarm">TorSwarm</a>) and creating the new __MediaStreamer__ class for general use later on
+* Re-design the main Screamer's implementation and Syncing, using seperate threads (Audio/Video/Subs) Screamers and screaming each stream's frame at exact timestamp of each one
+* Support for more media formats (the most common, still will not handle correctly ts/vob etc)
+* Fast seeking with better FFmpeg implementation and threading so it will not hang the UI
+* Audio stereo (2 channels) output for any input and sample rate (it was supporting only 1 channel and 48Khz rate)
+* NAudio package updated to 1.10, FFmpeg can be updated to latest (for low quality, use the previous swscale-5.dll)
+
+>__Issues__
+* Audio/Subtitles seeking issues (it was going though the whole file) on matroska formats (avformat_seek_file can't seek with other stream but the video stream)
+* NAudio was running at the main UI thread and it was hanging
+* Performance issue fixed that was hanging the UI (high cpu/gpu) and was breaking the audio and syncing
+* Changed Queues to ConcurrentQueues as they had issues with threading 
+
+#### v1.1 - 7/11/2019 (First Release)
 <br/>
 
 ## Remarks
