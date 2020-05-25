@@ -34,6 +34,7 @@ namespace PartyTime.UI_Example
             this.lblInfoText = new System.Windows.Forms.Label();
             this.volBar = new ColorSlider.ColorSlider();
             this.rtbSubs = new System.Windows.Forms.RichTextBox();
+            this.lstMediaFiles = new System.Windows.Forms.ListBox();
             this.SuspendLayout();
             // 
             // seekBar
@@ -134,17 +135,34 @@ namespace PartyTime.UI_Example
             this.rtbSubs.CausesValidation = false;
             this.rtbSubs.Cursor = System.Windows.Forms.Cursors.Default;
             this.rtbSubs.DetectUrls = false;
-            this.rtbSubs.Font = new System.Drawing.Font("Arial", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.rtbSubs.Font = new System.Drawing.Font("Arial", 32.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
             this.rtbSubs.ForeColor = System.Drawing.Color.White;
-            this.rtbSubs.Location = new System.Drawing.Point(338, 406);
+            this.rtbSubs.Location = new System.Drawing.Point(282, 409);
             this.rtbSubs.Name = "rtbSubs";
             this.rtbSubs.ReadOnly = true;
             this.rtbSubs.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
             this.rtbSubs.ShortcutsEnabled = false;
-            this.rtbSubs.Size = new System.Drawing.Size(611, 70);
+            this.rtbSubs.Size = new System.Drawing.Size(690, 70);
             this.rtbSubs.TabIndex = 9;
             this.rtbSubs.TabStop = false;
             this.rtbSubs.Text = "Subtitles Label\nMore than one Lines Aligned";
+            // 
+            // lstMediaFiles
+            // 
+            this.lstMediaFiles.AllowDrop = true;
+            this.lstMediaFiles.BackColor = System.Drawing.Color.Black;
+            this.lstMediaFiles.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.lstMediaFiles.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.lstMediaFiles.ForeColor = System.Drawing.Color.Green;
+            this.lstMediaFiles.FormattingEnabled = true;
+            this.lstMediaFiles.HorizontalScrollbar = true;
+            this.lstMediaFiles.ItemHeight = 18;
+            this.lstMediaFiles.Location = new System.Drawing.Point(317, 100);
+            this.lstMediaFiles.Name = "lstMediaFiles";
+            this.lstMediaFiles.Size = new System.Drawing.Size(603, 344);
+            this.lstMediaFiles.Sorted = true;
+            this.lstMediaFiles.TabIndex = 10;
+            this.lstMediaFiles.Visible = false;
             // 
             // frmControl
             // 
@@ -152,6 +170,7 @@ namespace PartyTime.UI_Example
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1231, 621);
+            this.Controls.Add(this.lstMediaFiles);
             this.Controls.Add(this.rtbSubs);
             this.Controls.Add(this.volBar);
             this.Controls.Add(this.lblInfoText);
@@ -174,5 +193,6 @@ namespace PartyTime.UI_Example
         public System.Windows.Forms.Label lblInfoText;
         public ColorSlider.ColorSlider volBar;
         public System.Windows.Forms.RichTextBox rtbSubs;
+        public System.Windows.Forms.ListBox lstMediaFiles;
     }
 }
