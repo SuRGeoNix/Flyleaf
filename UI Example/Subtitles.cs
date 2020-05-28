@@ -17,7 +17,9 @@ namespace PartyTime
                 StreamWriter sw = new StreamWriter(new FileStream(tmpFile, FileMode.CreateNew), output);
 
                 sw.Write(sr.ReadToEnd());
-
+                sw.Flush();
+                sr.Close();
+                sw.Close();
             } catch (Exception) { return null; }
 
             return tmpFile;
@@ -39,7 +41,7 @@ namespace PartyTime
         }
         public static Encoding CheckByBOM(string path)
         {
-            if (path == null) throw new System.ArgumentNullException("path");
+            if (path == null) throw new ArgumentNullException("path");
 
             var encodings = Encoding.GetEncodings()
                 .Select(e => e.GetEncoding())
