@@ -41,7 +41,6 @@ namespace PartyTime.UI_Example
         int                     displayMoveSide;
         int                     displayMoveSideCur;
 
-        bool                    resizing;
         bool                    seekBarMLDown;
         int                     lastSeekBarMLDown   =    0;
         long                    lastUserActionTicks =    0;
@@ -73,8 +72,6 @@ namespace PartyTime.UI_Example
         const int NAUDIO_DELAY_MS                   = -200; // Need to Review this... Possible the time that NAudio buffering the initial samples
 
         System.Drawing.Color TRANSPARENCY_KEY_COLOR = System.Drawing.Color.FromArgb(1,1,1); // Form Control Transparency
-        
-        List<string> movieExts = new List<string>() { "mp4", "mkv", "mpg", "mpeg" , "mpv", "mp4p", "mpe" , "m2v", "amv" , "asf", "m4v", "3gp", "ogg", "vob", "ts", "rm", "3g2", "f4v", "f4a", "f4p", "f4b", "mts", "m2ts", "gifv", "avi", "mov", "flv", "wmv", "qt", "avchd", "swf"};
 
         #endregion
 
@@ -143,7 +140,7 @@ namespace PartyTime.UI_Example
             display.Location                    = new Point(display2.Window.ClientBounds.Width - (display.Width / 2), display2.Window.ClientBounds.Height - (display.Height / 2));
             displayLastSize                     = new Size(graphics.PreferredBackBufferWidth, graphics.PreferredBackBufferHeight);
             displayLastPos                      = display.Location;
-
+            
             graphics.ApplyChanges();
         }
         private void InitializeControl()
@@ -214,7 +211,6 @@ namespace PartyTime.UI_Example
             control.lstMediaFiles.KeyPress  += new KeyPressEventHandler     (lstMediaFiles_KeyPress);
             control.lstMediaFiles.DragEnter += new DragEventHandler         (Display_DragEnter);
             control.lstMediaFiles.DragDrop  += new DragEventHandler         (Display_DragDrop);
-            control.lstMediaFiles.MouseMove += new MouseEventHandler        (lstMediaFiles_MouseMove);
         }
 
         // Screens
@@ -224,23 +220,22 @@ namespace PartyTime.UI_Example
             {
                 lock(screenPlay)
                 {
-                    bool isIdle = IsIdle();
-
                     graphics.GraphicsDevice.Clear(Color.Black);
                     spriteBatch.Begin();
                     if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
                     {
-                        if (isIdle || resizing)
+                        if (IsIdle())
                             spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio)), Color.White);
                         else
                             spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5), Color.White);
                     }
                     else
                     {
-                        if (isIdle || resizing)
+                        if ( IsIdle() )
                             spriteBatch.Draw(screenPlay, new Rectangle(0, 0, display.Width, display.Height), Color.White);
                         else
                             spriteBatch.Draw(screenPlay, new Rectangle(0, 0, display.Width, display.Height - btnBar.Height + 5), Color.White);
+                        
                     }
                     spriteBatch.End();
                     graphics.GraphicsDevice.Present();
@@ -283,49 +278,36 @@ namespace PartyTime.UI_Example
         }
         public  void UpdateLoop()
         {
-            bool isIdle = IsIdle();
-
-            if (isIdle) { GoIdle(); if (!player.hasSubs) return; }
+            if (IsIdle()) { GoIdle(); if (!player.hasSubs) return; }
 
             // Update Subtitles Show / Hide
-            if (player.hasSubs && SubsNew)
+            if ( player.hasSubs )
             {
-                if (control.rtbSubs.InvokeRequired) { control.rtbSubs.BeginInvoke(new Action(() =>UpdateLoop())); return; }
-
                 if (player.CurTime >= subStart && player.CurTime - subStart < subDur * 10000)
                 {
-                    if (SubsNew) { SubsNew = false; ASSToRichText(control.rtbSubs, subText); }
+                    if ( SubsNew ) { SubsNew = false; ASSToRichText(control.rtbSubs, subText); }
 
-                    if (isIdle)
+                    if ( IsIdle() )
                         control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 50));
                     else
                         control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 80));
-                }
-            }
-            else if ( player.hasSubs && !SubsNew)
-            {
-                if ( !(player.CurTime >= subStart && player.CurTime - subStart < subDur * 10000) )
-                {
-                    if (control.rtbSubs.InvokeRequired) { control.rtbSubs.BeginInvoke(new Action(() =>UpdateLoop())); return; }
-                    control.rtbSubs.Text = "";
-                }
-                    
+
+                } 
+                else 
+                control.rtbSubs.Text = "";
             }
 
-            if (isIdle) return;
-   
+            // Update SeekBar Value = Cur Time
+            if (seekClockTime == -1) control.seekBar.Value = (int)(player.CurTime / 10000000);
+
+            // Update Info Text [Adjustments]
             if (seekClockTime == -1)
-            {
-                // Update SeekBar Value = Cur Time
-                control.seekBar.Value = (int)(player.CurTime / 10000000);
-
-                // Update Info Text [Adjustments]
                 if (DateTime.UtcNow.Ticks - lastInfoTextUpdate < INFO_TIME_MS * 10000)
                     FixWidthInfoText(updatedInfoText);
-                // Update Into Text [Current Time / Duration]
+
+            // Update Into Text [Current Time / Duration]
                 else
                     FixWidthInfoText("[" + (new TimeSpan(player.CurTime)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + "]");
-            }
         }
 
         // Processes
@@ -410,16 +392,13 @@ namespace PartyTime.UI_Example
         }
         private void FixWidthInfoText(string infoText)
         {
-            try
+            using (Graphics g = control.lblInfoText.CreateGraphics())
             {
-                using (Graphics g = control.lblInfoText.CreateGraphics())
-                {
-                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-                    control.lblInfoText.Width = (int) g.MeasureString(infoText, control.lblInfoText.Font).Width - 10;
-                }
-
-                control.lblInfoText.Text = infoText;
-            } catch (Exception) { }
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                control.lblInfoText.Width = (int) g.MeasureString(infoText, control.lblInfoText.Font).Width - 10;
+            }
+                
+            control.lblInfoText.Text = infoText;
         }
         private void UpdateSeekClockTime(long ticks)
         {
@@ -437,22 +416,17 @@ namespace PartyTime.UI_Example
         private void GoIdle()
         {
             if (!control.seekBar.Visible) return;
-            if (control.InvokeRequired) { control.BeginInvoke(new Action(() =>GoIdle())); return; }
-
-            display2.IsMouseVisible     = false;
+            display2.IsMouseVisible = false;
             control.lblInfoText.Visible = false;
-            control.seekBar.Visible     = false;
-            control.volBar.Visible      = false;
-            btnBar.Visible              = false;
+            control.seekBar.Visible = false;
+            control.volBar.Visible = false;
+            btnBar.Visible = false;
 
-            ScreenPlay();
-            if (!resizing) display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 1.0f);
+            if (player.isStopped || player.isPaused) ScreenPlay();
         }
         private void UnIdle()
         {
-            if (control.seekBar.Visible) return;
-            if (control.InvokeRequired) { control.BeginInvoke(new Action(() =>UnIdle())); return; }
-
+            lastUserActionTicks = DateTime.UtcNow.Ticks;
             display2.IsMouseVisible     = true;
             control.lblInfoText.Visible = true;
             control.seekBar.Visible     = true;
@@ -460,8 +434,7 @@ namespace PartyTime.UI_Example
             btnBar.Visible              = true;
 
             ScreenPlay();
-            lastUserActionTicks         = DateTime.UtcNow.Ticks;
-            display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f);
+            display.Focus();
         }
         private void ASSToRichText(RichTextBox rtb, string text)
         {
@@ -538,13 +511,7 @@ namespace PartyTime.UI_Example
             control.lstMediaFiles.Items.Clear();
 
             for (int i=0; i<mediaFiles.Count; i++)
-            {
-                string ext = Path.GetExtension(mediaFiles[i]);
-                if ( ext == null || ext.Trim() == "") continue;
-
-                if ( movieExts.Contains(ext.Substring(1,ext.Length-1)) )
-                    control.lstMediaFiles.Items.Add(mediaFiles[i]);
-            }
+                control.lstMediaFiles.Items.Add(mediaFiles[i]);
 
             control.lstMediaFiles.EndUpdate();
             control.lstMediaFiles.Visible = true;
@@ -584,7 +551,6 @@ namespace PartyTime.UI_Example
                 if (firstFrameData  == null)    firstFrameData   = frameData;
                 lock (screenPlay)               screenPlay.SetData(frameData);
                 ScreenPlay();
-                if (player.hasSubs) UpdateLoop();
             } catch (Exception) { }
         }
         private void SubsFrameClbk(string text, int duration)
@@ -592,7 +558,7 @@ namespace PartyTime.UI_Example
             try
             {
                 // Lazy ASS -> TXT
-                subText     = text.LastIndexOf(",,") == -1 ? text : text.Substring(text.LastIndexOf(",,") + 2).Replace("\\N", "\n").Trim();
+                subText     = text.Substring(text.LastIndexOf(",,") + 2).Replace("\\N", "\n").Trim();
                 subStart    = player.CurTime;
                 subDur      = duration;
                 SubsNew     = true;
@@ -714,16 +680,11 @@ namespace PartyTime.UI_Example
 
                 case (char)Keys.Space:
                 case (char)Keys.P:
-                    if (player.isPlaying) { player.Pause(); audioPlayer.ResetClbk(); } else { player.Play(); }
+                    if (player.isPlaying) { player.Pause(); audioPlayer.Pause(); } else { player.Play(); audioPlayer.Play(); }
                     break;
 
                 case (char)Keys.S:
                     Stop();
-                    break;
-
-                case (char)Keys.H:
-                    player.HWAcceleration = !player.HWAcceleration;
-                    UpdateInfoText($"[HW ACCELERATION] {player.HWAcceleration}");
                     break;
 
                 case (char)Keys.R:
@@ -757,13 +718,12 @@ namespace PartyTime.UI_Example
             display.Focus();
             display.Activate();
             display.Show();
-            display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f);
         }
-        private void Display_DragEnter(object sender, DragEventArgs e)      { e.Effect = DragDropEffects.All; lastUserActionTicks = DateTime.UtcNow.Ticks; display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 80.0f); }
+        private void Display_DragEnter(object sender, DragEventArgs e)      { e.Effect = DragDropEffects.All; lastUserActionTicks = DateTime.UtcNow.Ticks; }
 
         // UI Events [DISPLAY MOUSE]
-        private void Display_MouseDown(object sender, MouseEventArgs e)     { display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 50.0f); if (e.Button == MouseButtons.Left) { displayMLDown = true; displayMLDownPos = e.Location; } }
-        private void Display_MouseUp(object sender, MouseEventArgs e)       { display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f); if (e.Button == MouseButtons.Left) { displayMLDown = false; resizing = false; displayMoveSideCur = 0; FixFrmControl(); UnIdle(); } }
+        private void Display_MouseDown(object sender, MouseEventArgs e)     { if (e.Button == MouseButtons.Left) { displayMLDown = true; displayMLDownPos = e.Location; } }
+        private void Display_MouseUp(object sender, MouseEventArgs e)       { if (e.Button == MouseButtons.Left) { displayMLDown = false; displayMoveSideCur = 0; UnIdle(); FixFrmControl(); } }
         private void Display_MouseClickDbl(object sender, MouseEventArgs e) { if (e.Clicks >= 2 && e.Button == MouseButtons.Left) FullScreenToggle(); }
         private void Display_MouseMove(object sender, MouseEventArgs e)
         {
@@ -772,8 +732,6 @@ namespace PartyTime.UI_Example
             displayMMoveLastPos = e.Location;
 
             if (!display2.IsMouseVisible && !displayMLDown) UnIdle();
-
-            lastUserActionTicks = DateTime.UtcNow.Ticks;
 
             if (graphics.IsFullScreen || graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) return;
 
@@ -1010,10 +968,10 @@ namespace PartyTime.UI_Example
                             }
                         }
 
-                        resizing = true;
-                        GoIdle();
-                        ScreenPlay();
+                        //ScreenPlay();
+                        lock (screenPlay) GoIdle();
                     }
+
                 }
                 else
                 {
@@ -1021,6 +979,8 @@ namespace PartyTime.UI_Example
                     display.Location = new Point(display.Location.X + e.Location.X - displayMLDownPos.X, display.Location.Y + e.Location.Y - displayMLDownPos.Y);
                     control.Location = display.Location;
                 }
+
+                //lock (screenPlay) FixFrmControl();
             }
             else
             {
@@ -1092,8 +1052,7 @@ namespace PartyTime.UI_Example
         // UI Events [CONTROL SEEKBAR]
         private void SeekBar_MouseUp(object sender, MouseEventArgs e)
         {
-            display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f);
-
+            if (e.Button == MouseButtons.Left) seekBarMLDown = false;
             if (!player.isReady) { display.Focus(); return; }
 
             UpdateSeekClockTime((long)(lastSeekBarMLDown) * 10000000);
@@ -1101,15 +1060,12 @@ namespace PartyTime.UI_Example
             if ( player.hasAudio ) audioPlayer.ResetClbk(); // Clear Buffer For Silence During Seeking
             player.Seek(lastSeekBarMLDown * 1000, false);
             seekClockTime           =  -1;
-            if (e.Button == MouseButtons.Left) seekBarMLDown = false;
             display.Focus();
         }
         private void SeekBar_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
-                display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 50.0f);
-
                 seekBarMLDown           =  true;
                 lastUserActionTicks     =  DateTime.UtcNow.Ticks;
                 lastSeekBarMLDown       =  control.seekBar.Value;
@@ -1148,14 +1104,11 @@ namespace PartyTime.UI_Example
         }
         private void lstMediaFiles_KeyPress(object sender, KeyPressEventArgs e)
         {
-            lastUserActionTicks = DateTime.UtcNow.Ticks;
-
             if ( e.KeyChar != (char)13 ) return;
             if ( control.lstMediaFiles.SelectedItem == null ) return;
 
             SetMediaFile(control.lstMediaFiles.SelectedItem.ToString());
         }
-        private void lstMediaFiles_MouseMove(object sender, MouseEventArgs e) { lastUserActionTicks = DateTime.UtcNow.Ticks; }
 
         // Full Screen / Aspect Ratio
         private void GraphicsApplyChanges()
