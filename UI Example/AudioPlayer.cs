@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 
 using NAudio.Wave;
 using NAudio.CoreAudioApi;
@@ -10,6 +11,7 @@ namespace PartyTime.UI_Example
         WaveOut                 player;
         WaveFormat              format;
         BufferedWaveProvider    buffer;
+        Thread                  threadOpen;
 
         MMDeviceEnumerator      deviceEnum = new MMDeviceEnumerator();
 
@@ -30,13 +32,31 @@ namespace PartyTime.UI_Example
         public void Initialize()
         {
             lock (locker)
-            {
-                player = new WaveOut();
-                player.DeviceNumber = 0;
+            {   
+                bool reseted = false;
+
                 format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
                 buffer = new BufferedWaveProvider(format);
                 buffer.BufferLength = 1500 * 1024;
-                player.Init(buffer);
+
+                threadOpen = new Thread(() => { 
+                    lock (locker)
+                    {
+                        try
+                        {
+                            player = new WaveOut();
+                            player.DeviceNumber = 0;
+                            player.Init(buffer);
+                            player.Play();
+                            reseted = true;
+                        } catch (Exception) { reseted = true; }
+                    }
+                });
+                threadOpen.SetApartmentState(ApartmentState.STA);
+                threadOpen.Start();
+
+                while (reseted);
+                Thread.Sleep(20);
             }
         }
 
@@ -77,7 +97,7 @@ namespace PartyTime.UI_Example
         {
             try
             {
-                if (this.buffer.BufferedBytes == 0) Log("[AUDIO] Buffer was empty ");
+                //if (this.buffer.BufferedBytes == 0) Log("[AUDIO] Buffer was empty ");
                 //Log($"[AUDIO PLAYER] [BufferedBytes: {this.buffer.BufferedBytes}]");
 
                 int fixBlock = 0;
@@ -94,15 +114,7 @@ namespace PartyTime.UI_Example
         public void ResetClbk() { lock (locker) buffer.ClearBuffer(); }
 
         // Audio Devices Events
-        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) 
-        {   
-            Initialize();
-            lock(locker)
-            {
-                buffer.ClearBuffer();
-                player.Play(); 
-            } 
-        }
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) { Initialize(); }
         public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
         public void OnDeviceStateChanged(string deviceId, DeviceState newState) { }
         public void OnDeviceAdded(string pwstrDeviceId) { }

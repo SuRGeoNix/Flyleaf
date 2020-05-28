@@ -42,7 +42,7 @@ namespace PartyTime.UI_Example
             this.seekBar.BackColor = System.Drawing.Color.Black;
             this.seekBar.BarPenColorBottom = System.Drawing.Color.FromArgb(((int)(((byte)(87)))), ((int)(((byte)(94)))), ((int)(((byte)(110)))));
             this.seekBar.BarPenColorTop = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
-            this.seekBar.BorderRoundRectSize = new System.Drawing.Size(1, 1);
+            this.seekBar.BorderRoundRectSize = new System.Drawing.Size(25, 25);
             this.seekBar.ElapsedInnerColor = System.Drawing.Color.FromArgb(((int)(((byte)(21)))), ((int)(((byte)(56)))), ((int)(((byte)(152)))));
             this.seekBar.ElapsedPenColorBottom = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(130)))), ((int)(((byte)(208)))));
             this.seekBar.ElapsedPenColorTop = System.Drawing.Color.FromArgb(((int)(((byte)(95)))), ((int)(((byte)(140)))), ((int)(((byte)(180)))));
@@ -50,6 +50,7 @@ namespace PartyTime.UI_Example
             this.seekBar.ForeColor = System.Drawing.Color.White;
             this.seekBar.LargeChange = ((uint)(1u));
             this.seekBar.Location = new System.Drawing.Point(12, 592);
+            this.seekBar.Margin = new System.Windows.Forms.Padding(1234);
             this.seekBar.Name = "seekBar";
             this.seekBar.ScaleDivisions = 1;
             this.seekBar.ScaleSubDivisions = 1;
@@ -61,8 +62,8 @@ namespace PartyTime.UI_Example
             this.seekBar.TabStop = false;
             this.seekBar.ThumbInnerColor = System.Drawing.Color.FromArgb(((int)(((byte)(21)))), ((int)(((byte)(56)))), ((int)(((byte)(152)))));
             this.seekBar.ThumbPenColor = System.Drawing.Color.FromArgb(((int)(((byte)(21)))), ((int)(((byte)(56)))), ((int)(((byte)(152)))));
-            this.seekBar.ThumbRoundRectSize = new System.Drawing.Size(16, 16);
-            this.seekBar.ThumbSize = new System.Drawing.Size(16, 16);
+            this.seekBar.ThumbRoundRectSize = new System.Drawing.Size(5, 5);
+            this.seekBar.ThumbSize = new System.Drawing.Size(20, 20);
             this.seekBar.TickAdd = 0F;
             this.seekBar.TickColor = System.Drawing.Color.White;
             this.seekBar.TickDivide = 0F;
@@ -120,8 +121,8 @@ namespace PartyTime.UI_Example
             this.volBar.TabStop = false;
             this.volBar.ThumbInnerColor = System.Drawing.Color.Green;
             this.volBar.ThumbPenColor = System.Drawing.Color.Green;
-            this.volBar.ThumbRoundRectSize = new System.Drawing.Size(16, 16);
-            this.volBar.ThumbSize = new System.Drawing.Size(16, 16);
+            this.volBar.ThumbRoundRectSize = new System.Drawing.Size(20, 20);
+            this.volBar.ThumbSize = new System.Drawing.Size(20, 20);
             this.volBar.TickAdd = 0F;
             this.volBar.TickColor = System.Drawing.Color.White;
             this.volBar.TickDivide = 0F;
@@ -137,12 +138,12 @@ namespace PartyTime.UI_Example
             this.rtbSubs.DetectUrls = false;
             this.rtbSubs.Font = new System.Drawing.Font("Arial", 32.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
             this.rtbSubs.ForeColor = System.Drawing.Color.White;
-            this.rtbSubs.Location = new System.Drawing.Point(282, 409);
+            this.rtbSubs.Location = new System.Drawing.Point(229, 385);
             this.rtbSubs.Name = "rtbSubs";
             this.rtbSubs.ReadOnly = true;
             this.rtbSubs.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
             this.rtbSubs.ShortcutsEnabled = false;
-            this.rtbSubs.Size = new System.Drawing.Size(690, 70);
+            this.rtbSubs.Size = new System.Drawing.Size(801, 94);
             this.rtbSubs.TabIndex = 9;
             this.rtbSubs.TabStop = false;
             this.rtbSubs.Text = "Subtitles Label\nMore than one Lines Aligned";
