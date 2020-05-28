@@ -1,13 +1,12 @@
 ﻿using FFmpeg.AutoGen;
-using SuRGeoNix;
-using SuRGeoNix.TorSwarm;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+
+using SuRGeoNix;
+using SuRGeoNix.TorSwarm;
 
 using static PartyTime.Codecs.FFmpeg;
 
@@ -27,6 +26,7 @@ namespace PartyTime
 
         public int              AudioExternalDelay  { get; set; }
         public int              SubsExternalDelay   { get; set; }
+        public bool             IsSubsExternal      { get; set; }
 
         public Action<List<string>, List<long>> MediaFilesClbk;
         public Action<bool>                 BufferingDoneClbk;
@@ -75,6 +75,7 @@ namespace PartyTime
             fileIndex       = -1;
             fileDistance    = -1;
             status          = Status.STOPPED;
+            IsSubsExternal  = false;
 
             try
             {
@@ -160,7 +161,7 @@ namespace PartyTime
                     tsStream.Start();
                 } catch (Exception e) { Log($"[MS] TorSwarm is Dead, What should I Do? {e.Message}\r\n{e.StackTrace}"); Initialize(); status = Status.FAILED; return -1;}
                 
-                status = Status.OPENED; //StatusUpdateClbk?.BeginInvoke(status, "", null, null);
+                status = Status.OPENED;
             }
 
             return 0;
@@ -211,7 +212,7 @@ namespace PartyTime
                 else if (mType  == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
                     sDone = true;
 
-                if (vDone && (!decoder.hasAudio || aDone) && (!decoder.hasSubs || sDone))
+                if (vDone && (!decoder.hasAudio || aDone) && (!decoder.hasSubs || IsSubsExternal || sDone))
                 {
                     Log($"[BUFFER] Done");
                     status = Status.BUFFERED;
@@ -223,8 +224,8 @@ namespace PartyTime
         // Starts Internal Decoders for Seekings & Buffering
         public void SeekSubs(int ms)
         {
-            if ( !decoder.isReady || !decoder.hasSubs || decoder.isSubsExternal ) return;
-            aDone = false;
+            if ( !decoder.isReady || !decoder.hasSubs || IsSubsExternal ) return;
+            if ( streamType == StreamType.TORRENT && torrent != null && torrent.data.files[fileIndex].FileCreated ) { decoder.BufferingSubsDone?.BeginInvoke(null, null); return; }
 
             try
             {
@@ -237,8 +238,8 @@ namespace PartyTime
                 sDecoder = new Thread(() =>
                 {
                     decoder.sStatus = Codecs.FFmpeg.Status.RUNNING;
-                    decoder.SeekAccurate2((ms - SubsExternalDelay) - 500, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                    decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_SUBTITLE, ((ms -SubsExternalDelay) + 5500) * (long)10000, true);
+                    if ( decoder.SeekAccurate2((ms - SubsExternalDelay) - 500, AVMediaType.AVMEDIA_TYPE_SUBTITLE) != 0) Log("[SUBS  STREAMER] Error Seeking");
+                    decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_SUBTITLE, ((ms -SubsExternalDelay) + 15000) * (long)10000, true);
                     decoder.sStatus = Codecs.FFmpeg.Status.STOPPED;
                 });
                 sDecoder.SetApartmentState(ApartmentState.STA);
@@ -248,7 +249,7 @@ namespace PartyTime
         public void SeekAudio(int ms)
         {
             if ( !decoder.isReady || !decoder.hasAudio) return;
-            aDone = false;
+            if ( streamType == StreamType.TORRENT && torrent != null && torrent.data.files[fileIndex].FileCreated ) { decoder.BufferingAudioDone?.BeginInvoke(null, null); return; }
 
             try
             {
@@ -259,7 +260,7 @@ namespace PartyTime
             aDecoder = new Thread(() =>
             {
                 decoder.aStatus = Codecs.FFmpeg.Status.RUNNING;
-                decoder.SeekAccurate2((ms - AudioExternalDelay) - 400, AVMediaType.AVMEDIA_TYPE_AUDIO);
+                if ( decoder.SeekAccurate2((ms - AudioExternalDelay) - 400, AVMediaType.AVMEDIA_TYPE_AUDIO) != 0) Log("[AUDIO STREAMER] Error Seeking");
                 decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_AUDIO, ((ms - AudioExternalDelay) + 2000) * (long)10000, true);
                 decoder.aStatus = Codecs.FFmpeg.Status.STOPPED;
             });
@@ -282,7 +283,6 @@ namespace PartyTime
             aDone = false; vDone = false; sDone = false;
             status = Status.BUFFERING;
 
-            //Log($"[SEEKING] to -> {ms}");
             lock (localFocusPoints)
             {
                 foreach (KeyValuePair<long, Tuple<long, int>> curLFPKV in localFocusPoints)
@@ -294,7 +294,7 @@ namespace PartyTime
             vDecoder = new Thread(() =>
             {
                 decoder.vStatus = Codecs.FFmpeg.Status.RUNNING;
-                decoder.SeekAccurate2(ms - 100, AVMediaType.AVMEDIA_TYPE_VIDEO);
+                if ( decoder.SeekAccurate2(ms - 100, AVMediaType.AVMEDIA_TYPE_VIDEO) != 0) Log("VIDEO STREAMER] Error Seeking");
                 decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_VIDEO, (ms + 5500) * (long)10000);
                 decoder.vStatus = Codecs.FFmpeg.Status.STOPPED;
             });
@@ -306,7 +306,7 @@ namespace PartyTime
                 aDecoder = new Thread(() =>
                 {
                     decoder.aStatus = Codecs.FFmpeg.Status.RUNNING;
-                    decoder.SeekAccurate2((ms - AudioExternalDelay) - 400, AVMediaType.AVMEDIA_TYPE_AUDIO);
+                    if ( decoder.SeekAccurate2((ms - AudioExternalDelay) - 400, AVMediaType.AVMEDIA_TYPE_AUDIO) != 0) Log("[AUDIO STREAMER] Error Seeking");
                     decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_AUDIO, ((ms - AudioExternalDelay) + 2000) * (long)10000);
                     decoder.aStatus = Codecs.FFmpeg.Status.STOPPED;
                 });
@@ -314,13 +314,13 @@ namespace PartyTime
                 aDecoder.Start();
             }
             
-            if ( decoder.hasSubs )
+            if ( decoder.hasSubs && !IsSubsExternal)
             {
                 sDecoder = new Thread(() =>
                 {
                     decoder.sStatus = Codecs.FFmpeg.Status.RUNNING;
-                    decoder.SeekAccurate2((ms - SubsExternalDelay) - 1000, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                    decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_SUBTITLE, ((ms -SubsExternalDelay) + 5500) * (long)10000);
+                    if ( decoder.SeekAccurate2((ms - SubsExternalDelay) - 1000, AVMediaType.AVMEDIA_TYPE_SUBTITLE)  != 0) Log("[SUBS  STREAMER] Error Seeking");
+                    decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_SUBTITLE, ((ms -SubsExternalDelay) + 15000) * (long)10000);
                     decoder.sStatus = Codecs.FFmpeg.Status.STOPPED;
                 });
                 sDecoder.SetApartmentState(ApartmentState.STA);
@@ -329,14 +329,15 @@ namespace PartyTime
         }
 
         // External Decoder        | (FFmpeg AVIO)
-        public byte[]   DecoderRequests(long pos, int len)
+        public byte[]   DecoderRequests(long pos, int len, AVMediaType mType)
         {
             //Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}] {isAudio}");
 
             byte[] data = null;
             if ( streamType == StreamType.FILE )
             {
-                Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}]");
+                //Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
+
                 data = new byte[len];
                 
                 lock (fsStream)
@@ -347,14 +348,14 @@ namespace PartyTime
             }
             else if ( streamType == StreamType.TORRENT )
             {
-                if ( torrent.data.progress.GetFirst0(filePosToPiece(pos), filePosToPiece(pos + len)) == -1 ) return torrent.data.files[fileIndex].Read(pos, len);
+                if ( torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) == -1 ) return torrent.data.files[fileIndex].Read(pos, len);
 
                 if ( UpdateFocusPoints(pos, len) == -1 ) CreateFocusPoint(pos, len);
 
-                while ( torrent.data.progress.GetFirst0(filePosToPiece(pos), filePosToPiece(pos + len)) != -1 )
+                while ( torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) != -1 )
                     Thread.Sleep(10);
 
-                //Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}] {isAudio}");
+                Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
 
                 data = torrent.data.files[fileIndex].Read(pos, len);
 
@@ -365,12 +366,12 @@ namespace PartyTime
         }
 
         // Internal Decoder Buffer | (FFmpeg AVIO)
-        private byte[]  DecoderRequestsBuffer(long pos, int len)
+        private byte[]  DecoderRequestsBuffer(long pos, int len, AVMediaType mType)
         {
             byte[] data = null;
             if ( streamType == StreamType.FILE )
             {
-                Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}]");
+                Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
                 data = new byte[len];
 
                 lock (fsStream)
@@ -383,11 +384,12 @@ namespace PartyTime
             {
                 lock (lockerBuffering)
                 {
-                    if ( torrent.data.progress.GetFirst0(filePosToPiece(pos), filePosToPiece(pos + len)) == -1 ) return torrent.data.files[fileIndex].Read(pos, len);
+                    if ( torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) == -1 ) return torrent.data.files[fileIndex].Read(pos, len);
 
+                    if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE) Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
                     if ( UpdateFocusPoints(pos, len) == -1 ) CreateFocusPoint(pos, len);
 
-                    while ( torrent.data.progress.GetFirst0(filePosToPiece(pos), filePosToPiece(pos + len)) != -1 )
+                    while ( torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) != -1 )
                         Thread.Sleep(10);
 
                     //Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {isAudio}");
@@ -452,7 +454,7 @@ namespace PartyTime
             //Log($"[FP] [CREATE] [POS: {pos}] [LEN: {len}] [PIECE_FROM: {filePosToPiece(pos)}] [PIECE_TO: {filePosToPiece(pos + len)}]");
             //Log($"[DEBUG002] Requestin Focus Point from {filePosToPiece(pos)} to {filePosToPiece(pos + len)}");
             lock (localFocusPoints) localFocusPoints[pos] = new Tuple<long, int>(pos, len);
-            tsStream.CreateFocusPoint(new TorSwarm.FocusPoint(pos, filePosToPiece(pos), filePosToPiece(pos + len)));
+            tsStream.CreateFocusPoint(new TorSwarm.FocusPoint(pos, FilePosToPiece(pos), FilePosToPiece(pos + len)));
         }
         private void DeleteFocusPoint(long pos)
         {
@@ -464,7 +466,7 @@ namespace PartyTime
 
         
         // Misc
-        private int filePosToPiece(long pos)
+        private int FilePosToPiece(long pos)
         {
             return (int)((fileDistance + pos) / torrent.file.pieceLength);
         }
