@@ -7,6 +7,8 @@ using System.Threading;
 
 using static PartyTime.Codecs.FFmpeg;
 using System.Diagnostics;
+using System.Media;
+using System.IO;
 
 namespace PartyTime
 {
@@ -66,12 +68,12 @@ namespace PartyTime
 
         // Properties (Public)
         public bool isReady         { get; private set; }
-        public bool isPlaying       { get { return (status == Status.PLAYING);  } }
-        public bool isPaused        { get { return (status == Status.PAUSED);   } }
-        public bool isSeeking       { get { return (status == Status.SEEKING);  } }
-        public bool isStopped       { get { return (status == Status.STOPPED);  } }
-        public bool isFailed        { get { return (status == Status.FAILED);   } }
-        public bool isOpened        { get { return (status == Status.OPENED);   } }
+        public bool isPlaying       { get { return (status == Status.PLAYING); } }
+        public bool isPaused        { get { return (status == Status.PAUSED); } }
+        public bool isSeeking       { get { return (status == Status.SEEKING); } }
+        public bool isStopped       { get { return (status == Status.STOPPED); } }
+        public bool isFailed        { get { return (status == Status.FAILED); } }
+        public bool isOpened        { get { return (status == Status.OPENED); } }
         public bool isTorrent       { get; private set; }
         public bool hasAudio        { get; private set; }
         public bool hasVideo        { get; private set; }
@@ -90,6 +92,7 @@ namespace PartyTime
             set
             {
                 if (!decoder.isReady || !isReady || !decoder.hasAudio) return;
+                //if (CurTime + audioExternalDelay < decoder.aStreamInfo.startTimeTicks || CurTime + audioExternalDelay > decoder.aStreamInfo.durationTicks) return;
              
                 audioExternalDelay = value;
                 streamer.AudioExternalDelay = (int) (value / 10000);
@@ -103,6 +106,7 @@ namespace PartyTime
             set
             {
                 if (!decoder.isReady || !isReady || !decoder.hasSubs) return;
+                //if (CurTime + subsExternalDelay < decoder.vStreamInfo.startTimeTicks || CurTime + subsExternalDelay > decoder.vStreamInfo.durationTicks) return;
 
                 subsExternalDelay = value;
                 streamer.SubsExternalDelay = (int)(value / 10000);                
@@ -136,7 +140,6 @@ namespace PartyTime
 
             isReady = false;
             status  = Status.STOPPED;
-            beforeSeeking = Status.STOPPED;
             decoder.HWAcceleration = HWAcceleration;
 
             lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
@@ -261,11 +264,7 @@ namespace PartyTime
             {
                 if ( vFrames.Count < 1 )
                 { 
-                    if (decoder.isVideoFinish) { status = Status.STOPPED; Log($"[VIDEO SCREAMER] Finished"); return; }
-
-                    Log($"[VIDEO SCREAMER] No Frames, Restarting ...");
-
-                    Thread.Sleep(150);
+                    if (decoder.isVideoFinish) { status = Status.STOPPED; return; }
 
                     Thread restart = new Thread(() => {
                         Seek((int) (CurTime/10000));
@@ -277,10 +276,6 @@ namespace PartyTime
 
                 if ( offDistanceCounter > VIDEO_MAX_QUEUE_SIZE )
                 {
-                    Log($"[VIDEO SCREAMER] Too Many Drops, Restarting ...");
-
-                    Thread.Sleep(150);
-
                     Thread restart = new Thread(() => {
                         Seek((int) (CurTime/10000));
                     });
@@ -305,7 +300,7 @@ namespace PartyTime
 
                 // Video Frames         [Callback]
                 CurTime = vFrame.timestamp;
-                //Log($"[VIDEO SCREAMER] Frame Scream [CurTS: {vFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {(vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                Log($"[VIDEO SCREAMER] Frame Scream [CurTS: {vFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {(vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
                 VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, distanceTicks, null, null);
             }
 
@@ -328,13 +323,11 @@ namespace PartyTime
             {
                 if ( aFrames.Count < 1 )
                 { 
-                    if (decoder.isAudioFinish) { Log($"[AUDIO SCREAMER] Finished"); return; }
+                    if (decoder.isAudioFinish) return;
 
                     if (!decoder.isAudioRunning)
                     {
-                        Log($"[AUDIO SCREAMER] No Frames, Restarting ...");
-
-                        Thread.Sleep(150);
+                        Thread.Sleep(100);
 
                         Thread restart = new Thread(() => {
                             if (isTorrent)
@@ -354,9 +347,7 @@ namespace PartyTime
                 {
                     if ( offDistanceCounter > AUDIO_MIX_QUEUE_SIZE )
                     {
-                        Log($"[AUDIO SCREAMER] Too Many Drops, Restarting ...");
-
-                        Thread.Sleep(150);
+                        Thread.Sleep(100);
 
                         Thread restart = new Thread(() => {
                             if (isTorrent)
@@ -386,7 +377,7 @@ namespace PartyTime
                 if ( distanceMs > 3 ) Thread.Sleep(distanceMs - 2);
 
                 // Audio Frames         [Callback]
-                //Log($"[AUDIO SCREAMER] Frame Scream [CurTS: {aFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {aFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                Log($"[AUDIO SCREAMER] Frame Scream [CurTS: {aFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {aFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
                 AudioFrameClbk(aFrame.data, 0, aFrame.data.Length);
             }
 
@@ -408,38 +399,34 @@ namespace PartyTime
             {
                 if ( sFrames.Count < 1 )
                 { 
-                    if (decoder.isSubsFinish)
+                    if (decoder.isSubsFinish) return;
+
+                    if (!decoder.isSubsRunning)
                     {
-                        Thread.Sleep(1000);
-                        Log($"[SUBS  SCREAMER] Finished");
+                        Thread.Sleep(100);
+
+                        Thread restart = new Thread(() => {
+                            if (isTorrent)
+                                streamer.SeekSubs((int) ((CurTime - subsExternalDelay)/10000) - 100);
+                            else
+                                RestartSubs();
+                        });
+                        restart.SetApartmentState(ApartmentState.STA);
+                        restart.Start();
+
                         return;
                     }
-
-                    Log($"[SUBS  SCREAMER] No Frames, Restarting");
-
-                    Thread.Sleep(150);
-
-                    Thread restart = new Thread(() => {
-                        if (isTorrent && !decoder.isSubsExternal)
-                            streamer.SeekSubs((int) ((CurTime - subsExternalDelay)/10000) - 100);
-                        else
-                            RestartSubs();
-                    });
-                    restart.SetApartmentState(ApartmentState.STA);
-                    restart.Start();
 
                     return;
                 }
                 else
                 {
-                    if ( offDistanceCounter > 5 )
+                    if ( offDistanceCounter > SUBS_MIN_QUEUE_SIZE )
                     {
-                        Log($"[SUBS  SCREAMER] Too Many Drops, Restarting ...");
-
-                        Thread.Sleep(150);
+                        Thread.Sleep(100);
 
                         Thread restart = new Thread(() => {
-                            if (isTorrent && !decoder.isSubsExternal)
+                            if (isTorrent)
                                 streamer.SeekSubs((int) ((CurTime - subsExternalDelay)/10000) - 100);
                             else
                                 RestartSubs();
@@ -451,7 +438,7 @@ namespace PartyTime
                     }
                 }
 
-                lock (sFrames) sFrames.TryPeek(out sFrame);
+                lock (sFrames) sFrames.TryDequeue(out sFrame);
 
                 distanceTicks   = (sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks);
                 distanceMs      = (int) (distanceTicks/10000);
@@ -460,22 +447,14 @@ namespace PartyTime
                 {
                     Log($"[SUBS  SCREAMER] Frame Drop   [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
                     offDistanceCounter ++;
-                    lock (sFrames) sFrames.TryDequeue(out sFrame);
                     continue;
                 }
 
-                if ( distanceMs > 1000 )
-                {
-                    Thread.Sleep(1000);
-                    continue;
-                }
-                
                 if ( distanceMs > 3 ) Thread.Sleep(distanceMs - 2);
 
-                // Sub Frames         [Callback]
-                //Log($"[SUBS  SCREAMER] Frame Scream [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                // Audio Frames         [Callback]
+                Log($"[SUBS  SCREAMER] Frame Scream [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
                 SubFrameClbk.BeginInvoke(sFrame.text, sFrame.duration, null, null);
-                lock (sFrames) sFrames.TryDequeue(out sFrame);
             }
 
             Log($"[SUBS  SCREAMER] Finished  -> {videoStartTicks/10000}");
@@ -618,12 +597,10 @@ namespace PartyTime
             if ( sScreamer != null ) sScreamer.Abort();
             
             if ( !decoder.hasVideo)                     return -1;
-            Thread.Sleep(40);
             if ( (ret = decoder.OpenSubs(url)) != 0 )   { hasSubs = false; return ret; }
 
             hasSubs             = decoder.hasSubs;
             subsExternalDelay   = 0;
-            if (streamer != null) streamer.IsSubsExternal = true;
 
             RestartSubs();
 
@@ -743,7 +720,7 @@ namespace PartyTime
             {
                 if (!isReady) return;
                 if (openOrBuffer != null) openOrBuffer.Abort();
-                if (!isSeeking || status == Status.BUFFERING) beforeSeeking = status;
+                if (!isSeeking) beforeSeeking = status;
 
                 if (streamer    != null && isTorrent) streamer.Pause();
                 if (decoder     != null)   decoder.Pause();
@@ -786,11 +763,8 @@ namespace PartyTime
                         videoStartTicks = vFrame.timestamp;
                         VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, 0, null, null);
                     }
-                    
-                    if (beforeSeeking == Status.PLAYING) 
-                        Play();
-                    else if ( isTorrent )
-                        streamer.Seek((int)(CurTime/10000));
+
+                    if (beforeSeeking == Status.PLAYING) Play();
 
                 } catch (Exception) { }
             });
@@ -801,7 +775,6 @@ namespace PartyTime
         public int Pause()
         {
             status = Status.PAUSED;
-            beforeSeeking = Status.PAUSED;
 
             if (decoder  != null) decoder.Pause();
             if (screamer != null) screamer.Abort();

@@ -39,7 +39,7 @@ namespace PartyTime.Codecs
         // Contexts             [Audio]     [Video]     [Subs]      [Audio/Video]       [Subs/Video]
         AVFormatContext*        aFmtCtx,    vFmtCtx,    sFmtCtx;
         AVIOContext*            aIOCtx,     vIOCtx,     sIOCtx;
-        AVStream*               aStream,    vStream,    sStream;
+        AVStream*               aStream,    vStream,    sStream,        avStream,       svStream; // AV|SV Streams requires for matroska (mkv/avi etc) to seek through Video Stream to avoid seeking the whole file
         AVCodecContext*         aCodecCtx,  vCodecCtx,  sCodecCtx;
         AVCodec*                aCodec,     vCodec,     sCodec;
         SwrContext*             swrCtx;
@@ -122,8 +122,6 @@ namespace PartyTime.Codecs
         public AudioStreamInfo aStreamInfo;
         public VideoStreamInfo vStreamInfo;
 
-        private double sTimbebaseLowTicks;
-
         public bool isVideoFinish   { get {  return vFinish; } }
         public bool isAudioFinish   { get {  return aFinish; } }
         public bool isSubsFinish    { get {  return sFinish; } }
@@ -203,11 +201,11 @@ namespace PartyTime.Codecs
         private void InitializeSubs()
         {
             sStatus = Status.STOPPED;
-            Thread.Sleep(30);
-            if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
             AVFormatContext* fmtCtxPtr = sFmtCtx;
             ffmpeg.avformat_close_input(&fmtCtxPtr);
 
+            Thread.Sleep(30);
+            if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
             hasSubs = false;
         }
 
@@ -215,15 +213,21 @@ namespace PartyTime.Codecs
         private int SetupStream(AVMediaType mType)
         {
             int streamIndex     = -1;
+            int streamIndexAV   = -1;
+            int streamIndexSV   = -1;
 
             if      (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)   { streamIndex = ffmpeg.av_find_best_stream(aFmtCtx, mType, -1, -1, null, 0); }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)   { streamIndex = ffmpeg.av_find_best_stream(vFmtCtx, mType, -1, -1, null, 0); }
+            else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)   { streamIndex = ffmpeg.av_find_best_stream(vFmtCtx, mType, -1, -1, null, 0);
+                                                                  streamIndexAV=ffmpeg.av_find_best_stream(aFmtCtx, mType, -1, -1, null, 0);
+                                                                  streamIndexSV=ffmpeg.av_find_best_stream(sFmtCtx, mType, -1, -1, null, 0);}
             else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE){ streamIndex = ffmpeg.av_find_best_stream(sFmtCtx, mType, -1, -1, null, 0); }
 
             if (streamIndex < 0) return streamIndex;
 
             if      (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)   { aStream = aFmtCtx->streams[streamIndex]; hasAudio = true; }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)   { vStream = vFmtCtx->streams[streamIndex]; hasVideo = true; }
+            else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)   { vStream = vFmtCtx->streams[streamIndex]; hasVideo = true; 
+                                                                  avStream= vFmtCtx->streams[streamIndexAV];
+                                                                  svStream= vFmtCtx->streams[streamIndexSV];}
             else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE){ sStream = sFmtCtx->streams[streamIndex]; hasSubs  = true; }
             else return -1;
 
@@ -271,7 +275,7 @@ namespace PartyTime.Codecs
 
                 foreach (AVHWDeviceType hwDevice in hwDevices)
                 {
-                    if (hwDevice == AVHWDeviceType.AV_HWDEVICE_TYPE_DXVA2) continue;
+                    //if (hwDevice == AVHWDeviceType.AV_HWDEVICE_TYPE_DXVA2) continue;
                     //if (hwDevice == AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA) continue;
                     if (hwDevice == AVHWDeviceType.AV_HWDEVICE_TYPE_CUDA) continue;
 
@@ -284,10 +288,10 @@ namespace PartyTime.Codecs
 
                     // HW Deivce Context (Temporary)
                     AVBufferRef* hw_device_ctx;
-                    if (ffmpeg.av_hwdevice_ctx_create(&hw_device_ctx, hwDevice, "auto", null, 0) != 0) continue;
+                    if (ffmpeg.av_hwdevice_ctx_create(&hw_device_ctx, hwDevice, null, null, 0) != 0) continue;
 
                     // Available Pixel Format's are supported from SWS (Currently using only NV12 for RGBA convert later with sws_scale)
-                    AVHWFramesConstraints* hw_frames_const = ffmpeg.av_hwdevice_get_hwframe_constraints(hw_device_ctx, null); // ffmpeg.av_hwdevice_hwconfig_alloc(hw_device_ctx)
+                    AVHWFramesConstraints* hw_frames_const = ffmpeg.av_hwdevice_get_hwframe_constraints(hw_device_ctx, null);
                     if (hw_frames_const == null) { ffmpeg.av_buffer_unref(&hw_device_ctx); continue; }
                     for (AVPixelFormat* p = hw_frames_const->valid_sw_formats; *p != AVPixelFormat.AV_PIX_FMT_NONE; p++)
                         if (ffmpeg.sws_isSupportedInput(*p) > 0)
@@ -529,7 +533,7 @@ namespace PartyTime.Codecs
                     if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(15); }
                     aStatus = Status.SEEKING;
 
-                    ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
+                    ret = ffmpeg.avformat_seek_file(aFmtCtx, avStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
                     ffmpeg.avcodec_flush_buffers(aCodecCtx);
 
                     aStatus = oldStatus;
@@ -554,30 +558,23 @@ namespace PartyTime.Codecs
 
                 case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
                     oldStatus = sStatus;
-                    
 
-                    //if (!isSubsExternal)
-                    //{
-                    //    if (calcTimestamp > vStreamInfo.durationTicks) { aStatus = oldStatus; break; }
-                    //    if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                    //    calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+                    if (!isSubsExternal)
+                    {
+                        if (calcTimestamp > vStreamInfo.durationTicks) { aStatus = oldStatus; break; }
+                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
+                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
 
-                    //    if (sDecoder != null && sDecoder.IsAlive) { sDecoder.Abort(); Thread.Sleep(15); }
-                    //    sStatus = Status.SEEKING;
+                        if (sDecoder != null && sDecoder.IsAlive) { sDecoder.Abort(); Thread.Sleep(15); }
+                        sStatus = Status.SEEKING;
 
-                    //    //ret = ffmpeg.avformat_seek_file(sFmtCtx, vStream->index, calcTimestamp, calcTimestamp, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_ANY);
-                    //    ret = ffmpeg.avformat_seek_file(sFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //}
-                    //else
-                    //{
-                    //    sStatus = Status.SEEKING;
-                    //    //ret = ffmpeg.avformat_seek_file(sFmtCtx, -1, (ms - 2000) / 10000, ms / 10000, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, ms, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //}
-                    sStatus = Status.SEEKING;
-                    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-
-
+                        ret = ffmpeg.avformat_seek_file(sFmtCtx, svStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
+                    }
+                    else
+                    {
+                        sStatus = Status.SEEKING;
+                        ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, ms, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
+                    }
                     ffmpeg.avcodec_flush_buffers(sCodecCtx);
 
                     sStatus = oldStatus;
@@ -596,7 +593,6 @@ namespace PartyTime.Codecs
 
             AVPacket* avpacket  = ffmpeg.av_packet_alloc();
             AVFrame*  avframe   = ffmpeg.av_frame_alloc();
-            long curPts = ffmpeg.AV_NOPTS_VALUE;
 
             ffmpeg.av_init_packet(avpacket);
             try { 
@@ -604,16 +600,12 @@ namespace PartyTime.Codecs
                 {
                     while (vStatus == Status.SEEKING && (ret = ffmpeg.av_read_frame(vFmtCtx, avpacket)) == 0)
                     {
-                        if (curPts > endTimestamp) return -1;
+                        if (avframe->best_effort_timestamp > endTimestamp) return -1;
 
-                        if (avpacket->stream_index == vStream->index)
-                        {
-                            ret = DecodeFrameSilent(avframe, vCodecCtx, avpacket);
-                            curPts = avframe->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? avframe->pts : avframe->best_effort_timestamp;
-                        }
+                        if (avpacket->stream_index == vStream->index)   ret = DecodeFrameSilent(avframe, vCodecCtx, avpacket);
 
-                        if (avpacket->stream_index == vStream->index && curPts != ffmpeg.AV_NOPTS_VALUE &&
-                            endTimestamp - ((avpacket->duration * vStreamInfo.timebaseLowTicks * 2)) < (curPts * vStreamInfo.timebaseLowTicks) )
+                        if (avpacket->stream_index == vStream->index && avframe->best_effort_timestamp != ffmpeg.AV_NOPTS_VALUE &&
+                            endTimestamp - ((avpacket->duration * vStreamInfo.timebaseLowTicks * 2)) < (avframe->best_effort_timestamp * vStreamInfo.timebaseLowTicks) )
                         {
                             ProcessVideoFrame(avframe);
                             break;
@@ -627,16 +619,12 @@ namespace PartyTime.Codecs
                 {
                     while (aStatus == Status.SEEKING && (ret = ffmpeg.av_read_frame(aFmtCtx, avpacket)) == 0)
                     {
-                        if (curPts > endTimestamp) return -1;
+                        if (avframe->best_effort_timestamp > endTimestamp) return -1;
 
-                        if (avpacket->stream_index == aStream->index)
-                        {
-                            ret = DecodeFrameSilent(avframe, aCodecCtx, avpacket);
-                            curPts = avframe->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? avframe->pts : avframe->best_effort_timestamp;
-                        }
+                        if (avpacket->stream_index == aStream->index) ret = DecodeFrameSilent(avframe, aCodecCtx, avpacket);
 
-                        if (avpacket->stream_index == aStream->index && curPts != ffmpeg.AV_NOPTS_VALUE &&
-                            endTimestamp - ((avpacket->duration * aStreamInfo.timebaseLowTicks * 2)) < (curPts * aStreamInfo.timebaseLowTicks) )
+                        if (avpacket->stream_index == aStream->index && avframe->best_effort_timestamp != ffmpeg.AV_NOPTS_VALUE &&
+                            endTimestamp - ((avpacket->duration * aStreamInfo.timebaseLowTicks * 2)) < (avframe->best_effort_timestamp * aStreamInfo.timebaseLowTicks) )
                             break;
 
                         Thread.Sleep(4);
@@ -681,7 +669,7 @@ namespace PartyTime.Codecs
 
                     if (aDecoder != null && aDecoder.IsAlive) aDecoder.Abort();
 
-                    ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
+                    ret = ffmpeg.avformat_seek_file(aFmtCtx, avStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
                     ffmpeg.avcodec_flush_buffers(aCodecCtx);
                     
                     break;
@@ -699,22 +687,20 @@ namespace PartyTime.Codecs
                     break;
 
                 case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                    //if (!isSubsExternal)
-                    //{
-                    //    if (calcTimestamp > vStreamInfo.durationTicks) break;
-                    //    if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                    //    calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+                    if (!isSubsExternal)
+                    {
+                        if (calcTimestamp > vStreamInfo.durationTicks) break;
+                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
+                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
 
-                    //    if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
+                        if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
 
-                    //    //ret = ffmpeg.avformat_seek_file(sFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
-                    //    ret = ffmpeg.avformat_seek_file(sFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //}
-                    //else
-                    //{
-                    //    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, ms, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //}
-                    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
+                        ret = ffmpeg.avformat_seek_file(sFmtCtx, svStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
+                    }
+                    else
+                    {
+                        ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, ms, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
+                    }
                     ffmpeg.avcodec_flush_buffers(sCodecCtx);
 
                     break;
@@ -741,15 +727,9 @@ namespace PartyTime.Codecs
                 {
                     while (vStatus == Status.RUNNING && (ret = ffmpeg.av_read_frame(vFmtCtx, avpacket)) == 0)
                     {
-                        if (!informed && avpacket->stream_index == vStream->index && endTimestamp < avpacket->dts * vStreamInfo.timebaseLowTicks) 
-                        {
-                            Log($"[VBUFFER] to -> {(avpacket->dts * vStreamInfo.timebaseLowTicks)/10000} ms");
-                            BufferingDone?.BeginInvoke(AVMediaType.AVMEDIA_TYPE_VIDEO, null, null);
-                            
-                            informed = true;
-                        }
+                        if (!informed && avpacket->stream_index == vStream->index && endTimestamp < avpacket->dts * vStreamInfo.timebaseLowTicks) { Log($"[VBUFFER] to -> {(avpacket->dts * vStreamInfo.timebaseLowTicks)/10000} ms"); BufferingDone?.BeginInvoke(AVMediaType.AVMEDIA_TYPE_VIDEO, null, null); informed = true; }
 
-                        //if ( informed ) Thread.Sleep(10);
+                        if ( informed ) Thread.Sleep(10);
                         ffmpeg.av_packet_unref(avpacket);
                     }
                     
@@ -767,7 +747,7 @@ namespace PartyTime.Codecs
                             else
                                 BufferingDone?.BeginInvoke(AVMediaType.AVMEDIA_TYPE_AUDIO, null, null);
 
-                            informed = true;
+                            informed = true; 
                         }
 
                         if ( informed ) Thread.Sleep(10);
@@ -776,15 +756,11 @@ namespace PartyTime.Codecs
                 }
                 else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
                 {
-                    bool was = isSubsExternal;
-
                     while (sStatus == Status.RUNNING && (ret = ffmpeg.av_read_frame(sFmtCtx, avpacket)) == 0)
                     {
-                        if (was != isSubsExternal) break; // No reason to run
-
-                        if (!informed && avpacket->stream_index == sStream->index && endTimestamp < avpacket->dts * sTimbebaseLowTicks) 
+                        if (!informed && avpacket->stream_index == sStream->index && endTimestamp < avpacket->dts * 10000) 
                         { 
-                            Log($"[SBUFFER] to -> {(avpacket->dts * sTimbebaseLowTicks) / 10000} ms");
+                            Log($"[SBUFFER] to -> {avpacket->dts} ms");
 
                             if (single)
                                 BufferingSubsDone?.BeginInvoke(null, null); 
@@ -794,7 +770,7 @@ namespace PartyTime.Codecs
                             informed = true;
                         }
 
-                        if ( informed ) Thread.Sleep(10);
+                        if ( informed ) Thread.Sleep(50);
                         ffmpeg.av_packet_unref(avpacket);
                     }
                 }
@@ -848,7 +824,7 @@ namespace PartyTime.Codecs
                         {
                             MediaFrame mFrame   = new MediaFrame();
                             mFrame.data         = new byte[bufferSize]; Buffer.BlockCopy(buffer, 0, mFrame.data, 0, bufferSize);
-                            mFrame.pts          = frame->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                            mFrame.pts          = frame->best_effort_timestamp;
                             mFrame.timestamp    = (long)(mFrame.pts * aStreamInfo.timebaseLowTicks);
                             if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
                             SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_AUDIO);
@@ -876,20 +852,21 @@ namespace PartyTime.Codecs
                     frame->pts                   = frame2->pts;
                     frame->best_effort_timestamp = frame2->best_effort_timestamp;
                     ffmpeg.av_frame_unref(frame2);
+
                 } else frame = frame2;
 
                 ret = ffmpeg.sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
 
                 // Send Frame
                 if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); } 
-                else
+                else 
                 {
                     ret = 0;
 
                     MediaFrame mFrame   = new MediaFrame();
                     mFrame.data         = new byte[outBufferSize];
                     Marshal.Copy(outBufferPtr, mFrame.data, 0, outBufferSize);
-                    mFrame.pts          = frame->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                    mFrame.pts          = frame->best_effort_timestamp;
                     mFrame.timestamp    = (long)(mFrame.pts * vStreamInfo.timebaseLowTicks);
                     if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
                     SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
@@ -924,20 +901,29 @@ namespace PartyTime.Codecs
                     case AVSubtitleType.SUBTITLE_TEXT:
                         buffer = new byte[1024];
                         line = BytePtrToStringUTF8(cur->ass);
-
+                        //line = Marshal.PtrToStringAnsi((IntPtr)cur->text);
                         break;
 
                     case AVSubtitleType.SUBTITLE_BITMAP:
                         Log("Subtitles BITMAP -> Not Implemented yet");
+                        //sSwsCtx = ffmpeg.sws_getContext(cur->w, cur->h, sCodecCtx->pix_fmt, cur->w, cur->h, _PIXEL_FORMAT, ffmpeg.SWS_ACCURATE_RND, null, null, null);
 
+                        //// Convert (4 -> 32bpp)
+                        //byte[] buffer = new byte[cur->w * cur->h * 4];
+                        //fixed (byte* ptr = &buffer[8])
+                        //{
+                        //    byte*[] srcData = { ptr, null, null, null };
+                        //    int[] srcLinesize = { cur->w * 4, 0, 0, 0 };
+                        //    ret = ffmpeg.sws_scale(sSwsCtx, cur->pict.data, cur->pict.linesize, 0, cur->h, srcData, srcLinesize);
+                        //}
                         break;
                 }
                 
-                MediaFrame mFrame   = new MediaFrame();
-                mFrame.text         = line;
-                mFrame.pts          = avpacket->pts;
-                mFrame.timestamp    = (long) (mFrame.pts * sTimbebaseLowTicks);
-                mFrame.duration     = (int) (sub->end_display_time - sub->start_display_time);
+                MediaFrame mFrame = new MediaFrame();
+                mFrame.text = line;
+                mFrame.pts = avpacket->pts;
+                mFrame.timestamp = mFrame.pts * 10000;
+                mFrame.duration = (int) (sub->end_display_time - sub->start_display_time);
                 if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
                 SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
 
@@ -948,7 +934,7 @@ namespace PartyTime.Codecs
         }
 
         // Public Exposure [Methods]
-        private void IOConfiguration(Func<long, int, AVMediaType, byte[]> ReadPacketClbk, long totalSize)
+        private void IOConfiguration(Func<long, int, byte[]> ReadPacketClbk, long totalSize)
         {   
             aCurPos = 0;
             vCurPos = 0;
@@ -962,7 +948,7 @@ namespace PartyTime.Codecs
                 if (aCurPos + bufferSize > totalSize)
                     bytesRead = (int) (totalSize - aCurPos);
 
-                byte[] data = ReadPacketClbk(aCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_AUDIO);
+                byte[] data = ReadPacketClbk(aCurPos, bytesRead);
                 Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
                 aCurPos += bytesRead;
 
@@ -998,7 +984,7 @@ namespace PartyTime.Codecs
                 if (vCurPos + bufferSize > totalSize)
                     bytesRead = (int) (totalSize - vCurPos);
 
-                byte[] data = ReadPacketClbk(vCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_VIDEO);
+                byte[] data = ReadPacketClbk(vCurPos, bytesRead);
                 Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
                 vCurPos += bytesRead;
 
@@ -1034,7 +1020,7 @@ namespace PartyTime.Codecs
                 if (sCurPos + bufferSize > totalSize)
                     bytesRead = (int) (totalSize - sCurPos);
 
-                byte[] data = ReadPacketClbk(sCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
+                byte[] data = ReadPacketClbk(sCurPos, bytesRead);
                 Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
                 sCurPos += bytesRead;
 
@@ -1077,7 +1063,7 @@ namespace PartyTime.Codecs
             gcPrevent.Add(sIOReadPacket);
             gcPrevent.Add(sIOSeek);
         }
-        public int Open(string url, Func<long, int, AVMediaType, byte[]> ReadPacketClbk = null, long totalSize = 0)
+        public int Open(string url, Func<long, int, byte[]> ReadPacketClbk = null, long totalSize = 0)
         {
             int ret;
 
@@ -1109,12 +1095,9 @@ namespace PartyTime.Codecs
                 ret     = ffmpeg.avformat_open_input(&fmtCtxPtr, url, null, null);
                 if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); vFmtCtx = null; return ret; }
 
-                if ( url != null )
-                {
-                    fmtCtxPtr = sFmtCtx;
-                    ret     = ffmpeg.avformat_open_input(&fmtCtxPtr, url, null, null);
-                    if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); sFmtCtx = null; return ret; }
-                }
+                fmtCtxPtr = sFmtCtx;
+                ret     = ffmpeg.avformat_open_input(&fmtCtxPtr, url, null, null);
+                if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); sFmtCtx = null; return ret; }
 
                 // Streams
                 ret     = ffmpeg.avformat_find_stream_info(aFmtCtx, null);
@@ -1123,28 +1106,21 @@ namespace PartyTime.Codecs
                 ret     = ffmpeg.avformat_find_stream_info(vFmtCtx, null);
                 if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
 
-                if ( url != null )
-                {
-                    ret     = ffmpeg.avformat_find_stream_info(sFmtCtx, null);
-                    if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-                }
+                ret     = ffmpeg.avformat_find_stream_info(sFmtCtx, null);
+                if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
 
                 ret     = SetupStream(AVMediaType.AVMEDIA_TYPE_AUDIO);
                 if (ret < 0 && ret != ffmpeg.AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
                 ret     = SetupStream(AVMediaType.AVMEDIA_TYPE_VIDEO);
                 if (ret < 0 && ret != ffmpeg.AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-                if ( url != null )
-                {
-                    ret     = SetupStream(AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                    if (ret < 0 && ret != ffmpeg.AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-                }
+                ret     = SetupStream(AVMediaType.AVMEDIA_TYPE_SUBTITLE);
+                if (ret < 0 && ret != ffmpeg.AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
 
                 if (!hasVideo) { Log("Error[" + (-1).ToString("D4") + "], Msg: No Video stream found"); return -1; }
 
                 if (hasAudio)
                     for (int i = 0; i < aFmtCtx->nb_streams; i++)
-                        if (i != aStream->index && i != vStream->index) aFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                        if (i != aStream->index && i != avStream->index) aFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
                     
                 if (hasVideo)
                     for (int i = 0; i < vFmtCtx->nb_streams; i++)
@@ -1152,7 +1128,7 @@ namespace PartyTime.Codecs
 
                 if (hasSubs)
                     for (int i = 0; i < sFmtCtx->nb_streams; i++)
-                        if (i != sStream->index) sFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                        if (i != sStream->index && i != svStream->index) sFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
                 
                 // Codecs
                 if (hasAudio)   { ret = SetupCodec(AVMediaType.AVMEDIA_TYPE_AUDIO);    if (ret != 0) return ret; }
@@ -1163,12 +1139,9 @@ namespace PartyTime.Codecs
                 if (hasAudio)   { ret = SetupAudio(); if (ret != 0) return ret; }
                 if (hasVideo)   { ret = SetupVideo(); if (ret != 0) return ret; }
 
-                // Free
                 if (!hasAudio)  { fmtCtxPtr = aFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(aFmtCtx); aFmtCtx = null; }
                 if (!hasVideo)  { fmtCtxPtr = vFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(vFmtCtx); vFmtCtx = null; }
-                if (!hasSubs && url != null)  { fmtCtxPtr = sFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(sFmtCtx); sFmtCtx = null; }
-
-                if (hasSubs) sTimbebaseLowTicks = ffmpeg.av_q2d(sStream->time_base) * 10000 * 1000;
+                if (!hasSubs )  { fmtCtxPtr = sFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(sFmtCtx); sFmtCtx = null; }
 
             } catch (Exception e) { Log(e.StackTrace); return -1; }
 
@@ -1204,10 +1177,10 @@ namespace PartyTime.Codecs
                 for (int i = 0; i < sFmtCtx->nb_streams; i++)
                     if (i != sStream->index) sFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
 
+                svStream = sStream;
+
                 // Codec
                 ret         = SetupCodec(AVMediaType.AVMEDIA_TYPE_SUBTITLE); if (ret != 0) return ret;
-
-                sTimbebaseLowTicks = ffmpeg.av_q2d(sStream->time_base) * 10000 * 1000;
 
             } catch (Exception e) { InitializeSubs(); Log(e.StackTrace); return -1; }
 
