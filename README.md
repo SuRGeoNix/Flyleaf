@@ -48,6 +48,12 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 <br/>
 
 ## Versioning | Changes
+#### v1.2.2 - 3/6/2020
+>__Additions__
+
+* Implementing (with SharpDX) Direct3D 11 Video Decoding & Acceleration Support (NV12 Pixel Formats)
+* Better Image Quality & CPU/RAM Performace (Video Frames lifecycle only within the GPU)
+
 #### v1.2 - 23/5/2020
 >__Additions__
 
