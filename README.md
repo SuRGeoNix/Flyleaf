@@ -33,17 +33,18 @@ The main implementation is within the "Screamer" method that routes media frames
 A sample GUI has been created to demonstrate Media Router's functionality. It works with both Game Engine (for taking the advantage of GPU and Game Loop) and a classic Windows Form. For subtitles will work with BOM specified, UTF-8 formats otherwise with the default system codepage (lazy support for ASS/SSA). For audio it simple runs with the NAudio library. It currently supports :- 
 
 
-| Keys                  | Action                    |
-| :-------------:       |:-------------:            |
-| Drag & Drop           | Open                      |
-| P or Space            | Pause / Play              |
-| S                     | Stop                      |
-| R                     | Keep Ratio                |
-| F or Escape           | Fullscreen                |
-| Left / Right Arrows   | Seeking                   |
-| Up / Down Arrows      | Volume Adjustment         |
-| [ / ]                 | Audio Adjustment          |
-| ; / '                 | Subtitles Adjustment      |
+| Keys                  | Action                     |
+| :-------------:       |:-------------:             |
+| Drag & Drop           | Open                       |
+| P or Space            | Pause / Play               |
+| S                     | Stop                       |
+| R                     | Keep Ratio                 |
+| F or Escape           | Fullscreen                 |
+| Left / Right Arrows   | Seeking                    |
+| Up / Down Arrows      | Volume Adjustment          |
+| [ / ]                 | Audio Adjustment           |
+| ; / '                 | Subtitles Adjustment       |
+| H                     | Video Acceleration (On/Off)|
 
 <br/>
 
@@ -53,6 +54,14 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 
 * Implementing (with SharpDX) Direct3D 11 Video Decoding & Acceleration Support (NV12 Pixel Formats)
 * Better Image Quality & CPU/RAM Performace (Video Frames lifecycle only within the GPU)
+* Faster Torrent Streaming (By New Request Piece Algorithm & Disabling Embedded Subtitles)
+* 'H' Key for Video Acceleration (On/Off) [Requires re-opening the input]
+* FFmpeg Libraries Update to latest (except swscale)
+
+>__Issues__
+
+* Subtitles Issues
+* Performance Issues with the UI
 
 #### v1.2 - 23/5/2020
 >__Additions__
