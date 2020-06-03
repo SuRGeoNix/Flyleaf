@@ -13,7 +13,19 @@ using Microsoft.Xna.Framework.Graphics;
 
 using Color     = Microsoft.Xna.Framework.Color;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
+using Texture2D = Microsoft.Xna.Framework.Graphics.Texture2D;
+
 using Point     = System.Drawing.Point;
+
+using SharpDX.DXGI;
+using SharpDX.Direct3D11;
+using SharpDX.Mathematics.Interop;
+
+using Device    = SharpDX.Direct3D11.Device;
+using Resource  = SharpDX.Direct3D11.Resource;
+using STexture2D= SharpDX.Direct3D11.Texture2D;
+using SharpDX;
+using Message = System.Windows.Forms.Message;
 
 namespace PartyTime.UI_Example
 {
@@ -76,6 +88,26 @@ namespace PartyTime.UI_Example
         
         List<string> movieExts = new List<string>() { "mp4", "mkv", "mpg", "mpeg" , "mpv", "mp4p", "mpe" , "m2v", "amv" , "asf", "m4v", "3gp", "ogg", "vob", "ts", "rm", "3g2", "f4v", "f4a", "f4p", "f4b", "mts", "m2ts", "gifv", "avi", "mov", "flv", "wmv", "qt", "avchd", "swf"};
 
+        // HW Accelleration | SharpDX | D3D11
+        Device                              _device;
+        SwapChain                           _swapChain;
+        RenderTargetView                    _renderView;
+
+        STexture2D                          _backBuffer;
+
+        VideoDevice1                        videoDevice1;
+        VideoProcessor                      videoProcessor;
+        VideoContext1                       videoContext1;
+        VideoProcessorEnumerator vpe;
+        VideoProcessorContentDescription    vpcd;
+        VideoProcessorOutputViewDescription vpovd;
+        VideoProcessorInputViewDescription  vpivd;
+        VideoProcessorInputView             vpiv;
+        VideoProcessorOutputView            vpov;
+        VideoProcessorStream[]              vpsa;
+        
+        Control                             screenPlayHW;
+        IntPtr                              screenPlayHWHandle;
         #endregion
 
         // Constructors
@@ -89,20 +121,15 @@ namespace PartyTime.UI_Example
             control     = new frmControl();
 
             Initialize();
-
-            display.Show();
-            control.Show(display);
-            NormalScreen();
-            UnIdle();
         }
         private void Initialize()
         {
             // Players
-            player                  = new MediaRouter();
-            audioPlayer             = new AudioPlayer();
+            player                          = new MediaRouter(1);
+            audioPlayer                     = new AudioPlayer();
 
-            player.HWAcceleration   = false;
-            player.HighQuality      = false;
+            player.HWAccel                  = true;
+            player.HighQuality              = false;
 
             player.VideoFrameClbk           = VideoFrameClbk;
             player.AudioFrameClbk           = audioPlayer.FrameClbk;
@@ -114,15 +141,30 @@ namespace PartyTime.UI_Example
             player.MediaFilesClbk           = MediaFilesReceived;
 
             // Forms
-            SubscribeEvents();
             InitializeDisplay();
             InitializeControl();
+
+            SubscribeEvents();
+
+            FullScreenToggle();
+            InitializeID3D11();
+
+            display.Show();
+            control.Show(display);
+            NormalScreen();
+            UnIdle();
         }
         private void InitializeDisplay()
         {
             // Textures
-            screenPlay = new Texture2D(graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
+            screenPlay                          = new Texture2D(graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
+            screenPlayHW                        = new Control();
+            screenPlayHW.Enabled                = false;
+            screenPlayHW.TabStop                = false;
+            screenPlayHWHandle                  = screenPlayHW.Handle;
+            display.Controls.Add(screenPlayHW);
 
+            // Bar Background
             btnBar                              = new Button();
             btnBar.Enabled                      = false;
             btnBar.TabStop                      = false;
@@ -152,7 +194,7 @@ namespace PartyTime.UI_Example
             control.BackColor                   = TRANSPARENCY_KEY_COLOR;
             control.TransparencyKey             = TRANSPARENCY_KEY_COLOR;
 
-            // Controls
+            // Controls | Seek Bar
             control.seekBar.BackColor           = TRANSPARENCY_KEY_COLOR;
             control.seekBar.Height              =  40;
             control.seekBar.Minimum             =   0;
@@ -163,6 +205,7 @@ namespace PartyTime.UI_Example
             control.seekBar.LargeChange         =   1;
             control.seekBar.Value               =   0;
 
+            // Controls | Volume Bar
             control.volBar.BackColor            = TRANSPARENCY_KEY_COLOR;
             control.volBar.Height               =  40;
             control.volBar.Minimum              =   0;
@@ -173,12 +216,15 @@ namespace PartyTime.UI_Example
             control.volBar.LargeChange          =   1;
             control.volBar.Value                = audioPlayer.Volume;
 
+            // Controls | Info Text
             control.lblInfoText.Location        = new Point(10, 10);
             control.lblInfoText.BackColor       = System.Drawing.Color.FromArgb(0x26,0x28,0x2b);
 
+            // Controls | Subs RTB
             control.rtbSubs.BackColor           = TRANSPARENCY_KEY_COLOR;
             control.rtbSubs.Text                = "";
             control.rtbSubs.SendToBack();
+            screenPlayHW.SendToBack();
         }
         private void SubscribeEvents()
         {
@@ -206,7 +252,7 @@ namespace PartyTime.UI_Example
             control.rtbSubs.MouseDown       += new MouseEventHandler        (Display_MouseDown);
             control.rtbSubs.MouseMove       += new MouseEventHandler        (Display_MouseMove);
             control.rtbSubs.MouseUp         += new MouseEventHandler        (Display_MouseUp);
-            control.rtbSubs.MouseDoubleClick += new MouseEventHandler       (Display_MouseClickDbl);
+            control.rtbSubs.MouseDoubleClick+= new MouseEventHandler        (Display_MouseClickDbl);
             control.rtbSubs.ContentsResized += new ContentsResizedEventHandler (RtbSubsContentsResized);
             control.rtbSubs.Enter           += new EventHandler             (RtbSubsEnter);
 
@@ -216,16 +262,112 @@ namespace PartyTime.UI_Example
             control.lstMediaFiles.DragDrop  += new DragEventHandler         (Display_DragDrop);
             control.lstMediaFiles.MouseMove += new MouseEventHandler        (lstMediaFiles_MouseMove);
         }
+        private void InitializeID3D11()
+        {
+            //if ( screenPlayHW.InvokeRequired  )
+            //{
+            //    screenPlayHW.BeginInvoke(new Action(() => InitializeID3D11()));
+            //    return;
+            //}
+
+            // SwapChain Description
+            var desc = new SwapChainDescription()
+            {
+                BufferCount         = 1,
+                ModeDescription     = new ModeDescription(0, 0, new Rational(0, 0), Format.B8G8R8A8_UNorm),
+                IsWindowed          = true,
+                OutputHandle        = screenPlayHWHandle,
+                SampleDescription   = new SampleDescription(1, 0),
+                SwapEffect          = SwapEffect.Discard,
+                Usage               = Usage.RenderTargetOutput
+            };
+
+            // Create Device and SwapChain
+            //Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, /*DeviceCreationFlags.Debug | */DeviceCreationFlags.BgraSupport, new [] { SharpDX.Direct3D.FeatureLevel.Level_11_1, SharpDX.Direct3D.FeatureLevel.Level_11_0, SharpDX.Direct3D.FeatureLevel.Level_10_1, SharpDX.Direct3D.FeatureLevel.Level_10_0 }, desc, out _device, out _swapChain);
+            Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, /*DeviceCreationFlags.Debug | */DeviceCreationFlags.None, desc, out _device, out _swapChain);
+
+            _backBuffer     = STexture2D.FromSwapChain<STexture2D>(_swapChain, 0);
+            _renderView     = new RenderTargetView(_device, _backBuffer);
+
+            // Ignore all windows events | Prevent Alt + Enter for Fullscreen
+            var factory = _swapChain.GetParent<Factory>();
+            factory.MakeWindowAssociation(screenPlayHWHandle, WindowAssociationFlags.IgnoreAll);
+
+            // Prepare Video Processor Emulator | Input | Output | Stream
+            videoDevice1    = _device.QueryInterface<VideoDevice1>();
+            videoContext1   = _device.ImmediateContext.QueryInterface<VideoContext1>();
+
+            vpcd = new VideoProcessorContentDescription()
+            {
+                InputFrameRate = new Rational(1, 1),
+                OutputFrameRate = new Rational(1, 1),
+
+                InputFrameFormat = VideoFrameFormat.Progressive,
+
+                InputWidth = 1,
+                OutputWidth = 1,
+
+                InputHeight = 1,
+                OutputHeight = 1,
+
+                Usage = VideoUsage.PlaybackNormal
+            };
+
+            if (player.Width != 0 && player.Height != 0)
+            {
+                vpcd.InputWidth     = player.Width;
+                vpcd.OutputWidth    = player.Width;
+                vpcd.InputHeight    = player.Height;
+                vpcd.InputWidth     = player.Width;
+            }
+            
+            videoDevice1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
+            videoDevice1.CreateVideoProcessor(vpe, 0, out videoProcessor);
+            
+            vpivd = new VideoProcessorInputViewDescription()
+            {
+                FourCC = 0,
+                Dimension = VpivDimension.Texture2D,
+                Texture2D = new Texture2DVpiv() { MipSlice = 0, ArraySlice = 0 }
+            };
+
+            vpovd = new VideoProcessorOutputViewDescription() { Dimension = VpovDimension.Texture2D };
+
+            videoDevice1.CreateVideoProcessorOutputView((Resource) _backBuffer, vpe, vpovd, out vpov);
+
+            vpsa = new VideoProcessorStream[1];
+        }
 
         // Screens
         private void ScreenPlay(string infoText = "")
         {
             try
             {
+                bool isIdle = IsIdle();
+
+                if (player.iSHWAccelSuccess)
+                {
+
+                    if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
+                    {
+                        if (isIdle || resizing)
+                            screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio));
+                        else
+                            screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5);
+                    }
+                    else
+                    {
+                        if (isIdle || resizing)
+                            screenPlayHW.SetBounds(0, 0, display.Width, display.Height);
+                        else
+                            screenPlayHW.SetBounds(0, 0, display.Width, display.Height - btnBar.Height + 5);
+                    }
+
+                    return;
+                }
+
                 lock(screenPlay)
                 {
-                    bool isIdle = IsIdle();
-
                     graphics.GraphicsDevice.Clear(Color.Black);
                     spriteBatch.Begin();
                     if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
@@ -248,8 +390,10 @@ namespace PartyTime.UI_Example
             }
             catch (Exception e)
             {
-                if (e.Message.Equals("Text contains characters that cannot be resolved by this SpriteFont.\r\nParameter name: text")) spriteBatch = new SpriteBatch(graphics.GraphicsDevice);
                 Log(e.Message + " - " + e.StackTrace);
+
+                if (e.Message.Contains("DXGI_ERROR_DEVICE_REMOVED") ) InitializeID3D11();
+                else if (e.Message.Equals("Text contains characters that cannot be resolved by this SpriteFont.\r\nParameter name: text")) spriteBatch = new SpriteBatch(graphics.GraphicsDevice);
             }
         }
         private void ScreenStop()
@@ -353,6 +497,15 @@ namespace PartyTime.UI_Example
                 if (player.isFailed) { UpdateInfoText($"Opening {Path.GetFileName(url)} Failed"); Log("Error opening"); return; }
                 if (player.hasAudio) { audioPlayer._RATE = player._RATE; audioPlayer.Initialize(); }
 
+                vpcd.InputWidth     = player.Width;
+                vpcd.OutputWidth    = player.Width;
+                vpcd.InputHeight    = player.Height;
+                vpcd.InputWidth     = player.Width;
+                aspectRatio = (float)player.Width / (float)player.Height;
+                FixAspectRatio();
+
+                screenPlayHW.Visible = player.iSHWAccelSuccess;
+
                 UpdateInfoText($"Opening {Path.GetFileName(url)} Success");
                 Play();
             }
@@ -378,9 +531,7 @@ namespace PartyTime.UI_Example
                 if (player.HighQuality)
                     screenPlay  = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Rgba64); // TODO: Until implementing pitch/linesizes
                 else
-                    screenPlay  = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Color);
-                aspectRatio = (float)player.Width / (float)player.Height;
-                FixAspectRatio();
+                    screenPlay = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Color);
             }
 
             ScreenPlay(); ScreenPlay(); ScreenPlay(); ScreenPlay();
@@ -462,6 +613,7 @@ namespace PartyTime.UI_Example
             ScreenPlay();
             lastUserActionTicks         = DateTime.UtcNow.Ticks;
             display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f);
+            display.Focus();
         }
         private void ASSToRichText(RichTextBox rtb, string text)
         {
@@ -564,6 +716,15 @@ namespace PartyTime.UI_Example
                 return;
             }
 
+            vpcd.InputWidth     = player.Width;
+            vpcd.OutputWidth    = player.Width;
+            vpcd.InputHeight    = player.Height;
+            vpcd.InputWidth     = player.Width;
+            aspectRatio = (float)player.Width / (float)player.Height;
+            FixAspectRatio();
+
+            screenPlayHW.Visible = player.iSHWAccelSuccess;
+
             if (!success) { UpdateInfoText($"Opening {selectedFile} Failed"); Log("Error opening " + selectedFile); return; }
 
             UpdateInfoText($"Opening {selectedFile} Success");
@@ -576,16 +737,41 @@ namespace PartyTime.UI_Example
         // UI Callbacks
         [HandleProcessCorruptedStateExceptions]
         [SecurityCritical]
-        private void VideoFrameClbk(byte[] frameData, long timestamp, long screamDistanceTicks)
+        private void VideoFrameClbk(byte[] frameData, long timestamp, IntPtr texture)
         {
             try
             {
-                if (frameData       == null)    return;
-                if (firstFrameData  == null)    firstFrameData   = frameData;
-                lock (screenPlay)               screenPlay.SetData(frameData);
-                ScreenPlay();
+                if (player.iSHWAccelSuccess)
+                {
+                    if (texture == null) return;
+
+                    STexture2D curShared    = _device.      OpenSharedResource<STexture2D>(texture);
+                    
+                    videoDevice1.CreateVideoProcessorInputView(curShared, vpe, vpivd, out vpiv);
+                    VideoProcessorStream vps = new VideoProcessorStream()
+                    {
+                        PInputSurface = (IntPtr) vpiv,
+                        Enable = new RawBool(true)
+                    };
+                    vpsa[0] = vps;
+                    videoContext1.VideoProcessorBlt(videoProcessor, vpov, 0, 1, vpsa);
+
+                    _swapChain.Present(1, PresentFlags.DoNotWait);
+                    
+                    Utilities.Dispose(ref vpiv);
+                    Utilities.Dispose(ref curShared);
+                }
+                else
+                {
+                    if (frameData       == null)    return;
+                    if (firstFrameData  == null)    firstFrameData   = frameData;
+                    lock (screenPlay)               screenPlay.SetData(frameData);
+                    ScreenPlay();
+                }
+
                 if (player.hasSubs) UpdateLoop();
-            } catch (Exception) { }
+
+            } catch (Exception e) { Log(e.Message + "\r\n" + e.StackTrace); if (e.Message.Contains("DXGI_ERROR_DEVICE_REMOVED") ) InitializeID3D11(); }
         }
         private void SubsFrameClbk(string text, int duration)
         {
@@ -722,8 +908,8 @@ namespace PartyTime.UI_Example
                     break;
 
                 case (char)Keys.H:
-                    player.HWAcceleration = !player.HWAcceleration;
-                    UpdateInfoText($"[HW ACCELERATION] {player.HWAcceleration}");
+                    player.HWAccel = !player.HWAccel;
+                    UpdateInfoText($"[HW ACCELERATION] {player.HWAccel}");
                     break;
 
                 case (char)Keys.R:
@@ -775,305 +961,315 @@ namespace PartyTime.UI_Example
 
             lastUserActionTicks = DateTime.UtcNow.Ticks;
 
-            if (graphics.IsFullScreen || graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) return;
-
-            if (displayMLDown) // RESIZING or MOVING
+            try
             {
-                if (displayMoveSide != 0 || displayMoveSideCur != 0)
+                if (graphics.IsFullScreen || graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) return;
+
+                if (displayMLDown) // RESIZING or MOVING
                 {
-                    lock (screenPlay)
+                    if (displayMoveSide != 0 || displayMoveSideCur != 0)
                     {
-                        if (displayMoveSideCur == 0) displayMoveSideCur = displayMoveSide;
-
-                        if (aspectRatioKeep)
+                        lock (screenPlay)
                         {
-                            // RESIZE FORM [KEEP ASPECT RATIO]
-                            if (displayMoveSideCur == 1)
-                            {
-                                int oldHeight = display.Height;
+                            if (displayMoveSideCur == 0) displayMoveSideCur = displayMoveSide;
 
-                                if (display.Width - e.X > MIN_FORM_SIZE && display.Height - e.Y > MIN_FORM_SIZE)
+                            if (aspectRatioKeep)
+                            {
+                                // RESIZE FORM [KEEP ASPECT RATIO]
+                                if (displayMoveSideCur == 1)
                                 {
-                                    if (e.X > e.Y)
+                                    int oldHeight = display.Height;
+
+                                    if (display.Width - e.X > MIN_FORM_SIZE && display.Height - e.Y > MIN_FORM_SIZE)
+                                    {
+                                        if (e.X > e.Y)
+                                        {
+                                            int oldWidth = display.Width;
+                                            display.Height -= e.Y;
+                                            display.Width = (int)(display.Height * aspectRatio);
+                                            display.Location = new Point(display.Location.X - (display.Width - oldWidth), display.Location.Y - (display.Height - oldHeight));
+                                        }
+                                        else
+                                        {
+                                            display.Width -= e.X;
+                                            display.Height = (int)(display.Width / aspectRatio);
+                                            display.Location = new Point(display.Location.X + e.X, display.Location.Y - (display.Height - oldHeight));
+                                        }
+                                    }
+                                    else if (display.Width - e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width -= e.X;
+                                        display.Height = (int)(display.Width / aspectRatio);
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y - (display.Height - oldHeight));
+                                    }
+                                    else if (display.Height - e.Y > MIN_FORM_SIZE)
                                     {
                                         int oldWidth = display.Width;
                                         display.Height -= e.Y;
                                         display.Width = (int)(display.Height * aspectRatio);
                                         display.Location = new Point(display.Location.X - (display.Width - oldWidth), display.Location.Y - (display.Height - oldHeight));
                                     }
-                                    else
+                                }
+                                else if (displayMoveSideCur == 2)
+                                {
+                                    if (e.X > MIN_FORM_SIZE && e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                        display.Height = (int)(display.Width / aspectRatio);
+                                    }
+                                    else if (e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                        display.Height = (int)(display.Width / aspectRatio);
+                                    }
+                                }
+                                else if (displayMoveSideCur == 3)
+                                {
+                                    int oldHeight = display.Height;
+
+                                    if (display.Height - e.Y > MIN_FORM_SIZE && e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                        display.Height = (int)(display.Width / aspectRatio);
+                                        display.Location = new Point(display.Location.X, display.Location.Y + (oldHeight - display.Height));
+                                    }
+                                    else if (display.Height - e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Height -= e.Y;
+                                        display.Width = (int)(display.Height * aspectRatio);
+                                        display.Location = new Point(display.Location.X, display.Location.Y + (oldHeight - display.Height));
+                                    }
+                                    else if (e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                        display.Height = (int)(display.Width / aspectRatio);
+                                        display.Location = new Point(display.Location.X, display.Location.Y + (oldHeight - display.Height));
+                                    }
+                                }
+                                else if (displayMoveSideCur == 4)
+                                {
+                                    if (display.Width - e.X > MIN_FORM_SIZE && e.Y > MIN_FORM_SIZE)
                                     {
                                         display.Width -= e.X;
                                         display.Height = (int)(display.Width / aspectRatio);
-                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y - (display.Height - oldHeight));
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y);
+                                    }
+                                    else if (display.Width - e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width -= e.X;
+                                        display.Height = (int)(display.Width / aspectRatio);
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y);
                                     }
                                 }
-                                else if (display.Width - e.X > MIN_FORM_SIZE)
+                                else if (displayMoveSideCur == 5)
                                 {
-                                    display.Width -= e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y - (display.Height - oldHeight));
+                                    if (display.Width - e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y);
+                                        display.Width -= e.X;
+                                        display.Height = (int)(display.Width / aspectRatio);
+                                    }
                                 }
-                                else if (display.Height - e.Y > MIN_FORM_SIZE)
+                                else if (displayMoveSideCur == 6)
                                 {
-                                    int oldWidth = display.Width;
-                                    display.Height -= e.Y;
-                                    display.Width = (int)(display.Height * aspectRatio);
-                                    display.Location = new Point(display.Location.X - (display.Width - oldWidth), display.Location.Y - (display.Height - oldHeight));
+                                    if (e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                        display.Height = (int)(display.Width / aspectRatio);
+                                    }
+                                }
+                                else if (displayMoveSideCur == 7)
+                                {
+                                    if (display.Height - e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
+                                        display.Height -= e.Y;
+                                        display.Width = (int)(display.Height * aspectRatio);
+                                    }
+                                }
+                                else if (displayMoveSideCur == 8)
+                                {
+                                    if (e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Height = e.Y;
+                                        display.Width = (int)(display.Height * aspectRatio);
+                                    }
                                 }
                             }
-                            else if (displayMoveSideCur == 2)
+                            else
                             {
-                                if (e.X > MIN_FORM_SIZE && e.Y > MIN_FORM_SIZE)
+                                // RESIZE FORM [DONT KEEP ASPECT RATIO]
+                                if (displayMoveSideCur == 1)
                                 {
-                                    display.Width = e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
+                                    if (display.Width - e.X > MIN_FORM_SIZE && display.Height - e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Width -= e.X;
+                                        display.Height -= e.Y;
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y + e.Y);
+                                    }
+                                    else if (display.Width - e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width -= e.X;
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y);
+                                    }
+                                    else if (display.Height - e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Height -= e.Y;
+                                        display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
+                                    }
                                 }
-                                else if (e.X > MIN_FORM_SIZE)
+                                else if (displayMoveSideCur == 2)
                                 {
-                                    display.Width = e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
+                                    if (e.X > MIN_FORM_SIZE && e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                        display.Height = e.Y;
+                                    }
+                                    else if (e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                    }
+                                    else if (e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Height = e.Y;
+                                    }
+                                }
+                                else if (displayMoveSideCur == 3)
+                                {
+                                    if (display.Height - e.Y > MIN_FORM_SIZE && e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                        display.Height -= e.Y;
+                                        display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
+                                    }
+                                    else if (display.Height - e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Height -= e.Y;
+                                        display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
+                                    }
+                                    else if (e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width = e.X;
+                                    }
+                                }
+                                else if (displayMoveSideCur == 4)
+                                {
+                                    if (display.Width - e.X > MIN_FORM_SIZE && e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Width -= e.X;
+                                        display.Height = e.Y;
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y);
+                                    }
+                                    else if (display.Width - e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Width -= e.X;
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y);
+                                    }
+                                    else if (e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Height = e.Y;
+                                    }
+                                }
+                                else if (displayMoveSideCur == 5)
+                                {
+                                    if (display.Width - e.X > MIN_FORM_SIZE)
+                                    {
+                                        display.Location = new Point(display.Location.X + e.X, display.Location.Y);
+                                        display.Width -= e.X;
+                                    }
+                                }
+                                else if (displayMoveSideCur == 6)
+                                {
+                                    if (e.X > MIN_FORM_SIZE)
+                                        display.Width = e.X;
+                                }
+                                else if (displayMoveSideCur == 7)
+                                {
+                                    if (display.Height - e.Y > MIN_FORM_SIZE)
+                                    {
+                                        display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
+                                        display.Height -= e.Y;
+                                    }
+                                }
+                                else if (displayMoveSideCur == 8)
+                                {
+                                    if (e.Y > MIN_FORM_SIZE)
+                                        display.Height = e.Y;
                                 }
                             }
-                            else if (displayMoveSideCur == 3)
-                            {
-                                int oldHeight = display.Height;
 
-                                if (display.Height - e.Y > MIN_FORM_SIZE && e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width = e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
-                                    display.Location = new Point(display.Location.X, display.Location.Y + (oldHeight - display.Height));
-                                }
-                                else if (display.Height - e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Height -= e.Y;
-                                    display.Width = (int)(display.Height * aspectRatio);
-                                    display.Location = new Point(display.Location.X, display.Location.Y + (oldHeight - display.Height));
-                                }
-                                else if (e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width = e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
-                                    display.Location = new Point(display.Location.X, display.Location.Y + (oldHeight - display.Height));
-                                }
-                            }
-                            else if (displayMoveSideCur == 4)
-                            {
-                                if (display.Width - e.X > MIN_FORM_SIZE && e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Width -= e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y);
-                                }
-                                else if (display.Width - e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width -= e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y);
-                                }
-                            }
-                            else if (displayMoveSideCur == 5)
-                            {
-                                if (display.Width - e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y);
-                                    display.Width -= e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
-                                }
-                            }
-                            else if (displayMoveSideCur == 6)
-                            {
-                                if (e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width = e.X;
-                                    display.Height = (int)(display.Width / aspectRatio);
-                                }
-                            }
-                            else if (displayMoveSideCur == 7)
-                            {
-                                if (display.Height - e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
-                                    display.Height -= e.Y;
-                                    display.Width = (int)(display.Height * aspectRatio);
-                                }
-                            }
-                            else if (displayMoveSideCur == 8)
-                            {
-                                if (e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Height = e.Y;
-                                    display.Width = (int)(display.Height * aspectRatio);
-                                }
-                            }
+                            resizing = true;
+                            GoIdle();
+                            ScreenPlay();
+                            //screenPlayHW.Size = new Size(display.Width, display.Height);
                         }
-                        else
-                        {
-                            // RESIZE FORM [DONT KEEP ASPECT RATIO]
-                            if (displayMoveSideCur == 1)
-                            {
-                                if (display.Width - e.X > MIN_FORM_SIZE && display.Height - e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Width -= e.X;
-                                    display.Height -= e.Y;
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y + e.Y);
-                                }
-                                else if (display.Width - e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width -= e.X;
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y);
-                                }
-                                else if (display.Height - e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Height -= e.Y;
-                                    display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
-                                }
-                            }
-                            else if (displayMoveSideCur == 2)
-                            {
-                                if (e.X > MIN_FORM_SIZE && e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Width = e.X;
-                                    display.Height = e.Y;
-                                }
-                                else if (e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width = e.X;
-                                }
-                                else if (e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Height = e.Y;
-                                }
-                            }
-                            else if (displayMoveSideCur == 3)
-                            {
-                                if (display.Height - e.Y > MIN_FORM_SIZE && e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width = e.X;
-                                    display.Height -= e.Y;
-                                    display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
-                                }
-                                else if (display.Height - e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Height -= e.Y;
-                                    display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
-                                }
-                                else if (e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width = e.X;
-                                }
-                            }
-                            else if (displayMoveSideCur == 4)
-                            {
-                                if (display.Width - e.X > MIN_FORM_SIZE && e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Width -= e.X;
-                                    display.Height = e.Y;
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y);
-                                }
-                                else if (display.Width - e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Width -= e.X;
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y);
-                                }
-                                else if (e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Height = e.Y;
-                                }
-                            }
-                            else if (displayMoveSideCur == 5)
-                            {
-                                if (display.Width - e.X > MIN_FORM_SIZE)
-                                {
-                                    display.Location = new Point(display.Location.X + e.X, display.Location.Y);
-                                    display.Width -= e.X;
-                                }
-                            }
-                            else if (displayMoveSideCur == 6)
-                            {
-                                if (e.X > MIN_FORM_SIZE)
-                                    display.Width = e.X;
-                            }
-                            else if (displayMoveSideCur == 7)
-                            {
-                                if (display.Height - e.Y > MIN_FORM_SIZE)
-                                {
-                                    display.Location = new Point(display.Location.X, display.Location.Y + e.Y);
-                                    display.Height -= e.Y;
-                                }
-                            }
-                            else if (displayMoveSideCur == 8)
-                            {
-                                if (e.Y > MIN_FORM_SIZE)
-                                    display.Height = e.Y;
-                            }
-                        }
-
-                        resizing = true;
-                        GoIdle();
-                        ScreenPlay();
                     }
-                }
-                else
-                {
-                    // MOVING FORM WHILE PRESSING LEFT BUTTON
-                    display.Location = new Point(display.Location.X + e.Location.X - displayMLDownPos.X, display.Location.Y + e.Location.Y - displayMLDownPos.Y);
-                    control.Location = display.Location;
-                }
-            }
-            else
-            {
-                // SHOW PROPER CURSOR AT THE EDGES (FOR RESIZING)
-                if (e.X <= RESIZE_CURSOR_DISTANCE && e.Y <= RESIZE_CURSOR_DISTANCE)
-                {
-                    if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNWSE;
-                    displayMoveSide = 1;
-                }
-                else if (e.X + RESIZE_CURSOR_DISTANCE >= display.Width && e.Y + RESIZE_CURSOR_DISTANCE >= display.Height)
-                {
-                    if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNWSE;
-                    displayMoveSide = 2;
-                }
-                else if (e.X + RESIZE_CURSOR_DISTANCE >= display.Width && e.Y <= RESIZE_CURSOR_DISTANCE)
-                {
-                    if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNESW;
-                    displayMoveSide = 3;
-                }
-                else if (e.X <= RESIZE_CURSOR_DISTANCE && e.Y + RESIZE_CURSOR_DISTANCE >= display.Height)
-                {
-                    if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNESW;
-                    displayMoveSide = 4;
-                }
-                else if (e.X <= RESIZE_CURSOR_DISTANCE)
-                {
-                    if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeWE;
-                    displayMoveSide = 5;
-                }
-                else if (e.X + RESIZE_CURSOR_DISTANCE >= display.Width)
-                {
-                    if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeWE;
-                    displayMoveSide = 6;
-                }
-                else if (e.Y <= RESIZE_CURSOR_DISTANCE)
-                {
-                    if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNS;
-                    displayMoveSide = 7;
-                }
-                else if (e.Y + RESIZE_CURSOR_DISTANCE >= display.Height)
-                {
-                    if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNS;
-                    displayMoveSide = 8;
-                }
-                else
-                {
-                    if (displayMoveSideCur == 0)
+                    else
                     {
-                        display.Cursor = Cursors.Default;
-                        displayMoveSide = 0;
+                        // MOVING FORM WHILE PRESSING LEFT BUTTON
+                        display.Location = new Point(display.Location.X + e.Location.X - displayMLDownPos.X, display.Location.Y + e.Location.Y - displayMLDownPos.Y);
+                        control.Location = display.Location;
                     }
-
                 }
+                else
+                {
+                    // SHOW PROPER CURSOR AT THE EDGES (FOR RESIZING)
+                    if (e.X <= RESIZE_CURSOR_DISTANCE && e.Y <= RESIZE_CURSOR_DISTANCE)
+                    {
+                        if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNWSE;
+                        displayMoveSide = 1;
+                    }
+                    else if (e.X + RESIZE_CURSOR_DISTANCE >= display.Width && e.Y + RESIZE_CURSOR_DISTANCE >= display.Height)
+                    {
+                        if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNWSE;
+                        displayMoveSide = 2;
+                    }
+                    else if (e.X + RESIZE_CURSOR_DISTANCE >= display.Width && e.Y <= RESIZE_CURSOR_DISTANCE)
+                    {
+                        if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNESW;
+                        displayMoveSide = 3;
+                    }
+                    else if (e.X <= RESIZE_CURSOR_DISTANCE && e.Y + RESIZE_CURSOR_DISTANCE >= display.Height)
+                    {
+                        if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNESW;
+                        displayMoveSide = 4;
+                    }
+                    else if (e.X <= RESIZE_CURSOR_DISTANCE)
+                    {
+                        if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeWE;
+                        displayMoveSide = 5;
+                    }
+                    else if (e.X + RESIZE_CURSOR_DISTANCE >= display.Width)
+                    {
+                        if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeWE;
+                        displayMoveSide = 6;
+                    }
+                    else if (e.Y <= RESIZE_CURSOR_DISTANCE)
+                    {
+                        if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNS;
+                        displayMoveSide = 7;
+                    }
+                    else if (e.Y + RESIZE_CURSOR_DISTANCE >= display.Height)
+                    {
+                        if (displayMoveSideCur == 0) display.Cursor = Cursors.SizeNS;
+                        displayMoveSide = 8;
+                    }
+                    else
+                    {
+                        if (displayMoveSideCur == 0)
+                        {
+                            display.Cursor = Cursors.Default;
+                            displayMoveSide = 0;
+                        }
+
+                    }
+                }
+            } 
+            catch (Exception e1)
+            {
+                Log(e1.Message + " - " + e1.StackTrace);
+
+                //if (e1.Message.Contains("DXGI_ERROR_DEVICE_REMOVED") ) InitializeID3D11();
             }
         }
 
@@ -1137,7 +1333,7 @@ namespace PartyTime.UI_Example
 
         // UI Events [CONTROL RTBSUBS]
         private void RtbSubsContentsResized(object sender, ContentsResizedEventArgs e)  { control.rtbSubs.ClientSize = new Size(control.rtbSubs.ClientSize.Width, e.NewRectangle.Height); }
-        private void RtbSubsEnter(object sender, EventArgs e) { control.seekBar.Focus(); }
+        private void RtbSubsEnter(object sender, EventArgs e) { display.Focus(); }
 
         // UI Events [CONTROL LSTMEDIAFILES]
         private void lstMediaFiles_MouseClickDbl(object sender, MouseEventArgs e)
@@ -1157,17 +1353,20 @@ namespace PartyTime.UI_Example
         }
         private void lstMediaFiles_MouseMove(object sender, MouseEventArgs e) { lastUserActionTicks = DateTime.UtcNow.Ticks; }
 
-        // Full Screen / Aspect Ratio
         private void GraphicsApplyChanges()
         {
             // SharpDX bug when using HW Acceleration
             try
             {
                 graphics.ApplyChanges();
+                //if (_swapChain != null) _swapChain.Present(1, PresentFlags.None);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                graphics = new GraphicsDeviceManager(display2);
+                Log(e.Message + " - " + e.StackTrace);
+
+                if (e.Message.Contains("DXGI_ERROR_DEVICE_REMOVED") ) InitializeID3D11();
+                else graphics = new GraphicsDeviceManager(display2);
             }
         }
         private void FullScreenToggle() { if (graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) NormalScreen(); else FullScreen(); }
@@ -1187,6 +1386,7 @@ namespace PartyTime.UI_Example
             GraphicsApplyChanges();
             FixFrmControl();
 
+            screenPlayHW.Size = new Size(display.Width, display.Height);
             if (player.isStopped) ScreenStop(); else ScreenPlay();
         }
         private void NormalScreen()
@@ -1198,6 +1398,7 @@ namespace PartyTime.UI_Example
             GraphicsApplyChanges();
             FixFrmControl();
 
+            screenPlayHW.Size = new Size(display.Width, display.Height);
             if (player.isStopped) ScreenStop(); else ScreenPlay();
         }
         private void FixAspectRatio(bool force = true)
@@ -1221,6 +1422,7 @@ namespace PartyTime.UI_Example
                 GraphicsApplyChanges();
             }
 
+            screenPlayHW.Size = new Size(display.Width, display.Height);
             FixFrmControl();
         }
         private void FixFrmControl()
