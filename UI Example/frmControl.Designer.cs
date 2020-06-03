@@ -163,6 +163,7 @@ namespace PartyTime.UI_Example
             this.lstMediaFiles.Size = new System.Drawing.Size(603, 344);
             this.lstMediaFiles.Sorted = true;
             this.lstMediaFiles.TabIndex = 10;
+            this.lstMediaFiles.TabStop = false;
             this.lstMediaFiles.Visible = false;
             // 
             // frmControl

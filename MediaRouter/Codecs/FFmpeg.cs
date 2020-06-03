@@ -14,6 +14,13 @@ using System.Security;
 using System.Text;
 using System.Threading;
 
+using SharpDX.DXGI;
+using SharpDX.Direct3D11;
+
+using Device    = SharpDX.Direct3D11.Device;
+using Resource  = SharpDX.Direct3D11.Resource;
+using STexture2D= SharpDX.Direct3D11.Texture2D;
+
 using FFmpeg.AutoGen;
 
 namespace PartyTime.Codecs
@@ -25,9 +32,10 @@ namespace PartyTime.Codecs
         public int _RATE { get; private set; } // Will be set from Input Format
 
         // Video Output Parameters
+        STexture2D  stageTexture;
         AVPixelFormat _PIXEL_FORMAT     = AVPixelFormat.AV_PIX_FMT_RGBA;
         int _SCALING_HQ                 = ffmpeg.SWS_ACCURATE_RND | ffmpeg.SWS_BITEXACT | ffmpeg.SWS_LANCZOS | ffmpeg.SWS_FULL_CHR_H_INT | ffmpeg.SWS_FULL_CHR_H_INP;
-        int _SCALING_LQ                 = ffmpeg.SWS_FAST_BILINEAR;
+        int _SCALING_LQ                 = ffmpeg.SWS_BICUBIC; // ffmpeg.SWS_FAST_BILINEAR;
         int vSwsOptFlags;
         
         // Video Output Buffer
@@ -69,16 +77,15 @@ namespace PartyTime.Codecs
         public Action                       BufferingAudioDone;
         public Action                       BufferingSubsDone;
 
-        private long            aCurPos, vCurPos, sCurPos;
-        List<object>            gcPrevent = new List<object>();
-        private const int       IOBufferSize = 0x40000;
+        private long                        aCurPos, vCurPos, sCurPos;
+        List<object>                        gcPrevent = new List<object>();
+        private const int                   IOBufferSize = 0x40000;
 
         public bool isSubsExternal { get; private set; }
         bool aFinish, vFinish, sFinish;
 
         // HW Acceleration
         const int                           AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
-        bool                                hwAccelSuccess;
         List<AVHWDeviceType>                hwDevices;
         List<HWDeviceSupported>             hwDevicesSupported;
         struct HWDeviceSupported
@@ -91,6 +98,7 @@ namespace PartyTime.Codecs
         public struct MediaFrame
         {
             public byte[]   data;
+            public IntPtr   texture;
             public long     timestamp;
             public long     pts;
 
@@ -138,7 +146,8 @@ namespace PartyTime.Codecs
         public bool hasVideo        { get; private set; }
         public bool hasSubs         { get; private set; }
         public bool HighQuality     { get; set; }
-        public bool HWAcceleration  { get; set; }
+        public bool HWAccel         { get; set; }
+        public bool hwAccelSuccess  { get; private set; }
         public int  verbosity       { get; set; }
 
         // Constructors
@@ -151,7 +160,6 @@ namespace PartyTime.Codecs
             this.verbosity      = verbosity;
             SendFrame           = RecvFrameCallback;
 
-            HWAcceleration      = true;
             hwDevices           = GetHWDevices();
             hwDevicesSupported  = new List<HWDeviceSupported>();
 
@@ -166,6 +174,7 @@ namespace PartyTime.Codecs
             if (aDecoder != null && aDecoder.IsAlive) aDecoder.Abort();
             if (vDecoder != null && vDecoder.IsAlive) vDecoder.Abort();
             if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
+            if (stageTexture != null) SharpDX.Utilities.Dispose(ref stageTexture);
             
             status      = Status.STOPPED; 
             aStatus     = Status.STOPPED; 
@@ -181,7 +190,6 @@ namespace PartyTime.Codecs
             vStreamInfo = new VideoStreamInfo();
             aStreamInfo = new AudioStreamInfo();
 
-            // Let's try to proper free all those
             AVFormatContext* fmtCtxPtr;
             try
             {
@@ -265,15 +273,12 @@ namespace PartyTime.Codecs
 
             hwAccelSuccess  = false;
 
-            if (HWAcceleration && hwDevices.Count > 0)
+            if (HWAccel && hwDevices.Count > 0)
             {
                 hwDevicesSupported = GetHWDevicesSupported();
-
                 foreach (AVHWDeviceType hwDevice in hwDevices)
                 {
-                    if (hwDevice == AVHWDeviceType.AV_HWDEVICE_TYPE_DXVA2) continue;
-                    //if (hwDevice == AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA) continue;
-                    if (hwDevice == AVHWDeviceType.AV_HWDEVICE_TYPE_CUDA) continue;
+                    if (hwDevice != AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA) continue;
 
                     // GPU device is in Codec's supported list
                     bool found = false;
@@ -507,86 +512,70 @@ namespace PartyTime.Codecs
         }
 
         // For Seeking from I -> B/P Frame
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         public int SeekAccurate(int ms, AVMediaType mType)
         {
-            int ret = 0;
-            if (!isReady) return -1;
-
-            if (ms < 0) ms = 0;
-            
-            long calcTimestamp =(long) ms * 10000;
-            Status oldStatus;
-            
-            switch (mType)
+            try
             {
-                case AVMediaType.AVMEDIA_TYPE_AUDIO:
-                    oldStatus = aStatus;
+                int ret = 0;
+                if (!isReady) return -1;
 
-                    if (calcTimestamp > vStreamInfo.durationTicks) { aStatus = oldStatus; break; }
-                    if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                    calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+                if (ms < 0) ms = 0;
+            
+                long calcTimestamp =(long) ms * 10000;
+                Status oldStatus;
+            
+                switch (mType)
+                {
+                    case AVMediaType.AVMEDIA_TYPE_AUDIO:
+                        oldStatus = aStatus;
 
-                    if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(15); }
-                    aStatus = Status.SEEKING;
+                        if (calcTimestamp > vStreamInfo.durationTicks) { aStatus = oldStatus; break; }
+                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
+                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
 
-                    ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
-                    ffmpeg.avcodec_flush_buffers(aCodecCtx);
+                        if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(15); }
+                        aStatus = Status.SEEKING;
 
-                    aStatus = oldStatus;
-                    break;
+                        ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
+                        ffmpeg.avcodec_flush_buffers(aCodecCtx);
 
-                case AVMediaType.AVMEDIA_TYPE_VIDEO:
-                    oldStatus = vStatus;
+                        aStatus = oldStatus;
+                        break;
+
+                    case AVMediaType.AVMEDIA_TYPE_VIDEO:
+                        oldStatus = vStatus;
                     
-                    if (calcTimestamp > vStreamInfo.durationTicks ) { vStatus = oldStatus; break; }
-                    if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000; // Because of rationals
-                    calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+                        if (calcTimestamp > vStreamInfo.durationTicks ) { vStatus = oldStatus; break; }
+                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000; // Because of rationals
+                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
                     
-                    if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(15); }
-                    vStatus = Status.SEEKING;
+                        if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(15); }
+                        vStatus = Status.SEEKING;
 
-                    ret = ffmpeg.avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_BACKWARD);                    
-                    ffmpeg.avcodec_flush_buffers(vCodecCtx);
-                    if (calcTimestamp * vStreamInfo.timebaseLowTicks >= vStreamInfo.startTimeTicks ) ret = DecodeSilent(mType, (long)ms * 10000);
+                        ret = ffmpeg.avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_BACKWARD);                    
+                        ffmpeg.avcodec_flush_buffers(vCodecCtx);
+                        if (calcTimestamp * vStreamInfo.timebaseLowTicks >= vStreamInfo.startTimeTicks ) ret = DecodeSilent(mType, (long)ms * 10000);
 
-                    vStatus = oldStatus;
-                    break;
+                        vStatus = oldStatus;
+                        break;
 
-                case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                    oldStatus = sStatus;
-                    
+                    case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
+                        oldStatus = sStatus;
+                        sStatus = Status.SEEKING;
+                        ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
 
-                    //if (!isSubsExternal)
-                    //{
-                    //    if (calcTimestamp > vStreamInfo.durationTicks) { aStatus = oldStatus; break; }
-                    //    if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                    //    calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+                        ffmpeg.avcodec_flush_buffers(sCodecCtx);
 
-                    //    if (sDecoder != null && sDecoder.IsAlive) { sDecoder.Abort(); Thread.Sleep(15); }
-                    //    sStatus = Status.SEEKING;
+                        sStatus = oldStatus;
+                        break;
+                }
 
-                    //    //ret = ffmpeg.avformat_seek_file(sFmtCtx, vStream->index, calcTimestamp, calcTimestamp, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_ANY);
-                    //    ret = ffmpeg.avformat_seek_file(sFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //}
-                    //else
-                    //{
-                    //    sStatus = Status.SEEKING;
-                    //    //ret = ffmpeg.avformat_seek_file(sFmtCtx, -1, (ms - 2000) / 10000, ms / 10000, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, ms, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //}
-                    sStatus = Status.SEEKING;
-                    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
+                if (ret != 0) { Log(" - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", TS: " + calcTimestamp); return -1; }
 
-
-                    ffmpeg.avcodec_flush_buffers(sCodecCtx);
-
-                    sStatus = oldStatus;
-                    break;
-            }
-
-            if (ret != 0) { Log(" - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", TS: " + calcTimestamp); return -1; }
-
-            return 0;
+                return 0;
+            } catch (Exception e) { Log(e.Message + "\r\n" + e.StackTrace); return -1; }
         }
         private int DecodeSilent(AVMediaType mType, long endTimestamp)
         {
@@ -662,68 +651,58 @@ namespace PartyTime.Codecs
         }
 
         // For Stream Buffering before Running
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         public int SeekAccurate2(int ms, AVMediaType mType)
         {
-            Log($"[SEEK] Start {mType.ToString()} ms -> {ms}");
-
-            int ret = 0;
-            if (!isReady) return -1;
-
-            if (ms < 0) ms = 0;
-            long calcTimestamp =(long) ms * 10000;
-
-            switch (mType)
+            try
             {
-                case AVMediaType.AVMEDIA_TYPE_AUDIO:
-                    if (calcTimestamp > vStreamInfo.durationTicks ) break;
-                    if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                    calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+                Log($"[SEEK] Start {mType.ToString()} ms -> {ms}");
 
-                    if (aDecoder != null && aDecoder.IsAlive) aDecoder.Abort();
+                int ret = 0;
+                if (!isReady) return -1;
 
-                    ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
-                    ffmpeg.avcodec_flush_buffers(aCodecCtx);
+                if (ms < 0) ms = 0;
+                long calcTimestamp =(long) ms * 10000;
+
+                switch (mType)
+                {
+                    case AVMediaType.AVMEDIA_TYPE_AUDIO:
+                        if (calcTimestamp > vStreamInfo.durationTicks ) break;
+                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
+                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+
+                        if (aDecoder != null && aDecoder.IsAlive) aDecoder.Abort();
+
+                        ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
+                        ffmpeg.avcodec_flush_buffers(aCodecCtx);
                     
-                    break;
+                        break;
 
-                case AVMediaType.AVMEDIA_TYPE_VIDEO:
-                    if (calcTimestamp > vStreamInfo.durationTicks ) break;
-                    if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                    calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+                    case AVMediaType.AVMEDIA_TYPE_VIDEO:
+                        if (calcTimestamp > vStreamInfo.durationTicks ) break;
+                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
+                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
                     
-                    if (vDecoder != null && vDecoder.IsAlive) vDecoder.Abort();
+                        if (vDecoder != null && vDecoder.IsAlive) vDecoder.Abort();
 
-                    ret = ffmpeg.avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);                    
-                    ffmpeg.avcodec_flush_buffers(vCodecCtx);
+                        ret = ffmpeg.avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);                    
+                        ffmpeg.avcodec_flush_buffers(vCodecCtx);
 
-                    break;
+                        break;
 
-                case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                    //if (!isSubsExternal)
-                    //{
-                    //    if (calcTimestamp > vStreamInfo.durationTicks) break;
-                    //    if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                    //    calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
+                    case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
+                        ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
+                        ffmpeg.avcodec_flush_buffers(sCodecCtx);
 
-                    //    if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
+                        break;
+                }
 
-                    //    //ret = ffmpeg.avformat_seek_file(sFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
-                    //    ret = ffmpeg.avformat_seek_file(sFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //}
-                    //else
-                    //{
-                    //    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, ms, Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    //}
-                    ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
-                    ffmpeg.avcodec_flush_buffers(sCodecCtx);
-
-                    break;
-            }
-
-            Log($"[SEEK] End {mType.ToString()} ms -> {ms}");
-            if (ret != 0) { Log(" - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", TS: " + calcTimestamp); return -1; }
+                Log($"[SEEK] End {mType.ToString()} ms -> {ms}");
+                if (ret != 0) { Log(" - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", TS: " + calcTimestamp); return -1; }
             
-            return 0;
+                return 0;
+            } catch (Exception e) { Log(e.Message + "\r\n" + e.StackTrace); return -1; }
         }
         public int DecodeSilent2(AVMediaType mType, long endTimestamp, bool single = false)
         {
@@ -847,7 +826,7 @@ namespace PartyTime.Codecs
                         if (frame->nb_samples > 0)
                         {
                             MediaFrame mFrame   = new MediaFrame();
-                            mFrame.data         = new byte[bufferSize]; Buffer.BlockCopy(buffer, 0, mFrame.data, 0, bufferSize);
+                            mFrame.data         = new byte[bufferSize]; System.Buffer.BlockCopy(buffer, 0, mFrame.data, 0, bufferSize);
                             mFrame.pts          = frame->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                             mFrame.timestamp    = (long)(mFrame.pts * aStreamInfo.timebaseLowTicks);
                             if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
@@ -860,23 +839,51 @@ namespace PartyTime.Codecs
 
             return ret;
         }
+
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         private int ProcessVideoFrame(AVFrame* frame2)
         {
             int ret = 0;
 
             try
             {
-                AVFrame* frame;
-
-                // [HW ACCEL]
                 if (hwAccelSuccess)
                 {
-                    frame                        = ffmpeg.av_frame_alloc();
-                    ret                          = ffmpeg.av_hwframe_transfer_data(frame, frame2, 0);
-                    frame->pts                   = frame2->pts;
-                    frame->best_effort_timestamp = frame2->best_effort_timestamp;
-                    ffmpeg.av_frame_unref(frame2);
-                } else frame = frame2;
+                    STexture2D nv12texture = new STexture2D((IntPtr) frame2->data.ToArray()[0]);
+
+                    if (stageTexture == null)
+                        stageTexture =  new STexture2D(nv12texture.Device, new Texture2DDescription()
+                        {
+                            Usage               = ResourceUsage.Default,
+                            Format              = Format.NV12,
+
+                            Width               = nv12texture.Description.Width,
+                            Height              = nv12texture.Description.Height,
+
+                            BindFlags           = BindFlags.ShaderResource | BindFlags.RenderTarget,
+                            CpuAccessFlags      = CpuAccessFlags.None,
+                            OptionFlags         = ResourceOptionFlags.Shared,
+
+                            SampleDescription   = new SampleDescription(1, 0),
+                            ArraySize           = 1,
+                            MipLevels           = 1
+                        });
+
+                    nv12texture.Device.ImmediateContext.    CopySubresourceRegion(nv12texture, (int)frame2->data.ToArray()[1], null, stageTexture, 0);
+                    var stageResource       = stageTexture. QueryInterface<SharpDX.DXGI.Resource>();
+
+                    MediaFrame mFrame   = new MediaFrame();
+                    mFrame.texture      = stageResource.SharedHandle;
+                    mFrame.pts          = frame2->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? frame2->pts : frame2->best_effort_timestamp;
+                    mFrame.timestamp    = (long)(mFrame.pts * vStreamInfo.timebaseLowTicks);
+                    if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
+                    SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
+
+                    return ret;
+                } 
+                
+                AVFrame* frame = frame2;
 
                 ret = ffmpeg.sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
 
@@ -894,9 +901,6 @@ namespace PartyTime.Codecs
                     if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
                     SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
                 }
-
-                // TODO [HW ACCEL]
-                if (hwAccelSuccess) ffmpeg.av_frame_free(&frame);
 
             } catch (ThreadAbortException) {
             } catch (Exception e) { ret = -1;  Log("Error[" + (ret).ToString("D4") + "], Func: ProcessVideoFrame(), Msg: " + e.StackTrace); }
@@ -1141,7 +1145,7 @@ namespace PartyTime.Codecs
                 }
 
                 if (!hasVideo) { Log("Error[" + (-1).ToString("D4") + "], Msg: No Video stream found"); return -1; }
-
+                
                 if (hasAudio)
                     for (int i = 0; i < aFmtCtx->nb_streams; i++)
                         if (i != aStream->index && i != vStream->index) aFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;

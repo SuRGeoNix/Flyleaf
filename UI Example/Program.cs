@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Forms;
 
 namespace PartyTime.UI_Example
 {
@@ -8,6 +9,8 @@ namespace PartyTime.UI_Example
         [STAThread]
         static void Main()
         {
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.EnableVisualStyles();
             using (var game = new frmDisplay())
                 game.Run();
         }
