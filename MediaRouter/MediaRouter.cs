@@ -33,7 +33,7 @@ namespace PartyTime
         ConcurrentQueue<MediaFrame>       sFrames;
 
         int AUDIO_MIX_QUEUE_SIZE = 50;  int AUDIO_MAX_QUEUE_SIZE =  60;
-        int VIDEO_MIX_QUEUE_SIZE =  2;  int VIDEO_MAX_QUEUE_SIZE =   3;
+        int VIDEO_MIX_QUEUE_SIZE =  1;  int VIDEO_MAX_QUEUE_SIZE =   2;
         int  SUBS_MIN_QUEUE_SIZE =  5;  int  SUBS_MAX_QUEUE_SIZE =  10;
 
         // Status
@@ -54,7 +54,7 @@ namespace PartyTime
         // Callbacks
         public Action                       AudioResetClbk;
         public Action<byte[], int, int>     AudioFrameClbk;
-        public Action<byte[], long, long>   VideoFrameClbk;
+        public Action<byte[], long, IntPtr> VideoFrameClbk;
         public Action<string, int>          SubFrameClbk;
 
         public Action<bool>                 OpenTorrentSuccessClbk;
@@ -81,8 +81,9 @@ namespace PartyTime
         public long Duration        { get; private set; }
         public long CurTime         { get; private set; }
         public int  verbosity       { get; set; }
-        public bool HighQuality     { get { return decoder.HighQuality; } set { decoder.HighQuality = value; } }
-        public bool HWAcceleration  { get; set; }
+        public bool HighQuality     { get { return decoder.HighQuality; }   set { decoder.HighQuality   = value; } }
+        public bool HWAccel         { get { return decoder.HWAccel;     }   set { decoder.HWAccel       = value; } }
+        public bool iSHWAccelSuccess{ get { return decoder.hwAccelSuccess; } }
         public long AudioExternalDelay
         {
             get { return audioExternalDelay; }
@@ -134,10 +135,10 @@ namespace PartyTime
             if (vScreamer   != null) vScreamer.Abort();
             if (sScreamer   != null) sScreamer.Abort();
 
-            isReady = false;
-            status  = Status.STOPPED;
-            beforeSeeking = Status.STOPPED;
-            decoder.HWAcceleration = HWAcceleration;
+            isReady         = false;
+            status          = Status.STOPPED;
+            beforeSeeking   = Status.STOPPED;
+            decoder.HWAccel = HWAccel;
 
             lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
             lock (vFrames) vFrames = new ConcurrentQueue<MediaFrame>();
@@ -306,7 +307,7 @@ namespace PartyTime
                 // Video Frames         [Callback]
                 CurTime = vFrame.timestamp;
                 //Log($"[VIDEO SCREAMER] Frame Scream [CurTS: {vFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {(vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
-                VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, distanceTicks, null, null);
+                VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, vFrame.texture, null, null);
             }
 
             Log($"[VIDEO SCREAMER] Finished -> {videoStartTicks/10000}");
@@ -784,7 +785,7 @@ namespace PartyTime
                         lock (vFrames) vFrames.TryPeek(out vFrame);
                         CurTime         = vFrame.timestamp;
                         videoStartTicks = vFrame.timestamp;
-                        VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, 0, null, null);
+                        VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, vFrame.texture, null, null);
                     }
                     
                     if (beforeSeeking == Status.PLAYING) 
