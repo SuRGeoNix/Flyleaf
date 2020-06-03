@@ -67,7 +67,7 @@ namespace PartyTime
             this.verbosity              = verbosity;
 
             decoder                     = new Codecs.FFmpeg(null, verbosity);
-            decoder.HWAcceleration      = false;
+            decoder.HWAccel             = false;
             decoder.BufferingDone       = BufferingDone;
         }
         private void Initialize()
