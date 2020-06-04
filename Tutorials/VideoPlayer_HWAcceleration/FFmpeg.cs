@@ -210,7 +210,7 @@ namespace VideoPlayer_HWAcceleration
          * 1. Casting ID3D11Texture2D (d3d11.h) to Texture2D (SharpDX.Direct3D11) from avframe->data.ToArray()[0]
          * 2. Subresource Array Index from avframe->data.ToArray()[1]
          * 3. Creates a Shared Texture Copy by using FFmpeg ID3Device (nv12Texture.Device) so we can use it from our SharpDX.Direct3D11.Device later on
-         * 4. Returns Shared Texture's Handle
+         * 4. Returns Shared Texture's Handle (It will be the input for DirectX.PresentFrame(IntPtrnv12SharedResource)
         */
         public IntPtr GetFrame()
         {
