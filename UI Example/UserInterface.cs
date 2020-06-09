@@ -274,7 +274,7 @@ namespace PartyTime.UI_Example
             var desc = new SwapChainDescription()
             {
                 BufferCount         = 1,
-                ModeDescription     = new ModeDescription(0, 0, new Rational(0, 0), Format.B8G8R8A8_UNorm),
+                ModeDescription     = new ModeDescription(0, 0, new Rational(1, 1), Format.B8G8R8A8_UNorm),
                 IsWindowed          = true,
                 OutputHandle        = screenPlayHWHandle,
                 SampleDescription   = new SampleDescription(1, 0),
@@ -283,16 +283,16 @@ namespace PartyTime.UI_Example
             };
 
             // Create Device and SwapChain
-            //Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, /*DeviceCreationFlags.Debug | */DeviceCreationFlags.BgraSupport, new [] { SharpDX.Direct3D.FeatureLevel.Level_11_1, SharpDX.Direct3D.FeatureLevel.Level_11_0, SharpDX.Direct3D.FeatureLevel.Level_10_1, SharpDX.Direct3D.FeatureLevel.Level_10_0 }, desc, out _device, out _swapChain);
+            //Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, /*DeviceCreationFlags.Debug | */DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport, new [] { SharpDX.Direct3D.FeatureLevel.Level_12_1, SharpDX.Direct3D.FeatureLevel.Level_12_0, SharpDX.Direct3D.FeatureLevel.Level_11_1, SharpDX.Direct3D.FeatureLevel.Level_11_0, SharpDX.Direct3D.FeatureLevel.Level_10_1, SharpDX.Direct3D.FeatureLevel.Level_10_0 }, desc, out _device, out _swapChain);
             Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, /*DeviceCreationFlags.Debug | */DeviceCreationFlags.None, desc, out _device, out _swapChain);
-
+            
             _backBuffer     = STexture2D.FromSwapChain<STexture2D>(_swapChain, 0);
             _renderView     = new RenderTargetView(_device, _backBuffer);
 
             // Ignore all windows events | Prevent Alt + Enter for Fullscreen
             var factory = _swapChain.GetParent<Factory>();
             factory.MakeWindowAssociation(screenPlayHWHandle, WindowAssociationFlags.IgnoreAll);
-
+            
             // Prepare Video Processor Emulator | Input | Output | Stream
             videoDevice1    = _device.QueryInterface<VideoDevice1>();
             videoContext1   = _device.ImmediateContext.QueryInterface<VideoContext1>();
@@ -339,7 +339,7 @@ namespace PartyTime.UI_Example
         }
 
         // Screens
-        private void ScreenPlay(string infoText = "")
+        private void ScreenPlay()
         {
             try
             {
@@ -347,7 +347,6 @@ namespace PartyTime.UI_Example
 
                 if (player.iSHWAccelSuccess)
                 {
-
                     if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
                     {
                         if (isIdle || resizing)
@@ -362,7 +361,7 @@ namespace PartyTime.UI_Example
                         else
                             screenPlayHW.SetBounds(0, 0, display.Width, display.Height - btnBar.Height + 5);
                     }
-
+                    _swapChain.Present(1, PresentFlags.None);
                     return;
                 }
 
@@ -438,7 +437,7 @@ namespace PartyTime.UI_Example
 
                 if (player.CurTime >= subStart && player.CurTime - subStart < subDur * 10000)
                 {
-                    if (SubsNew) { SubsNew = false; ASSToRichText(control.rtbSubs, subText); }
+                    if (SubsNew) { SubsNew = false; Subtitles.ASSToRichText(control.rtbSubs, subText); }
 
                     if (isIdle)
                         control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 50));
@@ -610,65 +609,11 @@ namespace PartyTime.UI_Example
             control.volBar.Visible      = true;
             btnBar.Visible              = true;
 
-            ScreenPlay();
             lastUserActionTicks         = DateTime.UtcNow.Ticks;
             display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f);
+
+            ScreenPlay();
             display.Focus();
-        }
-        private void ASSToRichText(RichTextBox rtb, string text)
-        {
-            rtb.Text = "";
-
-            bool bold = false;
-            bool italic = false;
-            bool changed = false;
-            string cur = "";
-            FontStyle fontStyle = FontStyle.Regular;
-
-            for (int i=0; i<text.Length; i++)
-            {
-
-                if ( changed )
-                {
-                    if ( !bold && !italic ) fontStyle = FontStyle.Regular;
-                    else
-                    if (  bold &&  italic ) fontStyle = FontStyle.Bold | FontStyle.Italic;
-                    else
-                    if (  bold && !italic ) fontStyle = FontStyle.Bold;
-                    else
-                    if ( !bold &&  italic ) 
-                        fontStyle = FontStyle.Italic;
-
-                    rtb.AppendText(cur);
-
-                    cur = "";
-                    changed = false;
-                    rtb.SelectionFont = new Font(rtb.Font, fontStyle); 
-                }
-
-                if ( text.Length > i + 4 && text[i] == '{' &&  text[i+1] == '\\')
-                {
-                    if      ( text[i+2] == 'i' && (text[i+3] == '0' || text[i+3] == '1') && text[i+4] == '}' )
-                    {
-                        italic = text[i+3] == '1' ? true : false;
-                        changed = true;
-                        i += 4;
-                    } 
-                    else if ( text[i+2] == 'b' && (text[i+3] == '0' || text[i+3] == '1') && text[i+4] == '}' )
-                    {
-                        bold = text[i+3] == '1' ? true : false;
-                        changed = true;
-                        i += 4;
-                    }
-                }
-
-                if ( !changed ) cur += text[i];
-
-            }
-
-            rtb.AppendText(cur);
-            rtb.SelectAll();
-            rtb.SelectionAlignment = HorizontalAlignment.Center;
         }
 
         // Processes Streaming
@@ -686,6 +631,8 @@ namespace PartyTime.UI_Example
                 return;
             }
 
+            string selectedFile = "";
+
             control.lstMediaFiles.BeginUpdate();
             control.lstMediaFiles.Items.Clear();
 
@@ -695,12 +642,23 @@ namespace PartyTime.UI_Example
                 if ( ext == null || ext.Trim() == "") continue;
 
                 if ( movieExts.Contains(ext.Substring(1,ext.Length-1)) )
+                {
                     control.lstMediaFiles.Items.Add(mediaFiles[i]);
+                    selectedFile = mediaFiles[i];
+                }
             }
-
             control.lstMediaFiles.EndUpdate();
-            control.lstMediaFiles.Visible = true;
-            FixLstMediaFiles();
+
+            if (control.lstMediaFiles.Items.Count == 1)
+            {
+                player.SetMediaFile(selectedFile);
+                UpdateInfoText($"Opening {selectedFile} ...");
+            }
+            else
+            {
+                control.lstMediaFiles.Visible = true;
+                FixLstMediaFiles();
+            }
         }
         public void SetMediaFile(string selectedFile)
         {
@@ -756,7 +714,7 @@ namespace PartyTime.UI_Example
                     vpsa[0] = vps;
                     videoContext1.VideoProcessorBlt(videoProcessor, vpov, 0, 1, vpsa);
 
-                    _swapChain.Present(1, PresentFlags.DoNotWait);
+                    _swapChain.Present(1, PresentFlags.None);
                     
                     Utilities.Dispose(ref vpiv);
                     Utilities.Dispose(ref curShared);
@@ -1333,7 +1291,7 @@ namespace PartyTime.UI_Example
 
         // UI Events [CONTROL RTBSUBS]
         private void RtbSubsContentsResized(object sender, ContentsResizedEventArgs e)  { control.rtbSubs.ClientSize = new Size(control.rtbSubs.ClientSize.Width, e.NewRectangle.Height); }
-        private void RtbSubsEnter(object sender, EventArgs e) { display.Focus(); }
+        private void RtbSubsEnter(object sender, EventArgs e) { display.Cursor = Cursors.Default; display.Focus(); }
 
         // UI Events [CONTROL LSTMEDIAFILES]
         private void lstMediaFiles_MouseClickDbl(object sender, MouseEventArgs e)
@@ -1359,7 +1317,7 @@ namespace PartyTime.UI_Example
             try
             {
                 graphics.ApplyChanges();
-                //if (_swapChain != null) _swapChain.Present(1, PresentFlags.None);
+                if (_swapChain != null) _swapChain.Present(1, PresentFlags.None);
             }
             catch (Exception e)
             {
@@ -1372,6 +1330,8 @@ namespace PartyTime.UI_Example
         private void FullScreenToggle() { if (graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) NormalScreen(); else FullScreen(); }
         private void FullScreen()
         {
+            System.Drawing.Rectangle curScreenBounds = Screen.FromControl(display).Bounds;
+
             if (graphics.PreferredBackBufferWidth != graphics.GraphicsDevice.DisplayMode.Width)
             {
                 displayLastPos                  = display.Location;
@@ -1379,18 +1339,18 @@ namespace PartyTime.UI_Example
                 displayLastSize.Height          = graphics.PreferredBackBufferHeight;
             }
 
-            graphics.PreferredBackBufferWidth   = graphics.GraphicsDevice.DisplayMode.Width;
-            graphics.PreferredBackBufferHeight  = graphics.GraphicsDevice.DisplayMode.Height;
-            display.Location = new Point(0, 0);
-            
+            graphics.PreferredBackBufferWidth   = curScreenBounds.Width;
+            graphics.PreferredBackBufferHeight  = curScreenBounds.Height;
+            display.Location = new Point(curScreenBounds.X, curScreenBounds.Y);
+
             GraphicsApplyChanges();
             FixFrmControl();
 
-            screenPlayHW.Size = new Size(display.Width, display.Height);
             if (player.isStopped) ScreenStop(); else ScreenPlay();
         }
         private void NormalScreen()
         {
+            // TODO: ensure lastSize within current Screens bounds?
             graphics.PreferredBackBufferWidth   = displayLastSize.Width;
             graphics.PreferredBackBufferHeight  = displayLastSize.Height;
             display.Location                    = displayLastPos;
@@ -1398,7 +1358,6 @@ namespace PartyTime.UI_Example
             GraphicsApplyChanges();
             FixFrmControl();
 
-            screenPlayHW.Size = new Size(display.Width, display.Height);
             if (player.isStopped) ScreenStop(); else ScreenPlay();
         }
         private void FixAspectRatio(bool force = true)

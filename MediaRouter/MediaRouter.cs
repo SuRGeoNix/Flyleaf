@@ -33,7 +33,7 @@ namespace PartyTime
         ConcurrentQueue<MediaFrame>       sFrames;
 
         int AUDIO_MIX_QUEUE_SIZE = 50;  int AUDIO_MAX_QUEUE_SIZE =  60;
-        int VIDEO_MIX_QUEUE_SIZE =  1;  int VIDEO_MAX_QUEUE_SIZE =   2;
+        int VIDEO_MIX_QUEUE_SIZE =  2;  int VIDEO_MAX_QUEUE_SIZE =   3;
         int  SUBS_MIN_QUEUE_SIZE =  5;  int  SUBS_MAX_QUEUE_SIZE =  10;
 
         // Status
@@ -267,9 +267,10 @@ namespace PartyTime
                     Log($"[VIDEO SCREAMER] No Frames, Restarting ...");
 
                     Thread.Sleep(150);
+                    if ( vFrames.Count > 0 ) continue;
 
                     Thread restart = new Thread(() => {
-                        Seek((int) (CurTime/10000));
+                        Seek((int) ((CurTime + decoder.vStreamInfo.frameAvgTicks *2)/10000));
                     });
                     restart.SetApartmentState(ApartmentState.STA);
                     restart.Start();
@@ -283,7 +284,7 @@ namespace PartyTime
                     Thread.Sleep(150);
 
                     Thread restart = new Thread(() => {
-                        Seek((int) (CurTime/10000));
+                        Seek((int) ((CurTime + decoder.vStreamInfo.frameAvgTicks *2)/10000));
                     });
                     restart.SetApartmentState(ApartmentState.STA);
                     restart.Start();
@@ -652,9 +653,8 @@ namespace PartyTime
             if (sScreamer   != null) sScreamer.Abort();
 
             lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
-            lock (vFrames) vFrames = new ConcurrentQueue<MediaFrame>();
+            //lock (vFrames) vFrames = new ConcurrentQueue<MediaFrame>();
             lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
-
             status = Status.PLAYING;
 
             screamer = new Thread(() =>

@@ -353,7 +353,7 @@ namespace PartyTime
                 if ( UpdateFocusPoints(pos, len) == -1 ) CreateFocusPoint(pos, len);
 
                 while ( torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) != -1 )
-                    Thread.Sleep(10);
+                    Thread.Sleep(20);
 
                 Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
 
@@ -371,7 +371,7 @@ namespace PartyTime
             byte[] data = null;
             if ( streamType == StreamType.FILE )
             {
-                Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
+                //Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
                 data = new byte[len];
 
                 lock (fsStream)
@@ -390,7 +390,7 @@ namespace PartyTime
                     if ( UpdateFocusPoints(pos, len) == -1 ) CreateFocusPoint(pos, len);
 
                     while ( torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) != -1 )
-                        Thread.Sleep(10);
+                        Thread.Sleep(20);
 
                     //Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {isAudio}");
 
