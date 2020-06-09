@@ -32,7 +32,9 @@ namespace PartyTime.Codecs
         public int _RATE { get; private set; } // Will be set from Input Format
 
         // Video Output Parameters
-        STexture2D  stageTexture;
+        STexture2D[]  stageTexture;
+        int stageTextureIndex = 0;
+
         AVPixelFormat _PIXEL_FORMAT     = AVPixelFormat.AV_PIX_FMT_RGBA;
         int _SCALING_HQ                 = ffmpeg.SWS_ACCURATE_RND | ffmpeg.SWS_BITEXACT | ffmpeg.SWS_LANCZOS | ffmpeg.SWS_FULL_CHR_H_INT | ffmpeg.SWS_FULL_CHR_H_INP;
         int _SCALING_LQ                 = ffmpeg.SWS_BICUBIC; // ffmpeg.SWS_FAST_BILINEAR;
@@ -88,6 +90,7 @@ namespace PartyTime.Codecs
         const int                           AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
         List<AVHWDeviceType>                hwDevices;
         List<HWDeviceSupported>             hwDevicesSupported;
+        Device                              avD3D11Device;
         struct HWDeviceSupported
         {
             public AVHWDeviceType       type;
@@ -174,7 +177,7 @@ namespace PartyTime.Codecs
             if (aDecoder != null && aDecoder.IsAlive) aDecoder.Abort();
             if (vDecoder != null && vDecoder.IsAlive) vDecoder.Abort();
             if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
-            if (stageTexture != null) SharpDX.Utilities.Dispose(ref stageTexture);
+            //if (stageTexture != null) SharpDX.Utilities.Dispose(ref stageTexture);
             
             status      = Status.STOPPED; 
             aStatus     = Status.STOPPED; 
@@ -267,7 +270,6 @@ namespace PartyTime.Codecs
         }
         private int SetupHQAndHWAcceleration()
         {
-            // TODO: Until implementing pitch/linesizes
             _PIXEL_FORMAT   = HighQuality ? AVPixelFormat.AV_PIX_FMT_RGBA64LE : AVPixelFormat.AV_PIX_FMT_RGBA;
             vSwsOptFlags    = HighQuality ? _SCALING_HQ : _SCALING_LQ;
 
@@ -301,10 +303,34 @@ namespace PartyTime.Codecs
 
                     // HW Deivce Context / SWS Context
                     vCodecCtx->hw_device_ctx = ffmpeg.av_buffer_ref(hw_device_ctx);
+                    AVHWDeviceContext* hw_device_ctx2 = (AVHWDeviceContext*)hw_device_ctx->data;
+                    AVD3D11VADeviceContext* hw_d3d11_dev_ctx = (AVD3D11VADeviceContext*)hw_device_ctx2->hwctx;
+                    avD3D11Device = Device.FromPointer<Device>((IntPtr) hw_d3d11_dev_ctx->device);
                     ffmpeg.av_buffer_unref(&hw_device_ctx);
-                    //vCodecCtx->get_format = new AVCodecContext_get_format(get_format_dxva);
-                    swsCtx = ffmpeg.sws_getContext(vCodecCtx->width, vCodecCtx->height, AVPixelFormat.AV_PIX_FMT_NV12, vCodecCtx->width, vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
-                    if (swsCtx == null) continue;
+
+                    stageTexture = new STexture2D[20];
+
+                    for (int i=0; i<20; i++)
+                    stageTexture[i] =  new STexture2D(avD3D11Device, new Texture2DDescription()
+                    {
+                        Usage               = ResourceUsage.Default,
+                        Format              = Format.NV12,
+
+                        Width               = vCodecCtx->width,
+                        Height              = vCodecCtx->height,
+
+                        BindFlags           = BindFlags.ShaderResource | BindFlags.RenderTarget,
+                        CpuAccessFlags      = CpuAccessFlags.None,
+                        OptionFlags         = ResourceOptionFlags.Shared,
+
+                        SampleDescription   = new SampleDescription(1, 0),
+                        ArraySize           = 1,
+                        MipLevels           = 1
+                    });
+
+                    // TODO: In case HW decoding supported but HW Processing not
+                    //swsCtx = ffmpeg.sws_getContext(vCodecCtx->width, vCodecCtx->height, AVPixelFormat.AV_PIX_FMT_NV12, vCodecCtx->width, vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
+                    //if (swsCtx == null) continue;
 
                     hwAccelSuccess = true;
                     Log("[HWACCEL] Enabled! Device -> " + hwDevice + ", Codec -> " + Marshal.PtrToStringAnsi((IntPtr)vCodec->name));
@@ -313,8 +339,10 @@ namespace PartyTime.Codecs
                 }
             }
 
-            if (!hwAccelSuccess) swsCtx = ffmpeg.sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt, vCodecCtx->width, vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
-            if (swsCtx == null) return -1;
+            if (!hwAccelSuccess) {
+                swsCtx = ffmpeg.sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt, vCodecCtx->width, vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
+                if (swsCtx == null) return -1;
+            }
 
             return 0;
         }
@@ -535,9 +563,10 @@ namespace PartyTime.Codecs
                         if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
                         calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
 
-                        if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(15); }
+                        if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(30); }
                         aStatus = Status.SEEKING;
 
+                        if (aDecoder != null && aDecoder.IsAlive) Log("WTF CASE 001");
                         ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
                         ffmpeg.avcodec_flush_buffers(aCodecCtx);
 
@@ -551,9 +580,10 @@ namespace PartyTime.Codecs
                         if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000; // Because of rationals
                         calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
                     
-                        if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(15); }
+                        if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(30); }
                         vStatus = Status.SEEKING;
 
+                        stageTextureIndex = 0;
                         ret = ffmpeg.avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_BACKWARD);                    
                         ffmpeg.avcodec_flush_buffers(vCodecCtx);
                         if (calcTimestamp * vStreamInfo.timebaseLowTicks >= vStreamInfo.startTimeTicks ) ret = DecodeSilent(mType, (long)ms * 10000);
@@ -591,10 +621,12 @@ namespace PartyTime.Codecs
             try { 
                 if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)
                 {
+                    stageTextureIndex = 0;
+
                     while (vStatus == Status.SEEKING && (ret = ffmpeg.av_read_frame(vFmtCtx, avpacket)) == 0)
                     {
                         if (curPts > endTimestamp) return -1;
-
+                        
                         if (avpacket->stream_index == vStream->index)
                         {
                             ret = DecodeFrameSilent(avframe, vCodecCtx, avpacket);
@@ -672,7 +704,7 @@ namespace PartyTime.Codecs
                         if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
                         calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
 
-                        if (aDecoder != null && aDecoder.IsAlive) aDecoder.Abort();
+                        if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(30); }
 
                         ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);
                         ffmpeg.avcodec_flush_buffers(aCodecCtx);
@@ -684,7 +716,7 @@ namespace PartyTime.Codecs
                         if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
                         calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
                     
-                        if (vDecoder != null && vDecoder.IsAlive) vDecoder.Abort();
+                        if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(30); }
 
                         ret = ffmpeg.avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY);                    
                         ffmpeg.avcodec_flush_buffers(vCodecCtx);
@@ -848,30 +880,12 @@ namespace PartyTime.Codecs
 
             try
             {
+                // TODO: In case HW decoding not supported but HW Processing supported
                 if (hwAccelSuccess)
                 {
                     STexture2D nv12texture = new STexture2D((IntPtr) frame2->data.ToArray()[0]);
-
-                    if (stageTexture == null)
-                        stageTexture =  new STexture2D(nv12texture.Device, new Texture2DDescription()
-                        {
-                            Usage               = ResourceUsage.Default,
-                            Format              = Format.NV12,
-
-                            Width               = nv12texture.Description.Width,
-                            Height              = nv12texture.Description.Height,
-
-                            BindFlags           = BindFlags.ShaderResource | BindFlags.RenderTarget,
-                            CpuAccessFlags      = CpuAccessFlags.None,
-                            OptionFlags         = ResourceOptionFlags.Shared,
-
-                            SampleDescription   = new SampleDescription(1, 0),
-                            ArraySize           = 1,
-                            MipLevels           = 1
-                        });
-
-                    nv12texture.Device.ImmediateContext.    CopySubresourceRegion(nv12texture, (int)frame2->data.ToArray()[1], null, stageTexture, 0);
-                    var stageResource       = stageTexture. QueryInterface<SharpDX.DXGI.Resource>();
+                    nv12texture.Device.ImmediateContext.    CopySubresourceRegion(nv12texture, (int) frame2->data.ToArray()[1], null, stageTexture[stageTextureIndex], 0);
+                    var stageResource       = stageTexture[stageTextureIndex]. QueryInterface<SharpDX.DXGI.Resource>();
 
                     MediaFrame mFrame   = new MediaFrame();
                     mFrame.texture      = stageResource.SharedHandle;
@@ -880,9 +894,12 @@ namespace PartyTime.Codecs
                     if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
                     SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
 
+                    stageTextureIndex ++;
+                    if (stageTextureIndex > 19) stageTextureIndex = 0;
                     return ret;
                 } 
                 
+                // TODO: In case HW decoding supported but HW Processing not (also fix width/height linesize for screenPlay texture - after removing monogame)
                 AVFrame* frame = frame2;
 
                 ret = ffmpeg.sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
@@ -903,7 +920,7 @@ namespace PartyTime.Codecs
                 }
 
             } catch (ThreadAbortException) {
-            } catch (Exception e) { ret = -1;  Log("Error[" + (ret).ToString("D4") + "], Func: ProcessVideoFrame(), Msg: " + e.StackTrace); }
+            } catch (Exception e) { ret = -1;  Log("Error[" + (ret).ToString("D4") + "], Func: ProcessVideoFrame(), Msg: " + e.Message + " - " + e.StackTrace); }
 
             return ret;
         }
@@ -961,27 +978,39 @@ namespace PartyTime.Codecs
 
             avio_alloc_context_read_packet aIOReadPacket = (opaque, buffer, bufferSize) =>
             {
-                int bytesRead = bufferSize;
+                try
+                {
+                    int bytesRead   = aCurPos + bufferSize > totalSize ? (int) (totalSize - aCurPos) : bufferSize;
+                    byte[] data     = ReadPacketClbk(aCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_VIDEO);
+                    if (data == null || data.Length < bytesRead) { Log($"[CASE 001] A Empty Data"); return -1; }
 
-                if (aCurPos + bufferSize > totalSize)
-                    bytesRead = (int) (totalSize - aCurPos);
+                    Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
+                    aCurPos += bytesRead;
 
-                byte[] data = ReadPacketClbk(aCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_AUDIO);
-                Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
-                aCurPos += bytesRead;
-
-                return bytesRead;
+                    return bytesRead;
+                } 
+                catch (ThreadAbortException t) { Log($"[CASE 001] A Killed Empty Data"); throw t; }
+                catch (Exception e) { Log("[CASE 001] A " + e.Message + "\r\n" + e.StackTrace); return -1; }
             };
+
             avio_alloc_context_seek aIOSeek = (opaque, offset, wehnce) =>
             {
-                if ( wehnce == ffmpeg.AVSEEK_SIZE )
-                    return totalSize;
-                else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
-                    aCurPos = offset;
-                else
-                    aCurPos += offset;
+                try
+                {
+                    if ( wehnce == ffmpeg.AVSEEK_SIZE )
+                        return totalSize;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
+                        aCurPos = offset;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.Current )
+                        aCurPos += offset;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.End )
+                        aCurPos = totalSize - offset;
+                    else
+                        aCurPos = -1;
 
-                return aCurPos;
+                    return aCurPos;
+                }
+                catch (ThreadAbortException t) { Log($"[CASE 001] A Seek Killed"); throw t; }
             };
 
             avio_alloc_context_read_packet_func aioread = new avio_alloc_context_read_packet_func();
@@ -997,27 +1026,39 @@ namespace PartyTime.Codecs
 
             avio_alloc_context_read_packet vIOReadPacket = (opaque, buffer, bufferSize) =>
             {
-                int bytesRead = bufferSize;
+                try
+                {
+                    int bytesRead   = vCurPos + bufferSize > totalSize ? (int) (totalSize - vCurPos) : bufferSize;
+                    byte[] data     = ReadPacketClbk(vCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_VIDEO);
+                    if (data == null || data.Length < bytesRead) { Log($"[CASE 001] V Empty Data"); return -1; }
 
-                if (vCurPos + bufferSize > totalSize)
-                    bytesRead = (int) (totalSize - vCurPos);
+                    Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
+                    vCurPos += bytesRead;
 
-                byte[] data = ReadPacketClbk(vCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_VIDEO);
-                Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
-                vCurPos += bytesRead;
-
-                return bytesRead;
+                    return bytesRead;
+                } 
+                catch (ThreadAbortException t) { Log($"[CASE 001] V Killed Empty Data"); throw t; }
+                catch (Exception e) { Log("[CASE 001] V " + e.Message + "\r\n" + e.StackTrace); return -1; }
             };
+
             avio_alloc_context_seek vIOSeek = (opaque, offset, wehnce) =>
             {
-                if ( wehnce == ffmpeg.AVSEEK_SIZE )
-                    return totalSize; //vCurPos = totalSize - offset;
-                else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
-                    vCurPos = offset;
-                else
-                    vCurPos += offset;
+                try
+                {
+                    if ( wehnce == ffmpeg.AVSEEK_SIZE )
+                        return totalSize;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
+                        vCurPos = offset;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.Current )
+                        vCurPos += offset;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.End )
+                        vCurPos = totalSize - offset;
+                    else
+                        vCurPos = -1;
 
-                return vCurPos;
+                    return vCurPos;
+                }
+                catch (ThreadAbortException t) { Log($"[CASE 001] V Seek Killed"); throw t; }
             };
 
             avio_alloc_context_read_packet_func vioread = new avio_alloc_context_read_packet_func();
@@ -1031,6 +1072,18 @@ namespace PartyTime.Codecs
             vFmtCtx->pb = vIOCtx;
             vFmtCtx->flags |= ffmpeg.AVFMT_FLAG_CUSTOM_IO;
 
+            gcPrevent.Add(aioread);
+            gcPrevent.Add(aioseek);
+            gcPrevent.Add(vioread);
+            gcPrevent.Add(vioseek);
+
+            gcPrevent.Add(aIOReadPacket);
+            gcPrevent.Add(aIOSeek);
+            gcPrevent.Add(vIOReadPacket);
+            gcPrevent.Add(vIOSeek);
+
+            #region Embedded Subtitles Currently Disabled
+            /* 
             avio_alloc_context_read_packet sIOReadPacket = (opaque, buffer, bufferSize) =>
             {
                 int bytesRead = bufferSize;
@@ -1038,10 +1091,19 @@ namespace PartyTime.Codecs
                 if (sCurPos + bufferSize > totalSize)
                     bytesRead = (int) (totalSize - sCurPos);
 
-                byte[] data = ReadPacketClbk(sCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
-                sCurPos += bytesRead;
-
+                try
+                {
+                    byte[] data = ReadPacketClbk(sCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
+                    if (data == null || data.Length < bytesRead) { Log($"[CASE 001] Empty Data"); return 0; }
+                    Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
+                    sCurPos += bytesRead;
+                } catch (ThreadAbortException t)
+                {
+                    Log($"[CASE 001] Killed Empty Data"); 
+                    bytesRead = 0;
+                    throw t;
+                }
+                
                 return bytesRead;
             };
             avio_alloc_context_seek sIOSeek = (opaque, offset, wehnce) =>
@@ -1066,20 +1128,14 @@ namespace PartyTime.Codecs
             sIOCtx = ffmpeg.avio_alloc_context(sReadBuffer, IOBufferSize, 0, null, sioread, null, sioseek);
             sFmtCtx->pb = sIOCtx;
             sFmtCtx->flags |= ffmpeg.AVFMT_FLAG_CUSTOM_IO;
-
-            gcPrevent.Add(aioread);
-            gcPrevent.Add(aioseek);
-            gcPrevent.Add(vioread);
-            gcPrevent.Add(vioseek);
+            
+            gcPrevent.Add(sIOReadPacket);
+            gcPrevent.Add(sIOSeek);
             gcPrevent.Add(sioread);
             gcPrevent.Add(sioseek);
 
-            gcPrevent.Add(aIOReadPacket);
-            gcPrevent.Add(aIOSeek);
-            gcPrevent.Add(vIOReadPacket);
-            gcPrevent.Add(vIOSeek);
-            gcPrevent.Add(sIOReadPacket);
-            gcPrevent.Add(sIOSeek);
+            */
+            #endregion
         }
         public int Open(string url, Func<long, int, AVMediaType, byte[]> ReadPacketClbk = null, long totalSize = 0)
         {
