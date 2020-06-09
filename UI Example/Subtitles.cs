@@ -2,11 +2,69 @@
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Windows.Forms;
+using System.Drawing;
 
 namespace PartyTime
 {
     public class Subtitles
     {
+        public static void ASSToRichText(RichTextBox rtb, string text)
+        {
+            rtb.Text = "";
+
+            bool bold = false;
+            bool italic = false;
+            bool changed = false;
+            string cur = "";
+            FontStyle fontStyle = FontStyle.Regular;
+
+            for (int i=0; i<text.Length; i++)
+            {
+
+                if ( changed )
+                {
+                    if ( !bold && !italic ) fontStyle = FontStyle.Regular;
+                    else
+                    if (  bold &&  italic ) fontStyle = FontStyle.Bold | FontStyle.Italic;
+                    else
+                    if (  bold && !italic ) fontStyle = FontStyle.Bold;
+                    else
+                    if ( !bold &&  italic ) 
+                        fontStyle = FontStyle.Italic;
+
+                    rtb.AppendText(cur);
+
+                    cur = "";
+                    changed = false;
+                    rtb.SelectionFont = new Font(rtb.Font, fontStyle); 
+                }
+
+                if ( text.Length > i + 4 && text[i] == '{' &&  text[i+1] == '\\')
+                {
+                    if      ( text[i+2] == 'i' && (text[i+3] == '0' || text[i+3] == '1') && text[i+4] == '}' )
+                    {
+                        italic = text[i+3] == '1' ? true : false;
+                        changed = true;
+                        i += 4;
+                    } 
+                    else if ( text[i+2] == 'b' && (text[i+3] == '0' || text[i+3] == '1') && text[i+4] == '}' )
+                    {
+                        bold = text[i+3] == '1' ? true : false;
+                        changed = true;
+                        i += 4;
+                    }
+                }
+
+                if ( !changed ) cur += text[i];
+
+            }
+            
+            rtb.AppendText(cur);
+            rtb.SelectAll();
+            rtb.SelectionAlignment = HorizontalAlignment.Center;
+        }
+
         public static string Convert(string fileName, Encoding input, Encoding output)
         {
             string tmpFile = null;
