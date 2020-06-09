@@ -118,7 +118,7 @@ namespace PartyTime.UI_Example
         public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
         public void OnDeviceStateChanged(string deviceId, DeviceState newState) { }
         public void OnDeviceAdded(string pwstrDeviceId) { }
-        public void OnDeviceRemoved(string deviceId) { }
+        public void OnDeviceRemoved(string deviceId) { Initialize(); }
 
         // Logging
         private void Log(string msg) { Console.WriteLine(msg); }
