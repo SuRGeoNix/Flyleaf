@@ -49,6 +49,17 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 <br/>
 
 ## Versioning | Changes
+#### v1.2.3 - 9/6/2020
+>__Additions__
+
+* UI / Torrent Streaming - Auto Select First Media File (if no other exists)
+* Better Handling Multi-Monitors
+* FFmpeg.AutoGen Libraries Update to latest
+
+>__Issues__
+
+* Seeking on Torrent Streaming was crashing
+
 #### v1.2.2 - 3/6/2020
 >__Additions__
 
