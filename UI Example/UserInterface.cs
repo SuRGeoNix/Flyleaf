@@ -234,6 +234,7 @@ namespace PartyTime.UI_Example
             display.MouseDown               += new MouseEventHandler        (Display_MouseDown);
             display.MouseMove               += new MouseEventHandler        (Display_MouseMove);
             display.MouseUp                 += new MouseEventHandler        (Display_MouseUp);
+            display.MouseClick              += new MouseEventHandler        (Display_MouseClick);
             display.MouseDoubleClick        += new MouseEventHandler        (Display_MouseClickDbl);
             display.KeyDown                 += new KeyEventHandler          (Display_KeyDown);
             display.KeyUp                   += new KeyEventHandler          (Display_KeyUp);
@@ -349,10 +350,21 @@ namespace PartyTime.UI_Example
                 {
                     if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
                     {
-                        if (isIdle || resizing)
-                            screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio));
+
+                        if ( display.Width / aspectRatio > display.Height)
+                        {
+                            if (isIdle || resizing)
+                                screenPlayHW.SetBounds((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height);
+                            else
+                                screenPlayHW.SetBounds((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height - btnBar.Height + 5);
+                        }
                         else
-                            screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5);
+                        {
+                            if (isIdle || resizing)
+                                screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio));
+                            else
+                                screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5);
+                        }
                     }
                     else
                     {
@@ -371,10 +383,20 @@ namespace PartyTime.UI_Example
                     spriteBatch.Begin();
                     if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
                     {
-                        if (isIdle || resizing)
-                            spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio)), Color.White);
+                        if ( display.Width / aspectRatio > display.Height)
+                        {
+                            if (isIdle || resizing)
+                                spriteBatch.Draw(screenPlay, new Rectangle((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height), Color.White);
+                            else
+                                spriteBatch.Draw(screenPlay, new Rectangle((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height - btnBar.Height + 5), Color.White);
+                        }
                         else
-                            spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5), Color.White);
+                        {
+                            if (isIdle || resizing)
+                                spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio)), Color.White);
+                            else
+                                spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5), Color.White);
+                        }
                     }
                     else
                     {
@@ -484,7 +506,7 @@ namespace PartyTime.UI_Example
 
             if (!isSubs)
             {
-                player.Stop();
+                player.Close();
                 if (player.hasAudio) audioPlayer.ResetClbk();
                 control.lstMediaFiles.Visible = false;
                 firstFrameData = null;
@@ -723,6 +745,9 @@ namespace PartyTime.UI_Example
                 {
                     if (frameData       == null)    return;
                     if (firstFrameData  == null)    firstFrameData   = frameData;
+
+                    if ( screenPlay.Width != player.Width) lock (screenPlay) screenPlay = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Color);
+
                     lock (screenPlay)               screenPlay.SetData(frameData);
                     ScreenPlay();
                 }
@@ -909,6 +934,7 @@ namespace PartyTime.UI_Example
         private void Display_MouseDown(object sender, MouseEventArgs e)     { display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 50.0f); if (e.Button == MouseButtons.Left) { displayMLDown = true; displayMLDownPos = e.Location; } }
         private void Display_MouseUp(object sender, MouseEventArgs e)       { display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f); if (e.Button == MouseButtons.Left) { displayMLDown = false; resizing = false; displayMoveSideCur = 0; FixFrmControl(); UnIdle(); } }
         private void Display_MouseClickDbl(object sender, MouseEventArgs e) { if (e.Clicks >= 2 && e.Button == MouseButtons.Left) FullScreenToggle(); }
+        private void Display_MouseClick(object sender, MouseEventArgs e) { if (e.Button == MouseButtons.Right) if (player.isPlaying) { player.Pause(); audioPlayer.ResetClbk(); } else { player.Play(); } }
         private void Display_MouseMove(object sender, MouseEventArgs e)
         {
             if (displayMMoveLastPos == e.Location) return;
@@ -1238,7 +1264,7 @@ namespace PartyTime.UI_Example
             {
                 player.StopMediaStreamer();
                 Thread.Sleep(20);
-                player.Stop();
+                player.Close();
                 Thread.Sleep(20);
             } catch (Exception) { }
         }
