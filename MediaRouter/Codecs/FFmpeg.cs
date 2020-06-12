@@ -178,7 +178,7 @@ namespace PartyTime.Codecs
             if (vDecoder != null && vDecoder.IsAlive) vDecoder.Abort();
             if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
             //if (stageTexture != null) SharpDX.Utilities.Dispose(ref stageTexture);
-            
+
             status      = Status.STOPPED; 
             aStatus     = Status.STOPPED; 
             vStatus     = Status.STOPPED; 
@@ -209,7 +209,7 @@ namespace PartyTime.Codecs
                 if (sFmtCtx != null) { fmtCtxPtr = sFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(sFmtCtx); }
             } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
 
-            aFmtCtx = null; vFmtCtx = null; sFmtCtx = null;
+            aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null;
         }
         private void InitializeSubs()
         {
@@ -339,11 +339,6 @@ namespace PartyTime.Codecs
                 }
             }
 
-            if (!hwAccelSuccess) {
-                swsCtx = ffmpeg.sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt, vCodecCtx->width, vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
-                if (swsCtx == null) return -1;
-            }
-
             return 0;
         }
         private int SetupAudio()
@@ -387,13 +382,6 @@ namespace PartyTime.Codecs
             vStreamInfo.frameAvgTicks       = (long)((1 / vStreamInfo.fps) * 1000 * 10000);
             vStreamInfo.height              = vCodecCtx->height;
             vStreamInfo.width               = vCodecCtx->width;
-
-            // Prepare Output Buffer
-            outData                         = new byte_ptrArray4();
-            outLineSize                     = new int_array4();
-            outBufferSize                   = ffmpeg.av_image_get_buffer_size(_PIXEL_FORMAT, vStreamInfo.width, vStreamInfo.height, 1);
-            outBufferPtr                    = Marshal.AllocHGlobal(outBufferSize);
-            ffmpeg.av_image_fill_arrays(ref outData, ref outLineSize, (byte*)outBufferPtr, _PIXEL_FORMAT, vStreamInfo.width, vStreamInfo.height, 1);
 
             return ret;
         }
@@ -884,8 +872,10 @@ namespace PartyTime.Codecs
                 if (hwAccelSuccess)
                 {
                     STexture2D nv12texture = new STexture2D((IntPtr) frame2->data.ToArray()[0]);
-                    nv12texture.Device.ImmediateContext.    CopySubresourceRegion(nv12texture, (int) frame2->data.ToArray()[1], null, stageTexture[stageTextureIndex], 0);
-                    var stageResource       = stageTexture[stageTextureIndex]. QueryInterface<SharpDX.DXGI.Resource>();
+                    nv12texture.Device.ImmediateContext.CopySubresourceRegion(nv12texture, (int) frame2->data.ToArray()[1], null, stageTexture[stageTextureIndex], 0);
+                    var stageResource   = stageTexture[stageTextureIndex].QueryInterface<SharpDX.DXGI.Resource>();
+
+                    nv12texture.Device.ImmediateContext.Flush();
 
                     MediaFrame mFrame   = new MediaFrame();
                     mFrame.texture      = stageResource.SharedHandle;
@@ -897,15 +887,30 @@ namespace PartyTime.Codecs
                     stageTextureIndex ++;
                     if (stageTextureIndex > 19) stageTextureIndex = 0;
                     return ret;
-                } 
+                }
                 
                 // TODO: In case HW decoding supported but HW Processing not (also fix width/height linesize for screenPlay texture - after removing monogame)
                 AVFrame* frame = frame2;
+                
+                // Decode one frame and added at the beginning/opening
+                if (swsCtx == null)
+                {
+                    outData                         = new byte_ptrArray4();
+                    outLineSize                     = new int_array4();
+                    outBufferSize                   = ffmpeg.av_image_get_buffer_size(_PIXEL_FORMAT, frame->linesize.ToArray()[0], vStreamInfo.height, 1);
+                    outBufferPtr                    = Marshal.AllocHGlobal(outBufferSize);
+                    ffmpeg.av_image_fill_arrays(ref outData, ref outLineSize, (byte*)outBufferPtr, _PIXEL_FORMAT, frame->linesize.ToArray()[0], vStreamInfo.height, 1);
+                    outLineSize.UpdateFrom(new int[]{ frame->linesize.ToArray()[0] * 4 , 0 , 0, 0 });
+
+                    vStreamInfo.width               = frame->linesize.ToArray()[0];
+
+                    swsCtx = ffmpeg.sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt, frame->linesize.ToArray()[0], vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
+                }
 
                 ret = ffmpeg.sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
 
                 // Send Frame
-                if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); } 
+                if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); }
                 else
                 {
                     ret = 0;
