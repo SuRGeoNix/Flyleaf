@@ -153,14 +153,14 @@ namespace PartyTime.UI_Example
             this.lstMediaFiles.AllowDrop = true;
             this.lstMediaFiles.BackColor = System.Drawing.Color.Black;
             this.lstMediaFiles.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.lstMediaFiles.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.lstMediaFiles.Font = new System.Drawing.Font("Arial", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
             this.lstMediaFiles.ForeColor = System.Drawing.Color.Green;
             this.lstMediaFiles.FormattingEnabled = true;
             this.lstMediaFiles.HorizontalScrollbar = true;
-            this.lstMediaFiles.ItemHeight = 18;
+            this.lstMediaFiles.ItemHeight = 22;
             this.lstMediaFiles.Location = new System.Drawing.Point(317, 100);
             this.lstMediaFiles.Name = "lstMediaFiles";
-            this.lstMediaFiles.Size = new System.Drawing.Size(603, 344);
+            this.lstMediaFiles.Size = new System.Drawing.Size(603, 332);
             this.lstMediaFiles.Sorted = true;
             this.lstMediaFiles.TabIndex = 10;
             this.lstMediaFiles.TabStop = false;
