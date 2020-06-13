@@ -143,10 +143,14 @@ namespace PartyTime
             }
             else if ( streamType == StreamType.TORRENT )
             {
+                if ( tsStream != null ) tsStream.Dispose();
+
                 TorSwarm.OptionsStruct  opt = TorSwarm.GetDefaultsOptions();
                 opt.FocusPointCompleted = FocusPointCompleted;
                 opt.TorrentCallback     = MetadataReceived;
                 opt.PieceTimeout        = 4300;
+                opt.LogStats            = true;
+                opt.Verbosity           = 1;
 
                 try
                 {
@@ -174,7 +178,7 @@ namespace PartyTime
         public int SetMediaFile(string fileName)
         {
             Log($"File Selected {fileName}");
-
+            
             if ( streamType == StreamType.FILE )
             {
                 int ret = decoder.Open(null, DecoderRequestsBuffer, fileSize);
@@ -182,7 +186,17 @@ namespace PartyTime
             }
             else if ( streamType == StreamType.TORRENT )
             {
-                tsStream.IncludeFiles(new List<string>() { fileName });
+                Pause();
+
+                aDone = false; vDone = false; sDone = false;
+
+                lock (localFocusPoints)
+                {
+                    foreach (KeyValuePair<long, Tuple<long, int>> curLFPKV in localFocusPoints)
+                        tsStream.DeleteFocusPoint(curLFPKV.Key);
+                     
+                    localFocusPoints.Clear();
+                }
 
                 fileIndex       = torrent.file.paths.IndexOf(fileName);
                 fileSize        = torrent.file.lengths[fileIndex];
@@ -191,6 +205,9 @@ namespace PartyTime
                 for (int i=0; i<fileIndex; i++)
                     fileDistance += torrent.file.lengths[i];
 
+                if (!torrent.data.files[fileIndex].FileCreated) tsStream.IncludeFiles(new List<string>() { fileName });
+
+                if ( !torrent.data.files[fileIndex].FileCreated && !tsStream.isRunning ) tsStream.Start();
                 // Decoder - Opening Format Contexts (cancellation?) -> DecoderRequests Feed with null?
                 Log($"[BB OPENING 1]");
                 int ret = decoder.Open(null, DecoderRequestsBuffer, fileSize);
@@ -224,8 +241,9 @@ namespace PartyTime
         // Starts Internal Decoders for Seekings & Buffering
         public void SeekSubs(int ms)
         {
-            if ( !decoder.isReady || !decoder.hasSubs || IsSubsExternal ) return;
             if ( streamType == StreamType.TORRENT && torrent != null && torrent.data.files[fileIndex].FileCreated ) { decoder.BufferingSubsDone?.BeginInvoke(null, null); return; }
+
+            if ( !decoder.isReady || !decoder.hasSubs || IsSubsExternal ) return;
 
             try
             {
@@ -248,8 +266,9 @@ namespace PartyTime
         }
         public void SeekAudio(int ms)
         {
-            if ( !decoder.isReady || !decoder.hasAudio) return;
             if ( streamType == StreamType.TORRENT && torrent != null && torrent.data.files[fileIndex].FileCreated ) { decoder.BufferingAudioDone?.BeginInvoke(null, null); return; }
+
+            if ( !decoder.isReady || !decoder.hasAudio) return;
 
             try
             {

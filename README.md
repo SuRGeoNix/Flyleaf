@@ -36,11 +36,12 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 | Keys                  | Action                     |
 | :-------------:       |:-------------:             |
 | Drag & Drop           | Open                       |
-| P or Space            | Pause / Play               |
+| P / Space / Right Click| Pause / Play              |
+| Left / Right Arrows   | Seeking                    |
 | S                     | Stop                       |
 | R                     | Keep Ratio                 |
-| F or Escape           | Fullscreen                 |
-| Left / Right Arrows   | Seeking                    |
+| F                     | Full Screen / Normal Screen|
+| Esc / Middle Click    | Back to Torrent File List  |
 | Up / Down Arrows      | Volume Adjustment          |
 | [ / ]                 | Audio Adjustment           |
 | ; / '                 | Subtitles Adjustment       |
@@ -49,6 +50,23 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 <br/>
 
 ## Versioning | Changes
+#### v1.2.4 - 13/6/2020
+>__Additions__
+
+* UI / Torrent Streaming - Adding Escape / Middle Mouse Click for Torrent File List and jumping from one to another (it will continue from the point it stopped - no re-downloading)
+* UI - Adding Right Mouse Click for Pause/Play
+* TorSwarm - Implementing Pause/Continue Functionality (in case of different files within the torrent)
+
+>__Issues__
+
+* One Frame Before Issue Fixed (by flushing the FFmpeg's D3D11Device)
+* Full Screen Aspect Ratio Issue Fixed (in cases display.Width / aspectRatio > display.Height)
+* Linesize for Software Texture Fixed (adding also latest FFmpeg's swscale now)
+* Crashing Issues during Opening (decoder.Stop was seeking at 0 / replaced it with Close - Pause)
+* After seeking was always keep playing on Torrent Streaming (fixed by remembering previous status)
+* TorSwarm - Fixed an Issue with Include/Exlude Functionality (it was deleting the previous status of excluded files)
+
+
 #### v1.2.3 - 9/6/2020
 >__Additions__
 

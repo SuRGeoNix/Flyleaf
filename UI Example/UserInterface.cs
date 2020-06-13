@@ -527,6 +527,9 @@ namespace PartyTime.UI_Example
 
                 screenPlayHW.Visible = player.iSHWAccelSuccess;
 
+                control.lstMediaFiles.Items.Clear();
+                control.lstMediaFiles.Items.Add(url);
+
                 UpdateInfoText($"Opening {Path.GetFileName(url)} Success");
                 Play();
             }
@@ -641,9 +644,10 @@ namespace PartyTime.UI_Example
         // Processes Streaming
         public void OpenTorrentSuccess(bool success)
         {
-            Log("Player " + player.isOpened);
-            if (player.isFailed) { UpdateInfoText($"Opening Torrent Failed"); Log("Error opening"); return; }
-            UpdateInfoText($"Opening Torrent Success");
+            if (player.isFailed || !success)
+                UpdateInfoText($"Opening Torrent Failed");
+            else
+                UpdateInfoText($"Opening Torrent Success");
         }
         public void MediaFilesReceived(List<string> mediaFiles, List<long> mediaFilesSizes)
         {
@@ -901,7 +905,10 @@ namespace PartyTime.UI_Example
                     break;
 
                 case (char)Keys.Escape:
-                    NormalScreen();
+                    if (control.lstMediaFiles.Visible)
+                        control.lstMediaFiles.Visible = false;
+                    else if (!control.lstMediaFiles.Visible)
+                        { control.lstMediaFiles.Visible = true; FixLstMediaFiles(); }
                     break;
             }
         }
@@ -934,7 +941,18 @@ namespace PartyTime.UI_Example
         private void Display_MouseDown(object sender, MouseEventArgs e)     { display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 50.0f); if (e.Button == MouseButtons.Left) { displayMLDown = true; displayMLDownPos = e.Location; } }
         private void Display_MouseUp(object sender, MouseEventArgs e)       { display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f); if (e.Button == MouseButtons.Left) { displayMLDown = false; resizing = false; displayMoveSideCur = 0; FixFrmControl(); UnIdle(); } }
         private void Display_MouseClickDbl(object sender, MouseEventArgs e) { if (e.Clicks >= 2 && e.Button == MouseButtons.Left) FullScreenToggle(); }
-        private void Display_MouseClick(object sender, MouseEventArgs e) { if (e.Button == MouseButtons.Right) if (player.isPlaying) { player.Pause(); audioPlayer.ResetClbk(); } else { player.Play(); } }
+        private void Display_MouseClick(object sender, MouseEventArgs e) 
+        { 
+            if (e.Button == MouseButtons.Right) if (player.isPlaying) { player.Pause(); audioPlayer.ResetClbk(); } else { player.Play(); }
+
+            else if ( e.Button == MouseButtons.Middle )
+            { 
+                if (control.lstMediaFiles.Visible)
+                    control.lstMediaFiles.Visible = false;
+                else 
+                    { control.lstMediaFiles.Visible = true; FixLstMediaFiles(); }
+            } 
+        }
         private void Display_MouseMove(object sender, MouseEventArgs e)
         {
             if (displayMMoveLastPos == e.Location) return;
@@ -1322,18 +1340,22 @@ namespace PartyTime.UI_Example
         // UI Events [CONTROL LSTMEDIAFILES]
         private void lstMediaFiles_MouseClickDbl(object sender, MouseEventArgs e)
         {
+            if ( !player.isTorrent ) { control.lstMediaFiles.Visible = false; display.Focus(); return; }
             if ( control.lstMediaFiles.SelectedItem == null ) return;
 
             SetMediaFile(control.lstMediaFiles.SelectedItem.ToString());
+            display.Focus();
         }
         private void lstMediaFiles_KeyPress(object sender, KeyPressEventArgs e)
         {
             lastUserActionTicks = DateTime.UtcNow.Ticks;
 
-            if ( e.KeyChar != (char)13 ) return;
+            if ( e.KeyChar != (char)13 ) { Display_KeyPress(sender, e); return; }
+            if ( !player.isTorrent ) { control.lstMediaFiles.Visible = false; display.Focus(); return; }
             if ( control.lstMediaFiles.SelectedItem == null ) return;
 
             SetMediaFile(control.lstMediaFiles.SelectedItem.ToString());
+            display.Focus();
         }
         private void lstMediaFiles_MouseMove(object sender, MouseEventArgs e) { lastUserActionTicks = DateTime.UtcNow.Ticks; }
 
@@ -1433,6 +1455,8 @@ namespace PartyTime.UI_Example
             control.lstMediaFiles.Width     = Math.Min(850, display.Width  - 200);
             control.lstMediaFiles.Height    = Math.Min(550, display.Height - 200);
             control.lstMediaFiles.Location  = new Point((control.Width- control.lstMediaFiles.Width) / 2, (control.Height- control.lstMediaFiles.Height) / 2);
+
+            control.lstMediaFiles.Focus();
         }
 
         // Logging
