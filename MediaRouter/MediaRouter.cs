@@ -267,7 +267,7 @@ namespace PartyTime
                     Log($"[VIDEO SCREAMER] No Frames, Restarting ...");
 
                     Thread.Sleep(150);
-                    if ( vFrames.Count > 0 ) continue;
+                    if ( isTorrent && vFrames.Count > 0 || vFrames.Count > VIDEO_MIX_QUEUE_SIZE) continue;
 
                     Thread restart = new Thread(() => {
                         Seek((int) ((CurTime + decoder.vStreamInfo.frameAvgTicks *2)/10000));
@@ -833,19 +833,36 @@ namespace PartyTime
         public void StopMediaStreamer() { if ( streamer != null ) { streamer.Stop(); streamer = null; } }
         public void SetMediaFile(string fileName)
         {
+            if (openOrBuffer!= null) openOrBuffer.Abort();
+            if (streamer    != null && isTorrent) streamer.Pause();
+            if (decoder     != null)   decoder.Pause();
+            if (screamer    != null)  screamer.Abort();
+            if (aScreamer   != null) aScreamer.Abort();
+            if (vScreamer   != null) vScreamer.Abort();
+            if (sScreamer   != null) sScreamer.Abort();
+
+            isReady         = false;
+            status          = Status.STOPPED;
+            beforeSeeking   = Status.STOPPED;
+            decoder.HWAccel = HWAccel;
+
+            lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
+            lock (vFrames) vFrames = new ConcurrentQueue<MediaFrame>();
+            lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
+
             if (openOrBuffer != null) { openOrBuffer.Abort(); Thread.Sleep(20); }
 
             openOrBuffer = new Thread(() => {
 
                 // Open Decoder Buffer
                 int ret = streamer.SetMediaFile(fileName);
-                if (ret != 0) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); }
+                if (ret != 0) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); return; }
 
                 // Open Decoder
                 ret = decoder.Open(null, streamer.DecoderRequests, streamer.fileSize);
-                if (ret != 0) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); }
+                if (ret != 0) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); return; }
 
-                if (!decoder.isReady) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); }
+                if (!decoder.isReady) { status = Status.FAILED; OpenStreamSuccessClbk?.BeginInvoke(false, fileName, null, null); return; }
 
                 InitializeEnv();
                 OpenStreamSuccessClbk?.BeginInvoke(true, fileName, null, null);
