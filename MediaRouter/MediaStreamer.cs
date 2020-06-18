@@ -149,8 +149,8 @@ namespace PartyTime
                 opt.FocusPointCompleted = FocusPointCompleted;
                 opt.TorrentCallback     = MetadataReceived;
                 opt.PieceTimeout        = 4300;
-                opt.LogStats            = true;
-                opt.Verbosity           = 1;
+                //opt.LogStats            = true;
+                //opt.Verbosity           = 1;
 
                 try
                 {
