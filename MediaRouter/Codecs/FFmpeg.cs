@@ -194,15 +194,15 @@ namespace PartyTime.Codecs
             vStreamInfo = new VideoStreamInfo();
             aStreamInfo = new AudioStreamInfo();
 
-            // Will not properly free HW textures | mFrame.texture = sharedResource.SharedHandle; Keeps them in GPU for some reason
-            for (int i=0; i<_HW_TEXTURES_SIZE; i++)
-                if (sharedTextures[i] != null) sharedTextures[i].Dispose();
+            // TODO: Will not properly free HW textures | mFrame.texture = sharedResource.SharedHandle; Keeps them in GPU for some reason
+            //for (int i=0; i<_HW_TEXTURES_SIZE; i++)
+            //    if (sharedTextures[i] != null) sharedTextures[i].Dispose();
 
-            if (avD3D11Device != null)
-            {
-                avD3D11Device.ImmediateContext.ClearState();
-                avD3D11Device.ImmediateContext.Flush();
-            }
+            //if (avD3D11Device != null)
+            //{
+            //    avD3D11Device.ImmediateContext.ClearState();
+            //    avD3D11Device.ImmediateContext.Flush();
+            //}
 
             AVFormatContext* fmtCtxPtr;
             try
@@ -883,31 +883,20 @@ namespace PartyTime.Codecs
                 {
                     STexture2D nv12texture = null;
                     SharpDX.DXGI.Resource sharedResource = null;
-                    try
-                    {
-                        nv12texture = new STexture2D((IntPtr) frame2->data.ToArray()[0]);
-                        avD3D11Device.ImmediateContext.CopySubresourceRegion(nv12texture, (int) frame2->data.ToArray()[1], null, sharedTextures[sharedTextureIndex], 0);
+                    
+                    nv12texture = new STexture2D((IntPtr) frame2->data.ToArray()[0]);
+                    avD3D11Device.ImmediateContext.CopySubresourceRegion(nv12texture, (int) frame2->data.ToArray()[1], null, sharedTextures[sharedTextureIndex], 0);
 
-                        avD3D11Device.ImmediateContext.Flush();
-                        Thread.Sleep(20); // Temporary to ensure Flushing is done (maybe GetData/CreateQuery)
+                    avD3D11Device.ImmediateContext.Flush();
+                    Thread.Sleep(20); // Temporary to ensure Flushing is done (maybe GetData/CreateQuery)
 
-                        sharedResource = sharedTextures[sharedTextureIndex].QueryInterface<SharpDX.DXGI.Resource>();
-                        MediaFrame mFrame   = new MediaFrame();
-                        mFrame.texture      = sharedResource.SharedHandle;
-                        mFrame.pts          = frame2->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? frame2->pts : frame2->best_effort_timestamp;
-                        mFrame.timestamp    = (long)(mFrame.pts * vStreamInfo.timebaseLowTicks);
-                        if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
-                        SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
-                    }
-                    catch (ThreadAbortException t)
-                    {
-                        if (sharedResource  != null) sharedResource.Dispose();
-                        if (nv12texture     != null) nv12texture.Dispose();
-                        throw t;
-                    }
-
-                    sharedResource.Dispose();
-                    nv12texture.Dispose();
+                    sharedResource = sharedTextures[sharedTextureIndex].QueryInterface<SharpDX.DXGI.Resource>();
+                    MediaFrame mFrame   = new MediaFrame();
+                    mFrame.texture      = sharedResource.SharedHandle;
+                    mFrame.pts          = frame2->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? frame2->pts : frame2->best_effort_timestamp;
+                    mFrame.timestamp    = (long)(mFrame.pts * vStreamInfo.timebaseLowTicks);
+                    if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
+                    SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
 
                     sharedTextureIndex ++;
                     if (sharedTextureIndex > _HW_TEXTURES_SIZE - 1) sharedTextureIndex = 0;
