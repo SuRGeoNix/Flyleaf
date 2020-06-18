@@ -335,15 +335,18 @@ namespace PartyTime.UI_Example
 
                 if (player.iSHWAccelSuccess)
                 {
-                    if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
-                        if ( display.Width / aspectRatio > display.Height)
-                            screenPlayHW.SetBounds((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height);
+                    lock (screenPlayHW)
+                    {
+                        if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
+                            if ( display.Width / aspectRatio > display.Height)
+                                screenPlayHW.SetBounds((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height);
+                            else
+                                screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio));
                         else
-                            screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio));
-                    else
-                        screenPlayHW.SetBounds(0, 0, display.Width, display.Height);
+                            screenPlayHW.SetBounds(0, 0, display.Width, display.Height);
 
-                    _swapChain.Present(1, PresentFlags.None);
+                        _swapChain.Present(1, PresentFlags.None);
+                    }
 
                     return;
                 }
@@ -694,21 +697,24 @@ namespace PartyTime.UI_Example
             {
                 try
                 {
-                    STexture2D curShared    = _device.OpenSharedResource<STexture2D>(texture);
-
-                    videoDevice1.CreateVideoProcessorInputView(curShared, vpe, vpivd, out vpiv);
-                    VideoProcessorStream vps = new VideoProcessorStream()
+                    lock (screenPlayHW)
                     {
-                        PInputSurface = (IntPtr) vpiv,
-                        Enable = new RawBool(true)
-                    };
-                    vpsa[0] = vps;
-                    videoContext1.VideoProcessorBlt(videoProcessor, vpov, 0, 1, vpsa);
+                        STexture2D curShared    = _device.OpenSharedResource<STexture2D>(texture);
 
-                    _swapChain.Present(1, PresentFlags.None);
+                        videoDevice1.CreateVideoProcessorInputView(curShared, vpe, vpivd, out vpiv);
+                        VideoProcessorStream vps = new VideoProcessorStream()
+                        {
+                            PInputSurface = (IntPtr) vpiv,
+                            Enable = new RawBool(true)
+                        };
+                        vpsa[0] = vps;
+                        videoContext1.VideoProcessorBlt(videoProcessor, vpov, 0, 1, vpsa);
 
-                    Utilities.Dispose(ref vpiv);
-                    Utilities.Dispose(ref curShared);
+                        _swapChain.Present(1, PresentFlags.None);
+
+                        Utilities.Dispose(ref vpiv);
+                        Utilities.Dispose(ref curShared);
+                    }
                 }
                 catch (Exception e)
                 {
