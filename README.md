@@ -50,6 +50,17 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 <br/>
 
 ## Versioning | Changes
+#### v1.2.5 - 18/6/2020
+>__Issues__
+
+* UI - Critical Issue with HW Texture Rendering (not proper resize for swapchain)
+* UI - One Frame Before for VA Issue (D3D11Device Flushing requires few ms to complete)
+* Audio - Broken sound until NAudio buffer would be filled
+* Open - Crashing Issue Fixed
+* Memory - GPU Memory Leaks Issues with HW Frames (still having some during opening - not proper free of HW Shared Textures)
+* Subtitles - Font Changed, Better Synching and Rendering
+
+
 #### v1.2.4 - 13/6/2020
 >__Additions__
 
