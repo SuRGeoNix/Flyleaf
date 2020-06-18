@@ -743,7 +743,6 @@ namespace PartyTime
 
         public void Seek(int ms, bool curPos = false)
         {
-            status = Status.PAUSED;
             try
             {
                 if (!isReady) return;

@@ -888,7 +888,7 @@ namespace PartyTime.Codecs
                     avD3D11Device.ImmediateContext.CopySubresourceRegion(nv12texture, (int) frame2->data.ToArray()[1], null, sharedTextures[sharedTextureIndex], 0);
 
                     avD3D11Device.ImmediateContext.Flush();
-                    Thread.Sleep(20); // Temporary to ensure Flushing is done (maybe GetData/CreateQuery)
+                    Thread.Sleep(10); // Temporary to ensure Flushing is done (maybe GetData/CreateQuery)
 
                     sharedResource = sharedTextures[sharedTextureIndex].QueryInterface<SharpDX.DXGI.Resource>();
                     MediaFrame mFrame   = new MediaFrame();
