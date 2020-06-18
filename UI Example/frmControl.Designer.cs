@@ -136,14 +136,14 @@ namespace PartyTime.UI_Example
             this.rtbSubs.CausesValidation = false;
             this.rtbSubs.Cursor = System.Windows.Forms.Cursors.Default;
             this.rtbSubs.DetectUrls = false;
-            this.rtbSubs.Font = new System.Drawing.Font("Arial", 32.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.rtbSubs.Font = new System.Drawing.Font("Segoe UI Semibold", 32.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
             this.rtbSubs.ForeColor = System.Drawing.Color.White;
-            this.rtbSubs.Location = new System.Drawing.Point(229, 385);
+            this.rtbSubs.Location = new System.Drawing.Point(43, 365);
             this.rtbSubs.Name = "rtbSubs";
             this.rtbSubs.ReadOnly = true;
             this.rtbSubs.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
             this.rtbSubs.ShortcutsEnabled = false;
-            this.rtbSubs.Size = new System.Drawing.Size(801, 94);
+            this.rtbSubs.Size = new System.Drawing.Size(1049, 114);
             this.rtbSubs.TabIndex = 9;
             this.rtbSubs.TabStop = false;
             this.rtbSubs.Text = "Subtitles Label\nMore than one Lines Aligned";

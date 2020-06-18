@@ -18,7 +18,6 @@ using SharpDX.DXGI;
 using SharpDX.Direct3D11;
 
 using Device    = SharpDX.Direct3D11.Device;
-using Resource  = SharpDX.Direct3D11.Resource;
 using STexture2D= SharpDX.Direct3D11.Texture2D;
 
 using FFmpeg.AutoGen;
@@ -32,12 +31,13 @@ namespace PartyTime.Codecs
         public int _RATE { get; private set; } // Will be set from Input Format
 
         // Video Output Parameters
-        STexture2D[]  stageTexture;
-        int stageTextureIndex = 0;
+        STexture2D[]    sharedTextures;
+        public int      _HW_TEXTURES_SIZE   = 20;
+        int             sharedTextureIndex  = 0;
 
         AVPixelFormat _PIXEL_FORMAT     = AVPixelFormat.AV_PIX_FMT_RGBA;
         int _SCALING_HQ                 = ffmpeg.SWS_ACCURATE_RND | ffmpeg.SWS_BITEXACT | ffmpeg.SWS_LANCZOS | ffmpeg.SWS_FULL_CHR_H_INT | ffmpeg.SWS_FULL_CHR_H_INP;
-        int _SCALING_LQ                 = ffmpeg.SWS_BICUBIC; // ffmpeg.SWS_FAST_BILINEAR;
+        int _SCALING_LQ                 = ffmpeg.SWS_BICUBIC;
         int vSwsOptFlags;
         
         // Video Output Buffer
@@ -80,17 +80,18 @@ namespace PartyTime.Codecs
         public Action                       BufferingSubsDone;
 
         private long                        aCurPos, vCurPos, sCurPos;
-        List<object>                        gcPrevent = new List<object>();
-        private const int                   IOBufferSize = 0x40000;
+        List<object>                        gcPrevent       = new List<object>();
+        private const int                   IOBufferSize    = 0x40000;
 
         public bool isSubsExternal { get; private set; }
         bool aFinish, vFinish, sFinish;
 
         // HW Acceleration
         const int                           AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
+        Device                              avD3D11Device;
+        AVBufferRef*                        hw_device_ctx;
         List<AVHWDeviceType>                hwDevices;
         List<HWDeviceSupported>             hwDevicesSupported;
-        Device                              avD3D11Device;
         struct HWDeviceSupported
         {
             public AVHWDeviceType       type;
@@ -165,6 +166,7 @@ namespace PartyTime.Codecs
 
             hwDevices           = GetHWDevices();
             hwDevicesSupported  = new List<HWDeviceSupported>();
+            sharedTextures      = new STexture2D[_HW_TEXTURES_SIZE];
 
             Initialize();
         }
@@ -177,7 +179,6 @@ namespace PartyTime.Codecs
             if (aDecoder != null && aDecoder.IsAlive) aDecoder.Abort();
             if (vDecoder != null && vDecoder.IsAlive) vDecoder.Abort();
             if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
-            //if (stageTexture != null) SharpDX.Utilities.Dispose(ref stageTexture);
 
             status      = Status.STOPPED; 
             aStatus     = Status.STOPPED; 
@@ -193,6 +194,16 @@ namespace PartyTime.Codecs
             vStreamInfo = new VideoStreamInfo();
             aStreamInfo = new AudioStreamInfo();
 
+            // Will not properly free HW textures | mFrame.texture = sharedResource.SharedHandle; Keeps them in GPU for some reason
+            for (int i=0; i<_HW_TEXTURES_SIZE; i++)
+                if (sharedTextures[i] != null) sharedTextures[i].Dispose();
+
+            if (avD3D11Device != null)
+            {
+                avD3D11Device.ImmediateContext.ClearState();
+                avD3D11Device.ImmediateContext.Flush();
+            }
+
             AVFormatContext* fmtCtxPtr;
             try
             {
@@ -201,7 +212,7 @@ namespace PartyTime.Codecs
                 
             try
             {
-                if (vFmtCtx != null) { Marshal.FreeHGlobal(outBufferPtr); ffmpeg.avcodec_close(vCodecCtx); ffmpeg.sws_freeContext(swsCtx); fmtCtxPtr = vFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); /*ffmpeg.av_freep(vFmtCtx);*/ }
+                if (vFmtCtx != null) { ffmpeg.avcodec_close(vCodecCtx); ffmpeg.sws_freeContext(swsCtx); fmtCtxPtr = vFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); /*ffmpeg.av_freep(vFmtCtx);*/ }
             } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
                 
             try
@@ -209,11 +220,12 @@ namespace PartyTime.Codecs
                 if (sFmtCtx != null) { fmtCtxPtr = sFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(sFmtCtx); }
             } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
 
-            aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null;
+            aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null; 
         }
         private void InitializeSubs()
         {
             sStatus = Status.STOPPED;
+            sFinish         = false;
             Thread.Sleep(30);
             if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
             AVFormatContext* fmtCtxPtr = sFmtCtx;
@@ -270,7 +282,6 @@ namespace PartyTime.Codecs
         }
         private int SetupHQAndHWAcceleration()
         {
-            _PIXEL_FORMAT   = HighQuality ? AVPixelFormat.AV_PIX_FMT_RGBA64LE : AVPixelFormat.AV_PIX_FMT_RGBA;
             vSwsOptFlags    = HighQuality ? _SCALING_HQ : _SCALING_LQ;
 
             hwAccelSuccess  = false;
@@ -290,55 +301,54 @@ namespace PartyTime.Codecs
                     found = false;
 
                     // HW Deivce Context (Temporary)
-                    AVBufferRef* hw_device_ctx;
-                    if (ffmpeg.av_hwdevice_ctx_create(&hw_device_ctx, hwDevice, "auto", null, 0) != 0) continue;
+                    AVBufferRef* hw_device_ctx2 = null;
+                    if ( hw_device_ctx == null )
+                        { if (ffmpeg.av_hwdevice_ctx_create(&hw_device_ctx2, hwDevice, "auto", null, 0) != 0) continue; }
+                    else
+                        hw_device_ctx2 = hw_device_ctx;
 
                     // Available Pixel Format's are supported from SWS (Currently using only NV12 for RGBA convert later with sws_scale)
-                    AVHWFramesConstraints* hw_frames_const = ffmpeg.av_hwdevice_get_hwframe_constraints(hw_device_ctx, null); // ffmpeg.av_hwdevice_hwconfig_alloc(hw_device_ctx)
-                    if (hw_frames_const == null) { ffmpeg.av_buffer_unref(&hw_device_ctx); continue; }
+                    AVHWFramesConstraints* hw_frames_const = ffmpeg.av_hwdevice_get_hwframe_constraints(hw_device_ctx2, null); // ffmpeg.av_hwdevice_hwconfig_alloc(hw_device_ctx)
+                    if (hw_frames_const == null) { ffmpeg.av_buffer_unref(&hw_device_ctx2); continue; }
                     for (AVPixelFormat* p = hw_frames_const->valid_sw_formats; *p != AVPixelFormat.AV_PIX_FMT_NONE; p++)
                         if (ffmpeg.sws_isSupportedInput(*p) > 0)
                             if (*p == AVPixelFormat.AV_PIX_FMT_NV12) { found = true; break; }
-                    if (!found) { ffmpeg.av_buffer_unref(&hw_device_ctx); continue; }
+                    if (!found) { ffmpeg.av_buffer_unref(&hw_device_ctx2); continue; }
 
-                    // HW Deivce Context / SWS Context
-                    vCodecCtx->hw_device_ctx = ffmpeg.av_buffer_ref(hw_device_ctx);
-                    AVHWDeviceContext* hw_device_ctx2 = (AVHWDeviceContext*)hw_device_ctx->data;
-                    AVD3D11VADeviceContext* hw_d3d11_dev_ctx = (AVD3D11VADeviceContext*)hw_device_ctx2->hwctx;
-                    avD3D11Device = Device.FromPointer<Device>((IntPtr) hw_d3d11_dev_ctx->device);
-                    ffmpeg.av_buffer_unref(&hw_device_ctx);
-
-                    stageTexture = new STexture2D[20];
-
-                    for (int i=0; i<20; i++)
-                    stageTexture[i] =  new STexture2D(avD3D11Device, new Texture2DDescription()
+                    if ( hw_device_ctx == null ) 
                     {
-                        Usage               = ResourceUsage.Default,
-                        Format              = Format.NV12,
+                        hw_device_ctx = hw_device_ctx2;
+                        AVHWDeviceContext* hw_device_ctx3 = (AVHWDeviceContext*)hw_device_ctx->data;
+                        AVD3D11VADeviceContext* hw_d3d11_dev_ctx = (AVD3D11VADeviceContext*)hw_device_ctx3->hwctx;
+                        avD3D11Device = Device.FromPointer<Device>((IntPtr) hw_d3d11_dev_ctx->device);
+                    }
 
-                        Width               = vCodecCtx->width,
-                        Height              = vCodecCtx->height,
+                    for (int i=0; i<_HW_TEXTURES_SIZE; i++)
+                        sharedTextures[i] =  new STexture2D(avD3D11Device, new Texture2DDescription()
+                        {
+                            Usage               = ResourceUsage.Default,
+                            Format              = Format.NV12,
 
-                        BindFlags           = BindFlags.ShaderResource | BindFlags.RenderTarget,
-                        CpuAccessFlags      = CpuAccessFlags.None,
-                        OptionFlags         = ResourceOptionFlags.Shared,
+                            Width               = vCodecCtx->width,
+                            Height              = vCodecCtx->height,
+                        
+                            BindFlags           = BindFlags.ShaderResource | BindFlags.RenderTarget,
+                            CpuAccessFlags      = CpuAccessFlags.None,
+                            OptionFlags         = ResourceOptionFlags.Shared,
 
-                        SampleDescription   = new SampleDescription(1, 0),
-                        ArraySize           = 1,
-                        MipLevels           = 1
-                    });
+                            SampleDescription   = new SampleDescription(1, 0),
+                            ArraySize           = 1,
+                            MipLevels           = 1
+                        });
 
-                    // TODO: In case HW decoding supported but HW Processing not
-                    //swsCtx = ffmpeg.sws_getContext(vCodecCtx->width, vCodecCtx->height, AVPixelFormat.AV_PIX_FMT_NV12, vCodecCtx->width, vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
-                    //if (swsCtx == null) continue;
-
+                    vCodecCtx->hw_device_ctx = ffmpeg.av_buffer_ref(hw_device_ctx);
                     hwAccelSuccess = true;
                     Log("[HWACCEL] Enabled! Device -> " + hwDevice + ", Codec -> " + Marshal.PtrToStringAnsi((IntPtr)vCodec->name));
                     
                     break;
                 }
             }
-
+            
             return 0;
         }
         private int SetupAudio()
@@ -554,7 +564,6 @@ namespace PartyTime.Codecs
                         if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(30); }
                         aStatus = Status.SEEKING;
 
-                        if (aDecoder != null && aDecoder.IsAlive) Log("WTF CASE 001");
                         ret = ffmpeg.avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
                         ffmpeg.avcodec_flush_buffers(aCodecCtx);
 
@@ -571,7 +580,7 @@ namespace PartyTime.Codecs
                         if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(30); }
                         vStatus = Status.SEEKING;
 
-                        stageTextureIndex = 0;
+                        sharedTextureIndex = 0;
                         ret = ffmpeg.avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, ffmpeg.AVSEEK_FLAG_BACKWARD);                    
                         ffmpeg.avcodec_flush_buffers(vCodecCtx);
                         if (calcTimestamp * vStreamInfo.timebaseLowTicks >= vStreamInfo.startTimeTicks ) ret = DecodeSilent(mType, (long)ms * 10000);
@@ -580,6 +589,7 @@ namespace PartyTime.Codecs
                         break;
 
                     case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
+                        // TODO: For embeded Subtitles probably still going through the whole file
                         oldStatus = sStatus;
                         sStatus = Status.SEEKING;
                         ret = ffmpeg.avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, ffmpeg.AVSEEK_FLAG_BACKWARD);
@@ -609,12 +619,12 @@ namespace PartyTime.Codecs
             try { 
                 if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)
                 {
-                    stageTextureIndex = 0;
+                    sharedTextureIndex = 0;
 
                     while (vStatus == Status.SEEKING && (ret = ffmpeg.av_read_frame(vFmtCtx, avpacket)) == 0)
                     {
                         if (curPts > endTimestamp) return -1;
-                        
+
                         if (avpacket->stream_index == vStream->index)
                         {
                             ret = DecodeFrameSilent(avframe, vCodecCtx, avpacket);
@@ -865,31 +875,46 @@ namespace PartyTime.Codecs
         private int ProcessVideoFrame(AVFrame* frame2)
         {
             int ret = 0;
-
+            
             try
             {
                 // TODO: In case HW decoding not supported but HW Processing supported
                 if (hwAccelSuccess)
                 {
-                    STexture2D nv12texture = new STexture2D((IntPtr) frame2->data.ToArray()[0]);
-                    nv12texture.Device.ImmediateContext.CopySubresourceRegion(nv12texture, (int) frame2->data.ToArray()[1], null, stageTexture[stageTextureIndex], 0);
-                    var stageResource   = stageTexture[stageTextureIndex].QueryInterface<SharpDX.DXGI.Resource>();
+                    STexture2D nv12texture = null;
+                    SharpDX.DXGI.Resource sharedResource = null;
+                    try
+                    {
+                        nv12texture = new STexture2D((IntPtr) frame2->data.ToArray()[0]);
+                        avD3D11Device.ImmediateContext.CopySubresourceRegion(nv12texture, (int) frame2->data.ToArray()[1], null, sharedTextures[sharedTextureIndex], 0);
 
-                    nv12texture.Device.ImmediateContext.Flush();
+                        avD3D11Device.ImmediateContext.Flush();
+                        Thread.Sleep(20); // Temporary to ensure Flushing is done (maybe GetData/CreateQuery)
 
-                    MediaFrame mFrame   = new MediaFrame();
-                    mFrame.texture      = stageResource.SharedHandle;
-                    mFrame.pts          = frame2->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? frame2->pts : frame2->best_effort_timestamp;
-                    mFrame.timestamp    = (long)(mFrame.pts * vStreamInfo.timebaseLowTicks);
-                    if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
-                    SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
+                        sharedResource = sharedTextures[sharedTextureIndex].QueryInterface<SharpDX.DXGI.Resource>();
+                        MediaFrame mFrame   = new MediaFrame();
+                        mFrame.texture      = sharedResource.SharedHandle;
+                        mFrame.pts          = frame2->best_effort_timestamp == ffmpeg.AV_NOPTS_VALUE ? frame2->pts : frame2->best_effort_timestamp;
+                        mFrame.timestamp    = (long)(mFrame.pts * vStreamInfo.timebaseLowTicks);
+                        if (mFrame.pts == ffmpeg.AV_NOPTS_VALUE) return -1;
+                        SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
+                    }
+                    catch (ThreadAbortException t)
+                    {
+                        if (sharedResource  != null) sharedResource.Dispose();
+                        if (nv12texture     != null) nv12texture.Dispose();
+                        throw t;
+                    }
 
-                    stageTextureIndex ++;
-                    if (stageTextureIndex > 19) stageTextureIndex = 0;
+                    sharedResource.Dispose();
+                    nv12texture.Dispose();
+
+                    sharedTextureIndex ++;
+                    if (sharedTextureIndex > _HW_TEXTURES_SIZE - 1) sharedTextureIndex = 0;
                     return ret;
                 }
                 
-                // TODO: In case HW decoding supported but HW Processing not (also fix width/height linesize for screenPlay texture - after removing monogame)
+                // TODO: In case HW decoding supported but HW Processing is not
                 AVFrame* frame = frame2;
                 
                 // Decode one frame and added at the beginning/opening
@@ -906,7 +931,7 @@ namespace PartyTime.Codecs
 
                     swsCtx = ffmpeg.sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt, frame->linesize.ToArray()[0], vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
                 }
-
+                
                 ret = ffmpeg.sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
 
                 // Send Frame
@@ -1148,8 +1173,6 @@ namespace PartyTime.Codecs
 
             try
             {
-                status = Status.OPENING;
-
                 Initialize();
 
                 // Format Contexts | IO Configuration
