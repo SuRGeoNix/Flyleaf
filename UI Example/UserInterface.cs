@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Security;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -82,7 +83,6 @@ namespace PartyTime.UI_Example
         const int RESIZE_CURSOR_DISTANCE            =    6;
         const int IDLE_TIME_MS                      = 7000; // Hide Cursor / Clock etc..
         const int INFO_TIME_MS                      = 2000; // Show Audio/Subs/Volume Adjustments Info
-        const int NAUDIO_DELAY_MS                   = -200; // Need to Review this... Possible the time that NAudio buffering the initial samples
 
         System.Drawing.Color TRANSPARENCY_KEY_COLOR = System.Drawing.Color.FromArgb(1,1,1); // Form Control Transparency
         
@@ -91,7 +91,6 @@ namespace PartyTime.UI_Example
         // HW Accelleration | SharpDX | D3D11
         Device                              _device;
         SwapChain                           _swapChain;
-        RenderTargetView                    _renderView;
 
         STexture2D                          _backBuffer;
 
@@ -125,7 +124,7 @@ namespace PartyTime.UI_Example
         private void Initialize()
         {
             // Players
-            player                          = new MediaRouter(1);
+            player                          = new MediaRouter();
             audioPlayer                     = new AudioPlayer();
 
             player.HWAccel                  = true;
@@ -159,6 +158,7 @@ namespace PartyTime.UI_Example
             // Textures
             screenPlay                          = new Texture2D(graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
             screenPlayHW                        = new Control();
+            screenPlayHW.Visible                = false;
             screenPlayHW.Enabled                = false;
             screenPlayHW.TabStop                = false;
             screenPlayHWHandle                  = screenPlayHW.Handle;
@@ -262,20 +262,16 @@ namespace PartyTime.UI_Example
             control.lstMediaFiles.DragEnter += new DragEventHandler         (Display_DragEnter);
             control.lstMediaFiles.DragDrop  += new DragEventHandler         (Display_DragDrop);
             control.lstMediaFiles.MouseMove += new MouseEventHandler        (lstMediaFiles_MouseMove);
+
+            screenPlayHW.Resize             += new EventHandler             (screenPlayHW_Resize);
         }
         private void InitializeID3D11()
         {
-            //if ( screenPlayHW.InvokeRequired  )
-            //{
-            //    screenPlayHW.BeginInvoke(new Action(() => InitializeID3D11()));
-            //    return;
-            //}
-
             // SwapChain Description
             var desc = new SwapChainDescription()
             {
                 BufferCount         = 1,
-                ModeDescription     = new ModeDescription(0, 0, new Rational(1, 1), Format.B8G8R8A8_UNorm),
+                ModeDescription     = new ModeDescription(0, 0, new Rational(60, 1), Format.B8G8R8A8_UNorm),
                 IsWindowed          = true,
                 OutputHandle        = screenPlayHWHandle,
                 SampleDescription   = new SampleDescription(1, 0),
@@ -285,10 +281,9 @@ namespace PartyTime.UI_Example
 
             // Create Device and SwapChain
             //Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, /*DeviceCreationFlags.Debug | */DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport, new [] { SharpDX.Direct3D.FeatureLevel.Level_12_1, SharpDX.Direct3D.FeatureLevel.Level_12_0, SharpDX.Direct3D.FeatureLevel.Level_11_1, SharpDX.Direct3D.FeatureLevel.Level_11_0, SharpDX.Direct3D.FeatureLevel.Level_10_1, SharpDX.Direct3D.FeatureLevel.Level_10_0 }, desc, out _device, out _swapChain);
-            Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, /*DeviceCreationFlags.Debug | */DeviceCreationFlags.None, desc, out _device, out _swapChain);
+            Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.BgraSupport, desc, out _device, out _swapChain);
             
             _backBuffer     = STexture2D.FromSwapChain<STexture2D>(_swapChain, 0);
-            _renderView     = new RenderTargetView(_device, _backBuffer);
 
             // Ignore all windows events | Prevent Alt + Enter for Fullscreen
             var factory = _swapChain.GetParent<Factory>();
@@ -306,25 +301,17 @@ namespace PartyTime.UI_Example
                 InputFrameFormat = VideoFrameFormat.Progressive,
 
                 InputWidth = 1,
-                OutputWidth = 1,
-
                 InputHeight = 1,
+
+                OutputWidth = 1,
                 OutputHeight = 1,
 
                 Usage = VideoUsage.PlaybackNormal
             };
 
-            if (player.Width != 0 && player.Height != 0)
-            {
-                vpcd.InputWidth     = player.Width;
-                vpcd.OutputWidth    = player.Width;
-                vpcd.InputHeight    = player.Height;
-                vpcd.InputWidth     = player.Width;
-            }
-            
             videoDevice1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
             videoDevice1.CreateVideoProcessor(vpe, 0, out videoProcessor);
-            
+
             vpivd = new VideoProcessorInputViewDescription()
             {
                 FourCC = 0,
@@ -349,31 +336,15 @@ namespace PartyTime.UI_Example
                 if (player.iSHWAccelSuccess)
                 {
                     if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
-                    {
-
                         if ( display.Width / aspectRatio > display.Height)
-                        {
-                            if (isIdle || resizing)
-                                screenPlayHW.SetBounds((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height);
-                            else
-                                screenPlayHW.SetBounds((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height - btnBar.Height + 5);
-                        }
+                            screenPlayHW.SetBounds((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height);
                         else
-                        {
-                            if (isIdle || resizing)
-                                screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio));
-                            else
-                                screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5);
-                        }
-                    }
+                            screenPlayHW.SetBounds(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio));
                     else
-                    {
-                        if (isIdle || resizing)
-                            screenPlayHW.SetBounds(0, 0, display.Width, display.Height);
-                        else
-                            screenPlayHW.SetBounds(0, 0, display.Width, display.Height - btnBar.Height + 5);
-                    }
+                        screenPlayHW.SetBounds(0, 0, display.Width, display.Height);
+
                     _swapChain.Present(1, PresentFlags.None);
+
                     return;
                 }
 
@@ -381,30 +352,15 @@ namespace PartyTime.UI_Example
                 {
                     graphics.GraphicsDevice.Clear(Color.Black);
                     spriteBatch.Begin();
+
                     if (display.Width == graphics.GraphicsDevice.DisplayMode.Width)
-                    {
                         if ( display.Width / aspectRatio > display.Height)
-                        {
-                            if (isIdle || resizing)
-                                spriteBatch.Draw(screenPlay, new Rectangle((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height), Color.White);
-                            else
-                                spriteBatch.Draw(screenPlay, new Rectangle((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height - btnBar.Height + 5), Color.White);
-                        }
+                            spriteBatch.Draw(screenPlay, new Rectangle((int)(display.Width - (display.Height * aspectRatio)) / 2, 0, (int)(display.Height * aspectRatio), display.Height), Color.White);
                         else
-                        {
-                            if (isIdle || resizing)
-                                spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio)), Color.White);
-                            else
-                                spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio) - btnBar.Height + 5), Color.White);
-                        }
-                    }
+                            spriteBatch.Draw(screenPlay, new Rectangle(0, (int)(display.Height - (display.Width / aspectRatio)) / 2, display.Width, (int)(display.Width / aspectRatio)), Color.White);
                     else
-                    {
-                        if (isIdle || resizing)
-                            spriteBatch.Draw(screenPlay, new Rectangle(0, 0, display.Width, display.Height), Color.White);
-                        else
-                            spriteBatch.Draw(screenPlay, new Rectangle(0, 0, display.Width, display.Height - btnBar.Height + 5), Color.White);
-                    }
+                        spriteBatch.Draw(screenPlay, new Rectangle(0, 0, display.Width, display.Height), Color.White);
+
                     spriteBatch.End();
                     graphics.GraphicsDevice.Present();
                 }
@@ -413,8 +369,7 @@ namespace PartyTime.UI_Example
             {
                 Log(e.Message + " - " + e.StackTrace);
 
-                if (e.Message.Contains("DXGI_ERROR_DEVICE_REMOVED") ) InitializeID3D11();
-                else if (e.Message.Equals("Text contains characters that cannot be resolved by this SpriteFont.\r\nParameter name: text")) spriteBatch = new SpriteBatch(graphics.GraphicsDevice);
+                if (e.Message.Equals("Text contains characters that cannot be resolved by this SpriteFont.\r\nParameter name: text")) spriteBatch = new SpriteBatch(graphics.GraphicsDevice);
             }
         }
         private void ScreenStop()
@@ -492,6 +447,29 @@ namespace PartyTime.UI_Example
                     FixWidthInfoText("[" + (new TimeSpan(player.CurTime)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + "]");
             }
         }
+        private void screenPlayHW_Resize(object sender, EventArgs e)
+        {
+            try
+            {
+                if (_swapChain != null && player.iSHWAccelSuccess)
+                {
+                    lock (screenPlayHW)
+                    {   
+                        Utilities.Dispose(ref vpov);
+                        Utilities.Dispose(ref _backBuffer);
+
+                        _swapChain.ResizeBuffers(0, 0, 0, Format.Unknown, SwapChainFlags.None);
+
+                        _backBuffer = STexture2D.FromSwapChain<STexture2D>(_swapChain, 0);
+                        videoDevice1.CreateVideoProcessorOutputView((Resource) _backBuffer, vpe, vpovd, out vpov);
+                    }
+                }
+            }
+            catch (Exception e1)
+            {
+                Log(e1.Message + " - " + e1.StackTrace);
+            }
+        }
 
         // Processes
         private void Open(string url)
@@ -518,10 +496,6 @@ namespace PartyTime.UI_Example
                 if (player.isFailed) { UpdateInfoText($"Opening {Path.GetFileName(url)} Failed"); Log("Error opening"); return; }
                 if (player.hasAudio) { audioPlayer._RATE = player._RATE; audioPlayer.Initialize(); }
 
-                vpcd.InputWidth     = player.Width;
-                vpcd.OutputWidth    = player.Width;
-                vpcd.InputHeight    = player.Height;
-                vpcd.InputWidth     = player.Width;
                 aspectRatio = (float)player.Width / (float)player.Height;
                 FixAspectRatio();
 
@@ -550,24 +524,21 @@ namespace PartyTime.UI_Example
         {
             if (player.isTorrent) UpdateInfoText($"Buffering ...");
 
-            if (player.hasVideo)
-            {
-                if (player.HighQuality)
-                    screenPlay  = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Rgba64); // TODO: Until implementing pitch/linesizes
-                else
-                    screenPlay = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Color);
-            }
+            screenPlay = new Texture2D(spriteBatch.GraphicsDevice, player.Width, player.Height, false, SurfaceFormat.Color);
 
             ScreenPlay(); ScreenPlay(); ScreenPlay(); ScreenPlay();
 
             player.Play();
-            if (player.hasAudio) audioPlayer.Play();
-
             graphics.GraphicsDevice.Clear(Color.Black);
 
-            player.AudioExternalDelay   = NAUDIO_DELAY_MS * 10000;
             control.seekBar.Maximum     = (int)(player.Duration / 10000000);
             control.seekBar.Value       = 0;
+
+            if (player.hasAudio)
+            {
+                audioPlayer.Play();
+                player.AudioExternalDelay = -1 * (AudioPlayer.NAUDIO_DELAY_MS + 70) * 10000; // for some reason even if we set DesiredLatency = 200 it is not exactly what we expect (+70)
+            }
         }
         private void Stop()
         {
@@ -700,10 +671,6 @@ namespace PartyTime.UI_Example
                 return;
             }
 
-            vpcd.InputWidth     = player.Width;
-            vpcd.OutputWidth    = player.Width;
-            vpcd.InputHeight    = player.Height;
-            vpcd.InputWidth     = player.Width;
             aspectRatio = (float)player.Width / (float)player.Height;
             FixAspectRatio();
 
@@ -723,14 +690,12 @@ namespace PartyTime.UI_Example
         [SecurityCritical]
         private void VideoFrameClbk(byte[] frameData, long timestamp, IntPtr texture)
         {
-            try
+            if (player.iSHWAccelSuccess)
             {
-                if (player.iSHWAccelSuccess)
+                try
                 {
-                    if (texture == null) return;
+                    STexture2D curShared    = _device.OpenSharedResource<STexture2D>(texture);
 
-                    STexture2D curShared    = _device.      OpenSharedResource<STexture2D>(texture);
-                    
                     videoDevice1.CreateVideoProcessorInputView(curShared, vpe, vpivd, out vpiv);
                     VideoProcessorStream vps = new VideoProcessorStream()
                     {
@@ -741,11 +706,18 @@ namespace PartyTime.UI_Example
                     videoContext1.VideoProcessorBlt(videoProcessor, vpov, 0, 1, vpsa);
 
                     _swapChain.Present(1, PresentFlags.None);
-                    
+
                     Utilities.Dispose(ref vpiv);
                     Utilities.Dispose(ref curShared);
                 }
-                else
+                catch (Exception e)
+                {
+                    Log(e.Message + " - " + e.StackTrace);
+                }
+            }
+            else
+            {
+                try
                 {
                     if (frameData       == null)    return;
                     if (firstFrameData  == null)    firstFrameData   = frameData;
@@ -755,18 +727,28 @@ namespace PartyTime.UI_Example
                     lock (screenPlay)               screenPlay.SetData(frameData);
                     ScreenPlay();
                 }
+                catch (Exception e)
+                {
+                    Log(e.Message + " - " + e.StackTrace);
 
-                if (player.hasSubs) UpdateLoop();
+                    try
+                    {
+                        Log("Graphic Device Resets");
+                        graphics = new GraphicsDeviceManager(display2);
+                    } catch (Exception e1) {Log(e1.Message + " - " + e1.StackTrace); player.Pause(); }
+                }
+            }
 
-            } catch (Exception e) { Log(e.Message + "\r\n" + e.StackTrace); if (e.Message.Contains("DXGI_ERROR_DEVICE_REMOVED") ) InitializeID3D11(); }
+            if (player.hasSubs) UpdateLoop();
         }
-        private void SubsFrameClbk(string text, int duration)
+        private void SubsFrameClbk(string text, long start, int duration)
         {
             try
             {
                 // Lazy ASS -> TXT
                 subText     = text.LastIndexOf(",,") == -1 ? text : text.Substring(text.LastIndexOf(",,") + 2).Replace("\\N", "\n").Trim();
-                subStart    = player.CurTime;
+                subText     = Regex.Replace(subText, @"{\\an?[0-9]+}","");
+                subStart    = start;
                 subDur      = duration;
                 SubsNew     = true;
             }
@@ -1203,7 +1185,6 @@ namespace PartyTime.UI_Example
                             resizing = true;
                             GoIdle();
                             ScreenPlay();
-                            //screenPlayHW.Size = new Size(display.Width, display.Height);
                         }
                     }
                     else
@@ -1284,6 +1265,7 @@ namespace PartyTime.UI_Example
                 Thread.Sleep(20);
                 player.Close();
                 Thread.Sleep(20);
+                display.Dispose();
             } catch (Exception) { }
         }
 
@@ -1334,7 +1316,7 @@ namespace PartyTime.UI_Example
         private void VolBar_MouseUp(object sender, MouseEventArgs e) { display.Focus(); }
 
         // UI Events [CONTROL RTBSUBS]
-        private void RtbSubsContentsResized(object sender, ContentsResizedEventArgs e)  { control.rtbSubs.ClientSize = new Size(control.rtbSubs.ClientSize.Width, e.NewRectangle.Height); }
+        private void RtbSubsContentsResized(object sender, ContentsResizedEventArgs e)  { control.rtbSubs.ClientSize = new Size(display.Width, e.NewRectangle.Height); }
         private void RtbSubsEnter(object sender, EventArgs e) { display.Cursor = Cursors.Default; display.Focus(); }
 
         // UI Events [CONTROL LSTMEDIAFILES]
@@ -1365,14 +1347,16 @@ namespace PartyTime.UI_Example
             try
             {
                 graphics.ApplyChanges();
-                if (_swapChain != null) _swapChain.Present(1, PresentFlags.None);
             }
             catch (Exception e)
             {
                 Log(e.Message + " - " + e.StackTrace);
 
-                if (e.Message.Contains("DXGI_ERROR_DEVICE_REMOVED") ) InitializeID3D11();
-                else graphics = new GraphicsDeviceManager(display2);
+                try
+                {
+                    Log("Graphic Device Resets");
+                    graphics = new GraphicsDeviceManager(display2);
+                } catch (Exception e1) {Log(e1.Message + " - " + e1.StackTrace); player.Pause(); }
             }
         }
         private void FullScreenToggle() { if (graphics.PreferredBackBufferWidth == graphics.GraphicsDevice.DisplayMode.Width) NormalScreen(); else FullScreen(); }

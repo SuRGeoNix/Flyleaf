@@ -8,6 +8,8 @@ namespace PartyTime.UI_Example
 {
     class AudioPlayer : NAudio.CoreAudioApi.Interfaces.IMMNotificationClient
     {
+        public const int        NAUDIO_DELAY_MS = 200; // Trying to fix the broken sound until buffer will fill with DesiredLatency | Too many issues with NAudio, should be replaces with alternative
+
         WaveOut                 player;
         WaveFormat              format;
         BufferedWaveProvider    buffer;
@@ -46,6 +48,7 @@ namespace PartyTime.UI_Example
                         {
                             player = new WaveOut();
                             player.DeviceNumber = 0;
+                            player.DesiredLatency = NAUDIO_DELAY_MS;
                             player.Init(buffer);
                             player.Play();
                             reseted = true;
@@ -97,19 +100,12 @@ namespace PartyTime.UI_Example
         {
             try
             {
-                //if (this.buffer.BufferedBytes == 0) Log("[AUDIO] Buffer was empty ");
-                //Log($"[AUDIO PLAYER] [BufferedBytes: {this.buffer.BufferedBytes}]");
-
-                int fixBlock = 0;
-                while ((count - fixBlock) % format.BlockAlign != 0) fixBlock++;
-
-                this.buffer.AddSamples(buffer, offset + fixBlock, count - fixBlock);
+                this.buffer.AddSamples(buffer, offset, count);
             }
             catch (Exception e)
             {
                 Log("[NAUDIO] " + e.Message + " " + e.StackTrace);
             }
-            
         }
         public void ResetClbk() { lock (locker) buffer.ClearBuffer(); }
 

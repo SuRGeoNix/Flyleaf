@@ -33,7 +33,7 @@ namespace PartyTime
         ConcurrentQueue<MediaFrame>       sFrames;
 
         int AUDIO_MIX_QUEUE_SIZE = 50;  int AUDIO_MAX_QUEUE_SIZE =  60;
-        int VIDEO_MIX_QUEUE_SIZE =  2;  int VIDEO_MAX_QUEUE_SIZE =   3;
+        int VIDEO_MIX_QUEUE_SIZE =  4;  int VIDEO_MAX_QUEUE_SIZE =   6;
         int  SUBS_MIN_QUEUE_SIZE =  5;  int  SUBS_MAX_QUEUE_SIZE =  10;
 
         // Status
@@ -55,7 +55,7 @@ namespace PartyTime
         public Action                       AudioResetClbk;
         public Action<byte[], int, int>     AudioFrameClbk;
         public Action<byte[], long, IntPtr> VideoFrameClbk;
-        public Action<string, int>          SubFrameClbk;
+        public Action<string, long, int>    SubFrameClbk;
 
         public Action<bool>                 OpenTorrentSuccessClbk;
         public Action<bool, string>         OpenStreamSuccessClbk;
@@ -457,8 +457,8 @@ namespace PartyTime
 
                 distanceTicks   = (sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks);
                 distanceMs      = (int) (distanceTicks/10000);
-                
-                if ( distanceMs < offDistanceMsBackwards ) //|| distanceMs > offDistanceMsForewards )
+
+                if ( distanceMs < sFrame.duration * -1 )
                 {
                     Log($"[SUBS  SCREAMER] Sub Drop   [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
                     offDistanceCounter ++;
@@ -476,7 +476,7 @@ namespace PartyTime
 
                 // Sub Frames         [Callback]
                 //Log($"[SUBS  SCREAMER] Sub Scream [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
-                SubFrameClbk.BeginInvoke(sFrame.text, sFrame.duration, null, null);
+                SubFrameClbk.BeginInvoke(sFrame.text, sFrame.timestamp + subsExternalDelay, sFrame.duration, null, null);
                 lock (sFrames) sFrames.TryDequeue(out sFrame);
             }
 
@@ -573,6 +573,8 @@ namespace PartyTime
 
                 status = Status.OPENING;
             }
+
+            Log($"Opening {url}");
 
             string ext      = url.Substring(url.LastIndexOf(".") + 1);
             string scheme   = url.Substring(0, url.IndexOf(":"));
@@ -741,6 +743,7 @@ namespace PartyTime
 
         public void Seek(int ms, bool curPos = false)
         {
+            status = Status.PAUSED;
             try
             {
                 if (!isReady) return;
@@ -870,7 +873,7 @@ namespace PartyTime
             openOrBuffer.SetApartmentState(ApartmentState.STA);
             openOrBuffer.Start();
         }
-        
+
         // Misc
         private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.ffff")}] {msg}"); }
 
