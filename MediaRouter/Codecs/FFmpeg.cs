@@ -1207,7 +1207,7 @@ namespace PartyTime.Codecs
                 }
 
                 ret     = SetupStream(AVMediaType.AVMEDIA_TYPE_AUDIO);
-                if (ret < 0 && ret != ffmpeg.AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
+                if (ret < 0 && ret != ffmpeg.AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); hasAudio = false; }
                 ret     = SetupStream(AVMediaType.AVMEDIA_TYPE_VIDEO);
                 if (ret < 0 && ret != ffmpeg.AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
 
@@ -1232,20 +1232,19 @@ namespace PartyTime.Codecs
                         if (i != sStream->index) sFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
                 
                 // Codecs
-                if (hasAudio)   { ret = SetupCodec(AVMediaType.AVMEDIA_TYPE_AUDIO);    if (ret != 0) return ret; }
+                if (hasAudio)   { ret = SetupCodec(AVMediaType.AVMEDIA_TYPE_AUDIO);    if (ret != 0) hasAudio = false; }
                 if (hasVideo)   { ret = SetupCodec(AVMediaType.AVMEDIA_TYPE_VIDEO);    if (ret != 0) return ret; }
                 if (hasSubs )   { ret = SetupCodec(AVMediaType.AVMEDIA_TYPE_SUBTITLE); }
 
                 // Setups
-                if (hasAudio)   { ret = SetupAudio(); if (ret != 0) return ret; }
+                if (hasAudio)   { ret = SetupAudio(); if (ret != 0) hasAudio = false; }
                 if (hasVideo)   { ret = SetupVideo(); if (ret != 0) return ret; }
+                if (hasSubs)    sTimbebaseLowTicks = ffmpeg.av_q2d(sStream->time_base) * 10000 * 1000;
 
                 // Free
                 if (!hasAudio)  { fmtCtxPtr = aFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(aFmtCtx); aFmtCtx = null; }
                 if (!hasVideo)  { fmtCtxPtr = vFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(vFmtCtx); vFmtCtx = null; }
                 if (!hasSubs && url != null)  { fmtCtxPtr = sFmtCtx; ffmpeg.avformat_close_input(&fmtCtxPtr); ffmpeg.av_freep(sFmtCtx); sFmtCtx = null; }
-
-                if (hasSubs) sTimbebaseLowTicks = ffmpeg.av_q2d(sStream->time_base) * 10000 * 1000;
 
             } catch (Exception e) { Log(e.StackTrace); return -1; }
 
