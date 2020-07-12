@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -26,7 +27,6 @@ using Device    = SharpDX.Direct3D11.Device;
 using Resource  = SharpDX.Direct3D11.Resource;
 using STexture2D= SharpDX.Direct3D11.Texture2D;
 using SharpDX;
-using Message = System.Windows.Forms.Message;
 
 namespace PartyTime.UI_Example
 {
@@ -69,6 +69,7 @@ namespace PartyTime.UI_Example
         string                  subText             =   "";
         long                    subStart            =    0;
         int                     subDur              =    0;
+        int                     subsHeight          =    0; // User-Defined
         bool                    SubsNew             = false;
         byte[]                  firstFrameData;
 
@@ -76,7 +77,9 @@ namespace PartyTime.UI_Example
         const int SEEK_FIRST_STEP_MS                = 5000;
         const int SEEK_STEP_MS                      =  500;
         const int AUDIO_STEP_MS                     =   20;
+        const int AUDIO_STEP_MS2                    = 5000;
         const int SUBS_STEP_MS                      =  100;
+        const int SUBS_STEP_MS2                     = 5000;
         const int VOL_STEP_PERCENT                  =    5;
 
         const int MIN_FORM_SIZE                     =  230; // On Resize
@@ -419,10 +422,7 @@ namespace PartyTime.UI_Example
                 {
                     if (SubsNew) { SubsNew = false; Subtitles.ASSToRichText(control.rtbSubs, subText); }
 
-                    if (isIdle)
-                        control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 50));
-                    else
-                        control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 80));
+                    control.rtbSubs.Location = new Point((control.Width / 2) - (control.rtbSubs.Width / 2), control.Height - (control.rtbSubs.Height + 50 + subsHeight));
                 }
             }
             else if ( player.hasSubs && !SubsNew)
@@ -462,7 +462,7 @@ namespace PartyTime.UI_Example
                         Utilities.Dispose(ref _backBuffer);
 
                         _swapChain.ResizeBuffers(0, 0, 0, Format.Unknown, SwapChainFlags.None);
-
+                        
                         _backBuffer = STexture2D.FromSwapChain<STexture2D>(_swapChain, 0);
                         videoDevice1.CreateVideoProcessorOutputView((Resource) _backBuffer, vpe, vpovd, out vpov);
                     }
@@ -585,7 +585,8 @@ namespace PartyTime.UI_Example
         }
         private void GoIdle()
         {
-            if (!control.seekBar.Visible) return;
+            if (!resizing) display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 1.0f);
+            if (!control.lblInfoText.Visible) return;
             if (control.InvokeRequired) { control.BeginInvoke(new Action(() =>GoIdle())); return; }
 
             display2.IsMouseVisible     = false;
@@ -595,7 +596,6 @@ namespace PartyTime.UI_Example
             btnBar.Visible              = false;
 
             ScreenPlay();
-            if (!resizing) display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 1.0f);
         }
         private void UnIdle()
         {
@@ -636,6 +636,9 @@ namespace PartyTime.UI_Example
             control.lstMediaFiles.BeginUpdate();
             control.lstMediaFiles.Items.Clear();
 
+            
+            mediaFiles.Sort(new NaturalStringComparer());
+            
             for (int i=0; i<mediaFiles.Count; i++)
             {
                 string ext = Path.GetExtension(mediaFiles[i]);
@@ -767,8 +770,81 @@ namespace PartyTime.UI_Example
         // UI Events [DISPLAY KEYBOARD]
         private void Display_KeyDown(object sender, KeyEventArgs e)
         {
-            lastUserActionTicks = DateTime.UtcNow.Ticks;
-            UnIdle();
+            if (e.Control)
+            {
+                switch (e.KeyCode)
+                {
+                    // AUDIO
+                    case Keys.OemOpenBrackets:
+                        if (!player.hasAudio) return;
+
+                        player.AudioExternalDelay -= AUDIO_STEP_MS2 * 10000;
+                        UpdateInfoText("[AUDIO DELAY] " + player.AudioExternalDelay / 10000);
+
+                        break;
+
+                    case Keys.OemCloseBrackets:
+                        if (!player.hasAudio) return;
+
+                        player.AudioExternalDelay += AUDIO_STEP_MS2 * 10000;
+                        UpdateInfoText("[AUDIO DELAY] " + player.AudioExternalDelay / 10000);
+
+                        break;
+
+                    // SUBTITLES
+                    case Keys.OemSemicolon:
+                        if (!player.hasSubs) return;
+
+                        player.SubsExternalDelay -= SUBS_STEP_MS2 * 10000;
+                        UpdateInfoText("[SUBS DELAY] " + player.SubsExternalDelay / 10000);
+
+                        break;
+
+                    case Keys.OemQuotes:
+                        if (!player.hasSubs) return;
+
+                        player.SubsExternalDelay += SUBS_STEP_MS2 * 10000;
+                        UpdateInfoText("[SUBS DELAY] " + player.SubsExternalDelay / 10000);
+
+                        break;
+
+
+                    case Keys.Up:
+                        subsHeight += 5;
+                        UpdateInfoText("[SUBS Height] " + -1 * subsHeight);
+
+                        break;
+
+                    case Keys.Down:
+                        subsHeight -= 5;
+                        UpdateInfoText("[SUBS Height] " + -1 * subsHeight);
+                        
+                        break;
+
+                    case Keys.Right:
+                        control.rtbSubs.Font = new Font(control.rtbSubs.Font.FontFamily, control.rtbSubs.Font.Size + 2, control.rtbSubs.Font.Style);
+                        UpdateInfoText("[SUBS Size] " + control.rtbSubs.Font.Size);
+                        
+                        break;
+
+                    case Keys.Left:
+                        control.rtbSubs.Font = new Font(control.rtbSubs.Font.FontFamily, control.rtbSubs.Font.Size - 2, control.rtbSubs.Font.Style);
+                        UpdateInfoText("[SUBS Size] " + control.rtbSubs.Font.Size);
+                        
+                        break;
+
+                    default:
+                        return;
+
+                }
+
+                lastUserActionTicks         = DateTime.UtcNow.Ticks;
+                display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f);
+                control.lblInfoText.Visible = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
 
             switch (e.KeyCode)
             {
@@ -835,17 +911,30 @@ namespace PartyTime.UI_Example
                     audioPlayer.VolUp   (VOL_STEP_PERCENT);
                     UpdateInfoText("[Volume] " + audioPlayer.Volume + "%");
                     control.volBar.Value = audioPlayer.Volume;
+
                     break;
 
                 case Keys.Down:
                     audioPlayer.VolDown (VOL_STEP_PERCENT);
                     UpdateInfoText("[Volume] " + audioPlayer.Volume + "%");
                     control.volBar.Value = audioPlayer.Volume;
+
                     break;
+
+                default:
+
+                    return;
             }
+
+            lastUserActionTicks         = DateTime.UtcNow.Ticks;
+            display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f);
+            control.lblInfoText.Visible = true;
+            display.Focus();
         }
         private void Display_KeyUp(object sender, KeyEventArgs e)
         {
+            if (e.Control) return;
+
             switch (e.KeyCode)
             {
                 case Keys.Right:
@@ -867,38 +956,47 @@ namespace PartyTime.UI_Example
         }
         private void Display_KeyPress(object sender, KeyPressEventArgs e)
         {
-            switch (Char.ToUpper(e.KeyChar))
+            char c = Char.ToLower(e.KeyChar);
+
+            if (c == KeyCodeToUnicode(Keys.F))
             {
-                case (char)Keys.F:
-                    FullScreenToggle();
-                    break;
-
-                case (char)Keys.Space:
-                case (char)Keys.P:
-                    if (player.isPlaying) { player.Pause(); audioPlayer.ResetClbk(); } else { player.Play(); }
-                    break;
-
-                case (char)Keys.S:
-                    Stop();
-                    break;
-
-                case (char)Keys.H:
-                    player.HWAccel = !player.HWAccel;
-                    UpdateInfoText($"[HW ACCELERATION] {player.HWAccel}");
-                    break;
-
-                case (char)Keys.R:
-                    aspectRatioKeep = !aspectRatioKeep;
-                    if (aspectRatioKeep) FixAspectRatio();
-                    break;
-
-                case (char)Keys.Escape:
-                    if (control.lstMediaFiles.Visible)
-                        control.lstMediaFiles.Visible = false;
-                    else if (!control.lstMediaFiles.Visible)
-                        { control.lstMediaFiles.Visible = true; FixLstMediaFiles(); }
-                    break;
+                FullScreenToggle();
             }
+            else if (c == KeyCodeToUnicode(Keys.H))
+            {
+                player.HWAccel = !player.HWAccel;
+                UpdateInfoText($"[HW ACCELERATION] {player.HWAccel}");
+                control.lblInfoText.Visible = true;
+            }
+            else if (c == KeyCodeToUnicode(Keys.I))
+            {
+                GoIdle();
+                return;
+            }
+            else if (c == KeyCodeToUnicode(Keys.P) || Keys.Space == (Keys) c)
+            {
+                if (player.isPlaying) { player.Pause(); audioPlayer.ResetClbk(); } else { player.Play(); }
+            }
+            else if (c == KeyCodeToUnicode(Keys.R))
+            {
+                aspectRatioKeep = !aspectRatioKeep;
+                if (aspectRatioKeep) FixAspectRatio();
+            }
+            else if (c == KeyCodeToUnicode(Keys.S))
+            {
+                Stop();
+            }
+            else if ((Keys)c == Keys.Escape)
+            {
+                if (control.lstMediaFiles.Visible)
+                    control.lstMediaFiles.Visible = false;
+                else if (!control.lstMediaFiles.Visible)
+                { control.lstMediaFiles.Visible = true; FixLstMediaFiles(); }
+            }
+            else return;
+
+            lastUserActionTicks         = DateTime.UtcNow.Ticks;
+            display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 10.0f);
         }
 
         // UI Events [DISPLAY DRAG]
@@ -1292,6 +1390,8 @@ namespace PartyTime.UI_Example
         }
         private void SeekBar_MouseDown(object sender, MouseEventArgs e)
         {
+            if (!player.isReady) { display.Focus(); return; }
+
             if (e.Button == MouseButtons.Left)
             {
                 display2.TargetElapsedTime  = TimeSpan.FromSeconds(1.0f / 50.0f);
@@ -1304,6 +1404,8 @@ namespace PartyTime.UI_Example
         }
         private void SeekBar_MouseMove(object sender, MouseEventArgs e)
         {
+            if (!player.isReady) { display.Focus(); return; }
+
             if (seekBarMLDown)
             {
                 lastUserActionTicks     =  DateTime.UtcNow.Ticks;
@@ -1451,5 +1553,52 @@ namespace PartyTime.UI_Example
 
         // Logging
         private void Log(string msg) { Console.WriteLine(msg); }
+
+        [SuppressUnmanagedCodeSecurity]
+        internal static class SafeNativeMethods
+        {
+            [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
+            public static extern int StrCmpLogicalW(string psz1, string psz2);
+        }
+
+        public sealed class NaturalStringComparer : IComparer<string>
+        {
+            public int Compare(string a, string b)
+            {
+                return SafeNativeMethods.StrCmpLogicalW(a, b);
+            }
+        }
+
+        public char KeyCodeToUnicode(Keys key)
+        {
+            byte[] keyboardState = new byte[255];
+            bool keyboardStateStatus = GetKeyboardState(keyboardState);
+
+            if (!keyboardStateStatus)
+            {
+                return '\0';
+            }
+
+            uint virtualKeyCode = (uint)key;
+            uint scanCode = MapVirtualKey(virtualKeyCode, 0);
+            IntPtr inputLocaleIdentifier = GetKeyboardLayout(0);
+
+            StringBuilder result = new StringBuilder();
+            ToUnicodeEx(virtualKeyCode, scanCode, keyboardState, result, (int)5, (uint)0, inputLocaleIdentifier);
+
+            return result.ToString()[0];
+        }
+
+        [DllImport("user32.dll")]
+        static extern bool GetKeyboardState(byte[] lpKeyState);
+
+        [DllImport("user32.dll")]
+        static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+        [DllImport("user32.dll")]
+        static extern IntPtr GetKeyboardLayout(uint idThread);
+
+        [DllImport("user32.dll")]
+        static extern int ToUnicodeEx(uint wVirtKey, uint wScanCode, byte[] lpKeyState, [Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pwszBuff, int cchBuff, uint wFlags, IntPtr dwhkl);
     }
 }

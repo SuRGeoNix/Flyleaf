@@ -694,7 +694,7 @@ namespace PartyTime
                 }
 
                 // Fill Queues at least with Min
-                while (isPlaying && vFrames.Count < VIDEO_MIX_QUEUE_SIZE || (decoder.hasAudio && aFrames.Count < AUDIO_MIX_QUEUE_SIZE) || (decoder.hasSubs && sFrames.Count < SUBS_MIN_QUEUE_SIZE && !decoder.isSubsFinish ) ) 
+                while (isPlaying && vFrames.Count < VIDEO_MIX_QUEUE_SIZE || (decoder.hasAudio && aFrames.Count < AUDIO_MIX_QUEUE_SIZE && !decoder.isAudioFinish) || (decoder.hasSubs && sFrames.Count < SUBS_MIN_QUEUE_SIZE && !decoder.isSubsFinish ) ) 
                     Thread.Sleep(20);
 
                 vScreamer = new Thread(() => {
