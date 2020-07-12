@@ -161,7 +161,6 @@ namespace PartyTime.UI_Example
             this.lstMediaFiles.Location = new System.Drawing.Point(317, 100);
             this.lstMediaFiles.Name = "lstMediaFiles";
             this.lstMediaFiles.Size = new System.Drawing.Size(603, 332);
-            this.lstMediaFiles.Sorted = true;
             this.lstMediaFiles.TabIndex = 10;
             this.lstMediaFiles.TabStop = false;
             this.lstMediaFiles.Visible = false;
