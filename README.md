@@ -18,7 +18,7 @@ __Synchronized__ : Ensures that all time the served media frames will be syncron
 
 ### Layer 1 - Multimedia Framework (FFmpeg.cs)
 
-> <a href="https://www.ffmpeg.org/">FFmpeg 4.2.1</a> library (implemented with C# bindings <a href="https://github.com/Ruslan-B/FFmpeg.AutoGen">FFmpeg.AutoGen</a> 4.2.0)
+> <a href="https://www.ffmpeg.org/">FFmpeg 4.2.2</a> library (implemented with C# bindings <a href="https://github.com/Ruslan-B/FFmpeg.AutoGen">FFmpeg.AutoGen</a> 4.2.2.2)
 
 Demuxes the input file and configures the included media streams. It creates one thread per media stream for decoding. Additionally, it supports hardware acceleration (partially) and accurate seeking by decoding from the previous key/I frame until the requested (in case of B/P frames).
 
@@ -42,6 +42,7 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 | R                     | Keep Ratio                 |
 | F                     | Full Screen / Normal Screen|
 | H                     | Video Acceleration (On/Off)|
+| I                     | Force Idle Mode            |
 | Esc / Middle Click    | Back to Torrent File List  |
 | Up / Down Arrows      | Volume Adjustment          |
 | [ / ]                 | Audio Adjustment           |
