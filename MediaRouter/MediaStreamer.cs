@@ -9,9 +9,18 @@ using SuRGeoNix;
 using SuRGeoNix.TorSwarm;
 
 using static PartyTime.Codecs.FFmpeg;
+using System.Linq;
 
 namespace PartyTime
 {
+    static class Extensions
+    {
+        public static List<T> Clone<T>(this IList<T> listToClone) where T: ICloneable
+        {
+            return listToClone.Select(item => (T)item.Clone()).ToList();
+        }
+    }
+
     public class MediaStreamer
     {
         #region Declaration
@@ -172,8 +181,19 @@ namespace PartyTime
         }
         private void MetadataReceived(Torrent torrent)
         {
-            this.torrent = torrent;
-            MediaFilesClbk?.BeginInvoke(torrent.file.paths, torrent.file.lengths, null, null);
+            this.torrent            = torrent;
+
+            // Clone
+            List<string>    paths   = new List<string>();
+            List<long>      lengths = new List<long>();
+
+            foreach (string path in torrent.file.paths)
+                paths.Add(path);
+
+            foreach (long length in torrent.file.lengths)
+                lengths.Add(length);
+
+            MediaFilesClbk?.BeginInvoke(paths, lengths, null, null);
         }
         public int SetMediaFile(string fileName)
         {
