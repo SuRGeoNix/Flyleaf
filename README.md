@@ -41,11 +41,14 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 | S                     | Stop                       |
 | R                     | Keep Ratio                 |
 | F                     | Full Screen / Normal Screen|
+| H                     | Video Acceleration (On/Off)|
 | Esc / Middle Click    | Back to Torrent File List  |
 | Up / Down Arrows      | Volume Adjustment          |
 | [ / ]                 | Audio Adjustment           |
+| CTRL + [ / ]          | Audio Adjustment 2         |
 | ; / '                 | Subtitles Adjustment       |
-| H                     | Video Acceleration (On/Off)|
+| CTRL + ; / '          | Subtitles Adjustment 2     |
+| CTRL + UP / Down      | Subtitles Font Size        |
 
 <br/>
 
