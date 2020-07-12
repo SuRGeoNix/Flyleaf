@@ -8,19 +8,8 @@ using System.Threading;
 using SuRGeoNix;
 using SuRGeoNix.TorSwarm;
 
-using static PartyTime.Codecs.FFmpeg;
-using System.Linq;
-
 namespace PartyTime
 {
-    static class Extensions
-    {
-        public static List<T> Clone<T>(this IList<T> listToClone) where T: ICloneable
-        {
-            return listToClone.Select(item => (T)item.Clone()).ToList();
-        }
-    }
-
     public class MediaStreamer
     {
         #region Declaration
