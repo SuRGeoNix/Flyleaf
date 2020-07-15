@@ -491,9 +491,7 @@ namespace PartyTime.UI_Example
                 player.Close();
                 if (player.hasAudio) audioPlayer.ResetClbk();
 
-                control.lstMediaFiles.Visible   = false;
-                control.lblRate.Visible         = false;
-                control.lblPeers.Visible        = false;
+                MediaFilesToggle(true);
                 firstFrameData                  = null;
 
                 control.lblRate.Text            = "Down Rate    : 0 KB/s";
@@ -674,7 +672,7 @@ namespace PartyTime.UI_Example
         }
         public void SetMediaFile(string selectedFile)
         {
-            control.lstMediaFiles.Visible = false;
+            MediaFilesToggle(true);
             player.SetMediaFile(selectedFile);
             UpdateInfoText($"Opening {selectedFile} ...");
         }
@@ -1024,26 +1022,8 @@ namespace PartyTime.UI_Example
                 if (control.picHelp.Visible)
                     control.picHelp.Visible = false;
 
-                else if (control.lstMediaFiles.Visible)
-                {
-                    control.lstMediaFiles.Visible   = false;
-                    control.lblRate.Visible         = false;
-                    control.lblPeers.Visible        = false;
-
-                    display.Focus();
-                }
                 else
-                {
-                    control.lstMediaFiles.Visible   = true;
-
-                    if (player.isTorrent)
-                    {
-                        control.lblRate.Visible     = true;
-                        control.lblPeers.Visible    = true;
-                    }
-                    
-                    FixLstMediaFiles(); 
-                }
+                    MediaFilesToggle();
             }
             else return;
 
@@ -1084,28 +1064,7 @@ namespace PartyTime.UI_Example
             if (e.Button == MouseButtons.Right) if (player.isPlaying) { player.Pause(); audioPlayer.ResetClbk(); } else { player.Play(); }
 
             else if (e.Button == MouseButtons.Middle)
-            { 
-                if (control.lstMediaFiles.Visible)
-                {
-                    control.lstMediaFiles.Visible   = false;
-                    control.lblRate.Visible         = false;
-                    control.lblPeers.Visible        = false;
-
-                    display.Focus();
-                }
-                else
-                {
-                    control.lstMediaFiles.Visible   = true;
-
-                    if (player.isTorrent)
-                    {
-                        control.lblRate.Visible     = true;
-                        control.lblPeers.Visible    = true;
-                    }
-                    
-                    FixLstMediaFiles(); 
-                }
-            } 
+                MediaFilesToggle();
         }
         private void Display_MouseMove(object sender, MouseEventArgs e)
         {
@@ -1498,7 +1457,7 @@ namespace PartyTime.UI_Example
         // UI Events [CONTROL LSTMEDIAFILES]
         private void lstMediaFiles_MouseClickDbl(object sender, MouseEventArgs e)
         {
-            if ( !player.isTorrent ) { control.lstMediaFiles.Visible = false; display.Focus(); return; }
+            if ( !player.isTorrent ) { MediaFilesToggle(true); return; }
             if ( control.lstMediaFiles.SelectedItem == null ) return;
 
             SetMediaFile(control.lstMediaFiles.SelectedItem.ToString());
@@ -1509,7 +1468,7 @@ namespace PartyTime.UI_Example
             lastUserActionTicks = DateTime.UtcNow.Ticks;
 
             if ( e.KeyChar != (char)13 ) { Display_KeyPress(sender, e); return; }
-            if ( !player.isTorrent ) { control.lstMediaFiles.Visible = false; display.Focus(); return; }
+            if ( !player.isTorrent ) { MediaFilesToggle(true); return; }
             if ( control.lstMediaFiles.SelectedItem == null ) return;
 
             SetMediaFile(control.lstMediaFiles.SelectedItem.ToString());
@@ -1620,6 +1579,29 @@ namespace PartyTime.UI_Example
             control.lblPeers.Location       = new Point(control.lstMediaFiles.Location.X, control.lblRate.Location.Y        + control.lblRate.Height        + 10);
 
             control.lstMediaFiles.Focus();
+        }
+        private void MediaFilesToggle(bool force = false)
+        {
+            if (control.lstMediaFiles.Visible || force)
+            {
+                control.lstMediaFiles.Visible   = false;
+                control.lblRate.Visible         = false;
+                control.lblPeers.Visible        = false;
+
+                display.Focus();
+            }
+            else
+            {
+                control.lstMediaFiles.Visible   = true;
+
+                if (player.isTorrent)
+                {
+                    control.lblRate.Visible     = true;
+                    control.lblPeers.Visible    = true;
+                }
+                    
+                FixLstMediaFiles(); 
+            }
         }
         private void ShowHelp()
         {
