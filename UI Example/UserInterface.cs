@@ -10,6 +10,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 
+using Point     = System.Drawing.Point;
+
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -17,8 +19,7 @@ using Color     = Microsoft.Xna.Framework.Color;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 using Texture2D = Microsoft.Xna.Framework.Graphics.Texture2D;
 
-using Point     = System.Drawing.Point;
-
+using SharpDX;
 using SharpDX.DXGI;
 using SharpDX.Direct3D11;
 using SharpDX.Mathematics.Interop;
@@ -26,7 +27,6 @@ using SharpDX.Mathematics.Interop;
 using Device    = SharpDX.Direct3D11.Device;
 using Resource  = SharpDX.Direct3D11.Resource;
 using STexture2D= SharpDX.Direct3D11.Texture2D;
-using SharpDX;
 
 namespace PartyTime.UI_Example
 {
@@ -141,6 +141,7 @@ namespace PartyTime.UI_Example
             player.OpenTorrentSuccessClbk   = OpenTorrentSuccess;
             player.OpenStreamSuccessClbk    = OpenStreamSuccess;
             player.MediaFilesClbk           = MediaFilesReceived;
+            player.StatsClbk                = TorrentStats;
 
             // Forms
             InitializeDisplay();
@@ -478,9 +479,9 @@ namespace PartyTime.UI_Example
         private void Open(string url)
         {
             int ret;
-            bool isSubs = false;
-            subText = "";
-            control.rtbSubs.Text = "";
+            bool isSubs             = false;
+            subText                 = "";
+            control.rtbSubs.Text    = "";
 
             string ext = url.Substring(url.LastIndexOf(".") + 1);
             if ((new List<string> { "srt", "txt" }).Contains(ext)) isSubs = true;
@@ -489,20 +490,26 @@ namespace PartyTime.UI_Example
             {
                 player.Close();
                 if (player.hasAudio) audioPlayer.ResetClbk();
-                control.lstMediaFiles.Visible = false;
-                firstFrameData = null;
+
+                control.lstMediaFiles.Visible   = false;
+                control.lblRate.Visible         = false;
+                control.lblPeers.Visible        = false;
+                firstFrameData                  = null;
+
+                control.lblRate.Text            = "Down Rate    : 0 KB/s";
+                control.lblPeers.Text           = "Peers [D|W|I] : 0 | 0 | 0";
 
                 player.Open(url);
-                if (player.isTorrent) { UpdateInfoText($"Opening Torrent ..."); return; }
+                if (player.isTorrent)   { UpdateInfoText($"Opening Torrent ..."); return; }
                 UpdateInfoText($"Opening {Path.GetFileName(url)}");
 
-                if (player.isFailed) { UpdateInfoText($"Opening {Path.GetFileName(url)} Failed"); Log("Error opening"); return; }
-                if (player.hasAudio) { audioPlayer._RATE = player._RATE; audioPlayer.Initialize(); }
+                if (player.isFailed)    { UpdateInfoText($"Opening {Path.GetFileName(url)} Failed"); Log("Error opening"); return; }
+                if (player.hasAudio)    { audioPlayer._RATE = player._RATE; audioPlayer.Initialize(); }
 
-                aspectRatio = (float)player.Width / (float)player.Height;
+                aspectRatio             = (float)player.Width / (float)player.Height;
                 FixAspectRatio();
 
-                screenPlayHW.Visible = player.iSHWAccelSuccess;
+                screenPlayHW.Visible    = player.iSHWAccelSuccess;
 
                 control.lstMediaFiles.Items.Clear();
                 control.lstMediaFiles.Items.Add(url);
@@ -510,9 +517,8 @@ namespace PartyTime.UI_Example
                 UpdateInfoText($"Opening {Path.GetFileName(url)} Success");
                 Play();
             }
-            else
+            else// Subtitles
             {
-                // Subtitles
                 // Identify by BOM else Check if UTF-8, finally convert from (identified or system default codepage) to UTF-8 (supported by MR/FFmpeg)
                 Encoding subsEnc = Subtitles.Detect(url);
                 if (subsEnc != Encoding.UTF8) url = Subtitles.Convert(url, subsEnc, Encoding.UTF8);
@@ -659,7 +665,10 @@ namespace PartyTime.UI_Example
             }
             else
             {
-                control.lstMediaFiles.Visible = true;
+                control.lstMediaFiles.Visible   = true;
+                control.lblRate.Visible         = true;
+                control.lblPeers.Visible        = true;
+
                 FixLstMediaFiles();
             }
         }
@@ -689,6 +698,21 @@ namespace PartyTime.UI_Example
             if (player.hasAudio) { audioPlayer._RATE = player._RATE; audioPlayer.Initialize(); }
 
             Play();
+        }
+        public void TorrentStats(int downRate, int peersDown, int peersChocked, int peersInQueue)
+        {
+            if (!control.lstMediaFiles.Visible) return;
+
+            if ( control.InvokeRequired )
+            {
+                control.BeginInvoke(new Action(() => TorrentStats(downRate, peersDown, peersChocked, peersInQueue)));
+                return;
+            } 
+            else
+            {
+                control.lblRate.Text    = "Down Rate    : " + String.Format("{0:n0}", (downRate / 1024)) + " KB/s";
+                control.lblPeers.Text   = $"Peers [D|W|I] : {peersDown} | {peersChocked} | {peersInQueue}";
+            }
         }
 
         // UI Callbacks
@@ -952,6 +976,15 @@ namespace PartyTime.UI_Example
                     seekSum = 0; seekStep = 0; seekClockTime = -1;
 
                     break;
+                
+                case Keys.F1:
+
+                    if (control.picHelp.Visible)
+                        control.picHelp.Visible = false;
+                    else
+                        ShowHelp();
+
+                    break;
             }
         }
         private void Display_KeyPress(object sender, KeyPressEventArgs e)
@@ -988,10 +1021,29 @@ namespace PartyTime.UI_Example
             }
             else if ((Keys)c == Keys.Escape)
             {
-                if (control.lstMediaFiles.Visible)
-                    control.lstMediaFiles.Visible = false;
-                else if (!control.lstMediaFiles.Visible)
-                { control.lstMediaFiles.Visible = true; FixLstMediaFiles(); }
+                if (control.picHelp.Visible)
+                    control.picHelp.Visible = false;
+
+                else if (control.lstMediaFiles.Visible)
+                {
+                    control.lstMediaFiles.Visible   = false;
+                    control.lblRate.Visible         = false;
+                    control.lblPeers.Visible        = false;
+
+                    display.Focus();
+                }
+                else
+                {
+                    control.lstMediaFiles.Visible   = true;
+
+                    if (player.isTorrent)
+                    {
+                        control.lblRate.Visible     = true;
+                        control.lblPeers.Visible    = true;
+                    }
+                    
+                    FixLstMediaFiles(); 
+                }
             }
             else return;
 
@@ -1031,12 +1083,28 @@ namespace PartyTime.UI_Example
         { 
             if (e.Button == MouseButtons.Right) if (player.isPlaying) { player.Pause(); audioPlayer.ResetClbk(); } else { player.Play(); }
 
-            else if ( e.Button == MouseButtons.Middle )
+            else if (e.Button == MouseButtons.Middle)
             { 
                 if (control.lstMediaFiles.Visible)
-                    control.lstMediaFiles.Visible = false;
-                else 
-                    { control.lstMediaFiles.Visible = true; FixLstMediaFiles(); }
+                {
+                    control.lstMediaFiles.Visible   = false;
+                    control.lblRate.Visible         = false;
+                    control.lblPeers.Visible        = false;
+
+                    display.Focus();
+                }
+                else
+                {
+                    control.lstMediaFiles.Visible   = true;
+
+                    if (player.isTorrent)
+                    {
+                        control.lblRate.Visible     = true;
+                        control.lblPeers.Visible    = true;
+                    }
+                    
+                    FixLstMediaFiles(); 
+                }
             } 
         }
         private void Display_MouseMove(object sender, MouseEventArgs e)
@@ -1548,7 +1616,15 @@ namespace PartyTime.UI_Example
             control.lstMediaFiles.Height    = Math.Min(550, display.Height - 200);
             control.lstMediaFiles.Location  = new Point((control.Width- control.lstMediaFiles.Width) / 2, (control.Height- control.lstMediaFiles.Height) / 2);
 
+            control.lblRate.Location        = new Point(control.lstMediaFiles.Location.X, control.lstMediaFiles.Location.Y  + control.lstMediaFiles.Height  + 10);
+            control.lblPeers.Location       = new Point(control.lstMediaFiles.Location.X, control.lblRate.Location.Y        + control.lblRate.Height        + 10);
+
             control.lstMediaFiles.Focus();
+        }
+        private void ShowHelp()
+        {
+            control.picHelp.Location    = new Point((display.Width / 2) - (control.picHelp.Width / 2), (display.Height / 2) - (control.picHelp.Height / 2));
+            control.picHelp.Visible     = true;
         }
 
         // Logging
