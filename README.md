@@ -35,6 +35,7 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 
 | Keys                  | Action                     |
 | :-------------:       |:-------------:             |
+| F1                    | Help / Key Bindings        |
 | Drag & Drop           | Open                       |
 | P / Space / Right Click| Pause / Play              |
 | Left / Right Arrows   | Seeking                    |
@@ -46,14 +47,33 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 | Esc / Middle Click    | Back to Torrent File List  |
 | Up / Down Arrows      | Volume Adjustment          |
 | [ / ]                 | Audio Adjustment           |
-| CTRL + [ / ]          | Audio Adjustment 2         |
+| Ctrl + [ / ]          | Audio Adjustment 2         |
 | ; / '                 | Subtitles Adjustment       |
-| CTRL + ; / '          | Subtitles Adjustment 2     |
-| CTRL + UP / Down      | Subtitles Font Size        |
+| Ctrl + ; / '          | Subtitles Adjustment 2     |
+| Ctrl + Up / Down      | Subtitles Location (Height)|
+| Ctrl + Left / Right   | Subtitles Font Size        |
 
 <br/>
 
-## Versioning | Changes
+## Changelog
+#### v1.2.6 - 15/7/2020
+>__Additions__
+
+* Torrent Down Rate & Peers Stats
+* UI - Removed resizing Texture while Idle/UnIdle
+* New Key Bindings (Support Unicode - for any Keyboard Layout)
+  * Help / Key Bindings (F1)
+  * Subtitles Font Size (Ctrl + Left / Right)
+  * Subtitles Location Height (Ctrl + Up / Down)
+  * Subtitles Adjustment 2 - Large Step (Ctrl + ; / ')
+  * Audio Adjustment 2 - Large Step (Ctrl + [ / ])
+
+>__Issues__
+
+* Torrent File List - Proper Sorting (AlphaNumerical)
+* Play Video even when Audio fails
+
+
 #### v1.2.5 - 18/6/2020
 >__Issues__
 
