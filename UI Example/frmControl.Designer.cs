@@ -29,12 +29,17 @@ namespace PartyTime.UI_Example
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmControl));
             this.seekBar = new ColorSlider.ColorSlider();
             this.lblSubs = new System.Windows.Forms.Label();
             this.lblInfoText = new System.Windows.Forms.Label();
             this.volBar = new ColorSlider.ColorSlider();
             this.rtbSubs = new System.Windows.Forms.RichTextBox();
             this.lstMediaFiles = new System.Windows.Forms.ListBox();
+            this.lblRate = new System.Windows.Forms.Label();
+            this.lblPeers = new System.Windows.Forms.Label();
+            this.picHelp = new System.Windows.Forms.PictureBox();
+            ((System.ComponentModel.ISupportInitialize)(this.picHelp)).BeginInit();
             this.SuspendLayout();
             // 
             // seekBar
@@ -165,12 +170,50 @@ namespace PartyTime.UI_Example
             this.lstMediaFiles.TabStop = false;
             this.lstMediaFiles.Visible = false;
             // 
+            // lblRate
+            // 
+            this.lblRate.AutoSize = true;
+            this.lblRate.Font = new System.Drawing.Font("Arial", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.lblRate.ForeColor = System.Drawing.Color.White;
+            this.lblRate.Location = new System.Drawing.Point(775, 435);
+            this.lblRate.Name = "lblRate";
+            this.lblRate.Size = new System.Drawing.Size(140, 16);
+            this.lblRate.TabIndex = 11;
+            this.lblRate.Text = "Down Rate    : 0 KB/s";
+            this.lblRate.Visible = false;
+            // 
+            // lblPeers
+            // 
+            this.lblPeers.AutoSize = true;
+            this.lblPeers.Font = new System.Drawing.Font("Arial", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.lblPeers.ForeColor = System.Drawing.Color.White;
+            this.lblPeers.Location = new System.Drawing.Point(775, 463);
+            this.lblPeers.Name = "lblPeers";
+            this.lblPeers.Size = new System.Drawing.Size(143, 16);
+            this.lblPeers.TabIndex = 12;
+            this.lblPeers.Text = "Peers [D|W|I] : 0 | 0 | 0";
+            this.lblPeers.Visible = false;
+            // 
+            // picHelp
+            // 
+            this.picHelp.Image = ((System.Drawing.Image)(resources.GetObject("picHelp.Image")));
+            this.picHelp.Location = new System.Drawing.Point(209, 95);
+            this.picHelp.Name = "picHelp";
+            this.picHelp.Size = new System.Drawing.Size(808, 337);
+            this.picHelp.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
+            this.picHelp.TabIndex = 13;
+            this.picHelp.TabStop = false;
+            this.picHelp.Visible = false;
+            // 
             // frmControl
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1231, 621);
+            this.Controls.Add(this.picHelp);
+            this.Controls.Add(this.lblPeers);
+            this.Controls.Add(this.lblRate);
             this.Controls.Add(this.lstMediaFiles);
             this.Controls.Add(this.rtbSubs);
             this.Controls.Add(this.volBar);
@@ -182,6 +225,7 @@ namespace PartyTime.UI_Example
             this.ShowInTaskbar = false;
             this.Text = "`";
             this.Load += new System.EventHandler(this.frmControl_Load);
+            ((System.ComponentModel.ISupportInitialize)(this.picHelp)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -195,5 +239,8 @@ namespace PartyTime.UI_Example
         public ColorSlider.ColorSlider volBar;
         public System.Windows.Forms.RichTextBox rtbSubs;
         public System.Windows.Forms.ListBox lstMediaFiles;
+        public System.Windows.Forms.Label lblRate;
+        public System.Windows.Forms.Label lblPeers;
+        public System.Windows.Forms.PictureBox picHelp;
     }
 }
