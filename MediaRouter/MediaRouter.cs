@@ -7,6 +7,7 @@ using System.Threading;
 
 using static PartyTime.Codecs.FFmpeg;
 using System.Diagnostics;
+using System.IO;
 
 namespace PartyTime
 {
@@ -52,15 +53,16 @@ namespace PartyTime
         Status beforeSeeking = Status.STOPPED;
         
         // Callbacks
-        public Action                       AudioResetClbk;
-        public Action<byte[], int, int>     AudioFrameClbk;
-        public Action<byte[], long, IntPtr> VideoFrameClbk;
-        public Action<string, long, int>    SubFrameClbk;
+        public Action                           AudioResetClbk;
+        public Action<byte[], int, int>         AudioFrameClbk;
+        public Action<byte[], long, IntPtr>     VideoFrameClbk;
+        public Action<string, long, int>        SubFrameClbk;
 
-        public Action<bool>                 OpenTorrentSuccessClbk;
-        public Action<bool, string>         OpenStreamSuccessClbk;
-        public Action<bool>                 BufferSuccessClbk;
+        public Action<bool>                     OpenTorrentSuccessClbk;
+        public Action<bool, string>             OpenStreamSuccessClbk;
+        public Action<bool>                     BufferSuccessClbk;
         public Action<List<string>, List<long>> MediaFilesClbk;
+        public Action<int, int, int, int>       StatsClbk;
 
         private static readonly object  lockOpening  = new object();
 
@@ -146,10 +148,13 @@ namespace PartyTime
 
             if (streamer != null)
             {
-                streamer.MediaFilesClbk         = MediaFilesClbk;
                 streamer.BufferingDoneClbk      = BufferingDone;
                 streamer.BufferingAudioDoneClbk = BufferingAudioDone;
                 streamer.BufferingSubsDoneClbk  = BufferingSubsDone;
+
+                streamer.MediaFilesClbk         = MediaFilesClbk;
+                streamer.StatsClbk              = StatsClbk;
+
                 streamer.Stop();
             }
         }

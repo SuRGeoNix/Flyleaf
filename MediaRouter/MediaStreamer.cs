@@ -26,10 +26,12 @@ namespace PartyTime
         public int              SubsExternalDelay   { get; set; }
         public bool             IsSubsExternal      { get; set; }
 
+        public Action<bool>                     BufferingDoneClbk;
+        public Action                           BufferingAudioDoneClbk { set { if (decoder != null) decoder.BufferingAudioDone   = value; } }
+        public Action                           BufferingSubsDoneClbk  { set { if (decoder != null) decoder.BufferingSubsDone    = value; } }
+
         public Action<List<string>, List<long>> MediaFilesClbk;
-        public Action<bool>                 BufferingDoneClbk;
-        public Action                       BufferingAudioDoneClbk { set { if (decoder != null) decoder.BufferingAudioDone   = value; } }
-        public Action                       BufferingSubsDoneClbk  { set { if (decoder != null) decoder.BufferingSubsDone    = value; } }
+        public Action<int, int, int, int>       StatsClbk;
 
         private static readonly object      lockerBufferDone    = new object();
         private static readonly object      lockerBuffering     = new object();
@@ -146,6 +148,7 @@ namespace PartyTime
                 TorSwarm.OptionsStruct  opt = TorSwarm.GetDefaultsOptions();
                 opt.FocusPointCompleted = FocusPointCompleted;
                 opt.TorrentCallback     = MetadataReceived;
+                opt.StatsCallback       = Stats;
                 opt.PieceTimeout        = 4300;
                 //opt.LogStats            = true;
                 //opt.Verbosity           = 1;
@@ -246,6 +249,7 @@ namespace PartyTime
                 }
             }
         }
+        private void Stats(TorSwarm.StatsStructure stats) { StatsClbk?.BeginInvoke(stats.DownRate, stats.PeersDownloading, stats.PeersChoked, stats.PeersInQueue, null, null); }
 
         // Starts Internal Decoders for Seekings & Buffering
         public void SeekSubs(int ms)
