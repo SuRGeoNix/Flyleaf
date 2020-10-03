@@ -5,7 +5,7 @@
 Flyleaf is a light Media Player & Torrent Streamer which supports 4K/HD resolutions, large number of video formats, protocols & torrent streaming.
 The main concept is to be simple, accurate, fast & run smoothly by using as less resources as possible.
 
-<p align="center"><img src="readme1.png" /></p>
+<p align="center"><img src="Readme1.png" /></p>
 
 You open any video/subtitles file, url/link or torrent by Drag & Drop. It provides you a bar with the basic actions (Play/Pause/Seek/Mute/Volume) and includes a list with the torrent file contents. Currently for more functionality (such as Subtitles Position & Size) you can use the keyboard binding :-
 
@@ -40,7 +40,7 @@ That's why the 2nd version of MediaRouter "Flyleaf" came for! To provide you smo
 
 Flyleaf's properties all start with "FL" letters and allows you to configure both the UI Layout (Fonts, Positions, Sizing, Coloring etc.) & Player's Configuration (VSync, HW Acceleration, Threading etc.)
 
-<p align="center">Flyleaf runs also during Visual Studio Designer<img src="readme2.png" /></p>
+<p align="center">Flyleaf runs also during Visual Studio Designer<img src="Readme2.png" /></p>
 
 <br/>
 
@@ -80,7 +80,7 @@ Post-processes the incoming - from MediaDecoder - Video Frames (HW Accelerated N
 
 Exposes the whole library's functionality with an easy way to the front-end. Collects all the main configuration and functionality for all the classes in to one class and contains useful (On/Off) embedded functionality to save front-ends work (Non-borders Form Resizing/Auto Resize Form based on aspect ratio etc.)
 
-<p align="center"><img src="readme3.png" /></p>
+<p align="center"><img src="Readme3.png" /></p>
 
 <br/>
 
