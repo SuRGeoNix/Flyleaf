@@ -1,50 +1,27 @@
-# Media Router
+# Media Player Application, Library & Control (for WinForms / WPF)
+<br/>
+
+## Flyleaf Application
+Flyleaf is a light Media Player & Torrent Streamer which supports 4K/HD resolutions, large number of video formats, protocols & torrent streaming.
+The main concept is to be simple, accurate, fast & run smoothly by using as less resources as possible.
 
 <p align="center"><img src="readme1.png" /></p>
 
-
-## Introduction
-The purpose of Media Router is to be a "mediator" between a frontend GUI Audio / Video player and a backend Multimedia Framework. It will be responsible to satisfy frontend's needs such as Open/Play/Pause/Seek/Stop functionalities but also to serve __accurate__ with the right __control flow__ and __synchronized__ the requested media frames such as Audio, Video and Subtitles.
-
-__Accurate__ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: Media frames will be served at the exact timestamp that they supposed to.
-
-__Control Flow__ &nbsp;: The incoming flow from Multimedia Framework and outgoing to GUI will be kept low (CPU/GPU/RAM).
-
-__Synchronized__ : Ensures that all time the served media frames will be syncronized between them.
-
-<br/>
-
-## Design
-
-### Layer 1 - Multimedia Framework (FFmpeg.cs)
-
-> <a href="https://www.ffmpeg.org/">FFmpeg 4.2.2</a> library (implemented with C# bindings <a href="https://github.com/Ruslan-B/FFmpeg.AutoGen">FFmpeg.AutoGen</a> 4.2.2.2)
-
-Demuxes the input file and configures the included media streams. It creates one thread per media stream for decoding. Additionally, it supports hardware acceleration (partially) and accurate seeking by decoding from the previous key/I frame until the requested (in case of B/P frames).
-
-### Layer 2 - Media Router (MediaRouter.cs)
-
-The main implementation is within the "Screamer" method that routes media frames accurately (based on frame timestamp) to the frontend. It supports Audio and Subtitles synchronization with the Video frames. Additionally, it tries to keep the frame queues low so the backend decoder will run only when required (to keep CPU/GPU/RAM low).
-
-### Layer 3 - User Interface (UserInterface.cs)
-
-> <a href="http://www.monogame.net/">Monogame</a> 3.7.1 & <a href="https://github.com/naudio/NAudio">NAudio</a> 1.10.0 library & <a href="https://www.codeproject.com/Tips/1193311/Csharp-Slider-Trackbar-Control-using-Windows-Forms">ColorSlider</a>
-
-A sample GUI has been created to demonstrate Media Router's functionality. It works with both Game Engine (for taking the advantage of GPU and Game Loop) and a classic Windows Form. For subtitles will work with BOM specified, UTF-8 formats otherwise with the default system codepage (lazy support for ASS/SSA). For audio it simple runs with the NAudio library. It currently supports :- 
+You open any video/subtitles file, url/link or torrent by Drag & Drop. It provides you a bar with the basic actions (Play/Pause/Seek/Mute/Volume) and includes a list with the torrent file contents. Currently for more functionality (such as Subtitles Position & Size) you can use the keyboard binding :-
 
 
 | Keys                  | Action                     |
 | :-------------:       |:-------------:             |
-| F1                    | Help / Key Bindings        |
 | Drag & Drop           | Open                       |
-| P / Space / Right Click| Pause / Play              |
+| P / Space             | Pause / Play               |
 | Left / Right Arrows   | Seeking                    |
-| S                     | Stop                       |
+| A                     | Enable / Disable Audio     |
+| S                     | Enable / Disable Subtitles |
 | R                     | Keep Ratio                 |
 | F                     | Full Screen / Normal Screen|
 | H                     | Video Acceleration (On/Off)|
 | I                     | Force Idle Mode            |
-| Esc / Middle Click    | Back to Torrent File List  |
+| Escape                | Back to Torrent File List  |
 | Up / Down Arrows      | Volume Adjustment          |
 | [ / ]                 | Audio Adjustment           |
 | Ctrl + [ / ]          | Audio Adjustment 2         |
@@ -55,98 +32,85 @@ A sample GUI has been created to demonstrate Media Router's functionality. It wo
 
 <br/>
 
+## Flyleaf UserControl
+
+Wouldn't be great to have your own media hardware accelerated surface (Texture2D) served directly on your .NET WinForms / WPF IDE ready for your personal customization?
+
+That's why the 2nd version of MediaRouter "Flyleaf" came for! To provide you smooth video & text rendering (Direct3D/2D & DirectWrite) on a customizable surface. It runs even during IDE's designer and you can see live the changes that you have performed.
+
+Flyleaf's properties all start with "FL" letters and allows you to configure both the UI Layout (Fonts, Positions, Sizing, Coloring etc.) & Player's Configuration (VSync, HW Acceleration, Threading etc.)
+
+<p align="center">Flyleaf runs also during Visual Studio Designer<img src="readme2.png" /></p>
+
+<br/>
+
+## Flyleaf Design
+
+### Layer 1.1 - Multimedia Framework (MediaDecoder.cs)
+
+> <a href="https://www.ffmpeg.org">FFmpeg</a> 4.3 library (implemented with C# bindings <a href="https://github.com/Ruslan-B/FFmpeg.AutoGen">FFmpeg.AutoGen</a> 4.3)
+
+Demuxes the input file and configures the included media streams. It creates one thread per media stream for decoding. Additionally, it supports hardware acceleration decoding (FFmpeg embedded), threading and accurate seeking by decoding from the previous key/I frame until the requested (in case of B/P frames).
+
+### Layer 1.2 - Media Streaming (MediaStreamer.cs)
+
+> <a href="https://github.com/SuRGeoNix/TorSwarm">TorSwarm</a> library (for Torrent Streaming)
+
+Creates a 2nd decoder with a custom AVIO Context that runs towards on 1st decoder to buffer the streamed data before actually process them.
+
+### Layer 2.0 - Media Router (MediaRouter.cs)
+
+The purpose of Media Router is to be a "mediator" between a frontend GUI Audio / Video player and a backend Multimedia Framework. It will be responsible to satisfy frontend's needs such as Open/Play/Pause/Seek/Stop functionalities but also to serve __accurate__ with the right __control flow__ and __synchronized__ the requested media frames such as Audio, Video and Subtitles.
+
+__Accurate__ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: Media frames will be served at the exact timestamp that they supposed to.
+
+__Control Flow__ &nbsp;: The incoming flow from Multimedia Framework and outgoing to GUI will be kept low (CPU/GPU/RAM).
+
+__Synchronized__ : Ensures that all time the served media frames will be synchronized between them.
+
+The main implementation is within "Screamers" methods that route media frames accurately (based on frame timestamp) to the frontend. It supports Audio and Subtitles synchronization with the Video frames. Additionally, it tries to keep the frame queues low so the backend decoder will run only when required (to keep CPU/GPU/RAM low).
+
+### Layer 3.1 - User Interface (MediaRenderer.cs)
+
+> <a href="http://sharpdx.org">SharpDX</a> 4.2 library for Direct3D / Direct2D / DirectWrite Interops
+
+Post-processes the incoming - from MediaDecoder - Video Frames (HW Accelerated NV12, P010 - or not YUV420P, sws_scale for rest) and converts them to RGBA to present them. It is also responsible for (OSD) Text Rendering (required for incoming Messages eg. VolumeChanged/PlayerStatusChanged/SubsPositionChanged) that they are assigned to specific Surfaces (positions).
+
+### Layer 3.2 - User Interface Control (FlyleafPlayer.cs)
+
+Exposes the whole library's functionality with an easy way to the front-end. Collects all the main configuration and functionality for all the classes in to one class and contains useful (On/Off) embedded functionality to save front-ends work (Non-borders Form Resizing/Auto Resize Form based on aspect ratio etc.)
+
+<p align="center"><img src="readme3.png" /></p>
+
+<br/>
+
+## Requirements
+
+The whole implementation is targeting and should be able to run on any Windows Platform (DirectX) and .NET Framework. However it's not tested enough yet and you might some issues with the UserControl for WPF (issues with ParentForm and Handles).
+
+FFmpeg libraries (Windows builds) are required and should be placed under Libs\\\<platform>\\FFmpeg directory - where \<platform> = x86 or x64 - from the current application's (.exe) directory (or any below it, check MediaDecoder.cs -> RegisterFFmpegBinaries() for more details).
+
+It seems there is a bug with System.Buffers assemblies therefore it is required for TorSwarm (Torrent Streaming) to add the below bindings (App.Config) to your application (such ass this <a href="https://github.com/SuRGeoNix/Flyleaf/blob/master/Flyleaf%20Player%20(WinForms%20Demo%201)/App.config">one</a>)
+
+Ensure that you use Restore NuGet Packages to retrieve all the rest required libraries.
+
 ## Changelog
-#### v1.2.6 - 15/7/2020
+#### v2.0a - 3/10/2020
 >__Additions__
 
-* Torrent Down Rate & Peers Stats
-* UI - Removed resizing Texture while Idle/UnIdle
-* New Key Bindings (Support Unicode - for any Keyboard Layout)
-  * Help / Key Bindings (F1)
-  * Subtitles Font Size (Ctrl + Left / Right)
-  * Subtitles Location Height (Ctrl + Up / Down)
-  * Subtitles Adjustment 2 - Large Step (Ctrl + ; / ')
-  * Audio Adjustment 2 - Large Step (Ctrl + [ / ])
+* Replaced doubled forms -to achieve transparency- with DirectWrite (OSD Surfaces & Messages)
+* Replaced Monogame and heavy game-loop (rendering on-demand now) with SharpDX Interops for better performance
+* Re-coding thread implementation and proper stopping instead of aborting them
+* Replaced sws_scale (on most cases) with proper HW Acceleration Post-Processing (P010 VideoProcessorBlt, YUV420P with PixelShader etc.)
+* Enabled decoder's threading & planning to expose also video queues Min/Max to achieve > 4K resolution cases.
+* Implemented 'Seek on Slide' for smooth seeking (can be disabled on-demand)
+* Added functionality to discard Audio / Subtitles streams (can be enabled back on-demand - keys A, S)
+* Finally, implementing UserControl that take advantage of the library and exposes it's functionality (Multi-Players supported as well)
+* 4K runs smoothly now!
 
->__Issues__
+#### v1.2.6 and below <a href="https://github.com/SuRGeoNix/Flyleaf/tree/release-v1.2.6">here</a>
 
-* Torrent File List - Proper Sorting (AlphaNumerical)
-* Play Video even when Audio fails
-
-
-#### v1.2.5 - 18/6/2020
->__Issues__
-
-* UI - Critical Issue with HW Texture Rendering (not proper resize for swapchain)
-* UI - One Frame Before for VA Issue (D3D11Device Flushing requires few ms to complete)
-* Audio - Broken sound until NAudio buffer would be filled
-* Open - Crashing Issue Fixed
-* Memory - GPU Memory Leaks Issues with HW Frames (still having some during opening - not proper free of HW Shared Textures)
-* Subtitles - Font Changed, Better Synching and Rendering
-
-
-#### v1.2.4 - 13/6/2020
->__Additions__
-
-* UI / Torrent Streaming - Adding Escape / Middle Mouse Click for Torrent File List and jumping from one to another (it will continue from the point it stopped - no re-downloading)
-* UI - Adding Right Mouse Click for Pause/Play
-* TorSwarm - Implementing Pause/Continue Functionality (in case of different files within the torrent)
-
->__Issues__
-
-* One Frame Before Issue Fixed (by flushing the FFmpeg's D3D11Device)
-* Full Screen Aspect Ratio Issue Fixed (in cases display.Width / aspectRatio > display.Height)
-* Linesize for Software Texture Fixed (adding also latest FFmpeg's swscale now)
-* Crashing Issues during Opening (decoder.Stop was seeking at 0 / replaced it with Close - Pause)
-* After seeking was always keep playing on Torrent Streaming (fixed by remembering previous status)
-* TorSwarm - Fixed an Issue with Include/Exlude Functionality (it was deleting the previous status of excluded files)
-
-
-#### v1.2.3 - 9/6/2020
->__Additions__
-
-* UI / Torrent Streaming - Auto Select First Media File (if no other exists)
-* Better Handling Multi-Monitors
-* FFmpeg.AutoGen Libraries Update to latest
-
->__Issues__
-
-* Seeking on Torrent Streaming was crashing
-
-#### v1.2.2 - 3/6/2020
->__Additions__
-
-* Implementing (with SharpDX) Direct3D 11 Video Decoding & Acceleration Support (NV12 Pixel Formats)
-* Better Image Quality & CPU/RAM Performace (Video Frames lifecycle only within the GPU)
-* Faster Torrent Streaming (By New Request Piece Algorithm & Disabling Embedded Subtitles)
-* 'H' Key for Video Acceleration (On/Off) [Requires re-opening the input]
-* FFmpeg Libraries Update to latest (except swscale)
-
->__Issues__
-
-* Subtitles Issues
-* Performance Issues with the UI
-
-#### v1.2 - 23/5/2020
->__Additions__
-
-* Torrent files / Magnet links (Drag & Drop) for torrent streaming (by merging with my other project  <a href="https://github.com/SuRGeoNix/TorSwarm">TorSwarm</a>) and creating the new __MediaStreamer__ class for general use later on
-* Re-design the main Screamer's implementation and Syncing, using seperate threads (Audio/Video/Subs) Screamers and screaming each stream's frame at exact timestamp of each one
-* Support for more media formats (the most common, still will not handle correctly ts/vob etc)
-* Fast seeking with better FFmpeg implementation and threading so it will not hang the UI
-* Audio stereo (2 channels) output for any input and sample rate (it was supporting only 1 channel and 48Khz rate)
-* NAudio package updated to 1.10, FFmpeg can be updated to latest (for low quality, use the previous swscale-5.dll)
-
->__Issues__
-* Audio/Subtitles seeking issues (it was going though the whole file) on matroska formats (avformat_seek_file can't seek with other stream but the video stream)
-* NAudio was running at the main UI thread and it was hanging
-* Performance issue fixed that was hanging the UI (high cpu/gpu) and was breaking the audio and syncing
-* Changed Queues to ConcurrentQueues as they had issues with threading 
-
-#### v1.1 - 7/11/2019 (First Release)
 <br/>
 
 ## Remarks
 I have worked on this project for education, fun and programming exercise and I've made it available to the public in case you will find it useful for similar reasons. It's always fun as programmers to have our own media player and play around. Any suggestions are always welcome!
-
-<p align="center"><img src="readme2.png" /></p>

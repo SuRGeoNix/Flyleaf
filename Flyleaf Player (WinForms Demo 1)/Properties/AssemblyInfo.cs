@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Flyleaf Player v2.0")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Flyleaf")]
+[assembly: AssemblyDescription("Media Player Library & UserControl")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("SuRGeoNix")]
-[assembly: AssemblyProduct("Flyleaf Player (WinForms Demo 1)")]
+[assembly: AssemblyProduct("Flyleaf")]
 [assembly: AssemblyCopyright("Copyright ©  2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

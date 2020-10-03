@@ -9,7 +9,9 @@ namespace SuRGeoNix.Flyleaf.Controls
         class Col { public Col(SizeType s1, float w1) {s = s1; w = w1; } public SizeType s; public float w;}
 
         List<Col> save = new List<Col>();
-        Pen barBorderColor = new Pen(Color.FromArgb(25, 30, 44), 2);
+        
+        Pen barBorderColor = new Pen(Color.FromArgb(55, 60, 74), 2);
+        //Pen barBorderColor = new Pen(Color.FromArgb(25, 30, 44), 2);
 
         public FlyleafBar()
         {
