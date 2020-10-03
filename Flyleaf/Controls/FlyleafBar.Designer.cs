@@ -131,7 +131,7 @@
             this.btnPlaylist.BackColor = System.Drawing.Color.Transparent;
             this.btnPlaylist.BackgroundImage = global::SuRGeoNix.Flyleaf.Properties.Resources.Playlist;
             this.btnPlaylist.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-            this.btnPlaylist.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
+            this.btnPlaylist.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
             this.btnPlaylist.FlatAppearance.BorderSize = 2;
             this.btnPlaylist.FlatAppearance.MouseDownBackColor = System.Drawing.SystemColors.ActiveCaption;
             this.btnPlaylist.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
@@ -150,7 +150,7 @@
             this.btnPlay.BackColor = System.Drawing.Color.Transparent;
             this.btnPlay.BackgroundImage = global::SuRGeoNix.Flyleaf.Properties.Resources.Play;
             this.btnPlay.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-            this.btnPlay.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
+            this.btnPlay.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
             this.btnPlay.FlatAppearance.BorderSize = 2;
             this.btnPlay.FlatAppearance.MouseDownBackColor = System.Drawing.SystemColors.ActiveCaption;
             this.btnPlay.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
