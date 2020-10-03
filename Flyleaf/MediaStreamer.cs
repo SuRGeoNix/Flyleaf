@@ -228,6 +228,7 @@ namespace SuRGeoNix.Flyleaf
                 if ( !torrent.data.files[fileIndex].FileCreated && !tsStream.isRunning ) tsStream.Start();
                 // Decoder - Opening Format Contexts (cancellation?) -> DecoderRequests Feed with null?
                 Log($"[BB OPENING 1]");
+                decoder.Threads = player.decoder.Threads; // TODO: Dynamic
                 int ret = decoder.Open(null, DecoderRequestsBuffer, fileSize);
                 return ret;
             }

@@ -112,8 +112,8 @@ namespace SuRGeoNix.Flyleaf
             CUSTOM
         }
         public ViewPorts ViewPort   { get; set; } = ViewPorts.KEEP;
-        public float DecoderRatio   { get; set; } = 2;
-        public float CustomRatio    { get; set; } = 2;
+        public float DecoderRatio   { get; set; } = 16f/9f;
+        public float CustomRatio    { get; set; } = 16f/9f;
         public bool isReady         { get; private set; }
         public bool isPlaying       { get { return (status == Status.PLAYING);  } }
         public bool isPaused        { get { return (status == Status.PAUSED);   } }
@@ -169,8 +169,8 @@ namespace SuRGeoNix.Flyleaf
                 renderer.NewMessage(OSDMessage.Type.SubsDelay);
             }
         }
-        public int  SubsPosition     { get { return renderer.SubsPosition;       }   set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight);} }
-        public float SubsFontSize   { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; } }
+        public int  SubsPosition     { get { return renderer.SubsPosition;       }   set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
+        public float SubsFontSize   { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; renderer?.NewMessage(OSDMessage.Type.SubsFontSize); } }
         #endregion
 
         #region Initialization
