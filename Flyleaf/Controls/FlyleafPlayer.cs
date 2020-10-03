@@ -830,7 +830,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             else if (c == KeyCodeToUnicode(Keys.R))
             {
                 if (player.ViewPort == MediaRouter.ViewPorts.KEEP) player.ViewPort = MediaRouter.ViewPorts.FILL;
-                else if (player.ViewPort == MediaRouter.ViewPorts.FILL) player.ViewPort = MediaRouter.ViewPorts.KEEP;
+                else if (player.ViewPort != MediaRouter.ViewPorts.KEEP) player.ViewPort = MediaRouter.ViewPorts.KEEP;
             }
             else if (c == KeyCodeToUnicode(Keys.M)) { MuteUnmute(); }
             else if (c == KeyCodeToUnicode(Keys.S))

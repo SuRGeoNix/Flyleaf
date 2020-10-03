@@ -100,9 +100,9 @@
             this.flyleafPlayer1._message9.Visibility = SuRGeoNix.Flyleaf.MediaRouter.VisibilityMode.Always;
             this.flyleafPlayer1._subtitles._Enabled = true;
             this.flyleafPlayer1._subtitles.Color = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
-            this.flyleafPlayer1._subtitles.Font = new System.Drawing.Font("Century", 55F, System.Drawing.FontStyle.Bold);
+            this.flyleafPlayer1._subtitles.Font = new System.Drawing.Font("Arial", 69.75F, System.Drawing.FontStyle.Bold);
             this.flyleafPlayer1._subtitles.OnViewPort = true;
-            this.flyleafPlayer1._subtitles.Position = new System.Drawing.Point(0, -50);
+            this.flyleafPlayer1._subtitles.Position = new System.Drawing.Point(0, -10);
             this.flyleafPlayer1._subtitles.RectColor = System.Drawing.Color.FromArgb(((int)(((byte)(168)))), ((int)(((byte)(78)))), ((int)(((byte)(0)))), ((int)(((byte)(131)))));
             this.flyleafPlayer1._subtitles.RectEnabled = false;
             this.flyleafPlayer1._subtitles.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
@@ -149,9 +149,9 @@
             this.flyleafPlayer1._surface6.RectEnabled = true;
             this.flyleafPlayer1._surface6.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
             this.flyleafPlayer1._surface7.Color = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
-            this.flyleafPlayer1._surface7.Font = new System.Drawing.Font("Century", 55F, System.Drawing.FontStyle.Bold);
+            this.flyleafPlayer1._surface7.Font = new System.Drawing.Font("Arial", 69.75F, System.Drawing.FontStyle.Bold);
             this.flyleafPlayer1._surface7.OnViewPort = true;
-            this.flyleafPlayer1._surface7.Position = new System.Drawing.Point(0, -50);
+            this.flyleafPlayer1._surface7.Position = new System.Drawing.Point(0, -10);
             this.flyleafPlayer1._surface7.RectColor = System.Drawing.Color.FromArgb(((int)(((byte)(168)))), ((int)(((byte)(78)))), ((int)(((byte)(0)))), ((int)(((byte)(131)))));
             this.flyleafPlayer1._surface7.RectEnabled = false;
             this.flyleafPlayer1._surface7.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
@@ -175,7 +175,7 @@
             this.flyleafPlayer1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flyleafPlayer1.Location = new System.Drawing.Point(0, 0);
             this.flyleafPlayer1.Name = "flyleafPlayer1";
-            this.flyleafPlayer1.Size = new System.Drawing.Size(1422, 852);
+            this.flyleafPlayer1.Size = new System.Drawing.Size(1283, 821);
             this.flyleafPlayer1.TabIndex = 0;
             this.flyleafPlayer1.TabStop = false;
             // 
@@ -185,12 +185,12 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoValidate = System.Windows.Forms.AutoValidate.Disable;
             this.BackColor = System.Drawing.Color.Black;
-            this.ClientSize = new System.Drawing.Size(1422, 852);
+            this.ClientSize = new System.Drawing.Size(1283, 821);
             this.Controls.Add(this.flyleafPlayer1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "FrmMain";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Load += new System.EventHandler(this.FrmMain_Load);
             this.ResumeLayout(false);
 
         }
