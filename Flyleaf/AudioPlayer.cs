@@ -84,23 +84,25 @@ namespace SuRGeoNix.Flyleaf
         // Public Exposure
         public void SetVolume(int volume)
         {
-            try
+            lock (locker)
             {
-                deviceVol = device.AudioEndpointVolume;
-
-                float volumef = volume / 100f;
-                float master = deviceVol.MasterVolumeLevelScalar;
-                if (volumef > master)
+                try
                 {
-                    device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
-                    deviceVol.MasterVolumeLevelScalar = volumef;
-                    player.Volume = volumef / deviceVol.MasterVolumeLevelScalar;
-                    device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
-                }
-                else
-                    player.Volume = volumef / deviceVol.MasterVolumeLevelScalar;
-            } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
-            
+                    deviceVol = device.AudioEndpointVolume;
+
+                    float volumef = volume / 100f;
+                    float master = deviceVol.MasterVolumeLevelScalar;
+                    if (volumef > master)
+                    {
+                        device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
+                        deviceVol.MasterVolumeLevelScalar = volumef;
+                        player.Volume = volumef / deviceVol.MasterVolumeLevelScalar;
+                        device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
+                    }
+                    else
+                        player.Volume = volumef / deviceVol.MasterVolumeLevelScalar;
+                } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
+            }
         }
         public void Play()
         {
@@ -149,19 +151,25 @@ namespace SuRGeoNix.Flyleaf
         // Helpers
         private bool GetSetMute(bool Get = true, bool mute = false)
         {
-            for (int i = 0; i < deviceInit.AudioSessionManager.Sessions.Count; i++)
+            lock (locker)
             {
-                AudioSessionControl session = deviceInit.AudioSessionManager.Sessions[i];
-                if (processId == session.GetProcessID)
+                try
                 {
-                    deviceVol = device.AudioEndpointVolume;
+                    for (int i = 0; i < deviceInit.AudioSessionManager.Sessions.Count; i++)
+                    {
+                        AudioSessionControl session = deviceInit.AudioSessionManager.Sessions[i];
+                        if (processId == session.GetProcessID)
+                        {
+                            deviceVol = device.AudioEndpointVolume;
 
-                    if (Get) return (session.SimpleAudioVolume.Mute | deviceVol.Mute);
-                    session.SimpleAudioVolume.Mute = mute;
-                    if (deviceVol.Mute) deviceVol.Mute = false;
+                            if (Get) return (session.SimpleAudioVolume.Mute | deviceVol.Mute);
+                            session.SimpleAudioVolume.Mute = mute;
+                            if (deviceVol.Mute) deviceVol.Mute = false;
 
-                    break;
-                }
+                            break;
+                        }
+                    }
+                } catch (Exception) { }                
             }
 
             return false;

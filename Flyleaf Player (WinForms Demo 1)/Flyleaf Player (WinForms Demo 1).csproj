@@ -53,6 +53,7 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>true</Prefer32Bit>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
@@ -75,6 +76,9 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>FrmMain.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -111,6 +115,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <None Include="App.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -122,13 +127,39 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\Flyleaf\Flyleaf.csproj">
       <Project>{906b7129-e37e-4d82-a927-87fb20e658f2}</Project>
       <Name>Flyleaf</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="FrmMain.ico" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>if $(ConfigurationName) == Release (
+if $(PlatformName) == AnyCPU (
+  xcopy "$(SolutionDir)"Libs\* "$(TargetDir)"\Libs\  /E /Y
+)
+if $(PlatformName) == x86 (
+  xcopy "$(SolutionDir)"Libs\x86\* "$(TargetDir)"\Libs\x86\  /E /Y
+)
+if $(PlatformName) == x64 (
+  xcopy "$(SolutionDir)"Libs\x64\* "$(TargetDir)"\Libs\x64\  /E /Y
+)
+
+cd "$(TargetDir)"
+del *.xml
+del *.pdb
+move *.dll Libs
+del Flyleaf.dll.config
+rename FlyleafPlayer.exe Flyleaf.exe
+rename FlyleafPlayer.exe.config Flyleaf.exe.config
+)</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>if $(ConfigurationName) == Release (
+  del /S /F /Q "$(TargetDir)"
+)</PreBuildEvent>
+  </PropertyGroup>
 </Project>
