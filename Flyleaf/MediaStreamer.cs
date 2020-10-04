@@ -70,6 +70,8 @@ namespace SuRGeoNix.Flyleaf
 
             decoder                     = new MediaDecoder(null, verbosity);
             decoder.HWAccel             = false;
+            decoder.doSubs              = false;
+            decoder.Threads             = 1; // Doesnt do any decoding actually
             decoder.BufferingDone       = BufferingDone;
         }
         private void Initialize()
@@ -228,7 +230,6 @@ namespace SuRGeoNix.Flyleaf
                 if ( !torrent.data.files[fileIndex].FileCreated && !tsStream.isRunning ) tsStream.Start();
                 // Decoder - Opening Format Contexts (cancellation?) -> DecoderRequests Feed with null?
                 Log($"[BB OPENING 1]");
-                decoder.Threads = player.decoder.Threads + 2; // TODO: Dynamic
                 int ret = decoder.Open(null, DecoderRequestsBuffer, fileSize);
                 return ret;
             }
@@ -248,7 +249,7 @@ namespace SuRGeoNix.Flyleaf
                 else if (mType  == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
                     sDone = true;
 
-                if (vDone && (!decoder.hasAudio || aDone) && (!decoder.hasSubs || IsSubsExternal || sDone))
+                if (vDone && (!decoder.hasAudio || !decoder.doAudio || aDone) && (!decoder.hasSubs || !decoder.doSubs || IsSubsExternal || sDone))
                 {
                     Log($"[BUFFER] Done");
                     status = Status.BUFFERED;
@@ -270,7 +271,7 @@ namespace SuRGeoNix.Flyleaf
 
             Utils.EnsureThreadDone(sDecoder);
                 
-            if ( decoder.hasSubs )
+            if ( decoder.hasSubs && decoder.doSubs)
             {
                 sDecoder = new Thread(() =>
                 {
@@ -287,7 +288,7 @@ namespace SuRGeoNix.Flyleaf
         {
             if ( streamType == StreamType.TORRENT && torrent != null && torrent.data.files[fileIndex].FileCreated ) { decoder.BufferingAudioDone?.BeginInvoke(null, null); return; }
 
-            if ( !decoder.isReady || !decoder.hasAudio) return;
+            if ( !decoder.isReady || !decoder.hasAudio || !decoder.hasAudio) return;
 
             Utils.EnsureThreadDone(aDecoder);
                 
@@ -348,7 +349,7 @@ namespace SuRGeoNix.Flyleaf
             vDecoder.SetApartmentState(ApartmentState.STA);
             vDecoder.Start();
 
-            if (decoder.hasAudio)
+            if (decoder.hasAudio && decoder.doAudio)
             {
                 aDecoder = new Thread(() =>
                 {
@@ -361,7 +362,7 @@ namespace SuRGeoNix.Flyleaf
                 aDecoder.Start();
             }
             
-            if ( decoder.hasSubs && !IsSubsExternal)
+            if ( decoder.hasSubs && decoder.doSubs && !IsSubsExternal)
             {
                 sDecoder = new Thread(() =>
                 {
@@ -378,8 +379,6 @@ namespace SuRGeoNix.Flyleaf
         // External Decoder        | (FFmpeg AVIO)
         public byte[] DecoderRequests(long pos, int len, AVMediaType mType)
         {
-            //Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}] {isAudio}");
-
             byte[] data = null;
             if ( streamType == StreamType.FILE )
             {
@@ -439,7 +438,7 @@ namespace SuRGeoNix.Flyleaf
                     while ( torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) != -1 )
                         Thread.Sleep(20);
 
-                    //Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {isAudio}");
+                    //Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
 
                     data = torrent.data.files[fileIndex].Read(pos, len);
 

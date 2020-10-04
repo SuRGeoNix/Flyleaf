@@ -55,7 +55,7 @@ namespace SuRGeoNix.Flyleaf
 
         // Contexts             [Audio]     [Video]     [Subs]      [Audio/Video]       [Subs/Video]
         AVFormatContext*        aFmtCtx,    vFmtCtx,    sFmtCtx;
-        AVIOContext*            aIOCtx,     vIOCtx;//,     sIOCtx;
+        AVIOContext*            aIOCtx,     vIOCtx,     sIOCtx;
         AVStream*               aStream,    vStream,    sStream;
         AVCodecContext*         aCodecCtx,  vCodecCtx,  sCodecCtx;
         AVCodec*                aCodec,     vCodec,     sCodec;
@@ -87,7 +87,7 @@ namespace SuRGeoNix.Flyleaf
         public Action                       BufferingAudioDone;
         public Action                       BufferingSubsDone;
 
-        private long                        aCurPos, vCurPos;//, sCurPos;
+        private long                        aCurPos, vCurPos, sCurPos;
         List<object>                        gcPrevent       = new List<object>();
         private const int                   IOBufferSize    = 0x40000;
 
@@ -238,9 +238,9 @@ namespace SuRGeoNix.Flyleaf
         {
             int streamIndex     = -1;
 
-            if      (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)   { streamIndex = av_find_best_stream(aFmtCtx, mType, -1, -1, null, 0); }
+            if      (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)   { streamIndex = av_find_best_stream(aFmtCtx, mType, -1, vStream->index, null, 0); }
             else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)   { streamIndex = av_find_best_stream(vFmtCtx, mType, -1, -1, null, 0); }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE){ streamIndex = av_find_best_stream(sFmtCtx, mType, -1, -1, null, 0); }
+            else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE){ streamIndex = av_find_best_stream(sFmtCtx, mType, -1, vStream->index, null, 0); }
 
             if (streamIndex < 0) return streamIndex;
 
@@ -288,6 +288,8 @@ namespace SuRGeoNix.Flyleaf
         }
         private int SetupHQAndHWAcceleration()
         {
+            // TODO: Check if D3D11Device actually supports the codec (eg. vp9 is not supported by mine rx 580 - and it will fail after it starts)
+
             // For SWS
             vSwsOptFlags    = HighQuality ? _SCALING_HQ : _SCALING_LQ;
 
@@ -329,7 +331,7 @@ namespace SuRGeoNix.Flyleaf
                         AVD3D11VADeviceContext* hw_d3d11_dev_ctx = (AVD3D11VADeviceContext*)hw_device_ctx3->hwctx;
                         avD3D11Device = Device.FromPointer<Device>((IntPtr) hw_d3d11_dev_ctx->device);
                     }
-
+                    
                     // Hardware Textures
                     textDescNV12 = new Texture2DDescription()
                     {
@@ -794,21 +796,21 @@ namespace SuRGeoNix.Flyleaf
                 if (ms < 0) ms = 0;
             
                 long calcTimestamp =(long) ms * 10000;
-                Status oldStatus;
+
+                if (calcTimestamp > vStreamInfo.durationTicks) return 0;
+                if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
             
+                Status oldStatus;
+
                 switch (mType)
                 {
                     case AVMediaType.AVMEDIA_TYPE_AUDIO:
                         oldStatus = aStatus;
 
-                        if (calcTimestamp > vStreamInfo.durationTicks) { aStatus = oldStatus; break; }
-                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
-
                         if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(30); }
                         aStatus = Status.SEEKING;
 
-                        ret = avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
+                        ret = avformat_seek_file(aFmtCtx, -1, Int64.MinValue, calcTimestamp / 10 , calcTimestamp / 10, AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
                         avcodec_flush_buffers(aCodecCtx);
 
                         aStatus = oldStatus;
@@ -816,9 +818,6 @@ namespace SuRGeoNix.Flyleaf
 
                     case AVMediaType.AVMEDIA_TYPE_VIDEO:
                         oldStatus = vStatus;
-                    
-                        if (calcTimestamp > vStreamInfo.durationTicks ) { vStatus = oldStatus; break; }
-                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000; // Because of rationals
                         calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
                     
                         if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(30); }
@@ -832,11 +831,13 @@ namespace SuRGeoNix.Flyleaf
                         break;
 
                     case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                        // TODO: For embeded Subtitles probably still going through the whole file
                         oldStatus = sStatus;
-                        sStatus = Status.SEEKING;
-                        ret = avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, AVSEEK_FLAG_BACKWARD);
 
+                        if (sDecoder != null && sDecoder.IsAlive) { sDecoder.Abort(); Thread.Sleep(30); }
+                        sStatus = Status.SEEKING;
+
+                        //ret = avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, AVSEEK_FLAG_BACKWARD);
+                        ret = avformat_seek_file(sFmtCtx, -1, Int64.MinValue, calcTimestamp / 10 , calcTimestamp / 10, AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
                         avcodec_flush_buffers(sCodecCtx);
 
                         sStatus = oldStatus;
@@ -862,7 +863,6 @@ namespace SuRGeoNix.Flyleaf
             try { 
                 if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)
                 {
-
                     while (vStatus == Status.SEEKING && (ret = av_read_frame(vFmtCtx, avpacket)) == 0)
                     {
                         if (curPts > endTimestamp) return -1;
@@ -936,24 +936,22 @@ namespace SuRGeoNix.Flyleaf
 
                 if (ms < 0) ms = 0;
                 long calcTimestamp =(long) ms * 10000;
+                if (calcTimestamp > vStreamInfo.durationTicks) return 0;
+                if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
 
                 switch (mType)
                 {
                     case AVMediaType.AVMEDIA_TYPE_AUDIO:
-                        if (calcTimestamp > vStreamInfo.durationTicks ) break;
-                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
 
                         if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(30); }
 
-                        ret = avformat_seek_file(aFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, AVSEEK_FLAG_ANY);
+                        ret = avformat_seek_file(aFmtCtx, -1, Int64.MinValue, calcTimestamp / 10 , calcTimestamp / 10, AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
                         avcodec_flush_buffers(aCodecCtx);
-                    
+
                         break;
 
                     case AVMediaType.AVMEDIA_TYPE_VIDEO:
-                        if (calcTimestamp > vStreamInfo.durationTicks ) break;
-                        if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
+
                         calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
                     
                         if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(30); }
@@ -963,11 +961,15 @@ namespace SuRGeoNix.Flyleaf
 
                         break;
 
-                    case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                        ret = avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, AVSEEK_FLAG_BACKWARD);
-                        avcodec_flush_buffers(sCodecCtx);
+                    //case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
 
-                        break;
+                    //    if (sDecoder != null && sDecoder.IsAlive) { sDecoder.Abort(); Thread.Sleep(30); }
+
+                    //    //ret = avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, AVSEEK_FLAG_BACKWARD);
+                    //    ret = avformat_seek_file(sFmtCtx, -1, Int64.MinValue, calcTimestamp / 10 , calcTimestamp / 10, AVSEEK_FLAG_ANY);
+                    //    avcodec_flush_buffers(sCodecCtx);
+
+                    //    break;
                 }
 
                 Log($"[SEEK] End {mType.ToString()} ms -> {ms}");
@@ -1025,30 +1027,30 @@ namespace SuRGeoNix.Flyleaf
                         av_packet_unref(avpacket);
                     }
                 }
-                else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
-                {
-                    bool was = isSubsExternal;
+                //else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
+                //{
+                //    bool was = isSubsExternal;
 
-                    while (sStatus == Status.RUNNING && (ret = av_read_frame(sFmtCtx, avpacket)) == 0)
-                    {
-                        if (was != isSubsExternal) break; // No reason to run
+                //    while (sStatus == Status.RUNNING && (ret = av_read_frame(sFmtCtx, avpacket)) == 0)
+                //    {
+                //        if (was != isSubsExternal) break; // No reason to run
 
-                        if (!informed && avpacket->stream_index == sStream->index && endTimestamp < avpacket->dts * sTimbebaseLowTicks) 
-                        { 
-                            Log($"[SBUFFER] to -> {(avpacket->dts * sTimbebaseLowTicks) / 10000} ms");
+                //        if (!informed && avpacket->stream_index == sStream->index && endTimestamp < avpacket->dts * sTimbebaseLowTicks) 
+                //        { 
+                //            Log($"[SBUFFER] to -> {(avpacket->dts * sTimbebaseLowTicks) / 10000} ms");
 
-                            if (single)
-                                BufferingSubsDone?.BeginInvoke(null, null); 
-                            else
-                                BufferingDone?.BeginInvoke(AVMediaType.AVMEDIA_TYPE_SUBTITLE, null, null);
+                //            if (single)
+                //                BufferingSubsDone?.BeginInvoke(null, null); 
+                //            else
+                //                BufferingDone?.BeginInvoke(AVMediaType.AVMEDIA_TYPE_SUBTITLE, null, null);
 
-                            informed = true;
-                        }
+                //            informed = true;
+                //        }
 
-                        if ( informed ) Thread.Sleep(10);
-                        av_packet_unref(avpacket);
-                    }
-                }
+                //        if ( informed ) Thread.Sleep(500);
+                //        av_packet_unref(avpacket);
+                //    }
+                //}
 
                 av_packet_unref(avpacket);
                 
@@ -1082,7 +1084,7 @@ namespace SuRGeoNix.Flyleaf
         {   
             aCurPos = 0;
             vCurPos = 0;
-            //sCurPos = 0;
+            sCurPos = 0;
             gcPrevent.Clear();
 
             avio_alloc_context_read_packet aIOReadPacket = (opaque, buffer, bufferSize) =>
@@ -1090,7 +1092,7 @@ namespace SuRGeoNix.Flyleaf
                 try
                 {
                     int bytesRead   = aCurPos + bufferSize > totalSize ? (int) (totalSize - aCurPos) : bufferSize;
-                    byte[] data     = ReadPacketClbk(aCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_VIDEO);
+                    byte[] data     = ReadPacketClbk(aCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_AUDIO);
                     if (data == null || data.Length < bytesRead) { Log($"[CASE 001] A Empty Data"); return -1; }
 
                     Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
@@ -1191,40 +1193,42 @@ namespace SuRGeoNix.Flyleaf
             gcPrevent.Add(vIOReadPacket);
             gcPrevent.Add(vIOSeek);
 
-            #region Embedded Subtitles Currently Disabled
-            /* 
+            #region Embedded Subtitles Re-Enabled [Possible causing issues on torrent streaming]
+            
             avio_alloc_context_read_packet sIOReadPacket = (opaque, buffer, bufferSize) =>
             {
-                int bytesRead = bufferSize;
-
-                if (sCurPos + bufferSize > totalSize)
-                    bytesRead = (int) (totalSize - sCurPos);
-
                 try
                 {
-                    byte[] data = ReadPacketClbk(sCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                    if (data == null || data.Length < bytesRead) { Log($"[CASE 001] Empty Data"); return 0; }
+                    int bytesRead   = sCurPos + bufferSize > totalSize ? (int) (totalSize - sCurPos) : bufferSize;
+                    byte[] data     = ReadPacketClbk(sCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
+                    if (data == null || data.Length < bytesRead) { Log($"[CASE 001] S Empty Data"); return -1; }
+
                     Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
                     sCurPos += bytesRead;
-                } catch (ThreadAbortException t)
-                {
-                    Log($"[CASE 001] Killed Empty Data"); 
-                    bytesRead = 0;
-                    throw t;
-                }
-                
-                return bytesRead;
+
+                    return bytesRead;
+                } 
+                catch (ThreadAbortException t) { Log($"[CASE 001] S Killed Empty Data"); throw t; }
+                catch (Exception e) { Log("[CASE 001] S " + e.Message + "\r\n" + e.StackTrace); return -1; }
             };
             avio_alloc_context_seek sIOSeek = (opaque, offset, wehnce) =>
             {
-                if ( wehnce == AVSEEK_SIZE )
-                    return totalSize;
-                else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
-                    sCurPos = offset;
-                else
-                    sCurPos += offset;
+                try
+                {
+                    if ( wehnce == AVSEEK_SIZE )
+                        return totalSize;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
+                        sCurPos = offset;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.Current )
+                        sCurPos += offset;
+                    else if ( (SeekOrigin) wehnce == SeekOrigin.End )
+                        sCurPos = totalSize - offset;
+                    else
+                        sCurPos = -1;
 
-                return sCurPos;
+                    return sCurPos;
+                }
+                catch (ThreadAbortException t) { Log($"[CASE 001] S Seek Killed"); throw t; }
             };
 
             avio_alloc_context_read_packet_func sioread = new avio_alloc_context_read_packet_func();
@@ -1242,11 +1246,9 @@ namespace SuRGeoNix.Flyleaf
             gcPrevent.Add(sIOSeek);
             gcPrevent.Add(sioread);
             gcPrevent.Add(sioseek);
-
-            */
             #endregion
         }
-        public int  Open(string url, Func<long, int, AVMediaType, byte[]> ReadPacketClbk = null, long totalSize = 0)
+        public int  Open(string url, Func<long, int, AVMediaType, byte[]> ReadPacketClbk = null, long totalSize = 0, string aUrl = "", string sUrl = "")
         {
             int ret;
 
@@ -1281,7 +1283,7 @@ namespace SuRGeoNix.Flyleaf
                 if (doAudio)
                 {
                     fmtCtxPtr = aFmtCtx;
-                    ret = avformat_open_input(&fmtCtxPtr, url, null, null);
+                    ret = avformat_open_input(&fmtCtxPtr, aUrl != "" ? aUrl : url, null, null);
                     if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); aFmtCtx = null; return ret; }
                 }
                 
@@ -1312,18 +1314,18 @@ namespace SuRGeoNix.Flyleaf
                     status = Status.STOPPED;
                     ret = -2;
                     Log("Error[" + ret.ToString("D4") + "], Msg: Opening was canceled, Status -> " + status.ToString());
-                    return ret; 
+                    return ret;
                 }
 
-                if ( url != null )
-                {
+                //if ( url != null )
+                //{
                     if (doSubs)
                     {
                         fmtCtxPtr = sFmtCtx;
-                        ret     = avformat_open_input(&fmtCtxPtr, url, null, null);
+                        ret     = avformat_open_input(&fmtCtxPtr, sUrl != "" ? sUrl : url, null, null);
                         if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); sFmtCtx = null; return ret; }
                     }
-                }
+                //}
 
                 if ( status != Status.OPENING )
                 {
@@ -1349,14 +1351,14 @@ namespace SuRGeoNix.Flyleaf
                     if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
                 }
 
-                if ( url != null) // TEMPORARY DISABLE SUBS
-                {
+                //if ( url != null) // TEMPORARY DISABLE SUBS
+                //{
                     if (doSubs)
                     {
                         ret = avformat_find_stream_info(sFmtCtx, null);
                         if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
                     }
-                }
+                //}
 
                 if ( status != Status.OPENING )
                 {
@@ -1382,28 +1384,28 @@ namespace SuRGeoNix.Flyleaf
                     if (ret < 0 && ret != AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); hasAudio = false; }
                 }
 
-                if ( url != null) // TEMPORARY DISABLE SUBS
-                {
+                //if ( url != null) // TEMPORARY DISABLE SUBS
+                //{
                     if (doSubs)
                     {
                         ret = SetupStream(AVMediaType.AVMEDIA_TYPE_SUBTITLE);
                         if (ret < 0 && ret != AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
                     }
-                }
+                //}
                 
                 if (!hasVideo) { Log("Error[" + (-1).ToString("D4") + "], Msg: No Video stream found"); return -1; }
-                
+
                 if (hasAudio)
                     for (int i = 0; i < aFmtCtx->nb_streams; i++)
                         if (i != aStream->index && i != vStream->index) aFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
-                    
+
                 if (hasVideo)
                     for (int i = 0; i < vFmtCtx->nb_streams; i++)
                         if (i != vStream->index) vFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
 
                 if (hasSubs)
                     for (int i = 0; i < sFmtCtx->nb_streams; i++)
-                        if (i != sStream->index) sFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                        if (i != sStream->index && i != vStream->index) sFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
                 
 
                 if ( status != Status.OPENING )
