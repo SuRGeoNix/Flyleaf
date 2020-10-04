@@ -199,8 +199,20 @@ namespace SuRGeoNix.Flyleaf
                 SwapEffect          = SwapEffect.Discard,
                 Usage               = Usage.RenderTargetOutput
             };
-            Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.Debug | DeviceCreationFlags.BgraSupport, desc, out device, out swapChain);
-            
+
+            /* [Enable Debug Layer]
+             * 
+             * https://docs.microsoft.com/en-us/windows/win32/direct3d11/using-the-debug-layer-to-test-apps
+             * To use this flag, you must have D3D11*SDKLayers.dll installed; otherwise, device creation fails. To get D3D11_1SDKLayers.dll, install the SDK for Windows 8.
+             */
+
+            // Enable on-demand to avoid "Failed to create device issue"
+            //#if DEBUG
+            //    Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.Debug | DeviceCreationFlags.BgraSupport, desc, out device, out swapChain);
+            //#else
+                Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.BgraSupport, desc, out device, out swapChain);
+            //#endif
+
             var factory     = swapChain.GetParent<FactoryDX>();
             factory.MakeWindowAssociation(HookHandle, WindowAssociationFlags.IgnoreAll);
             

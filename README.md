@@ -1,4 +1,4 @@
-# Media Player Application, Library & Control (for WinForms / WPF)
+# Media Player & Torrent Streamer Application [Open Library & Control for WinForms / WPF]
 <br/>
 
 ## Flyleaf Application
@@ -12,7 +12,8 @@ You open any video/subtitles file, url/link or torrent by Drag & Drop. It provid
 
 | Keys                  | Action                     |
 | :-------------:       |:-------------:             |
-| Drag & Drop           | Open                       |
+| O / Drag & Drop       | Open                       |
+| Ctrl + V / Paste      | Open                       |
 | P / Space             | Pause / Play               |
 | Left / Right Arrows   | Seeking                    |
 | A                     | Enable / Disable Audio     |
@@ -86,11 +87,11 @@ Exposes the whole library's functionality with an easy way to the front-end. Col
 
 ## Requirements
 
-The whole implementation is targeting and should be able to run on any Windows Platform (DirectX) and .NET Framework. However it's not tested enough yet and you might some issues with the UserControl for WPF (issues with ParentForm and Handles).
+The whole implementation is targeting and should be able to run on any Windows Platform (DirectX) and .NET Framework. However it's not tested enough yet and you might have some issues with the UserControl for WPF (issues with ParentForm and Handles).
 
 FFmpeg libraries (Windows builds) are required and should be placed under Libs\\\<platform>\\FFmpeg directory - where \<platform> = x86 or x64 - from the current application's (.exe) directory (or any below it, check MediaDecoder.cs -> RegisterFFmpegBinaries() for more details).
 
-It seems there is a bug with System.Buffers assemblies therefore it is required for TorSwarm (Torrent Streaming) to add the below bindings (App.Config) to your application (such ass this <a href="https://github.com/SuRGeoNix/Flyleaf/blob/master/Flyleaf%20Player%20(WinForms%20Demo%201)/App.config">one</a>)
+It seems there is a bug with System.Buffers assemblies therefore it is required for TorSwarm (Torrent Streaming) to add the below bindings (App.Config) to your application (such as this <a href="https://github.com/SuRGeoNix/Flyleaf/blob/master/Flyleaf%20Player%20(WinForms%20Demo%201)/App.config">one</a>)
 
 Ensure that you use Restore NuGet Packages to retrieve all the rest required libraries.
 
@@ -107,6 +108,33 @@ Ensure that you use Restore NuGet Packages to retrieve all the rest required lib
 * Added functionality to discard Audio / Subtitles streams (can be enabled back on-demand - keys A, S)
 * Finally, implementing UserControl that take advantage of the library and exposes it's functionality (Multi-Players supported as well)
 * 4K runs smoothly now!
+
+>__Known Issues & Missing Functionality (Draft List)__
+
+<u>Application</u>
+
+* Floating menu, additional pop-form required for loading/changing/saving settings/configuration
+* Current list for torrent files will not show folders/sizes etc. requires more work
+* Subtitles button to enable/disable (even embedded) add custom subs (also plugin for opensubtitles) [default languages/priorities]
+	
+<u>UserControl</u>
+
+* It cannot work as a "HookForm" on WPF so all embedded functionality that communicates with parent form will not work
+* Allow to add new osd surfaces and more custom messages (different control such as label for easier use?)
+* Review windows font -> sharpdx font (mainly for fontweight - bold)
+* Fallback to common font family (arial) in case of error (avoid possible crashing issues)
+	
+<u>Library</u>
+
+* High Resulotion (>1080p) requires more testing (should check decoder's threads/flags, router's queues and thread sleep after device context flush)
+* Renderer, review post-process with more pixel shaders formats (is videoprocessorblt faster than pixelshaders? is it the same?)
+* Streaming requires reviewing for both ffmpeg's and torswarm's configuration (timing parameters) and thread aborting
+* Torrent streaming requires seeding & more protocols support (utp, hole-punching) also more efficient buffering
+* Subtitles when external delay forces to go back will not auto-restart
+* Audio player / Decoder requires more work to play other than 2 channels/48Khz (expose also to settings)
+* Audio player for multi-players should be able to have different volume on each instance (review mute implementation as well)
+* Decoder should check for possible more subs/audio language streams and let the UI decide
+
 
 #### v1.2.6 and below <a href="https://github.com/SuRGeoNix/Flyleaf/tree/release-v1.2.6">here</a>
 
