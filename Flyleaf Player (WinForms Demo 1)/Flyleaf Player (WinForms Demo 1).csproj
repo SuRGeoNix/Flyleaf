@@ -137,7 +137,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>if $(ConfigurationName) == Release (
+    <PostBuildEvent>xcopy "$(SolutionDir)"Libs\youtube-dl.exe "$(TargetDir)"\Libs\ /Y
+
+if $(ConfigurationName) == Release (
 if $(PlatformName) == AnyCPU (
   xcopy "$(SolutionDir)"Libs\* "$(TargetDir)"\Libs\  /E /Y
 )
