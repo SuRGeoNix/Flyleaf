@@ -531,7 +531,8 @@ namespace SuRGeoNix.Flyleaf
             {
                 ret = avcodec_receive_frame(codecCtx, avframe);
 
-                if (avpacket == null && ret == 0) Log(codecCtx->codec_type.ToString() + " - Warning[" + ret.ToString("D4") + "], Msg: drain packet, PTS: <null>");
+                //if (avpacket == null && ret == 0) Log(codecCtx->codec_type.ToString() + " - Warning[" + ret.ToString("D4") + "], Msg: drain packet, PTS: <null>");
+                if (avpacket == null) if (ret != 0) return ret; else Log(codecCtx->codec_type.ToString() + " - Warning[" + ret.ToString("D4") + "], Msg: drain packet, PTS: <null>");
                 if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) return 0;
                 if (ret < 0) { Log(codecCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", PTS: " + avpacket->pts); return ret; }
                 if (avframe->repeat_pict == 1) Log("Warning, Repeated Frame -> " + avframe->best_effort_timestamp.ToString());
