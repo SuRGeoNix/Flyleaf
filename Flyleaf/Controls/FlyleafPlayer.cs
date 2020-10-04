@@ -702,6 +702,12 @@ namespace SuRGeoNix.Flyleaf.Controls
                         player.SubsFontSize -= config.keys.SubsFontSizeStep;
                         
                         break;
+
+                    case Keys.V:
+                        string paste = Clipboard.GetText();
+                        Open(paste);
+
+                        break;
                 }
 
                 return;
@@ -841,6 +847,13 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 player.doAudio = !player.doAudio;
             }
+            else if (c == KeyCodeToUnicode(Keys.O))
+            {
+                OpenFileDialog ofd = new OpenFileDialog();
+                ofd.ShowDialog();
+                Open(ofd.FileName);
+            }
+
             else if ((Keys)c == Keys.Escape)
             {
                 if (config.EmbeddedList) if (lstMediaFiles.Visible) FixLstMedia(false); else FixLstMedia(true);
