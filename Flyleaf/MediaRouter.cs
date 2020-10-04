@@ -3,6 +3,7 @@ using System.Threading;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 using static SuRGeoNix.Flyleaf.MediaDecoder;
 using static SuRGeoNix.Flyleaf.OSDMessage;
@@ -490,7 +491,7 @@ namespace SuRGeoNix.Flyleaf
                 
                 if ( distanceMs < offDistanceMsBackwards || distanceMs > offDistanceMsForewards )
                 {
-                    Log($"[AUDIO SCREAMER] Sample Drop   [CurTS: {aFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {aFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
+                    Log($"[AUDIO SCREAMER] Sample Drop   [CurTS: {aFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {(aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks)}]");
                     offDistanceCounter ++;
                     continue;
                 }
@@ -682,8 +683,8 @@ namespace SuRGeoNix.Flyleaf
                 status = Status.OPENING;
 
                 int ret;
-                string ext      = url.Substring(url.LastIndexOf(".") + 1);
-                string scheme   = url.Substring(0, url.IndexOf(":"));
+                string ext      = url.LastIndexOf(".")  > 0 ? url.Substring(url.LastIndexOf(".") + 1) : "";
+                string scheme   = url.IndexOf(":")      > 0 ? url.Substring(0, url.IndexOf(":")) : "";
 
                 if (ext.ToLower() == "torrent" || scheme.ToLower() == "magnet")
                 {
@@ -716,7 +717,48 @@ namespace SuRGeoNix.Flyleaf
                     isTorrent = false;
                     openOrBuffer = new Thread(() =>
                     {
-                        decoder.Open(url);
+                        // Youtube Streaming URLs (youtube-dl)
+                        // TODO: Subtitles | List formats (-f <code>)
+                        if ( (scheme.ToLower() == "http" || scheme.ToLower() == "https") && (new Uri(url)).Host.ToLower() == "www.youtube.com" || ((new Uri(url)).Host.ToLower() == "youtube.com") )
+                        {
+                            Process proc = new Process 
+                            {
+                                StartInfo = new ProcessStartInfo
+                                {
+                                    FileName = "youtube-dl.exe",
+                                    Arguments = "-g " + url,
+                                    UseShellExecute = false,
+                                    RedirectStandardOutput = true,
+                                    //RedirectStandardError = true,
+                                    WindowStyle = ProcessWindowStyle.Hidden,
+                                    CreateNoWindow = true
+                                }
+                            };
+                            proc.Start();
+
+                            string aUrl = "", vUrl = "", sUrl = "";
+                            while (!proc.StandardOutput.EndOfStream)
+                            {
+                                string line = proc.StandardOutput.ReadLine();
+
+                                if ( Regex.IsMatch(line, @"mime=audio") )
+                                    aUrl = line;
+                                else if ( Regex.IsMatch(line, @"mime=video") )
+                                    vUrl = line;
+                                /*
+                                else if ( Regex.IsMatch(line, @"mime=sub") )
+                                    sUrl = line;
+                                else
+                                    return;*/
+                            }
+                            
+                            decoder.Open(vUrl, null, 0, aUrl, sUrl);
+                        }
+                        else
+                        {
+                            decoder.Open(url);
+                        }
+                        
                         if (!decoder.isReady) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, url, null, null); return; }
                         renderer.NewMessage(OSDMessage.Type.Open, $"Opened");
                         renderer.NewMessage(OSDMessage.Type.HardwareAcceleration);
@@ -787,7 +829,7 @@ namespace SuRGeoNix.Flyleaf
 
                 if (vFrames.Count < 1)
                     lock(decoder) decoder.SeekAccurate((int) (CurTime/10000), FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
-                if (vFrames.Count < 1) return;
+                if (vFrames.Count < 1) { status = Status.STOPPED; return; }
                 
                 MediaFrame vFrame;
                 lock (vFrames) vFrames.TryPeek(out vFrame);
@@ -860,6 +902,7 @@ namespace SuRGeoNix.Flyleaf
                 }
 
                 if ((vScreamer != null && vScreamer.IsAlive) || (aScreamer != null && aScreamer.IsAlive) || (sScreamer != null && sScreamer.IsAlive)) return;
+                videoClock.Restart(); // Required here before Audio/Subs start with wrong clock
                 vScreamer.Start();
                 if (hasAudio && doAudio) aScreamer.Start();
                 if (hasSubs && doSubs ) sScreamer.Start();
