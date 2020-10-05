@@ -104,6 +104,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="FrmMain.resx">
       <DependentUpon>FrmMain.cs</DependentUpon>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -137,7 +138,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(SolutionDir)"Libs\youtube-dl.exe "$(TargetDir)"\Libs\ /Y
+    <PostBuildEvent>xcopy "$(SolutionDir)"Flyleaf\Plugins\* "$(TargetDir)"\Plugins\ /E /Y
 
 if $(ConfigurationName) == Release (
 if $(PlatformName) == AnyCPU (

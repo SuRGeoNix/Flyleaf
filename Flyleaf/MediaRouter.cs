@@ -7,13 +7,15 @@ using System.Text.RegularExpressions;
 
 using static SuRGeoNix.Flyleaf.MediaDecoder;
 using static SuRGeoNix.Flyleaf.OSDMessage;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Security;
 
 namespace SuRGeoNix.Flyleaf
 {
     public class MediaRouter
     {
         #region Declaration
-
         public AudioPlayer      audioPlayer;
         public MediaDecoder     decoder;
         public MediaRenderer    renderer;
@@ -172,11 +174,24 @@ namespace SuRGeoNix.Flyleaf
         }
         public int  SubsPosition     { get { return renderer.SubsPosition;       }   set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
         public float SubsFontSize   { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; renderer?.NewMessage(OSDMessage.Type.SubsFontSize); } }
+
+        public Dictionary<string, string> PluginsList { get; private set; } = new Dictionary<string, string>();
+        public List<string> Plugins { get; private set; } = new List<string>();
         #endregion
 
         #region Initialization
+        private void LoadPlugins()
+        {
+            PluginsList.Add("Torrent Streaming", "Plugins\\TorSwarm\\TorSwarm.dll");
+            PluginsList.Add("Web Streaming", "Plugins\\Youtube-dl\\youtube-dl.exe");
+
+            foreach (KeyValuePair<string, string> plugin in PluginsList)
+                if (File.Exists(plugin.Value)) Plugins.Add(plugin.Key);
+        }
         public MediaRouter(int verbosity = 0)
         {
+            LoadPlugins();
+
             this.verbosity = verbosity;
             renderer    = new MediaRenderer(this);
             
@@ -197,14 +212,15 @@ namespace SuRGeoNix.Flyleaf
                 decoder.Init(GetFrame, verbosity);
                 decoder.d3d11Device = renderer.device;
                 streamer    = new MediaStreamer(this, verbosity);
-                SuRGeoNix.Utils.TimeBeginPeriod(1);
+                TimeBeginPeriod(1);
             }
 
             Initialize();
         }
         public MediaRouter(IntPtr handle, int verbosity = 0)
         {
-            SuRGeoNix.Utils.TimeBeginPeriod(1);
+            LoadPlugins();
+            TimeBeginPeriod(1);
 
             this.verbosity = verbosity;
             renderer    = new MediaRenderer(this, handle);
@@ -234,7 +250,7 @@ namespace SuRGeoNix.Flyleaf
             renderer.ClearMessages();
             seekStack.Clear();
 
-            if (streamer != null)
+            if (Plugins.Contains("Torrent Streaming") && streamer != null)
             {
                 streamer.BufferingDoneClbk      = BufferingDone;
                 streamer.BufferingAudioDoneClbk = BufferingAudioDone;
@@ -688,7 +704,7 @@ namespace SuRGeoNix.Flyleaf
 
                 if (ext.ToLower() == "torrent" || scheme.ToLower() == "magnet")
                 {
-                    if (MediaFilesClbk == null) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed: Torrents are disabled"); status = Status.FAILED; OpenTorrentSuccessClbk?.BeginInvoke(false, null, null); return; }
+                    if (MediaFilesClbk == null || !Plugins.Contains("Torrent Streaming")) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed: Torrents are disabled"); status = Status.FAILED; OpenTorrentSuccessClbk?.BeginInvoke(false, null, null); return; }
 
                     isTorrent = true;
                     openOrBuffer = new Thread(() =>
@@ -717,9 +733,9 @@ namespace SuRGeoNix.Flyleaf
                     isTorrent = false;
                     openOrBuffer = new Thread(() =>
                     {
-                        // Youtube Streaming URLs (youtube-dl)
+                        // Web Streaming URLs (youtube-dl)
                         // TODO: Subtitles | List formats (-f <code>)
-                        if ( (scheme.ToLower() == "http" || scheme.ToLower() == "https") && (new Uri(url)).Host.ToLower() == "www.youtube.com" || ((new Uri(url)).Host.ToLower() == "youtube.com") )
+                        if ( Plugins.Contains("Web Streaming") && (scheme.ToLower() == "http" || scheme.ToLower() == "https") ) //&& (new Uri(url)).Host.ToLower() == "www.youtube.com" || ((new Uri(url)).Host.ToLower() == "youtube.com") )
                         {
                             Process proc = new Process 
                             {
@@ -745,11 +761,8 @@ namespace SuRGeoNix.Flyleaf
                                     aUrl = line;
                                 else if ( Regex.IsMatch(line, @"mime=video") )
                                     vUrl = line;
-                                /*
-                                else if ( Regex.IsMatch(line, @"mime=sub") )
-                                    sUrl = line;
-                                else
-                                    return;*/
+                                else if ( Regex.IsMatch(line, @"^http") )
+                                    vUrl = line;
                             }
                             
                             decoder.Open(vUrl, null, 0, aUrl, sUrl);
@@ -1055,7 +1068,7 @@ namespace SuRGeoNix.Flyleaf
             openOrBuffer.SetApartmentState(ApartmentState.STA);
             openOrBuffer.Start();
         }
-        public void StopMediaStreamer()         { if ( streamer != null ) { streamer.Stop(); streamer = null; } }
+        public void StopMediaStreamer()         { if ( Plugins.Contains("Torrent Streaming") && streamer != null ) { streamer.Stop(); streamer = null; } }
         #endregion
 
         #region Misc
@@ -1111,30 +1124,14 @@ namespace SuRGeoNix.Flyleaf
             status = Status.STOPPED; aStatus = Status.STOPPED; vStatus = Status.STOPPED; sStatus = Status.STOPPED;
             Log($"[Aborting All Threads] END");
         }
-        //internal static void EnsureThreadDone(Thread t, long maxMS = 250, int minMS = 10)
-        //{
-        //    if (t != null && !t.IsAlive) return;
+        
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage"), SuppressUnmanagedCodeSecurity]
+        [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod", SetLastError = true)]
+        public static extern uint TimeBeginPeriod(uint uMilliseconds);
 
-        //    long escapeInfinity = maxMS / minMS;
-
-        //    while (t != null && t.IsAlive && escapeInfinity > 0)
-        //    {
-        //        Thread.Sleep(minMS);
-        //        escapeInfinity--;
-        //    }
-
-        //    if (t != null && t.IsAlive)
-        //    {
-        //        t.Abort();
-        //        escapeInfinity = maxMS / minMS;
-        //        while (t != null && t.IsAlive && escapeInfinity > 0)
-        //        {
-        //            Thread.Sleep(minMS);
-        //            escapeInfinity--;
-        //        }
-        //        //if (escapeInfinity == 0) Console.WriteLine("[FAILED] Thread still alive!");
-        //    }
-        //}
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage"), SuppressUnmanagedCodeSecurity]
+        [DllImport("winmm.dll", EntryPoint = "timeEndPeriod", SetLastError = true)]
+        public static extern uint TimeEndPeriod(uint uMilliseconds);
         #endregion
     }
 }

@@ -87,4 +87,7 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy "$(SolutionDir)"Flyleaf\Plugins\* "$(TargetDir)"\Plugins\ /E /Y</PostBuildEvent>
+  </PropertyGroup>
 </Project>
