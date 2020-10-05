@@ -1,4 +1,4 @@
-# Media Player & Torrent Streamer Application [Open Library & Control for WinForms / WPF]
+# Media Player, Web & Torrent Streamer Application [Open Library & Control for WinForms / WPF]
 <br/>
 
 ## Flyleaf Application
@@ -7,7 +7,7 @@ The main concept is to be simple, accurate, fast & run smoothly by using as less
 
 <p align="center"><img src="Readme1.png" /></p>
 
-You open any video/subtitles file, url/link or torrent by Drag & Drop. It provides you a bar with the basic actions (Play/Pause/Seek/Mute/Volume) and includes a list with the torrent file contents. Currently for more functionality (such as Subtitles Position & Size) you can use the keyboard binding :-
+You open any video/subtitles file, youtube video or any web video (MediaSource object), url/link (all additional protocols that ffmpeg suppoort) or torrent (.torrent file or magnet link) by Drag & Drop, Copy & Paste or key O. It provides you a bar with the basic actions (Play/Pause/Seek/Mute/Volume) and includes a list with the torrent file contents. Currently for more functionality (such as Subtitles Position & Size) you can use the keyboard binding :-
 
 
 | Keys                  | Action                     |
@@ -40,6 +40,8 @@ Wouldn't be great to have your own media hardware accelerated surface (Texture2D
 That's why the 2nd version of MediaRouter "Flyleaf" came for! To provide you smooth video & text rendering (Direct3D/2D & DirectWrite) on a customizable surface. It runs even during IDE's designer and you can see live the changes that you have performed.
 
 Flyleaf's properties all start with "FL" letters and allows you to configure both the UI Layout (Fonts, Positions, Sizing, Coloring etc.) & Player's Configuration (VSync, HW Acceleration, Threading etc.)
+
+To add the control to your application, download the latest release (unzip it), right click to your Toolbox -> Choose Items... & Browse to the Libs directory and choose Flyleaf.dll file. You should be able to see FlyleafPlayer now.
 
 <p align="center">Flyleaf runs also during Visual Studio Designer<img src="Readme2.png" /></p>
 
@@ -90,6 +92,8 @@ Exposes the whole library's functionality with an easy way to the front-end. Col
 The whole implementation is targeting and should be able to run on any Windows Platform (DirectX) and .NET Framework. However it's not tested enough yet and you might have some issues with the UserControl for WPF (issues with ParentForm and Handles).
 
 FFmpeg libraries (Windows builds) are required and should be placed under Libs\\\<platform>\\FFmpeg directory - where \<platform> = x86 or x64 - from the current application's (.exe) directory (or any below it, check MediaDecoder.cs -> RegisterFFmpegBinaries() for more details).
+
+Plugins (currently "Torrent Streaming" & "Web Streaming") should exist under "Plugins" directory if you want to enable them.
 
 It seems there is a bug with System.Buffers assemblies therefore it is required for TorSwarm (Torrent Streaming) to add the below bindings (App.Config) to your application (such as this <a href="https://github.com/SuRGeoNix/Flyleaf/blob/master/Flyleaf%20Player%20(WinForms%20Demo%201)/App.config">one</a>)
 
