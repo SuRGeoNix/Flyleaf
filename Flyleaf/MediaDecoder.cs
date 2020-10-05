@@ -635,9 +635,12 @@ namespace SuRGeoNix.Flyleaf
                 mFrame.timestamp    = (long)(mFrame.pts * vStreamInfo.timebaseLowTicks);
                 if (mFrame.pts == AV_NOPTS_VALUE) return -1;
 
+                // In case GPU fails to alocate FFmpeg decoding texture | Should run only once on HW configuration (decode one frame?)
+                if (hwAccelSuccess && frame->hw_frames_ctx == null) hwAccelSuccess = false;
+
                 // Hardware Frame (NV12)        | AVDevice NV12 -> Device NV12 -> VideoProcessBlt RGBA
                 if (hwAccelSuccess)
-                {    
+                {
                     SharpDX.DXGI.Resource sharedResource = null;
 
                     textureFFmpeg       = new Texture2D((IntPtr) frame->data.ToArray()[0]);
