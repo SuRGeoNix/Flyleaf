@@ -1,4 +1,10 @@
-﻿using System;
+﻿/* UI Demonstration of Flyleaf 's User Control 
+ * 
+ * No code required [all the embedded functionality was used]
+ * 
+ * by John Stamatakis
+ */
+
 using System.Windows.Forms;
 
 namespace SuRGeoNix.FlyleafPlayer

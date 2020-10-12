@@ -100,6 +100,22 @@ It seems there is a bug with System.Buffers assemblies therefore it is required 
 Ensure that you use Restore NuGet Packages to retrieve all the rest required libraries.
 
 ## Changelog
+
+#### v2.1a - 12/10/2020
+>__Additions__
+
+* Re-design Flyleaf's Core (MediaRouter/MediaDecoder)
+* Changing Multi Format Context to Single | faster opening, seeking, playing & streaming
+* Changing Seek Acuratute (based on I/B/P) to Seek (based on I key frames) | faster seeking
+* New efficient algorithms for Decoding & Syncing
+* Adding support for Live Streaming (you might need to use larger queues for smooth streaming)
+* Adding Buffering & Downloading percentages for Torrent Streaming
+* Using larger Queues / Threads to enable full functionality (for weird formats, HD and Streaming) by default
+
+>__Issues__
+
+* Memory Leak with RGBA texture (coming from sws_scale)
+
 #### v2.0a - 3/10/2020
 >__Additions__
 
