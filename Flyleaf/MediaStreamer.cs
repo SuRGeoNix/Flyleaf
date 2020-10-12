@@ -1,10 +1,14 @@
-﻿using System;
+﻿/* Torrent Streaming implementation based on TorSwarm [https://github.com/SuRGeoNix/TorSwarm]
+ * 
+ * by John Stamatakis
+ */
+
+using System;
 using System.IO;
 using System.Threading;
 using System.Collections.Generic;
 
 using SuRGeoNix.TorSwarm;
-using FFmpeg.AutoGen;
 
 using BitSwarm = SuRGeoNix.TorSwarm.TorSwarm;
 
@@ -20,21 +24,15 @@ namespace SuRGeoNix.Flyleaf
         BitSwarm                tsStream;
         Torrent                 torrent;
 
-        Thread                  aDecoder,   vDecoder,   sDecoder;
-        bool                    aDone,      vDone,      sDone;
-
         public int              AudioExternalDelay  { get; set; }
         public int              SubsExternalDelay   { get; set; }
         public bool             IsSubsExternal      { get; set; }
+        public int              BufferMs            { get; set; } = 5500;
 
         public Action<bool>                     BufferingDoneClbk;
-        public Action                           BufferingAudioDoneClbk { set { if (decoder != null) decoder.BufferingAudioDone   = value; } }
-        public Action                           BufferingSubsDoneClbk  { set { if (decoder != null) decoder.BufferingSubsDone    = value; } }
-
         public Action<List<string>, List<long>> MediaFilesClbk;
         public Action<int, int, int, int>       StatsClbk;
 
-        readonly object      lockerBufferDone    = new object();
         readonly object      lockerBuffering     = new object();
         Dictionary<long, Tuple<long, int>>  localFocusPoints    = new Dictionary<long, Tuple<long, int>>();
 
@@ -68,10 +66,10 @@ namespace SuRGeoNix.Flyleaf
             this.player                 = player;
             this.verbosity              = verbosity;
 
-            decoder                     = new MediaDecoder(null, verbosity);
+            decoder                     = new MediaDecoder(player, verbosity);
             decoder.HWAccel             = false;
-            decoder.doSubs              = false;
-            decoder.Threads             = 1; // Doesnt do any decoding actually
+            //decoder.doSubs              = false;
+            decoder.Threads             = 1; // Useless for non decoding?
             decoder.BufferingDone       = BufferingDone;
         }
         private void Initialize()
@@ -79,48 +77,19 @@ namespace SuRGeoNix.Flyleaf
             fileIndex       = -1;
             fileDistance    = -1;
             status          = Status.STOPPED;
-            IsSubsExternal  = false;
 
             try
             {
-                //PauseThreads();
-                if (vDecoder != null) vDecoder.Abort();
-                if (aDecoder != null) aDecoder.Abort();
-                if (sDecoder != null) sDecoder.Abort();
-                Thread.Sleep(40);
-                if (torrent  != null) {
-                    torrent.Dispose(); torrent = null;}
+                decoder.Pause();
+                if (torrent  != null) { torrent.Dispose(); torrent = null; }
             }
             catch (Exception) { }
         }
 
         // Main Communication with MediaRouter / UI
-        public void Pause()
-        {
-            lock (lockerBufferDone)
-            {
-                status = Status.STOPPED;
-                try
-                {
-                    if (vDecoder != null) vDecoder.Abort();
-                    if (aDecoder != null) aDecoder.Abort();
-                    if (sDecoder != null) sDecoder.Abort();
-                    Thread.Sleep(40);
-                }
-                catch (Exception) { }
-            }
-        }
-        public void Stop()
-        {
-            if ( tsStream != null )
-            {
-                tsStream.Stop();
-                tsStream = null;
-            }
+        public void Pause() { decoder.Pause(); }
+        public void Stop()  { tsStream?.Stop(); tsStream = null; decoder.Pause(); Initialize(); }
 
-            decoder.Pause();
-            Initialize();
-        }
         public int Open(string url, StreamType streamType = StreamType.TORRENT, bool isMagnetLink = true)
         {
             Log("Opening");
@@ -201,14 +170,12 @@ namespace SuRGeoNix.Flyleaf
             
             if ( streamType == StreamType.FILE )
             {
-                int ret = decoder.Open(null, DecoderRequestsBuffer, fileSize);
+                int ret = decoder.Open(null, "", "", "", DecoderRequestsBuffer, fileSize);
                 return ret;
             }
             else if ( streamType == StreamType.TORRENT )
             {
                 Pause();
-
-                aDone = false; vDone = false; sDone = false;
 
                 lock (localFocusPoints)
                 {
@@ -230,105 +197,25 @@ namespace SuRGeoNix.Flyleaf
                 if ( !torrent.data.files[fileIndex].FileCreated && !tsStream.isRunning ) tsStream.Start();
                 // Decoder - Opening Format Contexts (cancellation?) -> DecoderRequests Feed with null?
                 Log($"[BB OPENING 1]");
-                int ret = decoder.Open(null, DecoderRequestsBuffer, fileSize);
+                int ret = decoder.Open(null, "", "", "", DecoderRequestsBuffer, fileSize);
                 return ret;
             }
 
             return -1;
         }
-        private void BufferingDone(AVMediaType mType)
-        {
-            lock (lockerBufferDone)
-            {
-                if (status != Status.BUFFERING) return;
-
-                if (     mType  == AVMediaType.AVMEDIA_TYPE_AUDIO)
-                    aDone = true;
-                else if (mType  == AVMediaType.AVMEDIA_TYPE_VIDEO)
-                    vDone = true;
-                else if (mType  == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
-                    sDone = true;
-
-                if (vDone && (!decoder.hasAudio || !decoder.doAudio || aDone) && (!decoder.hasSubs || !decoder.doSubs || IsSubsExternal || sDone))
-                {
-                    Log($"[BUFFER] Done");
-                    status = Status.BUFFERED;
-                    BufferingDoneClbk?.BeginInvoke(true, null, null);
-                }
-            }
-        }
         private void Stats(BitSwarm.StatsStructure stats)
         {
-            player.renderer.NewMessage(OSDMessage.Type.TorrentStats, $"D: {stats.PeersDownloading} | W: {stats.PeersChoked}/{stats.PeersInQueue} | {String.Format("{0:n0}", (stats.DownRate / 1024))} KB/s");
+            player.renderer.NewMessage(OSDMessage.Type.TorrentStats, $"D: {stats.PeersDownloading} | W: {stats.PeersChoked}/{stats.PeersInQueue} | {String.Format("{0:n0}", (stats.DownRate / 1024))} KB/s | {(int)(((fileSize - (torrent.data.progress.GetAll0().Count * (long)torrent.file.pieceLength)) / (decimal)fileSize) * 100)}%");
         }
 
-        // Starts Internal Decoders for Seekings & Buffering
-        public void SeekSubs(int ms)
-        {
-            if ( streamType == StreamType.TORRENT && torrent != null && torrent.data.files[fileIndex].FileCreated ) { decoder.BufferingSubsDone?.BeginInvoke(null, null); return; }
 
-            if ( !decoder.isReady || !decoder.hasSubs || IsSubsExternal ) return;
-
-            Utils.EnsureThreadDone(sDecoder);
-                
-            if ( decoder.hasSubs && decoder.doSubs)
-            {
-                sDecoder = new Thread(() =>
-                {
-                    decoder.sStatus = MediaDecoder.Status.RUNNING;
-                    if ( decoder.SeekAccurate2((ms - SubsExternalDelay) - 500, AVMediaType.AVMEDIA_TYPE_SUBTITLE) != 0) Log("[SUBS  STREAMER] Error Seeking");
-                    decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_SUBTITLE, ((ms -SubsExternalDelay) + 15000) * (long)10000, true);
-                    decoder.sStatus = MediaDecoder.Status.STOPPED;
-                });
-                sDecoder.SetApartmentState(ApartmentState.STA);
-                sDecoder.Start();
-            }
-        }
-        public void SeekAudio(int ms)
-        {
-            if ( streamType == StreamType.TORRENT && torrent != null && torrent.data.files[fileIndex].FileCreated ) { decoder.BufferingAudioDone?.BeginInvoke(null, null); return; }
-
-            if ( !decoder.isReady || !decoder.hasAudio || !decoder.hasAudio) return;
-
-            Utils.EnsureThreadDone(aDecoder);
-                
-            aDecoder = new Thread(() =>
-            {
-                decoder.aStatus = MediaDecoder.Status.RUNNING;
-                if ( decoder.SeekAccurate2((ms - AudioExternalDelay) - 400, AVMediaType.AVMEDIA_TYPE_AUDIO) != 0) Log("[AUDIO STREAMER] Error Seeking");
-                decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_AUDIO, ((ms - AudioExternalDelay) + 2000) * (long)10000, true);
-                decoder.aStatus = MediaDecoder.Status.STOPPED;
-            });
-            aDecoder.SetApartmentState(ApartmentState.STA);
-            aDecoder.Start();
-        }
-        private void PauseThreads(bool andDecoder = true)
-        {
-            Log($"[Streamer] [Pausing All Threads] START");
-            
-            Utils.EnsureThreadDone(vDecoder);
-            Utils.EnsureThreadDone(aDecoder);
-            Utils.EnsureThreadDone(sDecoder);
-            if (andDecoder) decoder.Pause();
-            Log($"[Streamer] [Pausing All Threads] END");
-        }
         public void Seek(int ms)
         {
             if ( streamType == StreamType.TORRENT && torrent != null && fileIndex > -1 && torrent.data.files[fileIndex].FileCreated ) { BufferingDoneClbk?.BeginInvoke(true, null, null); return; }
             if ( !decoder.isReady ) return;
 
-            try
-            {
-                //PauseThreads();
+            decoder.Pause();
 
-                if (vDecoder != null) vDecoder.Abort();
-                if (aDecoder != null) aDecoder.Abort();
-                if (sDecoder != null) sDecoder.Abort();
-                Thread.Sleep(40);
-            }
-            catch (Exception) { }
-
-            aDone = false; vDone = false; sDone = false;
             status = Status.BUFFERING;
 
             lock (localFocusPoints)
@@ -339,50 +226,19 @@ namespace SuRGeoNix.Flyleaf
                 localFocusPoints.Clear();
             }
 
-            vDecoder = new Thread(() =>
-            {
-                decoder.vStatus = MediaDecoder.Status.RUNNING;
-                if ( decoder.SeekAccurate2(ms - 100, AVMediaType.AVMEDIA_TYPE_VIDEO) != 0) Log("VIDEO STREAMER] Error Seeking");
-                decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_VIDEO, (ms + 5500) * (long)10000);
-                decoder.vStatus = MediaDecoder.Status.STOPPED;
-            });
-            vDecoder.SetApartmentState(ApartmentState.STA);
-            vDecoder.Start();
-
-            if (decoder.hasAudio && decoder.doAudio)
-            {
-                aDecoder = new Thread(() =>
-                {
-                    decoder.aStatus = MediaDecoder.Status.RUNNING;
-                    if ( decoder.SeekAccurate2((ms - AudioExternalDelay) - 400, AVMediaType.AVMEDIA_TYPE_AUDIO) != 0) Log("[AUDIO STREAMER] Error Seeking");
-                    decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_AUDIO, ((ms - AudioExternalDelay) + 2000) * (long)10000);
-                    decoder.aStatus = MediaDecoder.Status.STOPPED;
-                });
-                aDecoder.SetApartmentState(ApartmentState.STA);
-                aDecoder.Start();
-            }
-            
-            if ( decoder.hasSubs && decoder.doSubs && !IsSubsExternal)
-            {
-                sDecoder = new Thread(() =>
-                {
-                    decoder.sStatus = MediaDecoder.Status.RUNNING;
-                    if ( decoder.SeekAccurate2((ms - SubsExternalDelay) - 1000, AVMediaType.AVMEDIA_TYPE_SUBTITLE)  != 0) Log("[SUBS  STREAMER] Error Seeking");
-                    decoder.DecodeSilent2(AVMediaType.AVMEDIA_TYPE_SUBTITLE, ((ms -SubsExternalDelay) + 15000) * (long)10000);
-                    decoder.sStatus = MediaDecoder.Status.STOPPED;
-                });
-                sDecoder.SetApartmentState(ApartmentState.STA);
-                sDecoder.Start();
-            }
+            player.renderer.NewMessage(OSDMessage.Type.Buffering, $"Loading 0%");
+            decoder.video.BufferPackets(ms, BufferMs); // TODO: Expose as property
         }
+        private void BufferingDone(bool success, double diff) { if (success) {BufferingDoneClbk?.BeginInvoke(success, null, null); player.renderer.ClearMessages(OSDMessage.Type.Buffering); } else { player.renderer.NewMessage(OSDMessage.Type.Buffering, $"Loading {(int)(diff * 100)}%"); player.Render(); } }
+
 
         // External Decoder        | (FFmpeg AVIO)
-        public byte[] DecoderRequests(long pos, int len, AVMediaType mType)
+        public byte[] DecoderRequests(long pos, int len)
         {
             byte[] data = null;
             if ( streamType == StreamType.FILE )
             {
-                //Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
+                Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}]");
 
                 data = new byte[len];
                 
@@ -412,12 +268,12 @@ namespace SuRGeoNix.Flyleaf
         }
 
         // Internal Decoder Buffer | (FFmpeg AVIO)
-        private byte[] DecoderRequestsBuffer(long pos, int len, AVMediaType mType)
+        private byte[] DecoderRequestsBuffer(long pos, int len)
         {
             byte[] data = null;
             if ( streamType == StreamType.FILE )
             {
-                //Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] {mType}");
+                //Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}]");
                 data = new byte[len];
 
                 lock (fsStream)

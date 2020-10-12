@@ -1,4 +1,35 @@
-﻿using System;
+﻿/* Media Player Synching & Control Flow - the "Mediator"
+ * 
+ *              [UI - Flyleaf UserControl]
+ *          
+ *                          /\
+ *                          ||
+ *                          
+ * [MediaStreamer]  <-  [MediaRouter]   ->  [MediaRenderer]
+ * 
+ *                          ||
+ *                          \/
+ *                          
+ *                     [MediaDecoder]
+ * 
+ * by John Stamatakis
+ */
+
+/* Draft Notes  [Speed / Resources / Timing / Streaming & Buffering Control]
+ * 
+ * Queues       | (small queues faster seeking/starting | less resources) - (large queues better buffering/streaming & hd, ensures avs frames will be found within the range)
+ * Screamer     | with less (Math.Abs(vDistanceMs - sleepMs) < 4) distance can handle better high fps (x8 speed etc)
+ * Sleeps       | Screamer, DecodeFrames & BufferPackets | less sleep faster buffering and playing but more resources
+ * Decoder      | Threads need more testing / required for HD videos (should also check codec's support)
+ * Torrent      | Check TorSwarm Options for more connection / peers etc. timeouts / limits
+ * Contexts     | Single vs Multi - Single gives more speed especially for seeking / Multi gives more freedom mainly for delays possible issues with matroska demuxing (index entries built based on video frames) ** For Single you might run a 2nd decoder in the same context to grap the late frames use 2 pkts?
+ * Delays       | NAudio default latency was 300ms dropped to 200ms means we push subs/video +200ms | on single format context has risk to loose avs frames in the same range (same for subs if we want delay) | on multi context should be no problem
+ * Web Streaming| Requires more testing, by default get the best quality, should give options for lower | check also format context's options for http (and abort)
+ * 
+ * TimeBeginPeriod(1) should TimeEndPeriod(1) - also consider TimeBeginPeriod(>1) for some other cases
+ */
+
+using System;
 using System.Threading;
 using System.Diagnostics;
 using System.Collections.Generic;
@@ -21,7 +52,7 @@ namespace SuRGeoNix.Flyleaf
         public MediaRenderer    renderer;
         public MediaStreamer    streamer;
 
-        Thread                  screamer, aScreamer, vScreamer, sScreamer;
+        Thread                  screamer;
         Thread                  openOrBuffer;
         Thread                  seekRequest         = new Thread(() => { });
 
@@ -33,18 +64,17 @@ namespace SuRGeoNix.Flyleaf
 
         // Seeking
         ConcurrentStack<int>    seekStack;
-        int                     seekLastValue = -1;
         readonly object         lockSeek            = new object();
         readonly object         lockOpening         = new object();
         
         // Queues
-        ConcurrentQueue<MediaFrame>         aFrames;
-        ConcurrentQueue<MediaFrame>         vFrames;
-        ConcurrentQueue<MediaFrame>         sFrames;
+        internal ConcurrentQueue<MediaFrame>         aFrames;
+        internal ConcurrentQueue<MediaFrame>         vFrames;
+        internal ConcurrentQueue<MediaFrame>         sFrames;
 
-        int AUDIO_MIX_QUEUE_SIZE = 50;  int AUDIO_MAX_QUEUE_SIZE =  60;
-        int VIDEO_MIX_QUEUE_SIZE =  4;  int VIDEO_MAX_QUEUE_SIZE =   6;
-        int  SUBS_MIN_QUEUE_SIZE =  5;  int  SUBS_MAX_QUEUE_SIZE =  10;
+        public int AUDIO_MIX_QUEUE_SIZE =  0;  public int AUDIO_MAX_QUEUE_SIZE =200;
+        public int VIDEO_MIX_QUEUE_SIZE = 30;  public int VIDEO_MAX_QUEUE_SIZE = 40;
+        public int  SUBS_MIN_QUEUE_SIZE =  0;  public int  SUBS_MAX_QUEUE_SIZE = 50;
 
         // Idle [Activity / Visibility Mode]
         public enum VisibilityMode
@@ -87,7 +117,7 @@ namespace SuRGeoNix.Flyleaf
             STOPPING,
             STOPPED
         }
-        Status status, aStatus, vStatus, sStatus;
+        Status status;
         Status beforeSeeking = Status.STOPPED;
 
         // Callbacks (TODO events?)
@@ -128,8 +158,8 @@ namespace SuRGeoNix.Flyleaf
         public bool hasAudio        { get { return decoder.hasAudio;            } }
         public bool hasVideo        { get { return decoder.hasVideo;            } }
         public bool hasSubs         { get { return decoder.hasSubs;             } }
-        public bool doAudio         { get { return decoder.doAudio;             } set { decoder.doAudio = value; if (!isPlaying) return; if (!value) { aStatus = Status.STOPPED; Utils.EnsureThreadDone(aScreamer); decoder.PauseAudio();} else RestartAudio();} }
-        public bool doSubs          { get { return decoder.doSubs;              } set { decoder.doSubs  = value; if (!isPlaying) return; if (!value) { sStatus = Status.STOPPED; Utils.EnsureThreadDone(sScreamer); decoder.PauseSubs(); } else RestartSubs(); } }
+        public bool doAudio         { get { return decoder.doAudio;             } set { decoder.doAudio = value; } }
+        public bool doSubs          { get { return decoder.doSubs;              } set { if (!value) renderer.ClearMessages(OSDMessage.Type.Subtitles); decoder.doSubs  = value; } }
         public int  Width           { get { return decoder.vStreamInfo.width;   } }
         public int  Height          { get { return decoder.vStreamInfo.height;  } }
         public long Duration        { get { return hasVideo ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks; } }
@@ -154,8 +184,10 @@ namespace SuRGeoNix.Flyleaf
                 if (!decoder.isReady || !isReady || !decoder.hasAudio) return;
 
                 audioExternalDelay = value;
-                streamer.AudioExternalDelay = (int) (value / 10000);
-                audioPlayer.ResetClbk();
+
+                if (decoder.audio != null) decoder.audio.ReSync();
+                aFrames = new ConcurrentQueue<MediaFrame>();
+
                 renderer.NewMessage(OSDMessage.Type.AudioDelay);
             }
         }
@@ -168,11 +200,15 @@ namespace SuRGeoNix.Flyleaf
                 if (!decoder.isReady || !isReady || !decoder.hasSubs) return;
 
                 subsExternalDelay = value;
-                streamer.SubsExternalDelay = (int)(value / 10000);
+
+                if (decoder.subs != null) decoder.subs.ReSync();
+                sFrames = new ConcurrentQueue<MediaFrame>();
+
+                renderer.ClearMessages(OSDMessage.Type.Subtitles);
                 renderer.NewMessage(OSDMessage.Type.SubsDelay);
             }
         }
-        public int  SubsPosition     { get { return renderer.SubsPosition;       }   set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
+        public int  SubsPosition    { get { return renderer.SubsPosition;       }   set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
         public float SubsFontSize   { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; renderer?.NewMessage(OSDMessage.Type.SubsFontSize); } }
 
         public Dictionary<string, string> PluginsList { get; private set; } = new Dictionary<string, string>();
@@ -194,8 +230,7 @@ namespace SuRGeoNix.Flyleaf
 
             this.verbosity = verbosity;
             renderer    = new MediaRenderer(this);
-            
-            decoder     = new MediaDecoder();
+            decoder     = new MediaDecoder(this);
 
             aFrames     = new ConcurrentQueue<MediaFrame>();
             vFrames     = new ConcurrentQueue<MediaFrame>();
@@ -209,8 +244,7 @@ namespace SuRGeoNix.Flyleaf
             if (!designMode)
             {
                 audioPlayer = new AudioPlayer();
-                decoder.Init(GetFrame, verbosity);
-                decoder.d3d11Device = renderer.device;
+                decoder.Init(verbosity);
                 streamer    = new MediaStreamer(this, verbosity);
                 TimeBeginPeriod(1);
             }
@@ -224,8 +258,7 @@ namespace SuRGeoNix.Flyleaf
 
             this.verbosity = verbosity;
             renderer    = new MediaRenderer(this, handle);
-            decoder     = new MediaDecoder(GetFrame, verbosity);
-            decoder.d3d11Device = renderer.device;
+            decoder     = new MediaDecoder(this, verbosity);
             streamer    = new MediaStreamer(this, verbosity);
 
             audioPlayer = new AudioPlayer();
@@ -253,9 +286,6 @@ namespace SuRGeoNix.Flyleaf
             if (Plugins.Contains("Torrent Streaming") && streamer != null)
             {
                 streamer.BufferingDoneClbk      = BufferingDone;
-                streamer.BufferingAudioDoneClbk = BufferingAudioDone;
-                streamer.BufferingSubsDoneClbk  = BufferingSubsDone;
-
                 streamer.MediaFilesClbk         = MediaFilesClbk;
                 streamer.StatsClbk              = StatsClbk;
 
@@ -265,11 +295,7 @@ namespace SuRGeoNix.Flyleaf
         private void InitializeEnv()
         {
             CurTime             = 0;
-            audioExternalDelay  = AudioPlayer.NAUDIO_DELAY_MS * -10000; // for some reason even if we set DesiredLatency = 200 it is not exactly what we expect (+70)
-            streamer.AudioExternalDelay = AudioPlayer.NAUDIO_DELAY_MS * -1;
             subsExternalDelay   = 0;
-
-            //Duration            = (hasVideo) ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks;
 
             if (hasAudio)
             {
@@ -278,409 +304,179 @@ namespace SuRGeoNix.Flyleaf
             }
 
             DecoderRatio = (float)decoder.vStreamInfo.width / (float)decoder.vStreamInfo.height;
-            //if (ViewPort == ViewPorts.KEEP) AspectRatio = (float)decoder.vStreamInfo.width / (float)decoder.vStreamInfo.height;
             renderer.FrameResized(decoder.vStreamInfo.width, decoder.vStreamInfo.height);
 
             isReady = true;
         }
 
-        public void Render(string imageFile = "")
+        private void ShowOneFrame()
         {
-            renderer.PresentFrame(null);
-        }
-        private void GetFrame(MediaFrame frame, FFmpeg.AutoGen.AVMediaType mType)
-        {
-            ConcurrentQueue<MediaFrame> curQueue = null;
-            int curMaxSize = 0;
-            bool mTypeIsRunning = false;
+            //ClearMediaFrames();
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
 
-            // CHOOSE QUEUE
-            switch (mType)
+            decoder.video.DecodeFrame();
+            //decoder.subs.DecodeFrame(); requires resync | only embedded
+
+            if (vFrames.Count > 0)
             {
-                case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO:
-                    curQueue        = aFrames;
-                    curMaxSize      = AUDIO_MAX_QUEUE_SIZE;
-                    mTypeIsRunning  = decoder.isAudioRunning;
-                    break;
-
-                case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO:
-                    curQueue        = vFrames;
-                    curMaxSize      = VIDEO_MAX_QUEUE_SIZE;
-                    mTypeIsRunning  = decoder.isVideoRunning;
-                    break;
-
-                case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                    curQueue        = sFrames;
-                    curMaxSize      = SUBS_MAX_QUEUE_SIZE;
-                    mTypeIsRunning  = decoder.isSubsRunning;
-                    break;
+                MediaFrame vFrame = null;
+                vFrames.TryDequeue(out vFrame);
+                renderer.PresentFrame(vFrame);
             }
-            if (curQueue == null) return;
 
-            // IF MAX SLEEP UNTIL 3/4 OF QUEUE LEFT
-            if (curQueue.Count > curMaxSize)
-            {
-                int escapeInfinity = 0;
-                int sleepMs = (int)((decoder.vStreamInfo.frameAvgTicks / 10000) * (curMaxSize * (1.0 / 4.0)));
-                if (sleepMs > 5000) sleepMs = 5000;
-                //if (mType == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE) sleepMs *= 10;
+            // should also check timestamp based on vFrame.timestamp
+            //if (sFrames.Count > 0 && hasSubs && doSubs)
+            //{
+            //    MediaFrame sFrame = null;
+            //    sFrames.TryPeek(out sFrame);
+            //    renderer.NewMessage(OSDMessage.Type.Subtitles, sFrame.text, sFrame.subStyles, sFrame.duration);
+            //}
 
-                while (mTypeIsRunning && curQueue.Count > (curMaxSize * (3.0 / 4.0)))
-                {
-                    //Thread.Sleep(sleepMs);
-                    Thread.Sleep(50);
-                    escapeInfinity++;
-                    if (escapeInfinity > 100000)
-                    {
-                        Log($"[ERROR EI1] {mType} Frames Queue is full ... [{curQueue.Count}/{curMaxSize}]"); decoder.Stop();
-                        return;
-                    }
-                    mTypeIsRunning = false;
-                    if      (mType == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO)    mTypeIsRunning = decoder.isAudioRunning;
-                    else if (mType == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)    mTypeIsRunning = decoder.isVideoRunning;
-                    else if (mType == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE) mTypeIsRunning = decoder.isSubsRunning;
-                }
-            }
-            if (!mTypeIsRunning && (mType != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO && status != Status.SEEKING) ) return;
-
-            // FILL QUEUE | Queue possible not thread-safe
-            try
-            {
-                switch (mType)
-                {
-                    case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO:
-                        lock (aFrames) curQueue.Enqueue(frame);
-                        break;
-                    case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO:
-                        lock (vFrames) curQueue.Enqueue(frame);
-                        break;
-                    case FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                        lock (sFrames) curQueue.Enqueue(frame);
-                        break;
-                }
-            } catch (ThreadAbortException e) { throw e;
-            } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Func: GetFrame(), Msg: " + e.StackTrace); }
+            return;
         }
+        public void Render() { renderer.PresentFrame(null); }
         #endregion
 
         #region Screaming
-        private void VideoScreamer()
+        private void MediaBuffer()
         {
-            MediaFrame vFrame;
-            long distanceTicks;
-            long offDistanceMsBackwards = -7;
-            long offDistanceMsForewards = 5000;
-            int  offDistanceCounter     = 0;
-            int  distanceMs;
-
-            videoClock.Restart(); // CurTime Video Clock
-            Log($"[VIDEO SCREAMER] Started  -> {videoStartTicks/10000}");
-
-            while (isPlaying && vStatus == Status.PLAYING)
-            {
-                if ( vFrames.Count < 1 )
-                { 
-                    if (decoder.isVideoFinish) { status = Status.STOPPED; Log($"[VIDEO SCREAMER] Finished"); return; }
-
-                    Log($"[VIDEO SCREAMER] No Frames, Restarting ...");
-
-                    Thread.Sleep(150);
-                    if ( isTorrent && vFrames.Count > 0 || vFrames.Count > VIDEO_MIX_QUEUE_SIZE) continue;
-
-                    Thread restart = new Thread(() => {
-                        if (!isPlaying) return;
-                        Seek((int) ((CurTime + decoder.vStreamInfo.frameAvgTicks *2)/10000));
-                    });
-                    restart.SetApartmentState(ApartmentState.STA);
-                    restart.Start();
-                    return;
-                }
-
-                if ( offDistanceCounter > VIDEO_MAX_QUEUE_SIZE )
-                {
-                    Log($"[VIDEO SCREAMER] Too Many Drops, Restarting ...");
-
-                    Thread.Sleep(150);
-
-                    Thread restart = new Thread(() => {
-                        Seek((int) ((CurTime + decoder.vStreamInfo.frameAvgTicks *2)/10000));
-                    });
-                    restart.SetApartmentState(ApartmentState.STA);
-                    restart.Start();
-                    return;
-                }
-
-                lock (vFrames) vFrames.TryDequeue(out vFrame);
-
-                distanceTicks   = vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks);
-                distanceMs      = (int) (distanceTicks/10000);
-
-                if ( distanceMs < offDistanceMsBackwards || distanceMs > offDistanceMsForewards )
-                {
-                    Log($"[VIDEO SCREAMER] Frame Drop   [CurTS: {vFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {distanceMs}] [DiffTicks: {vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
-                    offDistanceCounter ++;
-                    continue;
-                }
-
-                if ( distanceMs > 1 ) Thread.Sleep(distanceMs);
-
-                // Video Frames         [Callback]
-                CurTime = vFrame.timestamp;
-                //SeekSeconds = vFrame.timestamp;
-                //Log($"[VIDEO SCREAMER] Frame Scream [CurTS: {vFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {(vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {vFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
-                //VideoFrameClbk.BeginInvoke(vFrame.data, vFrame.timestamp, vFrame.texture, null, null);
-                
-                renderer.PresentFrame(vFrame);
-                //SharpDX.Utilities.Dispose(ref vFrame.texture);
-            }
-
-            Log($"[VIDEO SCREAMER] Finished -> {videoStartTicks/10000}");
-        }
-        private void AudioScreamer()
-        {
-            MediaFrame aFrame;
+            //audioPlayer.Pause();
             
-            long distanceTicks;
-            int  distanceMs;
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
 
-            long offDistanceMsBackwards = -7;
-            long offDistanceMsForewards = 1000;
-            int  offDistanceCounter     = 0;
+            //ClearMediaFrames();
 
-            Log($"[AUDIO SCREAMER] Started  -> {videoStartTicks/10000}");
+            //decoder.ReSync();
+            if (!decoder.isRunning || decoder.video.requiresResync) decoder.Run();
+            audioPlayer.ResetClbk();
+            audioPlayer.Play();
 
-            while (isPlaying && aStatus == Status.PLAYING)
+            bool framePresented = false;
+
+            while (isPlaying && vFrames.Count < VIDEO_MIX_QUEUE_SIZE && !decoder.Finished)
             {
-                if ( aFrames.Count < 1 )
-                { 
-                    if (decoder.isAudioFinish) { Log($"[AUDIO SCREAMER] Finished"); return; }
-
-                    if (!decoder.isAudioRunning)
-                    {
-                        Log($"[AUDIO SCREAMER] No Samples, Restarting ...");
-
-                        Thread.Sleep(80);
-
-                        Thread restart = new Thread(() => {
-                            if (!isPlaying) return;
-
-                            if (isTorrent)
-                                streamer.SeekAudio((int) ((CurTime - audioExternalDelay)/10000) - 50);
-                            else
-                                RestartAudio();
-                        });
-                        restart.SetApartmentState(ApartmentState.STA);
-                        restart.Start();
-
-                        return;
-                    }
-
-                    return;
-                }
-                else
+                if (!framePresented && vFrames.Count > 0)
                 {
-                    if ( offDistanceCounter > AUDIO_MIX_QUEUE_SIZE)
-                    {
-                        Log($"[AUDIO SCREAMER] Too Many Drops, Restarting ...");
-
-                        Thread.Sleep(80);
-
-                        Thread restart = new Thread(() => {
-                            if (!isPlaying) return;
-
-                            if (isTorrent)
-                                streamer.SeekAudio((int) ((CurTime - audioExternalDelay)/10000) - 50);
-                            else
-                                RestartAudio();
-                        });
-                        restart.SetApartmentState(ApartmentState.STA);
-                        restart.Start();
-
-                        return;
-                    }
+                    MediaFrame vFrame = null;
+                    vFrames.TryPeek(out vFrame);
+                    renderer.PresentFrame(vFrame);
+                    framePresented = true;
                 }
-
-                lock (aFrames) aFrames.TryDequeue(out aFrame);
-
-                distanceTicks   = (aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks);
-                distanceMs      = (int) (distanceTicks/10000);
-                
-                if ( distanceMs < offDistanceMsBackwards || distanceMs > offDistanceMsForewards )
-                {
-                    Log($"[AUDIO SCREAMER] Sample Drop   [CurTS: {aFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {(aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks)}]");
-                    offDistanceCounter ++;
-                    continue;
-                }
-
-                if ( distanceMs > 3 ) Thread.Sleep(distanceMs - 2);
-
-                // Audio Frames         [Callback]
-                //Log($"[AUDIO SCREAMER] Sample Scream [CurTS: {aFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((aFrame.timestamp + audioExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {aFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
-                audioPlayer.FrameClbk(aFrame.data, 0, aFrame.data.Length);
+                Thread.Sleep(5);
             }
-
-            Log($"[AUDIO SCREAMER] Finished  -> {videoStartTicks/10000}");
-        }
-        private void SubsScreamer()
+        }        
+        private void Screamer()
         {
-            MediaFrame sFrame;
+            MediaFrame vFrame = null;
+            MediaFrame aFrame = null;
+            MediaFrame sFrame = null;
+      
+            long    elapsedTicks;
+            int     vDistanceMs;
+            int     aDistanceMs;
+            int     sDistanceMs;
+            int     sleepMs;
+
+            lock (lockSeek)
+            {
+                MediaBuffer();
+                vFrames.TryDequeue(out vFrame); if (vFrame == null) return;
+                aFrames.TryDequeue(out aFrame);
+                sFrames.TryDequeue(out sFrame);
+                SeekTime        = -1;
+                CurTime         = vFrame.timestamp;
+                videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
+                videoClock.Restart();
+            }
             
-            long distanceTicks;
-            int  distanceMs;
+            Log($"[SCREAMER] Started -> {Utils.TicksToTime(videoStartTicks)}");
 
-            //long offDistanceMsBackwards = -800;
-            int  offDistanceCounter     = 0;
-
-            Log($"[SUBS  SCREAMER] Started  -> {videoStartTicks/10000}");
-
-            while (isPlaying && sStatus == Status.PLAYING)
+            while (isPlaying)
             {
-                if ( sFrames.Count < 1 )
-                { 
-                    if (decoder.isSubsFinish)
+                if ( vFrames.Count == 0 )//|| (hasAudio && aFrames.Count < 1) )
+                {
+                    if (decoder.Finished) break;
+
+                    lock (lockSeek)
                     {
-                        Thread.Sleep(1000);
-                        Log($"[SUBS  SCREAMER] Finished");
-                        return;
+                        Log("Screamer Restarting ........................");
+                        MediaBuffer();
+                        vFrames.TryDequeue(out vFrame); if (vFrame == null) return;
+                        aFrames.TryDequeue(out aFrame);
+                        sFrames.TryDequeue(out sFrame);
+                        SeekTime        = -1;
+                        CurTime         = vFrame.timestamp;
+                        Log($"[SCREAMER] Restarted -> {Utils.TicksToTime(CurTime)}");
+                        videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
+                        videoClock.Restart();
                     }
 
-                    Log($"[SUBS  SCREAMER] No Subs, Restarting");
-
-                    Thread.Sleep(80);
-
-                    Thread restart = new Thread(() => {
-                        if (!isPlaying) return;
-
-                        if (isTorrent && !decoder.isSubsExternal)
-                            streamer.SeekSubs((int) ((CurTime - subsExternalDelay)/10000) - 100);
-                        else
-                            RestartSubs();
-                    });
-                    restart.SetApartmentState(ApartmentState.STA);
-                    restart.Start();
-
-                    return;
+                    continue; 
                 }
-                else
+
+                if (aFrame == null) aFrames.TryDequeue(out aFrame);
+                if (sFrame == null) sFrames.TryDequeue(out sFrame);
+
+                elapsedTicks = videoStartTicks + videoClock.ElapsedTicks;
+
+                vDistanceMs   = (int) (((vFrame.timestamp) - elapsedTicks) / 10000);
+                aDistanceMs   = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
+                sDistanceMs   = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
+
+                sleepMs = Math.Min(vDistanceMs, aDistanceMs) - 2;
+                
+                if (sleepMs < 0) sleepMs = 0;
+                if (sleepMs > 1) Thread.Sleep(sleepMs);
+
+
+                if (Math.Abs(vDistanceMs - sleepMs) < 4)
                 {
-                    if ( offDistanceCounter > 5)
+                    CurTime = vFrame.timestamp;
+                    renderer.PresentFrame(vFrame);
+                    vFrames.TryDequeue(out vFrame);
+                }
+                else if (vDistanceMs < -4)
+                {
+                    ClearVideoFrame(vFrame);
+                    vFrames.TryDequeue(out vFrame);
+                    Log($"vDistanceMs 2 |-> {vDistanceMs}");
+                }
+
+                if (aFrame != null)
+                {
+                    if (Math.Abs(aDistanceMs - sleepMs) < 35)
                     {
-                        Log($"[SUBS  SCREAMER] Too Many Drops, Restarting ...");
-
-                        Thread.Sleep(80);
-
-                        Thread restart = new Thread(() => {
-                            if (!isPlaying) return;
-
-                            if (isTorrent && !decoder.isSubsExternal)
-                                streamer.SeekSubs((int) ((CurTime - subsExternalDelay)/10000) - 100);
-                            else
-                                RestartSubs();
-                        });
-                        restart.SetApartmentState(ApartmentState.STA);
-                        restart.Start();
-
-                        return;
+                        audioPlayer.FrameClbk(aFrame.audioData, 0, aFrame.audioData.Length);
+                        aFrames.TryDequeue(out aFrame);
+                        if (aFrame != null)
+                        {
+                            audioPlayer.FrameClbk(aFrame.audioData, 0, aFrame.audioData.Length);
+                            aFrames.TryDequeue(out aFrame);
+                        }
+                    }
+                    else if (aDistanceMs < -35)
+                    {
+                        Log($"aDistanceMs 2 |-> {aDistanceMs}");
+                        aFrames.TryDequeue(out aFrame);
                     }
                 }
 
-                lock (sFrames) sFrames.TryPeek(out sFrame);
-
-                distanceTicks   = (sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks);
-                distanceMs      = (int) (distanceTicks/10000);
-
-                if ( distanceMs < sFrame.duration * -1 )
+                if (sFrame != null)
                 {
-                    Log($"[SUBS  SCREAMER] Sub Drop   [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
-                    offDistanceCounter ++;
-                    lock (sFrames) sFrames.TryDequeue(out sFrame);
-                    continue;
-                }
-
-                if ( distanceMs > 80 )
-                {
-                    Thread.Sleep(80);
-                    continue;
-                }
-                
-                if ( distanceMs > 3 ) Thread.Sleep(distanceMs - 2);
-
-                // Sub Frames         [Callback]
-                //Log($"[SUBS  SCREAMER] Sub Scream [CurTS: {sFrame.timestamp/10000}] [Clock: {(videoStartTicks + videoClock.ElapsedTicks)/10000} | {CurTime/10000}] [Distance: {((sFrame.timestamp + subsExternalDelay) - (videoStartTicks + videoClock.ElapsedTicks))/10000}] [DiffTicks: {sFrame.timestamp - (videoStartTicks + videoClock.ElapsedTicks)}]");
-                //SubFrameClbk.BeginInvoke(sFrame.text, sFrame.timestamp + subsExternalDelay, sFrame.duration, null, null);
-
-                string subText = Subtitles.SSAtoSubStyles(sFrame.text, out List<SubStyle> subStyles);
-                renderer.NewMessage(OSDMessage.Type.Subtitles, subText, subStyles, sFrame.duration);
-
-                lock (sFrames) sFrames.TryDequeue(out sFrame);
-            }
-
-            Log($"[SUBS  SCREAMER] Finished  -> {videoStartTicks/10000}");
-        }
-        private void RestartSubs()
-        {
-            Utils.EnsureThreadDone(sScreamer);
-
-            if (decoder.hasSubs && doSubs)
-            {
-                Log("[SUBS  SCREAMER] Restarting ...");
-                
-                sStatus = Status.PLAYING;
-                sScreamer = new Thread(() => {
-                    decoder.PauseSubs();
-                    if (!isPlaying || videoStartTicks == -1) {sStatus = Status.STOPPED; return; }
-
-                    lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
-
-                    decoder.SeekAccurate((int) ((CurTime - subsExternalDelay)/10000) - 100, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                    decoder.RunSubs();
-
-                    while (isPlaying && sStatus == Status.PLAYING && decoder.hasSubs && sFrames.Count < SUBS_MIN_QUEUE_SIZE && !decoder.isSubsFinish ) 
-                        Thread.Sleep(20);
-
-                    try
+                    if (Math.Abs(sDistanceMs - sleepMs) < 80) {
+                        renderer.NewMessage(OSDMessage.Type.Subtitles, sFrame.text, sFrame.subStyles, sFrame.duration);
+                        sFrames.TryDequeue(out sFrame);
+                    }
+                    else if (sDistanceMs < -80)
                     {
-                        SubsScreamer();
-                    } catch (Exception) { }
-                    sStatus = Status.STOPPED;
-                });
-                sScreamer.SetApartmentState(ApartmentState.STA);
-                sScreamer.Start();
+                        Log($"sDistanceMs 2 |-> {sDistanceMs}");
+                        sFrames.TryDequeue(out sFrame);
+                    }
+                }
             }
-        }
-        private void RestartAudio()
-        {
-            Utils.EnsureThreadDone(aScreamer);
 
-            if (decoder.hasAudio && doAudio)
-            {
-                Log("[AUDIO SCREAMER] Restarting ...");
-
-                aStatus = Status.PLAYING;
-                aScreamer = new Thread(() => {
-                    decoder.PauseAudio();
-                    if (!isPlaying || videoStartTicks == -1) return;
-
-                    Thread.Sleep(20);
-
-                    lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
-                    audioPlayer.ResetClbk();
-
-                    decoder.SeekAccurate((int) ((CurTime - audioExternalDelay)/10000) - 50, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO);
-                    decoder.RunAudio();
-
-                    while (isPlaying && (decoder.hasAudio && aFrames.Count < AUDIO_MIX_QUEUE_SIZE) ) 
-                        Thread.Sleep(20);
-
-                    try
-                    {
-                        AudioScreamer();
-                    } catch (Exception) { }
-                    aStatus = Status.STOPPED;
-                });
-                aScreamer.SetApartmentState(ApartmentState.STA);
-                aScreamer.Start();
-            }
+            ClearVideoFrame(vFrame);
+            Log($"[SCREAMER] Finished -> {Utils.TicksToTime(CurTime)}");
         }
         #endregion
 
@@ -752,20 +548,28 @@ namespace SuRGeoNix.Flyleaf
                             };
                             proc.Start();
 
-                            string aUrl = "", vUrl = "", sUrl = "";
+                            string line = "", aUrl = "", vUrl = "";
+
                             while (!proc.StandardOutput.EndOfStream)
                             {
-                                string line = proc.StandardOutput.ReadLine();
-
+                                line = proc.StandardOutput.ReadLine();
+                                if ( !Regex.IsMatch(line, @"^http") ) continue;
+                                
                                 if ( Regex.IsMatch(line, @"mime=audio") )
                                     aUrl = line;
                                 else if ( Regex.IsMatch(line, @"mime=video") )
                                     vUrl = line;
-                                else if ( Regex.IsMatch(line, @"^http") )
+                                else if ( vUrl == "")
                                     vUrl = line;
+                                else
+                                    aUrl = line;
                             }
-                            
-                            decoder.Open(vUrl, null, 0, aUrl, sUrl);
+
+                            if (aUrl == "")
+                                decoder.Open(vUrl, "", "", scheme + "://" + (new Uri(url)).Host.ToLower());
+                            else
+                                decoder.Open(vUrl, aUrl, "", scheme + "://" + (new Uri(url)).Host.ToLower());
+
                         }
                         else
                         {
@@ -776,6 +580,7 @@ namespace SuRGeoNix.Flyleaf
                         renderer.NewMessage(OSDMessage.Type.Open, $"Opened");
                         renderer.NewMessage(OSDMessage.Type.HardwareAcceleration);
                         InitializeEnv();
+                        ShowOneFrame();
                         OpenFinishedClbk?.BeginInvoke(true, url, null, null);
                     });
                     openOrBuffer.SetApartmentState(ApartmentState.STA);
@@ -785,38 +590,31 @@ namespace SuRGeoNix.Flyleaf
         }
         public int OpenSubs(string url)
         {
+            if (!decoder.isReady) return -1;
+
             int ret = 0;
-
-            if ( !decoder.hasVideo) return -1;
-
-            //while (sStatus == Status.STOPPING) Thread.Sleep(10);
-
-            sStatus = Status.STOPPING;
-            Utils.EnsureThreadDone(sScreamer);
-
-            if ( (ret = decoder.OpenSubs(url)) != 0 ) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return ret; }
-
             subsExternalDelay = 0;
-            if (streamer != null && decoder.hasSubs) streamer.IsSubsExternal = true;
+            sFrames = new ConcurrentQueue<MediaFrame>();
 
-            RestartSubs();
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
 
-            return ret;
+            if ((ret = decoder.Open("", "", url)) != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return ret; }
+
+            return 0;
         }
         public void Play()
-        {
-            audioPlayer.Play();
-
-            if (!decoder.isReady || decoder.isRunning || isPlaying) { StatusChanged?.Invoke(this, new StatusChangedArgs(vStatus)); return; }
+        { 
+            if (!decoder.isReady || decoder.isRunning || isPlaying) { StatusChanged?.Invoke(this, new StatusChangedArgs(status)); return; }
 
             renderer.ClearMessages(OSDMessage.Type.Paused);
             if (beforeSeeking != Status.PLAYING) renderer.NewMessage(OSDMessage.Type.Play, "Play");
-
             beforeSeeking = Status.PLAYING;
+            
+            //if (status != Status.PAUSED) decoder.ReSync();
 
-            if ( isTorrent )
+            if (isTorrent)
             {
-                renderer.NewMessage(OSDMessage.Type.Buffering, $"Buffering ...");
+                //renderer.NewMessage(OSDMessage.Type.Buffering, $"Buffering ...");
                 status = Status.BUFFERING;
                 streamer.Seek((int)(CurTime/10000));
                 return;
@@ -824,124 +622,68 @@ namespace SuRGeoNix.Flyleaf
 
             Play2();
         }
-        private void Play2()
+        public void Play2()
         {
+            renderer.ClearMessages(OSDMessage.Type.Buffering);
+
             PauseThreads();
             status = Status.PLAYING;
-            
-            lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
-            lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
+
+            if (decoder.Finished) decoder.Seek(0);
+
+            StatusChanged?.Invoke(this, new StatusChangedArgs(status));
 
             screamer = new Thread(() =>
             {
-                // Reset AVS Decoders to CurTime
-
-                // Video | Seek | Set First Video Timestamp | Run Decoder
-                videoStartTicks = -1;
-                if (!isPlaying) return;
-
-                if (vFrames.Count < 1)
-                    lock(decoder) decoder.SeekAccurate((int) (CurTime/10000), FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
-                if (vFrames.Count < 1) { status = Status.STOPPED; return; }
-                
-                MediaFrame vFrame;
-                lock (vFrames) vFrames.TryPeek(out vFrame);
-                CurTime         = vFrame.timestamp;
-                videoStartTicks = vFrame.timestamp;
-
-                if (!isPlaying) return;
-                decoder.RunVideo();
-
-                // Audio | Seek | Run Decoder
-                if (decoder.hasAudio && doAudio)
+                try
                 {
-                    audioPlayer.ResetClbk();
-                    decoder.SeekAccurate((int) ((CurTime - audioExternalDelay)/10000) - 50, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO);
-                    decoder.RunAudio();
+                    Screamer();
+                } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
 
-                    //audioPlayer.Play();
-                }
-
-                // Audio | Seek | Run Decoder
-                if (decoder.hasSubs && doSubs)
-                {
-                    decoder.SeekAccurate((int) ((CurTime - subsExternalDelay)/10000) - 100, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                    decoder.RunSubs();
-                }
-
-                // Fill Queues at least with Min
-                while (isPlaying && vFrames.Count < VIDEO_MIX_QUEUE_SIZE || (hasAudio && doAudio && aFrames.Count < AUDIO_MIX_QUEUE_SIZE && !decoder.isAudioFinish) || (hasSubs && doSubs && sFrames.Count < SUBS_MIN_QUEUE_SIZE && !decoder.isSubsFinish ) ) 
-                    Thread.Sleep(20);
-
-                vStatus = Status.PLAYING; 
-                vScreamer = new Thread(() => {
-                    StatusChanged?.Invoke(this, new StatusChangedArgs(vStatus));
-                    try
-                    {
-                        VideoScreamer();
-                    } catch (Exception) { }
-
-                    //TimeEndPeriod(1);
-                    vStatus = Status.STOPPED;
-                    StatusChanged?.Invoke(this, new StatusChangedArgs(vStatus));
-                });
-                vScreamer.SetApartmentState(ApartmentState.STA);
-                
-                if (decoder.hasAudio && doAudio)
-                {
-                    aStatus = Status.PLAYING;
-                    aScreamer = new Thread(() => {
-                        try
-                        {
-                            AudioScreamer();
-                        } catch (Exception) { }
-                        aStatus = Status.STOPPED;
-                    });
-                    aScreamer.SetApartmentState(ApartmentState.STA);
-                }
-
-                if (decoder.hasSubs && doSubs)
-                {
-                    sStatus = Status.PLAYING;
-                    sScreamer = new Thread(() =>
-                    {
-                        try
-                        {
-                            SubsScreamer();
-                        } catch (Exception) { }
-                        sStatus = Status.STOPPED;
-                    });
-                    sScreamer.SetApartmentState(ApartmentState.STA);
-                }
-
-                if ((vScreamer != null && vScreamer.IsAlive) || (aScreamer != null && aScreamer.IsAlive) || (sScreamer != null && sScreamer.IsAlive)) return;
-                videoClock.Restart(); // Required here before Audio/Subs start with wrong clock
-                vScreamer.Start();
-                if (hasAudio && doAudio) aScreamer.Start();
-                if (hasSubs && doSubs ) sScreamer.Start();
+                status = Status.STOPPED;
+                StatusChanged?.Invoke(this, new StatusChangedArgs(status));
             });
             screamer.SetApartmentState(ApartmentState.STA);
-            //screamer.Priority = ThreadPriority.AboveNormal;
             screamer.Start();
         }
+
+        int prioritySeek = 0;
         public void Seek(int ms2, bool priority = false)
         {
-	        if (!decoder.isReady || seekLastValue == ms2) return;
-            
-            Interlocked.Exchange(ref SeekTime, (long)ms2 * 10000);
-	        seekStack.Push(ms2);
+            //ClearMediaFrames(); return; | For Unseekable - Live Stream | FormatContext flush / reopen?
 
-            if (seekRequest.IsAlive) return;
+            if (!decoder.isReady) return;
+
+            if (!priority)
+            {
+                Interlocked.Exchange(ref SeekTime, (long)ms2 * 10000);
+	            seekStack.Push(ms2);
+
+                if (seekRequest.IsAlive || Interlocked.Equals(prioritySeek, 1)) return;
+            }
+            else
+            {
+                Interlocked.Exchange(ref prioritySeek, 1);
+                Interlocked.Exchange(ref SeekTime, (long)ms2 * 10000);
+                PauseThreads();
+                Utils.EnsureThreadDone(seekRequest, 1000, 20);
+                seekStack.Push(ms2);
+                Interlocked.Exchange(ref prioritySeek, 0);
+            }
+            
+            int waitMs = priority ? 2000 : 40;
 
             seekRequest = new Thread(() =>
             {
-                if (Monitor.TryEnter(lockSeek, 40) && Monitor.TryEnter(lockOpening, 5))
+                if (Monitor.TryEnter(lockSeek, waitMs) && Monitor.TryEnter(lockOpening, 5))
 		        {
 			        try
 			        {
+                        //TODO
+                        //seekLastValue = screamer start time leave    
+
                         if (isTorrent && streamer != null) streamer.Pause();
-                        PauseThreads();
-                        
+                        PauseThreads();                        
 				        status = Status.SEEKING;
 
                         do
@@ -950,27 +692,16 @@ namespace SuRGeoNix.Flyleaf
 
                             if (!seekStack.TryPop(out int ms)) return;
                             seekStack.Clear();
-                            seekLastValue = ms;
 
-                            Render();
+                            if (Interlocked.Equals(prioritySeek, 1)) return;
 
-                            if (ms < decoder.vStreamInfo.startTimeTicks / 10000)
-                                ms = (int)(decoder.vStreamInfo.startTimeTicks / 10000);
-                            else if (ms > decoder.vStreamInfo.durationTicks / 10000)
-                                ms = (int)(decoder.vStreamInfo.durationTicks / 10000);
-
-                            ClearVideoFrames();
-
-                            lock (decoder) decoder.SeekAccurate(ms, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
+                            CurTime = (long)ms * 10000;
+                            decoder.Seek(ms, true);
+                            if (Interlocked.Equals(prioritySeek, 1)) return;
+                            //ClearMediaFrames();
 
                             if (seekStack.Count > 5) continue;
-                            if (vFrames.Count == 0) return;
-
-                            MediaFrame vFrame;
-                            lock (vFrames) vFrames.TryPeek(out vFrame);
-                            CurTime = vFrame.timestamp;
-                            renderer.PresentFrame(vFrame);
-
+                            if (beforeSeeking != Status.PLAYING) ShowOneFrame();
                         } while (!seekStack.IsEmpty && decoder.isReady);
 
                     } catch (Exception) { }
@@ -983,17 +714,24 @@ namespace SuRGeoNix.Flyleaf
                         Monitor.Exit(lockOpening);
 			        }
 
-			        if (beforeSeeking == Status.PLAYING) Play();
+			        if (beforeSeeking == Status.PLAYING)
+                    {
+                        if (Interlocked.Equals(prioritySeek, 1)) return; 
+                        //decoder.ReSync();
+                        Play();
+                    }
                     else if ( isTorrent ) streamer.Seek((int)(CurTime/10000));
 		        }
             });
 	        seekRequest.SetApartmentState(ApartmentState.STA);
+            Utils.EnsureThreadDone(seekRequest);
 	        seekRequest.Start();
         }
         public void Pause()
         {
-            audioPlayer.Pause();
-            if (!decoder.isReady || !decoder.isRunning || !isPlaying) StatusChanged(this, new StatusChangedArgs(vStatus));
+            //audioPlayer.Pause();
+            audioPlayer.ResetClbk();
+            if (!decoder.isReady || !decoder.isRunning || !isPlaying) StatusChanged(this, new StatusChangedArgs(status));
 
             renderer.ClearMessages(OSDMessage.Type.Play);
             renderer.NewMessage(OSDMessage.Type.Paused, "Paused");
@@ -1001,14 +739,6 @@ namespace SuRGeoNix.Flyleaf
             PauseThreads();
             status = Status.PAUSED;
             beforeSeeking = Status.PAUSED;
-        }
-        public void Stop()
-        {
-            audioPlayer.Pause();
-            decoder.Stop();
-            Initialize();
-            CurTime = 0;
-            audioPlayer.ResetClbk();
         }
         public void Close()
         {
@@ -1024,17 +754,8 @@ namespace SuRGeoNix.Flyleaf
 
         #region Streamer
         private void BufferingDone(bool done)   { if ( done && beforeSeeking == Status.PLAYING) Play2(); }
-        private void BufferingAudioDone()       { RestartAudio(); }
-        private void BufferingSubsDone()        { RestartSubs(); }
         public void SetMediaFile(string fileName)
         {
-            
-            //if (decoder     != null)   decoder.Pause();
-            //if (screamer    != null)  screamer.Abort();
-            //if (aScreamer   != null) aScreamer.Abort();
-            //if (vScreamer   != null) vScreamer.Abort();
-            //if (sScreamer   != null) sScreamer.Abort();
-
             if (openOrBuffer!= null) openOrBuffer.Abort();
             if (streamer    != null && isTorrent) streamer.Pause();
             PauseThreads();
@@ -1057,7 +778,8 @@ namespace SuRGeoNix.Flyleaf
                 if (ret != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed {ret}"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, fileName, null, null); return; }
 
                 // Open Decoder
-                ret = decoder.Open(null, streamer.DecoderRequests, streamer.fileSize);
+                ret = decoder.Open(null, "", "", "", streamer.DecoderRequests, streamer.fileSize);
+                //ret = decoder.Open(null, "a", "", "", streamer.DecoderRequests, streamer.fileSize);
                 if (ret != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed {ret}"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, fileName, null, null); return; }
 
                 if (!decoder.isReady) { status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, fileName, null, null); return; }
@@ -1072,15 +794,14 @@ namespace SuRGeoNix.Flyleaf
         #endregion
 
         #region Misc
-        private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.ffff")}] {msg}"); }
-        private void ClearMediaFrames()
+        private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] {msg}"); }
+        internal void ClearMediaFrames()
         {
             ClearVideoFrames();
             lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
             lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
-
         }
-        private void ClearVideoFrames()
+        internal void ClearVideoFrames()
         {
             lock (vFrames)
             {
@@ -1089,39 +810,39 @@ namespace SuRGeoNix.Flyleaf
                     MediaFrame m;
                     vFrames.TryDequeue(out m);
                     lock (renderer.device) renderer.device.ImmediateContext.Flush();
-                    SharpDX.Utilities.Dispose(ref m.texture);
-                    SharpDX.Utilities.Dispose(ref m.textureY);
-                    SharpDX.Utilities.Dispose(ref m.textureU);
-                    SharpDX.Utilities.Dispose(ref m.textureV);
-                    SharpDX.Utilities.Dispose(ref m.textureRGB);
+                    ClearVideoFrame(m);
                 }
                 vFrames = new ConcurrentQueue<MediaFrame>();
             }
         }
+        internal void ClearVideoFrame(MediaFrame m)
+        {
+            if (m == null) return;
+            SharpDX.Utilities.Dispose(ref m.textureHW);
+            SharpDX.Utilities.Dispose(ref m.textureY);
+            SharpDX.Utilities.Dispose(ref m.textureU);
+            SharpDX.Utilities.Dispose(ref m.textureV);
+            SharpDX.Utilities.Dispose(ref m.textureRGB);
+        }
+
         private void PauseThreads(bool andDecoder = true)
         {
             Log($"[Pausing All Threads] START");
-            status = Status.STOPPING; aStatus = Status.STOPPING; vStatus = Status.STOPPING; sStatus = Status.STOPPING;
-            Utils.EnsureThreadDone(vScreamer);
-            Utils.EnsureThreadDone(aScreamer);
-            Utils.EnsureThreadDone(sScreamer);
+            status = Status.STOPPING;
             Utils.EnsureThreadDone(screamer);
             if (andDecoder) decoder.Pause();
             if (hasAudio) audioPlayer.ResetClbk();
-            status = Status.STOPPED; aStatus = Status.STOPPED; vStatus = Status.STOPPED; sStatus = Status.STOPPED;
+            status = Status.STOPPED;
             Log($"[Pausing All Threads] END");
         }
         private void AbortThreads(bool andDecoder = true)
         {
             Log($"[Aborting All Threads] START");
-            status = Status.STOPPING; aStatus = Status.STOPPING; vStatus = Status.STOPPING; sStatus = Status.STOPPING;
+            status = Status.STOPPING;
             if (screamer != null) screamer.Abort();
-            if (aScreamer != null) aScreamer.Abort();
-            if (vScreamer != null) vScreamer.Abort();
-            if (sScreamer != null) sScreamer.Abort();
             if (decoder != null) decoder.Pause();
             audioPlayer.ResetClbk();
-            status = Status.STOPPED; aStatus = Status.STOPPED; vStatus = Status.STOPPED; sStatus = Status.STOPPED;
+            status = Status.STOPPED;
             Log($"[Aborting All Threads] END");
         }
         

@@ -9,7 +9,7 @@ namespace SuRGeoNix.Flyleaf
     // TODO: Static Player for All FlyLeaf Objects and Concatate Samples?
     public class AudioPlayer : NAudio.CoreAudioApi.Interfaces.IMMNotificationClient
     {
-        public const int        NAUDIO_DELAY_MS = 270;
+        public const int        NAUDIO_DELAY_MS = 200;
 
         WaveOut                 player;
         WaveFormat              format;
@@ -32,9 +32,6 @@ namespace SuRGeoNix.Flyleaf
         public bool     isPlaying   { get { return player.PlaybackState == PlaybackState.Playing ? true : false; } }
         public int      Volume      { get { return (int) (player.Volume * device.AudioEndpointVolume.MasterVolumeLevelScalar * 100); }  set { SetVolume(value); } }
         public bool     Mute        { get { return GetSetMute(); }                                                                      set { GetSetMute(false, value); } }
-
-
-        //public event EventHandler VolumeChanged;
 
         public event VolumeChangedHandler VolumeChanged;
         public delegate void VolumeChangedHandler(object source, VolumeChangedArgs e);
@@ -68,10 +65,10 @@ namespace SuRGeoNix.Flyleaf
                 format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
                 buffer = new BufferedWaveProvider(format);
                 buffer.BufferLength = 1500 * 1024;
-
+                
                 player = new WaveOut();
                 player.DeviceNumber = 0;
-                player.DesiredLatency = NAUDIO_DELAY_MS - 70;
+                player.DesiredLatency = NAUDIO_DELAY_MS;
                 player.Init(buffer);
                 player.Play();
 
