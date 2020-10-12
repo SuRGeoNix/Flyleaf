@@ -1,8 +1,7 @@
-﻿/*
- * Codec FFmpeg
- * 
- * Based on FFmpeg.AutoGen C# .NET bindings by Ruslan Balanukhin [https://github.com/Ruslan-B/FFmpeg.AutoGen]
- * 
+﻿/* FFmpeg Decoding Implementation
+ * ------------------------------
+ * Based on SharpDX, FFmpeg [https://ffmpeg.org/] & FFmpeg.AutoGen C# .NET bindings by Ruslan Balanukhin [https://github.com/Ruslan-B/FFmpeg.AutoGen]
+ * by John Stamatakis
  */
 using System;
 using System.IO;
@@ -20,6 +19,8 @@ using SharpDX.DXGI;
 using SharpDX.Direct3D11;
 
 using static FFmpeg.AutoGen.ffmpeg;
+using static FFmpeg.AutoGen.AVMediaType;
+using static FFmpeg.AutoGen.AVCodecID;
 
 using Device    = SharpDX.Direct3D11.Device;
 using Resource  = SharpDX.Direct3D11.Resource;
@@ -30,39 +31,39 @@ namespace SuRGeoNix.Flyleaf
     {
         #region Declaration
 
+        MediaRouter player;
+
         // Audio Output Parameters [ BITS | CHANNELS | RATE ]
         AVSampleFormat _SAMPLE_FORMAT   = AVSampleFormat.AV_SAMPLE_FMT_S16; int _CHANNELS = 2; 
         public int _RATE { get; private set; } // Will be set from Input Format
 
         // Video Output Parameters
-        public Device           d3d11Device;
+        
         Texture2DDescription    textDescNV12;
         Texture2DDescription    textDescYUV;
         Texture2DDescription    textDescRGB;
         Texture2D               textureFFmpeg;
         Texture2D               textureNV12;
+        public KeyedMutex textureNV12Mutex;
 
-        AVPixelFormat _PIXEL_FORMAT = AVPixelFormat.AV_PIX_FMT_RGBA;
-        int _SCALING_HQ             = SWS_ACCURATE_RND | SWS_BITEXACT | SWS_LANCZOS | SWS_FULL_CHR_H_INT | SWS_FULL_CHR_H_INP;
-        int _SCALING_LQ             = SWS_BICUBIC;
-        int vSwsOptFlags;
+        AVPixelFormat           _PIXEL_FORMAT   = AVPixelFormat.AV_PIX_FMT_RGBA;
+        int                     _SCALING_HQ     = SWS_ACCURATE_RND | SWS_BITEXACT | SWS_LANCZOS | SWS_FULL_CHR_H_INT | SWS_FULL_CHR_H_INP;
+        int                     _SCALING_LQ     = SWS_BICUBIC;
+        int                     vSwsOptFlags;
         
-        // Video Output Buffer
+        // Video Output Buffer [For sws_scall fall-back to rgb texture]
         IntPtr                  outBufferPtr; 
         int                     outBufferSize;
         byte_ptrArray4          outData;
         int_array4              outLineSize;
 
         // Contexts             [Audio]     [Video]     [Subs]      [Audio/Video]       [Subs/Video]
-        AVFormatContext*        aFmtCtx,    vFmtCtx,    sFmtCtx;
-        AVIOContext*            aIOCtx,     vIOCtx,     sIOCtx;
+        public DecoderContext   audio,      video,      subs;
         AVStream*               aStream,    vStream,    sStream;
         AVCodecContext*         aCodecCtx,  vCodecCtx,  sCodecCtx;
         AVCodec*                aCodec,     vCodec,     sCodec;
         SwrContext*             swrCtx;
         SwsContext*                         swsCtx;   //sSwsCtx;
-
-        Thread                  aDecoder,   vDecoder,   sDecoder;
 
         // Status
         public enum Status
@@ -74,32 +75,18 @@ namespace SuRGeoNix.Flyleaf
             STOPPED,
             OPENING
         }
-        public Status           aStatus { get; set; }
-        public Status           vStatus { get; set; }
-        public Status           sStatus { get; set; }
         public Status           status  { get; set; }
 
-        // Frames Callback | Main
-        Action<MediaFrame, AVMediaType>     SendFrame;
-
-        // AVIO Callbacks  | DecodeSilence2
-        public Action<AVMediaType>          BufferingDone;
-        public Action                       BufferingAudioDone;
-        public Action                       BufferingSubsDone;
-
-        private long                        aCurPos, vCurPos, sCurPos;
-        List<object>                        gcPrevent       = new List<object>();
-        private const int                   IOBufferSize    = 0x40000;
-
-        public bool isSubsExternal { get; private set; }
-        bool aFinish, vFinish, sFinish;
+        // AVIO / Custom IO Buffering
+        public Action<bool, double>     BufferingDone;
+        const int               IOBufferSize    = 0x40000;
 
         // HW Acceleration
-        const int                           AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
-        public Device                       avD3D11Device;
-        AVBufferRef*                        hw_device_ctx;
-        List<AVHWDeviceType>                hwDevices;
-        List<HWDeviceSupported>             hwDevicesSupported;
+        const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
+        public Device           avD3D11Device;
+        AVBufferRef*            hw_device_ctx;
+        List<AVHWDeviceType>    hwDevices;
+        List<HWDeviceSupported> hwDevicesSupported;
         struct HWDeviceSupported
         {
             public AVHWDeviceType       type;
@@ -111,19 +98,23 @@ namespace SuRGeoNix.Flyleaf
 
         public class MediaFrame
         {
-            public byte[]   data;
+            public long         timestamp;
+            public long         pts;
 
-            public Texture2D   texture;
-            public Texture2D   textureRGB;
-            public Texture2D   textureY;
-            public Texture2D   textureU;
-            public Texture2D   textureV;
+            // Video Textures
+            public Texture2D    textureHW;
+            public Texture2D    textureRGB;
+            public Texture2D    textureY;
+            public Texture2D    textureU;
+            public Texture2D    textureV;
 
-            public long     timestamp;
-            public long     pts;
-
-            public int      duration;
-            public string   text;
+            // Audio Samples
+            public byte[]       audioData;
+            
+            // Subtitles
+            public int          duration;
+            public string       text;
+            public List<OSDMessage.SubStyle> subStyles;
         }
         public struct AudioStreamInfo
         {
@@ -151,131 +142,1080 @@ namespace SuRGeoNix.Flyleaf
         public VideoStreamInfo  vStreamInfo;
         double sTimbebaseLowTicks;
 
-        public bool isVideoFinish   { get {  return vFinish; } }
-        public bool isAudioFinish   { get {  return aFinish; } }
-        public bool isSubsFinish    { get {  return sFinish; } }
+
+        public bool isRunning       => status == Status.RUNNING;
+        public bool isSeeking       => status == Status.SEEKING;
+        public bool isStopped       => status == Status.STOPPED;
         public bool isReady         { get; private set; }
-        public bool isRunning       { get { return (status  == Status.RUNNING); } }
-        public bool isSeeking       { get { return (status  == Status.SEEKING); } }
-        public bool isStopped       { get { return (status  == Status.STOPPED); } }
-        public bool isAudioRunning  { get { return (aStatus == Status.RUNNING); } }
-        public bool isVideoRunning  { get { return (vStatus == Status.RUNNING); } }
-        public bool isSubsRunning   { get { return (sStatus == Status.RUNNING); } }
+        public bool Finished        { get; private set; }
+
         public bool hasAudio        { get; private set; }
         public bool hasVideo        { get; private set; }
         public bool hasSubs         { get; private set; }
-        public bool doAudio         { get; set; } = true;   // Requires-reopen if was disabled
-        public bool doSubs          { get; set; } = true;   // Requires-reopen if was disabled
-        public bool HighQuality     { get; set; }
-        public bool HWAccel         { get; set; } = true;   // Requires re-open
+
+        bool _doAudio;
+        public bool doAudio         { 
+            get { return _doAudio; }
+
+            set
+            { 
+                _doAudio = value;
+
+                if (aStream == null) return;
+
+                if (audio == null)
+                {
+                    if (video == null) return;
+
+                    if (value)
+                    {
+                        if (!video.activeStreamIds.Contains(aStream->index))
+                            video.activeStreamIds.Add(aStream->index);
+                    }
+                    else
+                        video.activeStreamIds.Remove(aStream->index);
+                }
+                else
+                {
+                    if (value)
+                        audio.ReSync();
+                    else
+                        audio.Pause();
+                }
+
+                player.aFrames = new System.Collections.Concurrent.ConcurrentQueue<MediaFrame>();
+            }
+        }
+        bool _doSubs;
+        public bool doSubs          { 
+            get { return _doSubs; }
+
+            set
+            { 
+                _doSubs = value;
+
+                if (sStream == null) return;
+
+                if (subs == null)
+                {
+                    if (video == null) return;
+
+                    if (value)
+                    {
+                        if (!video.activeStreamIds.Contains(sStream->index))
+                            video.activeStreamIds.Add(sStream->index);
+                    }
+                    else
+                        video.activeStreamIds.Remove(sStream->index);
+                }
+                else
+                {
+                    if (value)
+                        subs.ReSync();
+                    else
+                        subs.Pause();
+                }
+
+                player.sFrames = new System.Collections.Concurrent.ConcurrentQueue<MediaFrame>();
+            }
+        }
+        public bool isSubsExternal  { get; private set; }
+
+        public bool HighQuality     { get; set;         }
+        public bool HWAccel         { get; set;         } = true;   // Requires re-open
         public bool hwAccelSuccess  { get; private set; }
-        public int  Threads         { get; set; } = 2;      // Requires re-open
-        public int  verbosity       { get; set; }
+        public int  Threads         { get; set;         } = 1;      // Requires re-open
+        public int  verbosity       { get; set;         }
         #endregion
 
         #region Initialization
-        public MediaDecoder() { }
-        public MediaDecoder (Action<MediaFrame, AVMediaType> RecvFrameCallback = null, int verbosity = 0) { Init(RecvFrameCallback, verbosity); }
-        public void Init    (Action<MediaFrame, AVMediaType> RecvFrameCallback = null, int verbosity = 0)
+        public MediaDecoder(MediaRouter player) { this.player = player; }
+        public MediaDecoder (MediaRouter player, int verbosity = 0) { this.player = player; Init(verbosity); }
+        public void Init    (int verbosity = 0)
         {
             RegisterFFmpegBinaries();
-            
             if      (verbosity == 1) { av_log_set_level(AV_LOG_ERROR);        av_log_set_callback(ffmpegLogCallback); } 
             else if (verbosity  > 1) { av_log_set_level(AV_LOG_MAX_OFFSET);   av_log_set_callback(ffmpegLogCallback); }
             this.verbosity      = verbosity;
-            SendFrame           = RecvFrameCallback;
 
             hwDevices           = GetHWDevices();
             hwDevicesSupported  = new List<HWDeviceSupported>();
 
-            Initialize();
+            //Initialize();
         }
+        #endregion
 
+        #region Actions / Public
+        public int Open(string url = "", string aUrl = "", string sUrl = "", string referer = "", Func<long, int, byte[]> IORead = null, long ioLength = 0)
+        {
+            int ret = 0;
+
+            if (IORead != null || url  != "")
+                            ret = FormatContextOpen(url, true, aUrl != "" ? false : doAudio, sUrl != "" ? false : doSubs, referer, IORead, ioLength);
+            if (ret != 0) return ret;
+            if (aUrl != "") ret = FormatContextOpen(aUrl, false, doAudio, false, referer, IORead, ioLength);
+            if (ret != 0) return ret;
+            if (sUrl != "") ret = FormatContextOpen(sUrl, false, false, doSubs, referer, IORead, ioLength);
+
+            return ret;
+        }
         [HandleProcessCorruptedStateExceptions]
         [SecurityCritical]
-        private void Initialize()
+        public int FormatContextOpen(string url, bool doVideo = true, bool doAudio = true, bool doSubs = true, string referer = "", Func<long, int, byte[]> IORead = null, long ioLength = 0)
         {
-            if (aDecoder != null && aDecoder.IsAlive) aDecoder.Abort();
-            if (vDecoder != null && vDecoder.IsAlive) vDecoder.Abort();
-            if (sDecoder != null && sDecoder.IsAlive) sDecoder.Abort();
+            int ret = -1;
 
-            status      = Status.STOPPED; 
-            aStatus     = Status.STOPPED; 
-            vStatus     = Status.STOPPED; 
-            sStatus     = Status.STOPPED;
+            if (doVideo) Finished = false;
+            if (doVideo) isReady = false;
 
-            isReady     = false;
-            hasAudio    = false;
-            hasVideo    = false;
-            hasSubs     = false;
-            isSubsExternal = false;
+            DecoderContext decCtx;
+            AVMediaType decType;
 
-            vStreamInfo = new VideoStreamInfo();
-            aStreamInfo = new AudioStreamInfo();
+            if (doVideo)
+                { decCtx = video; decType = AVMEDIA_TYPE_VIDEO; }
+            else if (doAudio)
+                { decCtx = audio; decType = AVMEDIA_TYPE_AUDIO; }
+            else if (doSubs)
+                { decCtx = subs;  decType = AVMEDIA_TYPE_SUBTITLE;}
+            else return -1;
 
-            AVFormatContext* fmtCtxPtr;
-            try
+            if (decCtx != null) decCtx.Dispose();
+
+            Log("Opening Format Context [" + decType + "]");
+            decCtx = new DecoderContext(this, decType, verbosity);
+            decCtx.fmtCtx = avformat_alloc_context();
+            if (decCtx.fmtCtx == null) return ret;
+
+            if (IORead != null && ioLength != 0) decCtx.IOContextConfig(IORead, ioLength);
+
+            AVDictionary *opt = null;
+            av_dict_set(&opt, "referer", referer, 0);
+
+            // set seekable to false on http options for live streaming?
+            // seekable = iformat->read_seek2 ? 1 : (iformat->read_seek ? 1 : 0); ?
+
+            //AVIOInterruptCB_callback_func interruptClbk = new AVIOInterruptCB_callback_func();
+            //AVIOInterruptCB_callback InterruptClbk = (p0) => { return 0; };
+
+            //interruptClbk.Pointer               = Marshal.GetFunctionPointerForDelegate(InterruptClbk);
+            //fmtCtx->interrupt_callback.callback = interruptClbk;
+            //fmtCtx->interrupt_callback.opaque   = fmtCtx;
+
+            fixed (AVFormatContext** ptr = &decCtx.fmtCtx) ret = avformat_open_input(ptr, url, null, &opt);
+            if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
+
+            av_format_inject_global_side_data(decCtx.fmtCtx);
+
+            ret = avformat_find_stream_info(decCtx.fmtCtx, null);
+            if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
+
+            if (doVideo)
             {
-                if (aFmtCtx != null) { fmtCtxPtr = aFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(aFmtCtx); }
-            } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
+                hasVideo = false;
+                vStreamInfo = new VideoStreamInfo();
+
+                ret = av_find_best_stream(decCtx.fmtCtx, AVMEDIA_TYPE_VIDEO,   -1, -1, null, 0);
+                if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); decCtx.Dispose(); return ret; }
+                vStream = decCtx.fmtCtx->streams[ret];
+                hasVideo = true;
+            }
+
+            if (doAudio)
+            {
+                hasAudio = false;
+                ret = av_find_best_stream(decCtx.fmtCtx, AVMEDIA_TYPE_AUDIO,   -1, vStream->index, null, 0);
+                if (ret >= 0) { aStream = decCtx.fmtCtx->streams[ret]; hasAudio = true; }
+            }
+            
+            if (doSubs)
+            {
+                hasSubs = false;
+                ret = av_find_best_stream(decCtx.fmtCtx, AVMEDIA_TYPE_SUBTITLE, -1, -1, null, 0);
+                if (ret >= 0) { sStream = decCtx.fmtCtx->streams[ret]; hasSubs = true; }
+            }
+
+            if (!doVideo && ((doAudio && !hasAudio) || (doSubs && !hasSubs)) )
+            {
+                Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret));
+                decCtx.Dispose();
+                return ret; 
+            }
+
+            if (doVideo && hasVideo)
+            {
+                ret = SetupCodec(AVMEDIA_TYPE_VIDEO);
+                if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
+
+                decCtx.activeStreamIds.Add(vStream->index);
+            }
+
+            if (doAudio && hasAudio)
+            {
+                ret = SetupCodec(AVMEDIA_TYPE_AUDIO);
+                if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
+
+                decCtx.activeStreamIds.Add(aStream->index);
+            }
+
+            if (doSubs && hasSubs)
+            {
+                ret = SetupCodec(AVMEDIA_TYPE_SUBTITLE);
+                if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); if (!doVideo) return ret; }
+
+                decCtx.activeStreamIds.Add(sStream->index);
+                isSubsExternal = doVideo && hasVideo ? false : true;
+            }
+
+            for (int i=0; i<decCtx.fmtCtx->nb_streams; i++)
+                if ( !decCtx.activeStreamIds.Contains(i) ) 
+                    decCtx.fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+
+            //TODO: In case of Custom Multi-Context & Same Url Required for matroska (AUDIO stream dont discard VIDEO)
+            //if (decCtx.type == AVMEDIA_TYPE_AUDIO) decCtx.fmtCtx->streams[<<<>>>>]->discard = AVDiscard.AVDISCARD_DEFAULT;
+            
+            if (doVideo && hasVideo) SetupVideo(decCtx.fmtCtx);
+            if (doAudio && hasAudio) SetupAudio(decCtx.fmtCtx);
+            if (doSubs  && hasSubs) sTimbebaseLowTicks = av_q2d(sStream->time_base) * 10000 * 1000;
+
+            decCtx.isReady = true;
+            if (doVideo && hasVideo) isReady = true;
+
+            if (doVideo)
+                video = decCtx;
+            else if (doAudio)
+                audio = decCtx;
+            else if (doSubs)
+                subs  = decCtx;
+
+            if (isRunning && decCtx.type == AVMEDIA_TYPE_SUBTITLE)
+            {
+                subs.Seek(player.CurTime / 10000);
+                subs.Run();
+            }
+
+            if (verbosity > 0) FormatContextDump(decCtx);
+
+            return 0;
+        }
+        private void FormatContextDump(DecoderContext decCtx)
+        {
+            Log("[" + (new TimeSpan(decCtx.fmtCtx->start_time * 10)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(decCtx.fmtCtx->duration * 10)).ToString(@"hh\:mm\:ss") + "]");
+
+            Log($"============================ STREAMS ===================================");
+            for (int i=0; i<decCtx.fmtCtx->nb_streams; i++)
+            {
+                if (decCtx.fmtCtx->streams[i]->codec->codec_type == AVMediaType.AVMEDIA_TYPE_VIDEO)
+                    Log($"{i}. [{decCtx.fmtCtx->streams[i]->codec->codec_type.ToString().Replace("AVMEDIA_TYPE_", "")} | {decCtx.fmtCtx->streams[i]->codec->codec_id.ToString().Replace("AV_CODEC_ID_", "")} | {decCtx.fmtCtx->streams[i]->codec->pix_fmt.ToString().Replace("AV_PIX_FMT_","")} | {decCtx.fmtCtx->streams[i]->codec->width} x {decCtx.fmtCtx->streams[i]->codec->height}] [{(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")} / {(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")}] | {decCtx.fmtCtx->streams[i]->codec->time_base.num} / {decCtx.fmtCtx->streams[i]->codec->time_base.den}");
+                else
+                    Log($"{i}. [{decCtx.fmtCtx->streams[i]->codec->codec_type.ToString().Replace("AVMEDIA_TYPE_", "")} | {decCtx.fmtCtx->streams[i]->codec->codec_id.ToString().Replace("AV_CODEC_ID_", "")}] [{(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")} / {(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")}] | {decCtx.fmtCtx->streams[i]->codec->time_base.num} / {decCtx.fmtCtx->streams[i]->codec->time_base.den}");
+            }
+            Log($"========================================================================");
+            
+            //Log($"============================ METADATA ===================================");
+            //for (int i=0; i<decCtx.fmtCtx->nb_streams; i++)
+            //{
+            //    Log($"{i+1}. [{decCtx.fmtCtx->streams[i]->codec->codec_type.ToString().Replace("AVMEDIA_TYPE_", "")} | {decCtx.fmtCtx->streams[i]->codec->codec_id.ToString().Replace("AV_CODEC_ID_", "")}] [{(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")} / {(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")}] | {decCtx.fmtCtx->streams[i]->codec->time_base.num} / {decCtx.fmtCtx->streams[i]->codec->time_base.den}");
+            //    Dictionary<string, string> metaEntries = new Dictionary<string, string>();
+
+            //    AVDictionaryEntry* b = null;
+            //    while (true)
+            //    {
+            //        b = av_dict_get(decCtx.fmtCtx->streams[i]->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
+            //        if (b == null) break;
+            //        metaEntries.Add(BytePtrToStringUTF8(b->key), BytePtrToStringUTF8(b->value));
+
+            //    }
+            //    foreach (KeyValuePair<string, string> metaEntry in metaEntries)
+            //        Log($"{metaEntry.Key} -> {metaEntry.Value}");
+
+            //    Log($"=======================================================================");
+            //}
+
+            //av_dump_format(decCtx.fmtCtx, 0, url, 0);
+        }
+
+        public void Seek(long ms, bool onlyVideo = false)
+        {
+            video?.Seek(ms);
+            if (onlyVideo) return;
+
+            ReSync();
+        }
+        public void ReSync()
+        {
+            if (subs == null && audio == null) return;
+
+            if (!video.isRunning) video.DecodeFrame();
+            if (player.vFrames.Count == 0) return;
+
+            player.vFrames.TryPeek(out MediaFrame vFrame);
+
+            Log("Resyncing at " + vFrame.timestamp / 10000);
+
+            audio?.Seek(vFrame.timestamp / 10000);
+            subs ?.Seek(vFrame.timestamp / 10000);
+
+            if (player.isPlaying)
+            {
+                audio?.Run();
+                subs?.Run();
+            }
+        }
+        public void Pause()
+        {
+            if (!isReady) return;
+
+            status = Status.STOPPING;
+            video?.Pause();
+            audio?.Pause();
+            subs ?.Pause();
+            status = Status.STOPPED;
+        }
+        public void Run()
+        {
+            if (!isReady) return;
+
+            if (isRunning) Pause();
+
+            status = Status.RUNNING;
+
+            if (video.requiresResync)
+            {
+                ReSync();
+                video.requiresResync = false;
+            }
+            else
+            {
+                audio?.Run();
+                subs ?.Run();
+            }
+            video?.Run();
+            
+        }
+        #endregion
+
+        #region Decoder Context
+        public class DecoderContext
+        {
+            #region Declaration / Properties
+            MediaDecoder    dec;
+            int             verbosity;
+
+            // Format Context (Type/Packet/Frame)
+            public  AVFormatContext*    fmtCtx;
+            public  AVMediaType         type; // Multi (V - A | S) , Single (A | S)
+                    AVPacket*           pkt;
+                    AVFrame*            frame;
+
+            // Status / Activity
+            Thread              runThread   = new Thread(() => { });
+            Status              status      = Status.STOPPED;
+            public bool         isRunning => status == Status.RUNNING;
+            public bool         isReady;
+            public bool         finished;
+
+            public List<int>    activeStreamIds = new List<int>();
+            public bool         drainMode;
+            public bool         hasMoreFrames;
+            public bool         hwFramesInit;
+            
+            // Custom IO / Buffering
+            AVIOContext*        IOCtx;
+            List<object>        gcPrevent = new List<object>();
+            long                ioPos;
+
+            public bool         requiresResync;
+            int errors;
+            #endregion
+
+            #region Initialization
+            public DecoderContext(MediaDecoder dec, AVMediaType mType, int verbosity = 0)
+            {
+                this.verbosity = verbosity;
+                this.dec = dec;
+                type = mType;
+                pkt = av_packet_alloc();
+
+                if (type == AVMEDIA_TYPE_SUBTITLE && !dec.isSubsExternal && dec.hasSubs)
+                {
+                    dec.video.activeStreamIds.Remove(dec.sStream->index);
+                    dec.video.fmtCtx->streams[dec.sStream->index]->discard = AVDiscard.AVDISCARD_ALL;
+                    dec.sStream = null;
+                }
+            }
+            public void Dispose()
+            {
+                Pause();
+
+                if (type == AVMEDIA_TYPE_VIDEO)
+                {
+                    if (dec.swsCtx != null) { sws_freeContext(dec.swsCtx); dec.swsCtx = null; }
+
+                    dec.audio?.Dispose(); dec.audio = null;
+                    dec.subs?. Dispose(); dec.subs  = null;
+                    dec.aStream = null;
+                    dec.sStream = null;
+                    dec.aCodecCtx = null;
+                    dec.vCodecCtx = null;
+                    dec.sCodecCtx = null;
+                }
+                else if (type == AVMEDIA_TYPE_AUDIO)
+                {
+                    dec.aStream = null;
+                    dec.audio   = null;
+                    dec.aCodecCtx = null;
+                }
+                else if (type == AVMEDIA_TYPE_SUBTITLE)
+                {
+                    dec.sStream = null;
+                    dec.subs    = null;
+                    dec.sCodecCtx = null;
+                }
+
+                if (IOCtx != null) IOCtx = null;
+                if (pkt  != null) av_packet_unref(pkt);
+                if (frame!= null) fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
+                if (fmtCtx!=null) fixed (AVFormatContext** ptr = &fmtCtx) if (fmtCtx != null) avformat_close_input(ptr);
+            }
+            #endregion
+
+            #region Public Actions
+            public void ReSync()
+            {
+                if (dec.player.vFrames.Count == 0 || type == AVMEDIA_TYPE_VIDEO) return;
+
+                if ((type == AVMEDIA_TYPE_AUDIO && !dec.doAudio) || type == AVMEDIA_TYPE_SUBTITLE && !dec.doSubs) return;
+
+                dec.player.vFrames.TryPeek(out MediaFrame vFrame);
+
+                Log("Resyncing at " + Utils.TicksToTime(vFrame.timestamp));
+
+                if (type == AVMEDIA_TYPE_AUDIO)
+                {
+                    dec.audio?.Seek(vFrame.timestamp / 10000);
+                    if(dec.player.isPlaying) dec.audio?.Run();
+                }
+                else
+                {
+                    dec.subs ?.Seek(vFrame.timestamp / 10000);
+                    if(dec.player.isPlaying) dec.subs ?.Run();
+                }
+            }
+            public void Seek(long ms, bool seek2any = false)
+            {
+                if (!isReady) return;
+
+                Pause();
+
+                if ((type == AVMEDIA_TYPE_AUDIO && !dec.doAudio) || type == AVMEDIA_TYPE_SUBTITLE && !dec.doSubs) return;
+
+                Log("Seek at " + Utils.TicksToTime(ms * 10000));
                 
-            try
-            {
-                if (vFmtCtx != null) { avcodec_close(vCodecCtx); sws_freeContext(swsCtx); fmtCtxPtr = vFmtCtx; avformat_close_input(&fmtCtxPtr); /*av_freep(vFmtCtx);*/ }
-            } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
-                
-            try
-            {
-                if (sFmtCtx != null) { fmtCtxPtr = sFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(sFmtCtx); }
-            } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
+                status = Status.SEEKING;
 
-            aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null; 
+                finished        = false;
+                drainMode       = false;
+                hasMoreFrames   = false;
+
+                if (type == AVMEDIA_TYPE_VIDEO)
+                {
+                    dec.player.ClearMediaFrames();
+                    dec.Finished    = false;
+                    hwFramesInit    = false;
+                    requiresResync  = true;
+
+                    avcodec_flush_buffers(dec.vCodecCtx);
+                    if (dec.hasAudio) avcodec_flush_buffers(dec.aCodecCtx);
+                    if (dec.hasSubs ) avcodec_flush_buffers(dec.sCodecCtx);
+                    if (seek2any)
+                        avformat_seek_file(fmtCtx, -1, Int64.MinValue, ms * 1000, ms * 1000, AVSEEK_FLAG_ANY);
+                    else
+                        av_seek_frame(fmtCtx, -1, ms * 1000, AVSEEK_FLAG_BACKWARD);
+                }
+                else if (type == AVMEDIA_TYPE_AUDIO)
+                {
+                    dec.player.aFrames = new System.Collections.Concurrent.ConcurrentQueue<MediaFrame>();
+
+                    if (dec.hasAudio) avcodec_flush_buffers(dec.aCodecCtx);
+
+                    //avformat_seek_file(fmtCtx, -1, Int64.MinValue, ms * 1000, ms * 1000, AVSEEK_FLAG_ANY);  // - (AudioPlayer.NAUDIO_DELAY_MS * 1000)); | We Add the Audio Delay to Video/Subs Timestamp (because is backwards)
+
+                    //av_seek_frame(fmtCtx, -1, ms * 1000, AVSEEK_FLAG_BACKWARD);
+                    avformat_seek_file(fmtCtx, -1, Int64.MinValue, ms * 1000 - ((dec.player.AudioExternalDelay / 10) + AudioPlayer.NAUDIO_DELAY_MS), Int64.MaxValue, AVSEEK_FLAG_ANY);
+                }
+                else if (type == AVMEDIA_TYPE_SUBTITLE)
+                {
+                    dec.player.sFrames = new System.Collections.Concurrent.ConcurrentQueue<MediaFrame>();
+
+                    avcodec_flush_buffers(dec.sCodecCtx);
+
+                    avformat_seek_file(fmtCtx, -1, Int64.MinValue, ms * 1000 - ((dec.player.SubsExternalDelay / 10) + AudioPlayer.NAUDIO_DELAY_MS), Int64.MaxValue, AVSEEK_FLAG_ANY);
+                }
+            }
+            public void Pause()
+            {
+                status = Status.STOPPING;
+                Utils.EnsureThreadDone(runThread);
+                status = Status.STOPPED;
+            }
+            public void Run()
+            {
+                if (!isReady) return;
+
+                Pause();
+
+                if ((type == AVMEDIA_TYPE_AUDIO && !dec.doAudio) || type == AVMEDIA_TYPE_SUBTITLE && !dec.doSubs) return;
+
+                status = Status.RUNNING;
+
+                runThread = new Thread(() =>
+                {
+                    Log(status.ToString());
+                    DecodeFrames();
+                    status = Status.STOPPED;
+                    Log(status.ToString());
+                });
+                runThread.SetApartmentState(ApartmentState.STA);
+                runThread.Start();
+            }
+            public void BufferPackets(int fromMs, int duration)
+            {
+                if (!isReady) return;
+
+                Seek(fromMs, false); // Making sure it will start at the same point as the main decoder (I/B/P)
+
+                runThread = new Thread(() =>
+                {
+                    int ret = 0;
+                    status = Status.RUNNING;
+                    Log(status.ToString());
+
+                    
+                    bool        informed        = false;
+                    double      fromTimestamp   = -1;
+                    double      curTimestamp    =  0;
+                    double      endTimestamp    = (fromMs + duration) / 1000.0;
+                    List<int>   doneStreams     = new List<int>();
+
+                    while (isRunning)
+                    {
+                        av_packet_unref(pkt);
+                        ret = av_read_frame(fmtCtx, pkt);
+
+                        if (doneStreams.Count == activeStreamIds.Count)
+                        {
+                            if (informed) { Thread.Sleep(12); continue; }
+                            dec.BufferingDone?.BeginInvoke(true, 1, null, null);
+                            informed = true;
+                            Log($"Buffering success to -> {Utils.TicksToTime((long)(pkt->dts * av_q2d(fmtCtx->streams[pkt->stream_index]->time_base) * 1000 * (long)10000))} | Requested for {Utils.TicksToTime((long) (endTimestamp * 1000 * (long)10000))}");
+                        }
+
+                        if (doneStreams.     Contains(pkt->stream_index)) continue;
+                        if (!activeStreamIds.Contains(pkt->stream_index)) continue;
+
+                        curTimestamp = pkt->dts * av_q2d(fmtCtx->streams[pkt->stream_index]->time_base);
+                        if (fromTimestamp == -1) fromTimestamp = curTimestamp;
+
+                        if ( curTimestamp > endTimestamp) 
+                            doneStreams.Add(pkt->stream_index);
+                        else
+                            dec.BufferingDone?.BeginInvoke(false, (curTimestamp - fromTimestamp) / (endTimestamp - fromTimestamp), null, null);
+                    }
+                    status = Status.STOPPED;
+                    Log(status.ToString());
+                });
+                runThread.SetApartmentState(ApartmentState.STA);
+                runThread.Start();
+            }
+            #endregion 
+
+            #region Main Implementation
+            public void DecodeFrame()
+            {
+                if (!isReady) return;
+
+                Pause();
+                dec.player.ClearMediaFrames();
+
+                int ret = 0;
+                AVMediaType mType;
+            
+                while ((ret = GetNextFrame(out mType)) == 0)
+                {
+                    if (frame == null && mType != AVMEDIA_TYPE_SUBTITLE) continue;
+
+                    if (mType == AVMEDIA_TYPE_AUDIO)
+                    {
+                        dec.ProcessAudioFrame(frame);
+                        fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
+                        if (type == AVMEDIA_TYPE_AUDIO) break;
+                    }   
+                    else if (mType == AVMEDIA_TYPE_VIDEO)
+                    {
+                        dec.ProcessVideoFrame(frame);
+                        fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
+                        hwFramesInit = false;
+                        if (type == AVMEDIA_TYPE_VIDEO) break;
+                    }
+                    else if (mType == AVMEDIA_TYPE_SUBTITLE)
+                    {
+                        dec.DecodeFrameSubs(dec.sCodecCtx, pkt);
+                        if (type == AVMEDIA_TYPE_SUBTITLE) break;
+                    }
+                }
+            }
+            public void DecodeFrames()
+            {
+                //bool once = true;
+                int ret = 0;
+                errors = 0;
+                AVMediaType mType = AVMEDIA_TYPE_UNKNOWN;
+                
+                while (dec.isRunning && isRunning && (ret = GetNextFrame(out mType)) == 0 && errors < 200)
+                {
+                    if (frame == null && mType != AVMEDIA_TYPE_SUBTITLE) continue;
+
+                    //if (pkt != null && frame != null) Console.WriteLine("F | " + pkt->stream_index + " | " + (new TimeSpan(av_rescale_q(frame->best_effort_timestamp, fmtCtx->streams[pkt->stream_index]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss") + " | " + frame->best_effort_timestamp  + " | " + av_rescale_q(frame->best_effort_timestamp, fmtCtx->streams[pkt->stream_index]->time_base, av_get_time_base_q()));
+                    //if (pkt != null && mType == AVMEDIA_TYPE_SUBTITLE) Console.WriteLine("S | "  + pkt->stream_index + " | " + (pkt->pts * dec.sTimbebaseLowTicks));
+
+                    switch (mType)
+                    {
+                        case AVMEDIA_TYPE_AUDIO:
+                            dec.ProcessAudioFrame(frame);
+                            fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
+                            break;
+
+                        case AVMEDIA_TYPE_VIDEO:
+                            dec.ProcessVideoFrame(frame);
+                            fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
+                            //if (once)
+                            //{
+                            //    if (pkt != null && mType == AVMEDIA_TYPE_SUBTITLE) Console.WriteLine("A | "  + pkt->stream_index + " | " + (new TimeSpan(av_rescale_q(frame->best_effort_timestamp, fmtCtx->streams[pkt->stream_index]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss\:fff") + " | " + new TimeSpan((long)(frame->best_effort_timestamp * dec.aStreamInfo.timebaseLowTicks)).ToString(@"hh\:mm\:ss\:fff"));
+                            //    once = false;
+                            //}
+                            break;
+
+                        case AVMEDIA_TYPE_SUBTITLE:
+                            //if (once)
+                            //{
+                            //    if (pkt != null && mType == AVMEDIA_TYPE_SUBTITLE) Console.WriteLine("S | "  + pkt->stream_index + " | " + (new TimeSpan(av_rescale_q(pkt->pts, fmtCtx->streams[pkt->stream_index]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss\:fff") + " | " + new TimeSpan((long)(pkt->pts * dec.sTimbebaseLowTicks)).ToString(@"hh\:mm\:ss\:fff"));
+                            //    once = false;
+                            //}
+                            dec.DecodeFrameSubs(dec.sCodecCtx, pkt);
+                            break;
+                    }
+
+                    if (type == AVMEDIA_TYPE_SUBTITLE && dec.player.sFrames.Count > dec.player.SUBS_MAX_QUEUE_SIZE && dec.isRunning)
+                        Thread.Sleep(70);
+
+                    while (type == AVMEDIA_TYPE_AUDIO && dec.player.aFrames.Count > dec.player.AUDIO_MAX_QUEUE_SIZE && dec.isRunning)
+                        Thread.Sleep(10);
+
+                    while (type == AVMEDIA_TYPE_VIDEO && dec.player.vFrames.Count > dec.player.VIDEO_MAX_QUEUE_SIZE && dec.isRunning)
+                        Thread.Sleep(10);
+                }
+
+                if (ret != 0 )
+                {
+                    if (ret != AVERROR_EOF) Log(mType.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret));
+                    if (type == AVMEDIA_TYPE_VIDEO) { requiresResync  = true; dec.Finished = true; }
+                }
+
+                if (errors == 200) Log(mType.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: Too many errors");
+
+                status = Status.STOPPED;
+                if (type == AVMEDIA_TYPE_VIDEO) dec.status = Status.STOPPED;
+            }
+            public int  GetNextFrame(out AVMediaType mType)
+            {
+                int ret = 0;
+                mType = AVMEDIA_TYPE_UNKNOWN;
+
+                if (drainMode)
+                {
+                    frame = av_frame_alloc();
+                    mType = AVMEDIA_TYPE_VIDEO;
+                    ret = avcodec_receive_frame(dec.vCodecCtx, frame);
+
+                    if (ret == 0) { Log("Drain Frame " + type); hasMoreFrames = true; return ret; }
+                    if (ret == AVERROR(EAGAIN)) return GetNextFrame(out mType);
+
+                    hasMoreFrames = false;
+                    drainMode = false;
+                    finished = true;
+
+                    return ret;
+                }
+
+                if (!hasMoreFrames)
+                {
+                    av_packet_unref(pkt);
+                    ret = av_read_frame(fmtCtx, pkt);
+
+                    // Allow INVALID DATA?
+                    if (ret == AVERROR_INVALIDDATA) { errors++; Log("Stream " + pkt->stream_index.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return 0; }
+
+                    if (ret == AVERROR_EOF)
+                    { 
+                        if (type != AVMEDIA_TYPE_VIDEO) return AVERROR_EOF;
+
+                        drainMode = true;
+                        av_packet_unref(pkt);
+
+                        ret = avcodec_send_packet(dec.vCodecCtx, null);
+                        if (ret != 0 && ret != AVERROR(EAGAIN)) return ret;
+
+                        return GetNextFrame(out mType);
+                    }
+
+                    if (ret != 0 && ret!= AVERROR_EOF) return ret;
+
+                    if (!activeStreamIds.Contains(pkt->stream_index)) return GetNextFrame(out mType);
+                    if (fmtCtx->streams[pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) { mType = AVMEDIA_TYPE_SUBTITLE; return ret; }
+
+                    ret = avcodec_send_packet(fmtCtx->streams[pkt->stream_index]->codec, pkt);
+
+                    // Allow INVALID DATA?
+                    if (ret == AVERROR_INVALIDDATA) { errors++; Log("Stream " + pkt->stream_index.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return 0; }
+
+                    if (ret != 0 && ret != AVERROR(EAGAIN)) return ret;
+                }
+
+                frame = av_frame_alloc();
+                ret = avcodec_receive_frame(fmtCtx->streams[pkt->stream_index]->codec, frame);
+
+                if (ret == 0)
+                {
+                    hasMoreFrames = true;
+
+                    if (type == AVMEDIA_TYPE_VIDEO && pkt->stream_index == dec.vStream->index)
+                    { 
+                        mType = AVMEDIA_TYPE_VIDEO;
+
+                        // Couldn't find a way to do it directly [libavutil/hwcontext_d3d11va.c -> d3d11va_frames_init()] - Without it, first frame (after flush buffers) will be YUV Green screen (still happens few times) - maybe will retry with CreateQuery/GetData event
+                        if (!hwFramesInit)
+                        {
+                            // In case GPU fails to alocate FFmpeg decoding texture
+                            if (dec.hwAccelSuccess && frame->hw_frames_ctx == null) dec.hwAccelSuccess = false;
+                            if (dec.hwAccelSuccess) Thread.Sleep(40);
+                            hwFramesInit = true;
+                        }
+                    }
+                    else if (pkt->stream_index == dec.aStream->index)
+                        mType = AVMEDIA_TYPE_AUDIO;
+
+                    return ret; 
+                }
+
+                hasMoreFrames = false;
+
+                if (ret == AVERROR(EAGAIN)) return GetNextFrame(out mType);
+
+                return ret;
+            }
+            public void IOContextConfig(Func<long, int, byte[]> ReadPacketClbk, long totalSize)
+            {   
+                gcPrevent.Clear();
+                ioPos = 0;
+
+                avio_alloc_context_read_packet IOReadPacket = (opaque, buffer, bufferSize) =>
+                {
+                    try
+                    {
+                        int bytesRead   = ioPos + bufferSize > totalSize ? (int) (totalSize - ioPos) : bufferSize;
+                        byte[] data     = ReadPacketClbk(ioPos, bytesRead);
+                        if (data == null || data.Length < bytesRead) { Log($"[CASE 001] A Empty Data"); return -1; }
+
+                        Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
+                        ioPos += bytesRead;
+
+                        return bytesRead;
+                    } 
+                    catch (ThreadAbortException t) { Log($"[CASE 001] A Killed Empty Data"); throw t; }
+                    catch (Exception e) { Log("[CASE 001] A " + e.Message + "\r\n" + e.StackTrace); return -1; }
+                };
+
+                avio_alloc_context_seek IOSeek = (opaque, offset, wehnce) =>
+                {
+                    try
+                    {
+                        if ( wehnce == AVSEEK_SIZE )
+                            return totalSize;
+                        else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
+                            ioPos = offset;
+                        else if ( (SeekOrigin) wehnce == SeekOrigin.Current )
+                            ioPos += offset;
+                        else if ( (SeekOrigin) wehnce == SeekOrigin.End )
+                            ioPos = totalSize - offset;
+                        else
+                            ioPos = -1;
+
+                        return ioPos;
+                    }
+                    catch (ThreadAbortException t) { Log($"[CASE 001] A Seek Killed"); throw t; }
+                };
+
+                avio_alloc_context_read_packet_func ioread = new avio_alloc_context_read_packet_func();
+                ioread.Pointer = Marshal.GetFunctionPointerForDelegate(IOReadPacket);
+            
+                avio_alloc_context_seek_func ioseek = new avio_alloc_context_seek_func();
+                ioseek.Pointer = Marshal.GetFunctionPointerForDelegate(IOSeek);
+            
+                byte* aReadBuffer = (byte*)av_malloc(IOBufferSize);
+                IOCtx = avio_alloc_context(aReadBuffer, IOBufferSize, 0, null, ioread, null, ioseek);
+                fmtCtx->pb = IOCtx;
+                fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO; 
+
+                gcPrevent.Add(ioread);
+                gcPrevent.Add(ioseek);
+                gcPrevent.Add(IOReadPacket);
+                gcPrevent.Add(IOSeek);
+            }
+            #endregion
+
+            void Log(string msg) { if (verbosity > 0) Console.WriteLine("[DECTX " + (IOCtx == null ? "" : "BUFFER ") + $"{type}] {msg}"); }
+        }
+        #endregion
+
+        #region Process AVS
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
+        private int ProcessVideoFrame(AVFrame* frame)
+        {
+            int ret = 0;
+
+            try
+            {
+                MediaFrame mFrame   = new MediaFrame();
+                mFrame.pts          = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                mFrame.timestamp    = (long)((mFrame.pts * vStreamInfo.timebaseLowTicks) + (AudioPlayer.NAUDIO_DELAY_MS * (long)10000));
+                if (mFrame.pts == AV_NOPTS_VALUE) return -1;
+
+                // Hardware Frame (NV12)        | AVDevice NV12 -> Device NV12 -> VideoProcessBlt RGBA
+                if (hwAccelSuccess)
+                {
+                    textureFFmpeg       = new Texture2D((IntPtr) frame->data.ToArray()[0]);
+                    textDescNV12.Format = textureFFmpeg.Description.Format;
+                    textureNV12         = new Texture2D(avD3D11Device, textDescNV12);
+
+                    avD3D11Device.ImmediateContext.CopySubresourceRegion(textureFFmpeg, (int) frame->data.ToArray()[1], null, textureNV12, 0);
+                    avD3D11Device.ImmediateContext.Flush();
+
+                    SharpDX.DXGI.Resource sharedResource    = textureNV12.QueryInterface<SharpDX.DXGI.Resource>();
+                    mFrame.textureHW = player.renderer.device.OpenSharedResource<Texture2D>(sharedResource.SharedHandle);
+                    player.vFrames.Enqueue(mFrame);
+
+                    Utilities.Dispose(ref sharedResource);
+                    Utilities.Dispose(ref textureNV12);
+                }
+
+                // Software Frame (YUV420P)     | YUV byte* -> Device YUV (srv R8 * 3) -> PixelShader YUV->RGBA
+                else if (frame->format == (int)AVPixelFormat.AV_PIX_FMT_YUV420P)
+                {
+                    textDescYUV.Width   = vCodecCtx->width;
+                    textDescYUV.Height  = vCodecCtx->height;
+
+                    DataStream dsY = new DataStream(frame->linesize.ToArray()[0] * vCodecCtx->height, true, true);
+                    DataStream dsU = new DataStream(frame->linesize.ToArray()[1] * vCodecCtx->height / 2, true, true);
+                    DataStream dsV = new DataStream(frame->linesize.ToArray()[2] * vCodecCtx->height / 2, true, true);
+
+                    DataBox dbY = new DataBox();
+                    DataBox dbU = new DataBox();
+                    DataBox dbV = new DataBox();
+
+                    dbY.DataPointer = dsY.DataPointer;
+                    dbU.DataPointer = dsU.DataPointer;
+                    dbV.DataPointer = dsV.DataPointer;
+
+                    dbY.RowPitch = frame->linesize.ToArray()[0];
+                    dbU.RowPitch = frame->linesize.ToArray()[1];
+                    dbV.RowPitch = frame->linesize.ToArray()[2];
+
+                    dsY.WriteRange((IntPtr)frame->data.ToArray()[0], dsY.Length);
+                    dsU.WriteRange((IntPtr)frame->data.ToArray()[1], dsU.Length);
+                    dsV.WriteRange((IntPtr)frame->data.ToArray()[2], dsV.Length);
+
+                    mFrame.textureY = new Texture2D(player.renderer.device, textDescYUV, new DataBox[] { dbY });
+                    textDescYUV.Width = vCodecCtx->width / 2;
+                    textDescYUV.Height = vCodecCtx->height / 2;
+
+                    mFrame.textureU = new Texture2D(player.renderer.device, textDescYUV, new DataBox[] { dbU });
+                    mFrame.textureV = new Texture2D(player.renderer.device, textDescYUV, new DataBox[] { dbV });
+
+                    Utilities.Dispose(ref dsY);
+                    Utilities.Dispose(ref dsU);
+                    Utilities.Dispose(ref dsV);
+
+                    player.vFrames.Enqueue(mFrame);
+                }
+
+                // Software Frame (OTHER/sws_scale) | X byte* -> Sws_Scale RGBA -> Device RGA
+                else if (!hwAccelSuccess) 
+                {
+                    if (swsCtx == null)
+                    {
+                        outData                         = new byte_ptrArray4();
+                        outLineSize                     = new int_array4();
+                        outBufferSize                   = av_image_get_buffer_size(_PIXEL_FORMAT, vCodecCtx->width, vCodecCtx->height, 1);
+                        Marshal.FreeHGlobal(outBufferPtr);
+                        outBufferPtr                    = Marshal.AllocHGlobal(outBufferSize);
+                        
+                        av_image_fill_arrays(ref outData, ref outLineSize, (byte*)outBufferPtr, _PIXEL_FORMAT, vCodecCtx->width, vCodecCtx->height, 1);
+                        swsCtx = sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt, vCodecCtx->width, vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
+                    }
+                    ret = sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
+
+                    if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); }
+                    ret = 0;
+
+                    DataStream ds = new DataStream(outLineSize[0] * vCodecCtx->height, true, true);
+                    DataBox db = new DataBox();
+
+                    db.DataPointer = ds.DataPointer;
+                    db.RowPitch = outLineSize[0];
+                    ds.WriteRange((IntPtr)outData.ToArray()[0], ds.Length);
+
+                    mFrame.textureRGB = new Texture2D(player.renderer.device, textDescRGB, new DataBox[] { db });
+                    Utilities.Dispose(ref ds);
+                    
+                    player.vFrames.Enqueue(mFrame);
+                }
+
+                return ret;
+
+            } catch (ThreadAbortException) {
+            } catch (Exception e) { ret = -1;  Log("Error[" + (ret).ToString("D4") + "], Func: ProcessVideoFrame(), Msg: " + e.Message + " - " + e.StackTrace); }
+
+            return ret;
+        }
+        private int ProcessAudioFrame(AVFrame* frame)
+        {
+            int ret = 0;
+
+            try
+            {
+                var bufferSize  = av_samples_get_buffer_size(null, _CHANNELS, frame->nb_samples, _SAMPLE_FORMAT, 1);
+                byte[] buffer   = new byte[bufferSize];
+
+                fixed (byte** buffers = new byte*[8])
+                {
+                    fixed (byte* bufferPtr = &buffer[0])
+                    {
+                        // Convert
+                        buffers[0]          = bufferPtr;
+                        swr_convert(swrCtx, buffers, frame->nb_samples, (byte**)&frame->data, frame->nb_samples);
+
+                        // Send Frame
+                        if (frame->nb_samples > 0)
+                        {
+                            MediaFrame mFrame   = new MediaFrame();
+                            mFrame.audioData         = new byte[bufferSize]; System.Buffer.BlockCopy(buffer, 0, mFrame.audioData, 0, bufferSize);
+                            mFrame.pts          = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                            mFrame.timestamp    = (long)(mFrame.pts * aStreamInfo.timebaseLowTicks) + player.AudioExternalDelay;
+                            if (mFrame.pts == AV_NOPTS_VALUE) return -1;
+
+                            player.aFrames.Enqueue(mFrame);
+                            //SendFrame(mFrame, AVMEDIA_TYPE_AUDIO);
+                        }
+                    }
+                }
+            } catch (ThreadAbortException) { 
+            } catch (Exception e) { ret = -1; Log("Error[" + (ret).ToString("D4") + "], Func: ProcessAudioFrame(), Msg: " + e.StackTrace); }
+
+            return ret;
+        }
+        private int ProcessSubsFrame(AVPacket* avpacket, AVSubtitle* sub)
+        {
+            int ret = 0;
+
+            try
+            {
+                string line = "";
+                byte[] buffer;
+                AVSubtitleRect** rects = sub->rects;
+                AVSubtitleRect* cur = rects[0];
+                
+                switch (cur->type)
+                {
+                    case AVSubtitleType.SUBTITLE_ASS:
+                        buffer = new byte[1024];
+                        line = BytePtrToStringUTF8(cur->ass);
+                        break;
+
+                    case AVSubtitleType.SUBTITLE_TEXT:
+                        buffer = new byte[1024];
+                        line = BytePtrToStringUTF8(cur->ass);
+
+                        break;
+
+                    case AVSubtitleType.SUBTITLE_BITMAP:
+                        Log("Subtitles BITMAP -> Not Implemented yet");
+
+                        break;
+                }
+
+                MediaFrame mFrame   = new MediaFrame();
+                mFrame.text         = Subtitles.SSAtoSubStyles(line, out List<OSDMessage.SubStyle> subStyles);
+                mFrame.subStyles    = subStyles;
+                mFrame.pts          = avpacket->pts;
+                mFrame.timestamp    = (long) ((mFrame.pts * sTimbebaseLowTicks) + (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) + player.SubsExternalDelay);
+                mFrame.duration     = (int) (sub->end_display_time - sub->start_display_time);
+                if (mFrame.pts == AV_NOPTS_VALUE) return -1;
+
+                player.sFrames.Enqueue(mFrame);
+                //SendFrame(mFrame, AVMEDIA_TYPE_SUBTITLE);
+
+            } catch (ThreadAbortException) {
+            } catch (Exception e) { ret = -1; Log("Error[" + (ret).ToString("D4") + "], Func: ProcessSubsFrame(), Msg: " + e.StackTrace); }
+
+            return ret;
+        }
+
+        private int DecodeFrameSubs(AVCodecContext* codeCtx, AVPacket* avpacket)
+        {
+            int ret = 0;
+            int gotFrame = 0;
+            AVSubtitle sub = new AVSubtitle();
+            
+            ret = avcodec_decode_subtitle2(codeCtx, &sub, &gotFrame, avpacket);
+            if (ret < 0)  { Log(codeCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) ); return ret; }
+            if (gotFrame < 1 || sub.num_rects < 1 ) return -1;
+
+            ret = ProcessSubsFrame(avpacket, &sub);
+            avsubtitle_free(&sub);
+            if (ret != 0) { Log(codeCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: Failed to process SUBS frame, PTS: " + avpacket->pts); return -1; }
+
+            return 0;
         }
         #endregion
 
         #region Setup Codecs/Streams
-        private int SetupStream(AVMediaType mType)
-        {
-            int streamIndex     = -1;
-
-            if      (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)   { streamIndex = av_find_best_stream(aFmtCtx, mType, -1, vStream->index, null, 0); }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)   { streamIndex = av_find_best_stream(vFmtCtx, mType, -1, -1, null, 0); }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE){ streamIndex = av_find_best_stream(sFmtCtx, mType, -1, vStream->index, null, 0); }
-
-            if (streamIndex < 0) return streamIndex;
-
-            if      (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)   { aStream = aFmtCtx->streams[streamIndex]; hasAudio = true; }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)   { vStream = vFmtCtx->streams[streamIndex]; hasVideo = true; }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE){ sStream = sFmtCtx->streams[streamIndex]; hasSubs  = true; }
-            else return -1;
-
-            return 0;
-        }
         private int SetupCodec(AVMediaType mType)
         {
             int ret = 0;
 
-            if      (mType == AVMediaType.AVMEDIA_TYPE_AUDIO && hasAudio)
+            if      (mType == AVMEDIA_TYPE_AUDIO && hasAudio)
             {
                 aCodecCtx   = aStream->codec;
                 aCodec      = avcodec_find_decoder(aStream->codec->codec_id);
                 ret         = avcodec_open2(aCodecCtx, aCodec, null); 
             }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO && hasVideo)
+            else if (mType == AVMEDIA_TYPE_VIDEO && hasVideo)
             {
                 vCodecCtx   = vStream->codec;
 
                 // Threading
-                vCodecCtx->thread_count = Threads;
-                vCodecCtx->thread_type  = FF_THREAD_FRAME;
+                vCodecCtx->thread_count = Math.Min(Threads, vCodecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
+                vCodecCtx->thread_type  = 0;
                 //vCodecCtx->active_thread_type = FF_THREAD_FRAME;
-                //vCodecCtx->thread_safe_callbacks = 1;
-
-                vCodec      = avcodec_find_decoder(vStream->codec->codec_id);
+                //vCodecCtx->active_thread_type = FF_THREAD_SLICE;
+                vCodecCtx->thread_safe_callbacks = 1;
+                 
+                vCodec = avcodec_find_decoder(vStream->codec->codec_id);
                 SetupHQAndHWAcceleration();
                 ret = avcodec_open2(vCodecCtx, vCodec, null); 
             }
-            else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE && hasSubs)
+            else if (mType == AVMEDIA_TYPE_SUBTITLE && hasSubs)
             {
                 sCodecCtx   = sStream->codec;
                 sCodec      = avcodec_find_decoder(sStream->codec->codec_id);
@@ -288,15 +1228,26 @@ namespace SuRGeoNix.Flyleaf
         }
         private int SetupHQAndHWAcceleration()
         {
-            // TODO: Check if D3D11Device actually supports the codec (eg. vp9 is not supported by mine rx 580 - and it will fail after it starts)
+            /* TODO
+             * 
+             * Simplify code & consider initializing the device (hw_device_ctx) only once for the whole session?
+             * Also check if supported by the current codec?
+             * 
+             * AVBufferRef* hw_device_ctx;
+             * av_hwdevice_ctx_create(&hw_device_ctx, AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA, "auto", null, 0);
+             * vCodecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+             * av_buffer_unref(&hw_device_ctx);
+             * 
+             */
 
             // For SWS
             vSwsOptFlags    = HighQuality ? _SCALING_HQ : _SCALING_LQ;
-
             hwAccelSuccess  = false;
 
             if (HWAccel && hwDevices.Count > 0)
             {
+                if (avD3D11Device != null) { avD3D11Device.ImmediateContext.ClearState(); avD3D11Device.ImmediateContext.Flush(); Thread.Sleep(20); if (vCodecCtx->codec_id == AV_CODEC_ID_HEVC) Thread.Sleep(1000);}
+
                 hwDevicesSupported = GetHWDevicesSupported();
                 foreach (AVHWDeviceType hwDevice in hwDevices)
                 {
@@ -350,7 +1301,6 @@ namespace SuRGeoNix.Flyleaf
 	                    MipLevels           = 1
                     };
 
-
                     vCodecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
                     hwAccelSuccess = true;
                     Log("[HWACCEL] Enabled! Device -> " + hwDevice + ", Codec -> " + Marshal.PtrToStringAnsi((IntPtr)vCodec->name));
@@ -396,14 +1346,14 @@ namespace SuRGeoNix.Flyleaf
             
             return 0;
         }
-        private int SetupAudio()
+        private int SetupAudio(AVFormatContext* fmtCtx = null)
         {
             int ret = 0;
 
             aStreamInfo.timebase                    = av_q2d(aStream->time_base);
             aStreamInfo.timebaseLowTicks            = av_q2d(aStream->time_base) * 10000 * 1000;
             aStreamInfo.startTimeTicks              = (aStreamInfo.startTimeTicks != AV_NOPTS_VALUE) ? (long)(aStream->start_time * aStreamInfo.timebaseLowTicks) : 0;
-            aStreamInfo.durationTicks               = (aStream->duration > 0) ? (long)(aStream->duration * aStreamInfo.timebaseLowTicks) : aFmtCtx->duration * 10;
+            aStreamInfo.durationTicks               = (aStream->duration > 0) ? (long)(aStream->duration * aStreamInfo.timebaseLowTicks) : fmtCtx->duration * 10;
             aStreamInfo.frameSize                   = aCodecCtx->frame_size;
             _RATE                                   = aCodecCtx->sample_rate;
             swrCtx = swr_alloc();
@@ -424,1192 +1374,17 @@ namespace SuRGeoNix.Flyleaf
 
             return ret;
         }
-        private int SetupVideo()
+        private int SetupVideo(AVFormatContext* fmtCtx = null)
         {
-            int ret = 0;
-
-            // Store Stream Info
-            vStreamInfo.timebase            = av_q2d(vStream->time_base) ;
+            // TODO: should add Audio Delay to duration?
+            vStreamInfo.timebase            = av_q2d(vStream->time_base);
             vStreamInfo.timebaseLowTicks    = av_q2d(vStream->time_base) * 10000 * 1000;
             vStreamInfo.startTimeTicks      = (vStreamInfo.startTimeTicks != AV_NOPTS_VALUE) ? (long)(vStream->start_time * vStreamInfo.timebaseLowTicks) : 0;
-            vStreamInfo.durationTicks       = (vStream->duration > 0) ? (long)(vStream->duration * vStreamInfo.timebaseLowTicks) : vFmtCtx->duration * 10;
+            vStreamInfo.durationTicks       = (vStream->duration > 0) ? (long)(vStream->duration * vStreamInfo.timebaseLowTicks) : fmtCtx->duration * 10;
             vStreamInfo.fps                 = av_q2d(vStream->avg_frame_rate);
             vStreamInfo.frameAvgTicks       = (long)((1 / vStreamInfo.fps) * 1000 * 10000);
             vStreamInfo.height              = vCodecCtx->height;
             vStreamInfo.width               = vCodecCtx->width;
-
-            return ret;
-        }
-        #endregion
-
-        #region Decoding
-        private int Decode(AVMediaType mType)
-        {
-            Log("[START 0] " + status + " " + mType);
-
-            int ret = 0;
-
-            AVPacket* avpacket  = av_packet_alloc();
-            AVFrame*  avframe   = av_frame_alloc();
-            //AVFrame*  avframeV;
-            av_init_packet(avpacket);
-            
-            try
-            {
-                if (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)
-                {
-                    aFinish = false;
-
-                    while (isRunning && aStatus == Status.RUNNING   && (ret = av_read_frame(aFmtCtx, avpacket)) == 0)
-                    {
-                        if (avpacket->stream_index == aStream->index)   ret = DecodeFrame(avframe, aCodecCtx, avpacket, false);
-                        av_packet_unref(avpacket);
-                    }
-                    av_packet_unref(avpacket);
-
-                    if (ret == AVERROR_EOF) aFinish = true;
-                    if (ret < 0 && ret != AVERROR_EOF) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-                }
-                else if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)
-                {
-                    vFinish = false;
-
-                    while (isRunning && vStatus == Status.RUNNING   && (ret = av_read_frame(vFmtCtx, avpacket)) == 0)
-                    {
-                        //avframeV   = av_frame_alloc();
-                        if (avpacket->stream_index == vStream->index)   ret = DecodeFrame(avframe, vCodecCtx, avpacket, false);
-                        av_packet_unref(avpacket);
-                    }
-                    av_packet_unref(avpacket);
-
-                    if (ret < 0 && ret != AVERROR_EOF) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-                    // Drain Mode
-                    if (ret == AVERROR_EOF)
-                    { 
-                        vFinish = true;
-                        ret = DecodeFrame(avframe, vCodecCtx, null, true); 
-                        if (ret != 0) Log(vCodecCtx->codec_type.ToString() + " - Warning[" + ret.ToString("D4") + "], Msg: Failed to decode frame, PTS: " + avpacket->pts);
-                    }
-                } 
-                else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
-                {
-                    sFinish = false;
-
-                    while (isRunning && sStatus == Status.RUNNING   && (ret = av_read_frame(sFmtCtx, avpacket)) == 0)
-                    {
-                        if (avpacket->stream_index == sStream->index)   ret = DecodeFrameSubs(sCodecCtx, avpacket);
-                        av_packet_unref(avpacket);
-                    }
-                    av_packet_unref(avpacket);
-
-                    if (ret == AVERROR_EOF) sFinish = true;
-                    if (ret < 0 && ret != AVERROR_EOF) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-                }
-
-            } catch (ThreadAbortException)  { Log("[INFO  0] Killed " + mType);
-            } catch (Exception e)           { Log("[ERROR 0] " + mType + " " + e.Message + " " + e.StackTrace); 
-            } 
-            finally 
-            { 
-                av_packet_unref(avpacket);
-                av_frame_free  (&avframe);
-                //av_frame_free  (&avframeV);
-
-                Log("[END   0] " + status + " " + mType);
-            }
-
-            return 0;
-        }
-        private int DecodeFrame(AVFrame* avframe, AVCodecContext* codecCtx, AVPacket* avpacket, bool drainMode)
-        {
-            int ret = 0;
-
-            ret = avcodec_send_packet(codecCtx, avpacket);
-            if (ret != 0 ) { Log(codecCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-            do
-            {
-                ret = avcodec_receive_frame(codecCtx, avframe);
-
-                //if (avpacket == null && ret == 0) Log(codecCtx->codec_type.ToString() + " - Warning[" + ret.ToString("D4") + "], Msg: drain packet, PTS: <null>");
-                if (avpacket == null) if (ret != 0) return ret; else Log(codecCtx->codec_type.ToString() + " - Warning[" + ret.ToString("D4") + "], Msg: drain packet, PTS: <null>");
-                if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) return 0;
-                if (ret < 0) { Log(codecCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", PTS: " + avpacket->pts); return ret; }
-                if (avframe->repeat_pict == 1) Log("Warning, Repeated Frame -> " + avframe->best_effort_timestamp.ToString());
-
-                if (codecCtx->codec_type ==         AVMediaType.AVMEDIA_TYPE_AUDIO)
-                {
-                    ret = ProcessAudioFrame(avframe);
-                    if (ret != 0) { Log(codecCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: Failed to process AUDIO frame, PTS: " + avpacket->pts); return -1; }
-                }
-                else if (codecCtx->codec_type ==    AVMediaType.AVMEDIA_TYPE_VIDEO)
-                {
-                    ret = ProcessVideoFrame(avframe);
-                    if (ret != 0) { Log(codecCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: Failed to process VIDEO frame, PTS: " + avpacket->pts); return -1; }
-                }
-            } while (isRunning && drainMode);
-
-            return 0;
-        }
-        private int DecodeFrameSubs(AVCodecContext* codeCtx, AVPacket* avpacket)
-        {
-            int ret = 0;
-            int gotFrame = 0;
-            AVSubtitle sub = new AVSubtitle();
-            
-            ret = avcodec_decode_subtitle2(codeCtx, &sub, &gotFrame, avpacket);
-            if (ret < 0)  { Log(codeCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) ); return ret; }
-            if (gotFrame < 1 || sub.num_rects < 1 ) return -1;
-
-            ret = ProcessSubsFrame(avpacket, &sub);
-            avsubtitle_free(&sub);
-            if (ret != 0) { Log(codeCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: Failed to process SUBS frame, PTS: " + avpacket->pts); return -1; }
-
-            return 0;
-        }
-        private int DecodeFrameSilent(AVFrame* avframe, AVCodecContext* codecCtx, AVPacket* avpacket)
-        {
-            int ret = 0;
-
-            ret = avcodec_send_packet(codecCtx, avpacket);
-            if (ret != 0) { Log(codecCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", PTS: " + avpacket->pts); return ret; }
-
-            ret = avcodec_receive_frame(codecCtx, avframe);
-            
-            if (avpacket == null && ret == 0) Log(codecCtx->codec_type.ToString() + " - Warning[" + ret.ToString("D4") + "], Msg: drain packet, PTS: <null>");
-            if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) { return 0; }
-            if (ret < 0) { Log(codecCtx->codec_type.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", PTS: " + avpacket->pts); return ret; }
-            if (avframe->repeat_pict == 1) Log("Warning, Repeated Frame -> " + avframe->best_effort_timestamp.ToString());
-
-            return 0;
-        }
-        #endregion
-
-        #region Process AVS
-        private int ProcessAudioFrame(AVFrame* frame)
-        {
-            int ret = 0;
-
-            try
-            {
-                var bufferSize  = av_samples_get_buffer_size(null, _CHANNELS, frame->nb_samples, _SAMPLE_FORMAT, 1);
-                byte[] buffer   = new byte[bufferSize];
-
-                fixed (byte** buffers = new byte*[8])
-                {
-                    fixed (byte* bufferPtr = &buffer[0])
-                    {
-                        // Convert
-                        buffers[0]          = bufferPtr;
-                        swr_convert(swrCtx, buffers, frame->nb_samples, (byte**)&frame->data, frame->nb_samples);
-
-                        // Send Frame
-                        if (frame->nb_samples > 0)
-                        {
-                            MediaFrame mFrame   = new MediaFrame();
-                            mFrame.data         = new byte[bufferSize]; System.Buffer.BlockCopy(buffer, 0, mFrame.data, 0, bufferSize);
-                            mFrame.pts          = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
-                            mFrame.timestamp    = (long)(mFrame.pts * aStreamInfo.timebaseLowTicks);
-                            if (mFrame.pts == AV_NOPTS_VALUE) return -1;
-                            SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_AUDIO);
-                        }
-                    }
-                }
-            } catch (ThreadAbortException) { 
-            } catch (Exception e) { ret = -1; Log("Error[" + (ret).ToString("D4") + "], Func: ProcessAudioFrame(), Msg: " + e.StackTrace); }
-
-            return ret;
-        }
-        [HandleProcessCorruptedStateExceptions]
-        [SecurityCritical]
-        private int ProcessVideoFrame(AVFrame* frame)
-        {
-            int ret = 0;
-
-            try
-            {
-                MediaFrame mFrame   = new MediaFrame();
-                mFrame.pts          = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
-                mFrame.timestamp    = (long)(mFrame.pts * vStreamInfo.timebaseLowTicks);
-                if (mFrame.pts == AV_NOPTS_VALUE) return -1;
-
-                // In case GPU fails to alocate FFmpeg decoding texture | Should run only once on HW configuration (decode one frame?)
-                if (hwAccelSuccess && frame->hw_frames_ctx == null) hwAccelSuccess = false;
-
-                // Hardware Frame (NV12)        | AVDevice NV12 -> Device NV12 -> VideoProcessBlt RGBA
-                if (hwAccelSuccess)
-                {
-                    SharpDX.DXGI.Resource sharedResource = null;
-
-                    textureFFmpeg       = new Texture2D((IntPtr) frame->data.ToArray()[0]);
-                    textDescNV12.Format = textureFFmpeg.Description.Format;
-                    textureNV12         = new Texture2D(avD3D11Device, textDescNV12);
-
-                    avD3D11Device.ImmediateContext.CopySubresourceRegion(textureFFmpeg, (int) frame->data.ToArray()[1], null, textureNV12, 0);
-                    avD3D11Device.ImmediateContext.Flush();
-                    Thread.Sleep(5); // Temporary to ensure Flushing is done (maybe GetData/CreateQuery)
-
-                    sharedResource      = textureNV12.QueryInterface<SharpDX.DXGI.Resource>();
-                    Texture2D texture   = d3d11Device.OpenSharedResource<Texture2D>(sharedResource.SharedHandle);
-
-                    mFrame.texture      = texture;
-                    SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
-
-                    Utilities.Dispose(ref sharedResource);
-                    Utilities.Dispose(ref textureNV12);
-                }
-
-                // Software Frame (YUV420P)     | YUV byte* -> Device YUV (srv R8 * 3) -> PixelShader YUV->RGBA
-                else if (frame->format == (int)AVPixelFormat.AV_PIX_FMT_YUV420P || false)
-                {
-                    textDescYUV.Width   = vCodecCtx->width;
-                    textDescYUV.Height  = vCodecCtx->height;
-
-                    DataStream dsY = new DataStream(frame->linesize.ToArray()[0] * vCodecCtx->height, true, true);
-                    DataStream dsU = new DataStream(frame->linesize.ToArray()[1] * vCodecCtx->height / 2, true, true);
-                    DataStream dsV = new DataStream(frame->linesize.ToArray()[2] * vCodecCtx->height / 2, true, true);
-
-                    DataBox dbY = new DataBox();
-                    DataBox dbU = new DataBox();
-                    DataBox dbV = new DataBox();
-
-                    dbY.DataPointer = dsY.DataPointer;
-                    dbU.DataPointer = dsU.DataPointer;
-                    dbV.DataPointer = dsV.DataPointer;
-
-                    dbY.RowPitch = frame->linesize.ToArray()[0];
-                    dbU.RowPitch = frame->linesize.ToArray()[1];
-                    dbV.RowPitch = frame->linesize.ToArray()[2];
-
-                    dsY.WriteRange((IntPtr)frame->data.ToArray()[0], dsY.Length);
-                    dsU.WriteRange((IntPtr)frame->data.ToArray()[1], dsU.Length);
-                    dsV.WriteRange((IntPtr)frame->data.ToArray()[2], dsV.Length);
-
-                    mFrame.textureY = new Texture2D(d3d11Device, textDescYUV, new DataBox[] { dbY });
-                    textDescYUV.Width = vCodecCtx->width / 2;
-                    textDescYUV.Height = vCodecCtx->height / 2;
-
-                    mFrame.textureU = new Texture2D(d3d11Device, textDescYUV, new DataBox[] { dbU });
-                    mFrame.textureV = new Texture2D(d3d11Device, textDescYUV, new DataBox[] { dbV });
-
-                    Utilities.Dispose(ref dsY);
-                    Utilities.Dispose(ref dsU);
-                    Utilities.Dispose(ref dsV);
-
-                    SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
-                }
-
-                // Software Frame (OTHER/sws_scale) | X byte* -> Sws_Scale RGBA -> Device RGA
-                else if (!hwAccelSuccess) 
-                {
-                    if (swsCtx == null)
-                    {
-                        outData                         = new byte_ptrArray4();
-                        outLineSize                     = new int_array4();
-                        outBufferSize                   = av_image_get_buffer_size(_PIXEL_FORMAT, vCodecCtx->width, vCodecCtx->height, 1);
-                        outBufferPtr                    = Marshal.AllocHGlobal(outBufferSize);
-
-                        av_image_fill_arrays(ref outData, ref outLineSize, (byte*)outBufferPtr, _PIXEL_FORMAT, vCodecCtx->width, vCodecCtx->height, 1);
-                        swsCtx = sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt, vCodecCtx->width, vCodecCtx->height, _PIXEL_FORMAT, vSwsOptFlags, null, null, null);
-                    }
-                    ret = sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
-
-                    if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); }
-                    ret = 0;
-
-                    DataStream ds = new DataStream(outLineSize[0] * vCodecCtx->height, true, true);
-                    DataBox db = new DataBox();
-
-                    db.DataPointer = ds.DataPointer;
-                    db.RowPitch = outLineSize[0];
-                    ds.WriteRange((IntPtr)outData.ToArray()[0], ds.Length);
-
-                    mFrame.textureRGB = new Texture2D(d3d11Device, textDescRGB, new DataBox[] { db });
-
-                    Utilities.Dispose(ref ds);
-
-                    SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_VIDEO);
-                }
-
-                return ret;
-
-            } catch (ThreadAbortException) { //throw t;
-            } catch (Exception e) { ret = -1;  Log("Error[" + (ret).ToString("D4") + "], Func: ProcessVideoFrame(), Msg: " + e.Message + " - " + e.StackTrace); }
-
-            return ret;
-        }
-        private int ProcessSubsFrame(AVPacket* avpacket, AVSubtitle* sub)
-        {
-            int ret = 0;
-
-            try
-            {
-                string line = "";
-                byte[] buffer;
-                AVSubtitleRect** rects = sub->rects;
-                AVSubtitleRect* cur = rects[0];
-                
-                switch (cur->type)
-                {
-                    case AVSubtitleType.SUBTITLE_ASS:
-                        buffer = new byte[1024];
-                        line = BytePtrToStringUTF8(cur->ass);
-                        break;
-
-                    case AVSubtitleType.SUBTITLE_TEXT:
-                        buffer = new byte[1024];
-                        line = BytePtrToStringUTF8(cur->ass);
-
-                        break;
-
-                    case AVSubtitleType.SUBTITLE_BITMAP:
-                        Log("Subtitles BITMAP -> Not Implemented yet");
-
-                        break;
-                }
-                
-                MediaFrame mFrame   = new MediaFrame();
-                mFrame.text         = line;
-                mFrame.pts          = avpacket->pts;
-                mFrame.timestamp    = (long) (mFrame.pts * sTimbebaseLowTicks);
-                mFrame.duration     = (int) (sub->end_display_time - sub->start_display_time);
-                if (mFrame.pts == AV_NOPTS_VALUE) return -1;
-                SendFrame(mFrame, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-
-            } catch (ThreadAbortException) {
-            } catch (Exception e) { ret = -1; Log("Error[" + (ret).ToString("D4") + "], Func: ProcessSubsFrame(), Msg: " + e.StackTrace); }
-
-            return ret;
-        }
-        #endregion
-
-        #region Seeking
-        // For Seeking from I -> B/P Frame
-        [HandleProcessCorruptedStateExceptions]
-        [SecurityCritical]
-        public int SeekAccurate(int ms, AVMediaType mType)
-        {
-            try
-            {
-                int ret = 0;
-                if (!isReady) return -1;
-
-                if (ms < 0) ms = 0;
-            
-                long calcTimestamp =(long) ms * 10000;
-
-                if (calcTimestamp > vStreamInfo.durationTicks) return 0;
-                if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-            
-                Status oldStatus;
-
-                switch (mType)
-                {
-                    case AVMediaType.AVMEDIA_TYPE_AUDIO:
-                        oldStatus = aStatus;
-
-                        if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(30); }
-                        aStatus = Status.SEEKING;
-
-                        ret = avformat_seek_file(aFmtCtx, -1, Int64.MinValue, calcTimestamp / 10 , calcTimestamp / 10, AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
-                        avcodec_flush_buffers(aCodecCtx);
-
-                        aStatus = oldStatus;
-                        break;
-
-                    case AVMediaType.AVMEDIA_TYPE_VIDEO:
-                        oldStatus = vStatus;
-                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
-                    
-                        if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(30); }
-                        vStatus = Status.SEEKING;
-
-                        ret = avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, AVSEEK_FLAG_BACKWARD);                    
-                        avcodec_flush_buffers(vCodecCtx);
-                        if (calcTimestamp * vStreamInfo.timebaseLowTicks >= vStreamInfo.startTimeTicks ) ret = DecodeSilent(mType, (long)ms * 10000);
-
-                        vStatus = oldStatus;
-                        break;
-
-                    case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-                        oldStatus = sStatus;
-
-                        if (sDecoder != null && sDecoder.IsAlive) { sDecoder.Abort(); Thread.Sleep(30); }
-                        sStatus = Status.SEEKING;
-
-                        //ret = avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, AVSEEK_FLAG_BACKWARD);
-                        ret = avformat_seek_file(sFmtCtx, -1, Int64.MinValue, calcTimestamp / 10 , calcTimestamp / 10, AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
-                        avcodec_flush_buffers(sCodecCtx);
-
-                        sStatus = oldStatus;
-                        break;
-                }
-
-                if (ret != 0) { Log(" - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", TS: " + calcTimestamp); return -1; }
-
-                return 0;
-            } catch (Exception e) { Log(e.Message + "\r\n" + e.StackTrace); return -1; }
-        }
-        private int DecodeSilent(AVMediaType mType, long endTimestamp)
-        {
-            Log("[START 1] " + mType);
-
-            int ret = 0;
-
-            AVPacket* avpacket  = av_packet_alloc();
-            AVFrame*  avframe   = av_frame_alloc();
-            long curPts = AV_NOPTS_VALUE;
-
-            av_init_packet(avpacket);
-            try { 
-                if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)
-                {
-                    while (vStatus == Status.SEEKING && (ret = av_read_frame(vFmtCtx, avpacket)) == 0)
-                    {
-                        if (curPts > endTimestamp) return -1;
-
-                        if (avpacket->stream_index == vStream->index)
-                        {
-                            ret = DecodeFrameSilent(avframe, vCodecCtx, avpacket);
-                            curPts = avframe->best_effort_timestamp == AV_NOPTS_VALUE ? avframe->pts : avframe->best_effort_timestamp;
-                        }
-
-                        if (avpacket->stream_index == vStream->index && curPts != AV_NOPTS_VALUE &&
-                            endTimestamp - ((avpacket->duration * vStreamInfo.timebaseLowTicks * 2)) < (curPts * vStreamInfo.timebaseLowTicks) )
-                        {
-                            ProcessVideoFrame(avframe);
-                            break;
-                        }
-
-                        Thread.Sleep(4);
-                        av_packet_unref(avpacket);
-                    }
-                }
-                else if (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)
-                {
-                    while (aStatus == Status.SEEKING && (ret = av_read_frame(aFmtCtx, avpacket)) == 0)
-                    {
-                        if (curPts > endTimestamp) return -1;
-
-                        if (avpacket->stream_index == aStream->index)
-                        {
-                            ret = DecodeFrameSilent(avframe, aCodecCtx, avpacket);
-                            curPts = avframe->best_effort_timestamp == AV_NOPTS_VALUE ? avframe->pts : avframe->best_effort_timestamp;
-                        }
-
-                        if (avpacket->stream_index == aStream->index && curPts != AV_NOPTS_VALUE &&
-                            endTimestamp - ((avpacket->duration * aStreamInfo.timebaseLowTicks * 2)) < (curPts * aStreamInfo.timebaseLowTicks) )
-                            break;
-
-                        Thread.Sleep(4);
-                        av_packet_unref(avpacket);
-                    }
-                }
-
-                av_packet_unref(avpacket);
-
-                if (ret < 0 && ret != AVERROR_EOF) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-            } catch (ThreadAbortException)  { Log("[INFO  1] Killed " + mType); 
-            } catch (Exception e)           { Log("[ERROR 1] " + mType + " " + e.Message + " " + e.StackTrace); 
-            } finally
-            {
-                av_packet_unref(avpacket);
-                av_frame_free(&avframe);
-
-                Log("[END   1] " + mType);
-            }
-
-            return 0;
-        }
-
-        // For Stream Buffering before Running
-        [HandleProcessCorruptedStateExceptions]
-        [SecurityCritical]
-        public int SeekAccurate2(int ms, AVMediaType mType)
-        {
-            try
-            {
-                Log($"[SEEK] Start {mType.ToString()} ms -> {ms}");
-
-                int ret = 0;
-                if (!isReady) return -1;
-
-                if (ms < 0) ms = 0;
-                long calcTimestamp =(long) ms * 10000;
-                if (calcTimestamp > vStreamInfo.durationTicks) return 0;
-                if (calcTimestamp < vStreamInfo.startTimeTicks) calcTimestamp = vStreamInfo.startTimeTicks + 20000;
-
-                switch (mType)
-                {
-                    case AVMediaType.AVMEDIA_TYPE_AUDIO:
-
-                        if (aDecoder != null && aDecoder.IsAlive) { aDecoder.Abort(); Thread.Sleep(30); }
-
-                        ret = avformat_seek_file(aFmtCtx, -1, Int64.MinValue, calcTimestamp / 10 , calcTimestamp / 10, AVSEEK_FLAG_ANY); // Matroska (mkv/avi etc) requires to seek through Video Stream to avoid seeking the whole file
-                        avcodec_flush_buffers(aCodecCtx);
-
-                        break;
-
-                    case AVMediaType.AVMEDIA_TYPE_VIDEO:
-
-                        calcTimestamp = (long)(calcTimestamp / vStreamInfo.timebaseLowTicks);
-                    
-                        if (vDecoder != null && vDecoder.IsAlive) { vDecoder.Abort(); Thread.Sleep(30); }
-
-                        ret = avformat_seek_file(vFmtCtx, vStream->index, Int64.MinValue, calcTimestamp, calcTimestamp, AVSEEK_FLAG_ANY);                    
-                        avcodec_flush_buffers(vCodecCtx);
-
-                        break;
-
-                    //case AVMediaType.AVMEDIA_TYPE_SUBTITLE:
-
-                    //    if (sDecoder != null && sDecoder.IsAlive) { sDecoder.Abort(); Thread.Sleep(30); }
-
-                    //    //ret = avformat_seek_file(sFmtCtx, sStream->index, Int64.MinValue, (long) (calcTimestamp / sTimbebaseLowTicks), Int64.MaxValue, AVSEEK_FLAG_BACKWARD);
-                    //    ret = avformat_seek_file(sFmtCtx, -1, Int64.MinValue, calcTimestamp / 10 , calcTimestamp / 10, AVSEEK_FLAG_ANY);
-                    //    avcodec_flush_buffers(sCodecCtx);
-
-                    //    break;
-                }
-
-                Log($"[SEEK] End {mType.ToString()} ms -> {ms}");
-                if (ret != 0) { Log(" - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret) + ", TS: " + calcTimestamp); return -1; }
-            
-                return 0;
-            } catch (Exception e) { Log(e.Message + "\r\n" + e.StackTrace); return -1; }
-        }
-        public int DecodeSilent2(AVMediaType mType, long endTimestamp, bool single = false)
-        {
-            Log("[BUFFER START 1] " + mType);
-
-            int ret = 0;
-            bool informed = false;
-
-            AVPacket* avpacket = av_packet_alloc();
-            av_init_packet(avpacket);
-
-            try
-            { 
-                if (mType == AVMediaType.AVMEDIA_TYPE_VIDEO)
-                {
-                    while (vStatus == Status.RUNNING && (ret = av_read_frame(vFmtCtx, avpacket)) == 0)
-                    {
-                        if (!informed && avpacket->stream_index == vStream->index && endTimestamp < avpacket->dts * vStreamInfo.timebaseLowTicks) 
-                        {
-                            Log($"[VBUFFER] to -> {(avpacket->dts * vStreamInfo.timebaseLowTicks)/10000} ms");
-                            BufferingDone?.BeginInvoke(AVMediaType.AVMEDIA_TYPE_VIDEO, null, null);
-                            
-                            informed = true;
-                        }
-
-                        //if ( informed ) Thread.Sleep(10);
-                        av_packet_unref(avpacket);
-                    }
-                    
-                }
-                else if (mType == AVMediaType.AVMEDIA_TYPE_AUDIO)
-                {
-                    while (aStatus == Status.RUNNING && (ret = av_read_frame(aFmtCtx, avpacket)) == 0)
-                    {
-                        if (!informed && avpacket->stream_index == aStream->index && endTimestamp < avpacket->dts * aStreamInfo.timebaseLowTicks)
-                        { 
-                            Log($"[ABUFFER] to -> {(avpacket->dts * aStreamInfo.timebaseLowTicks) / 10000} ms");
-
-                            if (single)
-                                BufferingAudioDone?.BeginInvoke(null, null); 
-                            else
-                                BufferingDone?.BeginInvoke(AVMediaType.AVMEDIA_TYPE_AUDIO, null, null);
-
-                            informed = true;
-                        }
-
-                        if ( informed ) Thread.Sleep(10);
-                        av_packet_unref(avpacket);
-                    }
-                }
-                //else if (mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
-                //{
-                //    bool was = isSubsExternal;
-
-                //    while (sStatus == Status.RUNNING && (ret = av_read_frame(sFmtCtx, avpacket)) == 0)
-                //    {
-                //        if (was != isSubsExternal) break; // No reason to run
-
-                //        if (!informed && avpacket->stream_index == sStream->index && endTimestamp < avpacket->dts * sTimbebaseLowTicks) 
-                //        { 
-                //            Log($"[SBUFFER] to -> {(avpacket->dts * sTimbebaseLowTicks) / 10000} ms");
-
-                //            if (single)
-                //                BufferingSubsDone?.BeginInvoke(null, null); 
-                //            else
-                //                BufferingDone?.BeginInvoke(AVMediaType.AVMEDIA_TYPE_SUBTITLE, null, null);
-
-                //            informed = true;
-                //        }
-
-                //        if ( informed ) Thread.Sleep(500);
-                //        av_packet_unref(avpacket);
-                //    }
-                //}
-
-                av_packet_unref(avpacket);
-                
-                if (!informed && ret == AVERROR_EOF)
-                {
-                    if (single && mType == AVMediaType.AVMEDIA_TYPE_AUDIO)
-                        BufferingAudioDone?.BeginInvoke(null, null); 
-                    else if (single && mType == AVMediaType.AVMEDIA_TYPE_SUBTITLE)
-                        BufferingSubsDone?.BeginInvoke(null, null); 
-                    else
-                        BufferingDone?.BeginInvoke(mType, null, null);
-                }
-
-                if (ret < 0 && ret != AVERROR_EOF) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-            } catch (ThreadAbortException)  { Log("[BUFFER INFO  1] Killed " + mType); 
-            } catch (Exception e)           { Log("[BUFFER ERROR 1] " + mType + " " + e.Message + " " + e.StackTrace); 
-            } finally
-            {
-                av_packet_unref(avpacket);
-                
-                Log("[BUFFER END   1] " + mType);
-            }
-
-            return 0;
-        }
-        #endregion
-
-        #region Actions
-        private void IOConfiguration(Func<long, int, AVMediaType, byte[]> ReadPacketClbk, long totalSize)
-        {   
-            aCurPos = 0;
-            vCurPos = 0;
-            sCurPos = 0;
-            gcPrevent.Clear();
-
-            avio_alloc_context_read_packet aIOReadPacket = (opaque, buffer, bufferSize) =>
-            {
-                try
-                {
-                    int bytesRead   = aCurPos + bufferSize > totalSize ? (int) (totalSize - aCurPos) : bufferSize;
-                    byte[] data     = ReadPacketClbk(aCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_AUDIO);
-                    if (data == null || data.Length < bytesRead) { Log($"[CASE 001] A Empty Data"); return -1; }
-
-                    Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
-                    aCurPos += bytesRead;
-
-                    return bytesRead;
-                } 
-                catch (ThreadAbortException t) { Log($"[CASE 001] A Killed Empty Data"); throw t; }
-                catch (Exception e) { Log("[CASE 001] A " + e.Message + "\r\n" + e.StackTrace); return -1; }
-            };
-
-            avio_alloc_context_seek aIOSeek = (opaque, offset, wehnce) =>
-            {
-                try
-                {
-                    if ( wehnce == AVSEEK_SIZE )
-                        return totalSize;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
-                        aCurPos = offset;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.Current )
-                        aCurPos += offset;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.End )
-                        aCurPos = totalSize - offset;
-                    else
-                        aCurPos = -1;
-
-                    return aCurPos;
-                }
-                catch (ThreadAbortException t) { Log($"[CASE 001] A Seek Killed"); throw t; }
-            };
-
-            avio_alloc_context_read_packet_func aioread = new avio_alloc_context_read_packet_func();
-            aioread.Pointer = Marshal.GetFunctionPointerForDelegate(aIOReadPacket);
-            
-            avio_alloc_context_seek_func aioseek = new avio_alloc_context_seek_func();
-            aioseek.Pointer = Marshal.GetFunctionPointerForDelegate(aIOSeek);
-            
-            byte* aReadBuffer = (byte*)av_malloc(IOBufferSize);
-            aIOCtx = avio_alloc_context(aReadBuffer, IOBufferSize, 0, null, aioread, null, aioseek);
-            aFmtCtx->pb = aIOCtx;
-            aFmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
-
-            avio_alloc_context_read_packet vIOReadPacket = (opaque, buffer, bufferSize) =>
-            {
-                try
-                {
-                    int bytesRead   = vCurPos + bufferSize > totalSize ? (int) (totalSize - vCurPos) : bufferSize;
-                    byte[] data     = ReadPacketClbk(vCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_VIDEO);
-                    if (data == null || data.Length < bytesRead) { Log($"[CASE 001] V Empty Data"); return -1; }
-
-                    Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
-                    vCurPos += bytesRead;
-
-                    return bytesRead;
-                } 
-                catch (ThreadAbortException t) { Log($"[CASE 001] V Killed Empty Data"); throw t; }
-                catch (Exception e) { Log("[CASE 001] V " + e.Message + "\r\n" + e.StackTrace); return -1; }
-            };
-
-            avio_alloc_context_seek vIOSeek = (opaque, offset, wehnce) =>
-            {
-                try
-                {
-                    if ( wehnce == AVSEEK_SIZE )
-                        return totalSize;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
-                        vCurPos = offset;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.Current )
-                        vCurPos += offset;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.End )
-                        vCurPos = totalSize - offset;
-                    else
-                        vCurPos = -1;
-
-                    return vCurPos;
-                }
-                catch (ThreadAbortException t) { Log($"[CASE 001] V Seek Killed"); throw t; }
-            };
-
-            avio_alloc_context_read_packet_func vioread = new avio_alloc_context_read_packet_func();
-            vioread.Pointer = Marshal.GetFunctionPointerForDelegate(vIOReadPacket);
-
-            avio_alloc_context_seek_func vioseek = new avio_alloc_context_seek_func();
-            vioseek.Pointer = Marshal.GetFunctionPointerForDelegate(vIOSeek);
-
-            byte* vReadBuffer = (byte*)av_malloc(IOBufferSize);
-            vIOCtx = avio_alloc_context(vReadBuffer, IOBufferSize, 0, null, vioread, null, vioseek);
-            vFmtCtx->pb = vIOCtx;
-            vFmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
-
-            gcPrevent.Add(aioread);
-            gcPrevent.Add(aioseek);
-            gcPrevent.Add(vioread);
-            gcPrevent.Add(vioseek);
-
-            gcPrevent.Add(aIOReadPacket);
-            gcPrevent.Add(aIOSeek);
-            gcPrevent.Add(vIOReadPacket);
-            gcPrevent.Add(vIOSeek);
-
-            #region Embedded Subtitles Re-Enabled [Possible causing issues on torrent streaming]
-            
-            avio_alloc_context_read_packet sIOReadPacket = (opaque, buffer, bufferSize) =>
-            {
-                try
-                {
-                    int bytesRead   = sCurPos + bufferSize > totalSize ? (int) (totalSize - sCurPos) : bufferSize;
-                    byte[] data     = ReadPacketClbk(sCurPos, bytesRead, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                    if (data == null || data.Length < bytesRead) { Log($"[CASE 001] S Empty Data"); return -1; }
-
-                    Marshal.Copy(data, 0, (IntPtr) buffer, bytesRead);
-                    sCurPos += bytesRead;
-
-                    return bytesRead;
-                } 
-                catch (ThreadAbortException t) { Log($"[CASE 001] S Killed Empty Data"); throw t; }
-                catch (Exception e) { Log("[CASE 001] S " + e.Message + "\r\n" + e.StackTrace); return -1; }
-            };
-            avio_alloc_context_seek sIOSeek = (opaque, offset, wehnce) =>
-            {
-                try
-                {
-                    if ( wehnce == AVSEEK_SIZE )
-                        return totalSize;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.Begin )
-                        sCurPos = offset;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.Current )
-                        sCurPos += offset;
-                    else if ( (SeekOrigin) wehnce == SeekOrigin.End )
-                        sCurPos = totalSize - offset;
-                    else
-                        sCurPos = -1;
-
-                    return sCurPos;
-                }
-                catch (ThreadAbortException t) { Log($"[CASE 001] S Seek Killed"); throw t; }
-            };
-
-            avio_alloc_context_read_packet_func sioread = new avio_alloc_context_read_packet_func();
-            sioread.Pointer = Marshal.GetFunctionPointerForDelegate(sIOReadPacket);
-
-            avio_alloc_context_seek_func sioseek = new avio_alloc_context_seek_func();
-            sioseek.Pointer = Marshal.GetFunctionPointerForDelegate(sIOSeek);
-
-            byte* sReadBuffer = (byte*)av_malloc(IOBufferSize);
-            sIOCtx = avio_alloc_context(sReadBuffer, IOBufferSize, 0, null, sioread, null, sioseek);
-            sFmtCtx->pb = sIOCtx;
-            sFmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
-            
-            gcPrevent.Add(sIOReadPacket);
-            gcPrevent.Add(sIOSeek);
-            gcPrevent.Add(sioread);
-            gcPrevent.Add(sioseek);
-            #endregion
-        }
-        public int  Open(string url, Func<long, int, AVMediaType, byte[]> ReadPacketClbk = null, long totalSize = 0, string aUrl = "", string sUrl = "")
-        {
-            int ret;
-
-            long escapeInfinity = 250 / 10;
-            while (status == Status.OPENING && escapeInfinity > 0)
-            {
-                Thread.Sleep(10);
-                escapeInfinity--;
-            }
-
-            if (status == Status.OPENING) return -4;
-
-            try
-            {
-                Initialize();
-                status = Status.OPENING;
-
-                // Format Contexts | IO Configuration
-                AVFormatContext* fmtCtxPtr;
-
-                aFmtCtx = avformat_alloc_context();
-                vFmtCtx = avformat_alloc_context();
-                sFmtCtx = avformat_alloc_context();
-
-                if ( url == null ) {
-                    if ( ReadPacketClbk == null || totalSize == 0 ) 
-                        return -1;
-
-                    IOConfiguration(ReadPacketClbk, totalSize);
-                }
-
-                if (doAudio)
-                {
-                    fmtCtxPtr = aFmtCtx;
-                    ret = avformat_open_input(&fmtCtxPtr, aUrl != "" ? aUrl : url, null, null);
-                    if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); aFmtCtx = null; return ret; }
-                }
-                
-
-                if ( status != Status.OPENING )
-                {
-                    if (doAudio) { fmtCtxPtr = aFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(aFmtCtx); }
-                    
-                    aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null;
-
-                    status = Status.STOPPED;
-                    ret = -2;
-                    Log("Error[" + ret.ToString("D4") + "], Msg: Opening was canceled, Status -> " + status.ToString());
-                    return ret; 
-                }
-                
-                fmtCtxPtr = vFmtCtx;
-                ret = avformat_open_input(&fmtCtxPtr, url, null, null);
-                if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); vFmtCtx = null; return ret; }
-
-                if ( status != Status.OPENING )
-                {
-                    if (doAudio) { fmtCtxPtr = aFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(aFmtCtx); }
-                    fmtCtxPtr = vFmtCtx; avformat_close_input(&fmtCtxPtr);
-
-                    aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null;
-
-                    status = Status.STOPPED;
-                    ret = -2;
-                    Log("Error[" + ret.ToString("D4") + "], Msg: Opening was canceled, Status -> " + status.ToString());
-                    return ret;
-                }
-
-                //if ( url != null )
-                //{
-                    if (doSubs)
-                    {
-                        fmtCtxPtr = sFmtCtx;
-                        ret     = avformat_open_input(&fmtCtxPtr, sUrl != "" ? sUrl : url, null, null);
-                        if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); sFmtCtx = null; return ret; }
-                    }
-                //}
-
-                if ( status != Status.OPENING )
-                {
-                    if (doAudio)    { fmtCtxPtr = aFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(aFmtCtx); }
-                    if (doSubs)     { fmtCtxPtr = vFmtCtx; avformat_close_input(&fmtCtxPtr); }
-                    fmtCtxPtr = sFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(sFmtCtx);
-
-                    aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null;
-
-                    status = Status.STOPPED;
-                    ret = -2;
-                    Log("Error[" + ret.ToString("D4") + "], Msg: Opening was canceled, Status -> " + status.ToString());
-                    return ret; 
-                }
-
-                // Streams Find
-                ret = avformat_find_stream_info(vFmtCtx, null);
-                if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-                if (doAudio)
-                {
-                    ret = avformat_find_stream_info(aFmtCtx, null);
-                    if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-                }
-
-                //if ( url != null) // TEMPORARY DISABLE SUBS
-                //{
-                    if (doSubs)
-                    {
-                        ret = avformat_find_stream_info(sFmtCtx, null);
-                        if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-                    }
-                //}
-
-                if ( status != Status.OPENING )
-                {
-                    if (doAudio)    { fmtCtxPtr = aFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(aFmtCtx); }
-                    if (doSubs)     { fmtCtxPtr = vFmtCtx; avformat_close_input(&fmtCtxPtr); }
-                    fmtCtxPtr = vFmtCtx; avformat_close_input(&fmtCtxPtr);
-
-                    aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null;
-
-                    status = Status.STOPPED;
-                    ret = -2;
-                    Log("Error[" + ret.ToString("D4") + "], Msg: Opening was canceled, Status -> " + status.ToString());
-                    return ret; 
-                }
-
-                // Stream Setup
-                ret = SetupStream(AVMediaType.AVMEDIA_TYPE_VIDEO);
-                if (ret < 0 && ret != AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-                if (doAudio)
-                {
-                    ret = SetupStream(AVMediaType.AVMEDIA_TYPE_AUDIO);
-                    if (ret < 0 && ret != AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); hasAudio = false; }
-                }
-
-                //if ( url != null) // TEMPORARY DISABLE SUBS
-                //{
-                    if (doSubs)
-                    {
-                        ret = SetupStream(AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                        if (ret < 0 && ret != AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-                    }
-                //}
-                
-                if (!hasVideo) { Log("Error[" + (-1).ToString("D4") + "], Msg: No Video stream found"); return -1; }
-
-                if (hasAudio)
-                    for (int i = 0; i < aFmtCtx->nb_streams; i++)
-                        if (i != aStream->index && i != vStream->index) aFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
-
-                if (hasVideo)
-                    for (int i = 0; i < vFmtCtx->nb_streams; i++)
-                        if (i != vStream->index) vFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
-
-                if (hasSubs)
-                    for (int i = 0; i < sFmtCtx->nb_streams; i++)
-                        if (i != sStream->index && i != vStream->index) sFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
-                
-
-                if ( status != Status.OPENING )
-                {
-                    if (doAudio)    { fmtCtxPtr = aFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(aFmtCtx); }
-                    if (doSubs)     { fmtCtxPtr = vFmtCtx; avformat_close_input(&fmtCtxPtr); }
-                    fmtCtxPtr = vFmtCtx; avformat_close_input(&fmtCtxPtr);
-
-                    aFmtCtx = null; vFmtCtx = null; sFmtCtx = null; swsCtx = null;
-
-                    status = Status.STOPPED;
-                    ret = -2;
-                    Log("Error[" + ret.ToString("D4") + "], Msg: Opening was canceled, Status -> " + status.ToString());
-                    return ret; 
-                }
-
-                // Codecs
-                if (hasAudio)   { ret = SetupCodec(AVMediaType.AVMEDIA_TYPE_AUDIO);    if (ret != 0) hasAudio = false; }
-                if (hasVideo)   { ret = SetupCodec(AVMediaType.AVMEDIA_TYPE_VIDEO);    if (ret != 0) return ret; }
-                if (hasSubs )   { ret = SetupCodec(AVMediaType.AVMEDIA_TYPE_SUBTITLE); }
-
-                // Setups
-                if (hasAudio)   { ret = SetupAudio(); if (ret != 0) hasAudio = false; }
-                if (hasVideo)   { ret = SetupVideo(); if (ret != 0) return ret; }
-                if (hasSubs)    sTimbebaseLowTicks = av_q2d(sStream->time_base) * 10000 * 1000;
-
-                // Free
-                if (!hasAudio)  { fmtCtxPtr = aFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(aFmtCtx); aFmtCtx = null; }
-                if (!hasVideo)  { fmtCtxPtr = vFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(vFmtCtx); vFmtCtx = null; }
-                if (!hasSubs && url != null)  { fmtCtxPtr = sFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(sFmtCtx); sFmtCtx = null; }
-
-            } catch (Exception e) { Log(e.StackTrace); return -1;
-
-            } finally {
-                status = Status.STOPPED;
-            }
-
-            isReady = true;
-
-            return 0;
-        }
-        [HandleProcessCorruptedStateExceptions]
-        [SecurityCritical]
-        public int  OpenSubs(string url)
-        {
-            int ret = 0;
-            AVFormatContext* fmtCtxPtr;
-
-            if (hasSubs)
-            {
-                PauseSubs();
-
-                try
-                {
-                    if (sFmtCtx != null) { fmtCtxPtr = sFmtCtx; avformat_close_input(&fmtCtxPtr); av_freep(sFmtCtx); }
-                } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
-                
-                sFmtCtx = null;
-            }
-            
-            try
-            {
-                Log("[OPEN SUBS START 0] " + sStatus + " " + AVMediaType.AVMEDIA_TYPE_SUBTITLE);   
-
-                sFinish         = false;
-                hasSubs         = false;
-                isSubsExternal  = true;
-
-                sFmtCtx     = avformat_alloc_context(); fmtCtxPtr = sFmtCtx;
-                ret         = avformat_open_input(&fmtCtxPtr, url, null, null);
-                if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); av_freep(sFmtCtx); sFmtCtx = null; return ret; }
-
-                // Stream
-                ret         = avformat_find_stream_info(sFmtCtx, null);
-                if (ret != 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return ret; }
-
-                ret         = SetupStream(AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                if (ret < 0 && ret != AVERROR_STREAM_NOT_FOUND) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); hasSubs = false; }
-
-                if (!hasSubs) { Log("Error[" + (-1).ToString("D4") + "], Msg: No Subtitles stream found"); avformat_close_input(&fmtCtxPtr); av_freep(sFmtCtx); sFmtCtx = null; return ret; }
-
-                for (int i = 0; i < sFmtCtx->nb_streams; i++)
-                    if (i != sStream->index) sFmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
-
-                // Codec
-                ret         = SetupCodec(AVMediaType.AVMEDIA_TYPE_SUBTITLE); if (ret != 0) return ret;
-
-                sTimbebaseLowTicks = av_q2d(sStream->time_base) * 10000 * 1000;
-
-            } catch (Exception e) { Log("[OPEN SUBS ERROR 0] " + sStatus + " " + e.Message + " " + e.StackTrace); }
-
-            Log("[OPEN SUBS END 0] " + sStatus + " " + AVMediaType.AVMEDIA_TYPE_SUBTITLE);   
-
-            return ret;
-        }
-        public void RunAudio()
-        {
-            if (!isReady || !hasAudio) return;
-            PauseAudio();
-
-            status = Status.RUNNING;
-            aStatus = Status.RUNNING;
-
-            aDecoder = new Thread(() =>
-            {
-                int res = Decode(AVMediaType.AVMEDIA_TYPE_AUDIO);
-                aStatus = Status.STOPPED;
-                if (aStatus == Status.STOPPED && vStatus == Status.STOPPED && sStatus == Status.STOPPED) status = Status.STOPPED;
-                Log("[END 1] " + aStatus + " " + AVMediaType.AVMEDIA_TYPE_AUDIO);
-            });
-            aDecoder.SetApartmentState(ApartmentState.STA);
-            aDecoder.Start();
-        }
-        public void RunVideo()
-        {
-            if (!isReady || !hasVideo) return;
-            PauseVideo();
-
-            status = Status.RUNNING;
-            vStatus = Status.RUNNING;
-
-            if (hasVideo)
-            {
-                vDecoder = new Thread(() =>
-                {
-                    int res = Decode(AVMediaType.AVMEDIA_TYPE_VIDEO);
-                    vStatus = Status.STOPPED;
-                    if (aStatus == Status.STOPPED && vStatus == Status.STOPPED && sStatus == Status.STOPPED) status = Status.STOPPED;
-                    Log("[1] " + vStatus + " " + AVMediaType.AVMEDIA_TYPE_VIDEO);
-                });
-                vDecoder.SetApartmentState(ApartmentState.STA);
-                vDecoder.Start();
-            }
-        }
-        public void RunSubs()
-        {
-            if (!isReady || !hasSubs) return;
-            PauseSubs();
-
-            status = Status.RUNNING;
-            sStatus = Status.RUNNING;
-            sDecoder = new Thread(() =>
-            {
-                int res = Decode(AVMediaType.AVMEDIA_TYPE_SUBTITLE);
-                sStatus = Status.STOPPED;
-                if (aStatus == Status.STOPPED && vStatus == Status.STOPPED && sStatus == Status.STOPPED) status = Status.STOPPED;
-                Log("[END 1] " + sStatus + " " + AVMediaType.AVMEDIA_TYPE_SUBTITLE);   
-            });
-            sDecoder.SetApartmentState(ApartmentState.STA);
-            sDecoder.Start();
-        }
-        public void Pause()
-        {
-            if (!isReady) return;
-
-            status = Status.STOPPING; aStatus = Status.STOPPING; vStatus = Status.STOPPING; sStatus = Status.STOPPING;
-            
-            Utils.EnsureThreadDone(aDecoder);
-            Utils.EnsureThreadDone(vDecoder);
-            Utils.EnsureThreadDone(sDecoder);
-
-            status = Status.STOPPED; aStatus = Status.STOPPED; vStatus = Status.STOPPED; sStatus = Status.STOPPED;
-        }
-        
-        public void PauseVideo()
-        {
-            if (!isReady || !hasVideo) return;
-
-            vStatus = Status.STOPPING;
-            Utils.EnsureThreadDone(vDecoder);
-            vStatus = Status.STOPPED;
-
-            if (aStatus == Status.STOPPED && vStatus == Status.STOPPED && sStatus == Status.STOPPED) status = Status.STOPPED;
-        }
-        public void PauseAudio()
-        {
-            if (!isReady || !hasAudio) return;
-
-            aStatus = Status.STOPPING;
-            Utils.EnsureThreadDone(aDecoder);
-            aStatus = Status.STOPPED;
-
-            if (aStatus == Status.STOPPED && vStatus == Status.STOPPED && sStatus == Status.STOPPED) status = Status.STOPPED;
-        }
-        public void PauseSubs()
-        {
-            if (!isReady || !hasSubs) return;
-
-            sStatus = Status.STOPPING;
-            Utils.EnsureThreadDone(sDecoder);
-            sStatus = Status.STOPPED;
-            
-            if (aStatus == Status.STOPPED && vStatus == Status.STOPPED && sStatus == Status.STOPPED) status = Status.STOPPED;
-        }
-        public int  Stop()
-        {
-            Pause();
-
-            if (hasAudio) SeekAccurate(0, AVMediaType.AVMEDIA_TYPE_AUDIO);
-            if (hasVideo) SeekAccurate(0, AVMediaType.AVMEDIA_TYPE_VIDEO);
-            if (hasSubs)  SeekAccurate(0, AVMediaType.AVMEDIA_TYPE_SUBTITLE);
 
             return 0;
         }
@@ -1652,7 +1427,7 @@ namespace SuRGeoNix.Flyleaf
 #pragma warning restore CS0162 // Unreachable code detected
         }
 
-        private void Log(string msg) { if (verbosity > 0) Console.WriteLine("[DECODER]" + msg); }
+        private void Log(string msg) { if (verbosity > 0) Console.WriteLine("[DECODER] " + msg); }
         public unsafe string BytePtrToStringUTF8(byte* bytePtr)
         {
             if (bytePtr == null) return null;

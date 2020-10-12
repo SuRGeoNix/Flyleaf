@@ -1,4 +1,9 @@
-﻿using System;
+﻿/* WinForms / WPF User Control implementation of MediaRouter 's Library
+ * 
+ * by John Stamatakis
+ */
+
+using System;
 using System.IO;
 using System.Drawing;
 using System.Text;
@@ -86,7 +91,12 @@ namespace SuRGeoNix.Flyleaf.Controls
             
             if (!designMode) tblBar.Visible = false;
 
-            player  = new MediaRouter(1);
+            #if DEBUG
+                player  = new MediaRouter(1);
+            #else
+                player  = new MediaRouter(0);
+            #endif
+            
             config  = new Settings(player);
 
             Load                    += OnLoad;
@@ -232,8 +242,6 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             if (player.Activity != curActivityMode)
             {
-                Console.WriteLine("Activity changed to -> " + curActivityMode.ToString());
-
                 player.Activity = curActivityMode;
 
                 if      (curActivityMode == ActivityMode.FullActive)    GoFullActive();
@@ -244,8 +252,8 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (resizing) tblBar.Visible = false;
 
             if (!player.isPlaying) return;
-            
-            if ( !seeking)
+
+            if (!seeking)
             {
                 if (tblBar.seekBar.Maximum == 1) return; // TEMP... thorws exception just after open
                 int barValue = (int)(player.CurTime / 10000000);
@@ -560,7 +568,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         public void FixAspectRatio  (bool fromOpen = false)
         {
             if (isWPF) return;
-
+            if (isFullScreen) { player.renderer.HookResized(null, null); return; }
             if (!config.hookForm._Enabled || !config.hookForm.AutoResize) return;
             if (form.InvokeRequired) { form.BeginInvoke(new Action(() => FixAspectRatio())); return; }
 
@@ -568,8 +576,6 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             if (fromOpen) 
                 if (config.hookForm._Enabled && config.hookForm.HookHandle) form.Size = formInitSize; else form.Size = thisInitSize;
-
-            if (form.Width == screen.Width && form.Height == screen.Height) return;
 
             if ( form.Width / AspectRatio > form.Height)
                 form.Size = new Size((int)(form.Height * AspectRatio), form.Height);
@@ -604,11 +610,10 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             seeking = false;
 
-            if (!config.bar.SeekOnSlide && player.isReady)
-            {
-                long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
-                player.Seek((int)seektime);
-            }
+            if (!player.isReady) return;
+
+            long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
+            player.Seek((int)seektime, true);
         }
 
         private void VolBar_ValueChanged        (object sender, EventArgs e)
@@ -703,9 +708,14 @@ namespace SuRGeoNix.Flyleaf.Controls
                         
                         break;
 
-                    case Keys.V:
-                        string paste = Clipboard.GetText();
-                        Open(paste);
+                    // MISC
+                    case Keys.V: // Open Clipboard
+                        Open(Clipboard.GetText());
+
+                        break;
+
+                    case Keys.S: // SeekOnSlide On/Off
+                        config.bar.SeekOnSlide = !config.bar.SeekOnSlide;
 
                         break;
                 }
@@ -728,8 +738,9 @@ namespace SuRGeoNix.Flyleaf.Controls
 
                     seekValue = tblBar.seekBar.Value + seekSum / 1000;
                     if (seekValue > tblBar.seekBar.Maximum) seekValue = tblBar.seekBar.Maximum;
+                    if (seekValue < 0) seekValue = 0;
                     if (seekValue != tblBar.seekBar.Value) tblBar.seekBar.Value = seekValue;
-                    
+
                     break;
 
                 case Keys.Left:
@@ -794,19 +805,26 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             if (e.Control) return;
 
+
+
             switch (e.KeyCode)
             {
                 case Keys.Left:
                 case Keys.Right:
 
-                    if (!config.bar.SeekOnSlide && seeking)
-                    {
+                    seeking = false;
+
+                    if (!player.isReady) return;
+
+                    //if (!config.bar.SeekOnSlide)
+                    //{
+                        seeking = true;
                         long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
-                        player.Seek((int)seektime);
-                    }
+                        player.Seek((int)seektime, true);
+                    //}
+                    
 
                     seeking     = false;
-
                     seekSum     = 0;
                     seekStep    = 0;
 
@@ -816,7 +834,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         private void FlyLeaf_KeyPress           (object sender, KeyPressEventArgs e)
         {
             char c = Char.ToLower(e.KeyChar);
-
+            
             if (c == KeyCodeToUnicode(Keys.F))
             {
                 FullScreenToggle();
