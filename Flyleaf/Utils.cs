@@ -168,5 +168,7 @@ namespace SuRGeoNix.Flyleaf
                 return (T)formatter.Deserialize(stream);
             }
         }
+
+        public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(@"hh\:mm\:ss\:fff"); }
     }
 }
