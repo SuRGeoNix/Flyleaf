@@ -180,7 +180,7 @@ namespace SuRGeoNix.Flyleaf
                 lastFrame.textureRGB = Utils.LoadImage(device, bitmap);
             }
             
-            PresentFrame(null);
+            PresentFrame(lastFrame);
         }
         private void Initialize()
         {
@@ -365,7 +365,7 @@ namespace SuRGeoNix.Flyleaf
                 backBuffer  = Texture2D.FromSwapChain<Texture2D>(swapChain, 0);
                 rtv         = new RenderTargetView(device, backBuffer);
                 surface     = backBuffer.QueryInterface<Surface>();
-                rtv2d       = new RenderTarget(factory2d, surface, new RenderTargetProperties(new SharpDX.Direct2D1.PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
+                rtv2d       = new RenderTarget(factory2d, surface, new RenderTargetProperties(new PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
                 brush2d     = new SolidColorBrush(rtv2d, Color.White);
 
                 SetViewport();
@@ -434,12 +434,9 @@ namespace SuRGeoNix.Flyleaf
             // TODO: Possible process it directly after decoding (back to FFmpeg) to avoid Flush?
             try
             {
-                if (dispose) Utilities.Dispose(ref lastFrame.texture);
-                lastFrame = frame;
-                context.Flush();
-
                 Utilities.Dispose(ref vpiv);
-                videoDevice1.CreateVideoProcessorInputView(frame.texture, vpe, vpivd, out vpiv);
+                videoDevice1.CreateVideoProcessorInputView(frame.textureHW, vpe, vpivd, out vpiv);
+
                 VideoProcessorStream vps = new VideoProcessorStream()
                 {
                     PInputSurface = vpiv,
@@ -452,20 +449,12 @@ namespace SuRGeoNix.Flyleaf
                 context.PixelShader.Set(pixelShader);
 
             } catch (Exception) {
-            } finally { if (dispose) Utilities.Dispose(ref lastFrame.texture); }
+            } finally { if (dispose) Utilities.Dispose(ref frame.textureHW); }
         }
         private void PresentYUV     (MediaFrame frame, bool dispose = true)
         {
             try
             {
-                if (dispose)
-                {
-                    Utilities.Dispose(ref lastFrame.textureY);
-                    Utilities.Dispose(ref lastFrame.textureU);
-                    Utilities.Dispose(ref lastFrame.textureV);
-                }
-                lastFrame = frame;
-
                 srvY    = new ShaderResourceView(device, frame.textureY, srvDescYUV);
                 srvU    = new ShaderResourceView(device, frame.textureU, srvDescYUV);
                 srvV    = new ShaderResourceView(device, frame.textureV, srvDescYUV);
@@ -492,22 +481,27 @@ namespace SuRGeoNix.Flyleaf
         {
             try
             {
-                if (dispose) Utilities.Dispose(ref lastFrame.texture);
-                lastFrame = frame;
-
-                var srvRGB = new ShaderResourceView(device, frame.textureRGB);
-
+                srvRGB = new ShaderResourceView(device, frame.textureRGB);
                 context.PixelShader.SetShaderResources(0, srvRGB);
                 context.PixelShader.Set(pixelShader);
+
             } catch (Exception) {
-            } finally { if (dispose) Utilities.Dispose(ref lastFrame.texture); }
+            } finally
+            {
+                if (dispose) Utilities.Dispose(ref frame.textureRGB);
+
+                Utilities.Dispose(ref srvRGB);
+            }
         }
         private void PresentOSD()
         {
             if (ShouldVisible(player.Activity,msgToVis[OSDMessage.Type.Time]))
             {
                 long curTime = player.SeekTime == -1 ? player.CurTime : player.SeekTime;
-                osd[msgToSurf[OSDMessage.Type.Time]].DrawText((new TimeSpan(curTime)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + " | " + (player.CurTime > 0 ? ((int)((player.CurTime + 1500000) / (player.Duration / 100))).ToString() : "0") + "%");
+                if (player.Duration != 0)
+                    osd[msgToSurf[OSDMessage.Type.Time]].DrawText((new TimeSpan(curTime)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + " | " + (player.CurTime > 0 ? ((int)((player.CurTime + 1500000) / (player.Duration / 100))).ToString() : "0") + "%");
+                else
+                    osd[msgToSurf[OSDMessage.Type.Time]].DrawText((new TimeSpan(curTime)).ToString(@"hh\:mm\:ss") + " / --:--:--");
             }
             
             lock (messages)
@@ -546,7 +540,7 @@ namespace SuRGeoNix.Flyleaf
                                 break;
 
                             case OSDMessage.Type.AudioDelay:
-                                var delay = (player.AudioExternalDelay / 10000) + AudioPlayer.NAUDIO_DELAY_MS;
+                                var delay = (player.AudioExternalDelay / 10000); // + AudioPlayer.NAUDIO_DELAY_MS;
 
                                 msg.msg = "Audio Delay " + (delay > 0 ? "+" : "") + delay + "ms";
                                 
@@ -588,37 +582,29 @@ namespace SuRGeoNix.Flyleaf
 
             lock (device)
             {
-                bool dispose = true;
-                
-                // Keep Last Frame
-                if (frame == null) { frame = lastFrame; dispose = false; }
-
-                // NV12 | P010
-                if (frame.texture != null)
+                if (frame != null)
                 {
-                    PresentNV12P010(frame, dispose);
-                } 
+                    // NV12 | P010
+                    if      (frame.textureHW  != null)  PresentNV12P010(frame);
                     
-                // YUV420P
-                else if (frame.textureY != null)
-                {
-                    PresentYUV(frame, dispose);
-                }
+                    // YUV420P
+                    else if (frame.textureY   != null)  PresentYUV(frame);
 
-                // RGB
-                else if (frame.textureRGB != null)
-                {
-                    PresentRGB(frame, dispose);
+                    // RGB
+                    else if (frame.textureRGB != null)  PresentRGB(frame);
                 }
-
+                
                 context.OutputMerger.SetRenderTargets(rtv);
                 context.ClearRenderTargetView(rtv, clearColor);
                 context.Draw(6, 0);
 
                 rtv2d.BeginDraw();
-                PresentOSD();
-                rtv2d.EndDraw();
-
+                try
+                {
+                    PresentOSD();
+                } finally {
+                    rtv2d.EndDraw();
+                }
                 swapChain.Present(vsync, PresentFlags.None);
             }
         }
