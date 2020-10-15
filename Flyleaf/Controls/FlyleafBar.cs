@@ -11,7 +11,6 @@ namespace SuRGeoNix.Flyleaf.Controls
         List<Col> save = new List<Col>();
         
         Pen barBorderColor = new Pen(Color.FromArgb(55, 60, 74), 2);
-        //Pen barBorderColor = new Pen(Color.FromArgb(25, 30, 44), 2);
 
         public FlyleafBar()
         {
@@ -35,7 +34,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 var cell2 = tblBar.ColumnStyles[tblBar.ColumnStyles.Count - 2];
                 e.Graphics.DrawRectangle(barBorderColor, new Rectangle(e.CellBounds.Left - (int)cell2.Width + 3, 1 + e.CellBounds.Top + btnPlay.Margin.Top, e.CellBounds.Width + (int)cell2.Width - 7, e.CellBounds.Height - btnPlay.Margin.Top - btnPlay.Margin.Bottom - 2));
-            } 
+            }
         }
     }
 }
