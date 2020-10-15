@@ -25,6 +25,8 @@ using static FFmpeg.AutoGen.AVCodecID;
 using Device    = SharpDX.Direct3D11.Device;
 using Resource  = SharpDX.Direct3D11.Resource;
 
+using static SuRGeoNix.Flyleaf.MediaRouter;
+
 namespace SuRGeoNix.Flyleaf
 {
     unsafe public class MediaDecoder
@@ -219,7 +221,7 @@ namespace SuRGeoNix.Flyleaf
                 player.sFrames = new System.Collections.Concurrent.ConcurrentQueue<MediaFrame>();
             }
         }
-        public bool isSubsExternal  { get; private set; }
+        //public bool isSubsExternal  { get; private set; }
 
         public bool HighQuality     { get; set;         }
         public bool HWAccel         { get; set;         } = true;   // Requires re-open
@@ -253,9 +255,9 @@ namespace SuRGeoNix.Flyleaf
             if (IORead != null || url  != "")
                             ret = FormatContextOpen(url, true, aUrl != "" ? false : doAudio, sUrl != "" ? false : doSubs, referer, IORead, ioLength);
             if (ret != 0) return ret;
-            if (aUrl != "") ret = FormatContextOpen(aUrl, false, doAudio, false, referer, IORead, ioLength);
+            if (aUrl != "") ret = FormatContextOpen(aUrl, false, true, false, referer, IORead, ioLength);
             if (ret != 0) return ret;
-            if (sUrl != "") ret = FormatContextOpen(sUrl, false, false, doSubs, referer, IORead, ioLength);
+            if (sUrl != "") ret = FormatContextOpen(sUrl, false, false, true, referer, IORead, ioLength);
 
             return ret;
         }
@@ -286,6 +288,7 @@ namespace SuRGeoNix.Flyleaf
             decCtx.fmtCtx = avformat_alloc_context();
             if (decCtx.fmtCtx == null) return ret;
 
+            decCtx.url = url;
             if (IORead != null && ioLength != 0) decCtx.IOContextConfig(IORead, ioLength);
 
             AVDictionary *opt = null;
@@ -357,13 +360,40 @@ namespace SuRGeoNix.Flyleaf
                 decCtx.activeStreamIds.Add(aStream->index);
             }
 
-            if (doSubs && hasSubs)
+            if (decCtx.type == AVMEDIA_TYPE_VIDEO)
             {
-                ret = SetupCodec(AVMEDIA_TYPE_SUBTITLE);
-                if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); if (!doVideo) return ret; }
+                for (int i=0; i<decCtx.fmtCtx->nb_streams; i++)
+                {
+                    if (decCtx.fmtCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_SUBTITLE)
+                    {
 
+                        AVCodec* sCodec = avcodec_find_decoder(decCtx.fmtCtx->streams[i]->codec->codec_id);
+                        ret = avcodec_open2(decCtx.fmtCtx->streams[i]->codec, sCodec, null);
+                        if (ret < 0) Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret));
+
+                        string lang = null;
+
+                        AVDictionaryEntry* b = null;
+                        while (true)
+                        {
+                            b = av_dict_get(decCtx.fmtCtx->streams[i]->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
+                            if (b == null) break;
+
+                            if (BytePtrToStringUTF8(b->key).ToLower() == "language")
+                                lang = BytePtrToStringUTF8(b->value);
+                        }
+                        player.availableSubs.Add(new SubAvailable(Language.Get(lang), i));
+                    }
+                }
+            }
+            else if (decCtx.type == AVMEDIA_TYPE_SUBTITLE)
+            {
+                AVCodec* sCodec = avcodec_find_decoder(sStream->codec->codec_id);
+                ret = avcodec_open2(decCtx.fmtCtx->streams[sStream->index]->codec, sCodec, null);
+                if (ret < 0) { Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); if (!doVideo) return ret; }
                 decCtx.activeStreamIds.Add(sStream->index);
-                isSubsExternal = doVideo && hasVideo ? false : true;
+                sTimbebaseLowTicks = av_q2d(sStream->time_base) * 10000 * 1000;
+                //isSubsExternal = true;
             }
 
             for (int i=0; i<decCtx.fmtCtx->nb_streams; i++)
@@ -375,7 +405,6 @@ namespace SuRGeoNix.Flyleaf
             
             if (doVideo && hasVideo) SetupVideo(decCtx.fmtCtx);
             if (doAudio && hasAudio) SetupAudio(decCtx.fmtCtx);
-            if (doSubs  && hasSubs) sTimbebaseLowTicks = av_q2d(sStream->time_base) * 10000 * 1000;
 
             decCtx.isReady = true;
             if (doVideo && hasVideo) isReady = true;
@@ -404,32 +433,32 @@ namespace SuRGeoNix.Flyleaf
             Log($"============================ STREAMS ===================================");
             for (int i=0; i<decCtx.fmtCtx->nb_streams; i++)
             {
-                if (decCtx.fmtCtx->streams[i]->codec->codec_type == AVMediaType.AVMEDIA_TYPE_VIDEO)
+                if (decCtx.fmtCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
                     Log($"{i}. [{decCtx.fmtCtx->streams[i]->codec->codec_type.ToString().Replace("AVMEDIA_TYPE_", "")} | {decCtx.fmtCtx->streams[i]->codec->codec_id.ToString().Replace("AV_CODEC_ID_", "")} | {decCtx.fmtCtx->streams[i]->codec->pix_fmt.ToString().Replace("AV_PIX_FMT_","")} | {decCtx.fmtCtx->streams[i]->codec->width} x {decCtx.fmtCtx->streams[i]->codec->height}] [{(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")} / {(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")}] | {decCtx.fmtCtx->streams[i]->codec->time_base.num} / {decCtx.fmtCtx->streams[i]->codec->time_base.den}");
                 else
                     Log($"{i}. [{decCtx.fmtCtx->streams[i]->codec->codec_type.ToString().Replace("AVMEDIA_TYPE_", "")} | {decCtx.fmtCtx->streams[i]->codec->codec_id.ToString().Replace("AV_CODEC_ID_", "")}] [{(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")} / {(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")}] | {decCtx.fmtCtx->streams[i]->codec->time_base.num} / {decCtx.fmtCtx->streams[i]->codec->time_base.den}");
             }
             Log($"========================================================================");
-            
-            //Log($"============================ METADATA ===================================");
-            //for (int i=0; i<decCtx.fmtCtx->nb_streams; i++)
-            //{
-            //    Log($"{i+1}. [{decCtx.fmtCtx->streams[i]->codec->codec_type.ToString().Replace("AVMEDIA_TYPE_", "")} | {decCtx.fmtCtx->streams[i]->codec->codec_id.ToString().Replace("AV_CODEC_ID_", "")}] [{(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")} / {(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")}] | {decCtx.fmtCtx->streams[i]->codec->time_base.num} / {decCtx.fmtCtx->streams[i]->codec->time_base.den}");
-            //    Dictionary<string, string> metaEntries = new Dictionary<string, string>();
 
-            //    AVDictionaryEntry* b = null;
-            //    while (true)
-            //    {
-            //        b = av_dict_get(decCtx.fmtCtx->streams[i]->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
-            //        if (b == null) break;
-            //        metaEntries.Add(BytePtrToStringUTF8(b->key), BytePtrToStringUTF8(b->value));
+            Log($"============================ METADATA ===================================");
+            for (int i = 0; i < decCtx.fmtCtx->nb_streams; i++)
+            {
+                Log($"{i}. [{decCtx.fmtCtx->streams[i]->codec->codec_type.ToString().Replace("AVMEDIA_TYPE_", "")} | {decCtx.fmtCtx->streams[i]->codec->codec_id.ToString().Replace("AV_CODEC_ID_", "")}] [{(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")} / {(new TimeSpan(av_rescale_q(decCtx.fmtCtx->streams[i]->duration, decCtx.fmtCtx->streams[i]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss")}] | {decCtx.fmtCtx->streams[i]->codec->time_base.num} / {decCtx.fmtCtx->streams[i]->codec->time_base.den}");
+                Dictionary<string, string> metaEntries = new Dictionary<string, string>();
 
-            //    }
-            //    foreach (KeyValuePair<string, string> metaEntry in metaEntries)
-            //        Log($"{metaEntry.Key} -> {metaEntry.Value}");
+                AVDictionaryEntry* b = null;
+                while (true)
+                {
+                    b = av_dict_get(decCtx.fmtCtx->streams[i]->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
+                    if (b == null) break;
+                    metaEntries.Add(BytePtrToStringUTF8(b->key), BytePtrToStringUTF8(b->value));
 
-            //    Log($"=======================================================================");
-            //}
+                }
+                foreach (KeyValuePair<string, string> metaEntry in metaEntries)
+                    Log($"{metaEntry.Key} -> {metaEntry.Value}");
+
+                Log($"=======================================================================");
+            }
 
             //av_dump_format(decCtx.fmtCtx, 0, url, 0);
         }
@@ -514,6 +543,7 @@ namespace SuRGeoNix.Flyleaf
             public bool         isReady;
             public bool         finished;
 
+            public string       url;
             public List<int>    activeStreamIds = new List<int>();
             public bool         drainMode;
             public bool         hasMoreFrames;
@@ -535,14 +565,41 @@ namespace SuRGeoNix.Flyleaf
                 this.dec = dec;
                 type = mType;
                 pkt = av_packet_alloc();
+            }
 
-                if (type == AVMEDIA_TYPE_SUBTITLE && !dec.isSubsExternal && dec.hasSubs)
+            public void DisableEmbeddedSubs()
+            {
+                if (type != AVMEDIA_TYPE_VIDEO) return;
+
+                for (int i=0; i<fmtCtx->nb_streams; i++)
                 {
-                    dec.video.activeStreamIds.Remove(dec.sStream->index);
-                    dec.video.fmtCtx->streams[dec.sStream->index]->discard = AVDiscard.AVDISCARD_ALL;
-                    dec.sStream = null;
+                    if (fmtCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_SUBTITLE)
+                    {
+                        fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                        if (activeStreamIds.Contains(i)) activeStreamIds.Remove(i);
+                    }
+                }
+
+                dec.sStream = null;
+            }
+            public void EnableEmbeddedSubs(int streamIndex)
+            {
+                if (type != AVMEDIA_TYPE_VIDEO || !dec.doSubs) return;
+
+                DisableEmbeddedSubs();  
+
+                if (dec.subs != null) { dec.subs.Dispose(); dec.subs = null; }
+
+                if (fmtCtx->streams[streamIndex]->codec->codec_type == AVMEDIA_TYPE_SUBTITLE)
+                {
+                    avcodec_flush_buffers(fmtCtx->streams[streamIndex]->codec);
+                    fmtCtx->streams[streamIndex]->discard = AVDiscard.AVDISCARD_DEFAULT;
+                    if (!activeStreamIds.Contains(streamIndex)) activeStreamIds.Add(streamIndex);
+                    dec.sStream = fmtCtx->streams[streamIndex];
+                    dec.sTimbebaseLowTicks = av_q2d(dec.sStream->time_base) * 10000 * 1000;
                 }
             }
+
             public void Dispose()
             {
                 Pause();
@@ -558,6 +615,8 @@ namespace SuRGeoNix.Flyleaf
                     dec.aCodecCtx = null;
                     dec.vCodecCtx = null;
                     dec.sCodecCtx = null;
+
+                    dec.player.availableSubs = new List<SubAvailable>();
                 }
                 else if (type == AVMEDIA_TYPE_AUDIO)
                 {
@@ -626,7 +685,7 @@ namespace SuRGeoNix.Flyleaf
 
                     avcodec_flush_buffers(dec.vCodecCtx);
                     if (dec.hasAudio) avcodec_flush_buffers(dec.aCodecCtx);
-                    if (dec.hasSubs ) avcodec_flush_buffers(dec.sCodecCtx);
+                    if (dec.hasSubs ) avcodec_flush_buffers(fmtCtx->streams[dec.sStream->index]->codec); //fmtCtx->streams[dec.sStream->index]->codec
                     if (seek2any)
                         avformat_seek_file(fmtCtx, -1, Int64.MinValue, ms * 1000, ms * 1000, AVSEEK_FLAG_ANY);
                     else
@@ -647,7 +706,7 @@ namespace SuRGeoNix.Flyleaf
                 {
                     dec.player.sFrames = new System.Collections.Concurrent.ConcurrentQueue<MediaFrame>();
 
-                    avcodec_flush_buffers(dec.sCodecCtx);
+                    avcodec_flush_buffers(fmtCtx->streams[dec.sStream->index]->codec);
 
                     avformat_seek_file(fmtCtx, -1, Int64.MinValue, ms * 1000 - ((dec.player.SubsExternalDelay / 10) + AudioPlayer.NAUDIO_DELAY_MS), Int64.MaxValue, AVSEEK_FLAG_ANY);
                 }
@@ -759,7 +818,7 @@ namespace SuRGeoNix.Flyleaf
                     }
                     else if (mType == AVMEDIA_TYPE_SUBTITLE)
                     {
-                        dec.DecodeFrameSubs(dec.sCodecCtx, pkt);
+                        dec.DecodeFrameSubs(fmtCtx->streams[dec.sStream->index]->codec, pkt);
                         if (type == AVMEDIA_TYPE_SUBTITLE) break;
                     }
                 }
@@ -801,7 +860,7 @@ namespace SuRGeoNix.Flyleaf
                             //    if (pkt != null && mType == AVMEDIA_TYPE_SUBTITLE) Console.WriteLine("S | "  + pkt->stream_index + " | " + (new TimeSpan(av_rescale_q(pkt->pts, fmtCtx->streams[pkt->stream_index]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss\:fff") + " | " + new TimeSpan((long)(pkt->pts * dec.sTimbebaseLowTicks)).ToString(@"hh\:mm\:ss\:fff"));
                             //    once = false;
                             //}
-                            dec.DecodeFrameSubs(dec.sCodecCtx, pkt);
+                            dec.DecodeFrameSubs(fmtCtx->streams[dec.sStream->index]->codec, pkt);
                             break;
                     }
 
@@ -809,10 +868,10 @@ namespace SuRGeoNix.Flyleaf
                         Thread.Sleep(70);
 
                     while (type == AVMEDIA_TYPE_AUDIO && dec.player.aFrames.Count > dec.player.AUDIO_MAX_QUEUE_SIZE && dec.isRunning)
-                        Thread.Sleep(10);
+                        Thread.Sleep(30);
 
                     while (type == AVMEDIA_TYPE_VIDEO && dec.player.vFrames.Count > dec.player.VIDEO_MAX_QUEUE_SIZE && dec.isRunning)
-                        Thread.Sleep(10);
+                        Thread.Sleep(30);
                 }
 
                 if (ret != 0 )
@@ -1215,12 +1274,8 @@ namespace SuRGeoNix.Flyleaf
                 SetupHQAndHWAcceleration();
                 ret = avcodec_open2(vCodecCtx, vCodec, null); 
             }
-            else if (mType == AVMEDIA_TYPE_SUBTITLE && hasSubs)
-            {
-                sCodecCtx   = sStream->codec;
-                sCodec      = avcodec_find_decoder(sStream->codec->codec_id);
-                ret         = avcodec_open2(sCodecCtx, sCodec, null); }
-            else return -1;
+            else
+                return -1;
 
             if (ret != 0) Log("Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret));
 

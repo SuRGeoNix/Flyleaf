@@ -35,12 +35,14 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
-
-using static SuRGeoNix.Flyleaf.MediaDecoder;
-using static SuRGeoNix.Flyleaf.OSDMessage;
+using System.Linq;
+using System.Windows.Forms;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security;
+
+using static SuRGeoNix.Flyleaf.MediaDecoder;
+using static SuRGeoNix.Flyleaf.OSDMessage;
 
 namespace SuRGeoNix.Flyleaf
 {
@@ -77,6 +79,13 @@ namespace SuRGeoNix.Flyleaf
         public int  SUBS_MIN_QUEUE_SIZE =  0;  public int  SUBS_MAX_QUEUE_SIZE = 50;
 
         // Idle [Activity / Visibility Mode]
+        public enum DownloadSubsMode
+        {
+            Never,
+            FilesAndTorrents,
+            Files,
+            Torrents
+        }
         public enum VisibilityMode
         {
             Always,
@@ -127,6 +136,8 @@ namespace SuRGeoNix.Flyleaf
         public Action<List<string>, List<long>> MediaFilesClbk;
         public Action<int, int, int, int>       StatsClbk;
 
+        public event EventHandler SubtitlesAvailable;
+
         public event StatusChangedHandler StatusChanged;
         public delegate void StatusChangedHandler(object source, StatusChangedArgs e);
         public class StatusChangedArgs : EventArgs
@@ -138,6 +149,7 @@ namespace SuRGeoNix.Flyleaf
 
         #region Properties
 
+        public string Url { get; set; }
         public enum ViewPorts
         {
             KEEP,
@@ -211,6 +223,28 @@ namespace SuRGeoNix.Flyleaf
         public int  SubsPosition    { get { return renderer.SubsPosition;       }   set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
         public float SubsFontSize   { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; renderer?.NewMessage(OSDMessage.Type.SubsFontSize); } }
 
+        public DownloadSubsMode DownloadSubs { get; set; } = DownloadSubsMode.Torrents;
+        public List<Language> Languages   {get; set; } = new List<Language>();
+
+        public struct SubAvailable
+        {
+            public Language      lang;
+            public string        path;
+            public int           streamIndex;
+            public OpenSubtitles sub;
+            public bool          used;
+
+            public SubAvailable(Language lang, string path)      {this.lang = lang; this.streamIndex = -1;           this.sub = null; this.path = path; used = true; }
+            public SubAvailable(Language lang, int streamIndex)  {this.lang = lang; this.streamIndex = streamIndex;  this.sub = null; this.path = null; used = false; }
+            public SubAvailable(Language lang, OpenSubtitles sub){this.lang = lang; this.streamIndex = -1;           this.sub = sub;  this.path = null; used = false; }
+        }
+
+        public List<SubAvailable> availableSubs = new List<SubAvailable>();
+
+        private int curSubId = -1;
+        public int  CurSubId { get { return curSubId; } set { if (curSubId == value) return; PrevSubId = curSubId; curSubId = value; Log($"Sub Id Changed From {PrevSubId} to {curSubId}"); } }
+        public int  PrevSubId{ get; private set; } = -1;
+
         public Dictionary<string, string> PluginsList { get; private set; } = new Dictionary<string, string>();
         public List<string> Plugins { get; private set; } = new List<string>();
         #endregion
@@ -224,6 +258,17 @@ namespace SuRGeoNix.Flyleaf
             foreach (KeyValuePair<string, string> plugin in PluginsList)
                 if (File.Exists(plugin.Value)) Plugins.Add(plugin.Key);
         }
+        private void LoadDefaultLanguages()
+        {
+            Languages = new List<Language>();
+            Language systemLang = Language.Get(System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
+            if (systemLang.LanguageName != "English") Languages.Add(systemLang);
+
+            foreach (InputLanguage lang in InputLanguage.InstalledInputLanguages)
+                if (Language.Get(lang.Culture.TwoLetterISOLanguageName).ISO639 != systemLang.ISO639 && Language.Get(lang.Culture.TwoLetterISOLanguageName).LanguageName != "English") Languages.Add(Language.Get(lang.Culture.TwoLetterISOLanguageName));
+
+            Languages.Add(Language.Get("English"));
+        }
         public MediaRouter(int verbosity = 0)
         {
             LoadPlugins();
@@ -236,6 +281,8 @@ namespace SuRGeoNix.Flyleaf
             vFrames     = new ConcurrentQueue<MediaFrame>();
             sFrames     = new ConcurrentQueue<MediaFrame>();
             seekStack   = new ConcurrentStack<int>();
+
+            LoadDefaultLanguages();
         }
         public void InitHandle(IntPtr handle, bool designMode = false)
         {
@@ -268,6 +315,7 @@ namespace SuRGeoNix.Flyleaf
             sFrames     = new ConcurrentQueue<MediaFrame>();
             seekStack   = new ConcurrentStack<int>();
 
+            LoadDefaultLanguages();
             Initialize();
         }
         private void Initialize()
@@ -278,6 +326,9 @@ namespace SuRGeoNix.Flyleaf
 
             isReady         = false;
             beforeSeeking   = Status.STOPPED;
+
+            CurSubId        = -1;
+            PrevSubId       = -1;
 
             ClearMediaFrames();
             renderer.ClearMessages();
@@ -481,6 +532,190 @@ namespace SuRGeoNix.Flyleaf
         #endregion
 
         #region Main Actions
+        Thread openSubs;
+        public void FindAvailableSubs(string filename, string hash, long length)
+        {
+            Utils.EnsureThreadDone(openSubs);
+
+            openSubs = new Thread(() =>
+            {
+                // TODO: (Local Files Search || Torrent Files) should use movie title not file name
+                //foreach (string curfile in Directory.GetFiles(file.DirectoryName))
+                //{
+                //    if ( Regex.IsMatch(curfile, $@"{file.Name.Remove(file.Name.Length - file.Extension.Length)}.*\.srt") )
+                //    {
+                //        Log(curfile);
+                //    }
+                //}
+
+                foreach (Language lang in Languages)
+                {
+                    List<OpenSubtitles> subs;
+
+                    subs =  OpenSubtitles.SearchByHash(hash, length, lang);
+                    subs.AddRange(OpenSubtitles.SearchByName(filename, lang));
+
+                    for (int i=0; i<subs.Count; i++)
+                        availableSubs.Add(new SubAvailable(lang, subs[i]));
+                }
+
+                FixSortSubs();
+                SubtitlesAvailable?.Invoke(this, EventArgs.Empty);
+                OpenNextAvailableSub();
+                
+            });
+            openSubs.SetApartmentState(ApartmentState.STA);
+            openSubs.Start();
+        }
+        public void FixSortSubs()
+        {
+            // Unique by SubHashes (if any)
+            List<SubAvailable> uniqueList = new List<SubAvailable>();
+            List<int> removeIds = new List<int>();
+            for (int i=0; i<availableSubs.Count-1; i++)
+            {
+                if (availableSubs[i].sub == null || removeIds.Contains(i)) continue;
+
+                for (int l=i+1; l<availableSubs.Count; l++)
+                {
+                    if (availableSubs[l].sub == null || removeIds.Contains(l)) continue;
+
+                    if (availableSubs[l].sub.SubHash == availableSubs[i].sub.SubHash)
+                    {
+                        if (availableSubs[l].sub.AvailableAt == null)
+                            removeIds.Add(l);
+                        else
+                        { removeIds.Add(i); break; }
+                    }
+                }
+            }
+            for (int i=0; i<availableSubs.Count; i++)
+                if (!removeIds.Contains(i)) uniqueList.Add(availableSubs[i]);
+
+            availableSubs = uniqueList;
+
+            // Sorty by Lang Priority && Rating (if any)
+            List<int> ids = new List<int>();
+            List<SubAvailable> sortedList = new List<SubAvailable>();
+            foreach (Language lang in Languages)
+            {
+                for (int i=0; i<availableSubs.Count; i++)
+                {
+                    if (ids.Contains(i)) continue;
+                    if (availableSubs[i].lang == null || availableSubs[i].sub == null || availableSubs[i].lang.ISO639 != lang.ISO639) continue;
+
+                    int curMaxId = i;
+
+                    for (int l=0; l<availableSubs.Count; l++)
+                    {
+                        if (ids.Contains(l)) continue;
+                        if (availableSubs[l].lang == null || availableSubs[l].sub == null || availableSubs[l].lang.ISO639 != lang.ISO639) continue;
+
+                        if (float.Parse(availableSubs[l].sub.SubRating) > float.Parse(availableSubs[curMaxId].sub.SubRating)) curMaxId = l;
+                    }
+
+                    ids.Add(curMaxId);
+                }
+
+                for (int i=0; i<availableSubs.Count; i++)
+                    if (availableSubs[i].lang != null && availableSubs[i].lang.ISO639 == lang.ISO639 && !ids.Contains(i)) ids.Add(i);
+
+            }
+
+            for (int i=0; i<availableSubs.Count; i++)
+                if (availableSubs[i].lang == null) ids.Add(i);
+
+            for (int i=0; i<ids.Count; i++)
+                sortedList.Add(availableSubs[ids[i]]);
+            
+            availableSubs = sortedList;
+        }
+        public void OpenNextAvailableSub()
+        {
+            bool allused = true;
+
+            // Find best match (lang priority - not already used - rating?)
+            foreach (Language lang in Languages)
+            {
+                for (int i=0; i<availableSubs.Count; i++)
+                {
+                    if (!availableSubs[i].used) allused = false;
+                    if (!availableSubs[i].used && availableSubs[i].lang?.IdSubLanguage == lang.IdSubLanguage)
+                    {
+                        Log("Best sub match -> " + i);
+                        OpenSubs(i);
+                        return;
+                    }
+                }
+            }
+
+            // Reset used and start from the beggining
+            if (allused && availableSubs.Count > 0 && Languages.Count > 0)
+            {
+                for (int i=0; i<availableSubs.Count; i++)
+                {
+                    SubAvailable sub = availableSubs[i];
+                    sub.used = false;
+                    availableSubs[i] = sub;
+                }
+                OpenNextAvailableSub();
+            }
+        }
+        public void OpenSubs(int availableIndex)
+        {
+            SubAvailable sub = availableSubs[availableIndex];
+
+            if (sub.streamIndex > 0)
+            {
+                sFrames = new ConcurrentQueue<MediaFrame>();
+
+                decoder.video.EnableEmbeddedSubs(sub.streamIndex);
+            }
+            else if (sub.sub != null)
+            {
+                if (sub.sub.AvailableAt != null)
+                    OpenSubs(sub.sub.AvailableAt);
+                else
+                {
+                    sub.sub.Download();
+                    OpenSubs(sub.sub.AvailableAt);
+                }
+            }
+            else if (sub.path != null)
+            {
+                OpenSubs(sub.path);
+            }
+
+            sub.used = true;
+            availableSubs[availableIndex] = sub;
+            CurSubId = availableIndex;
+        }
+        public int OpenSubs(string url)
+        {
+            if (!decoder.isReady) return -1;
+
+            int ret = 0;
+            subsExternalDelay = 0;
+            sFrames = new ConcurrentQueue<MediaFrame>();
+
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
+
+            decoder.video.DisableEmbeddedSubs();
+
+            foreach (SubAvailable sub in availableSubs)
+                if (sub.path != null && sub.path.ToLower() == url.ToLower()) { availableSubs.Remove(sub); break; }
+
+            if ((ret = decoder.Open("", "", url)) != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return ret; }
+
+            bool exists = false;
+            //foreach (SubAvailable sub in availableSubs)
+            for (int i=0; i<availableSubs.Count; i++)
+                if (availableSubs[i].sub != null && availableSubs[i].sub.AvailableAt?.ToLower() == url.ToLower()) { exists = true; CurSubId=i; }
+            
+            if (!exists) { availableSubs.Add(new SubAvailable(null, url)); CurSubId = availableSubs.Count-1; } // TODO Detect
+
+            return 0;
+        }
         public void Open(string url)
         {
             lock (lockOpening)
@@ -565,17 +800,36 @@ namespace SuRGeoNix.Flyleaf
                                     aUrl = line;
                             }
 
-                            if (aUrl == "")
-                                decoder.Open(vUrl, "", "", scheme + "://" + (new Uri(url)).Host.ToLower());
+                            if (aUrl == "" && vUrl == "")
+                            {
+                                // Fall back to proper open?
+                                decoder.Open(url);
+                                //renderer.NewMessage(OSDMessage.Type.Failed, $"Failed"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, url, null, null); return;
+                            }
                             else
-                                decoder.Open(vUrl, aUrl, "", scheme + "://" + (new Uri(url)).Host.ToLower());
-
+                            {
+                                if (aUrl == "")
+                                    decoder.Open(vUrl, "", "", scheme + "://" + (new Uri(url)).Host.ToLower());
+                                else
+                                    decoder.Open(vUrl, aUrl, "", scheme + "://" + (new Uri(url)).Host.ToLower());
+                            }
                         }
                         else
                         {
                             decoder.Open(url);
+                            if (DownloadSubs == DownloadSubsMode.Files || DownloadSubs == DownloadSubsMode.FilesAndTorrents)
+                            {
+                                FileInfo file = new FileInfo(url);
+                                string hash = Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(file.FullName));
+                                FindAvailableSubs(file.Name, hash, file.Length);
+                            }
+                            else
+                            {
+                                OpenNextAvailableSub();
+                            }
+                            
                         }
-                        
+
                         if (!decoder.isReady) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, url, null, null); return; }
                         renderer.NewMessage(OSDMessage.Type.Open, $"Opened");
                         renderer.NewMessage(OSDMessage.Type.HardwareAcceleration);
@@ -587,20 +841,6 @@ namespace SuRGeoNix.Flyleaf
                     openOrBuffer.Start();
                 }
             }
-        }
-        public int OpenSubs(string url)
-        {
-            if (!decoder.isReady) return -1;
-
-            int ret = 0;
-            subsExternalDelay = 0;
-            sFrames = new ConcurrentQueue<MediaFrame>();
-
-            renderer.ClearMessages(OSDMessage.Type.Subtitles);
-
-            if ((ret = decoder.Open("", "", url)) != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return ret; }
-
-            return 0;
         }
         public void Play()
         { 
@@ -696,6 +936,7 @@ namespace SuRGeoNix.Flyleaf
                             if (Interlocked.Equals(prioritySeek, 1)) return;
 
                             CurTime = (long)ms * 10000;
+                            if (isTorrent) renderer.NewMessage(OSDMessage.Type.Buffering, $"Loading 0%");
                             decoder.Seek(ms, true);
                             if (Interlocked.Equals(prioritySeek, 1)) return;
                             //ClearMediaFrames();
@@ -704,9 +945,8 @@ namespace SuRGeoNix.Flyleaf
                             if (beforeSeeking != Status.PLAYING) ShowOneFrame();
                         } while (!seekStack.IsEmpty && decoder.isReady);
 
-                    } catch (Exception) { }
-
-                    finally
+                    } catch (Exception) { 
+                    } finally
 			        {
                         Interlocked.Exchange(ref SeekTime, -1);
 				        status = Status.STOPPED;
@@ -753,7 +993,12 @@ namespace SuRGeoNix.Flyleaf
         #endregion
 
         #region Streamer
-        private void BufferingDone(bool done)   { if ( done && beforeSeeking == Status.PLAYING) Play2(); }
+        private void BufferingDone(bool done)
+        { 
+            if (!done) return;
+
+            if (beforeSeeking == Status.PLAYING) Play2();
+        }
         public void SetMediaFile(string fileName)
         {
             if (openOrBuffer!= null) openOrBuffer.Abort();
@@ -773,16 +1018,9 @@ namespace SuRGeoNix.Flyleaf
 
             openOrBuffer = new Thread(() => {
 
-                // Open Decoder Buffer
+                // Open Decoder & Buffer Decoder
                 int ret = streamer.SetMediaFile(fileName);
-                if (ret != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed {ret}"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, fileName, null, null); return; }
-
-                // Open Decoder
-                ret = decoder.Open(null, "", "", "", streamer.DecoderRequests, streamer.fileSize);
-                //ret = decoder.Open(null, "a", "", "", streamer.DecoderRequests, streamer.fileSize);
-                if (ret != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed {ret}"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, fileName, null, null); return; }
-
-                if (!decoder.isReady) { status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, fileName, null, null); return; }
+                if (ret != 0 || !decoder.isReady) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed {ret}"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, fileName, null, null); return; }
 
                 InitializeEnv();
                 OpenFinishedClbk?.BeginInvoke(true, fileName, null, null);
