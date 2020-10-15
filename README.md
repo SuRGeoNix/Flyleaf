@@ -3,6 +3,7 @@
 
 ## Flyleaf Application
 Flyleaf is a light Media Player & Torrent Streamer which supports 4K/HD resolutions, large number of video formats, protocols & torrent streaming.
+It is also supporting the majority of subtitle formats & automatically download from online databases (currently using <a href="https://www.opensubtitles.org/">opensubtitles.org</a> API).
 The main concept is to be simple, accurate, fast & run smoothly by using as less resources as possible.
 
 <p align="center"><img src="Readme1.png" /></p>
@@ -22,7 +23,8 @@ You open any video/subtitles file, youtube video or any web video (MediaSource o
 | F                     | Full Screen / Normal Screen|
 | H                     | Video Acceleration (On/Off)|
 | I                     | Force Idle Mode            |
-| Escape                | Back to Torrent File List  |
+| Escape                | Escape Full Screen / Lists |
+| Ctrl + S              | Seek on Slide On/Off       |
 | Up / Down Arrows      | Volume Adjustment          |
 | [ / ]                 | Audio Adjustment           |
 | Ctrl + [ / ]          | Audio Adjustment 2         |
@@ -30,6 +32,8 @@ You open any video/subtitles file, youtube video or any web video (MediaSource o
 | Ctrl + ; / '          | Subtitles Adjustment 2     |
 | Ctrl + Up / Down      | Subtitles Location (Height)|
 | Ctrl + Left / Right   | Subtitles Font Size        |
+| Ctrl + N              | Next Available Subtitle (Best Match)  |
+| Ctrl + P              | Previous Available Subtitle|
 
 <br/>
 
