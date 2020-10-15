@@ -30,27 +30,30 @@
         {
             this.tblBar = new System.Windows.Forms.TableLayoutPanel();
             this.volBar = new ColorSlider.ColorSlider();
+            this.seekBar = new ColorSlider.ColorSlider();
             this.btnPlaylist = new System.Windows.Forms.Button();
             this.btnPlay = new System.Windows.Forms.Button();
-            this.seekBar = new ColorSlider.ColorSlider();
             this.btnMute = new System.Windows.Forms.Button();
+            this.btnSubs = new System.Windows.Forms.Button();
             this.tblBar.SuspendLayout();
             this.SuspendLayout();
             // 
             // tblBar
             // 
             this.tblBar.BackColor = System.Drawing.Color.Black;
-            this.tblBar.ColumnCount = 5;
+            this.tblBar.ColumnCount = 6;
             this.tblBar.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 45F));
             this.tblBar.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tblBar.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            this.tblBar.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 45F));
             this.tblBar.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 30F));
             this.tblBar.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 85F));
-            this.tblBar.Controls.Add(this.volBar, 4, 0);
+            this.tblBar.Controls.Add(this.btnSubs, 3, 0);
+            this.tblBar.Controls.Add(this.volBar, 5, 0);
             this.tblBar.Controls.Add(this.btnPlaylist, 2, 0);
             this.tblBar.Controls.Add(this.btnPlay, 0, 0);
             this.tblBar.Controls.Add(this.seekBar, 1, 0);
-            this.tblBar.Controls.Add(this.btnMute, 3, 0);
+            this.tblBar.Controls.Add(this.btnMute, 4, 0);
             this.tblBar.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.tblBar.Location = new System.Drawing.Point(0, 0);
             this.tblBar.Margin = new System.Windows.Forms.Padding(0);
@@ -121,48 +124,10 @@
             this.volBar.TickDivide = 0F;
             this.volBar.TickStyle = System.Windows.Forms.TickStyle.None;
             this.volBar.Value = new decimal(new int[] {
-            50,
+            1,
             0,
             0,
             0});
-            // 
-            // btnPlaylist
-            // 
-            this.btnPlaylist.BackColor = System.Drawing.Color.Transparent;
-            this.btnPlaylist.BackgroundImage = global::SuRGeoNix.Flyleaf.Properties.Resources.Playlist;
-            this.btnPlaylist.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-            this.btnPlaylist.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
-            this.btnPlaylist.FlatAppearance.BorderSize = 2;
-            this.btnPlaylist.FlatAppearance.MouseDownBackColor = System.Drawing.SystemColors.ActiveCaption;
-            this.btnPlaylist.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
-            this.btnPlaylist.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnPlaylist.ForeColor = System.Drawing.Color.Red;
-            this.btnPlaylist.Location = new System.Drawing.Point(843, 2);
-            this.btnPlaylist.Margin = new System.Windows.Forms.Padding(3, 2, 0, 2);
-            this.btnPlaylist.Name = "btnPlaylist";
-            this.btnPlaylist.Size = new System.Drawing.Size(40, 40);
-            this.btnPlaylist.TabIndex = 26;
-            this.btnPlaylist.TabStop = false;
-            this.btnPlaylist.UseVisualStyleBackColor = false;
-            // 
-            // btnPlay
-            // 
-            this.btnPlay.BackColor = System.Drawing.Color.Transparent;
-            this.btnPlay.BackgroundImage = global::SuRGeoNix.Flyleaf.Properties.Resources.Play;
-            this.btnPlay.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-            this.btnPlay.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
-            this.btnPlay.FlatAppearance.BorderSize = 2;
-            this.btnPlay.FlatAppearance.MouseDownBackColor = System.Drawing.SystemColors.ActiveCaption;
-            this.btnPlay.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
-            this.btnPlay.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnPlay.ForeColor = System.Drawing.Color.Red;
-            this.btnPlay.Location = new System.Drawing.Point(3, 2);
-            this.btnPlay.Margin = new System.Windows.Forms.Padding(3, 2, 0, 2);
-            this.btnPlay.Name = "btnPlay";
-            this.btnPlay.Size = new System.Drawing.Size(40, 40);
-            this.btnPlay.TabIndex = 18;
-            this.btnPlay.TabStop = false;
-            this.btnPlay.UseVisualStyleBackColor = false;
             // 
             // seekBar
             // 
@@ -206,7 +171,7 @@
             0});
             this.seekBar.ShowDivisionsText = false;
             this.seekBar.ShowSmallScale = false;
-            this.seekBar.Size = new System.Drawing.Size(766, 40);
+            this.seekBar.Size = new System.Drawing.Size(721, 40);
             this.seekBar.SmallChange = new decimal(new int[] {
             1,
             0,
@@ -229,6 +194,44 @@
             0,
             0});
             // 
+            // btnPlaylist
+            // 
+            this.btnPlaylist.BackColor = System.Drawing.Color.Transparent;
+            this.btnPlaylist.BackgroundImage = global::SuRGeoNix.Flyleaf.Properties.Resources.Playlist;
+            this.btnPlaylist.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
+            this.btnPlaylist.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
+            this.btnPlaylist.FlatAppearance.BorderSize = 2;
+            this.btnPlaylist.FlatAppearance.MouseDownBackColor = System.Drawing.SystemColors.ActiveCaption;
+            this.btnPlaylist.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
+            this.btnPlaylist.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnPlaylist.ForeColor = System.Drawing.Color.Red;
+            this.btnPlaylist.Location = new System.Drawing.Point(798, 2);
+            this.btnPlaylist.Margin = new System.Windows.Forms.Padding(3, 2, 0, 2);
+            this.btnPlaylist.Name = "btnPlaylist";
+            this.btnPlaylist.Size = new System.Drawing.Size(40, 40);
+            this.btnPlaylist.TabIndex = 26;
+            this.btnPlaylist.TabStop = false;
+            this.btnPlaylist.UseVisualStyleBackColor = false;
+            // 
+            // btnPlay
+            // 
+            this.btnPlay.BackColor = System.Drawing.Color.Transparent;
+            this.btnPlay.BackgroundImage = global::SuRGeoNix.Flyleaf.Properties.Resources.Play;
+            this.btnPlay.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
+            this.btnPlay.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
+            this.btnPlay.FlatAppearance.BorderSize = 2;
+            this.btnPlay.FlatAppearance.MouseDownBackColor = System.Drawing.SystemColors.ActiveCaption;
+            this.btnPlay.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
+            this.btnPlay.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnPlay.ForeColor = System.Drawing.Color.Red;
+            this.btnPlay.Location = new System.Drawing.Point(3, 2);
+            this.btnPlay.Margin = new System.Windows.Forms.Padding(3, 2, 0, 2);
+            this.btnPlay.Name = "btnPlay";
+            this.btnPlay.Size = new System.Drawing.Size(40, 40);
+            this.btnPlay.TabIndex = 18;
+            this.btnPlay.TabStop = false;
+            this.btnPlay.UseVisualStyleBackColor = false;
+            // 
             // btnMute
             // 
             this.btnMute.BackColor = System.Drawing.Color.Transparent;
@@ -247,6 +250,25 @@
             this.btnMute.TabIndex = 24;
             this.btnMute.TabStop = false;
             this.btnMute.UseVisualStyleBackColor = false;
+            // 
+            // btnSubs
+            // 
+            this.btnSubs.BackColor = System.Drawing.Color.Transparent;
+            this.btnSubs.BackgroundImage = global::SuRGeoNix.Flyleaf.Properties.Resources.Subs;
+            this.btnSubs.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
+            this.btnSubs.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(74)))));
+            this.btnSubs.FlatAppearance.BorderSize = 2;
+            this.btnSubs.FlatAppearance.MouseDownBackColor = System.Drawing.SystemColors.ActiveCaption;
+            this.btnSubs.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(30)))), ((int)(((byte)(44)))));
+            this.btnSubs.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSubs.ForeColor = System.Drawing.Color.Red;
+            this.btnSubs.Location = new System.Drawing.Point(843, 2);
+            this.btnSubs.Margin = new System.Windows.Forms.Padding(3, 2, 0, 2);
+            this.btnSubs.Name = "btnSubs";
+            this.btnSubs.Size = new System.Drawing.Size(40, 40);
+            this.btnSubs.TabIndex = 27;
+            this.btnSubs.TabStop = false;
+            this.btnSubs.UseVisualStyleBackColor = false;
             // 
             // FlyleafBar
             // 
@@ -268,5 +290,6 @@
         public System.Windows.Forms.Button btnMute;
         public ColorSlider.ColorSlider volBar;
         public System.Windows.Forms.Button btnPlaylist;
+        public System.Windows.Forms.Button btnSubs;
     }
 }

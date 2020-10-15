@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
+using System.Text;
 using System.Threading;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
@@ -169,6 +171,37 @@ namespace SuRGeoNix.Flyleaf
             }
         }
 
+        public static string ToHexadecimal(byte[] bytes)
+        {
+            StringBuilder hexBuilder = new StringBuilder();
+            for(int i = 0; i < bytes.Length; i++)
+            {
+                hexBuilder.Append(bytes[i].ToString("x2"));
+            }
+            return hexBuilder.ToString();
+        }
+        public static string GZipDecompress(string filename)
+        {
+            //File.OpenRead(filename);
+            string newFileName = "";
+
+            FileInfo fileToDecompress = new FileInfo(filename);
+            using (FileStream originalFileStream = fileToDecompress.OpenRead())
+            {
+                string currentFileName = fileToDecompress.FullName;
+                newFileName = currentFileName.Remove(currentFileName.Length - fileToDecompress.Extension.Length);
+
+                using (FileStream decompressedFileStream = File.Create(newFileName))
+                {
+                    using (GZipStream decompressionStream = new GZipStream(originalFileStream, CompressionMode.Decompress))
+                    {
+                        decompressionStream.CopyTo(decompressedFileStream);
+                    }
+                }
+            }
+
+            return newFileName;
+        }
         public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(@"hh\:mm\:ss\:fff"); }
     }
 }

@@ -40,6 +40,7 @@
             this.flyleafPlayer1._bar.Play = true;
             this.flyleafPlayer1._bar.Playlist = true;
             this.flyleafPlayer1._bar.SeekOnSlide = true;
+            this.flyleafPlayer1._bar.Subs = true;
             this.flyleafPlayer1._bar.Volume = true;
             this.flyleafPlayer1._form._Enabled = true;
             this.flyleafPlayer1._form.AllowResize = true;
@@ -55,7 +56,17 @@
             this.flyleafPlayer1._keys.SubsDelayStep2 = 5000;
             this.flyleafPlayer1._keys.SubsFontSizeStep = 2;
             this.flyleafPlayer1._keys.SubsPosYStep = 5;
-            this.flyleafPlayer1._keys.VolStep = 2;
+            this.flyleafPlayer1._keys.VolStep = 3;
+            this.flyleafPlayer1._main._PreviewMode = SuRGeoNix.Flyleaf.MediaRouter.ActivityMode.FullActive;
+            this.flyleafPlayer1._main.AllowDrop = true;
+            this.flyleafPlayer1._main.AllowFullScreen = true;
+            this.flyleafPlayer1._main.AllowTorrents = true;
+            this.flyleafPlayer1._main.ClearBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.flyleafPlayer1._main.EmbeddedList = true;
+            this.flyleafPlayer1._main.HideCursor = true;
+            this.flyleafPlayer1._main.IdleTimeout = 7000;
+            this.flyleafPlayer1._main.MessagesDuration = 4000;
+            this.flyleafPlayer1._main.SampleFrame = ((System.Drawing.Bitmap)(resources.GetObject("resource.SampleFrame")));
             this.flyleafPlayer1._message0.Surface = SuRGeoNix.Flyleaf.Settings.OSDSurfaces.TopLeft;
             this.flyleafPlayer1._message0.Visibility = SuRGeoNix.Flyleaf.MediaRouter.VisibilityMode.OnActive;
             this.flyleafPlayer1._message1.Surface = SuRGeoNix.Flyleaf.Settings.OSDSurfaces.TopLeft2;
@@ -100,7 +111,12 @@
             this.flyleafPlayer1._message9.Visibility = SuRGeoNix.Flyleaf.MediaRouter.VisibilityMode.Always;
             this.flyleafPlayer1._subtitles._Enabled = true;
             this.flyleafPlayer1._subtitles.Color = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
+            this.flyleafPlayer1._subtitles.DownloadSubs = SuRGeoNix.Flyleaf.MediaRouter.DownloadSubsMode.Torrents;
             this.flyleafPlayer1._subtitles.Font = new System.Drawing.Font("Arial", 69.75F, System.Drawing.FontStyle.Bold);
+            this.flyleafPlayer1._subtitles.Font2 = "Arial; 69,75pt; style=Bold";
+            this.flyleafPlayer1._subtitles.Languages = new string[] {
+        "Greek",
+        "English"};
             this.flyleafPlayer1._subtitles.OnViewPort = false;
             this.flyleafPlayer1._subtitles.Position = new System.Drawing.Point(0, -10);
             this.flyleafPlayer1._subtitles.RectColor = System.Drawing.Color.FromArgb(((int)(((byte)(168)))), ((int)(((byte)(78)))), ((int)(((byte)(0)))), ((int)(((byte)(131)))));
@@ -136,15 +152,15 @@
             this.flyleafPlayer1._surface4.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
             this.flyleafPlayer1._surface5.Color = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(0)))));
             this.flyleafPlayer1._surface5.Font = new System.Drawing.Font("Perpetua", 26F);
-            this.flyleafPlayer1._surface5.OnViewPort = false;
-            this.flyleafPlayer1._surface5.Position = new System.Drawing.Point(12, -40);
+            this.flyleafPlayer1._surface5.OnViewPort = true;
+            this.flyleafPlayer1._surface5.Position = new System.Drawing.Point(12, -12);
             this.flyleafPlayer1._surface5.RectColor = System.Drawing.Color.FromArgb(((int)(((byte)(168)))), ((int)(((byte)(78)))), ((int)(((byte)(0)))), ((int)(((byte)(131)))));
             this.flyleafPlayer1._surface5.RectEnabled = true;
             this.flyleafPlayer1._surface5.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
             this.flyleafPlayer1._surface6.Color = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(0)))));
             this.flyleafPlayer1._surface6.Font = new System.Drawing.Font("Perpetua", 26F);
-            this.flyleafPlayer1._surface6.OnViewPort = false;
-            this.flyleafPlayer1._surface6.Position = new System.Drawing.Point(-12, -40);
+            this.flyleafPlayer1._surface6.OnViewPort = true;
+            this.flyleafPlayer1._surface6.Position = new System.Drawing.Point(-12, -12);
             this.flyleafPlayer1._surface6.RectColor = System.Drawing.Color.FromArgb(((int)(((byte)(168)))), ((int)(((byte)(78)))), ((int)(((byte)(0)))), ((int)(((byte)(131)))));
             this.flyleafPlayer1._surface6.RectEnabled = true;
             this.flyleafPlayer1._surface6.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
@@ -157,25 +173,17 @@
             this.flyleafPlayer1._surface7.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
             this.flyleafPlayer1._video.AspectRatio = SuRGeoNix.Flyleaf.MediaRouter.ViewPorts.KEEP;
             this.flyleafPlayer1._video.CustomRatio = 2F;
-            this.flyleafPlayer1._video.DecoderThreads = 16;
+            this.flyleafPlayer1._video.DecoderThreads = 1;
             this.flyleafPlayer1._video.HardwareAcceleration = true;
+            this.flyleafPlayer1._video.QueueMaxSize = 80;
+            this.flyleafPlayer1._video.QueueMinSize = 50;
             this.flyleafPlayer1._video.VSync = true;
             this.flyleafPlayer1.AllowDrop = true;
             this.flyleafPlayer1.BackColor = System.Drawing.Color.Black;
-            this.flyleafPlayer1.config._PreviewMode = SuRGeoNix.Flyleaf.MediaRouter.ActivityMode.FullActive;
-            this.flyleafPlayer1.config.AllowDrop = true;
-            this.flyleafPlayer1.config.AllowFullScreen = true;
-            this.flyleafPlayer1.config.AllowTorrents = true;
-            this.flyleafPlayer1.config.ClearBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
-            this.flyleafPlayer1.config.EmbeddedList = true;
-            this.flyleafPlayer1.config.HideCursor = true;
-            this.flyleafPlayer1.config.IdleTimeout = 7000;
-            this.flyleafPlayer1.config.MessagesDuration = 4000;
-            this.flyleafPlayer1.config.SampleFrame = ((System.Drawing.Bitmap)(resources.GetObject("resource.SampleFrame")));
             this.flyleafPlayer1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flyleafPlayer1.Location = new System.Drawing.Point(0, 0);
             this.flyleafPlayer1.Name = "flyleafPlayer1";
-            this.flyleafPlayer1.Size = new System.Drawing.Size(1283, 821);
+            this.flyleafPlayer1.Size = new System.Drawing.Size(1252, 779);
             this.flyleafPlayer1.TabIndex = 0;
             this.flyleafPlayer1.TabStop = false;
             // 
@@ -185,7 +193,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoValidate = System.Windows.Forms.AutoValidate.Disable;
             this.BackColor = System.Drawing.Color.Black;
-            this.ClientSize = new System.Drawing.Size(1283, 821);
+            this.ClientSize = new System.Drawing.Size(1252, 779);
             this.Controls.Add(this.flyleafPlayer1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -200,4 +208,3 @@
         private Flyleaf.Controls.FlyleafPlayer flyleafPlayer1;
     }
 }
-
