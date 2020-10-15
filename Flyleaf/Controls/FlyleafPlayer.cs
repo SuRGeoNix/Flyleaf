@@ -107,15 +107,16 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             if (config.bar.Play)    tblBar.EnableColumn(0); else tblBar.DisableColumn(0);
             if (config.bar.Playlist)tblBar.EnableColumn(2); else tblBar.DisableColumn(2);
-            if (config.bar.Mute)    tblBar.EnableColumn(3); else tblBar.DisableColumn(3);
-            if (config.bar.Volume)  tblBar.EnableColumn(4); else tblBar.DisableColumn(4);
+            if (config.bar.Subs)    tblBar.EnableColumn(3); else tblBar.DisableColumn(3);
+            if (config.bar.Mute)    tblBar.EnableColumn(4); else tblBar.DisableColumn(4);
+            if (config.bar.Volume)  tblBar.EnableColumn(5); else tblBar.DisableColumn(5);
 
-            if (config.AllowDrop)   AllowDrop = true;
+            if (config.main.AllowDrop)   AllowDrop = true;
 
             if (designMode)
             {
-                player.Activity = config._PreviewMode;
-                if (Controls.Contains(tblBar) && !ShouldVisible(config._PreviewMode, config.bar._Visibility) ) { Controls.Remove(tblBar); } else if (!Controls.Contains(tblBar) && ShouldVisible(config._PreviewMode, config.bar._Visibility)) { Controls.Add(tblBar); }
+                player.Activity = config.main._PreviewMode;
+                if (Controls.Contains(tblBar) && !ShouldVisible(config.main._PreviewMode, config.bar._Visibility) ) { Controls.Remove(tblBar); } else if (!Controls.Contains(tblBar) && ShouldVisible(config.main._PreviewMode, config.bar._Visibility)) { Controls.Add(tblBar); }
             }
         }
         private void OnParentChanged(object sender, EventArgs e)
@@ -127,7 +128,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 form = ParentForm;
                 player.InitHandle(config.hookForm.HookHandle ? form.Handle : Handle, designMode);
-                player.renderer.CreateSample(config.SampleFrame);
+                player.renderer.CreateSample(config.main.SampleFrame);
 
                 return;
             }
@@ -180,20 +181,23 @@ namespace SuRGeoNix.Flyleaf.Controls
                 tblBar.volBar.ValueChanged      += VolBar_ValueChanged;
             }
 
-            if (config.EmbeddedList)
+            if (config.main.EmbeddedList)
             {
                 lstMediaFiles.MouseDoubleClick  += lstMediaFiles_MouseClickDbl;
                 lstMediaFiles.KeyPress          += lstMediaFiles_KeyPress;
+
+                lvSubs.DoubleClick              += lvSubs_DoubleClick;
+                lvSubs.KeyPress                 += lvSubs_KeyPress;
             }
 
-            if (config.AllowDrop)       HandlersDragDrop();
+            if (config.main.AllowDrop)       HandlersDragDrop();
 
             if (config.keys._Enabled)   HandlersKeyboard();
 
-            if (config.AllowFullScreen)
+            if (config.main.AllowFullScreen)
                 MouseDoubleClick += (o, e) =>   {   FullScreenToggle(); };
 
-            if (config.AllowTorrents)
+            if (config.main.AllowTorrents)
             {
                 player.OpenTorrentSuccessClbk   =   OpenTorrentSuccess;
                 player.MediaFilesClbk           =   MediaFilesReceived;
@@ -203,8 +207,8 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 if (config.hookForm.HookKeys)       FormHandlersKeyboard();
                 if (config.hookForm.AllowResize)    FormHandlersMouse();
-                if (config.AllowDrop)               FormHandlersDragDrop();
-                if (config.AllowFullScreen)         form.MouseDoubleClick += (o, e) => { FullScreenToggle(); };
+                if (config.main.AllowDrop)               FormHandlersDragDrop();
+                if (config.main.AllowFullScreen)         form.MouseDoubleClick += (o, e) => { FullScreenToggle(); };
             }
             
             if (!config.hookForm.AllowResize || !config.hookForm._Enabled) MouseMove += FlyLeaf_MouseMove;
@@ -220,6 +224,11 @@ namespace SuRGeoNix.Flyleaf.Controls
             timer.SynchronizingObject   = this;
             timer.AutoReset             = true;
             timer.Elapsed               += Timer_Elapsed;
+
+            if (!File.Exists("SettingsDefault.xml")) Settings.SaveSettings(config,      "SettingsDefault.xml");
+            if (!File.Exists("SettingsUser.xml"))    File.Copy("SettingsDefault.xml",   "SettingsUser.xml");
+            Settings.ParseSettings(Settings.LoadSettings(), config);
+            SettingsChanged();
 
             timer.Start();
             player.Render();
@@ -265,8 +274,8 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         private ActivityMode CurActivityMode()
         {
-            if ((DateTime.UtcNow.Ticks - userFullActivity   ) / 10000 < config.IdleTimeout) return ActivityMode.FullActive;
-            if ((DateTime.UtcNow.Ticks - userActivity       ) / 10000 < config.IdleTimeout) return ActivityMode.Active;
+            if ((DateTime.UtcNow.Ticks - userFullActivity   ) / 10000 < config.main.IdleTimeout) return ActivityMode.FullActive;
+            if ((DateTime.UtcNow.Ticks - userActivity       ) / 10000 < config.main.IdleTimeout) return ActivityMode.Active;
 
             return ActivityMode.Idle;
         }
@@ -276,7 +285,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             player.Activity = ActivityMode.Idle;
 
-            if (config.HideCursor)
+            if (config.main.HideCursor)
             {
                 lock (cursorHideTimesLocker)
                 {
@@ -299,7 +308,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             player.Activity = ActivityMode.FullActive;
 
-            if (config.HideCursor)
+            if (config.main.HideCursor)
             {
                 lock (cursorHideTimesLocker)
                 {
@@ -331,7 +340,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         public void OpenTorrentSuccess(bool success) { }
         public void MediaFilesReceived(List<string> mediaFiles, List<long> mediaFilesSizes)
         {
-            if (!config.EmbeddedList)
+            if (!config.main.EmbeddedList)
             {
                 player.SetMediaFile(mediaFiles[0]);
                 return;
@@ -413,7 +422,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             FixAspectRatio(true);
 
-            if (config.EmbeddedList && !player.isTorrent)
+            if (config.main.EmbeddedList && !player.isTorrent)
             {
                 lstMediaFiles.Items.Clear();
                 lstMediaFiles.Items.Add(selectedFile);
@@ -496,7 +505,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         Point                   formLastPos;
         public void FullScreenToggle()
         {
-            if (!config.AllowFullScreen || isWPF) return;
+            if (!config.main.AllowFullScreen || isWPF) return;
 
             if (form.InvokeRequired) { form.BeginInvoke(new Action(() => FullScreenToggle())); return; }
 
@@ -507,7 +516,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         public void FullScreen()
         {
-            if (!config.AllowFullScreen || isWPF) return;
+            if (!config.main.AllowFullScreen || isWPF) return;
 
             screen = Screen.FromControl(this).Bounds;
 
@@ -540,10 +549,11 @@ namespace SuRGeoNix.Flyleaf.Controls
             }
 
             if (lstMediaFiles.Visible) FixLstMedia(true);
+            if (lvSubs.Visible) FixLvSubs(true);
         }
         public void NormalScreen    (bool fromOpen = false)
         {
-            if (!config.AllowFullScreen  || isWPF || form == null) return;
+            if (!config.main.AllowFullScreen  || isWPF || form == null) return;
 
             if (form.InvokeRequired) { form.BeginInvoke(new Action(() => NormalScreen())); return; }
 
@@ -583,6 +593,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                 form.Size = new Size(form.Width, (int)(form.Width / AspectRatio));
 
             if (lstMediaFiles.Visible) FixLstMedia(true);
+            if (lvSubs.Visible) FixLvSubs(true);
 
             // Should be docked?
             //screenPlay.Size = form.Size;
@@ -592,7 +603,11 @@ namespace SuRGeoNix.Flyleaf.Controls
         #region User Actions
         private void BtnPlay_Click              (object sender, EventArgs e) { PlayPause(); }
         private void BtnMute_Click              (object sender, EventArgs e) { MuteUnmute(); }
-        private void BtnPlaylist_Click          (object sender, EventArgs e) { if (!config.EmbeddedList) return; if (lstMediaFiles.Visible) FixLstMedia(false); else FixLstMedia(true); }
+        private void BtnPlaylist_Click          (object sender, EventArgs e) { if (!config.main.EmbeddedList) return; if (lstMediaFiles.Visible) FixLstMedia(false); else FixLstMedia(true); }
+        private void BtnSubs_Click(object sender, EventArgs e)
+        {
+            if (lvSubs.Visible) FixLvSubs(false); else FixLvSubs(true);
+        }
 
         private void SeekBar_ValueChanged       (object sender, EventArgs e)
         {
@@ -710,12 +725,34 @@ namespace SuRGeoNix.Flyleaf.Controls
 
                     // MISC
                     case Keys.V: // Open Clipboard
+                        e.SuppressKeyPress = true;
+
                         Open(Clipboard.GetText());
 
                         break;
 
                     case Keys.S: // SeekOnSlide On/Off
+                        e.SuppressKeyPress = true;
+
                         config.bar.SeekOnSlide = !config.bar.SeekOnSlide;
+
+                        break;
+
+                    case Keys.N:
+                        e.SuppressKeyPress = true;
+
+                        if (!player.isReady) return;
+                        player.OpenNextAvailableSub();
+
+                        break;
+
+                    case Keys.P:
+                        e.SuppressKeyPress = true;
+
+                        if (!player.isReady) return;
+                        if (player.PrevSubId == -1 || player.PrevSubId == player.CurSubId) return;
+
+                        player.OpenSubs(player.PrevSubId);
 
                         break;
                 }
@@ -805,8 +842,6 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             if (e.Control) return;
 
-
-
             switch (e.KeyCode)
             {
                 case Keys.Left:
@@ -874,7 +909,9 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             else if ((Keys)c == Keys.Escape)
             {
-                if (config.EmbeddedList) if (lstMediaFiles.Visible) FixLstMedia(false); else FixLstMedia(true);
+                if (config.main.EmbeddedList && lstMediaFiles.Visible) FixLstMedia(false);
+                else if (lvSubs.Visible) FixLvSubs(false);
+                else if (isFullScreen) FullScreenToggle();
             }
             //{
             //    if (picHelp.Visible)
@@ -920,10 +957,29 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         private void lstMediaFiles_MouseMove    (object sender, MouseEventArgs e) { userFullActivity = DateTime.UtcNow.Ticks; }
 
+        private void lvSubs_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            userActivity = DateTime.UtcNow.Ticks;
+
+            if ( e.KeyChar != (char)13 ) { FlyLeaf_KeyPress(sender, e); return; }
+
+            lvSubs_DoubleClick(sender, e);
+        }
+        private void lvSubs_DoubleClick(object sender, EventArgs e)
+        {
+            if (lvSubs.SelectedItems.Count < 1) return;
+
+            player.OpenSubs(int.Parse(lvSubs.SelectedItems[0].SubItems[lvSubs.Columns.Count].Text));
+
+            FixLvSubs(false);
+            Focus();
+        }
+
         private void FixLstMedia(bool visible)
         {
             if (visible)
             {
+                FixLvSubs(false);
                 lstMediaFiles.Width = Width / 2 + Width / 4;
                 lstMediaFiles.Height = Height / 2 + Height / 4;
                 lstMediaFiles.Location = new Point(Width / 8, Height / 8);
@@ -932,6 +988,52 @@ namespace SuRGeoNix.Flyleaf.Controls
             else
             {
                 lstMediaFiles.Visible = false;
+            }
+
+            if (!player.isPlaying) player.Render();
+        }
+        private void FixLvSubs(bool visible)
+        {
+            if (form.InvokeRequired) { form.BeginInvoke(new Action(() => FixLvSubs(visible))); return; }
+
+            if (visible)
+            {
+                if (!lvSubs.Visible)
+                {
+                    lvSubs.BeginUpdate();
+                    lvSubs.Items.Clear();
+
+                    for (int i = 0; i < player.availableSubs.Count; i++)
+                    {
+                        SubAvailable sub = player.availableSubs[i];
+                        string name = sub.sub != null ? sub.sub.SubFileName : sub.path != null ? sub.path : "";
+                        string lang = sub.lang != null ? sub.lang.LanguageName : "Unknown";
+                        string rating = sub.sub != null ? sub.sub.SubRating : "0.0";
+                        string downloaded = sub.sub != null && sub.sub.AvailableAt != null ? "Yes" : "";
+                        string location = sub.streamIndex != -1 ? "Embedded" : sub.path != null ? "External" : "Opensubtitles";
+                        lvSubs.Items.Add(new ListViewItem(new string[] { name, lang, rating, downloaded, location, i.ToString() }));
+                    }
+
+                    lvSubs.EndUpdate();
+                    if (lvSubs.Items.Count >= player.CurSubId && player.CurSubId >= 0) lvSubs.Items[player.CurSubId].Selected = true;
+                }
+
+                lvSubs.Columns[1].AutoResize(ColumnHeaderAutoResizeStyle.HeaderSize);
+                lvSubs.Columns[2].AutoResize(ColumnHeaderAutoResizeStyle.HeaderSize);
+                lvSubs.Columns[3].AutoResize(ColumnHeaderAutoResizeStyle.HeaderSize);
+                lvSubs.Columns[4].AutoResize(ColumnHeaderAutoResizeStyle.HeaderSize);
+
+                FixLstMedia(false);
+                lvSubs.Width = Width / 2 + Width / 4;
+                lvSubs.Height = Height / 2 + Height / 4;
+                lvSubs.Location = new Point(Width / 8, Height / 8);
+                lvSubs.Visible = true;
+
+                lvSubs.Columns[0].Width = lvSubs.Width - 400;
+            }
+            else
+            {
+                lvSubs.Visible = false;
             }
 
             if (!player.isPlaying) player.Render();
@@ -1003,6 +1105,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             tblBar.btnPlay.Click        += BtnPlay_Click;
             tblBar.btnMute.Click        += BtnMute_Click;
             tblBar.btnPlaylist.Click    += BtnPlaylist_Click;
+            tblBar.btnSubs.Click        += BtnSubs_Click;
             tblBar.seekBar.ValueChanged += SeekBar_ValueChanged;
             tblBar.volBar.ValueChanged  += VolBar_ValueChanged;
             tblBar.seekBar.MouseDown    += SeekBar_MouseDown;
@@ -1024,6 +1127,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             tblBar.btnPlay.     GotFocus += (o, e) => { this.ActiveControl = null; };
             tblBar.btnPlaylist. GotFocus += (o, e) => { this.ActiveControl = null; };
+            tblBar.btnSubs.     GotFocus += (o, e) => { this.ActiveControl = null; };
             tblBar.seekBar.     GotFocus += (o, e) => { this.ActiveControl = null; };
             tblBar.btnMute.     GotFocus += (o, e) => { this.ActiveControl = null; };
             tblBar.volBar.      GotFocus += (o, e) => { this.ActiveControl = null; };
@@ -1046,6 +1150,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             tblBar.btnPlay.     GotFocus += (o, e) => { form.ActiveControl = null; };
             tblBar.btnPlaylist. GotFocus += (o, e) => { form.ActiveControl = null; };
+            tblBar.btnSubs.     GotFocus += (o, e) => { form.ActiveControl = null; };
             tblBar.seekBar.     GotFocus += (o, e) => { form.ActiveControl = null; };
             tblBar.btnMute.     GotFocus += (o, e) => { form.ActiveControl = null; };
             tblBar.volBar.      GotFocus += (o, e) => { form.ActiveControl = null; };
@@ -1091,7 +1196,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             }
         }
         
-        private void WM_LBUTTONUP()                { displayMoveSideCur = 0; resizing = false; GoFullActive(); if (lstMediaFiles.Visible) FixLstMedia(true); }
+        private void WM_LBUTTONUP()                { displayMoveSideCur = 0; resizing = false; GoFullActive(); if (lvSubs.Visible) FixLvSubs(true); if (lstMediaFiles.Visible) FixLstMedia(true); }
         private void WM_LBUTTONDOWN(int x, int y)  { displayMLDownPos = new Point(x, y); userFullActivity = DateTime.UtcNow.Ticks; }
         private void WM_MOUSEMOVE_MK_LBUTTON(MouseEventArgs e)
         {
@@ -1343,6 +1448,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                     {
                         // MOVING FORM WHILE PRESSING LEFT BUTTON
                         if (seeking) return;
+                        if(lvSubs.Visible) return;
                         if (config.bar._Visibility != VisibilityMode.Never && tblBar.Visible && e.Y > tblBar.Location.Y) return;
                         form.Location = new Point(form.Location.X + e.X - displayMLDownPos.X, form.Location.Y + e.Y - displayMLDownPos.Y);
                     }
@@ -1408,9 +1514,13 @@ namespace SuRGeoNix.Flyleaf.Controls
         #region Properties
         public bool isWPF = false;
 
+        [Browsable(false)]
+        [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
+        public Settings         config              { get; set; }
+
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
         [DisplayName("FL Main")]
-        public Settings         config                  { get; set; }
+        public Settings.Main    _main               { get { return config.main;     } set { config.main     = value; } }
 
         [DisplayName("FL Keys")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
@@ -1438,119 +1548,119 @@ namespace SuRGeoNix.Flyleaf.Controls
 
         [DisplayName("FL Msg Time")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message0 { get { return config.messages[0]; } set { config.messages[0] = value; } }
+        public Settings.Message _message0           { get { return config.messages[0]; } set { config.messages[0] = value; } }
 
         [DisplayName("FL Msg HardwareAcceleration")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message1 { get { return config.messages[1]; } set { config.messages[1] = value; } }
+        public Settings.Message _message1           { get { return config.messages[1]; } set { config.messages[1] = value; } }
 
         [DisplayName("FL Msg Volume")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message2 { get { return config.messages[2]; } set { config.messages[2] = value; } }
+        public Settings.Message _message2           { get { return config.messages[2]; } set { config.messages[2] = value; } }
 
         [DisplayName("FL Msg Mute")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message3 { get { return config.messages[3]; } set { config.messages[3] = value; } }
+        public Settings.Message _message3           { get { return config.messages[3]; } set { config.messages[3] = value; } }
 
         [DisplayName("FL Msg Open")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message4 { get { return config.messages[4]; } set { config.messages[4] = value; } }
+        public Settings.Message _message4           { get { return config.messages[4]; } set { config.messages[4] = value; } }
 
         [DisplayName("FL Msg Play")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message5 { get { return config.messages[5]; } set { config.messages[5] = value; } }
+        public Settings.Message _message5           { get { return config.messages[5]; } set { config.messages[5] = value; } }
 
         [DisplayName("FL Msg Paused")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message6 { get { return config.messages[6]; } set { config.messages[6] = value; } }
+        public Settings.Message _message6           { get { return config.messages[6]; } set { config.messages[6] = value; } }
 
         [DisplayName("FL Msg Buffering")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message7 { get { return config.messages[7]; } set { config.messages[7] = value; } }
+        public Settings.Message _message7           { get { return config.messages[7]; } set { config.messages[7] = value; } }
 
         [DisplayName("FL Msg Failed")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message8 { get { return config.messages[8]; } set { config.messages[8] = value; } }
+        public Settings.Message _message8           { get { return config.messages[8]; } set { config.messages[8] = value; } }
 
         [DisplayName("FL Msg AudioDelay")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message9 { get { return config.messages[9]; } set { config.messages[9] = value; } }
+        public Settings.Message _message9           { get { return config.messages[9]; } set { config.messages[9] = value; } }
 
         [DisplayName("FL Msg SubsDelay")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message10 { get { return config.messages[10]; } set { config.messages[10] = value; } }
+        public Settings.Message _message10          { get { return config.messages[10]; } set { config.messages[10] = value; } }
 
         [DisplayName("FL Msg SubsHeight")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message11 { get { return config.messages[11]; } set { config.messages[11] = value; } }
+        public Settings.Message _message11          { get { return config.messages[11]; } set { config.messages[11] = value; } }
 
         [DisplayName("FL Msg SubsFontSize")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message12 { get { return config.messages[12]; } set { config.messages[12] = value; } }
+        public Settings.Message _message12          { get { return config.messages[12]; } set { config.messages[12] = value; } }
 
         [DisplayName("FL Msg Subtitles")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message13 { get { return config.messages[13]; } set { config.messages[13] = value; } }
+        public Settings.Message _message13          { get { return config.messages[13]; } set { config.messages[13] = value; } }
 
         [DisplayName("FL Msg TorrentStats")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message14 { get { return config.messages[14]; } set { config.messages[14] = value; } }
+        public Settings.Message _message14          { get { return config.messages[14]; } set { config.messages[14] = value; } }
 
         [DisplayName("FL Msg TopLeft")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message15 { get { return config.messages[15]; } set { config.messages[15] = value; } }
+        public Settings.Message _message15          { get { return config.messages[15]; } set { config.messages[15] = value; } }
 
         [DisplayName("FL Msg TopLeft2")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message16 { get { return config.messages[16]; } set { config.messages[16] = value; } }
+        public Settings.Message _message16          { get { return config.messages[16]; } set { config.messages[16] = value; } }
 
         [DisplayName("FL Msg TopRight")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message17 { get { return config.messages[17]; } set { config.messages[17] = value; } }
+        public Settings.Message _message17          { get { return config.messages[17]; } set { config.messages[17] = value; } }
 
         [DisplayName("FL Msg TopRight2")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message18 { get { return config.messages[18]; } set { config.messages[18] = value; } }
+        public Settings.Message _message18          { get { return config.messages[18]; } set { config.messages[18] = value; } }
 
         [DisplayName("FL Msg BottomLeft")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message19 { get { return config.messages[19]; } set { config.messages[19] = value; } }
+        public Settings.Message _message19          { get { return config.messages[19]; } set { config.messages[19] = value; } }
 
         [DisplayName("FL Msg BottomRight")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Messages _message20 { get { return config.messages[20]; } set { config.messages[20] = value; } }
+        public Settings.Message _message20          { get { return config.messages[20]; } set { config.messages[20] = value; } }
 
         [DisplayName("FL Surface TopLeft")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Surfaces _surface1 { get { return config.surfaces[0]; } set { config.surfaces[0] = value; } }
+        public Settings.Surface _surface1           { get { return config.surfaces[0]; } set { config.surfaces[0] = value; } }
 
         [DisplayName("FL Surface TopRight")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Surfaces _surface2 { get { return config.surfaces[1]; } set { config.surfaces[1] = value; } }
+        public Settings.Surface _surface2           { get { return config.surfaces[1]; } set { config.surfaces[1] = value; } }
 
         [DisplayName("FL Surface TopLeft 2")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Surfaces _surface3 { get { return config.surfaces[2]; } set { config.surfaces[2] = value; } }
+        public Settings.Surface _surface3           { get { return config.surfaces[2]; } set { config.surfaces[2] = value; } }
 
         [DisplayName("FL Surface TopRight 2")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Surfaces _surface4 { get { return config.surfaces[3]; } set { config.surfaces[3] = value; } }
+        public Settings.Surface _surface4           { get { return config.surfaces[3]; } set { config.surfaces[3] = value; } }
 
         [DisplayName("FL Surface BottomLeft")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Surfaces _surface5 { get { return config.surfaces[4]; } set { config.surfaces[4] = value; } }
+        public Settings.Surface _surface5           { get { return config.surfaces[4]; } set { config.surfaces[4] = value; } }
 
         [DisplayName("FL Surface BottomRight")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Surfaces _surface6 { get { return config.surfaces[5]; } set { config.surfaces[5] = value; } }
+        public Settings.Surface _surface6           { get { return config.surfaces[5]; } set { config.surfaces[5] = value; } }
 
         [DisplayName("FL Surface BootomCenter")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
-        public Settings.Surfaces _surface7 { get { return config.surfaces[6]; } set { config.surfaces[6] = value; } }
+        public Settings.Surface _surface7           { get { return config.surfaces[6]; } set { config.surfaces[6] = value; } }
 
         [DisplayName("FL Surface All")]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
-        public Settings.SurfacesAll _surfaceAll { get { return config.surfacesAll; } set {config.surfacesAll = value; } }
+        public Settings.SurfacesAll _surfaceAll     { get { return config.surfacesAll; } set {config.surfacesAll = value; } }
         #endregion
 
         #region Misc
