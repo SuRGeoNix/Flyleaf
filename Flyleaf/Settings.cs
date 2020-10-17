@@ -1,15 +1,14 @@
 ﻿using System;
-using System.Drawing;
 using System.ComponentModel;
+using System.Drawing;
+using System.Linq;
+using System.IO;
 using System.Windows.Forms;
+using System.Xml.Serialization;
 
 using static SuRGeoNix.Flyleaf.MediaRouter;
-using System.Xml.Serialization;
-using System.Collections.Generic;
-using System.Linq;
 using static SuRGeoNix.Flyleaf.Settings;
 using Keys = SuRGeoNix.Flyleaf.Settings.Keys;
-using System.IO;
 
 namespace SuRGeoNix.Flyleaf
 {
@@ -21,33 +20,13 @@ namespace SuRGeoNix.Flyleaf
         public Bar          bar         = new Bar();
         public Keys         keys        = new Keys();
         public HookForm     hookForm    = new HookForm();
-        public Subtitles    subtitles   = new Subtitles();
+
         public Audio        audio       = new Audio();
+        public Subtitles    subtitles   = new Subtitles();
         public Video        video       = new Video();
 
         public Surface[]    surfaces;
         public Message[]    messages;
-
-
-        public class Surface
-        {
-            [XmlElement("Font")]
-            public string   Font2       { get; set; }
-            [XmlElement("Color")]
-            public string   Color2      { get; set; }
-            public Point    Position    { get; set; }
-            public bool     OnViewPort  { get; set; }
-            public bool     RectEnabled { get; set; }
-            [XmlElement("RectColor")]
-            public string   RectColor2  { get; set; }
-            public Padding  RectPadding { get; set; }
-        }
-
-        public class Message
-        {
-            public VisibilityMode Visibility{ get; set; }
-            public OSDSurfaces Surface      { get; set; }
-        }
 
         public class Main
         {
@@ -65,20 +44,19 @@ namespace SuRGeoNix.Flyleaf
             [XmlIgnore]
             public Color        ClearBackColor      { get; set; }
             public int          MessagesDuration    { get; set; }
-        }
-
-        public class Subtitles
-        {
-            public bool     _Enabled                { get; set; }
-            public string[] Languages               { get; set; }
-            public DownloadSubsMode DownloadSubs    { get; set; }
+            public int          BufferingDuration   { get; set; }
         }
 
         public class Audio
         {
             public bool     _Enabled    { get ; set; }
         }
-
+        public class Subtitles
+        {
+            public bool     _Enabled                { get; set; }
+            public string[] Languages               { get; set; }
+            public DownloadSubsMode DownloadSubs    { get; set; }
+        }
         public class Video
         {       
             public bool         HardwareAcceleration{ get ; set; }
@@ -89,17 +67,32 @@ namespace SuRGeoNix.Flyleaf
             public int          QueueMaxSize        { get ; set; }
             public bool         VSync               { get ; set; }
         }
-    }
 
+        public class Surface
+        {
+            [XmlElement("Font")]
+            public string   Font2                   { get; set; }
+            [XmlElement("Color")]
+            public string   Color2                  { get; set; }
+            public Point    Position                { get; set; }
+            public bool     OnViewPort              { get; set; }
+            public bool     RectEnabled             { get; set; }
+            [XmlElement("RectColor")]
+            public string   RectColor2              { get; set; }
+            public Padding  RectPadding             { get; set; }
+        }
+        public class Message
+        {
+            public VisibilityMode Visibility        { get; set; }
+            public OSDSurfaces Surface              { get; set; }
+        }
+    }
 
     [Serializable]
     [Category("Flyleaf UI")]
     [TypeConverter(typeof(FlyleafTypeConverter))]
     public class Settings
     {
-        //MediaRouter         player;
-
-        
         internal Action       PropertyChanged;
 
         public Main         main        = new Main();
@@ -107,13 +100,13 @@ namespace SuRGeoNix.Flyleaf
         public Keys         keys        = new Keys();
         public HookForm     hookForm    = new HookForm();
 
-        public Audio        audio;
-        public Subtitles    subtitles;
-        public Video        video;
-            
+        public Audio        audio       = new Audio();
+        public Subtitles    subtitles   = new Subtitles();
+        public Video        video       = new Video();
+        
+        public SurfacesAll  surfacesAll = new SurfacesAll();
         public Surface[]    surfaces;
-        public SurfacesAll  surfacesAll;
-        public Message[]   messages;
+        public Message[]    messages;
 
         public enum OSDSurfaces
         {
@@ -173,31 +166,36 @@ namespace SuRGeoNix.Flyleaf
         private Settings() { }
         public Settings(MediaRouter player)
         {
-            //this.player = player;
-            var t1 = Enum.GetValues(typeof(OSDSurfaces));
-            surfaces = new Surface[t1.Length];
-            for (int i=0; i<t1.Length; i++)
+            // Surfaces
+            var enumSize = Enum.GetValues(typeof(OSDSurfaces));
+            surfaces = new Surface[enumSize.Length];
+            for (int i=0; i<enumSize.Length; i++)
             {
-                surfaces[i] = new Surface(player.renderer, (OSDSurfaces)t1.GetValue(i));
+                surfaces[i]             = new Surface();
+                surfaces[i].renderer    = player.renderer;
+                surfaces[i]._Selected   = (OSDSurfaces)enumSize.GetValue(i);
             }
 
-            t1 = Enum.GetValues(typeof(OSDMessage.Type));
-            messages = new Message[t1.Length];
-            for (int i=0; i<t1.Length; i++)
+            surfacesAll.renderer        = player.renderer;
+            surfacesAll.surfaces        = surfaces;
+
+            // Messages
+            enumSize = Enum.GetValues(typeof(OSDMessage.Type));
+            messages = new Message[enumSize.Length];
+            for (int i=0; i<enumSize.Length; i++)
             {
-                messages[i] = new Message(player.renderer, (OSDMessage.Type)t1.GetValue(i));
+                messages[i]             = new Message();
+                messages[i].renderer    = player.renderer;
+                messages[i]._Selected   = (OSDMessage.Type)enumSize.GetValue(i);
             }
 
-            surfacesAll = new SurfacesAll(player.renderer, surfaces);
+            audio.player        = player;
+            main.player         = player;
+            subtitles.player    = player;
+            video.player        = player;
 
-            audio       = new Audio(player);
-            subtitles   = new Subtitles(player);
-            video       = new Video(player);
-
-            bar. PropertyChanged = () => { PropertyChanged?.Invoke(); }; 
-            main.PropertyChanged = () => { PropertyChanged?.Invoke(); }; 
-
-            main.player = player;
+            bar. PropertyChanged= () => { PropertyChanged?.Invoke(); }; 
+            main.PropertyChanged= () => { PropertyChanged?.Invoke(); }; 
         }
 
         [Serializable]
@@ -229,7 +227,8 @@ namespace SuRGeoNix.Flyleaf
             [Browsable(false)]
             [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
             public string       ClearBackColor2     { get { return (new ColorConverter()).ConvertToString(ClearBackColor); } set { ClearBackColor = (Color) (new ColorConverter()).ConvertFromString(value); } }
-            public int          MessagesDuration    { get { return OSDMessage.DefaultDuration; } set { OSDMessage.DefaultDuration = value; } }
+            public int          MessagesDuration    { get { return OSDMessage.DefaultDuration;  } set { OSDMessage.DefaultDuration  = value; } }
+            public int          BufferingDuration   { get { return player.BufferingDuration;    } set { player.BufferingDuration    = value; } }
         }
         [Serializable]
         [Category("Flyleaf UI")]
@@ -243,21 +242,21 @@ namespace SuRGeoNix.Flyleaf
             public VisibilityMode _Visibility { get { return visibility; } set { visibility = value; PropertyChanged?.Invoke(); } } 
 
             bool play = true;
-            public bool Play         { get { return play;   } set { play        = value; PropertyChanged?.Invoke(); } }
+            public bool Play                { get { return play;   } set { play        = value; PropertyChanged?.Invoke(); } }
 
             bool playlist = true;
-            public bool Playlist    { get { return playlist;} set { playlist    = value; PropertyChanged?.Invoke(); } } 
+            public bool Playlist            { get { return playlist;} set { playlist    = value; PropertyChanged?.Invoke(); } } 
 
             bool subs = true;
-            public bool Subs        { get { return subs;    } set { subs        = value; PropertyChanged?.Invoke(); } } 
+            public bool Subs                { get { return subs;    } set { subs        = value; PropertyChanged?.Invoke(); } } 
 
             bool mute = true;
-            public bool Mute        { get { return mute;    } set { mute        = value; PropertyChanged?.Invoke(); } } 
+            public bool Mute                { get { return mute;    } set { mute        = value; PropertyChanged?.Invoke(); } } 
 
             bool volume = true;
-            public bool Volume      { get { return volume;  } set { volume      = value; PropertyChanged?.Invoke(); } } 
+            public bool Volume              { get { return volume;  } set { volume      = value; PropertyChanged?.Invoke(); } } 
 
-            public bool SeekOnSlide { get; set; } = true;
+            public bool SeekOnSlide         { get; set; } = true;
         }
 
         [Serializable]
@@ -276,7 +275,7 @@ namespace SuRGeoNix.Flyleaf
             public int SubsFontSizeStep { get; set; } =    2;
             public int AudioDelayStep   { get; set; } =   20;
             public int AudioDelayStep2  { get; set; } = 5000;
-            public int VolStep          { get; set; } =    5;
+            public int VolStep          { get; set; } =    3;
 	    }
 
         [Serializable]
@@ -298,10 +297,7 @@ namespace SuRGeoNix.Flyleaf
         [TypeConverter(typeof(FlyleafTypeConverter))]
         public class Audio
         {
-            private Audio() { }
-            MediaRouter player;
-
-            public Audio(MediaRouter player) { this.player = player; }
+            internal MediaRouter player;
 
             [RefreshProperties(RefreshProperties.All)]
             public bool     _Enabled    { get { return player.doAudio; } set { player.doAudio = value; } }
@@ -312,11 +308,7 @@ namespace SuRGeoNix.Flyleaf
         [TypeConverter(typeof(FlyleafTypeConverter))]
         public class Subtitles
         {
-            private Subtitles() { }
-            MediaRenderer renderer;
-            MediaRouter player;
-
-            public Subtitles(MediaRouter player) { this.player = player; this.renderer = player.renderer;}
+            internal MediaRouter player;
 
             [RefreshProperties(RefreshProperties.All)]
             public bool     _Enabled    { get { return player.doSubs; } set { player.doSubs = value; } }
@@ -324,34 +316,21 @@ namespace SuRGeoNix.Flyleaf
 
             public DownloadSubsMode DownloadSubs { get { return player.DownloadSubs; } set { player.DownloadSubs = value; } }
 
+            // Related Surface
             [XmlIgnore]
-            public Font     Font        { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].Font;          } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].Font          = value; renderer.PresentFrame(null); } }
+            public Font     Font        { get { return player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].Font;          } set { player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].Font          = value; player.renderer.PresentFrame(null); } }
             [XmlIgnore]
-            [XmlElement("Font")]
-            [Browsable(false)]
-            public string   Font2       { get { return (new FontConverter()).ConvertToString(Font); } set { Font = (Font) (new FontConverter()).ConvertFromString(value); } }
+            public Color    Color       { get { return player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].ForeColor;     } set { player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].ForeColor     = value; player.renderer.PresentFrame(null); } }
             [XmlIgnore]
-            public Color    Color       { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].ForeColor;     } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].ForeColor     = value; renderer.PresentFrame(null); } }
+            public Point    Position    { get { return player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].Position;      } set { player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].Position      = value; player.renderer.PresentFrame(null); player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].requiresUpdate = true; player.renderer.PresentFrame(null); } }
             [XmlIgnore]
-            [XmlElement("Color")]
-            [Browsable(false)]
-            [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
-            public string   Color2      { get { return (new ColorConverter()).ConvertToString(Color); } set { Color = (Color) (new ColorConverter()).ConvertFromString(value); } }
+            public bool     OnViewPort  { get { return player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].hookViewport;  } set { player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].hookViewport  = value; player.renderer.PresentFrame(null); player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].requiresUpdate = true; player.renderer.PresentFrame(null); } }
             [XmlIgnore]
-            public Point    Position    { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].Position;      } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].Position      = value; renderer.PresentFrame(null); renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].requiresUpdate = true; renderer.PresentFrame(null); } }
+            public bool     RectEnabled { get { return player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].rectEnabled;   } set { player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].rectEnabled   = value; player.renderer.HookResized (null, null); } }
             [XmlIgnore]
-            public bool     OnViewPort  { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].hookViewport;  } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].hookViewport  = value; renderer.PresentFrame(null); renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].requiresUpdate = true; renderer.PresentFrame(null); } }
+            public Color    RectColor   { get { return player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].BackColor;     } set { player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].BackColor     = value; player.renderer.PresentFrame(null); player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].requiresUpdate = true; player.renderer.PresentFrame(null); } }
             [XmlIgnore]
-            public bool     RectEnabled { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].rectEnabled;   } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].rectEnabled   = value; renderer.HookResized (null, null); } }
-            [XmlIgnore]
-            public Color    RectColor   { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].BackColor;     } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].BackColor     = value; renderer.PresentFrame(null); renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].requiresUpdate = true; renderer.PresentFrame(null); } }
-            [XmlIgnore]
-            [XmlElement("RectColor")]
-            [Browsable(false)]
-            [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
-            public string   RectColor2  { get { return (new ColorConverter()).ConvertToString(RectColor);   } set { Color = (Color) (new ColorConverter()).ConvertFromString(value); } }
-            [XmlIgnore]
-            public Padding  RectPadding { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].rectPadding;   } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].rectPadding   = value; renderer.PresentFrame(null); renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].requiresUpdate = true; renderer.PresentFrame(null); } }
+            public Padding  RectPadding { get { return player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].rectPadding;   } set { player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].rectPadding   = value; player.renderer.PresentFrame(null); player.renderer.osd[player.renderer.msgToSurf[OSDMessage.Type.Subtitles]].requiresUpdate = true; player.renderer.PresentFrame(null); } }
         }
 
         [Serializable]
@@ -359,9 +338,7 @@ namespace SuRGeoNix.Flyleaf
         [TypeConverter(typeof(FlyleafTypeConverter))]
         public class Video
         {
-            private Video() { }
-            MediaRouter player;
-            public Video(MediaRouter player) { this.player = player;}
+            internal MediaRouter player;
                 
             public bool         HardwareAcceleration{ get { return player.HWAccel;              } set { player.HWAccel          = value; player.renderer.PresentFrame(null);} }
             public ViewPorts    AspectRatio         { get { return player.ViewPort;             } set { player.ViewPort         = value; player.renderer.HookResized(null,null);} }
@@ -377,15 +354,13 @@ namespace SuRGeoNix.Flyleaf
         [TypeConverter(typeof(FlyleafTypeConverter))]
         public class Message
         {
-            private Message() { }
-            MediaRenderer     renderer;
+            internal MediaRenderer renderer;
 
             [Browsable(false)]
             [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
             public OSDMessage.Type _Selected;
-            public Message(MediaRenderer renderer, OSDMessage.Type selected) { this.renderer = renderer; _Selected = selected; }
-            public VisibilityMode Visibility { get { return renderer.msgToVis[_Selected]; } set { renderer.msgToVis[_Selected] = value;  renderer.PresentFrame(null); } }
-            public OSDSurfaces Surface { get { return StringToEnum(renderer.msgToSurf[_Selected]); }  set { renderer.msgToSurf[_Selected] = EnumToString(value); renderer.PresentFrame(null); } }
+            public VisibilityMode Visibility    { get { return renderer.msgToVis[_Selected];                } set { renderer.msgToVis[_Selected] = value;  renderer.PresentFrame(null); } }
+            public OSDSurfaces Surface          { get { return StringToEnum(renderer.msgToSurf[_Selected]); } set { renderer.msgToSurf[_Selected] = EnumToString(value); renderer.PresentFrame(null); } }
         }
 
         [Serializable]
@@ -393,10 +368,9 @@ namespace SuRGeoNix.Flyleaf
         [TypeConverter(typeof(FlyleafTypeConverter))]
         public class SurfacesAll
         {
-            private SurfacesAll() { }
-            MediaRenderer renderer;
-            Surface[]  surfaces;
-            public SurfacesAll(MediaRenderer renderer, Surface[] surfaces) { this.renderer = renderer; this.surfaces = surfaces; }
+            internal MediaRenderer   renderer;
+            internal Surface[]       surfaces;
+
             [XmlIgnore]
             public Font     Font        { get { return surfaces[0].Font;        } set { foreach (var osdsurf in renderer.osd) if (osdsurf.Key != "bc")  { osdsurf.Value.Font        = value; renderer.HookResized(null,null); } } }
             [XmlIgnore]
@@ -417,25 +391,23 @@ namespace SuRGeoNix.Flyleaf
         [TypeConverter(typeof(FlyleafTypeConverter))]
         public class Surface
         {
-            private Surface() { }
-            MediaRenderer renderer;
+            internal MediaRenderer renderer;
 
             [Browsable(false)]
             [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
             public OSDSurfaces _Selected;
-            public Surface(MediaRenderer renderer, OSDSurfaces selected) { this.renderer = renderer; _Selected = selected; }
             [XmlIgnore]
             public Font     Font        { get { return renderer.osd[EnumToString(_Selected)].Font;          } set { renderer.osd[EnumToString(_Selected)].Font          = value; renderer.PresentFrame(null); } }
             [XmlElement("Font")]
             [Browsable(false)]
             [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
-            public string   Font2       { get { return (new FontConverter()).ConvertToString(Font); } set { Font = (Font) (new FontConverter()).ConvertFromString(value); } }
+            public string   Font2       { get { return (new FontConverter()).ConvertToString(Font);         } set { Font = (Font) (new FontConverter()).ConvertFromString(value); } }
             [XmlIgnore]
             public Color    Color       { get { return renderer.osd[EnumToString(_Selected)].ForeColor;     } set { renderer.osd[EnumToString(_Selected)].ForeColor     = value; renderer.PresentFrame(null); } }
             [XmlElement("Color")]
             [Browsable(false)]
             [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
-            public string   Color2      { get { return (new ColorConverter()).ConvertToString(Color); } set { Color = (Color) (new ColorConverter()).ConvertFromString(value); } }
+            public string   Color2      { get { return (new ColorConverter()).ConvertToString(Color);       } set { Color = (Color) (new ColorConverter()).ConvertFromString(value); } }
             public Point    Position    { get { return renderer.osd[EnumToString(_Selected)].Position;      } set { renderer.osd[EnumToString(_Selected)].Position      = value; renderer.PresentFrame(null); renderer.osd[EnumToString(_Selected)].requiresUpdate = true; renderer.PresentFrame(null); } }
             public bool     OnViewPort  { get { return renderer.osd[EnumToString(_Selected)].hookViewport;  } set { renderer.osd[EnumToString(_Selected)].hookViewport  = value; renderer.PresentFrame(null); renderer.osd[EnumToString(_Selected)].requiresUpdate = true; renderer.PresentFrame(null); } }
             public bool     RectEnabled { get { return renderer.osd[EnumToString(_Selected)].rectEnabled;   } set { renderer.osd[EnumToString(_Selected)].rectEnabled   = value; renderer.HookResized (null, null); } }
@@ -508,38 +480,33 @@ namespace SuRGeoNix.Flyleaf
 
         public static void ParseSettings(SettingsLoad load, Settings config)
         {
-            config.bar      = load.bar;
-            config.keys     = load.keys;
-            config.hookForm = load.hookForm;
+            config.main.AllowDrop               = load.main.AllowDrop;
+            config.main.AllowFullScreen         = load.main.AllowFullScreen;
+            config.main.AllowTorrents           = load.main.AllowTorrents;
+            config.main.ClearBackColor          = load.main.ClearBackColor;
+            config.main.EmbeddedList            = load.main.EmbeddedList;
+            config.main.HideCursor              = load.main.HideCursor;
+            config.main.IdleTimeout             = load.main.IdleTimeout;
+            config.main.MessagesDuration        = load.main.MessagesDuration;
 
-            config.audio._Enabled           = load.audio._Enabled;
+            config.bar                          = load.bar;
+            config.keys                         = load.keys;
+            config.hookForm                     = load.hookForm;
 
-            config.video.AspectRatio        = load.video.AspectRatio;
-            config.video.CustomRatio        = load.video.CustomRatio;
-            config.video.HardwareAcceleration = load.video.HardwareAcceleration;
-            config.video.VSync              = load.video.VSync;
-            config.video.DecoderThreads     = load.video.DecoderThreads;
-            config.video.QueueMinSize       = load.video.QueueMinSize;
-            config.video.QueueMaxSize       = load.video.QueueMaxSize;
+            config.audio._Enabled               = load.audio._Enabled;
 
-            config.main.AllowDrop           = load.main.AllowDrop;
-            config.main.AllowFullScreen     = load.main.AllowFullScreen;
-            config.main.AllowTorrents       = load.main.AllowTorrents;
-            config.main.ClearBackColor      = load.main.ClearBackColor;
-            config.main.EmbeddedList        = load.main.EmbeddedList;
-            config.main.HideCursor          = load.main.HideCursor;
-            config.main.IdleTimeout         = load.main.IdleTimeout;
-            config.main.MessagesDuration    = load.main.MessagesDuration;
+            config.subtitles._Enabled           = load.subtitles._Enabled;
+            config.subtitles.Languages          = load.subtitles.Languages;
+            config.subtitles.DownloadSubs       = load.subtitles.DownloadSubs;
 
-            config.subtitles._Enabled       = load.subtitles._Enabled;
-            config.subtitles.Languages      = load.subtitles.Languages;
-            config.subtitles.DownloadSubs   = load.subtitles.DownloadSubs;
+            config.video.AspectRatio            = load.video.AspectRatio;
+            config.video.CustomRatio            = load.video.CustomRatio;
+            config.video.HardwareAcceleration   = load.video.HardwareAcceleration;
+            config.video.VSync                  = load.video.VSync;
+            config.video.DecoderThreads         = load.video.DecoderThreads;
+            config.video.QueueMinSize           = load.video.QueueMinSize;
+            config.video.QueueMaxSize           = load.video.QueueMaxSize;
 
-            for (int i=0; i<load.messages.Length; i++)
-            {
-                config.messages[i].Visibility = load.messages[i].Visibility;
-                config.messages[i].Surface    = load.messages[i].Surface;
-            }
             for (int i=0; i<load.surfaces.Length; i++)
             {
                 config.surfaces[i].Color2       = load.surfaces[i].Color2;
@@ -550,7 +517,12 @@ namespace SuRGeoNix.Flyleaf
                 config.surfaces[i].RectEnabled  = load.surfaces[i].RectEnabled;
                 config.surfaces[i].RectPadding  = load.surfaces[i].RectPadding;
             }
-                
+
+            for (int i=0; i<load.messages.Length; i++)
+            {
+                config.messages[i].Visibility   = load.messages[i].Visibility;
+                config.messages[i].Surface      = load.messages[i].Surface;
+            }    
         }
     }
 }

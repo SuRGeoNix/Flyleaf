@@ -161,8 +161,6 @@ rename FlyleafPlayer.exe.config Flyleaf.exe.config
 )</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PreBuildEvent>if $(ConfigurationName) == Release (
-  del /S /F /Q "$(TargetDir)"
-)</PreBuildEvent>
+    <PreBuildEvent>del /S /F /Q "$(TargetDir)"</PreBuildEvent>
   </PropertyGroup>
 </Project>
