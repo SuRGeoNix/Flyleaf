@@ -30,16 +30,14 @@
  */
 
 using System;
+using System.IO;
+using System.Security;
 using System.Threading;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
-using System.Linq;
-using System.Windows.Forms;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Security;
+using System.Text.RegularExpressions;
 
 using static SuRGeoNix.Flyleaf.MediaDecoder;
 using static SuRGeoNix.Flyleaf.OSDMessage;
@@ -75,7 +73,7 @@ namespace SuRGeoNix.Flyleaf
         internal ConcurrentQueue<MediaFrame>         sFrames;
 
         public int AUDIO_MIX_QUEUE_SIZE =  0;  public int AUDIO_MAX_QUEUE_SIZE =200;
-        public int VIDEO_MIX_QUEUE_SIZE = 30;  public int VIDEO_MAX_QUEUE_SIZE = 40;
+        public int VIDEO_MIX_QUEUE_SIZE = 10;  public int VIDEO_MAX_QUEUE_SIZE = 15;
         public int  SUBS_MIN_QUEUE_SIZE =  0;  public int  SUBS_MAX_QUEUE_SIZE = 50;
 
         // Idle [Activity / Visibility Mode]
@@ -148,46 +146,48 @@ namespace SuRGeoNix.Flyleaf
         #endregion
 
         #region Properties
+        public bool isPlaying       => status == Status.PLAYING;
+        public bool isPaused        => status == Status.PAUSED;
+        public bool isSeeking       => status == Status.SEEKING;
+        public bool isStopped       => status == Status.STOPPED;
+        public bool isFailed        => status == Status.FAILED;
+        public bool isOpened        => status == Status.OPENED;
+        public bool isReady         { get; private set; }
+        public bool isTorrent       { get; private set; }
+        public long CurTime         { get; private set; }
+        public long SeekTime        = -1;
+        public int  verbosity       { get; set; }
 
-        public string Url { get; set; }
+        public ActivityMode                 Activity    { get; set;         } = ActivityMode.FullActive;
+        public Dictionary<string, string>   PluginsList { get; private set; } = new Dictionary<string, string>();
+        public List<string>                 Plugins     { get; private set; } = new List<string>();
+
+        // Video
         public enum ViewPorts
         {
             KEEP,
             FILL,
             CUSTOM
         }
-        public ViewPorts ViewPort   { get; set; } = ViewPorts.KEEP;
-        public float DecoderRatio   { get; set; } = 16f/9f;
-        public float CustomRatio    { get; set; } = 16f/9f;
-        public bool isReady         { get; private set; }
-        public bool isPlaying       { get { return (status == Status.PLAYING);  } }
-        public bool isPaused        { get { return (status == Status.PAUSED);   } }
-        public bool isSeeking       { get { return (status == Status.SEEKING);  } }
-        public bool isStopped       { get { return (status == Status.STOPPED);  } }
-        public bool isFailed        { get { return (status == Status.FAILED);   } }
-        public bool isOpened        { get { return (status == Status.OPENED);   } }
-        public bool isTorrent       { get; private set; }
-        public bool hasAudio        { get { return decoder.hasAudio;            } }
-        public bool hasVideo        { get { return decoder.hasVideo;            } }
-        public bool hasSubs         { get { return decoder.hasSubs;             } }
-        public bool doAudio         { get { return decoder.doAudio;             } set { decoder.doAudio = value; } }
-        public bool doSubs          { get { return decoder.doSubs;              } set { if (!value) renderer.ClearMessages(OSDMessage.Type.Subtitles); decoder.doSubs  = value; } }
-        public int  Width           { get { return decoder.vStreamInfo.width;   } }
-        public int  Height          { get { return decoder.vStreamInfo.height;  } }
-        public long Duration        { get { return hasVideo ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks; } }
-        public long CurTime         { get; private set; }
+        public ViewPorts ViewPort       { get; set; } = ViewPorts.KEEP;
+        public float    DecoderRatio    { get; set; } = 16f/9f;
+        public float    CustomRatio     { get; set; } = 16f/9f;
+        public bool     hasVideo        { get { return decoder.hasVideo;            } }
+        public long     Duration        { get { return hasVideo ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks; } }
+        public int      BufferingDuration{get; set; } = 1800; // Related with Queue sizes
+        public int      Width           { get { return decoder.vStreamInfo.width;   } }
+        public int      Height          { get { return decoder.vStreamInfo.height;  } }
+        public bool     HighQuality     { get { return decoder.HighQuality;         } set { decoder.HighQuality = value; } }
+        public bool     HWAccel         { get { return decoder.HWAccel;             } set { decoder.HWAccel = value; renderer?.NewMessage(OSDMessage.Type.HardwareAcceleration); } }
+        public bool     iSHWAccelSuccess{ get { return decoder.hwAccelSuccess; } }
 
-        public long SeekTime = -1;
-        public ActivityMode Activity{ get; set; } = ActivityMode.FullActive;
-        public int  verbosity       { get; set; }
-        public bool HighQuality     { get { return decoder.HighQuality;         } set { decoder.HighQuality = value; } }
-        public bool HWAccel         { get { return decoder.HWAccel;             } set { decoder.HWAccel = value; renderer?.NewMessage(OSDMessage.Type.HardwareAcceleration); } }
-        public bool iSHWAccelSuccess{ get { return decoder.hwAccelSuccess; } }
-        public int  Volume          { get { return audioPlayer == null ? 0 : audioPlayer.Volume; } set { audioPlayer.SetVolume(value); renderer?.NewMessage(OSDMessage.Type.Volume); } }
-        public bool Mute            { get { return !audioPlayer.isPlaying;      } set { if (value) audioPlayer.Pause(); else audioPlayer.Play(); renderer?.NewMessage(OSDMessage.Type.Mute, Mute ? "Muted" : "Unmuted"); } }
-        public bool Mute2           { get { return audioPlayer.Mute;            } set { audioPlayer.Mute = value; renderer?.NewMessage(OSDMessage.Type.Mute, Mute2 ? "Muted" : "Unmuted"); } }
-        
-        public long AudioExternalDelay
+        // Audio
+        public bool     hasAudio        { get { return decoder.hasAudio;            } }
+        public bool     doAudio         { get { return decoder.doAudio;             } set { decoder.doAudio = value; } }
+        public int      Volume          { get { return audioPlayer == null ? 0 : audioPlayer.Volume; } set { audioPlayer.SetVolume(value); renderer?.NewMessage(OSDMessage.Type.Volume); } }
+        public bool     Mute            { get { return !audioPlayer.isPlaying;      } set { if (value) audioPlayer.Pause(); else audioPlayer.Play(); renderer?.NewMessage(OSDMessage.Type.Mute, Mute ? "Muted" : "Unmuted"); } }
+        public bool     Mute2           { get { return audioPlayer.Mute;            } set { audioPlayer.Mute = value; renderer?.NewMessage(OSDMessage.Type.Mute, Mute2 ? "Muted" : "Unmuted"); } }
+        public long     AudioExternalDelay
         {
             get { return audioExternalDelay; }
 
@@ -203,7 +203,11 @@ namespace SuRGeoNix.Flyleaf
                 renderer.NewMessage(OSDMessage.Type.AudioDelay);
             }
         }
-        public long SubsExternalDelay
+
+        // Subs
+        public bool     hasSubs         { get { return decoder.hasSubs;             } }
+        public bool     doSubs          { get { return decoder.doSubs;              } set { if (!value) renderer.ClearMessages(OSDMessage.Type.Subtitles); decoder.doSubs  = value; } }
+        public long     SubsExternalDelay
         {
             get { return subsExternalDelay; }
 
@@ -220,12 +224,16 @@ namespace SuRGeoNix.Flyleaf
                 renderer.NewMessage(OSDMessage.Type.SubsDelay);
             }
         }
-        public int  SubsPosition    { get { return renderer.SubsPosition;       }   set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
-        public float SubsFontSize   { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; renderer?.NewMessage(OSDMessage.Type.SubsFontSize); } }
+        public int      SubsPosition    { get { return renderer.SubsPosition;       }   set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
+        public float    SubsFontSize    { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; renderer?.NewMessage(OSDMessage.Type.SubsFontSize); } }
 
-        public DownloadSubsMode DownloadSubs { get; set; } = DownloadSubsMode.Torrents;
-        public List<Language> Languages   {get; set; } = new List<Language>();
-
+        // Online Subs
+        private int     curSubId        = -1;
+        public int      CurSubId        { get { return curSubId; } set { if (curSubId == value) return; PrevSubId = curSubId; curSubId = value; Log($"Sub Id Changed From {PrevSubId} to {curSubId}"); } }
+        public int      PrevSubId       { get; private set; } = -1;
+        public List<Language>       Languages       { get; set; } = new List<Language>();
+        public List<SubAvailable>   AvailableSubs   { get; set; } = new List<SubAvailable>();
+        public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.Torrents;
         public struct SubAvailable
         {
             public Language      lang;
@@ -238,37 +246,9 @@ namespace SuRGeoNix.Flyleaf
             public SubAvailable(Language lang, int streamIndex)  {this.lang = lang; this.streamIndex = streamIndex;  this.sub = null; this.path = null; used = false; }
             public SubAvailable(Language lang, OpenSubtitles sub){this.lang = lang; this.streamIndex = -1;           this.sub = sub;  this.path = null; used = false; }
         }
-
-        public List<SubAvailable> availableSubs = new List<SubAvailable>();
-
-        private int curSubId = -1;
-        public int  CurSubId { get { return curSubId; } set { if (curSubId == value) return; PrevSubId = curSubId; curSubId = value; Log($"Sub Id Changed From {PrevSubId} to {curSubId}"); } }
-        public int  PrevSubId{ get; private set; } = -1;
-
-        public Dictionary<string, string> PluginsList { get; private set; } = new Dictionary<string, string>();
-        public List<string> Plugins { get; private set; } = new List<string>();
         #endregion
 
         #region Initialization
-        private void LoadPlugins()
-        {
-            PluginsList.Add("Torrent Streaming", "Plugins\\TorSwarm\\TorSwarm.dll");
-            PluginsList.Add("Web Streaming", "Plugins\\Youtube-dl\\youtube-dl.exe");
-
-            foreach (KeyValuePair<string, string> plugin in PluginsList)
-                if (File.Exists(plugin.Value)) Plugins.Add(plugin.Key);
-        }
-        private void LoadDefaultLanguages()
-        {
-            Languages = new List<Language>();
-            Language systemLang = Language.Get(System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
-            if (systemLang.LanguageName != "English") Languages.Add(systemLang);
-
-            foreach (InputLanguage lang in InputLanguage.InstalledInputLanguages)
-                if (Language.Get(lang.Culture.TwoLetterISOLanguageName).ISO639 != systemLang.ISO639 && Language.Get(lang.Culture.TwoLetterISOLanguageName).LanguageName != "English") Languages.Add(Language.Get(lang.Culture.TwoLetterISOLanguageName));
-
-            Languages.Add(Language.Get("English"));
-        }
         public MediaRouter(int verbosity = 0)
         {
             LoadPlugins();
@@ -340,7 +320,7 @@ namespace SuRGeoNix.Flyleaf
                 streamer.MediaFilesClbk         = MediaFilesClbk;
                 streamer.StatsClbk              = StatsClbk;
 
-                streamer.Stop();
+                streamer.Dispose();
             }
         }
         private void InitializeEnv()
@@ -359,33 +339,25 @@ namespace SuRGeoNix.Flyleaf
 
             isReady = true;
         }
-
-        private void ShowOneFrame()
+        private void LoadPlugins()
         {
-            //ClearMediaFrames();
-            renderer.ClearMessages(OSDMessage.Type.Subtitles);
+            PluginsList.Add("Torrent Streaming", "Plugins\\TorSwarm\\TorSwarm.dll");
+            PluginsList.Add("Web Streaming", "Plugins\\Youtube-dl\\youtube-dl.exe");
 
-            decoder.video.DecodeFrame();
-            //decoder.subs.DecodeFrame(); requires resync | only embedded
-
-            if (vFrames.Count > 0)
-            {
-                MediaFrame vFrame = null;
-                vFrames.TryDequeue(out vFrame);
-                renderer.PresentFrame(vFrame);
-            }
-
-            // should also check timestamp based on vFrame.timestamp
-            //if (sFrames.Count > 0 && hasSubs && doSubs)
-            //{
-            //    MediaFrame sFrame = null;
-            //    sFrames.TryPeek(out sFrame);
-            //    renderer.NewMessage(OSDMessage.Type.Subtitles, sFrame.text, sFrame.subStyles, sFrame.duration);
-            //}
-
-            return;
+            foreach (KeyValuePair<string, string> plugin in PluginsList)
+                if (File.Exists(plugin.Value)) Plugins.Add(plugin.Key);
         }
-        public void Render() { renderer.PresentFrame(null); }
+        private void LoadDefaultLanguages()
+        {
+            Languages           = new List<Language>();
+            Language systemLang = Language.Get(System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
+            if (systemLang.LanguageName != "English") Languages.Add(systemLang);
+
+            foreach (System.Windows.Forms.InputLanguage lang in System.Windows.Forms.InputLanguage.InstalledInputLanguages)
+                if (Language.Get(lang.Culture.TwoLetterISOLanguageName).ISO639 != systemLang.ISO639 && Language.Get(lang.Culture.TwoLetterISOLanguageName).LanguageName != "English") Languages.Add(Language.Get(lang.Culture.TwoLetterISOLanguageName));
+
+            Languages.Add(Language.Get("English"));
+        }
         #endregion
 
         #region Screaming
@@ -532,190 +504,6 @@ namespace SuRGeoNix.Flyleaf
         #endregion
 
         #region Main Actions
-        Thread openSubs;
-        public void FindAvailableSubs(string filename, string hash, long length)
-        {
-            Utils.EnsureThreadDone(openSubs);
-
-            openSubs = new Thread(() =>
-            {
-                // TODO: (Local Files Search || Torrent Files) should use movie title not file name
-                //foreach (string curfile in Directory.GetFiles(file.DirectoryName))
-                //{
-                //    if ( Regex.IsMatch(curfile, $@"{file.Name.Remove(file.Name.Length - file.Extension.Length)}.*\.srt") )
-                //    {
-                //        Log(curfile);
-                //    }
-                //}
-
-                foreach (Language lang in Languages)
-                {
-                    List<OpenSubtitles> subs;
-
-                    subs =  OpenSubtitles.SearchByHash(hash, length, lang);
-                    subs.AddRange(OpenSubtitles.SearchByName(filename, lang));
-
-                    for (int i=0; i<subs.Count; i++)
-                        availableSubs.Add(new SubAvailable(lang, subs[i]));
-                }
-
-                FixSortSubs();
-                SubtitlesAvailable?.Invoke(this, EventArgs.Empty);
-                OpenNextAvailableSub();
-                
-            });
-            openSubs.SetApartmentState(ApartmentState.STA);
-            openSubs.Start();
-        }
-        public void FixSortSubs()
-        {
-            // Unique by SubHashes (if any)
-            List<SubAvailable> uniqueList = new List<SubAvailable>();
-            List<int> removeIds = new List<int>();
-            for (int i=0; i<availableSubs.Count-1; i++)
-            {
-                if (availableSubs[i].sub == null || removeIds.Contains(i)) continue;
-
-                for (int l=i+1; l<availableSubs.Count; l++)
-                {
-                    if (availableSubs[l].sub == null || removeIds.Contains(l)) continue;
-
-                    if (availableSubs[l].sub.SubHash == availableSubs[i].sub.SubHash)
-                    {
-                        if (availableSubs[l].sub.AvailableAt == null)
-                            removeIds.Add(l);
-                        else
-                        { removeIds.Add(i); break; }
-                    }
-                }
-            }
-            for (int i=0; i<availableSubs.Count; i++)
-                if (!removeIds.Contains(i)) uniqueList.Add(availableSubs[i]);
-
-            availableSubs = uniqueList;
-
-            // Sorty by Lang Priority && Rating (if any)
-            List<int> ids = new List<int>();
-            List<SubAvailable> sortedList = new List<SubAvailable>();
-            foreach (Language lang in Languages)
-            {
-                for (int i=0; i<availableSubs.Count; i++)
-                {
-                    if (ids.Contains(i)) continue;
-                    if (availableSubs[i].lang == null || availableSubs[i].sub == null || availableSubs[i].lang.ISO639 != lang.ISO639) continue;
-
-                    int curMaxId = i;
-
-                    for (int l=0; l<availableSubs.Count; l++)
-                    {
-                        if (ids.Contains(l)) continue;
-                        if (availableSubs[l].lang == null || availableSubs[l].sub == null || availableSubs[l].lang.ISO639 != lang.ISO639) continue;
-
-                        if (float.Parse(availableSubs[l].sub.SubRating) > float.Parse(availableSubs[curMaxId].sub.SubRating)) curMaxId = l;
-                    }
-
-                    ids.Add(curMaxId);
-                }
-
-                for (int i=0; i<availableSubs.Count; i++)
-                    if (availableSubs[i].lang != null && availableSubs[i].lang.ISO639 == lang.ISO639 && !ids.Contains(i)) ids.Add(i);
-
-            }
-
-            for (int i=0; i<availableSubs.Count; i++)
-                if (availableSubs[i].lang == null) ids.Add(i);
-
-            for (int i=0; i<ids.Count; i++)
-                sortedList.Add(availableSubs[ids[i]]);
-            
-            availableSubs = sortedList;
-        }
-        public void OpenNextAvailableSub()
-        {
-            bool allused = true;
-
-            // Find best match (lang priority - not already used - rating?)
-            foreach (Language lang in Languages)
-            {
-                for (int i=0; i<availableSubs.Count; i++)
-                {
-                    if (!availableSubs[i].used) allused = false;
-                    if (!availableSubs[i].used && availableSubs[i].lang?.IdSubLanguage == lang.IdSubLanguage)
-                    {
-                        Log("Best sub match -> " + i);
-                        OpenSubs(i);
-                        return;
-                    }
-                }
-            }
-
-            // Reset used and start from the beggining
-            if (allused && availableSubs.Count > 0 && Languages.Count > 0)
-            {
-                for (int i=0; i<availableSubs.Count; i++)
-                {
-                    SubAvailable sub = availableSubs[i];
-                    sub.used = false;
-                    availableSubs[i] = sub;
-                }
-                OpenNextAvailableSub();
-            }
-        }
-        public void OpenSubs(int availableIndex)
-        {
-            SubAvailable sub = availableSubs[availableIndex];
-
-            if (sub.streamIndex > 0)
-            {
-                sFrames = new ConcurrentQueue<MediaFrame>();
-
-                decoder.video.EnableEmbeddedSubs(sub.streamIndex);
-            }
-            else if (sub.sub != null)
-            {
-                if (sub.sub.AvailableAt != null)
-                    OpenSubs(sub.sub.AvailableAt);
-                else
-                {
-                    sub.sub.Download();
-                    OpenSubs(sub.sub.AvailableAt);
-                }
-            }
-            else if (sub.path != null)
-            {
-                OpenSubs(sub.path);
-            }
-
-            sub.used = true;
-            availableSubs[availableIndex] = sub;
-            CurSubId = availableIndex;
-        }
-        public int OpenSubs(string url)
-        {
-            if (!decoder.isReady) return -1;
-
-            int ret = 0;
-            subsExternalDelay = 0;
-            sFrames = new ConcurrentQueue<MediaFrame>();
-
-            renderer.ClearMessages(OSDMessage.Type.Subtitles);
-
-            decoder.video.DisableEmbeddedSubs();
-
-            foreach (SubAvailable sub in availableSubs)
-                if (sub.path != null && sub.path.ToLower() == url.ToLower()) { availableSubs.Remove(sub); break; }
-
-            if ((ret = decoder.Open("", "", url)) != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return ret; }
-
-            bool exists = false;
-            //foreach (SubAvailable sub in availableSubs)
-            for (int i=0; i<availableSubs.Count; i++)
-                if (availableSubs[i].sub != null && availableSubs[i].sub.AvailableAt?.ToLower() == url.ToLower()) { exists = true; CurSubId=i; }
-            
-            if (!exists) { availableSubs.Add(new SubAvailable(null, url)); CurSubId = availableSubs.Count-1; } // TODO Detect
-
-            return 0;
-        }
         public void Open(string url)
         {
             lock (lockOpening)
@@ -827,7 +615,6 @@ namespace SuRGeoNix.Flyleaf
                             {
                                 OpenNextAvailableSub();
                             }
-                            
                         }
 
                         if (!decoder.isReady) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, url, null, null); return; }
@@ -849,14 +636,11 @@ namespace SuRGeoNix.Flyleaf
             renderer.ClearMessages(OSDMessage.Type.Paused);
             if (beforeSeeking != Status.PLAYING) renderer.NewMessage(OSDMessage.Type.Play, "Play");
             beforeSeeking = Status.PLAYING;
-            
-            //if (status != Status.PAUSED) decoder.ReSync();
 
             if (isTorrent)
             {
-                //renderer.NewMessage(OSDMessage.Type.Buffering, $"Buffering ...");
                 status = Status.BUFFERING;
-                streamer.Seek((int)(CurTime/10000));
+                streamer.Buffer((int)(CurTime/10000), BufferingDuration);
                 return;
             }
 
@@ -936,10 +720,8 @@ namespace SuRGeoNix.Flyleaf
                             if (Interlocked.Equals(prioritySeek, 1)) return;
 
                             CurTime = (long)ms * 10000;
-                            if (isTorrent) renderer.NewMessage(OSDMessage.Type.Buffering, $"Loading 0%");
                             decoder.Seek(ms, true);
                             if (Interlocked.Equals(prioritySeek, 1)) return;
-                            //ClearMediaFrames();
 
                             if (seekStack.Count > 5) continue;
                             if (beforeSeeking != Status.PLAYING) ShowOneFrame();
@@ -957,10 +739,9 @@ namespace SuRGeoNix.Flyleaf
 			        if (beforeSeeking == Status.PLAYING)
                     {
                         if (Interlocked.Equals(prioritySeek, 1)) return; 
-                        //decoder.ReSync();
                         Play();
                     }
-                    else if ( isTorrent ) streamer.Seek((int)(CurTime/10000));
+                    else if ( isTorrent ) streamer.Buffer((int)(CurTime/10000), BufferingDuration);
 		        }
             });
 	        seekRequest.SetApartmentState(ApartmentState.STA);
@@ -989,6 +770,193 @@ namespace SuRGeoNix.Flyleaf
             if (renderer != null) renderer.Dispose();
             if (audioPlayer != null) audioPlayer.Close();
             CurTime = 0;
+        }
+        #endregion
+
+        #region Subtitles
+        Thread openSubs;
+        public void FindAvailableSubs(string filename, string hash, long length)
+        {
+            if (Languages.Count < 1) return;
+            Utils.EnsureThreadDone(openSubs);
+
+            openSubs = new Thread(() =>
+            {
+                // TODO: (Local Files Search || Torrent Files) should use movie title not file name
+                //foreach (string curfile in Directory.GetFiles(file.DirectoryName))
+                //{
+                //    if ( Regex.IsMatch(curfile, $@"{file.Name.Remove(file.Name.Length - file.Extension.Length)}.*\.srt") )
+                //    {
+                //        Log(curfile);
+                //    }
+                //}
+
+                renderer.NewMessage(OSDMessage.Type.TopLeft2, "Downloading Subtitles ...");
+
+                foreach (Language lang in Languages)
+                {
+                    List<OpenSubtitles> subs =  OpenSubtitles.SearchByHash(hash, length, lang);
+                    subs.AddRange(OpenSubtitles.SearchByName(filename, lang));
+
+                    for (int i=0; i<subs.Count; i++)
+                        AvailableSubs.Add(new SubAvailable(lang, subs[i]));
+                }
+
+                FixSortSubs();
+                SubtitlesAvailable?.Invoke(this, EventArgs.Empty);
+                OpenNextAvailableSub();
+                
+            });
+            openSubs.SetApartmentState(ApartmentState.STA);
+            openSubs.Start();
+        }
+        public void FixSortSubs()
+        {
+            // Unique by SubHashes (if any)
+            List<SubAvailable> uniqueList = new List<SubAvailable>();
+            List<int> removeIds = new List<int>();
+            for (int i=0; i<AvailableSubs.Count-1; i++)
+            {
+                if (AvailableSubs[i].sub == null || removeIds.Contains(i)) continue;
+
+                for (int l=i+1; l<AvailableSubs.Count; l++)
+                {
+                    if (AvailableSubs[l].sub == null || removeIds.Contains(l)) continue;
+
+                    if (AvailableSubs[l].sub.SubHash == AvailableSubs[i].sub.SubHash)
+                    {
+                        if (AvailableSubs[l].sub.AvailableAt == null)
+                            removeIds.Add(l);
+                        else
+                        { removeIds.Add(i); break; }
+                    }
+                }
+            }
+            for (int i=0; i<AvailableSubs.Count; i++)
+                if (!removeIds.Contains(i)) uniqueList.Add(AvailableSubs[i]);
+
+            AvailableSubs = uniqueList;
+
+            // Sorty by Lang Priority && Rating (if any)
+            List<int> ids = new List<int>();
+            List<SubAvailable> sortedList = new List<SubAvailable>();
+            foreach (Language lang in Languages)
+            {
+                for (int i=0; i<AvailableSubs.Count; i++)
+                {
+                    if (ids.Contains(i)) continue;
+                    if (AvailableSubs[i].lang == null || AvailableSubs[i].sub == null || AvailableSubs[i].lang.ISO639 != lang.ISO639) continue;
+
+                    int curMaxId = i;
+
+                    for (int l=0; l<AvailableSubs.Count; l++)
+                    {
+                        if (ids.Contains(l)) continue;
+                        if (AvailableSubs[l].lang == null || AvailableSubs[l].sub == null || AvailableSubs[l].lang.ISO639 != lang.ISO639) continue;
+
+                        if (float.Parse(AvailableSubs[l].sub.SubRating) > float.Parse(AvailableSubs[curMaxId].sub.SubRating)) curMaxId = l;
+                    }
+
+                    ids.Add(curMaxId);
+                }
+
+                for (int i=0; i<AvailableSubs.Count; i++)
+                    if (AvailableSubs[i].lang != null && AvailableSubs[i].lang.ISO639 == lang.ISO639 && !ids.Contains(i)) ids.Add(i);
+
+            }
+
+            for (int i=0; i<AvailableSubs.Count; i++)
+                if (AvailableSubs[i].lang == null) ids.Add(i);
+
+            for (int i=0; i<ids.Count; i++)
+                sortedList.Add(AvailableSubs[ids[i]]);
+            
+            AvailableSubs = sortedList;
+        }
+        public void OpenNextAvailableSub()
+        {
+            bool allused = true;
+
+            // Find best match (lang priority - not already used - rating?)
+            foreach (Language lang in Languages)
+            {
+                for (int i=0; i<AvailableSubs.Count; i++)
+                {
+                    if (!AvailableSubs[i].used) allused = false;
+                    if (!AvailableSubs[i].used && AvailableSubs[i].lang?.IdSubLanguage == lang.IdSubLanguage)
+                    {
+                        renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {lang.LanguageName})");
+                        OpenSubs(i);
+                        return;
+                    }
+                }
+            }
+
+            // Reset used and start from the beggining
+            if (allused && AvailableSubs.Count > 0 && Languages.Count > 0)
+            {
+                for (int i=0; i<AvailableSubs.Count; i++)
+                {
+                    SubAvailable sub = AvailableSubs[i];
+                    sub.used = false;
+                    AvailableSubs[i] = sub;
+                }
+                OpenNextAvailableSub();
+            }
+        }
+        public void OpenSubs(int availableIndex)
+        {
+            SubAvailable sub = AvailableSubs[availableIndex];
+
+            if (sub.streamIndex > 0)
+            {
+                sFrames = new ConcurrentQueue<MediaFrame>();
+                decoder.video.EnableEmbeddedSubs(sub.streamIndex);
+            }
+            else if (sub.sub != null)
+            {
+                if (sub.sub.AvailableAt != null)
+                    OpenSubs(sub.sub.AvailableAt);
+                else
+                {
+                    sub.sub.Download();
+                    OpenSubs(sub.sub.AvailableAt);
+                }
+            }
+            else if (sub.path != null)
+            {
+                OpenSubs(sub.path);
+            }
+
+            sub.used = true;
+            AvailableSubs[availableIndex] = sub;
+            CurSubId = availableIndex;
+        }
+        public int  OpenSubs(string url)
+        {
+            if (!decoder.isReady) return -1;
+
+            int ret = 0;
+            subsExternalDelay = 0;
+            sFrames = new ConcurrentQueue<MediaFrame>();
+
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
+
+            decoder.video.DisableEmbeddedSubs();
+
+            foreach (SubAvailable sub in AvailableSubs)
+                if (sub.path != null && sub.path.ToLower() == url.ToLower()) { AvailableSubs.Remove(sub); break; }
+
+            if ((ret = decoder.Open("", "", url)) != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return ret; }
+
+            bool exists = false;
+            //foreach (SubAvailable sub in availableSubs)
+            for (int i=0; i<AvailableSubs.Count; i++)
+                if (AvailableSubs[i].sub != null && AvailableSubs[i].sub.AvailableAt?.ToLower() == url.ToLower()) { exists = true; CurSubId=i; }
+            
+            if (!exists) { AvailableSubs.Add(new SubAvailable(null, url)); CurSubId = AvailableSubs.Count-1; } // TODO Detect
+
+            return 0;
         }
         #endregion
 
@@ -1028,11 +996,36 @@ namespace SuRGeoNix.Flyleaf
             openOrBuffer.SetApartmentState(ApartmentState.STA);
             openOrBuffer.Start();
         }
-        public void StopMediaStreamer()         { if ( Plugins.Contains("Torrent Streaming") && streamer != null ) { streamer.Stop(); streamer = null; } }
+        public void StopMediaStreamer() { if ( Plugins.Contains("Torrent Streaming") && streamer != null ) { streamer.Dispose(); streamer = null; } }
         #endregion
 
         #region Misc
-        private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] {msg}"); }
+        private void ShowOneFrame()
+        {
+            //ClearMediaFrames();
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
+
+            decoder.video.DecodeFrame();
+            //decoder.subs.DecodeFrame(); requires resync | only embedded
+
+            if (vFrames.Count > 0)
+            {
+                MediaFrame vFrame = null;
+                vFrames.TryDequeue(out vFrame);
+                renderer.PresentFrame(vFrame);
+            }
+
+            // should also check timestamp based on vFrame.timestamp
+            //if (sFrames.Count > 0 && hasSubs && doSubs)
+            //{
+            //    MediaFrame sFrame = null;
+            //    sFrames.TryPeek(out sFrame);
+            //    renderer.NewMessage(OSDMessage.Type.Subtitles, sFrame.text, sFrame.subStyles, sFrame.duration);
+            //}
+
+            return;
+        }
+        public void Render() { renderer.PresentFrame(null); }
         internal void ClearMediaFrames()
         {
             ClearVideoFrames();
@@ -1084,6 +1077,8 @@ namespace SuRGeoNix.Flyleaf
             Log($"[Aborting All Threads] END");
         }
         
+        private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] {msg}"); }
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage"), SuppressUnmanagedCodeSecurity]
         [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod", SetLastError = true)]
         public static extern uint TimeBeginPeriod(uint uMilliseconds);

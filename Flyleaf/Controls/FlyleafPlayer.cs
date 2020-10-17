@@ -32,8 +32,9 @@ namespace SuRGeoNix.Flyleaf.Controls
         int     seekSum, seekStep;
         bool    seeking;
 
-        static int      cursorHideTimes = 0;
-        static object   cursorHideTimesLocker = new object();
+        static int      TIMER_INTERVAL          = 400;
+        static int      cursorHideTimes         = 0;
+        static object   cursorHideTimesLocker   = new object();
 
         #region Initializing / Disposing
         private void OnLoad(object sender, EventArgs e) { 
@@ -190,9 +191,9 @@ namespace SuRGeoNix.Flyleaf.Controls
                 lvSubs.KeyPress                 += lvSubs_KeyPress;
             }
 
-            if (config.main.AllowDrop)       HandlersDragDrop();
+            if (config.main.AllowDrop)              HandlersDragDrop();
 
-            if (config.keys._Enabled)   HandlersKeyboard();
+            if (config.keys._Enabled)               HandlersKeyboard();
 
             if (config.main.AllowFullScreen)
                 MouseDoubleClick += (o, e) =>   {   FullScreenToggle(); };
@@ -207,8 +208,8 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 if (config.hookForm.HookKeys)       FormHandlersKeyboard();
                 if (config.hookForm.AllowResize)    FormHandlersMouse();
-                if (config.main.AllowDrop)               FormHandlersDragDrop();
-                if (config.main.AllowFullScreen)         form.MouseDoubleClick += (o, e) => { FullScreenToggle(); };
+                if (config.main.AllowDrop)          FormHandlersDragDrop();
+                if (config.main.AllowFullScreen)    form.MouseDoubleClick += (o, e) => { FullScreenToggle(); };
             }
             
             if (!config.hookForm.AllowResize || !config.hookForm._Enabled) MouseMove += FlyLeaf_MouseMove;
@@ -220,7 +221,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             userActivity                = DateTime.UtcNow.Ticks;
             userFullActivity            = userActivity;
 
-            timer                       = new Timer(100);
+            timer                       = new Timer(TIMER_INTERVAL);
             timer.SynchronizingObject   = this;
             timer.AutoReset             = true;
             timer.Elapsed               += Timer_Elapsed;
@@ -380,7 +381,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         #endregion
 
         #region Implementation Main
-        List<string> movieExts = new List<string>() { "mp4", "mkv", "mpg", "mpeg" , "mpv", "mp4p", "mpe" , "m2v", "amv" , "asf", "m4v", "3gp", "ogg", "vob", "ts", "rm", "3g2", "f4v", "f4a", "f4p", "f4b", "mts", "m2ts", "gifv", "avi", "mov", "flv", "wmv", "qt", "avchd", "swf"};
+        List<string> movieExts = new List<string>() { "mp4", "m4v", "m4e", "mkv", "mpg", "mpeg" , "mpv", "mp4p", "mpe" , "m1v", "m2ts", "m2p", "m2v", "movhd", "moov", "movie", "movx", "mjp", "mjpeg", "mjpg", "amv" , "asf", "m4v", "3gp", "ogm", "ogg", "vob", "ts", "rm", "3gp", "3gp2", "3gpp", "3g2", "f4v", "f4a", "f4p", "f4b", "mts", "m2ts", "gifv", "avi", "mov", "flv", "wmv", "qt", "avchd", "swf", "cam", "nsv", "ram", "rm", "x264", "xvid", "wmx", "wvx", "wx", "video", "viv", "vivo", "vid", "dat", "bik", "bix", "dmf", "divx" };
         public void Open(string url)
         {
             bool isSubs             = false;
@@ -1003,9 +1004,9 @@ namespace SuRGeoNix.Flyleaf.Controls
                     lvSubs.BeginUpdate();
                     lvSubs.Items.Clear();
 
-                    for (int i = 0; i < player.availableSubs.Count; i++)
+                    for (int i = 0; i < player.AvailableSubs.Count; i++)
                     {
-                        SubAvailable sub = player.availableSubs[i];
+                        SubAvailable sub = player.AvailableSubs[i];
                         string name = sub.sub != null ? sub.sub.SubFileName : sub.path != null ? sub.path : "";
                         string lang = sub.lang != null ? sub.lang.LanguageName : "Unknown";
                         string rating = sub.sub != null ? sub.sub.SubRating : "0.0";

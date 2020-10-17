@@ -155,7 +155,7 @@ namespace SuRGeoNix.Flyleaf
         public bool hasVideo        { get; private set; }
         public bool hasSubs         { get; private set; }
 
-        bool _doAudio;
+        bool _doAudio = true;
         public bool doAudio         { 
             get { return _doAudio; }
 
@@ -188,7 +188,7 @@ namespace SuRGeoNix.Flyleaf
                 player.aFrames = new System.Collections.Concurrent.ConcurrentQueue<MediaFrame>();
             }
         }
-        bool _doSubs;
+        bool _doSubs = true;
         public bool doSubs          { 
             get { return _doSubs; }
 
@@ -382,7 +382,7 @@ namespace SuRGeoNix.Flyleaf
                             if (BytePtrToStringUTF8(b->key).ToLower() == "language")
                                 lang = BytePtrToStringUTF8(b->value);
                         }
-                        player.availableSubs.Add(new SubAvailable(Language.Get(lang), i));
+                        player.AvailableSubs.Add(new SubAvailable(Language.Get(lang), i));
                     }
                 }
             }
@@ -599,6 +599,32 @@ namespace SuRGeoNix.Flyleaf
                     dec.sTimbebaseLowTicks = av_q2d(dec.sStream->time_base) * 10000 * 1000;
                 }
             }
+            public List<int> GetRegisteredStreams()
+            {
+                List<int> streams = new List<int>();
+                for (int i=0; i<fmtCtx->nb_streams; i++)
+                    if (fmtCtx->streams[i]->discard != AVDiscard.AVDISCARD_ALL) streams.Add(i);
+
+                return streams;
+            }
+
+            public void RegisterStreams(List<int> streams)
+            {
+                activeStreamIds = new List<int>();
+                for (int i=0; i<fmtCtx->nb_streams; i++)
+                {
+                    if (streams.Contains(i))
+                    {
+                        fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_DEFAULT;
+                        activeStreamIds.Add(i);
+                    }
+                    else
+                    {
+                        fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                    }
+                }            
+            }
+
 
             public void Dispose()
             {
@@ -616,7 +642,7 @@ namespace SuRGeoNix.Flyleaf
                     dec.vCodecCtx = null;
                     dec.sCodecCtx = null;
 
-                    dec.player.availableSubs = new List<SubAvailable>();
+                    dec.player.AvailableSubs = new List<SubAvailable>();
                 }
                 else if (type == AVMEDIA_TYPE_AUDIO)
                 {
@@ -737,6 +763,9 @@ namespace SuRGeoNix.Flyleaf
                 runThread.SetApartmentState(ApartmentState.STA);
                 runThread.Start();
             }
+            #endregion 
+
+            #region Main Implementation
             public void BufferPackets(int fromMs, int duration)
             {
                 if (!isReady) return;
@@ -749,23 +778,24 @@ namespace SuRGeoNix.Flyleaf
                     status = Status.RUNNING;
                     Log(status.ToString());
 
-                    
                     bool        informed        = false;
                     double      fromTimestamp   = -1;
                     double      curTimestamp    =  0;
                     double      endTimestamp    = (fromMs + duration) / 1000.0;
                     List<int>   doneStreams     = new List<int>();
 
-                    while (isRunning)
+                    long        informInterval  = 0; // To avoid spamming threads & rendering
+
+                    while (isRunning && ret == 0)
                     {
                         av_packet_unref(pkt);
                         ret = av_read_frame(fmtCtx, pkt);
 
                         if (doneStreams.Count == activeStreamIds.Count)
                         {
-                            if (informed) { Thread.Sleep(12); continue; }
-                            dec.BufferingDone?.BeginInvoke(true, 1, null, null);
+                            if (informed) continue;
                             informed = true;
+                            dec.BufferingDone?.BeginInvoke(true, 1, null, null);
                             Log($"Buffering success to -> {Utils.TicksToTime((long)(pkt->dts * av_q2d(fmtCtx->streams[pkt->stream_index]->time_base) * 1000 * (long)10000))} | Requested for {Utils.TicksToTime((long) (endTimestamp * 1000 * (long)10000))}");
                         }
 
@@ -777,18 +807,20 @@ namespace SuRGeoNix.Flyleaf
 
                         if ( curTimestamp > endTimestamp) 
                             doneStreams.Add(pkt->stream_index);
-                        else
+                        else if (DateTime.UtcNow.Ticks - informInterval > 500000) // 200ms interval for buffering stats update
+                        {
+                            informInterval = DateTime.UtcNow.Ticks;
                             dec.BufferingDone?.BeginInvoke(false, (curTimestamp - fromTimestamp) / (endTimestamp - fromTimestamp), null, null);
+                        }
                     }
                     status = Status.STOPPED;
                     Log(status.ToString());
+
+                    if (!informed && ret == AVERROR_EOF) dec.BufferingDone?.BeginInvoke(true, 1, null, null);
                 });
                 runThread.SetApartmentState(ApartmentState.STA);
                 runThread.Start();
             }
-            #endregion 
-
-            #region Main Implementation
             public void DecodeFrame()
             {
                 if (!isReady) return;
@@ -976,11 +1008,13 @@ namespace SuRGeoNix.Flyleaf
             {   
                 gcPrevent.Clear();
                 ioPos = 0;
-
+                
                 avio_alloc_context_read_packet IOReadPacket = (opaque, buffer, bufferSize) =>
                 {
                     try
                     {
+                        if (ioPos >= totalSize) return AVERROR_EOF;
+
                         int bytesRead   = ioPos + bufferSize > totalSize ? (int) (totalSize - ioPos) : bufferSize;
                         byte[] data     = ReadPacketClbk(ioPos, bytesRead);
                         if (data == null || data.Length < bytesRead) { Log($"[CASE 001] A Empty Data"); return -1; }
@@ -1032,7 +1066,7 @@ namespace SuRGeoNix.Flyleaf
             }
             #endregion
 
-            void Log(string msg) { if (verbosity > 0) Console.WriteLine("[DECTX " + (IOCtx == null ? "" : "BUFFER ") + $"{type}] {msg}"); }
+            void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [DECTX " + (IOCtx == null ? "" : "BUFFER ") + $"{type}] {msg}"); }
         }
         #endregion
 
@@ -1482,7 +1516,7 @@ namespace SuRGeoNix.Flyleaf
 #pragma warning restore CS0162 // Unreachable code detected
         }
 
-        private void Log(string msg) { if (verbosity > 0) Console.WriteLine("[DECODER] " + msg); }
+        private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [DECODER] {msg}"); }
         public unsafe string BytePtrToStringUTF8(byte* bytePtr)
         {
             if (bytePtr == null) return null;
