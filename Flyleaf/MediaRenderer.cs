@@ -109,18 +109,21 @@ namespace SuRGeoNix.Flyleaf
             osd.Add("tr2",  new OSDSurface(this, OSDSurface.Alignment.TOPRIGHT,     new Point(-12, 60), "Perpetua", 26));
             osd.Add("bl",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMLEFT,   new Point( 12,-12), "Perpetua", 26));
             osd.Add("br",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMRIGHT,  new Point(-12,-12), "Perpetua", 26));
-            osd.Add("bc",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMCENTER, new Point(  0,-50), "Century", 55, System.Drawing.FontStyle.Bold, FontWeight.Heavy));
+            osd.Add("bc",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMCENTER, new Point(  0,-20), "Arial",    69, System.Drawing.FontStyle.Bold, FontWeight.Heavy));
 
             foreach (var osdsurf in osd)
             {
+                osdsurf.Value.name          = osdsurf.Key;
+                osdsurf.Value.OnViewPort    = true;
                 osdsurf.Value.color         = new Color(255, 255, 0);
                 osdsurf.Value.rectColor     = new Color(78, 0, 131, 168);
                 osdsurf.Value.rectPadding   = new Padding(2, -2, 2, -2);
-                osdsurf.Value.name          = osdsurf.Key;
             }
 
-            osd["bc"].rectEnabled = false;
-            osd["bc"].color = Color.White;
+            // Subtitles Surface
+            osd["bc"].OnViewPort    = false;
+            osd["bc"].rectEnabled   = false;
+            osd["bc"].color         = Color.White;
 
             // Messages Default
             msgToSurf[OSDMessage.Type.Time]			= "tl";

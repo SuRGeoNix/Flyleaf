@@ -7,7 +7,7 @@ namespace SuRGeoNix.Flyleaf
 {
     public class OSDMessage
     {
-        public static int       DefaultDuration { get; set; } = 3500;
+        public static int       DefaultDuration { get; set; } = 4000;
 
         public Type             type;
         public string           msg;
