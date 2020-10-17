@@ -60,10 +60,10 @@ namespace SuRGeoNix.Flyleaf
         public static List<OpenSubtitles> SearchByHash(string hash, long length, Language lang = null)
         {
             if (lang == null) lang = Language.Get("eng");
+            List<OpenSubtitles> subsCopy = new List<OpenSubtitles>();
 
             if (cache.ContainsKey(hash + "|" + length + "|" + lang.IdSubLanguage))
             {
-                List<OpenSubtitles> subsCopy = new List<OpenSubtitles>();
                 foreach (OpenSubtitles sub in cache[hash + "|" + length + "|" + lang.IdSubLanguage]) subsCopy.Add(sub);
 
                 return subsCopy;
@@ -77,15 +77,15 @@ namespace SuRGeoNix.Flyleaf
                 client.DefaultRequestHeaders.Accept.Clear();
                 client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
 
-                Log($"Searching for /moviebytesize-{length}/moviehash-{hash}/sublanguageid-{lang.IdSubLanguage}");
-                resp = client.PostAsync($"{restUrl}/moviebytesize-{length}/moviehash-{hash}/sublanguageid-{lang.IdSubLanguage}", null).Result.Content.ReadAsStringAsync().Result;
-                subs = JsonConvert.DeserializeObject<List<OpenSubtitles>>(resp);
-                Log($"Search Results {subs.Count}");
-
-                cache.Add(hash + "|" + length + "|" + lang.IdSubLanguage, subs);
-
-                List<OpenSubtitles> subsCopy = new List<OpenSubtitles>();
-                foreach (OpenSubtitles sub in subs) subsCopy.Add(sub);
+                try
+                {
+                    Log($"Searching for /moviebytesize-{length}/moviehash-{hash}/sublanguageid-{lang.IdSubLanguage}");
+                    resp = client.PostAsync($"{restUrl}/moviebytesize-{length}/moviehash-{hash}/sublanguageid-{lang.IdSubLanguage}", null).Result.Content.ReadAsStringAsync().Result;
+                    subs = JsonConvert.DeserializeObject<List<OpenSubtitles>>(resp);
+                    Log($"Search Results {subs.Count}");
+                    cache.Add(hash + "|" + length + "|" + lang.IdSubLanguage, subs);
+                    foreach (OpenSubtitles sub in subs) subsCopy.Add(sub);
+                } catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
 
                 return subsCopy;
             }
@@ -93,10 +93,10 @@ namespace SuRGeoNix.Flyleaf
         public static List<OpenSubtitles> SearchByName(string name, Language lang = null)
         {
             if (lang == null) lang = Language.Get("eng");
+            List<OpenSubtitles> subsCopy = new List<OpenSubtitles>();
 
             if (cache.ContainsKey(name + "|" + lang.IdSubLanguage))
             {
-                List<OpenSubtitles> subsCopy = new List<OpenSubtitles>();
                 foreach (OpenSubtitles sub in cache[name + "|" + lang.IdSubLanguage]) subsCopy.Add(sub);
 
                 return subsCopy;
@@ -111,15 +111,16 @@ namespace SuRGeoNix.Flyleaf
                 client.DefaultRequestHeaders.Accept.Clear();
                 client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
 
-                Log($"Searching for /query-{HttpUtility.UrlEncode(file.Name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}");
-                resp = client.PostAsync($"{restUrl}/query-{HttpUtility.UrlEncode(file.Name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}", null).Result.Content.ReadAsStringAsync().Result;
-                subs = JsonConvert.DeserializeObject<List<OpenSubtitles>>(resp);
-                Log($"Search Results {subs.Count}");
+                try
+                { 
+                    Log($"Searching for /query-{HttpUtility.UrlEncode(file.Name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}");
+                    resp = client.PostAsync($"{restUrl}/query-{HttpUtility.UrlEncode(file.Name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}", null).Result.Content.ReadAsStringAsync().Result;
+                    subs = JsonConvert.DeserializeObject<List<OpenSubtitles>>(resp);
+                    Log($"Search Results {subs.Count}");
 
-                cache.Add(name + "|" + lang.IdSubLanguage, subs);
-
-                List<OpenSubtitles> subsCopy = new List<OpenSubtitles>();
-                foreach (OpenSubtitles sub in subs) subsCopy.Add(sub);
+                    cache.Add(name + "|" + lang.IdSubLanguage, subs);
+                    foreach (OpenSubtitles sub in subs) subsCopy.Add(sub);
+                } catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
 
                 return subsCopy;
             }
