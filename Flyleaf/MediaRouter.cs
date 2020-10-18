@@ -376,7 +376,7 @@ namespace SuRGeoNix.Flyleaf
 
             bool framePresented = false;
 
-            while (isPlaying && vFrames.Count < VIDEO_MIX_QUEUE_SIZE && !decoder.Finished)
+            while (isPlaying && vFrames.Count < (Duration == 0 ? VIDEO_MIX_QUEUE_SIZE * 3 : VIDEO_MIX_QUEUE_SIZE) && !decoder.Finished)
             {
                 if (!framePresented && vFrames.Count > 0)
                 {
@@ -588,6 +588,11 @@ namespace SuRGeoNix.Flyleaf
                                     aUrl = line;
                             }
 
+                            if (aUrl == vUrl) { Log("SAME URL"); aUrl = ""; } // To be tested
+
+                            Log($"[YOUTUBE-DL] Video -> {vUrl}");
+                            Log($"[YOUTUBE-DL] Audio -> {aUrl}");
+
                             if (aUrl == "" && vUrl == "")
                             {
                                 // Fall back to proper open?
@@ -604,17 +609,14 @@ namespace SuRGeoNix.Flyleaf
                         }
                         else
                         {
-                            decoder.Open(url);
-                            if (DownloadSubs == DownloadSubsMode.Files || DownloadSubs == DownloadSubsMode.FilesAndTorrents)
+                            ret = decoder.Open(url);
+                            if (ret == 0 && (DownloadSubs == DownloadSubsMode.Files || DownloadSubs == DownloadSubsMode.FilesAndTorrents))
                             {
                                 FileInfo file = new FileInfo(url);
                                 string hash = Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(file.FullName));
                                 FindAvailableSubs(file.Name, hash, file.Length);
                             }
-                            else
-                            {
-                                OpenNextAvailableSub();
-                            }
+                            else if (ret == 0) OpenNextAvailableSub();
                         }
 
                         if (!decoder.isReady) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, url, null, null); return; }
