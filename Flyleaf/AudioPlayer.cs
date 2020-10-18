@@ -60,8 +60,8 @@ namespace SuRGeoNix.Flyleaf
         }
         public void Initialize()
         {
-            lock (locker)
-            {   
+            //lock (locker)
+            //{   
                 format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
                 buffer = new BufferedWaveProvider(format);
                 buffer.BufferLength = 1500 * 1024;
@@ -75,7 +75,7 @@ namespace SuRGeoNix.Flyleaf
                 if (device != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
                 device = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
                 device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
-            }
+            //}
         }
 
         // Public Exposure
