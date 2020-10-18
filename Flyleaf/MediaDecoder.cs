@@ -226,7 +226,7 @@ namespace SuRGeoNix.Flyleaf
         public bool HighQuality     { get; set;         }
         public bool HWAccel         { get; set;         } = true;   // Requires re-open
         public bool hwAccelSuccess  { get; private set; }
-        public int  Threads         { get; set;         } = 1;      // Requires re-open
+        public int  Threads         { get; set;         } = 4;      // Requires re-open
         public int  verbosity       { get; set;         }
         #endregion
 
@@ -292,11 +292,32 @@ namespace SuRGeoNix.Flyleaf
             if (IORead != null && ioLength != 0) decCtx.IOContextConfig(IORead, ioLength);
 
             AVDictionary *opt = null;
+
+            // Required for Youtube-dl to avoid 403 Forbidden
             av_dict_set(&opt, "referer", referer, 0);
+
+            av_dict_set_int(&opt, "rtmp_buffer", 20000, 0);
+
+            //av_dict_set_int(&opt, "tcp_nodelay", 1, 0);
+            //av_dict_set_int(&opt, "buffer_size", 9000000, 0);
+
+            /* Issue with HTTP/TLS - (sample video -> https://www.youtube.com/watch?v=sExEvN1bPRo)
+             * 
+             * Required probably only for AUDIO and some specific formats?
+             * 
+             * [tls @ 0e691280] Error in the pull function.
+             * [tls @ 0e691280] The specified session has been invalidated for some reason.
+             * [DECTX AVMEDIA_TYPE_AUDIO] AVMEDIA_TYPE_UNKNOWN - Error[-0005], Msg: I/O error
+             */
+            av_dict_set_int(&opt, "reconnect", 1, 0);
+            av_dict_set_int(&opt, "reconnect_streamed", 1, 0);
+            av_dict_set_int(&opt, "reconnect_delay_max", 3, 0);
+            //av_dict_set_int(&opt, "reconnect_at_eof", 1, 0); Maybe will use this for another similar issues? | will not stop the decoders (no EOF)
 
             // set seekable to false on http options for live streaming?
             // seekable = iformat->read_seek2 ? 1 : (iformat->read_seek ? 1 : 0); ?
 
+            // TODO: beter aboard for decoder?
             //AVIOInterruptCB_callback_func interruptClbk = new AVIOInterruptCB_callback_func();
             //AVIOInterruptCB_callback InterruptClbk = (p0) => { return 0; };
 
@@ -428,6 +449,7 @@ namespace SuRGeoNix.Flyleaf
         }
         private void FormatContextDump(DecoderContext decCtx)
         {
+            Log($"[{BytePtrToStringUTF8(decCtx.fmtCtx->iformat->long_name)} | {BytePtrToStringUTF8(decCtx.fmtCtx->iformat->name)} | {BytePtrToStringUTF8(decCtx.fmtCtx->iformat->mime_type)}]");
             Log("[" + (new TimeSpan(decCtx.fmtCtx->start_time * 10)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(decCtx.fmtCtx->duration * 10)).ToString(@"hh\:mm\:ss") + "]");
 
             Log($"============================ STREAMS ===================================");
@@ -862,6 +884,13 @@ namespace SuRGeoNix.Flyleaf
                 errors = 0;
                 AVMediaType mType = AVMEDIA_TYPE_UNKNOWN;
                 
+                /* TODO
+                 * 
+                 * Seperate threading for Demuxing Packets & Decoding Frames
+                 * Required especially for streaming to allow demuxing continue based on required bitrate
+                 * Also thread sleeps will prevent fast demuxing as well here for now
+                 */
+
                 while (dec.isRunning && isRunning && (ret = GetNextFrame(out mType)) == 0 && errors < 200)
                 {
                     if (frame == null && mType != AVMEDIA_TYPE_SUBTITLE) continue;
@@ -896,14 +925,16 @@ namespace SuRGeoNix.Flyleaf
                             break;
                     }
 
-                    if (type == AVMEDIA_TYPE_SUBTITLE && dec.player.sFrames.Count > dec.player.SUBS_MAX_QUEUE_SIZE && dec.isRunning)
+                    while   (type == AVMEDIA_TYPE_SUBTITLE  && dec.isRunning && dec.player.sFrames.Count > dec.player.SUBS_MAX_QUEUE_SIZE)
                         Thread.Sleep(70);
 
-                    while (type == AVMEDIA_TYPE_AUDIO && dec.player.aFrames.Count > dec.player.AUDIO_MAX_QUEUE_SIZE && dec.isRunning)
-                        Thread.Sleep(30);
+                    while   (type == AVMEDIA_TYPE_AUDIO     && dec.isRunning && dec.player.aFrames.Count > dec.player.AUDIO_MAX_QUEUE_SIZE)
+                        Thread.Sleep(20);
 
-                    while (type == AVMEDIA_TYPE_VIDEO && dec.player.vFrames.Count > dec.player.VIDEO_MAX_QUEUE_SIZE && dec.isRunning)
-                        Thread.Sleep(30);
+                    // We use 3 * max queue size for live streaming (currently live stream means duration = 0 | possible check if hls?)
+                    // We need to ensure that we have also enough Audio Samples (for embedded audio stream) - is it possible to calculate this?
+                    while   (type == AVMEDIA_TYPE_VIDEO     && dec.isRunning && dec.player.vFrames.Count > (dec.player.Duration == 0 ? dec.player.VIDEO_MIX_QUEUE_SIZE * 3 : dec.player.VIDEO_MIX_QUEUE_SIZE))
+                        Thread.Sleep(5);
                 }
 
                 if (ret != 0 )
@@ -984,7 +1015,7 @@ namespace SuRGeoNix.Flyleaf
                         mType = AVMEDIA_TYPE_VIDEO;
 
                         // Couldn't find a way to do it directly [libavutil/hwcontext_d3d11va.c -> d3d11va_frames_init()] - Without it, first frame (after flush buffers) will be YUV Green screen (still happens few times) - maybe will retry with CreateQuery/GetData event
-                        if (!hwFramesInit)
+                        if (!hwFramesInit || dec.player.vFrames.Count == 0)
                         {
                             // In case GPU fails to alocate FFmpeg decoding texture
                             if (dec.hwAccelSuccess && frame->hw_frames_ctx == null) dec.hwAccelSuccess = false;
@@ -1075,6 +1106,16 @@ namespace SuRGeoNix.Flyleaf
         [SecurityCritical]
         private int ProcessVideoFrame(AVFrame* frame)
         {
+            /* TODO
+             * 
+             * Transfer all the post-process logic here (from MediaRenderer VideoProcessorBlt etc)
+             * Use only pixel shaders like the masters did it here -> 
+             * https://github.com/videolan/vlc/blob/master/modules/video_output/win32/d3d11_shaders.c
+             * https://github.com/videolan/vlc/blob/777f36c15564b076bf13af6641493d97cd5ee224/modules/video_chroma/dxgi_fmt.c
+             * https://github.com/videolan/vlc/blob/777f36c15564b076bf13af6641493d97cd5ee224/modules/video_chroma/i420_rgb_c.h
+             * https://github.com/videolan/vlc/blob/777f36c15564b076bf13af6641493d97cd5ee224/modules/video_chroma/d3d11_fmt.c
+             */
+
             int ret = 0;
 
             try

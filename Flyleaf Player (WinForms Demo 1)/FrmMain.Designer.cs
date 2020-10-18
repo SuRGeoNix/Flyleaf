@@ -173,11 +173,11 @@
             this.flyleafPlayer1._surface7.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
             this.flyleafPlayer1._video.AspectRatio = SuRGeoNix.Flyleaf.MediaRouter.ViewPorts.KEEP;
             this.flyleafPlayer1._video.CustomRatio = 1.777778F;
-            this.flyleafPlayer1._video.DecoderThreads = 1;
+            this.flyleafPlayer1._video.DecoderThreads = 4;
             this.flyleafPlayer1._video.HardwareAcceleration = true;
-            this.flyleafPlayer1._video.QueueMaxSize = 40;
-            this.flyleafPlayer1._video.QueueMinSize = 30;
-            this.flyleafPlayer1._video.VSync = true;
+            this.flyleafPlayer1._video.QueueMaxSize = 15;
+            this.flyleafPlayer1._video.QueueMinSize = 10;
+            this.flyleafPlayer1._video.VSync = false;
             this.flyleafPlayer1.AllowDrop = true;
             this.flyleafPlayer1.BackColor = System.Drawing.Color.Black;
             this.flyleafPlayer1.Dock = System.Windows.Forms.DockStyle.Fill;
