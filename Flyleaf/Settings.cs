@@ -45,6 +45,10 @@ namespace SuRGeoNix.Flyleaf
             public Color        ClearBackColor      { get; set; }
             public int          MessagesDuration    { get; set; }
             public int          BufferingDuration   { get; set; }
+            public bool         DownloadNext        { get; set; }
+
+            public bool         ShutdownOnFinish    { get; set; }
+            public int          ShutdownAfterIdle   { get; set; }
         }
 
         public class Audio
@@ -141,27 +145,27 @@ namespace SuRGeoNix.Flyleaf
             return "";
         }
         public static OSDSurfaces StringToEnum(string surface)
+        {
+            switch (surface)
             {
-                switch (surface)
-                {
-                    case "tl":
-	                    return OSDSurfaces.TopLeft;
-                    case "tr":
-	                    return OSDSurfaces.TopRight;
-                    case "tl2":
-	                    return OSDSurfaces.TopLeft2;
-                    case "tr2":
-	                    return OSDSurfaces.TopRight2;
-                    case "bl":
-	                    return OSDSurfaces.BottomLeft;
-                    case "br":
-	                    return OSDSurfaces.BottomRight;
-                    case "bc":
-	                    return OSDSurfaces.BottomCenter;
-                }
-
-                return OSDSurfaces.TopLeft;
+                case "tl":
+	                return OSDSurfaces.TopLeft;
+                case "tr":
+	                return OSDSurfaces.TopRight;
+                case "tl2":
+	                return OSDSurfaces.TopLeft2;
+                case "tr2":
+	                return OSDSurfaces.TopRight2;
+                case "bl":
+	                return OSDSurfaces.BottomLeft;
+                case "br":
+	                return OSDSurfaces.BottomRight;
+                case "bc":
+	                return OSDSurfaces.BottomCenter;
             }
+
+            return OSDSurfaces.TopLeft;
+        }
 
         private Settings() { }
         public Settings(MediaRouter player)
@@ -229,6 +233,10 @@ namespace SuRGeoNix.Flyleaf
             public string       ClearBackColor2     { get { return (new ColorConverter()).ConvertToString(ClearBackColor); } set { ClearBackColor = (Color) (new ColorConverter()).ConvertFromString(value); } }
             public int          MessagesDuration    { get { return OSDMessage.DefaultDuration;  } set { OSDMessage.DefaultDuration  = value; } }
             public int          BufferingDuration   { get { return player.BufferingDuration;    } set { player.BufferingDuration    = value; } }
+            public bool             DownloadNext    { get { return player.DownloadNext;         } set { player.DownloadNext         = value; } }
+
+            public bool         ShutdownOnFinish    { get; set; } = false;
+            public int          ShutdownAfterIdle   { get; set; } = 300;
         }
         [Serializable]
         [Category("Flyleaf UI")]
@@ -383,7 +391,6 @@ namespace SuRGeoNix.Flyleaf
             public Color    RectColor   { get { return surfaces[0].RectColor;   } set { foreach (var osdsurf in renderer.osd) if (osdsurf.Key != "bc")  { osdsurf.Value.BackColor   = value; renderer.HookResized(null,null);  } } }
             [XmlIgnore]
             public Padding  RectPadding { get { return surfaces[0].RectPadding; } set { foreach (var osdsurf in renderer.osd) if (osdsurf.Key != "bc")  { osdsurf.Value.rectPadding = value; renderer.HookResized(null,null); } } }
-                
         }
 
         [Serializable]
@@ -478,6 +485,65 @@ namespace SuRGeoNix.Flyleaf
             }
         }
 
+        public static void ParseSettings(Settings config, SettingsLoad load)
+        {
+            //if (load == null) load = new SettingsLoad();
+
+            load.main.AllowDrop               = config.main.AllowDrop;
+            load.main.AllowFullScreen         = config.main.AllowFullScreen;
+            load.main.AllowTorrents           = config.main.AllowTorrents;
+            load.main.ClearBackColor          = config.main.ClearBackColor;
+            load.main.EmbeddedList            = config.main.EmbeddedList;
+            load.main.HideCursor              = config.main.HideCursor;
+            load.main.IdleTimeout             = config.main.IdleTimeout;
+            load.main.MessagesDuration        = config.main.MessagesDuration;
+            load.main.BufferingDuration       = config.main.BufferingDuration;
+            load.main.DownloadNext            = config.main.DownloadNext;
+            load.main.ShutdownOnFinish        = config.main.ShutdownOnFinish;
+            load.main.ShutdownAfterIdle       = config.main.ShutdownAfterIdle;
+
+            load.bar                          = config.bar;
+            load.keys                         = config.keys;
+            load.hookForm                     = config.hookForm;
+
+            load.audio._Enabled               = config.audio._Enabled;
+
+            load.subtitles._Enabled           = config.subtitles._Enabled;
+            load.subtitles.Languages          = config.subtitles.Languages;
+            load.subtitles.DownloadSubs       = config.subtitles.DownloadSubs;
+
+            load.video.AspectRatio            = config.video.AspectRatio;
+            load.video.CustomRatio            = config.video.CustomRatio;
+            load.video.HardwareAcceleration   = config.video.HardwareAcceleration;
+            load.video.VSync                  = config.video.VSync;
+            load.video.DecoderThreads         = config.video.DecoderThreads;
+            load.video.QueueMinSize           = config.video.QueueMinSize;
+            load.video.QueueMaxSize           = config.video.QueueMaxSize;
+
+            load.surfaces = new SettingsLoad.Surface[config.surfaces.Length];
+
+            for (int i=0; i<config.surfaces.Length; i++)
+            {
+                load.surfaces[i] = new SettingsLoad.Surface();
+                load.surfaces[i].Color2       = config.surfaces[i].Color2;
+                load.surfaces[i].Font2        = config.surfaces[i].Font2;
+                load.surfaces[i].OnViewPort   = config.surfaces[i].OnViewPort;
+                load.surfaces[i].Position     = config.surfaces[i].Position;
+                load.surfaces[i].RectColor2   = config.surfaces[i].RectColor2;
+                load.surfaces[i].RectEnabled  = config.surfaces[i].RectEnabled;
+                load.surfaces[i].RectPadding  = config.surfaces[i].RectPadding;
+            }
+
+            load.messages = new SettingsLoad.Message[config.messages.Length];
+
+            for (int i=0; i<config.messages.Length; i++)
+            {
+                load.messages[i] = new SettingsLoad.Message();
+                load.messages[i].Visibility   = config.messages[i].Visibility;
+                load.messages[i].Surface      = config.messages[i].Surface;
+            }
+
+        }
         public static void ParseSettings(SettingsLoad load, Settings config)
         {
             config.main.AllowDrop               = load.main.AllowDrop;
@@ -488,6 +554,10 @@ namespace SuRGeoNix.Flyleaf
             config.main.HideCursor              = load.main.HideCursor;
             config.main.IdleTimeout             = load.main.IdleTimeout;
             config.main.MessagesDuration        = load.main.MessagesDuration;
+            config.main.BufferingDuration       = load.main.BufferingDuration;
+            config.main.DownloadNext            = load.main.DownloadNext;
+            config.main.ShutdownOnFinish        = load.main.ShutdownOnFinish;
+            config.main.ShutdownAfterIdle       = load.main.ShutdownAfterIdle;
 
             config.bar                          = load.bar;
             config.keys                         = load.keys;

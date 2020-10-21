@@ -150,6 +150,8 @@ namespace SuRGeoNix.Flyleaf
         public bool isStopped       => status == Status.STOPPED;
         public bool isReady         { get; private set; }
         public bool Finished        { get; private set; }
+        public bool isForBuffering  { get; set; }
+
 
         public bool hasAudio        { get; private set; }
         public bool hasVideo        { get; private set; }
@@ -160,7 +162,9 @@ namespace SuRGeoNix.Flyleaf
             get { return _doAudio; }
 
             set
-            { 
+            {
+                if (_doAudio == value) return;
+
                 _doAudio = value;
 
                 if (aStream == null) return;
@@ -193,7 +197,9 @@ namespace SuRGeoNix.Flyleaf
             get { return _doSubs; }
 
             set
-            { 
+            {
+                if (_doSubs == value) return;
+
                 _doSubs = value;
 
                 if (sStream == null) return;
@@ -295,11 +301,6 @@ namespace SuRGeoNix.Flyleaf
 
             // Required for Youtube-dl to avoid 403 Forbidden
             av_dict_set(&opt, "referer", referer, 0);
-
-            av_dict_set_int(&opt, "rtmp_buffer", 20000, 0);
-
-            //av_dict_set_int(&opt, "tcp_nodelay", 1, 0);
-            //av_dict_set_int(&opt, "buffer_size", 9000000, 0);
 
             /* Issue with HTTP/TLS - (sample video -> https://www.youtube.com/watch?v=sExEvN1bPRo)
              * 
@@ -485,9 +486,9 @@ namespace SuRGeoNix.Flyleaf
             //av_dump_format(decCtx.fmtCtx, 0, url, 0);
         }
 
-        public void Seek(long ms, bool onlyVideo = false)
+        public void Seek(long ms, bool onlyVideo = false, bool foreward = false)
         {
-            video?.Seek(ms);
+            video?.Seek(ms, foreward);
             if (onlyVideo) return;
 
             ReSync();
@@ -708,7 +709,7 @@ namespace SuRGeoNix.Flyleaf
                     if(dec.player.isPlaying) dec.subs ?.Run();
                 }
             }
-            public void Seek(long ms, bool seek2any = false)
+            public void Seek(long ms, bool foreward = false, bool seek2any = false)
             {
                 if (!isReady) return;
 
@@ -726,16 +727,23 @@ namespace SuRGeoNix.Flyleaf
 
                 if (type == AVMEDIA_TYPE_VIDEO)
                 {
-                    dec.player.ClearMediaFrames();
+                    if (!dec.isForBuffering)
+                    {
+                        dec.player.ClearMediaFrames();
+                        if (dec.hasAudio) avcodec_flush_buffers(dec.aCodecCtx);
+                        if (dec.hasSubs ) avcodec_flush_buffers(fmtCtx->streams[dec.sStream->index]->codec);
+
+                        requiresResync  = true;
+                    }
+
                     dec.Finished    = false;
                     hwFramesInit    = false;
-                    requiresResync  = true;
-
                     avcodec_flush_buffers(dec.vCodecCtx);
-                    if (dec.hasAudio) avcodec_flush_buffers(dec.aCodecCtx);
-                    if (dec.hasSubs ) avcodec_flush_buffers(fmtCtx->streams[dec.sStream->index]->codec); //fmtCtx->streams[dec.sStream->index]->codec
+                    
                     if (seek2any)
                         avformat_seek_file(fmtCtx, -1, Int64.MinValue, ms * 1000, ms * 1000, AVSEEK_FLAG_ANY);
+                    else if (foreward)
+                        av_seek_frame(fmtCtx, -1, ms * 1000, AVSEEK_FLAG_FRAME);
                     else
                         av_seek_frame(fmtCtx, -1, ms * 1000, AVSEEK_FLAG_BACKWARD);
                 }
@@ -788,11 +796,11 @@ namespace SuRGeoNix.Flyleaf
             #endregion 
 
             #region Main Implementation
-            public void BufferPackets(int fromMs, int duration)
+            public void BufferPackets(int fromMs, int duration, bool foreward = false)
             {
                 if (!isReady) return;
 
-                Seek(fromMs, false); // Making sure it will start at the same point as the main decoder (I/B/P)
+                Seek(fromMs, foreward); // Making sure it will start at the same point as the main decoder (I/B/P)
 
                 runThread = new Thread(() =>
                 {
@@ -940,7 +948,7 @@ namespace SuRGeoNix.Flyleaf
                 if (ret != 0 )
                 {
                     if (ret != AVERROR_EOF) Log(mType.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret));
-                    if (type == AVMEDIA_TYPE_VIDEO) { requiresResync  = true; dec.Finished = true; }
+                    if (type == AVMEDIA_TYPE_VIDEO) { requiresResync  = dec.isForBuffering ? false : true; dec.Finished = true; }
                 }
 
                 if (errors == 200) Log(mType.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: Too many errors");
@@ -1097,7 +1105,7 @@ namespace SuRGeoNix.Flyleaf
             }
             #endregion
 
-            void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [DECTX " + (IOCtx == null ? "" : "BUFFER ") + $"{type}] {msg}"); }
+            void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [DECTX " + (dec.isForBuffering ? "BUFFER " : "") + $"{type}] {msg}"); }
         }
         #endregion
 
