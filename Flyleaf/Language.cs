@@ -27,7 +27,7 @@ namespace SuRGeoNix.Flyleaf
             this.WebEnabled     = WebEnabled;
         }
 
-        private static readonly List<Language> languages = new List<Language>()
+        public static readonly List<Language> Languages = new List<Language>()
         {
             new Language("aar","aa","Afar, afar","0","0"),
             new Language("abk","ab","Abkhazian","1","0"),
@@ -514,7 +514,7 @@ namespace SuRGeoNix.Flyleaf
         {
             if (name == null) return null;
 
-            var res = languages.Where(lang => lang.ISO639 == name.ToLower() || lang.IdSubLanguage == name.ToLower() || lang.LanguageName.ToLower() == name.ToLower()).ToList();
+            var res = Languages.Where(lang => lang.ISO639 == name.ToLower() || lang.IdSubLanguage == name.ToLower() || lang.LanguageName.ToLower() == name.ToLower()).ToList();
             if (res.Count > 0) return res.ElementAt(0);
 
             return null;

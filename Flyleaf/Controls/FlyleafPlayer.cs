@@ -32,6 +32,10 @@ namespace SuRGeoNix.Flyleaf.Controls
         int     seekSum, seekStep;
         bool    seeking;
 
+        bool    shutdownCancelled;
+        long    shutdownCountDown = -1;
+
+
         static int      TIMER_INTERVAL          = 400;
         static int      cursorHideTimes         = 0;
         static object   cursorHideTimesLocker   = new object();
@@ -228,8 +232,18 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             if (!File.Exists("SettingsDefault.xml")) Settings.SaveSettings(config,      "SettingsDefault.xml");
             if (!File.Exists("SettingsUser.xml"))    File.Copy("SettingsDefault.xml",   "SettingsUser.xml");
-            Settings.ParseSettings(Settings.LoadSettings(), config);
+
+            userDefault     = Settings.LoadSettings();
+            systemDefault   = Settings.LoadSettings("SettingsDefault.xml");
+
+            Settings.ParseSettings(userDefault, config);
             SettingsChanged();
+
+            if (config.main.EmbeddedList)
+            {
+                frmSettings = new FrmSettings(systemDefault, userDefault, config);
+                ContextMenuStrip = menu;
+            }
 
             timer.Start();
             player.Render();
@@ -261,6 +275,21 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             if (resizing) tblBar.Visible = false;
 
+            if (config.main.ShutdownOnFinish && !shutdownCancelled && curActivityMode == ActivityMode.Idle && player.decoder.Finished && !player.isPlaying)
+            {
+                if (shutdownCountDown == -1) shutdownCountDown = DateTime.UtcNow.Ticks;
+
+                long distance = (config.main.ShutdownAfterIdle * 1000 * 10000) - (DateTime.UtcNow.Ticks - shutdownCountDown);
+                //long distance = (config.main.ShutdownAfterIdle * 1000 * 10000) - (Utils.GetLastInputTime() * 10000); // To check inactivity before flyleaf's idle
+                player.renderer.NewMessage(OSDMessage.Type.Failed, "Shutdown in " + (new TimeSpan(distance)).ToString(@"hh\:mm\:ss"));
+
+                if (distance < 0)
+                {
+                    Utils.Shutdown();
+                    form?.Close();
+                }
+            }
+
             if (!player.isPlaying) return;
 
             if (!seeking)
@@ -284,6 +313,8 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             if (InvokeRequired) { BeginInvoke(new Action(() => GoIdle())); return; }
 
+            if (frmSettings != null && frmSettings.Visible) return;
+
             player.Activity = ActivityMode.Idle;
 
             if (config.main.HideCursor)
@@ -300,11 +331,15 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         private void GoActive()
         {
+            if (shutdownCountDown != -1) shutdownCancelled = true;
+
             player.Activity = ActivityMode.Active;
             ToggleBarVisibility();
         }
         private void GoFullActive()
         {
+            if (shutdownCountDown != -1) shutdownCancelled = true;
+
             if (InvokeRequired) { BeginInvoke(new Action(() => GoFullActive())); return; }
 
             player.Activity = ActivityMode.FullActive;
@@ -358,7 +393,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             lstMediaFiles.BeginUpdate();
             lstMediaFiles.Items.Clear();
             
-            mediaFiles.Sort(new NaturalStringComparer());
+            mediaFiles.Sort(new Utils.NaturalStringComparer());
             
             for (int i=0; i<mediaFiles.Count; i++)
             {
@@ -431,7 +466,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             Play();
         }
-        public void Play() { player.Play(); }
+        public void Play() { shutdownCountDown = -1; shutdownCancelled = false; player.Play(); }
         public void MuteUnmute()
         {
             if (!player.hasAudio && !config.hookForm._Enabled) return;
@@ -457,7 +492,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 tblBar.btnPlay.BackgroundImage = Properties.Resources.Pause;
                 tblBar.btnPlay.Text = " ";
-                player.Play();
+                Play();
             } 
             else
             {
@@ -732,6 +767,12 @@ namespace SuRGeoNix.Flyleaf.Controls
 
                         break;
 
+                    case Keys.C:
+                        e.SuppressKeyPress = true;
+
+                        Clipboard.SetText(player.url);
+                        break;
+
                     case Keys.S: // SeekOnSlide On/Off
                         e.SuppressKeyPress = true;
 
@@ -856,7 +897,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                     //{
                         seeking = true;
                         long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
-                        player.Seek((int)seektime, true);
+                        player.Seek((int)seektime, true, e.KeyCode == Keys.Right ? true : false);
                     //}
                     
 
@@ -1197,17 +1238,30 @@ namespace SuRGeoNix.Flyleaf.Controls
             }
         }
         
-        private void WM_LBUTTONUP()                { displayMoveSideCur = 0; resizing = false; GoFullActive(); if (lvSubs.Visible) FixLvSubs(true); if (lstMediaFiles.Visible) FixLstMedia(true); }
+        private void WM_LBUTTONUP()                { if (Form.ActiveForm != form) return; displayMoveSideCur = 0; resizing = false; GoFullActive(); if (lvSubs.Visible) FixLvSubs(true); if (lstMediaFiles.Visible) FixLstMedia(true); }
         private void WM_LBUTTONDOWN(int x, int y)  { displayMLDownPos = new Point(x, y); userFullActivity = DateTime.UtcNow.Ticks; }
         private void WM_MOUSEMOVE_MK_LBUTTON(MouseEventArgs e)
         {
             if (displayMMoveLastPos == e.Location) return;
             displayMMoveLastPos = e.Location;
 
+            if (Form.ActiveForm != form)
+            {
+                if (displayMoveSide != 0)
+                {
+                    form.Cursor = Cursors.Default;
+                    displayMoveSide = 0;
+                    displayMoveSideCur = 0;
+                }
+
+                userActivity = DateTime.UtcNow.Ticks;
+                return;
+            }
+
             userFullActivity = DateTime.UtcNow.Ticks;
 
             if (isFullScreen) return;
-
+            
             try
             {
                 if (e.Button == MouseButtons.Left) // RESIZING or MOVING
@@ -1504,7 +1558,6 @@ namespace SuRGeoNix.Flyleaf.Controls
                             form.Cursor = Cursors.Default;
                             displayMoveSide = 0;
                         }
-
                     }
                 }
             } 
@@ -1514,6 +1567,10 @@ namespace SuRGeoNix.Flyleaf.Controls
 
         #region Properties
         public bool isWPF = false;
+
+        FrmSettings frmSettings;
+        SettingsLoad systemDefault;
+        SettingsLoad userDefault;
 
         [Browsable(false)]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
@@ -1665,18 +1722,17 @@ namespace SuRGeoNix.Flyleaf.Controls
         #endregion
 
         #region Misc
-        [SuppressUnmanagedCodeSecurity]
-        internal static class SafeNativeMethods
+        private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
-            public static extern int StrCmpLogicalW(string psz1, string psz2);
+            frmSettings.Show();
         }
-        public sealed class NaturalStringComparer : IComparer<string>
+        private void subtitlesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            public int Compare(string a, string b)
-            {
-                return SafeNativeMethods.StrCmpLogicalW(a, b);
-            }
+            BtnSubs_Click(sender, e);
+        }
+        private void fileListToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            BtnPlaylist_Click(sender, e);
         }
         #endregion
     }

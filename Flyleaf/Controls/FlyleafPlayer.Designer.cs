@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.lstMediaFiles = new System.Windows.Forms.ListBox();
             this.lvSubs = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -35,7 +36,12 @@
             this.columnHeader3 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.menu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.fileListToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.subtitlesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tblBar = new SuRGeoNix.Flyleaf.Controls.FlyleafBar();
+            this.menu.SuspendLayout();
             this.SuspendLayout();
             // 
             // lstMediaFiles
@@ -97,6 +103,36 @@
             // 
             this.columnHeader5.Text = "Location";
             // 
+            // menu
+            // 
+            this.menu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.fileListToolStripMenuItem,
+            this.subtitlesToolStripMenuItem,
+            this.settingsToolStripMenuItem});
+            this.menu.Name = "menu";
+            this.menu.Size = new System.Drawing.Size(120, 70);
+            // 
+            // fileListToolStripMenuItem
+            // 
+            this.fileListToolStripMenuItem.Name = "fileListToolStripMenuItem";
+            this.fileListToolStripMenuItem.Size = new System.Drawing.Size(119, 22);
+            this.fileListToolStripMenuItem.Text = "File List";
+            this.fileListToolStripMenuItem.Click += new System.EventHandler(this.fileListToolStripMenuItem_Click);
+            // 
+            // subtitlesToolStripMenuItem
+            // 
+            this.subtitlesToolStripMenuItem.Name = "subtitlesToolStripMenuItem";
+            this.subtitlesToolStripMenuItem.Size = new System.Drawing.Size(119, 22);
+            this.subtitlesToolStripMenuItem.Text = "Subtitles";
+            this.subtitlesToolStripMenuItem.Click += new System.EventHandler(this.subtitlesToolStripMenuItem_Click);
+            // 
+            // settingsToolStripMenuItem
+            // 
+            this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
+            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(119, 22);
+            this.settingsToolStripMenuItem.Text = "Settings";
+            this.settingsToolStripMenuItem.Click += new System.EventHandler(this.settingsToolStripMenuItem_Click);
+            // 
             // tblBar
             // 
             this.tblBar.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -117,6 +153,7 @@
             this.Controls.Add(this.tblBar);
             this.Name = "FlyleafPlayer";
             this.Size = new System.Drawing.Size(499, 260);
+            this.menu.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -130,5 +167,9 @@
         private System.Windows.Forms.ColumnHeader columnHeader3;
         private System.Windows.Forms.ColumnHeader columnHeader4;
         private System.Windows.Forms.ColumnHeader columnHeader5;
+        private System.Windows.Forms.ContextMenuStrip menu;
+        private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem fileListToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem subtitlesToolStripMenuItem;
     }
 }
