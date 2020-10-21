@@ -111,6 +111,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Web" />
     <Reference Include="System.Windows.Forms" />
@@ -138,6 +139,18 @@
     </Compile>
     <Compile Include="Controls\FlyleafPlayer.Designer.cs">
       <DependentUpon>FlyleafPlayer.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\FrmLanguages.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\FrmLanguages.Designer.cs">
+      <DependentUpon>FrmLanguages.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\FrmSettings.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\FrmSettings.designer.cs">
+      <DependentUpon>FrmSettings.cs</DependentUpon>
     </Compile>
     <Compile Include="MediaDecoder.cs" />
     <Compile Include="MediaRenderer.cs" />
@@ -169,6 +182,13 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\FlyleafPlayer.resx">
       <DependentUpon>FlyleafPlayer.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\FrmLanguages.resx">
+      <DependentUpon>FrmLanguages.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\FrmSettings.resx">
+      <DependentUpon>FrmSettings.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

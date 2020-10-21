@@ -63,11 +63,14 @@
             this.flyleafPlayer1._main.AllowTorrents = true;
             this.flyleafPlayer1._main.BufferingDuration = 1800;
             this.flyleafPlayer1._main.ClearBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.flyleafPlayer1._main.DownloadNext = true;
             this.flyleafPlayer1._main.EmbeddedList = true;
             this.flyleafPlayer1._main.HideCursor = true;
             this.flyleafPlayer1._main.IdleTimeout = 7000;
             this.flyleafPlayer1._main.MessagesDuration = 4000;
             this.flyleafPlayer1._main.SampleFrame = ((System.Drawing.Bitmap)(resources.GetObject("resource.SampleFrame")));
+            this.flyleafPlayer1._main.ShutdownAfterIdle = 300;
+            this.flyleafPlayer1._main.ShutdownOnFinish = false;
             this.flyleafPlayer1._message0.Surface = SuRGeoNix.Flyleaf.Settings.OSDSurfaces.TopLeft;
             this.flyleafPlayer1._message0.Visibility = SuRGeoNix.Flyleaf.MediaRouter.VisibilityMode.OnActive;
             this.flyleafPlayer1._message1.Surface = SuRGeoNix.Flyleaf.Settings.OSDSurfaces.TopLeft2;
@@ -175,15 +178,15 @@
             this.flyleafPlayer1._video.CustomRatio = 1.777778F;
             this.flyleafPlayer1._video.DecoderThreads = 4;
             this.flyleafPlayer1._video.HardwareAcceleration = true;
-            this.flyleafPlayer1._video.QueueMaxSize = 15;
-            this.flyleafPlayer1._video.QueueMinSize = 10;
+            this.flyleafPlayer1._video.QueueMaxSize = 25;
+            this.flyleafPlayer1._video.QueueMinSize = 20;
             this.flyleafPlayer1._video.VSync = false;
             this.flyleafPlayer1.AllowDrop = true;
             this.flyleafPlayer1.BackColor = System.Drawing.Color.Black;
             this.flyleafPlayer1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flyleafPlayer1.Location = new System.Drawing.Point(0, 0);
             this.flyleafPlayer1.Name = "flyleafPlayer1";
-            this.flyleafPlayer1.Size = new System.Drawing.Size(1257, 798);
+            this.flyleafPlayer1.Size = new System.Drawing.Size(1051, 706);
             this.flyleafPlayer1.TabIndex = 0;
             this.flyleafPlayer1.TabStop = false;
             // 
@@ -193,7 +196,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoValidate = System.Windows.Forms.AutoValidate.Disable;
             this.BackColor = System.Drawing.Color.Black;
-            this.ClientSize = new System.Drawing.Size(1257, 798);
+            this.ClientSize = new System.Drawing.Size(1051, 706);
             this.Controls.Add(this.flyleafPlayer1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
