@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Windows.Forms;
 using System.Collections.Generic;
 
@@ -71,7 +72,7 @@ namespace SuRGeoNix.Flyleaf
 
         #region Properties
 
-        int vsync = 1;
+        int vsync = 0;
         public bool     VSync               { get { return vsync == 1; } set { vsync = value ? 1 : 0; } }
 
         Color clearColor = Color.Black;
@@ -583,33 +584,39 @@ namespace SuRGeoNix.Flyleaf
             // Design Mode Only?
             if (device == null) return;
 
-            lock (device)
+            // Should work better in case of frame delay (to avoid more delay on screamer)
+            if (Monitor.TryEnter(device, 4))
             {
-                if (frame != null)
-                {
-                    // NV12 | P010
-                    if      (frame.textureHW  != null)  PresentNV12P010(frame);
-                    
-                    // YUV420P
-                    else if (frame.textureY   != null)  PresentYUV(frame);
-
-                    // RGB
-                    else if (frame.textureRGB != null)  PresentRGB(frame);
-                }
-                
-                context.OutputMerger.SetRenderTargets(rtv);
-                context.ClearRenderTargetView(rtv, clearColor);
-                context.Draw(6, 0);
-
-                rtv2d.BeginDraw();
                 try
                 {
-                    PresentOSD();
-                } finally {
-                    rtv2d.EndDraw();
-                }
-                swapChain.Present(vsync, PresentFlags.None);
-            }
+                    if (frame != null)
+                    {
+                        // NV12 | P010
+                        if      (frame.textureHW  != null)  PresentNV12P010(frame);
+                    
+                        // YUV420P
+                        else if (frame.textureY   != null)  PresentYUV(frame);
+
+                        // RGB
+                        else if (frame.textureRGB != null)  PresentRGB(frame);
+                    }
+                
+                    context.OutputMerger.SetRenderTargets(rtv);
+                    context.ClearRenderTargetView(rtv, clearColor);
+                    context.Draw(6, 0);
+
+                    rtv2d.BeginDraw();
+                    try
+                    {
+                        PresentOSD();
+                    } finally {
+                        rtv2d.EndDraw();
+                    }
+                    swapChain.Present(vsync, PresentFlags.None);
+
+                } finally { Monitor.Exit(device); }
+
+            } else { Console.WriteLine("[RENDERER] Drop Frame - Lock timeout " + ( frame != null ? Utils.TicksToTime(frame.timestamp) : "")); player.ClearVideoFrame(frame); }
         }
         
         #endregion

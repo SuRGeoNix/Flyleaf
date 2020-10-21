@@ -73,7 +73,7 @@ namespace SuRGeoNix.Flyleaf
         internal ConcurrentQueue<MediaFrame>         sFrames;
 
         public int AUDIO_MIX_QUEUE_SIZE =  0;  public int AUDIO_MAX_QUEUE_SIZE =200;
-        public int VIDEO_MIX_QUEUE_SIZE = 10;  public int VIDEO_MAX_QUEUE_SIZE = 15;
+        public int VIDEO_MIX_QUEUE_SIZE = 20;  public int VIDEO_MAX_QUEUE_SIZE = 25;
         public int  SUBS_MIN_QUEUE_SIZE =  0;  public int  SUBS_MAX_QUEUE_SIZE = 50;
 
         // Idle [Activity / Visibility Mode]
@@ -90,8 +90,8 @@ namespace SuRGeoNix.Flyleaf
             Never,
             OnIdle,
             OnActive,
-            OnFullActive,
-            Other
+            OnFullActive
+            //Other
         }
         public static bool ShouldVisible(ActivityMode act, VisibilityMode vis)
         {
@@ -154,6 +154,8 @@ namespace SuRGeoNix.Flyleaf
         public bool isOpened        => status == Status.OPENED;
         public bool isReady         { get; private set; }
         public bool isTorrent       { get; private set; }
+
+        public string url           { get; private set; }
         public long CurTime         { get; private set; }
         public long SeekTime        = -1;
         public int  verbosity       { get; set; }
@@ -175,6 +177,7 @@ namespace SuRGeoNix.Flyleaf
         public bool     hasVideo        { get { return decoder.hasVideo;            } }
         public long     Duration        { get { return hasVideo ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks; } }
         public int      BufferingDuration{get; set; } = 1800; // Related with Queue sizes
+        public bool     DownloadNext    { get; set; } = true;
         public int      Width           { get { return decoder.vStreamInfo.width;   } }
         public int      Height          { get { return decoder.vStreamInfo.height;  } }
         public bool     HighQuality     { get { return decoder.HighQuality;         } set { decoder.HighQuality = value; } }
@@ -233,7 +236,7 @@ namespace SuRGeoNix.Flyleaf
         public int      PrevSubId       { get; private set; } = -1;
         public List<Language>       Languages       { get; set; } = new List<Language>();
         public List<SubAvailable>   AvailableSubs   { get; set; } = new List<SubAvailable>();
-        public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.Torrents;
+        public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.FilesAndTorrents;
         public struct SubAvailable
         {
             public Language      lang;
@@ -506,6 +509,8 @@ namespace SuRGeoNix.Flyleaf
         #region Main Actions
         public void Open(string url)
         {
+            this.url = url;
+
             lock (lockOpening)
             {
                 if (url == null || url.Trim() == "") { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed"); status = Status.FAILED; OpenTorrentSuccessClbk?.BeginInvoke(false, null, null); return; }
@@ -561,7 +566,7 @@ namespace SuRGeoNix.Flyleaf
                                 StartInfo = new ProcessStartInfo
                                 {
                                     FileName = "youtube-dl.exe",
-                                    Arguments = "-g " + url,
+                                    Arguments = "-g \"" + url + "\"",
                                     UseShellExecute = false,
                                     RedirectStandardOutput = true,
                                     //RedirectStandardError = true,
@@ -631,7 +636,7 @@ namespace SuRGeoNix.Flyleaf
                 }
             }
         }
-        public void Play()
+        public void Play(bool foreward = false)
         { 
             if (!decoder.isReady || decoder.isRunning || isPlaying) { StatusChanged?.Invoke(this, new StatusChangedArgs(status)); return; }
 
@@ -642,7 +647,7 @@ namespace SuRGeoNix.Flyleaf
             if (isTorrent)
             {
                 status = Status.BUFFERING;
-                streamer.Buffer((int)(CurTime/10000), BufferingDuration);
+                streamer.Buffer((int)(CurTime / 10000), BufferingDuration, foreward);
                 return;
             }
 
@@ -674,7 +679,7 @@ namespace SuRGeoNix.Flyleaf
         }
 
         int prioritySeek = 0;
-        public void Seek(int ms2, bool priority = false)
+        public void Seek(int ms2, bool priority = false, bool foreward = false)
         {
             //ClearMediaFrames(); return; | For Unseekable - Live Stream | FormatContext flush / reopen?
 
@@ -722,7 +727,7 @@ namespace SuRGeoNix.Flyleaf
                             if (Interlocked.Equals(prioritySeek, 1)) return;
 
                             CurTime = (long)ms * 10000;
-                            decoder.Seek(ms, true);
+                            decoder.Seek(ms, true, foreward);
                             if (Interlocked.Equals(prioritySeek, 1)) return;
 
                             if (seekStack.Count > 5) continue;
@@ -741,9 +746,9 @@ namespace SuRGeoNix.Flyleaf
 			        if (beforeSeeking == Status.PLAYING)
                     {
                         if (Interlocked.Equals(prioritySeek, 1)) return; 
-                        Play();
+                        Play(foreward);
                     }
-                    else if ( isTorrent ) streamer.Buffer((int)(CurTime/10000), BufferingDuration);
+                    else if ( isTorrent ) streamer.Buffer((int)(CurTime / 10000), BufferingDuration, foreward);
 		        }
             });
 	        seekRequest.SetApartmentState(ApartmentState.STA);
@@ -798,7 +803,7 @@ namespace SuRGeoNix.Flyleaf
                 foreach (Language lang in Languages)
                 {
                     List<OpenSubtitles> subs =  OpenSubtitles.SearchByHash(hash, length, lang);
-                    subs.AddRange(OpenSubtitles.SearchByName(filename, lang));
+                    subs.AddRange(OpenSubtitles.SearchByName(filename, lang)); // TODO: Search with more efficient movie title
 
                     for (int i=0; i<subs.Count; i++)
                         AvailableSubs.Add(new SubAvailable(lang, subs[i]));
@@ -877,6 +882,8 @@ namespace SuRGeoNix.Flyleaf
         }
         public void OpenNextAvailableSub()
         {
+            if (AvailableSubs.Count == 0) { renderer.NewMessage(OSDMessage.Type.TopLeft2, $"No Subtitles Found"); return; }
+
             bool allused = true;
 
             // Find best match (lang priority - not already used - rating?)

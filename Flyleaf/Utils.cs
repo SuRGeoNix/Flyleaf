@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Management;
 using System.IO;
 using System.IO.Compression;
+using System.Security;
 using System.Text;
 using System.Threading;
 using System.Runtime.InteropServices;
@@ -203,5 +206,63 @@ namespace SuRGeoNix.Flyleaf
             return newFileName;
         }
         public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(@"hh\:mm\:ss\:fff"); }
+
+        public static void Shutdown()
+        {
+            ManagementBaseObject mboShutdown = null;
+            ManagementClass mcWin32 = new ManagementClass("Win32_OperatingSystem");
+            mcWin32.Get();
+
+            // You can't shutdown without security privileges
+            mcWin32.Scope.Options.EnablePrivileges = true;
+            ManagementBaseObject mboShutdownParams = mcWin32.GetMethodParameters("Win32Shutdown");
+
+             // Flag 1 means we want to shut down the system. Use "2" to reboot.
+            mboShutdownParams["Flags"] = "1";
+            mboShutdownParams["Reserved"] = "0";
+            foreach (ManagementObject manObj in mcWin32.GetInstances())
+                mboShutdown = manObj.InvokeMethod("Win32Shutdown",  mboShutdownParams, null);
+        }
+        
+        [SuppressUnmanagedCodeSecurity]
+        internal static class SafeNativeMethods
+        {
+            [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
+            public static extern int StrCmpLogicalW(string psz1, string psz2);
+        }
+        public sealed class NaturalStringComparer : IComparer<string>
+        {
+            public int Compare(string a, string b)
+            {
+                return SafeNativeMethods.StrCmpLogicalW(a, b);
+            }
+        }
+        public static long GetLastInputTime()
+        {
+            //uint idleTime = 0;
+            LASTINPUTINFO lastInputInfo = new LASTINPUTINFO();
+            lastInputInfo.cbSize = (uint)Marshal.SizeOf( lastInputInfo );
+            lastInputInfo.dwTime = 0;
+
+            uint envTicks = (uint)Environment.TickCount;
+
+            if ( GetLastInputInfo( ref lastInputInfo ) ) return envTicks - lastInputInfo.dwTime;
+            
+            return -1;
+            //return (( idleTime > 0 ) ? ( idleTime / 1000 ) : 0);
+        }
+
+        [DllImport("user32.dll")]
+        static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+        [StructLayout( LayoutKind.Sequential )]
+        struct LASTINPUTINFO
+        {
+            public static readonly int SizeOf = Marshal.SizeOf(typeof(LASTINPUTINFO));
+
+            [MarshalAs(UnmanagedType.U4)]
+            public UInt32 cbSize;    
+            [MarshalAs(UnmanagedType.U4)]
+            public UInt32 dwTime;
+        }
     }
 }
