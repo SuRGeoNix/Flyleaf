@@ -61,7 +61,7 @@ Demuxes the input file and configures the included media streams. It creates one
 
 ### Layer 1.2 - Media Streaming (MediaStreamer.cs)
 
-> <a href="https://github.com/SuRGeoNix/TorSwarm">TorSwarm</a> library (for Torrent Streaming)
+> <a href="https://github.com/SuRGeoNix/BitSwarm">BitSwarm</a> library (for Torrent Streaming)
 
 Creates a 2nd decoder with a custom AVIO Context that runs towards on 1st decoder to buffer the streamed data before actually process them.
 
@@ -99,7 +99,7 @@ FFmpeg libraries (Windows builds) are required and should be placed under Libs\\
 
 Plugins (currently "Torrent Streaming" & "Web Streaming") should exist under "Plugins" directory if you want to enable them.
 
-It seems there is a bug with System.Buffers assemblies therefore it is required for TorSwarm (Torrent Streaming) to add the below bindings (App.Config) to your application (such as this <a href="https://github.com/SuRGeoNix/Flyleaf/blob/master/Flyleaf%20Player%20(WinForms%20Demo%201)/App.config">one</a>)
+It seems there is a bug with System.Buffers assemblies therefore it is required for BitSwarm (Torrent Streaming) to add the below bindings (App.Config) to your application (such as this <a href="https://github.com/SuRGeoNix/Flyleaf/blob/master/Flyleaf%20Player%20(WinForms%20Demo%201)/App.config">one</a>)
 
 Ensure that you use Restore NuGet Packages to retrieve all the rest required libraries.
 
@@ -152,7 +152,7 @@ Ensure that you use Restore NuGet Packages to retrieve all the rest required lib
 
 * High Resulotion (>1080p) requires more testing (should check decoder's threads/flags, router's queues and thread sleep after device context flush)
 * Renderer, review post-process with more pixel shaders formats (is videoprocessorblt faster than pixelshaders? is it the same?)
-* Streaming requires reviewing for both ffmpeg's and torswarm's configuration (timing parameters) and thread aborting
+* Streaming requires reviewing for both ffmpeg's and BitSwarm's configuration (timing parameters) and thread aborting
 * Torrent streaming requires seeding & more protocols support (utp, hole-punching) also more efficient buffering
 * Subtitles when external delay forces to go back will not auto-restart
 * Audio player / Decoder requires more work to play other than 2 channels/48Khz (expose also to settings)

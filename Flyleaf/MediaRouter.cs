@@ -21,7 +21,7 @@
  * Screamer     | with less (Math.Abs(vDistanceMs - sleepMs) < 4) distance can handle better high fps (x8 speed etc)
  * Sleeps       | Screamer, DecodeFrames & BufferPackets | less sleep faster buffering and playing but more resources
  * Decoder      | Threads need more testing / required for HD videos (should also check codec's support)
- * Torrent      | Check TorSwarm Options for more connection / peers etc. timeouts / limits
+ * Torrent      | Check BitSwarm Options for more connection / peers etc. timeouts / limits
  * Contexts     | Single vs Multi - Single gives more speed especially for seeking / Multi gives more freedom mainly for delays possible issues with matroska demuxing (index entries built based on video frames) ** For Single you might run a 2nd decoder in the same context to grap the late frames use 2 pkts?
  * Delays       | NAudio default latency was 300ms dropped to 200ms means we push subs/video +200ms | on single format context has risk to loose avs frames in the same range (same for subs if we want delay) | on multi context should be no problem
  * Web Streaming| Requires more testing, by default get the best quality, should give options for lower | check also format context's options for http (and abort)
@@ -344,7 +344,7 @@ namespace SuRGeoNix.Flyleaf
         }
         private void LoadPlugins()
         {
-            PluginsList.Add("Torrent Streaming", "Plugins\\TorSwarm\\TorSwarm.dll");
+            PluginsList.Add("Torrent Streaming", "Plugins\\BitSwarm\\BitSwarm.dll");
             PluginsList.Add("Web Streaming", "Plugins\\Youtube-dl\\youtube-dl.exe");
 
             foreach (KeyValuePair<string, string> plugin in PluginsList)
