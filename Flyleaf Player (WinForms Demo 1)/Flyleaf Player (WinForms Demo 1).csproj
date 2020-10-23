@@ -150,11 +150,24 @@ if $(PlatformName) == x86 (
 if $(PlatformName) == x64 (
   xcopy "$(SolutionDir)"Libs\x64\* "$(TargetDir)"\Libs\x64\  /E /Y
 )
-
+)
+else (
+mkdir Libs
+)
 cd "$(TargetDir)"
+
+if $(ConfigurationName) == Release (
 del *.xml
 del *.pdb
+)
+
+mkdir Plugins\BitSwarm
+move BencodeNET.dll Plugins\BitSwarm
+move BitSwarm.dll Plugins\BitSwarm
+move System*.dll Plugins\BitSwarm
 move *.dll Libs
+
+if $(ConfigurationName) == Release (
 del Flyleaf.dll.config
 rename FlyleafPlayer.exe Flyleaf.exe
 rename FlyleafPlayer.exe.config Flyleaf.exe.config
