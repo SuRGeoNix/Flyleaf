@@ -1,4 +1,4 @@
-﻿/* Torrent Streaming implementation based on TorSwarm [https://github.com/SuRGeoNix/TorSwarm]
+﻿/* Torrent Streaming implementation based on BitSwarm [https://github.com/SuRGeoNix/BitSwarm]
  * 
  * by John Stamatakis
  */
@@ -8,9 +8,7 @@ using System.IO;
 using System.Threading;
 using System.Collections.Generic;
 
-using SuRGeoNix.TorSwarm;
-
-using BitSwarm = SuRGeoNix.TorSwarm.TorSwarm;
+using SuRGeoNix.BEP;
 
 namespace SuRGeoNix.Flyleaf
 {
@@ -273,7 +271,7 @@ namespace SuRGeoNix.Flyleaf
             }
             else
             {
-                // Not accurate [should calculate torswarm's downloading progress & pieces required]
+                // Not accurate [should calculate BitSwarm's downloading progress & pieces required]
                 if (diff < 0) diff = 0; else if (diff > 1) diff = 1;
                 player.renderer.NewMessage(OSDMessage.Type.Buffering, $"Loading {(int)(diff * 100)}%", null, 40000);
                 player.Render();
