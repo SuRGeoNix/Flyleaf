@@ -113,15 +113,13 @@ namespace SuRGeoNix.Flyleaf
                 torrent.file.lengths.Add(123123894);
                 torrent.file.lengths.Add(123123897);
 
-                MetadataReceived(torrent);
+                MetadataReceived(this, new BitSwarm.MetadataReceivedArgs(torrent));
 
                 status = Status.OPENED;
             }
             else if (streamType == StreamType.TORRENT)
             {
                 BitSwarm.OptionsStruct  opt = BitSwarm.GetDefaultsOptions();
-                opt.TorrentCallback     = MetadataReceived;
-                opt.StatsCallback       = Stats;
                 opt.PieceTimeout        = 4300;
                 //opt.LogStats            = true;
                 //opt.Verbosity           = 2;
@@ -133,6 +131,9 @@ namespace SuRGeoNix.Flyleaf
                     else
                         tsStream = new BitSwarm(url, opt);
                 } catch (Exception e) { Log($"[MS] BitSwarm Failed Opening Url {e.Message}\r\n{e.StackTrace}"); Initialize(); status = Status.FAILED; return -1; }
+
+                tsStream.MetadataReceived   += MetadataReceived;
+                tsStream.StatsUpdated       += Stats;
 
                 tsStream.Start();
                 sortedPaths = null;
@@ -277,21 +278,21 @@ namespace SuRGeoNix.Flyleaf
                 player.Render();
             } 
         }
-        private void Stats(BitSwarm.StatsStructure stats)
+        private void Stats(object source, BitSwarm.StatsUpdatedArgs e)
         {
             if (fileSize == 0) return;
 
             var downPercentage = (int)(((fileSize - (torrent.data.progress.GetAll0().Count * (long)torrent.file.pieceLength)) / (decimal)fileSize) * 100);
             if (downPercentage < 0) downPercentage = 0; else if (downPercentage > 100) downPercentage = 100;
 
-            player.renderer.NewMessage(OSDMessage.Type.TorrentStats, $"D: {stats.PeersDownloading} | W: {stats.PeersChoked}/{stats.PeersInQueue} | {String.Format("{0:n0}", (stats.DownRate / 1024))} KB/s | {downPercentage}%");
+            player.renderer.NewMessage(OSDMessage.Type.TorrentStats, $"D: {e.Stats.PeersDownloading} | W: {e.Stats.PeersChoked}/{e.Stats.PeersInQueue} | {String.Format("{0:n0}", (e.Stats.DownRate / 1024))} KB/s | {downPercentage}%");
 
             DownloadNext();
         }
-        private void MetadataReceived(Torrent torrent)
+        private void MetadataReceived(object source, BitSwarm.MetadataReceivedArgs e)
         {
             Log("Metadata Received");
-            this.torrent            = torrent;
+            torrent = e.Torrent;
 
             List<string>    paths   = new List<string>();
             List<long>      lengths = new List<long>();
