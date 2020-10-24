@@ -81,8 +81,8 @@
     <Reference Include="BencodeNET, Version=3.1.4.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\BencodeNET.3.1.4\lib\netstandard2.0\BencodeNET.dll</HintPath>
     </Reference>
-    <Reference Include="BitSwarm, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\BitSwarm.1.0.0\lib\netstandard2.0\BitSwarm.dll</HintPath>
+    <Reference Include="BitSwarm, Version=2.0.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\BitSwarm.2.0.2\lib\netstandard2.0\BitSwarm.dll</HintPath>
     </Reference>
     <Reference Include="ColorSlider">
       <HintPath>Libs\ColorSlider.dll</HintPath>
