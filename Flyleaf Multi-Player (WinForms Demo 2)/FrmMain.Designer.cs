@@ -86,8 +86,6 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             this.flyLeaf4._main._PreviewMode = SuRGeoNix.Flyleaf.MediaRouter.ActivityMode.FullActive;
             this.flyLeaf4._main.AllowDrop = true;
             this.flyLeaf4._main.AllowFullScreen = true;
-            this.flyLeaf4._main.AllowTorrents = true;
-            this.flyLeaf4._main.BufferingDuration = 1800;
             this.flyLeaf4._main.ClearBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
             this.flyLeaf4._main.EmbeddedList = true;
             this.flyLeaf4._main.HideCursor = false;
@@ -240,8 +238,6 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             this.flyLeaf3._main._PreviewMode = SuRGeoNix.Flyleaf.MediaRouter.ActivityMode.FullActive;
             this.flyLeaf3._main.AllowDrop = true;
             this.flyLeaf3._main.AllowFullScreen = true;
-            this.flyLeaf3._main.AllowTorrents = true;
-            this.flyLeaf3._main.BufferingDuration = 1800;
             this.flyLeaf3._main.ClearBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
             this.flyLeaf3._main.EmbeddedList = true;
             this.flyLeaf3._main.HideCursor = false;
@@ -394,8 +390,6 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             this.flyLeaf2._main._PreviewMode = SuRGeoNix.Flyleaf.MediaRouter.ActivityMode.FullActive;
             this.flyLeaf2._main.AllowDrop = true;
             this.flyLeaf2._main.AllowFullScreen = true;
-            this.flyLeaf2._main.AllowTorrents = true;
-            this.flyLeaf2._main.BufferingDuration = 1800;
             this.flyLeaf2._main.ClearBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
             this.flyLeaf2._main.EmbeddedList = true;
             this.flyLeaf2._main.HideCursor = false;
@@ -548,8 +542,6 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             this.flyLeaf1._main._PreviewMode = SuRGeoNix.Flyleaf.MediaRouter.ActivityMode.FullActive;
             this.flyLeaf1._main.AllowDrop = true;
             this.flyLeaf1._main.AllowFullScreen = true;
-            this.flyLeaf1._main.AllowTorrents = true;
-            this.flyLeaf1._main.BufferingDuration = 1800;
             this.flyLeaf1._main.ClearBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
             this.flyLeaf1._main.EmbeddedList = true;
             this.flyLeaf1._main.HideCursor = false;

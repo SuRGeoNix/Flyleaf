@@ -12,8 +12,8 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             InitializeComponent();
 
-            FormClosing += FrmLanguages_FormClosing;
-            VisibleChanged += FrmLanguages_VisibleChanged;
+            FormClosing     += FrmLanguages_FormClosing;
+            VisibleChanged  += FrmLanguages_VisibleChanged;
         }
 
         private void FrmLanguages_VisibleChanged(object sender, EventArgs e)

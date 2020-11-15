@@ -18,10 +18,24 @@ namespace SuRGeoNix.Flyleaf
         MediaDecoder            decoder;
         MediaRouter             player;
 
-        FileStream              fsStream; // For Debugging
-        BitSwarm                tsStream;
+        FileStream              fsStream;   // For Debugging
+        BitSwarm                bitSwarm;
+        BitSwarm.DefaultOptions bitSwarmOpt;
         Torrent                 torrent;
         Thread                  threadBuffer;
+        public Settings.Torrent config;     // public until we fix settings generally
+
+        public void ParseSettingsToBitSwarm()
+        {
+            if (bitSwarmOpt == null)    bitSwarmOpt = new BitSwarm.DefaultOptions();
+
+            bitSwarmOpt.SleepModeLimit  = config.SleepMode;
+            bitSwarmOpt.MinThreads      = config.MinThreads;
+            bitSwarmOpt.MaxThreads      = config.MaxThreads;
+            bitSwarmOpt.BlockRequests   = config.BlockRequests;
+            //bitSwarmOpt.PieceTimeout    = config.TimeoutGlobal;
+            //bitSwarmOpt.PieceRetries    = config.RetriesGlobal;
+        }
 
         public int              AudioExternalDelay  { get; set; }
         public int              SubsExternalDelay   { get; set; }
@@ -31,10 +45,10 @@ namespace SuRGeoNix.Flyleaf
         public Action<List<string>, List<long>> MediaFilesClbk;
         public Action<int, int, int, int>       StatsClbk;
 
-        readonly object                         lockerBuffering     = new object();
-
         public long fileSize;
+        long        fileSizeNext;
         int         fileIndex;
+        int         fileLastPiece;
         long        fileDistance;
         int         verbosity;
         List<string> sortedPaths;
@@ -70,7 +84,6 @@ namespace SuRGeoNix.Flyleaf
             decoder.HWAccel             = false;
             decoder.Threads             = 1;
             decoder.BufferingDone       = BufferingDone;
-            
         }
         public void Initialize()
         {
@@ -80,13 +93,13 @@ namespace SuRGeoNix.Flyleaf
             fileDistance    = -1;
             status          = Status.STOPPED;
 
-            tsStream?.Dispose(); tsStream = null;
+            bitSwarm?.Dispose(); bitSwarm = null;
         }
         public void Dispose()  { Initialize(); }
         public void Pause()
         {
             decoder.Pause();
-            status = Status.STOPPED; 
+            status = Status.STOPPED;
             Utils.EnsureThreadDone(threadBuffer);
         }
         #endregion
@@ -119,25 +132,41 @@ namespace SuRGeoNix.Flyleaf
             }
             else if (streamType == StreamType.TORRENT)
             {
-                BitSwarm.OptionsStruct  opt = BitSwarm.GetDefaultsOptions();
-                opt.PieceTimeout        = 4300;
-                //opt.LogStats            = true;
-                //opt.Verbosity           = 2;
+                ParseSettingsToBitSwarm();
+                bitSwarmOpt.DownloadPath    = config.DownloadPath;
+                bitSwarmOpt.PieceTimeout    = config.TimeoutOpen;
+                bitSwarmOpt.PieceRetries    = config.RetriesOpen;
+
+                //bitSwarmOpt = new BitSwarm.DefaultOptions();
+                //bitSwarmOpt.SleepModeLimit  = config.SleepMode;
+                //bitSwarmOpt.MinThreads      = config.MinThreads;
+                //bitSwarmOpt.MaxThreads      = config.MaxThreads;
+                //bitSwarmOpt.BlockRequests   = config.BlockRequests;
+
+                
+
+                //bitSwarmOpt.LogPeer = true;
+                //bitSwarmOpt.LogStats = true;
+                //bitSwarmOpt.Verbosity = 4;
+                //bitSwarmOpt.DownloadPath = @"c:\root\_fly\01";
+
+                bitSwarm = new BitSwarm(bitSwarmOpt);
+
+                bitSwarm.MetadataReceived   += MetadataReceived;
+                bitSwarm.OnFinishing        += FileReceived;
+                bitSwarm.StatsUpdated       += Stats;
 
                 try
                 {
                     if (isMagnetLink)
-                        tsStream = new BitSwarm(new Uri(url), opt);
+                        bitSwarm.Initiliaze(new Uri(url));
                     else
-                        tsStream = new BitSwarm(url, opt);
+                        bitSwarm.Initiliaze(url);
                 } catch (Exception e) { Log($"[MS] BitSwarm Failed Opening Url {e.Message}\r\n{e.StackTrace}"); Initialize(); status = Status.FAILED; return -1; }
 
-                tsStream.MetadataReceived   += MetadataReceived;
-                tsStream.StatsUpdated       += Stats;
-
-                tsStream.Start();
+                bitSwarm.Start();
                 sortedPaths = null;
-                status = Status.OPENED;
+                status      = Status.OPENED;
             }
 
             return 0;
@@ -146,12 +175,20 @@ namespace SuRGeoNix.Flyleaf
         {
             Log($"File Selected {fileName}");
             
-            if ( streamType == StreamType.FILE )
+            if (streamType == StreamType.FILE)
             {
+                Log($"[BB OPENING]");
                 int ret = decoder.Open(null, "", "", "", DecoderRequestsBuffer, fileSize);
-                return ret;
+                if (ret != 0) return ret;
+
+                Log($"[DD OPENING]");
+                ret = player.decoder.Open(null, "", "", "", DecoderRequests, fileSize);
+                if (ret != 0) return ret;
+
+                player.decoder.video.url = fileName;
+                return 0;
             }
-            else if ( streamType == StreamType.TORRENT )
+            else if (streamType == StreamType.TORRENT)
             {
                 Pause();
 
@@ -159,21 +196,17 @@ namespace SuRGeoNix.Flyleaf
                 fileSize        = torrent.file.lengths[fileIndex];
                 fileDistance    = 0;
                 for (int i=0; i<fileIndex; i++) fileDistance += torrent.file.lengths[i];
+                fileLastPiece   = FilePosToPiece(fileSize);
 
                 if (!torrent.data.files[fileIndex].FileCreated)
-                    tsStream.IncludeFiles(new List<string>() { fileName });
+                    bitSwarm.IncludeFiles(new List<string>() { fileName });
 
-                if (!torrent.data.files[fileIndex].FileCreated && !tsStream.isRunning)
-                    tsStream.Start();
+                if (!torrent.data.files[fileIndex].FileCreated && !bitSwarm.isRunning)
+                    bitSwarm.Start();
 
                 status = Status.BUFFERING;
 
-                if (sortedPaths == null)
-                {
-                    sortedPaths = new List<string>();
-                    foreach (var path in torrent.file.paths) sortedPaths.Add(path);
-                    sortedPaths.Sort(new Utils.NaturalStringComparer());
-                }
+                if (sortedPaths == null) sortedPaths = Utils.GetMoviesSorted(torrent.file.paths);
                 downloadNextStarted = false;
 
                 Log($"[BB OPENING]");
@@ -184,22 +217,13 @@ namespace SuRGeoNix.Flyleaf
                 ret = player.decoder.Open(null, "", "", "", DecoderRequests, fileSize);
                 player.decoder.video.url = fileName;
 
+                // Download Subtitles
                 if (ret == 0 && (player.DownloadSubs == MediaRouter.DownloadSubsMode.FilesAndTorrents || player.DownloadSubs == MediaRouter.DownloadSubsMode.Torrents))
                 {
-                    if (!torrent.data.files[fileIndex].FileCreated)
-                    {
-                        while (torrent.data.progress.GetFirst0(FilePosToPiece(0), FilePosToPiece(0 + 65536)) != -1 || torrent.data.progress.GetFirst0(FilePosToPiece(fileSize - 65536), FilePosToPiece(fileSize - 65536 + 65536)) != -1)
-                        {
-                            CreateFocusPoint(0, 65536);
-                            CreateFocusPoint(fileSize - 65536, 65536);
-                            Thread.Sleep(50);
-                        }
-                    }
-
                     using (MemoryStream ms = new MemoryStream())
                     {
-                        ms.Write(torrent.data.files[fileIndex].Read(0, 65536), 0, 65536);
-                        ms.Write(torrent.data.files[fileIndex].Read(fileSize - 65536, 65536), 0, 65536);
+                        ms.Write(FileRead(0, 65536), 0, 65536);
+                        ms.Write(FileRead(fileSize - 65536, 65536), 0, 65536);
                         ms.Position = 0;
 
                         string hash = Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(ms, fileSize));
@@ -216,12 +240,13 @@ namespace SuRGeoNix.Flyleaf
 
             return -1;
         }
-        public int Buffer(int fromMs, int durationMs, bool foreward = false)
+
+        public int Buffer(int fromMs, bool foreward = false)
         {
-            if (streamType == StreamType.TORRENT && torrent != null && fileIndex > -1 && torrent.data.files[fileIndex].FileCreated)
+            if (streamType != StreamType.TORRENT || (torrent != null && fileIndex > -1 && torrent.data.files[fileIndex].FileCreated))
                 { BufferingDoneClbk?.BeginInvoke(true, null, null); return 0; }
             
-            if (!decoder.isReady ) return -1;
+            if (!decoder.isReady) return -1;
 
             Pause();
             status = Status.BUFFERING;
@@ -230,10 +255,18 @@ namespace SuRGeoNix.Flyleaf
             {
                 try
                 {
+                    //bitSwarm.CancelRequestedPieces();
+                    bitSwarmOpt.PieceTimeout = config.TimeoutBuffer;
+                    bitSwarmOpt.PieceRetries = config.RetriesBuffer;
+
                     player.renderer.NewMessage(OSDMessage.Type.Buffering, $"Loading 0%");
                     decoder.video.RegisterStreams(player.decoder.video.GetRegisteredStreams());
-                    decoder.video.activeStreamIds = player.decoder.video.activeStreamIds;
-                    decoder.video.BufferPackets(fromMs, durationMs, foreward); // TODO: Expose as property
+                    decoder.video.activeStreamIds = new List<int>();
+                    for (int i=0; i<player.decoder.video.activeStreamIds.Count; i++)
+                        decoder.video.activeStreamIds.Add(player.decoder.video.activeStreamIds[i]);
+
+                    decoder.video.DisableEmbeddedSubs();
+                    decoder.video.BufferPackets(fromMs, config.BufferDuration, foreward); // TODO: Expose as property
 
                 } catch (Exception e) { Log("Seeking Error " + e.Message + " - " + e.StackTrace); }
                 
@@ -243,30 +276,13 @@ namespace SuRGeoNix.Flyleaf
 
             return 0;
         }
-
-        private void DownloadNext()
-        {
-            if (player.DownloadNext && !downloadNextStarted && streamType == StreamType.TORRENT && torrent != null && fileIndex > -1 && torrent.data.files[fileIndex].FileCreated)
-            {
-                downloadNextStarted = true;
-
-                Log("Download of " + torrent.file.paths[this.fileIndex] + " finished");
-                var fileIndex = sortedPaths.IndexOf(torrent.file.paths[this.fileIndex]) + 1;
-                if (fileIndex > sortedPaths.Count - 1) return;
-
-                var fileIndex2 = torrent.file.paths.IndexOf(sortedPaths[fileIndex]);
-                if (fileIndex2 == -1 || torrent.data.files[fileIndex2].FileCreated) return;
-
-                Log("Downloading next " + torrent.file.paths[fileIndex2]);
-
-                tsStream.IncludeFiles(new List<string>() { torrent.file.paths[fileIndex2] });
-                if (!tsStream.isRunning) tsStream.Start();
-            }
-        }
         private void BufferingDone(bool success, double diff)
         {
             if (success)
             {
+                bitSwarmOpt.PieceTimeout = config.TimeoutGlobal;
+                bitSwarmOpt.PieceRetries = config.RetriesGlobal;
+
                 player.renderer.ClearMessages(OSDMessage.Type.Buffering);
                 BufferingDoneClbk?.BeginInvoke(success, null, null);
             }
@@ -278,16 +294,45 @@ namespace SuRGeoNix.Flyleaf
                 player.Render();
             } 
         }
+
+        private void FileReceived(object source, BitSwarm.FinishingArgs e) { Log("Download of " + torrent.file.paths[this.fileIndex] + " finished"); e.Cancel = DownloadNext(); }
+        private bool DownloadNext()
+        {
+            if (config.DownloadNext && !downloadNextStarted && streamType == StreamType.TORRENT && torrent != null && fileIndex > -1 && torrent.data.files[fileIndex].FileCreated)
+            {
+                downloadNextStarted = true;
+
+                var fileIndex = sortedPaths.IndexOf(torrent.file.paths[this.fileIndex]) + 1;
+                if (fileIndex > sortedPaths.Count - 1) return false;
+
+                var fileIndex2 = torrent.file.paths.IndexOf(sortedPaths[fileIndex]);
+                if (fileIndex2 == -1 || torrent.data.files[fileIndex2].FileCreated) return false;
+
+                fileSizeNext = torrent.file.lengths[fileIndex2];
+                Log("Downloading next " + torrent.file.paths[fileIndex2]);
+
+                bitSwarm.IncludeFiles(new List<string>() { torrent.file.paths[fileIndex2] });
+
+                if (!bitSwarm.isRunning) 
+                {
+                    bitSwarm.Start();
+                    return false;
+                }
+
+                return true;
+            }
+
+            return false;
+        }
         private void Stats(object source, BitSwarm.StatsUpdatedArgs e)
         {
-            if (fileSize == 0) return;
+            //long curFileSize = !downloadNextStarted ? fileSize : fileSizeNext;
+            //if (curFileSize == 0) return;
 
-            var downPercentage = (int)(((fileSize - (torrent.data.progress.GetAll0().Count * (long)torrent.file.pieceLength)) / (decimal)fileSize) * 100);
+            var downPercentage = e.Stats.Progress; // (int)(((curFileSize - (torrent.data.progress.GetAll0().Count * (long)torrent.file.pieceLength)) / (decimal)curFileSize) * 100);
             if (downPercentage < 0) downPercentage = 0; else if (downPercentage > 100) downPercentage = 100;
 
-            player.renderer.NewMessage(OSDMessage.Type.TorrentStats, $"D: {e.Stats.PeersDownloading} | W: {e.Stats.PeersChoked}/{e.Stats.PeersInQueue} | {String.Format("{0:n0}", (e.Stats.DownRate / 1024))} KB/s | {downPercentage}%");
-
-            DownloadNext();
+            player.renderer.NewMessage(OSDMessage.Type.TorrentStats, $"{(downloadNextStarted ? "(N) " : "")}D: {e.Stats.PeersDownloading} | W: {e.Stats.PeersChoked}/{e.Stats.PeersInQueue} | {String.Format("{0:n0}", (e.Stats.DownRate / 1024))} KB/s | {downPercentage}%");
         }
         private void MetadataReceived(object source, BitSwarm.MetadataReceivedArgs e)
         {
@@ -305,13 +350,14 @@ namespace SuRGeoNix.Flyleaf
 
             MediaFilesClbk?.BeginInvoke(paths, lengths, null, null);
         }
-
         private byte[] DecoderRequests(long pos, int len)
         {
             if (streamType == StreamType.FILE)
-            {
+            {  
                 byte[] data = new byte[len];
                 
+                //Console.WriteLine($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}]");
+
                 lock (fsStream)
                 {
                     fsStream.Seek(pos, SeekOrigin.Begin);
@@ -325,15 +371,7 @@ namespace SuRGeoNix.Flyleaf
                 if (torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) == -1)
                     return torrent.data.files[fileIndex].Read(pos, len);
 
-                tsStream.DeleteFocusPoints();
-                CreateFocusPoint(pos, len);
-
-                while (torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) != -1)
-                    Thread.Sleep(20);
-
-                //Log($"[DD] [REQUEST] [POS: {pos}] [LEN: {len}] [PIECES: {FilePosToPiece(pos)} - {FilePosToPiece(pos + len)}]");
-
-                return torrent.data.files[fileIndex].Read(pos, len);
+                return FileRead(pos, len);
             }
         }
         private byte[] DecoderRequestsBuffer(long pos, int len)
@@ -352,40 +390,38 @@ namespace SuRGeoNix.Flyleaf
             }
             else
             {
-                lock (lockerBuffering)
-                {
-                    if (!isBuffering) return null;
-
-                    if (torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) == -1)
-                        return torrent.data.files[fileIndex].Read(pos, len);
-                    
-                    //Log($"[BB] [REQUEST] [POS: {pos}] [LEN: {len}] [PIECES: {FilePosToPiece(pos)} - {FilePosToPiece(pos + len)}]");
-
-                    tsStream.DeleteFocusPoints();
-                    CreateFocusPoint(pos, (torrent.file.pieceLength * 5) + len);
-                    
-                    while (isBuffering && torrent.data.progress.GetFirst0(FilePosToPiece(pos), FilePosToPiece(pos + len)) != -1)
-                        Thread.Sleep(20);
-
-                    if (!isBuffering) return null;
-
-                    return torrent.data.files[fileIndex].Read(pos, len);
-                }
+                return FileRead(pos, len);
             }
         }
         #endregion
 
         #region Misc
+        private byte[] FileRead(long pos, long len)
+        {
+            int pieceFrom   = FilePosToPiece(pos);
+            int pieceTo     = FilePosToPiece(pos + len);
+
+            if (torrent.data.progress.GetFirst0(pieceFrom, pieceTo) == -1)
+            {
+                //Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [RR] [REQUEST] [POS: {pos}] [LEN: {len}] [PIECES: {pieceFrom} - {pieceTo}]");
+                return torrent.data.files[fileIndex].Read(pos, len);
+            }
+
+            bitSwarm.FocusArea = new Tuple<int, int>(pieceFrom, fileLastPiece);
+            //Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [BB] [REQUEST] [POS: {pos}] [LEN: {len}] [PIECES: {pieceFrom} - {pieceTo}]");
+
+            do { Thread.Sleep(40); } 
+            while (torrent.data.progress.GetFirst0(pieceFrom, pieceTo) != -1 && isBuffering);
+
+            return isBuffering ? torrent.data.files[fileIndex].Read(pos, len) : null;
+        }
         private int FilePosToPiece(long pos)
         {
             int piece = (int)((fileDistance + pos) / torrent.file.pieceLength);
-            if (piece >= torrent.data.pieces) piece = torrent.data.pieces -1;
+
+            if (piece >= torrent.data.pieces) piece = torrent.data.pieces - 1;
+
             return piece;
-        }
-        private void CreateFocusPoint(long pos, int len)
-        {
-            //Log($"[FP] [CREATE] [POS: {pos}] [LEN: {len}] [PIECE_FROM: {FilePosToPiece(pos)}] [PIECE_TO: {FilePosToPiece(pos + len)}]");
-            tsStream.CreateFocusPoint(new BitSwarm.FocusPoint(pos, FilePosToPiece(pos), FilePosToPiece(pos + len)));
         }
         private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [STREAMER] {msg}"); }
         #endregion

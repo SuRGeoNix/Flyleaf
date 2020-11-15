@@ -13,11 +13,6 @@ namespace SuRGeoNix.Flyleaf
         public string WebEnabled;
 
         public Language() { Language lang = Get("eng"); IdSubLanguage = lang.IdSubLanguage; ISO639 = lang.ISO639; LanguageName = lang.LanguageName; }
-
-        public override string ToString()
-        {
-            return LanguageName;
-        }
         public Language(string IdSubLanguage, string ISO639, string LanguageName, string UploadEnabled, string WebEnabled)
         {
             this.IdSubLanguage  = IdSubLanguage;
@@ -517,7 +512,11 @@ namespace SuRGeoNix.Flyleaf
             var res = Languages.Where(lang => lang.ISO639 == name.ToLower() || lang.IdSubLanguage == name.ToLower() || lang.LanguageName.ToLower() == name.ToLower()).ToList();
             if (res.Count > 0) return res.ElementAt(0);
 
+            if (name.ToLower() == "gr" || name.ToLower() == "gre") return Get("el"); // For Greek (Possible other languages have the same issue? should check the ISOs)
+
             return null;
         }
+
+        public override string ToString() { return LanguageName; }
     }
 }

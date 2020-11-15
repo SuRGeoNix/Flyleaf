@@ -150,8 +150,7 @@ if $(PlatformName) == x86 (
 if $(PlatformName) == x64 (
   xcopy "$(SolutionDir)"Libs\x64\* "$(TargetDir)"\Libs\x64\  /E /Y
 )
-)
-else (
+) ELSE (
 mkdir Libs
 )
 cd "$(TargetDir)"

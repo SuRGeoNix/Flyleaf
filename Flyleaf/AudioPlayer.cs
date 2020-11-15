@@ -6,7 +6,15 @@ using NAudio.CoreAudioApi;
 
 namespace SuRGeoNix.Flyleaf
 {
-    // TODO: Static Player for All FlyLeaf Objects and Concatate Samples?
+    /* TODO:
+     * 
+     * It will not handle the default device removal (crashes)
+     * Maybe the Init/Play should run on different thread
+     * Static Player for All FlyLeaf Objects and Concatate Samples?
+     * 
+     * Probably will use another library for Audio at next review
+     * 
+     */
     public class AudioPlayer : NAudio.CoreAudioApi.Interfaces.IMMNotificationClient
     {
         public const int        NAUDIO_DELAY_MS = 200;
