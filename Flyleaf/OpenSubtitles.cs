@@ -56,7 +56,76 @@ namespace SuRGeoNix.Flyleaf
             return result;
         }
 
-        // https://github.com/Valyreon/Subloader
+        public static List<OpenSubtitles> SearchByHash2(string hash, long length)
+        {
+            List<OpenSubtitles> subsCopy = new List<OpenSubtitles>();
+
+            if (cache.ContainsKey(hash + "|" + length))
+            {
+                foreach (OpenSubtitles sub in cache[hash + "|" + length]) subsCopy.Add(sub);
+
+                return subsCopy;
+            }
+
+            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, 0, 0, -1) })
+            {
+                string resp = "";
+                List<OpenSubtitles> subs = new List<OpenSubtitles>();
+
+                client.DefaultRequestHeaders.Accept.Clear();
+                client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
+
+                try
+                {
+                    Log($"Searching for /moviebytesize-{length}/moviehash-{hash}");
+                    resp = client.PostAsync($"{restUrl}/moviebytesize-{length}/moviehash-{hash}", null).Result.Content.ReadAsStringAsync().Result;
+                    subs = JsonConvert.DeserializeObject<List<OpenSubtitles>>(resp);
+                    Log($"Search Results {subs.Count}");
+                    cache.Add(hash + "|" + length, subs);
+                    foreach (OpenSubtitles sub in subs) subsCopy.Add(sub);
+                } catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+
+                return subsCopy;
+            }
+        }
+        public static List<OpenSubtitles> SearchByIMDB(string imdbid, Language lang = null, string season = null, string episode = null)
+        {
+            if (lang == null) lang = Language.Get("eng");
+            List<OpenSubtitles> subsCopy = new List<OpenSubtitles>();
+
+            if (cache.ContainsKey(imdbid + "|" + season + "|" + episode + lang.IdSubLanguage))
+            {
+                foreach (OpenSubtitles sub in cache[imdbid + "|" + season + "|" + episode + lang.IdSubLanguage]) subsCopy.Add(sub);
+
+                return subsCopy;
+            }
+
+            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, 0, 0, -1) })
+            {
+                string resp = "";
+                List<OpenSubtitles> subs = new List<OpenSubtitles>();
+
+                client.DefaultRequestHeaders.Accept.Clear();
+                client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
+
+                try
+                {
+                    string qSeason  = season  != null ? $"/season-{season}"   : "";
+                    string qEpisode = episode != null ? $"/episode-{episode}" : "";
+                    string query = $"{qEpisode}/imdbid-{imdbid}{qSeason}/sublanguageid-{lang.IdSubLanguage}";
+
+                    Log($"Searching for {query}");
+                    resp = client.PostAsync($"{restUrl}{query}", null).Result.Content.ReadAsStringAsync().Result;
+                    subs = JsonConvert.DeserializeObject<List<OpenSubtitles>>(resp);
+                    Log($"Search Results {subs.Count}");
+
+                    cache.Add(imdbid + "|" + season + "|" + episode + lang.IdSubLanguage, subs);
+                    foreach (OpenSubtitles sub in subs) subsCopy.Add(sub);
+                } catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+
+                return subsCopy;
+            }
+        }
         public static List<OpenSubtitles> SearchByHash(string hash, long length, Language lang = null)
         {
             if (lang == null) lang = Language.Get("eng");
@@ -163,55 +232,61 @@ namespace SuRGeoNix.Flyleaf
         public string AvailableAt       { get; set; }
 
 
-        [JsonProperty("IDSubMovieFile")]
-        public string IDSubMovieFile    { get; set; }
-
-        [JsonProperty("MovieHash")]
-        public string MovieHash         { get; set; }
-
-        [JsonProperty("MovieByteSize")]
-        public string MovieByteSize     { get; set; }
-
-        [JsonProperty("IDSubtitleFile")]
-        public string IDSubtitleFile    { get; set; }
-
-        [JsonProperty("SubFileName")]
-        public string SubFileName       { get; set; }
-
-        [JsonProperty("SubHash")]
-        public string SubHash           { get; set; }
-
-        [JsonProperty("IDSubtitle")]
-        public string IDSubtitle        { get; set; }
-
-        [JsonProperty("SubLanguageID")]
-        public string SubLanguageID     { get; set; }
-
-        [JsonProperty("SubFormat")]
-        public string SubFormat         { get; set; }
-
-        [JsonProperty("SubRating")]
-        public string SubRating         { get; set; }
-
-        [JsonProperty("SubDownloadsCnt")]
-        public string SubDownloadsCnt   { get; set; }
-
-        [JsonProperty("IDMovie")]
-        public string IDMovie           { get; set; }
-
-        [JsonProperty("IDMovieImdb")]
-        public string IDMovieImdb       { get; set; }
-
-        [JsonProperty("LanguageName")]
-        public string LanguageName      { get; set; }
-
-        [JsonProperty("SubDownloadLink")]
-        public string SubDownloadLink   { get; set; }
-
-        [JsonProperty("ZipDownloadLink")]
-        public string ZipDownloadLink   { get; set; }
-
-        [JsonProperty("SubtitlesLink")]
-        public string SubtitlesLink     { get; set; }
+        public string MatchedBy { get; set; } 
+        public string IDSubMovieFile { get; set; } 
+        public string MovieHash { get; set; } 
+        public string MovieByteSize { get; set; } 
+        public string MovieTimeMS { get; set; } 
+        public string IDSubtitleFile { get; set; } 
+        public string SubFileName { get; set; } 
+        public string SubActualCD { get; set; } 
+        public string SubSize { get; set; } 
+        public string SubHash { get; set; } 
+        public string SubLastTS { get; set; } 
+        public string SubTSGroup { get; set; } 
+        public string InfoReleaseGroup { get; set; } 
+        public string InfoFormat { get; set; } 
+        public string InfoOther { get; set; } 
+        public string IDSubtitle { get; set; } 
+        public string UserID { get; set; } 
+        public string SubLanguageID { get; set; } 
+        public string SubFormat { get; set; } 
+        public string SubSumCD { get; set; } 
+        public string SubAuthorComment { get; set; } 
+        public string SubAddDate { get; set; } 
+        public string SubBad { get; set; } 
+        public string SubRating { get; set; } 
+        public string SubSumVotes { get; set; } 
+        public string SubDownloadsCnt { get; set; } 
+        public string MovieReleaseName { get; set; } 
+        public string MovieFPS { get; set; } 
+        public string IDMovie { get; set; } 
+        public string IDMovieImdb { get; set; } 
+        public string MovieName { get; set; } 
+        public string MovieNameEng { get; set; } 
+        public string MovieYear { get; set; } 
+        public string MovieImdbRating { get; set; } 
+        public string SubFeatured { get; set; } 
+        public string UserNickName { get; set; } 
+        public string SubTranslator { get; set; } 
+        public string ISO639 { get; set; } 
+        public string LanguageName { get; set; } 
+        public string SubComments { get; set; } 
+        public string SubHearingImpaired { get; set; } 
+        public string UserRank { get; set; } 
+        public string SeriesSeason { get; set; } 
+        public string SeriesEpisode { get; set; } 
+        public string MovieKind { get; set; } 
+        public string SubHD { get; set; } 
+        public string SeriesIMDBParent { get; set; } 
+        public string SubEncoding { get; set; } 
+        public string SubAutoTranslation { get; set; } 
+        public string SubForeignPartsOnly { get; set; } 
+        public string SubFromTrusted { get; set; } 
+        public string SubTSGroupHash { get; set; } 
+        public string SubDownloadLink { get; set; } 
+        public string ZipDownloadLink { get; set; } 
+        public string SubtitlesLink { get; set; } 
+        public double Score { get; set; }
     }
 }
