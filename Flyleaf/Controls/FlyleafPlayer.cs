@@ -202,7 +202,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (config.main.AllowFullScreen)
                 MouseDoubleClick += (o, e) =>   {   FullScreenToggle(); };
 
-            if (config.main.AllowTorrents)
+            if (config.torrent._Enabled)
             {
                 player.OpenTorrentSuccessClbk   =   OpenTorrentSuccess;
                 player.MediaFilesClbk           =   MediaFilesReceived;
@@ -237,11 +237,13 @@ namespace SuRGeoNix.Flyleaf.Controls
             systemDefault   = Settings.LoadSettings("SettingsDefault.xml");
 
             Settings.ParseSettings(userDefault, config);
+            player.streamer.config = config.torrent;
             SettingsChanged();
 
             if (config.main.EmbeddedList)
             {
                 frmSettings = new FrmSettings(systemDefault, userDefault, config);
+                frmSettings.VisibleChanged += FrmSettings_VisibleChanged;
                 ContextMenuStrip = menu;
             }
 
@@ -279,7 +281,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 if (shutdownCountDown == -1) shutdownCountDown = DateTime.UtcNow.Ticks;
 
-                long distance = (config.main.ShutdownAfterIdle * 1000 * 10000) - (DateTime.UtcNow.Ticks - shutdownCountDown);
+                long distance = ((long)config.main.ShutdownAfterIdle * 1000 * 10000) - (DateTime.UtcNow.Ticks - shutdownCountDown);
                 //long distance = (config.main.ShutdownAfterIdle * 1000 * 10000) - (Utils.GetLastInputTime() * 10000); // To check inactivity before flyleaf's idle
                 player.renderer.NewMessage(OSDMessage.Type.Failed, "Shutdown in " + (new TimeSpan(distance)).ToString(@"hh\:mm\:ss"));
 
@@ -382,41 +384,27 @@ namespace SuRGeoNix.Flyleaf.Controls
                 return;
             }
 
-            if ( lstMediaFiles.InvokeRequired  )
+            if (lstMediaFiles.InvokeRequired)
             {
                 lstMediaFiles.BeginInvoke(new Action(() => MediaFilesReceived(mediaFiles, mediaFilesSizes)));
                 return;
             }
 
-            string selectedFile = "";
+            List<string> mediaFilesSorted = Utils.GetMoviesSorted(mediaFiles);
 
             lstMediaFiles.BeginUpdate();
             lstMediaFiles.Items.Clear();
-            
-            mediaFiles.Sort(new Utils.NaturalStringComparer());
-            
-            for (int i=0; i<mediaFiles.Count; i++)
-            {
-                string ext = Path.GetExtension(mediaFiles[i]);
-                if ( ext == null || ext.Trim() == "") continue;
-
-                if ( movieExts.Contains(ext.Substring(1,ext.Length-1)) )
-                {
-                    lstMediaFiles.Items.Add(mediaFiles[i]);
-                    selectedFile = mediaFiles[i];
-                }
-            }
+            lstMediaFiles.Items.AddRange(mediaFilesSorted.ToArray());
             lstMediaFiles.EndUpdate();
 
             if (lstMediaFiles.Items.Count == 1)
-                player.SetMediaFile(selectedFile);
+                player.SetMediaFile(mediaFilesSorted[0]);
             else
                 FixLstMedia(true);
         }
         #endregion
 
         #region Implementation Main
-        List<string> movieExts = new List<string>() { "mp4", "m4v", "m4e", "mkv", "mpg", "mpeg" , "mpv", "mp4p", "mpe" , "m1v", "m2ts", "m2p", "m2v", "movhd", "moov", "movie", "movx", "mjp", "mjpeg", "mjpg", "amv" , "asf", "m4v", "3gp", "ogm", "ogg", "vob", "ts", "rm", "3gp", "3gp2", "3gpp", "3g2", "f4v", "f4a", "f4p", "f4b", "mts", "m2ts", "gifv", "avi", "mov", "flv", "wmv", "qt", "avchd", "swf", "cam", "nsv", "ram", "rm", "x264", "xvid", "wmx", "wvx", "wx", "video", "viv", "vivo", "vid", "dat", "bik", "bix", "dmf", "divx" };
         public void Open(string url)
         {
             bool isSubs             = false;
@@ -648,6 +636,8 @@ namespace SuRGeoNix.Flyleaf.Controls
         private void SeekBar_ValueChanged       (object sender, EventArgs e)
         {
             if (!player.isReady) return;
+
+            shutdownCountDown = -1; shutdownCancelled = false;
 
             long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
             if (config.bar.SeekOnSlide) player.Seek((int)seektime); else Interlocked.Exchange(ref player.SeekTime, seektime * 10000);
@@ -912,37 +902,37 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             char c = Char.ToLower(e.KeyChar);
             
-            if (c == KeyCodeToUnicode(Keys.F))
+            if (c == KeyCodeToUnicode(Keys.F) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.F))
             {
                 FullScreenToggle();
             }
-            else if (c == KeyCodeToUnicode(Keys.H))
+            else if (c == KeyCodeToUnicode(Keys.H) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.H))
             {
                 player.HWAccel = !player.HWAccel;
             }
-            else if (c == KeyCodeToUnicode(Keys.I))
+            else if (c == KeyCodeToUnicode(Keys.I) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.I))
             {
                 userFullActivity = 0;
                 userActivity = 0;
                 GoIdle();
                 return;
             }
-            else if (c == KeyCodeToUnicode(Keys.P) || Keys.Space == (Keys) c) { PlayPause(); }
-            else if (c == KeyCodeToUnicode(Keys.R))
+            else if (c == KeyCodeToUnicode(Keys.P) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.P)|| Keys.Space == (Keys) c) { PlayPause(); }
+            else if (c == KeyCodeToUnicode(Keys.R) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.R))
             {
                 if (player.ViewPort == MediaRouter.ViewPorts.KEEP) player.ViewPort = MediaRouter.ViewPorts.FILL;
                 else if (player.ViewPort != MediaRouter.ViewPorts.KEEP) player.ViewPort = MediaRouter.ViewPorts.KEEP;
             }
-            else if (c == KeyCodeToUnicode(Keys.M)) { MuteUnmute(); }
-            else if (c == KeyCodeToUnicode(Keys.S))
+            else if (c == KeyCodeToUnicode(Keys.M) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.M)) { MuteUnmute(); }
+            else if (c == KeyCodeToUnicode(Keys.S) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.S))
             {
                 player.doSubs = !player.doSubs;
             }
-            else if (c == KeyCodeToUnicode(Keys.A))
+            else if (c == KeyCodeToUnicode(Keys.A) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.A))
             {
                 player.doAudio = !player.doAudio;
             }
-            else if (c == KeyCodeToUnicode(Keys.O))
+            else if (c == KeyCodeToUnicode(Keys.O) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.O))
             {
                 OpenFileDialog ofd = new OpenFileDialog();
                 ofd.ShowDialog();
@@ -976,9 +966,9 @@ namespace SuRGeoNix.Flyleaf.Controls
 
         private void lstMediaFiles_MouseClickDbl(object sender, MouseEventArgs e)
         {
-            if ( !player.isTorrent ) { lstMediaFiles.Visible = false; if (!player.isPlaying) player.Render(); return; }
+            if (!player.isTorrent) { lstMediaFiles.Visible = false; if (!player.isPlaying) player.Render(); return; }
 
-            if ( lstMediaFiles.SelectedItem == null ) return;
+            if (lstMediaFiles.SelectedItem == null) return;
 
             player.SetMediaFile(lstMediaFiles.SelectedItem.ToString());
             FixLstMedia(false);
@@ -988,10 +978,10 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             userActivity = DateTime.UtcNow.Ticks;
 
-            if ( e.KeyChar != (char)13 ) { FlyLeaf_KeyPress(sender, e); return; }
+            if (e.KeyChar != (char)13) { FlyLeaf_KeyPress(sender, e); return; }
 
-            if ( !player.isTorrent ) { FixLstMedia(false); return; }
-            if ( lstMediaFiles.SelectedItem == null ) return;
+            if (!player.isTorrent) { FixLstMedia(false); return; }
+            if (lstMediaFiles.SelectedItem == null) return;
 
             player.SetMediaFile(lstMediaFiles.SelectedItem.ToString());
             FixLstMedia(false);
@@ -1071,7 +1061,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                 lvSubs.Location = new Point(Width / 8, Height / 8);
                 lvSubs.Visible = true;
 
-                lvSubs.Columns[0].Width = lvSubs.Width - 400;
+                lvSubs.Columns[0].Width = lvSubs.Width - 440;
             }
             else
             {
@@ -1722,6 +1712,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         #endregion
 
         #region Misc
+        private void FrmSettings_VisibleChanged(object sender, EventArgs e) { if (!frmSettings.Visible) player.streamer?.ParseSettingsToBitSwarm(); }
         private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             frmSettings.Show();

@@ -109,8 +109,8 @@ namespace SuRGeoNix.Flyleaf
             osd.Add("tl2",  new OSDSurface(this, OSDSurface.Alignment.TOPLEFT,      new Point( 12, 60), "Perpetua", 26));
             osd.Add("tr2",  new OSDSurface(this, OSDSurface.Alignment.TOPRIGHT,     new Point(-12, 60), "Perpetua", 26));
             osd.Add("bl",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMLEFT,   new Point( 12,-12), "Perpetua", 26));
-            osd.Add("br",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMRIGHT,  new Point(-12,-12), "Perpetua", 26));
-            osd.Add("bc",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMCENTER, new Point(  0,-20), "Arial",    69, System.Drawing.FontStyle.Bold, FontWeight.Heavy));
+            osd.Add("br",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMRIGHT,  new Point(-12,-40), "Perpetua", 26));
+            osd.Add("bc",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMCENTER, new Point(  0,-20), "Arial",    67, System.Drawing.FontStyle.Bold, FontWeight.Heavy));
 
             foreach (var osdsurf in osd)
             {
@@ -122,6 +122,7 @@ namespace SuRGeoNix.Flyleaf
             }
 
             // Subtitles Surface
+            osd["br"].OnViewPort    = false;
             osd["bc"].OnViewPort    = false;
             osd["bc"].rectEnabled   = false;
             osd["bc"].color         = Color.White;
@@ -152,7 +153,8 @@ namespace SuRGeoNix.Flyleaf
             foreach (OSDMessage.Type type in Enum.GetValues(typeof(OSDMessage.Type)))
                 msgToVis[type] = VisibilityMode.Always;
 
-            msgToVis[OSDMessage.Type.Time] = VisibilityMode.OnActive;
+            msgToVis[OSDMessage.Type.Time]          = VisibilityMode.OnActive;
+            msgToVis[OSDMessage.Type.TorrentStats]  = VisibilityMode.OnActive;
         }
         public  void CreateSample(System.Drawing.Bitmap bitmap = null)
         {
@@ -229,7 +231,20 @@ namespace SuRGeoNix.Flyleaf
             rtv2d           = new RenderTarget(factory2d, surface, new RenderTargetProperties(new SharpDX.Direct2D1.PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
             brush2d         = new SolidColorBrush(rtv2d, Color.White);
 
-            var VertexShaderByteCode    = ShaderBytecode.Compile(Properties.Resources.VertexShader,     "main", "vs_5_0", ShaderFlags.Debug);
+            string vertexProfile = "vs_5_0";
+            string pixelProfile = "ps_5_0";
+
+            if (device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_9_1 ||
+                device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_9_2 ||
+                device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_9_3 ||
+                device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_10_0 ||
+                device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_10_1)
+            {
+                vertexProfile = "vs_4_0_level_9_1";
+                pixelProfile = "ps_4_0_level_9_1";
+            }
+
+            var VertexShaderByteCode    = ShaderBytecode.Compile(Properties.Resources.VertexShader,     "main", vertexProfile, ShaderFlags.Debug);
             vertexLayout    = new InputLayout (device, VertexShaderByteCode, new[]
             {
                 new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
@@ -237,10 +252,10 @@ namespace SuRGeoNix.Flyleaf
             });
             vertexShader    = new VertexShader(device, VertexShaderByteCode);
 
-            var PixelShaderByteCode     = ShaderBytecode.Compile(Properties.Resources.PixelShader,      "main", "ps_5_0", ShaderFlags.Debug);
+            var PixelShaderByteCode     = ShaderBytecode.Compile(Properties.Resources.PixelShader,      "main", pixelProfile, ShaderFlags.Debug);
             pixelShader     = new PixelShader (device, PixelShaderByteCode);
 
-             var PixelShaderByteCodeYUV = ShaderBytecode.Compile(Properties.Resources.PixelShader_YUV,  "main", "ps_5_0", ShaderFlags.Debug);
+             var PixelShaderByteCodeYUV = ShaderBytecode.Compile(Properties.Resources.PixelShader_YUV,  "main", pixelProfile, ShaderFlags.Debug);
             pixelShaderYUV  = new PixelShader (device, PixelShaderByteCodeYUV);
             
             vertexBuffer = Buffer.Create(device, BindFlags.VertexBuffer, new[]
@@ -297,8 +312,10 @@ namespace SuRGeoNix.Flyleaf
             srvDescYUV.Texture2D.MostDetailedMip   = 0;
             srvDescYUV.Texture2D.MipLevels         = 1;
 
-            videoDevice1    = device.QueryInterface<VideoDevice1>();
-            videoContext1   = device.ImmediateContext.QueryInterface<VideoContext1>();
+            videoDevice1    = device.QueryInterfaceOrNull<VideoDevice1>();
+            videoContext1   = device.ImmediateContext.QueryInterfaceOrNull<VideoContext1>();
+
+            if (videoDevice1 == null || videoContext1 == null) { SetViewport(); return; }
 
             vpcd    = new VideoProcessorContentDescription()
             {

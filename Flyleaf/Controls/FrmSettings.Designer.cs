@@ -32,7 +32,6 @@
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.label22 = new System.Windows.Forms.Label();
             this.ShutdownAfterIdle = new System.Windows.Forms.TextBox();
-            this.BufferingDuration = new System.Windows.Forms.TextBox();
             this.IdleTimeout = new System.Windows.Forms.TextBox();
             this.ClearBackColor = new System.Windows.Forms.TextBox();
             this.SeekOnSlide = new System.Windows.Forms.CheckBox();
@@ -40,7 +39,6 @@
             this.label21 = new System.Windows.Forms.Label();
             this.label20 = new System.Windows.Forms.Label();
             this.label19 = new System.Windows.Forms.Label();
-            this.label18 = new System.Windows.Forms.Label();
             this.label17 = new System.Windows.Forms.Label();
             this.tabPage5 = new System.Windows.Forms.TabPage();
             this.SubsFontSizeStep = new System.Windows.Forms.TextBox();
@@ -104,6 +102,39 @@
             this.label8 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
             this.subsEnabled = new System.Windows.Forms.CheckBox();
+            this.tabPage7 = new System.Windows.Forms.TabPage();
+            this.groupBox9 = new System.Windows.Forms.GroupBox();
+            this.torRetriesBuffer = new System.Windows.Forms.TextBox();
+            this.label52 = new System.Windows.Forms.Label();
+            this.torTimeoutBuffer = new System.Windows.Forms.TextBox();
+            this.label53 = new System.Windows.Forms.Label();
+            this.torRetriesOpen = new System.Windows.Forms.TextBox();
+            this.label42 = new System.Windows.Forms.Label();
+            this.torTimeoutOpen = new System.Windows.Forms.TextBox();
+            this.label43 = new System.Windows.Forms.Label();
+            this.torRetriesGlobal = new System.Windows.Forms.TextBox();
+            this.label51 = new System.Windows.Forms.Label();
+            this.torMinThreads = new System.Windows.Forms.TextBox();
+            this.torMaxThreads = new System.Windows.Forms.TextBox();
+            this.torTimeoutGlobal = new System.Windows.Forms.TextBox();
+            this.torBlockRequests = new System.Windows.Forms.TextBox();
+            this.label44 = new System.Windows.Forms.Label();
+            this.label45 = new System.Windows.Forms.Label();
+            this.label46 = new System.Windows.Forms.Label();
+            this.label47 = new System.Windows.Forms.Label();
+            this.groupBox11 = new System.Windows.Forms.GroupBox();
+            this.btnTorDownloadPath = new System.Windows.Forms.Button();
+            this.torDownlaodPath = new System.Windows.Forms.TextBox();
+            this.label55 = new System.Windows.Forms.Label();
+            this.label54 = new System.Windows.Forms.Label();
+            this.torDownloadNext = new System.Windows.Forms.CheckBox();
+            this.torSleepModeAutoCustom = new System.Windows.Forms.ComboBox();
+            this.torSleepMode = new System.Windows.Forms.CheckBox();
+            this.torBufferDuration = new System.Windows.Forms.TextBox();
+            this.label49 = new System.Windows.Forms.Label();
+            this.label48 = new System.Windows.Forms.Label();
+            this.label50 = new System.Windows.Forms.Label();
+            this.torEnabled = new System.Windows.Forms.CheckBox();
             this.tabPage6 = new System.Windows.Forms.TabPage();
             this.groupBox8 = new System.Windows.Forms.GroupBox();
             this.msgSurf = new System.Windows.Forms.ComboBox();
@@ -134,8 +165,9 @@
             this.btnSave = new System.Windows.Forms.Button();
             this.btnApply = new System.Windows.Forms.Button();
             this.cmbSettings = new System.Windows.Forms.ComboBox();
-            this.DownloadNext = new System.Windows.Forms.CheckBox();
+            this.label18 = new System.Windows.Forms.Label();
             this.label41 = new System.Windows.Forms.Label();
+            this.label56 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage5.SuspendLayout();
@@ -147,6 +179,9 @@
             this.groupBox4.SuspendLayout();
             this.groupBox5.SuspendLayout();
             this.groupBox3.SuspendLayout();
+            this.tabPage7.SuspendLayout();
+            this.groupBox9.SuspendLayout();
+            this.groupBox11.SuspendLayout();
             this.tabPage6.SuspendLayout();
             this.groupBox8.SuspendLayout();
             this.groupBox6.SuspendLayout();
@@ -161,6 +196,7 @@
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage3);
             this.tabControl1.Controls.Add(this.tabPage4);
+            this.tabControl1.Controls.Add(this.tabPage7);
             this.tabControl1.Controls.Add(this.tabPage6);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Top;
             this.tabControl1.ItemSize = new System.Drawing.Size(58, 25);
@@ -174,11 +210,8 @@
             // tabPage1
             // 
             this.tabPage1.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPage1.Controls.Add(this.DownloadNext);
-            this.tabPage1.Controls.Add(this.label41);
             this.tabPage1.Controls.Add(this.label22);
             this.tabPage1.Controls.Add(this.ShutdownAfterIdle);
-            this.tabPage1.Controls.Add(this.BufferingDuration);
             this.tabPage1.Controls.Add(this.IdleTimeout);
             this.tabPage1.Controls.Add(this.ClearBackColor);
             this.tabPage1.Controls.Add(this.SeekOnSlide);
@@ -186,7 +219,6 @@
             this.tabPage1.Controls.Add(this.label21);
             this.tabPage1.Controls.Add(this.label20);
             this.tabPage1.Controls.Add(this.label19);
-            this.tabPage1.Controls.Add(this.label18);
             this.tabPage1.Controls.Add(this.label17);
             this.tabPage1.Location = new System.Drawing.Point(4, 29);
             this.tabPage1.Name = "tabPage1";
@@ -198,25 +230,18 @@
             // label22
             // 
             this.label22.AutoSize = true;
-            this.label22.Location = new System.Drawing.Point(9, 151);
+            this.label22.Location = new System.Drawing.Point(234, 82);
             this.label22.Name = "label22";
-            this.label22.Size = new System.Drawing.Size(110, 13);
+            this.label22.Size = new System.Drawing.Size(193, 13);
             this.label22.TabIndex = 20;
-            this.label22.Text = "Shutdown after if Idle:";
+            this.label22.Text = "After seconds of Idle (otherwise cancel)";
             // 
             // ShutdownAfterIdle
             // 
-            this.ShutdownAfterIdle.Location = new System.Drawing.Point(130, 148);
+            this.ShutdownAfterIdle.Location = new System.Drawing.Point(151, 79);
             this.ShutdownAfterIdle.Name = "ShutdownAfterIdle";
-            this.ShutdownAfterIdle.Size = new System.Drawing.Size(100, 20);
+            this.ShutdownAfterIdle.Size = new System.Drawing.Size(79, 20);
             this.ShutdownAfterIdle.TabIndex = 19;
-            // 
-            // BufferingDuration
-            // 
-            this.BufferingDuration.Location = new System.Drawing.Point(130, 62);
-            this.BufferingDuration.Name = "BufferingDuration";
-            this.BufferingDuration.Size = new System.Drawing.Size(100, 20);
-            this.BufferingDuration.TabIndex = 18;
             // 
             // IdleTimeout
             // 
@@ -235,7 +260,7 @@
             // SeekOnSlide
             // 
             this.SeekOnSlide.AutoSize = true;
-            this.SeekOnSlide.Location = new System.Drawing.Point(130, 108);
+            this.SeekOnSlide.Location = new System.Drawing.Point(130, 62);
             this.SeekOnSlide.Name = "SeekOnSlide";
             this.SeekOnSlide.Size = new System.Drawing.Size(15, 14);
             this.SeekOnSlide.TabIndex = 9;
@@ -244,7 +269,7 @@
             // ShutdownOnFinish
             // 
             this.ShutdownOnFinish.AutoSize = true;
-            this.ShutdownOnFinish.Location = new System.Drawing.Point(130, 128);
+            this.ShutdownOnFinish.Location = new System.Drawing.Point(130, 82);
             this.ShutdownOnFinish.Name = "ShutdownOnFinish";
             this.ShutdownOnFinish.Size = new System.Drawing.Size(15, 14);
             this.ShutdownOnFinish.TabIndex = 8;
@@ -253,7 +278,7 @@
             // label21
             // 
             this.label21.AutoSize = true;
-            this.label21.Location = new System.Drawing.Point(9, 128);
+            this.label21.Location = new System.Drawing.Point(9, 82);
             this.label21.Name = "label21";
             this.label21.Size = new System.Drawing.Size(103, 13);
             this.label21.TabIndex = 7;
@@ -262,7 +287,7 @@
             // label20
             // 
             this.label20.AutoSize = true;
-            this.label20.Location = new System.Drawing.Point(9, 108);
+            this.label20.Location = new System.Drawing.Point(9, 62);
             this.label20.Name = "label20";
             this.label20.Size = new System.Drawing.Size(76, 13);
             this.label20.TabIndex = 6;
@@ -276,15 +301,6 @@
             this.label19.Size = new System.Drawing.Size(77, 13);
             this.label19.TabIndex = 5;
             this.label19.Text = "Idle Activation:";
-            // 
-            // label18
-            // 
-            this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(8, 65);
-            this.label18.Name = "label18";
-            this.label18.Size = new System.Drawing.Size(95, 13);
-            this.label18.TabIndex = 4;
-            this.label18.Text = "Buffering Duration:";
             // 
             // label17
             // 
@@ -502,6 +518,8 @@
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.label56);
+            this.groupBox2.Controls.Add(this.label41);
             this.groupBox2.Controls.Add(this.videoQueueMinSize);
             this.groupBox2.Controls.Add(this.videoThreads);
             this.groupBox2.Controls.Add(this.videoQueueMaxSize);
@@ -512,7 +530,7 @@
             this.groupBox2.Controls.Add(this.label3);
             this.groupBox2.Location = new System.Drawing.Point(8, 139);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(439, 162);
+            this.groupBox2.Size = new System.Drawing.Size(439, 126);
             this.groupBox2.TabIndex = 2;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Decoder";
@@ -896,6 +914,320 @@
             this.subsEnabled.Text = "Enabled";
             this.subsEnabled.UseVisualStyleBackColor = true;
             // 
+            // tabPage7
+            // 
+            this.tabPage7.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPage7.Controls.Add(this.groupBox9);
+            this.tabPage7.Controls.Add(this.groupBox11);
+            this.tabPage7.Controls.Add(this.torEnabled);
+            this.tabPage7.Location = new System.Drawing.Point(4, 29);
+            this.tabPage7.Name = "tabPage7";
+            this.tabPage7.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage7.Size = new System.Drawing.Size(455, 479);
+            this.tabPage7.TabIndex = 6;
+            this.tabPage7.Text = "Torrent";
+            // 
+            // groupBox9
+            // 
+            this.groupBox9.Controls.Add(this.label18);
+            this.groupBox9.Controls.Add(this.torRetriesBuffer);
+            this.groupBox9.Controls.Add(this.label52);
+            this.groupBox9.Controls.Add(this.torTimeoutBuffer);
+            this.groupBox9.Controls.Add(this.label53);
+            this.groupBox9.Controls.Add(this.torRetriesOpen);
+            this.groupBox9.Controls.Add(this.label42);
+            this.groupBox9.Controls.Add(this.torTimeoutOpen);
+            this.groupBox9.Controls.Add(this.label43);
+            this.groupBox9.Controls.Add(this.torRetriesGlobal);
+            this.groupBox9.Controls.Add(this.label51);
+            this.groupBox9.Controls.Add(this.torMinThreads);
+            this.groupBox9.Controls.Add(this.torMaxThreads);
+            this.groupBox9.Controls.Add(this.torTimeoutGlobal);
+            this.groupBox9.Controls.Add(this.torBlockRequests);
+            this.groupBox9.Controls.Add(this.label44);
+            this.groupBox9.Controls.Add(this.label45);
+            this.groupBox9.Controls.Add(this.label46);
+            this.groupBox9.Controls.Add(this.label47);
+            this.groupBox9.Location = new System.Drawing.Point(11, 175);
+            this.groupBox9.Name = "groupBox9";
+            this.groupBox9.Size = new System.Drawing.Size(439, 179);
+            this.groupBox9.TabIndex = 7;
+            this.groupBox9.TabStop = false;
+            this.groupBox9.Text = "Timing Configuration";
+            // 
+            // torRetriesBuffer
+            // 
+            this.torRetriesBuffer.Location = new System.Drawing.Point(285, 150);
+            this.torRetriesBuffer.Name = "torRetriesBuffer";
+            this.torRetriesBuffer.Size = new System.Drawing.Size(31, 20);
+            this.torRetriesBuffer.TabIndex = 29;
+            // 
+            // label52
+            // 
+            this.label52.AutoSize = true;
+            this.label52.Location = new System.Drawing.Point(236, 153);
+            this.label52.Name = "label52";
+            this.label52.Size = new System.Drawing.Size(43, 13);
+            this.label52.TabIndex = 28;
+            this.label52.Text = "Retries:";
+            // 
+            // torTimeoutBuffer
+            // 
+            this.torTimeoutBuffer.Location = new System.Drawing.Point(130, 150);
+            this.torTimeoutBuffer.Name = "torTimeoutBuffer";
+            this.torTimeoutBuffer.Size = new System.Drawing.Size(100, 20);
+            this.torTimeoutBuffer.TabIndex = 27;
+            // 
+            // label53
+            // 
+            this.label53.AutoSize = true;
+            this.label53.Location = new System.Drawing.Point(6, 153);
+            this.label53.Name = "label53";
+            this.label53.Size = new System.Drawing.Size(85, 13);
+            this.label53.TabIndex = 26;
+            this.label53.Text = "Timeout (Buffer):";
+            // 
+            // torRetriesOpen
+            // 
+            this.torRetriesOpen.Location = new System.Drawing.Point(285, 124);
+            this.torRetriesOpen.Name = "torRetriesOpen";
+            this.torRetriesOpen.Size = new System.Drawing.Size(31, 20);
+            this.torRetriesOpen.TabIndex = 25;
+            // 
+            // label42
+            // 
+            this.label42.AutoSize = true;
+            this.label42.Location = new System.Drawing.Point(236, 127);
+            this.label42.Name = "label42";
+            this.label42.Size = new System.Drawing.Size(43, 13);
+            this.label42.TabIndex = 24;
+            this.label42.Text = "Retries:";
+            // 
+            // torTimeoutOpen
+            // 
+            this.torTimeoutOpen.Location = new System.Drawing.Point(130, 124);
+            this.torTimeoutOpen.Name = "torTimeoutOpen";
+            this.torTimeoutOpen.Size = new System.Drawing.Size(100, 20);
+            this.torTimeoutOpen.TabIndex = 23;
+            // 
+            // label43
+            // 
+            this.label43.AutoSize = true;
+            this.label43.Location = new System.Drawing.Point(6, 127);
+            this.label43.Name = "label43";
+            this.label43.Size = new System.Drawing.Size(83, 13);
+            this.label43.TabIndex = 22;
+            this.label43.Text = "Timeout (Open):";
+            // 
+            // torRetriesGlobal
+            // 
+            this.torRetriesGlobal.Location = new System.Drawing.Point(285, 98);
+            this.torRetriesGlobal.Name = "torRetriesGlobal";
+            this.torRetriesGlobal.Size = new System.Drawing.Size(31, 20);
+            this.torRetriesGlobal.TabIndex = 21;
+            // 
+            // label51
+            // 
+            this.label51.AutoSize = true;
+            this.label51.Location = new System.Drawing.Point(236, 101);
+            this.label51.Name = "label51";
+            this.label51.Size = new System.Drawing.Size(43, 13);
+            this.label51.TabIndex = 20;
+            this.label51.Text = "Retries:";
+            // 
+            // torMinThreads
+            // 
+            this.torMinThreads.Location = new System.Drawing.Point(130, 23);
+            this.torMinThreads.Name = "torMinThreads";
+            this.torMinThreads.Size = new System.Drawing.Size(100, 20);
+            this.torMinThreads.TabIndex = 15;
+            // 
+            // torMaxThreads
+            // 
+            this.torMaxThreads.Location = new System.Drawing.Point(130, 46);
+            this.torMaxThreads.Name = "torMaxThreads";
+            this.torMaxThreads.Size = new System.Drawing.Size(100, 20);
+            this.torMaxThreads.TabIndex = 14;
+            // 
+            // torTimeoutGlobal
+            // 
+            this.torTimeoutGlobal.Location = new System.Drawing.Point(130, 98);
+            this.torTimeoutGlobal.Name = "torTimeoutGlobal";
+            this.torTimeoutGlobal.Size = new System.Drawing.Size(100, 20);
+            this.torTimeoutGlobal.TabIndex = 13;
+            // 
+            // torBlockRequests
+            // 
+            this.torBlockRequests.Location = new System.Drawing.Point(130, 72);
+            this.torBlockRequests.Name = "torBlockRequests";
+            this.torBlockRequests.Size = new System.Drawing.Size(100, 20);
+            this.torBlockRequests.TabIndex = 12;
+            // 
+            // label44
+            // 
+            this.label44.AutoSize = true;
+            this.label44.Location = new System.Drawing.Point(6, 101);
+            this.label44.Name = "label44";
+            this.label44.Size = new System.Drawing.Size(87, 13);
+            this.label44.TabIndex = 10;
+            this.label44.Text = "Timeout (Global):";
+            // 
+            // label45
+            // 
+            this.label45.AutoSize = true;
+            this.label45.Location = new System.Drawing.Point(6, 75);
+            this.label45.Name = "label45";
+            this.label45.Size = new System.Drawing.Size(104, 13);
+            this.label45.TabIndex = 9;
+            this.label45.Text = "Blocks Per Request:";
+            // 
+            // label46
+            // 
+            this.label46.AutoSize = true;
+            this.label46.Location = new System.Drawing.Point(6, 26);
+            this.label46.Name = "label46";
+            this.label46.Size = new System.Drawing.Size(69, 13);
+            this.label46.TabIndex = 8;
+            this.label46.Text = "Min Threads:";
+            // 
+            // label47
+            // 
+            this.label47.AutoSize = true;
+            this.label47.Location = new System.Drawing.Point(6, 49);
+            this.label47.Name = "label47";
+            this.label47.Size = new System.Drawing.Size(72, 13);
+            this.label47.TabIndex = 7;
+            this.label47.Text = "Max Threads:";
+            // 
+            // groupBox11
+            // 
+            this.groupBox11.Controls.Add(this.btnTorDownloadPath);
+            this.groupBox11.Controls.Add(this.torDownlaodPath);
+            this.groupBox11.Controls.Add(this.label55);
+            this.groupBox11.Controls.Add(this.label54);
+            this.groupBox11.Controls.Add(this.torDownloadNext);
+            this.groupBox11.Controls.Add(this.torSleepModeAutoCustom);
+            this.groupBox11.Controls.Add(this.torSleepMode);
+            this.groupBox11.Controls.Add(this.torBufferDuration);
+            this.groupBox11.Controls.Add(this.label49);
+            this.groupBox11.Controls.Add(this.label48);
+            this.groupBox11.Controls.Add(this.label50);
+            this.groupBox11.Location = new System.Drawing.Point(8, 45);
+            this.groupBox11.Name = "groupBox11";
+            this.groupBox11.Size = new System.Drawing.Size(439, 122);
+            this.groupBox11.TabIndex = 6;
+            this.groupBox11.TabStop = false;
+            this.groupBox11.Text = "General";
+            // 
+            // btnTorDownloadPath
+            // 
+            this.btnTorDownloadPath.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.btnTorDownloadPath.Location = new System.Drawing.Point(325, 90);
+            this.btnTorDownloadPath.Name = "btnTorDownloadPath";
+            this.btnTorDownloadPath.Size = new System.Drawing.Size(75, 23);
+            this.btnTorDownloadPath.TabIndex = 21;
+            this.btnTorDownloadPath.Text = "Browse ...";
+            this.btnTorDownloadPath.UseVisualStyleBackColor = true;
+            // 
+            // torDownlaodPath
+            // 
+            this.torDownlaodPath.Location = new System.Drawing.Point(133, 92);
+            this.torDownlaodPath.Name = "torDownlaodPath";
+            this.torDownlaodPath.Size = new System.Drawing.Size(186, 20);
+            this.torDownlaodPath.TabIndex = 20;
+            // 
+            // label55
+            // 
+            this.label55.AutoSize = true;
+            this.label55.Location = new System.Drawing.Point(6, 95);
+            this.label55.Name = "label55";
+            this.label55.Size = new System.Drawing.Size(83, 13);
+            this.label55.TabIndex = 19;
+            this.label55.Text = "Download Path:";
+            // 
+            // label54
+            // 
+            this.label54.AutoSize = true;
+            this.label54.Location = new System.Drawing.Point(239, 52);
+            this.label54.Name = "label54";
+            this.label54.Size = new System.Drawing.Size(31, 13);
+            this.label54.TabIndex = 18;
+            this.label54.Text = "KB/s";
+            // 
+            // torDownloadNext
+            // 
+            this.torDownloadNext.AutoSize = true;
+            this.torDownloadNext.Location = new System.Drawing.Point(133, 72);
+            this.torDownloadNext.Name = "torDownloadNext";
+            this.torDownloadNext.Size = new System.Drawing.Size(15, 14);
+            this.torDownloadNext.TabIndex = 17;
+            this.torDownloadNext.UseVisualStyleBackColor = true;
+            // 
+            // torSleepModeAutoCustom
+            // 
+            this.torSleepModeAutoCustom.FormattingEnabled = true;
+            this.torSleepModeAutoCustom.Items.AddRange(new object[] {
+            "Auto"});
+            this.torSleepModeAutoCustom.Location = new System.Drawing.Point(154, 49);
+            this.torSleepModeAutoCustom.Name = "torSleepModeAutoCustom";
+            this.torSleepModeAutoCustom.Size = new System.Drawing.Size(79, 21);
+            this.torSleepModeAutoCustom.TabIndex = 16;
+            // 
+            // torSleepMode
+            // 
+            this.torSleepMode.AutoSize = true;
+            this.torSleepMode.Location = new System.Drawing.Point(133, 52);
+            this.torSleepMode.Name = "torSleepMode";
+            this.torSleepMode.Size = new System.Drawing.Size(15, 14);
+            this.torSleepMode.TabIndex = 15;
+            this.torSleepMode.UseVisualStyleBackColor = true;
+            // 
+            // torBufferDuration
+            // 
+            this.torBufferDuration.Location = new System.Drawing.Point(133, 23);
+            this.torBufferDuration.Name = "torBufferDuration";
+            this.torBufferDuration.Size = new System.Drawing.Size(100, 20);
+            this.torBufferDuration.TabIndex = 15;
+            // 
+            // label49
+            // 
+            this.label49.AutoSize = true;
+            this.label49.Location = new System.Drawing.Point(6, 72);
+            this.label49.Name = "label49";
+            this.label49.Size = new System.Drawing.Size(80, 13);
+            this.label49.TabIndex = 1;
+            this.label49.Text = "Download Next";
+            // 
+            // label48
+            // 
+            this.label48.AutoSize = true;
+            this.label48.Location = new System.Drawing.Point(6, 52);
+            this.label48.Name = "label48";
+            this.label48.Size = new System.Drawing.Size(64, 13);
+            this.label48.TabIndex = 2;
+            this.label48.Text = "Sleep Mode";
+            // 
+            // label50
+            // 
+            this.label50.AutoSize = true;
+            this.label50.Location = new System.Drawing.Point(6, 26);
+            this.label50.Name = "label50";
+            this.label50.Size = new System.Drawing.Size(95, 13);
+            this.label50.TabIndex = 0;
+            this.label50.Text = "Buffering Duration:";
+            // 
+            // torEnabled
+            // 
+            this.torEnabled.AutoSize = true;
+            this.torEnabled.Checked = true;
+            this.torEnabled.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.torEnabled.Location = new System.Drawing.Point(8, 13);
+            this.torEnabled.Name = "torEnabled";
+            this.torEnabled.Size = new System.Drawing.Size(65, 17);
+            this.torEnabled.TabIndex = 5;
+            this.torEnabled.Text = "Enabled";
+            this.torEnabled.UseVisualStyleBackColor = true;
+            // 
             // tabPage6
             // 
             this.tabPage6.BackColor = System.Drawing.SystemColors.Control;
@@ -1203,23 +1535,32 @@
             this.cmbSettings.Size = new System.Drawing.Size(121, 21);
             this.cmbSettings.TabIndex = 0;
             // 
-            // DownloadNext
+            // label18
             // 
-            this.DownloadNext.AutoSize = true;
-            this.DownloadNext.Location = new System.Drawing.Point(130, 88);
-            this.DownloadNext.Name = "DownloadNext";
-            this.DownloadNext.Size = new System.Drawing.Size(15, 14);
-            this.DownloadNext.TabIndex = 22;
-            this.DownloadNext.UseVisualStyleBackColor = true;
+            this.label18.AutoSize = true;
+            this.label18.Location = new System.Drawing.Point(236, 49);
+            this.label18.Name = "label18";
+            this.label18.Size = new System.Drawing.Size(114, 13);
+            this.label18.TabIndex = 30;
+            this.label18.Text = "* Requires Re-opening";
             // 
             // label41
             // 
             this.label41.AutoSize = true;
-            this.label41.Location = new System.Drawing.Point(9, 88);
+            this.label41.Location = new System.Drawing.Point(236, 48);
             this.label41.Name = "label41";
-            this.label41.Size = new System.Drawing.Size(83, 13);
-            this.label41.TabIndex = 21;
-            this.label41.Text = "Download Next:";
+            this.label41.Size = new System.Drawing.Size(114, 13);
+            this.label41.TabIndex = 31;
+            this.label41.Text = "* Requires Re-opening";
+            // 
+            // label56
+            // 
+            this.label56.AutoSize = true;
+            this.label56.Location = new System.Drawing.Point(236, 25);
+            this.label56.Name = "label56";
+            this.label56.Size = new System.Drawing.Size(114, 13);
+            this.label56.TabIndex = 32;
+            this.label56.Text = "* Requires Re-opening";
             // 
             // FrmSettings
             // 
@@ -1254,6 +1595,12 @@
             this.groupBox5.PerformLayout();
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
+            this.tabPage7.ResumeLayout(false);
+            this.tabPage7.PerformLayout();
+            this.groupBox9.ResumeLayout(false);
+            this.groupBox9.PerformLayout();
+            this.groupBox11.ResumeLayout(false);
+            this.groupBox11.PerformLayout();
             this.tabPage6.ResumeLayout(false);
             this.groupBox8.ResumeLayout(false);
             this.groupBox8.PerformLayout();
@@ -1317,7 +1664,6 @@
         private System.Windows.Forms.Button btnLanguages;
         private System.Windows.Forms.Label label22;
         private System.Windows.Forms.TextBox ShutdownAfterIdle;
-        private System.Windows.Forms.TextBox BufferingDuration;
         private System.Windows.Forms.TextBox IdleTimeout;
         private System.Windows.Forms.TextBox ClearBackColor;
         private System.Windows.Forms.CheckBox SeekOnSlide;
@@ -1325,7 +1671,6 @@
         private System.Windows.Forms.Label label21;
         private System.Windows.Forms.Label label20;
         private System.Windows.Forms.Label label19;
-        private System.Windows.Forms.Label label18;
         private System.Windows.Forms.Label label17;
         private System.Windows.Forms.TabPage tabPage5;
         private System.Windows.Forms.TextBox SubsFontSizeStep;
@@ -1374,8 +1719,42 @@
         private System.Windows.Forms.Label label35;
         private System.Windows.Forms.Label label36;
         private System.Windows.Forms.TextBox txtLangs;
-        private System.Windows.Forms.CheckBox DownloadNext;
+        private System.Windows.Forms.TabPage tabPage7;
+        private System.Windows.Forms.GroupBox groupBox9;
+        private System.Windows.Forms.TextBox torRetriesBuffer;
+        private System.Windows.Forms.Label label52;
+        private System.Windows.Forms.TextBox torTimeoutBuffer;
+        private System.Windows.Forms.Label label53;
+        private System.Windows.Forms.TextBox torRetriesOpen;
+        private System.Windows.Forms.Label label42;
+        private System.Windows.Forms.TextBox torTimeoutOpen;
+        private System.Windows.Forms.Label label43;
+        private System.Windows.Forms.TextBox torRetriesGlobal;
+        private System.Windows.Forms.Label label51;
+        private System.Windows.Forms.TextBox torMinThreads;
+        private System.Windows.Forms.TextBox torMaxThreads;
+        private System.Windows.Forms.TextBox torTimeoutGlobal;
+        private System.Windows.Forms.TextBox torBlockRequests;
+        private System.Windows.Forms.Label label44;
+        private System.Windows.Forms.Label label45;
+        private System.Windows.Forms.Label label46;
+        private System.Windows.Forms.Label label47;
+        private System.Windows.Forms.GroupBox groupBox11;
+        private System.Windows.Forms.CheckBox torDownloadNext;
+        private System.Windows.Forms.ComboBox torSleepModeAutoCustom;
+        private System.Windows.Forms.CheckBox torSleepMode;
+        private System.Windows.Forms.TextBox torBufferDuration;
+        private System.Windows.Forms.Label label48;
+        private System.Windows.Forms.Label label49;
+        private System.Windows.Forms.Label label50;
+        private System.Windows.Forms.CheckBox torEnabled;
+        private System.Windows.Forms.Label label54;
+        private System.Windows.Forms.Button btnTorDownloadPath;
+        private System.Windows.Forms.TextBox torDownlaodPath;
+        private System.Windows.Forms.Label label55;
         private System.Windows.Forms.Label label41;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.Label label56;
     }
 }
 

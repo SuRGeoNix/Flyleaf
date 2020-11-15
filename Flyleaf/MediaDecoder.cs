@@ -80,8 +80,8 @@ namespace SuRGeoNix.Flyleaf
         public Status           status  { get; set; }
 
         // AVIO / Custom IO Buffering
-        public Action<bool, double>     BufferingDone;
-        const int               IOBufferSize    = 0x40000;
+        public Action<bool, double> BufferingDone;
+        const int               IOBufferSize    = 0x200000;
 
         // HW Acceleration
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
@@ -298,7 +298,7 @@ namespace SuRGeoNix.Flyleaf
             if (IORead != null && ioLength != 0) decCtx.IOContextConfig(IORead, ioLength);
 
             AVDictionary *opt = null;
-
+            
             // Required for Youtube-dl to avoid 403 Forbidden
             av_dict_set(&opt, "referer", referer, 0);
 
@@ -746,6 +746,9 @@ namespace SuRGeoNix.Flyleaf
                         av_seek_frame(fmtCtx, -1, ms * 1000, AVSEEK_FLAG_FRAME);
                     else
                         av_seek_frame(fmtCtx, -1, ms * 1000, AVSEEK_FLAG_BACKWARD);
+
+                    // FLV Seek Issue (should use byte pos?)
+                    //long bytepos = dec.vStream->index_entries[av_index_search_timestamp(dec.vStream, ms * 1000, AVSEEK_FLAG_BACKWARD)].pos;
                 }
                 else if (type == AVMEDIA_TYPE_AUDIO)
                 {
@@ -811,7 +814,7 @@ namespace SuRGeoNix.Flyleaf
                     bool        informed        = false;
                     double      fromTimestamp   = -1;
                     double      curTimestamp    =  0;
-                    double      endTimestamp    = (fromMs + duration) / 1000.0;
+                    double      endTimestamp    =  0; //(fromMs + duration) / 1000.0;
                     List<int>   doneStreams     = new List<int>();
 
                     long        informInterval  = 0; // To avoid spamming threads & rendering
@@ -833,14 +836,17 @@ namespace SuRGeoNix.Flyleaf
                         if (!activeStreamIds.Contains(pkt->stream_index)) continue;
 
                         curTimestamp = pkt->dts * av_q2d(fmtCtx->streams[pkt->stream_index]->time_base);
-                        if (fromTimestamp == -1) fromTimestamp = curTimestamp;
 
-                        if ( curTimestamp > endTimestamp) 
-                            doneStreams.Add(pkt->stream_index);
-                        else if (DateTime.UtcNow.Ticks - informInterval > 500000) // 200ms interval for buffering stats update
+                        if (curTimestamp >= 0)
                         {
-                            informInterval = DateTime.UtcNow.Ticks;
-                            dec.BufferingDone?.BeginInvoke(false, (curTimestamp - fromTimestamp) / (endTimestamp - fromTimestamp), null, null);
+                            if (fromTimestamp == -1)
+                            {
+                                fromTimestamp   = curTimestamp;
+                                endTimestamp    = fromTimestamp + (duration / 1000.0);
+                                Log($"Buffering first timestamp -> {Utils.TicksToTime((long)(pkt->dts * av_q2d(fmtCtx->streams[pkt->stream_index]->time_base) * 1000 * (long)10000))} | Requested for {Utils.TicksToTime((long) (endTimestamp * 1000 * (long)10000))}");
+                            }
+
+                            if ( curTimestamp > endTimestamp) doneStreams.Add(pkt->stream_index);
                         }
                     }
                     status = Status.STOPPED;
@@ -899,8 +905,10 @@ namespace SuRGeoNix.Flyleaf
                  * Also thread sleeps will prevent fast demuxing as well here for now
                  */
 
-                while (dec.isRunning && isRunning && (ret = GetNextFrame(out mType)) == 0 && errors < 200)
+                while (dec.isRunning && isRunning && (ret = GetNextFrame(out mType)) != AVERROR_EOF && errors < 200)
                 {
+                    if (ret != 0) { errors++; if (pkt != null) Log("Stream " + pkt->stream_index.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); continue; }
+
                     if (frame == null && mType != AVMEDIA_TYPE_SUBTITLE) continue;
 
                     //if (pkt != null && frame != null) Console.WriteLine("F | " + pkt->stream_index + " | " + (new TimeSpan(av_rescale_q(frame->best_effort_timestamp, fmtCtx->streams[pkt->stream_index]->time_base, av_get_time_base_q()) * 10)).ToString(@"hh\:mm\:ss") + " | " + frame->best_effort_timestamp  + " | " + av_rescale_q(frame->best_effort_timestamp, fmtCtx->streams[pkt->stream_index]->time_base, av_get_time_base_q()));
@@ -933,6 +941,7 @@ namespace SuRGeoNix.Flyleaf
                             break;
                     }
 
+                    // Probably should remove Audio/Subtitles from here (only Video frames should control the flow, at least if we talk about video player and not audio player)
                     while   (type == AVMEDIA_TYPE_SUBTITLE  && dec.isRunning && dec.player.sFrames.Count > dec.player.SUBS_MAX_QUEUE_SIZE)
                         Thread.Sleep(70);
 
@@ -941,7 +950,7 @@ namespace SuRGeoNix.Flyleaf
 
                     // We use 3 * max queue size for live streaming (currently live stream means duration = 0 | possible check if hls?)
                     // We need to ensure that we have also enough Audio Samples (for embedded audio stream) - is it possible to calculate this?
-                    while   (type == AVMEDIA_TYPE_VIDEO     && dec.isRunning && dec.player.vFrames.Count > (dec.player.Duration == 0 ? dec.player.VIDEO_MIX_QUEUE_SIZE * 3 : dec.player.VIDEO_MIX_QUEUE_SIZE))
+                    while   (type == AVMEDIA_TYPE_VIDEO     && dec.isRunning && dec.player.vFrames.Count > (dec.player.Duration == 0 ? dec.player.VIDEO_MAX_QUEUE_SIZE * 3 : dec.player.VIDEO_MAX_QUEUE_SIZE))
                         Thread.Sleep(5);
                 }
 
@@ -963,16 +972,16 @@ namespace SuRGeoNix.Flyleaf
 
                 if (drainMode)
                 {
-                    frame = av_frame_alloc();
-                    mType = AVMEDIA_TYPE_VIDEO;
-                    ret = avcodec_receive_frame(dec.vCodecCtx, frame);
+                    frame   = av_frame_alloc();
+                    mType   = AVMEDIA_TYPE_VIDEO;
+                    ret     = avcodec_receive_frame(dec.vCodecCtx, frame);
 
                     if (ret == 0) { Log("Drain Frame " + type); hasMoreFrames = true; return ret; }
                     if (ret == AVERROR(EAGAIN)) return GetNextFrame(out mType);
 
-                    hasMoreFrames = false;
-                    drainMode = false;
-                    finished = true;
+                    hasMoreFrames   = false;
+                    drainMode       = false;
+                    finished        = true;
 
                     return ret;
                 }
@@ -981,9 +990,6 @@ namespace SuRGeoNix.Flyleaf
                 {
                     av_packet_unref(pkt);
                     ret = av_read_frame(fmtCtx, pkt);
-
-                    // Allow INVALID DATA?
-                    if (ret == AVERROR_INVALIDDATA) { errors++; Log("Stream " + pkt->stream_index.ToString() + " - Error[" + ret.ToString("D4") + "], Msg: " + ErrorCodeToMsg(ret)); return 0; }
 
                     if (ret == AVERROR_EOF)
                     { 
@@ -1096,7 +1102,7 @@ namespace SuRGeoNix.Flyleaf
                 byte* aReadBuffer = (byte*)av_malloc(IOBufferSize);
                 IOCtx = avio_alloc_context(aReadBuffer, IOBufferSize, 0, null, ioread, null, ioseek);
                 fmtCtx->pb = IOCtx;
-                fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO; 
+                fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
 
                 gcPrevent.Add(ioread);
                 gcPrevent.Add(ioseek);
