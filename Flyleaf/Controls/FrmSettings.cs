@@ -43,27 +43,40 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             cmbSettings.SelectedIndexChanged    += cmbSettings_SelectedIndexChanged;
             subsEnabled.CheckedChanged          += subsEnabled_CheckedChanged;
+            torEnabled.CheckedChanged           += torEnabled_CheckedChanged;
+            torSleepMode.CheckedChanged         += torSleepMode_CheckedChanged;
             ShutdownOnFinish.CheckedChanged     += ShutdownOnFinish_CheckedChanged;
             subsRectEnabled.CheckedChanged      += subsRectEnabled_CheckedChanged;
             subsSurface.SelectedIndexChanged    += subsSurface_SelectedIndexChanged;
+            surfRectEnabled.CheckedChanged      += surfRectEnabled_CheckedChanged;
             surf.SelectedIndexChanged           += surf_SelectedIndexChanged;
             msg.SelectedIndexChanged            += msg_SelectedIndexChanged;
             btnLanguages.Click                  += btnLanguages_Click;
             btnSurfCopyAll.Click                += btnSurfCopyAll_Click;
+            btnTorDownloadPath.Click            += btnTorDownloadPath_Click;
+
+            ClearBackColor. Validating          += (o, e) => { ValidateColor    (ClearBackColor ); };
+            ClearBackColor. MouseDoubleClick    += (o, e) => { ShowColorDialog  (ClearBackColor ); };
 
             subsColor.      Validating          += (o, e) => { ValidateColor    (subsColor      ); };
             subsRectColor.  Validating          += (o, e) => { ValidateColor    (subsRectColor  ); };
-            ClearBackColor. Validating          += (o, e) => { ValidateColor    (ClearBackColor ); };
-
             subsPosition.   Validating          += (o, e) => { ValidateSize     (subsPosition); };
             subsRectPadding.Validating          += (o, e) => { ValidatePadding  (subsRectPadding); };
-
             subsFont.       Validating          += (o, e) => { ValidateFont     (subsFont       ); };
 
             subsFont.       MouseDoubleClick    += (o, e) => { ShowFontDialog   (subsFont       ); };
             subsColor.      MouseDoubleClick    += (o, e) => { ShowColorDialog  (subsColor      ); };
-            subsRectColor.  MouseDoubleClick    += (o, e) => { ShowColorDialog  (subsRectColor   ); };
-            ClearBackColor. MouseDoubleClick    += (o, e) => { ShowColorDialog  (ClearBackColor  ); };
+            subsRectColor.  MouseDoubleClick    += (o, e) => { ShowColorDialog  (subsRectColor  ); };
+
+            surfColor.      Validating          += (o, e) => { ValidateColor    (surfColor      ); };
+            surfRectColor.  Validating          += (o, e) => { ValidateColor    (surfRectColor  ); };
+            surfPosition.   Validating          += (o, e) => { ValidateSize     (surfPosition); };
+            surfRectPadding.Validating          += (o, e) => { ValidatePadding  (surfRectPadding); };
+            surfFont.       Validating          += (o, e) => { ValidateFont     (surfFont       ); };
+
+            surfColor.      MouseDoubleClick    += (o, e) => { ShowColorDialog  (surfColor      ); };
+            surfRectColor.  MouseDoubleClick    += (o, e) => { ShowColorDialog  (surfRectColor  ); };
+            surfFont.       MouseDoubleClick    += (o, e) => { ShowFontDialog   (surfFont       ); };
 
             subsDownload.   Items.AddRange(Enum.GetNames(typeof(MediaRouter.DownloadSubsMode)));
             subsSurface.    Items.AddRange(Enum.GetNames(typeof(Settings.OSDSurfaces)));
@@ -74,6 +87,16 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             (new ToolTip()).SetToolTip(ShutdownAfterIdle, "Will shutdown in X seconds if you dont do anything");
             (new ToolTip()).SetToolTip(btnSurfCopyAll, "Excludes position field & subtitles surface");
+            (new ToolTip()).SetToolTip(torSleepMode, "Power save mode for torrent streaming");
+            (new ToolTip()).SetToolTip(torSleepModeAutoCustom, "Auto or Custom numeric value such as 2048");
+
+            (new ToolTip()).SetToolTip(ClearBackColor, "Double Click for Palette");
+            (new ToolTip()).SetToolTip(subsColor, "Double Click for Palette");
+            (new ToolTip()).SetToolTip(surfColor, "Double Click for Palette");
+            (new ToolTip()).SetToolTip(surfRectColor, "Double Click for Palette");
+            (new ToolTip()).SetToolTip(subsFont, "Double Click for Font Selection");
+            (new ToolTip()).SetToolTip(surfFont, "Double Click for Font Selection");
+
             FrmSettings_Resize(this, null);
         }
 
@@ -164,10 +187,31 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (colorDialog.ShowDialog() == DialogResult.OK) target.Text = colorConv.ConvertToString(colorDialog.Color);
         }
 
+        private void btnTorDownloadPath_Click(object sender, EventArgs e)
+        {
+            using(var fbd = new FolderBrowserDialog())
+            {
+                DialogResult result = fbd.ShowDialog();
+
+                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    torDownlaodPath.Text = fbd.SelectedPath;
+            }
+        }
+        private void torEnabled_CheckedChanged(object sender, EventArgs e)
+        {
+            groupBox11.Enabled  = torEnabled.Checked;
+            groupBox9.Enabled   = torEnabled.Checked;
+        }
+        private void torSleepMode_CheckedChanged(object sender, EventArgs e)
+        {
+            torSleepModeAutoCustom.Enabled = torSleepMode.Checked;
+        }
+
+
         private void subsEnabled_CheckedChanged(object sender, EventArgs e)
         {
-            groupBox3.Enabled = subsEnabled.Checked;
-            groupBox4.Enabled = subsEnabled.Checked;
+            groupBox3.Enabled   = subsEnabled.Checked;
+            groupBox4.Enabled   = subsEnabled.Checked;
         }
         private void subsRectEnabled_CheckedChanged(object sender, EventArgs e)
         {
@@ -215,6 +259,10 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             FillSurfaceToForm(selectedLoad, surf.Text);
         }
+        private void surfRectEnabled_CheckedChanged(object sender, EventArgs e)
+        {
+            groupBox7.Enabled = surfRectEnabled.Checked;
+        }
         private void msg_SelectedIndexChanged(object sender, EventArgs e)
         {
             FillMessageToForm(selectedLoad, msg.Text);
@@ -224,14 +272,17 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             ClearBackColor.Text         = load.main.ClearBackColor2;
             IdleTimeout.Text            = load.main.IdleTimeout.ToString();
-            BufferingDuration.Text      = load.main.BufferingDuration.ToString();
-            DownloadNext.Checked        = load.main.DownloadNext;
             SeekOnSlide.Checked         = load.bar.SeekOnSlide;
+
+            ShutdownOnFinish.Checked    = !load.main.ShutdownOnFinish;
             ShutdownOnFinish.Checked    = load.main.ShutdownOnFinish;
+
             ShutdownAfterIdle.Text      = load.main.ShutdownAfterIdle.ToString();
 
+            audioEnabled.Checked        = !load.audio._Enabled;
             audioEnabled.Checked        = load.audio._Enabled;
 
+            subsEnabled.Checked         = !load.subtitles._Enabled;
             subsEnabled.Checked         = load.subtitles._Enabled;
             frmLanguages.Languages      = load.subtitles.Languages;
             subsDownload.Text           = load.subtitles.DownloadSubs.ToString();
@@ -260,13 +311,43 @@ namespace SuRGeoNix.Flyleaf.Controls
             videoVSync.Checked          = load.video.VSync;
             videoThreads.Text           = load.video.DecoderThreads.ToString();
             videoAspectRatio.Text       = load.video.AspectRatio == MediaRouter.ViewPorts.CUSTOM ? load.video.CustomRatio.ToString() : load.video.AspectRatio.ToString();
+
+            torEnabled.Checked          = !load.torrent._Enabled;
+            torEnabled.Checked          = load.torrent._Enabled;
+            torDownloadNext.Checked     = load.torrent.DownloadNext;
+            torBufferDuration.Text      = load.torrent.BufferDuration.ToString();
+            torDownlaodPath.Text        = load.torrent.DownloadPath.ToString();
+
+            torSleepMode.Checked        = !torSleepMode.Checked;
+
+            if (load.torrent.SleepMode == 0)
+            {
+                torSleepMode.Checked = false;
+                torSleepModeAutoCustom.Text = "";
+                torSleepModeAutoCustom.Enabled = false;
+            }
+            else
+            {
+                torSleepMode.Checked = true;
+                torSleepModeAutoCustom.Enabled = true;
+                torSleepModeAutoCustom.Text = load.torrent.SleepMode == -1 ? "Auto" : load.torrent.SleepMode.ToString();
+            }
+
+            torMinThreads.Text          = load.torrent.MinThreads.ToString();
+            torMaxThreads.Text          = load.torrent.MaxThreads.ToString();
+            torBlockRequests.Text       = load.torrent.BlockRequests.ToString();
+
+            torTimeoutGlobal.Text       = load.torrent.TimeoutGlobal.ToString();
+            torRetriesGlobal.Text       = load.torrent.RetriesGlobal.ToString();
+            torTimeoutBuffer.Text       = load.torrent.TimeoutBuffer.ToString();
+            torRetriesBuffer.Text       = load.torrent.RetriesBuffer.ToString();
+            torTimeoutOpen.Text         = load.torrent.TimeoutOpen.ToString();
+            torRetriesOpen.Text         = load.torrent.RetriesOpen.ToString();
         }
         private void FillFormToSettings(SettingsLoad load, bool surfCopyAll = false)
         {
             load.main.ClearBackColor2       = ClearBackColor.Text;
             load.main.IdleTimeout           = int.Parse(IdleTimeout.Text);
-            load.main.BufferingDuration     = int.Parse(BufferingDuration.Text);
-            load.main.DownloadNext          = DownloadNext.Checked;
             load.bar.SeekOnSlide            = SeekOnSlide.Checked;
             load.main.ShutdownOnFinish      = ShutdownOnFinish.Checked;
             load.main.ShutdownAfterIdle     = int.Parse(ShutdownAfterIdle.Text);
@@ -333,7 +414,29 @@ namespace SuRGeoNix.Flyleaf.Controls
                 load.video.AspectRatio      = MediaRouter.ViewPorts.CUSTOM;
                 load.video.CustomRatio      = float.Parse(videoAspectRatio.Text);
             }
-                
+            
+            load.torrent._Enabled           = torEnabled.Checked;
+            load.torrent.DownloadNext       = torDownloadNext.Checked;
+            load.torrent.BufferDuration     = int.Parse(torBufferDuration.Text);
+            load.torrent.DownloadPath       = torDownlaodPath.Text;
+
+            if (!torSleepMode.Checked)
+                load.torrent.SleepMode = 0;
+            else if (torSleepModeAutoCustom.Text.ToLower() == "auto")
+                load.torrent.SleepMode = -1;
+            else
+                load.torrent.SleepMode      = int.Parse(torSleepModeAutoCustom.Text);
+
+            load.torrent.MinThreads         = int.Parse(torMinThreads.Text);
+            load.torrent.MaxThreads         = int.Parse(torMaxThreads.Text);
+            load.torrent.BlockRequests      = int.Parse(torBlockRequests.Text);
+
+            load.torrent.TimeoutGlobal      = int.Parse(torTimeoutGlobal.Text);
+            load.torrent.RetriesGlobal      = int.Parse(torRetriesGlobal.Text);
+            load.torrent.TimeoutBuffer      = int.Parse(torTimeoutBuffer.Text);
+            load.torrent.RetriesBuffer      = int.Parse(torRetriesBuffer.Text);
+            load.torrent.TimeoutOpen        = int.Parse(torTimeoutOpen.Text);
+            load.torrent.RetriesOpen        = int.Parse(torRetriesOpen.Text);
         }
         private void FillSubsSurfaceToForm(SettingsLoad load, string surface)
         {
@@ -353,6 +456,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             surfFont.Text               = load.surfaces[surfIndex].Font2;
             surfOnViewPort.Checked      = load.surfaces[surfIndex].OnViewPort;
             surfRectColor.Text          = load.surfaces[surfIndex].RectColor2;
+            surfRectEnabled.Checked     = !load.surfaces[surfIndex].RectEnabled;
             surfRectEnabled.Checked     = load.surfaces[surfIndex].RectEnabled;
             surfRectPadding.Text        = paddConv.ConvertToString(load.surfaces[surfIndex].RectPadding);
             surfPosition.Text           = pointConv.ConvertToString(load.surfaces[surfIndex].Position);
@@ -418,6 +522,8 @@ namespace SuRGeoNix.Flyleaf.Controls
                     userDefault = Settings.LoadSettings();
                     break;
             }
+
+            Hide();
         }
         private void btnSurfCopyAll_Click(object sender, EventArgs e)
         {

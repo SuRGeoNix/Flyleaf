@@ -23,6 +23,7 @@ namespace SuRGeoNix.Flyleaf
 
         public Audio        audio       = new Audio();
         public Subtitles    subtitles   = new Subtitles();
+        public Torrent      torrent     = new Torrent();
         public Video        video       = new Video();
 
         public Surface[]    surfaces;
@@ -33,7 +34,6 @@ namespace SuRGeoNix.Flyleaf
             public ActivityMode _PreviewMode        { get; set; }
             public bool         AllowDrop           { get; set; }
             public bool         AllowFullScreen     { get; set; }
-            public bool         AllowTorrents       { get; set; }
             public int          IdleTimeout         { get; set; }
             public bool         EmbeddedList        { get; set; }
             public bool         HideCursor          { get; set; }
@@ -45,7 +45,6 @@ namespace SuRGeoNix.Flyleaf
             public Color        ClearBackColor      { get; set; }
             public int          MessagesDuration    { get; set; }
             public int          BufferingDuration   { get; set; }
-            public bool         DownloadNext        { get; set; }
 
             public bool         ShutdownOnFinish    { get; set; }
             public int          ShutdownAfterIdle   { get; set; }
@@ -97,7 +96,7 @@ namespace SuRGeoNix.Flyleaf
     [TypeConverter(typeof(FlyleafTypeConverter))]
     public class Settings
     {
-        internal Action       PropertyChanged;
+        internal Action     PropertyChanged;
 
         public Main         main        = new Main();
         public Bar          bar         = new Bar();
@@ -106,6 +105,7 @@ namespace SuRGeoNix.Flyleaf
 
         public Audio        audio       = new Audio();
         public Subtitles    subtitles   = new Subtitles();
+        public Torrent      torrent     = new Torrent();
         public Video        video       = new Video();
         
         public SurfacesAll  surfacesAll = new SurfacesAll();
@@ -221,7 +221,6 @@ namespace SuRGeoNix.Flyleaf
             public bool         AllowDrop           { get { return _allowDrop;  } set { _allowDrop  = value; PropertyChanged?.Invoke(); } }
 
             public bool         AllowFullScreen     { get; set; } = true;
-            public bool         AllowTorrents       { get; set; } = true;
             public int          IdleTimeout         { get; set; } = 7000;
             public bool         EmbeddedList        { get; set; } = true;
             public bool         HideCursor          { get; set; } = true;
@@ -232,8 +231,6 @@ namespace SuRGeoNix.Flyleaf
             [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
             public string       ClearBackColor2     { get { return (new ColorConverter()).ConvertToString(ClearBackColor); } set { ClearBackColor = (Color) (new ColorConverter()).ConvertFromString(value); } }
             public int          MessagesDuration    { get { return OSDMessage.DefaultDuration;  } set { OSDMessage.DefaultDuration  = value; } }
-            public int          BufferingDuration   { get { return player.BufferingDuration;    } set { player.BufferingDuration    = value; } }
-            public bool             DownloadNext    { get { return player.DownloadNext;         } set { player.DownloadNext         = value; } }
 
             public bool         ShutdownOnFinish    { get; set; } = false;
             public int          ShutdownAfterIdle   { get; set; } = 300;
@@ -285,6 +282,26 @@ namespace SuRGeoNix.Flyleaf
             public int AudioDelayStep2  { get; set; } = 5000;
             public int VolStep          { get; set; } =    3;
 	    }
+
+        public class Torrent
+        {
+            public bool _Enabled        { get; set; } = true;
+            public bool DownloadNext    { get; set; } = true;
+            public int  BufferDuration  { get; set; } = 2000;
+            public int  SleepMode       { get; set; } = -1;
+            public string DownloadPath  { get; set; } = Path.GetTempPath();
+
+            public int  MinThreads      { get; set; } =   15;
+            public int  MaxThreads      { get; set; } =   80;
+            public int  BlockRequests   { get; set; } =    2;
+
+            public int  TimeoutGlobal   { get; set; } = 1600;
+            public int  RetriesGlobal   { get; set; } =    3;
+            public int  TimeoutOpen     { get; set; } =  700;
+            public int  RetriesOpen     { get; set; } =    7;
+            public int  TimeoutBuffer   { get; set; } =  550;
+            public int  RetriesBuffer   { get; set; } =    8;
+        }
 
         [Serializable]
         [Category("Flyleaf UI")]
@@ -491,20 +508,18 @@ namespace SuRGeoNix.Flyleaf
 
             load.main.AllowDrop               = config.main.AllowDrop;
             load.main.AllowFullScreen         = config.main.AllowFullScreen;
-            load.main.AllowTorrents           = config.main.AllowTorrents;
             load.main.ClearBackColor          = config.main.ClearBackColor;
             load.main.EmbeddedList            = config.main.EmbeddedList;
             load.main.HideCursor              = config.main.HideCursor;
             load.main.IdleTimeout             = config.main.IdleTimeout;
             load.main.MessagesDuration        = config.main.MessagesDuration;
-            load.main.BufferingDuration       = config.main.BufferingDuration;
-            load.main.DownloadNext            = config.main.DownloadNext;
             load.main.ShutdownOnFinish        = config.main.ShutdownOnFinish;
             load.main.ShutdownAfterIdle       = config.main.ShutdownAfterIdle;
 
             load.bar                          = config.bar;
             load.keys                         = config.keys;
             load.hookForm                     = config.hookForm;
+            load.torrent                      = config.torrent;
 
             load.audio._Enabled               = config.audio._Enabled;
 
@@ -548,20 +563,18 @@ namespace SuRGeoNix.Flyleaf
         {
             config.main.AllowDrop               = load.main.AllowDrop;
             config.main.AllowFullScreen         = load.main.AllowFullScreen;
-            config.main.AllowTorrents           = load.main.AllowTorrents;
             config.main.ClearBackColor          = load.main.ClearBackColor;
             config.main.EmbeddedList            = load.main.EmbeddedList;
             config.main.HideCursor              = load.main.HideCursor;
             config.main.IdleTimeout             = load.main.IdleTimeout;
             config.main.MessagesDuration        = load.main.MessagesDuration;
-            config.main.BufferingDuration       = load.main.BufferingDuration;
-            config.main.DownloadNext            = load.main.DownloadNext;
             config.main.ShutdownOnFinish        = load.main.ShutdownOnFinish;
             config.main.ShutdownAfterIdle       = load.main.ShutdownAfterIdle;
 
             config.bar                          = load.bar;
             config.keys                         = load.keys;
             config.hookForm                     = load.hookForm;
+            config.torrent                      = load.torrent;
 
             config.audio._Enabled               = load.audio._Enabled;
 

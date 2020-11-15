@@ -56,7 +56,7 @@ namespace SuRGeoNix.Flyleaf
         Thread                  openOrBuffer;
         Thread                  seekRequest         = new Thread(() => { });
 
-        Stopwatch               videoClock          = new Stopwatch();
+        //Stopwatch               videoClock          = new Stopwatch();
         long                    videoStartTicks     =-1;
 
         long                    audioExternalDelay  = 0;
@@ -176,8 +176,6 @@ namespace SuRGeoNix.Flyleaf
         public float    CustomRatio     { get; set; } = 16f/9f;
         public bool     hasVideo        { get { return decoder.hasVideo;            } }
         public long     Duration        { get { return hasVideo ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks; } }
-        public int      BufferingDuration{get; set; } = 1800; // Related with Queue sizes
-        public bool     DownloadNext    { get; set; } = true;
         public int      Width           { get { return decoder.vStreamInfo.width;   } }
         public int      Height          { get { return decoder.vStreamInfo.height;  } }
         public bool     HighQuality     { get { return decoder.HighQuality;         } set { decoder.HighQuality = value; } }
@@ -216,6 +214,8 @@ namespace SuRGeoNix.Flyleaf
 
             set
             {
+                // TODO: Unexplained delay during Torrent Streaming | To be reviewed
+
                 if (!decoder.isReady || !isReady || !decoder.hasSubs) return;
 
                 subsExternalDelay = value;
@@ -276,7 +276,7 @@ namespace SuRGeoNix.Flyleaf
                 audioPlayer = new AudioPlayer();
                 decoder.Init(verbosity);
                 streamer    = new MediaStreamer(this, verbosity);
-                TimeBeginPeriod(1);
+                TimeBeginPeriod(5);
             }
 
             Initialize();
@@ -284,7 +284,7 @@ namespace SuRGeoNix.Flyleaf
         public MediaRouter(IntPtr handle, int verbosity = 0)
         {
             LoadPlugins();
-            TimeBeginPeriod(1);
+            TimeBeginPeriod(5);
 
             this.verbosity = verbosity;
             renderer    = new MediaRenderer(this, handle);
@@ -366,13 +366,8 @@ namespace SuRGeoNix.Flyleaf
         #region Screaming
         private void MediaBuffer()
         {
-            //audioPlayer.Pause();
-            
             renderer.ClearMessages(OSDMessage.Type.Subtitles);
 
-            //ClearMediaFrames();
-
-            //decoder.ReSync();
             if (!decoder.isRunning || decoder.video.requiresResync) decoder.Run();
             audioPlayer.ResetClbk();
             audioPlayer.Play();
@@ -397,6 +392,8 @@ namespace SuRGeoNix.Flyleaf
             MediaFrame aFrame = null;
             MediaFrame sFrame = null;
       
+            long    startedAtTicks;
+
             long    elapsedTicks;
             int     vDistanceMs;
             int     aDistanceMs;
@@ -412,20 +409,29 @@ namespace SuRGeoNix.Flyleaf
                 SeekTime        = -1;
                 CurTime         = vFrame.timestamp;
                 videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
-                videoClock.Restart();
+                //videoClock.Restart();
+                startedAtTicks = DateTime.UtcNow.Ticks;
             }
             
             Log($"[SCREAMER] Started -> {Utils.TicksToTime(videoStartTicks)}");
 
             while (isPlaying)
             {
-                if ( vFrames.Count == 0 )//|| (hasAudio && aFrames.Count < 1) )
+                if (vFrames.Count == 0)//|| (hasAudio && aFrames.Count < 1) )
                 {
                     if (decoder.Finished) break;
 
                     lock (lockSeek)
                     {
                         Log("Screamer Restarting ........................");
+
+                        if (isTorrent)
+                        {
+                            audioPlayer.ResetClbk();
+                            streamer.Buffer((int)(CurTime / 10000));
+                            break;
+                        }
+
                         MediaBuffer();
                         vFrames.TryDequeue(out vFrame); if (vFrame == null) return;
                         aFrames.TryDequeue(out aFrame);
@@ -434,7 +440,8 @@ namespace SuRGeoNix.Flyleaf
                         CurTime         = vFrame.timestamp;
                         Log($"[SCREAMER] Restarted -> {Utils.TicksToTime(CurTime)}");
                         videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
-                        videoClock.Restart();
+                        //videoClock.Restart();
+                        startedAtTicks = DateTime.UtcNow.Ticks;
                     }
 
                     continue; 
@@ -443,7 +450,8 @@ namespace SuRGeoNix.Flyleaf
                 if (aFrame == null) aFrames.TryDequeue(out aFrame);
                 if (sFrame == null) sFrames.TryDequeue(out sFrame);
 
-                elapsedTicks = videoStartTicks + videoClock.ElapsedTicks;
+                //elapsedTicks = videoStartTicks + videoClock.ElapsedTicks;
+                elapsedTicks = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
 
                 vDistanceMs   = (int) (((vFrame.timestamp) - elapsedTicks) / 10000);
                 aDistanceMs   = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
@@ -558,20 +566,20 @@ namespace SuRGeoNix.Flyleaf
                     openOrBuffer = new Thread(() =>
                     {
                         // Web Streaming URLs (youtube-dl)
-                        // TODO: Subtitles | List formats (-f <code>)
-                        if ( Plugins.Contains("Web Streaming") && (scheme.ToLower() == "http" || scheme.ToLower() == "https") ) //&& (new Uri(url)).Host.ToLower() == "www.youtube.com" || ((new Uri(url)).Host.ToLower() == "youtube.com") )
+                        // TODO: Subtitles | List formats (-F | -f <code>) | Truncate query parameters from youtube URL to ensure youtube-dl will accept it
+                        if (Plugins.Contains("Web Streaming") && (scheme.ToLower() == "http" || scheme.ToLower() == "https"))
                         {
                             Process proc = new Process 
                             {
                                 StartInfo = new ProcessStartInfo
                                 {
-                                    FileName = "youtube-dl.exe",
-                                    Arguments = "-g \"" + url + "\"",
-                                    UseShellExecute = false,
-                                    RedirectStandardOutput = true,
+                                    FileName                = PluginsList["Web Streaming"],
+                                    Arguments               = "-g \"" + url + "\"",
+                                    CreateNoWindow          = true,
+                                    UseShellExecute         = false,
+                                    RedirectStandardOutput  = true,
                                     //RedirectStandardError = true,
-                                    WindowStyle = ProcessWindowStyle.Hidden,
-                                    CreateNoWindow = true
+                                    WindowStyle             = ProcessWindowStyle.Hidden
                                 }
                             };
                             proc.Start();
@@ -581,13 +589,13 @@ namespace SuRGeoNix.Flyleaf
                             while (!proc.StandardOutput.EndOfStream)
                             {
                                 line = proc.StandardOutput.ReadLine();
-                                if ( !Regex.IsMatch(line, @"^http") ) continue;
+                                if (!Regex.IsMatch(line, @"^http") ) continue;
                                 
-                                if ( Regex.IsMatch(line, @"mime=audio") )
+                                if (Regex.IsMatch(line, @"mime=audio") )
                                     aUrl = line;
-                                else if ( Regex.IsMatch(line, @"mime=video") )
+                                else if (Regex.IsMatch(line, @"mime=video") )
                                     vUrl = line;
-                                else if ( vUrl == "")
+                                else if (vUrl == "")
                                     vUrl = line;
                                 else
                                     aUrl = line;
@@ -621,7 +629,11 @@ namespace SuRGeoNix.Flyleaf
                                 string hash = Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(file.FullName));
                                 FindAvailableSubs(file.Name, hash, file.Length);
                             }
-                            else if (ret == 0) OpenNextAvailableSub();
+                            else if (ret == 0)
+                            {
+                                FixSortSubs();
+                                OpenNextAvailableSub();
+                            }
                         }
 
                         if (!decoder.isReady) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed"); status = Status.FAILED; OpenFinishedClbk?.BeginInvoke(false, url, null, null); return; }
@@ -647,7 +659,7 @@ namespace SuRGeoNix.Flyleaf
             if (isTorrent)
             {
                 status = Status.BUFFERING;
-                streamer.Buffer((int)(CurTime / 10000), BufferingDuration, foreward);
+                streamer.Buffer((int)(CurTime / 10000), foreward);
                 return;
             }
 
@@ -668,9 +680,13 @@ namespace SuRGeoNix.Flyleaf
             {
                 try
                 {
+                    TimeBeginPeriod(1);
+                    SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
                     Screamer();
                 } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
 
+                TimeEndPeriod(1);
+                SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
                 status = Status.STOPPED;
                 StatusChanged?.Invoke(this, new StatusChangedArgs(status));
             });
@@ -748,7 +764,7 @@ namespace SuRGeoNix.Flyleaf
                         if (Interlocked.Equals(prioritySeek, 1)) return; 
                         Play(foreward);
                     }
-                    else if ( isTorrent ) streamer.Buffer((int)(CurTime / 10000), BufferingDuration, foreward);
+                    else if (isTorrent) streamer.Buffer((int)(CurTime / 10000), foreward);
 		        }
             });
 	        seekRequest.SetApartmentState(ApartmentState.STA);
@@ -798,16 +814,34 @@ namespace SuRGeoNix.Flyleaf
                 //    }
                 //}
 
+                /* TODO:
+                 * Currently we use system default code page to guess the encoding (should possible check also OpenSubtitles information and add Settings for user defined)
+                 * Sorting should give priority to match by movie hash to ensure we dont use high rating but for different moview subittles
+                */
+
+                // Search By MovieHash (all langs) -> Get IMDBid -> Search By IMDBid (each lang) -> Search by FileName (each lang)
                 renderer.NewMessage(OSDMessage.Type.TopLeft2, "Downloading Subtitles ...");
+
+                List<OpenSubtitles> subs =  OpenSubtitles.SearchByHash2(hash, length);
+
+                bool imdbExists = subs != null && subs.Count > 0 && subs[0].IDMovieImdb != null && subs[0].IDMovieImdb.Trim() != "";
+                bool isEpisode  = imdbExists && subs[0].SeriesSeason != null && subs[0].SeriesSeason.Trim() != "" && subs[0].SeriesSeason.Trim() != "0" && subs[0].SeriesEpisode != null && subs[0].SeriesEpisode.Trim() != "" && subs[0].SeriesEpisode.Trim() != "0"; // Probably MovieKind episode/movie should be fine
 
                 foreach (Language lang in Languages)
                 {
-                    List<OpenSubtitles> subs =  OpenSubtitles.SearchByHash(hash, length, lang);
+                    if (imdbExists)
+                    {
+                        if (isEpisode)
+                            subs.AddRange(OpenSubtitles.SearchByIMDB(subs[0].IDMovieImdb, lang, subs[0].SeriesSeason, subs[0].SeriesEpisode));
+                        else
+                            subs.AddRange(OpenSubtitles.SearchByIMDB(subs[0].IDMovieImdb, lang));
+                    }
+                    
                     subs.AddRange(OpenSubtitles.SearchByName(filename, lang)); // TODO: Search with more efficient movie title
-
-                    for (int i=0; i<subs.Count; i++)
-                        AvailableSubs.Add(new SubAvailable(lang, subs[i]));
                 }
+
+                for (int i=0; i<subs.Count; i++)
+                    AvailableSubs.Add(new SubAvailable(Language.Get(subs[i].LanguageName), subs[i]));
 
                 FixSortSubs();
                 SubtitlesAvailable?.Invoke(this, EventArgs.Empty);
@@ -892,9 +926,9 @@ namespace SuRGeoNix.Flyleaf
                 for (int i=0; i<AvailableSubs.Count; i++)
                 {
                     if (!AvailableSubs[i].used) allused = false;
-                    if (!AvailableSubs[i].used && AvailableSubs[i].lang?.IdSubLanguage == lang.IdSubLanguage)
+                    if (!AvailableSubs[i].used && AvailableSubs[i].lang?.LanguageName == lang.LanguageName)
                     {
-                        renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {lang.LanguageName})");
+                        renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {(AvailableSubs[i].streamIndex > 0 ? "Embedded" : "")} {lang.LanguageName})");
                         OpenSubs(i);
                         return;
                     }
@@ -1095,6 +1129,17 @@ namespace SuRGeoNix.Flyleaf
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage"), SuppressUnmanagedCodeSecurity]
         [DllImport("winmm.dll", EntryPoint = "timeEndPeriod", SetLastError = true)]
         public static extern uint TimeEndPeriod(uint uMilliseconds);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto,SetLastError = true)]
+        public static extern EXECUTION_STATE SetThreadExecutionState(EXECUTION_STATE esFlags);
+        [FlagsAttribute]
+        public enum EXECUTION_STATE :uint
+        {
+            ES_AWAYMODE_REQUIRED = 0x00000040,
+            ES_CONTINUOUS = 0x80000000,
+            ES_DISPLAY_REQUIRED = 0x00000002,
+            ES_SYSTEM_REQUIRED = 0x00000001
+        }
         #endregion
     }
 }
