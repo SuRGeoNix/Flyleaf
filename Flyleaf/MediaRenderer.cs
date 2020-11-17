@@ -422,6 +422,8 @@ namespace SuRGeoNix.Flyleaf
                 srvRGB          = new ShaderResourceView(device, textureRGB);
             }
 
+            if (videoDevice1 == null || videoContext1 == null) return;
+
             Utilities.Dispose(ref vpov);
             videoDevice1.CreateVideoProcessorOutputView((Resource) textureRGB, vpe, vpovd, out vpov);
         }
