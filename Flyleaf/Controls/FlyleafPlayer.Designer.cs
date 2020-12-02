@@ -40,7 +40,9 @@
             this.fileListToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.subtitlesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.recentToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tblBar = new SuRGeoNix.Flyleaf.Controls.FlyleafBar();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.menu.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -106,32 +108,40 @@
             // menu
             // 
             this.menu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.recentToolStripMenuItem,
+            this.toolStripSeparator1,
             this.fileListToolStripMenuItem,
             this.subtitlesToolStripMenuItem,
             this.settingsToolStripMenuItem});
             this.menu.Name = "menu";
-            this.menu.Size = new System.Drawing.Size(120, 70);
+            this.menu.Size = new System.Drawing.Size(181, 120);
             // 
             // fileListToolStripMenuItem
             // 
             this.fileListToolStripMenuItem.Name = "fileListToolStripMenuItem";
-            this.fileListToolStripMenuItem.Size = new System.Drawing.Size(119, 22);
+            this.fileListToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.fileListToolStripMenuItem.Text = "File List";
             this.fileListToolStripMenuItem.Click += new System.EventHandler(this.fileListToolStripMenuItem_Click);
             // 
             // subtitlesToolStripMenuItem
             // 
             this.subtitlesToolStripMenuItem.Name = "subtitlesToolStripMenuItem";
-            this.subtitlesToolStripMenuItem.Size = new System.Drawing.Size(119, 22);
+            this.subtitlesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.subtitlesToolStripMenuItem.Text = "Subtitles";
             this.subtitlesToolStripMenuItem.Click += new System.EventHandler(this.subtitlesToolStripMenuItem_Click);
             // 
             // settingsToolStripMenuItem
             // 
             this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(119, 22);
+            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.settingsToolStripMenuItem.Text = "Settings";
             this.settingsToolStripMenuItem.Click += new System.EventHandler(this.settingsToolStripMenuItem_Click);
+            // 
+            // recentToolStripMenuItem
+            // 
+            this.recentToolStripMenuItem.Name = "recentToolStripMenuItem";
+            this.recentToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.recentToolStripMenuItem.Text = "Recent";
             // 
             // tblBar
             // 
@@ -141,6 +151,11 @@
             this.tblBar.Size = new System.Drawing.Size(499, 44);
             this.tblBar.TabIndex = 0;
             this.tblBar.TabStop = false;
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(177, 6);
             // 
             // FlyleafPlayer
             // 
@@ -171,5 +186,7 @@
         private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem fileListToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem subtitlesToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem recentToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
     }
 }

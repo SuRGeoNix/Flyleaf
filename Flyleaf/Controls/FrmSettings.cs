@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Drawing;
-using System.Linq;
+using System.IO;
 using System.Windows.Forms;
 
 namespace SuRGeoNix.Flyleaf.Controls
 {
     public partial class FrmSettings : Form
     {
+        internal MediaRouter  player;
         FrmLanguages frmLanguages;
 
         SettingsLoad systemDefault;
@@ -46,14 +47,18 @@ namespace SuRGeoNix.Flyleaf.Controls
             torEnabled.CheckedChanged           += torEnabled_CheckedChanged;
             torSleepMode.CheckedChanged         += torSleepMode_CheckedChanged;
             ShutdownOnFinish.CheckedChanged     += ShutdownOnFinish_CheckedChanged;
+            KeepHistory.CheckedChanged          += KeepHistory_CheckedChanged;
             subsRectEnabled.CheckedChanged      += subsRectEnabled_CheckedChanged;
             subsSurface.SelectedIndexChanged    += subsSurface_SelectedIndexChanged;
             surfRectEnabled.CheckedChanged      += surfRectEnabled_CheckedChanged;
             surf.SelectedIndexChanged           += surf_SelectedIndexChanged;
             msg.SelectedIndexChanged            += msg_SelectedIndexChanged;
+            btnClearHistory.Click               += btnClearHistory_Click;
             btnLanguages.Click                  += btnLanguages_Click;
             btnSurfCopyAll.Click                += btnSurfCopyAll_Click;
             btnTorDownloadPath.Click            += btnTorDownloadPath_Click;
+            btnTorDownloadTemp.Click            += btnTorDownloadTemp_Click;
+            btnTorRecalculate.Click             += btnTorRecalculate_Click;
 
             ClearBackColor. Validating          += (o, e) => { ValidateColor    (ClearBackColor ); };
             ClearBackColor. MouseDoubleClick    += (o, e) => { ShowColorDialog  (ClearBackColor ); };
@@ -100,6 +105,12 @@ namespace SuRGeoNix.Flyleaf.Controls
             FrmSettings_Resize(this, null);
         }
 
+        private void btnTorRecalculate_Click(object sender, EventArgs e)
+        {
+            lblTorCacheSize.Text        = $"Size: {Utils.BytesToReadableString_(Utils.GetDirectorySize(torDownloadPath.Text))}";
+            lblTorCacheSizeTemp.Text    = $"Temp: {Utils.BytesToReadableString_(Utils.GetDirectorySize(torDownloadTemp.Text))}";
+        }
+
         private void FrmSettings_Resize(object sender, EventArgs e)
         {
             tabControl1.Height = ClientSize.Height - tableLayoutPanel1.Height;
@@ -127,6 +138,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             Settings.ParseSettings(current, currentLoad);
             cmbSettings.Text = "Current";
             cmbSettings_SelectedIndexChanged(sender, e);
+            btnTorRecalculate_Click(this, null);
         }
         private void FrmLanguages_VisibleChanged(object sender, EventArgs e)
         {
@@ -187,6 +199,10 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (colorDialog.ShowDialog() == DialogResult.OK) target.Text = colorConv.ConvertToString(colorDialog.Color);
         }
 
+        private void btnClearHistory_Click(object sender, EventArgs e)
+        {
+            player.History.Clear();
+        }
         private void btnTorDownloadPath_Click(object sender, EventArgs e)
         {
             using(var fbd = new FolderBrowserDialog())
@@ -194,7 +210,17 @@ namespace SuRGeoNix.Flyleaf.Controls
                 DialogResult result = fbd.ShowDialog();
 
                 if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
-                    torDownlaodPath.Text = fbd.SelectedPath;
+                    torDownloadPath.Text = fbd.SelectedPath;
+            }
+        }
+        private void btnTorDownloadTemp_Click(object sender, EventArgs e)
+        {
+            using(var fbd = new FolderBrowserDialog())
+            {
+                DialogResult result = fbd.ShowDialog();
+
+                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    torDownloadTemp.Text = fbd.SelectedPath;
             }
         }
         private void torEnabled_CheckedChanged(object sender, EventArgs e)
@@ -206,7 +232,6 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             torSleepModeAutoCustom.Enabled = torSleepMode.Checked;
         }
-
 
         private void subsEnabled_CheckedChanged(object sender, EventArgs e)
         {
@@ -220,6 +245,10 @@ namespace SuRGeoNix.Flyleaf.Controls
         private void ShutdownOnFinish_CheckedChanged(object sender, EventArgs e)
         {
             ShutdownAfterIdle.Enabled = ShutdownOnFinish.Checked;
+        }
+        private void KeepHistory_CheckedChanged(object sender, EventArgs e)
+        {
+            KeepHistoryEntries.Enabled = KeepHistory.Checked;
         }
         private void cmbSettings_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -279,6 +308,10 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             ShutdownAfterIdle.Text      = load.main.ShutdownAfterIdle.ToString();
 
+            KeepHistory.Checked         = !load.main.HistoryEnabled;
+            KeepHistory.Checked         = load.main.HistoryEnabled;
+            KeepHistoryEntries.Text     = load.main.HistoryEntries.ToString();
+
             audioEnabled.Checked        = !load.audio._Enabled;
             audioEnabled.Checked        = load.audio._Enabled;
 
@@ -316,7 +349,8 @@ namespace SuRGeoNix.Flyleaf.Controls
             torEnabled.Checked          = load.torrent._Enabled;
             torDownloadNext.Checked     = load.torrent.DownloadNext;
             torBufferDuration.Text      = load.torrent.BufferDuration.ToString();
-            torDownlaodPath.Text        = load.torrent.DownloadPath.ToString();
+            torDownloadPath.Text        = load.torrent.DownloadPath.ToString();
+            torDownloadTemp.Text        = load.torrent.DownloadTemp.ToString();
 
             torSleepMode.Checked        = !torSleepMode.Checked;
 
@@ -351,6 +385,9 @@ namespace SuRGeoNix.Flyleaf.Controls
             load.bar.SeekOnSlide            = SeekOnSlide.Checked;
             load.main.ShutdownOnFinish      = ShutdownOnFinish.Checked;
             load.main.ShutdownAfterIdle     = int.Parse(ShutdownAfterIdle.Text);
+
+            load.main.HistoryEnabled        = KeepHistory.Checked;
+            load.main.HistoryEntries        = int.Parse(KeepHistoryEntries.Text);
 
             load.audio._Enabled             = audioEnabled.Checked;
 
@@ -418,7 +455,8 @@ namespace SuRGeoNix.Flyleaf.Controls
             load.torrent._Enabled           = torEnabled.Checked;
             load.torrent.DownloadNext       = torDownloadNext.Checked;
             load.torrent.BufferDuration     = int.Parse(torBufferDuration.Text);
-            load.torrent.DownloadPath       = torDownlaodPath.Text;
+            load.torrent.DownloadPath       = torDownloadPath.Text;
+            load.torrent.DownloadTemp       = torDownloadTemp.Text;
 
             if (!torSleepMode.Checked)
                 load.torrent.SleepMode = 0;
@@ -503,6 +541,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             }
 
             Settings.ParseSettings(currentLoad, current);
+            player.streamer?.ParseSettingsToBitSwarm();
         }
         private void btnSave_Click(object sender, EventArgs e)
         {
@@ -522,6 +561,8 @@ namespace SuRGeoNix.Flyleaf.Controls
                     userDefault = Settings.LoadSettings();
                     break;
             }
+
+            player.streamer?.ParseSettingsToBitSwarm();
 
             Hide();
         }

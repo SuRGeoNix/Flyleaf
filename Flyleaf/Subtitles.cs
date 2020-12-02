@@ -163,22 +163,21 @@ namespace SuRGeoNix.Flyleaf
 
             return sout;
         }
-        public static string Convert(string fileName, Encoding input, Encoding output)
+        public static bool Convert(string fileNameIn, string fileNameOut, Encoding input, Encoding output)
         {
-            string tmpFile = null;
             try
             {
-                tmpFile = Path.GetTempPath() + Guid.NewGuid().ToString() + ".srt";
-                StreamReader sr = new StreamReader(new FileStream(fileName, FileMode.Open), input);
-                StreamWriter sw = new StreamWriter(new FileStream(tmpFile, FileMode.CreateNew), output);
+                StreamReader sr = new StreamReader(new FileStream(fileNameIn, FileMode.Open), input);
+                StreamWriter sw = new StreamWriter(new FileStream(fileNameOut, FileMode.Create), output);
 
                 sw.Write(sr.ReadToEnd());
                 sw.Flush();
                 sr.Close();
                 sw.Close();
-            } catch (Exception) { return null; }
 
-            return tmpFile;
+            } catch (Exception e) { Console.WriteLine($"[Subs Convert] {e.Message}"); return false; }
+
+            return true;
         }
         public static Encoding Detect(string fileName)
         {

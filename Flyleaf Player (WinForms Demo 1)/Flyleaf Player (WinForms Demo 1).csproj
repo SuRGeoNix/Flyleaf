@@ -162,7 +162,8 @@ del *.pdb
 
 mkdir Plugins\BitSwarm
 move BencodeNET.dll Plugins\BitSwarm
-move BitSwarm.dll Plugins\BitSwarm
+move BitSwarmLib.dll Plugins\BitSwarm
+move Partfiles.dll Plugins\BitSwarm
 move System*.dll Plugins\BitSwarm
 move *.dll Libs
 
@@ -170,6 +171,8 @@ if $(ConfigurationName) == Release (
 del Flyleaf.dll.config
 rename FlyleafPlayer.exe Flyleaf.exe
 rename FlyleafPlayer.exe.config Flyleaf.exe.config
+copy "$(SolutionDir)"LICENSE.txt "$(TargetDir)"
+copy "$(ProjectDir)"README.txt "$(TargetDir)"
 )</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
