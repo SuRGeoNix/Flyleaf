@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 
 using static SuRGeoNix.Flyleaf.MediaRouter;
 using Timer = System.Timers.Timer;
+using System.Net;
 
 namespace SuRGeoNix.Flyleaf.Controls
 {
@@ -32,11 +33,17 @@ namespace SuRGeoNix.Flyleaf.Controls
         int     seekSum, seekStep;
         bool    seeking;
 
+        // Shutdown Countdown
         bool    shutdownCancelled;
-        long    shutdownCountDown = -1;
+        long    shutdownCountDown   = -1;
 
+        // History Seconds Save (To re-open and seek at that second)
+        int     timerLoop           = 0;
+        int     playingStartedSec   = 0;
 
-        static int      TIMER_INTERVAL          = 400;
+        static string   HISTORY_PATH            = Path.Combine(Directory.GetCurrentDirectory(), "History");
+        static string   ICONS_PATH              = Path.Combine(HISTORY_PATH, "Icons");
+        static int      TIMER_INTERVAL          = 400; // timerLoop based on that
         static int      cursorHideTimes         = 0;
         static object   cursorHideTimesLocker   = new object();
 
@@ -147,6 +154,18 @@ namespace SuRGeoNix.Flyleaf.Controls
         public void Initialize()
         {
             if (InvokeRequired) { BeginInvoke(new Action(() => Initialize())); return; }
+
+            try
+            {
+                Directory.CreateDirectory(Settings.CONFIG_PATH);
+                Directory.CreateDirectory(HISTORY_PATH);
+                Directory.CreateDirectory(ICONS_PATH);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "Flyleaf: IO Error (Run as admin)", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
             
             thisInitSize = Size;
             thisLastPos         = Location;
@@ -161,6 +180,10 @@ namespace SuRGeoNix.Flyleaf.Controls
                 formLastPos     = form.Location;
                 formBorderStyle = form.FormBorderStyle;
             }
+
+            // Before InitHandle
+            if (config.torrent._Enabled) 
+                player.MediaFilesClbk        = MediaFilesReceived;
 
             screen = Screen.FromControl(this).Bounds;
             player.InitHandle(config.hookForm.HookHandle ? form.Handle : Handle);
@@ -202,12 +225,6 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (config.main.AllowFullScreen)
                 MouseDoubleClick += (o, e) =>   {   FullScreenToggle(); };
 
-            if (config.torrent._Enabled)
-            {
-                player.OpenTorrentSuccessClbk   =   OpenTorrentSuccess;
-                player.MediaFilesClbk           =   MediaFilesReceived;
-            }
-
             if (config.hookForm._Enabled)
             {
                 if (config.hookForm.HookKeys)       FormHandlersKeyboard();
@@ -230,8 +247,8 @@ namespace SuRGeoNix.Flyleaf.Controls
             timer.AutoReset             = true;
             timer.Elapsed               += Timer_Elapsed;
 
-            if (!File.Exists("SettingsDefault.xml")) Settings.SaveSettings(config,      "SettingsDefault.xml");
-            if (!File.Exists("SettingsUser.xml"))    File.Copy("SettingsDefault.xml",   "SettingsUser.xml");
+            if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsDefault.xml"))) Settings.SaveSettings(config, "SettingsDefault.xml");
+            if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsUser.xml"))) File.Copy(Path.Combine(Settings.CONFIG_PATH,"SettingsDefault.xml"), Path.Combine(Settings.CONFIG_PATH,"SettingsUser.xml"));
 
             userDefault     = Settings.LoadSettings();
             systemDefault   = Settings.LoadSettings("SettingsDefault.xml");
@@ -243,12 +260,166 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (config.main.EmbeddedList)
             {
                 frmSettings = new FrmSettings(systemDefault, userDefault, config);
-                frmSettings.VisibleChanged += FrmSettings_VisibleChanged;
+                frmSettings.player = player;
                 ContextMenuStrip = menu;
+
+                player.History.HistoryChanged += History_HistoryChanged;
+                BuildRecentMenu();
             }
+
+            if (!config.main.EmbeddedList && config.main.HistoryEnabled) config.main.HistoryEnabled = false;
 
             timer.Start();
             player.Render();
+        }
+        #endregion
+
+        #region History
+        History.Entry curHistoryEntry;
+        private void History_HistoryChanged(object source, EventArgs e)
+        {
+            BuildRecentMenu();
+        }
+        HashSet<string> favIcons = new HashSet<string>();
+        Thread favIconsThread;
+
+        public class GZipWebClient : WebClient
+        {
+            protected override WebRequest GetWebRequest(Uri address)
+            {
+                HttpWebRequest request = (HttpWebRequest)base.GetWebRequest(address);
+                request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                return request;
+            }
+        }
+        private void FetchIcons(HashSet<string> curFavIcons)
+        {
+            if (curFavIcons.Count == 0) return;
+
+            Utils.EnsureThreadDone(favIconsThread);
+
+            favIconsThread = new Thread(() =>
+            {
+                lock (favIcons)
+                {
+                    List<string> hosts = new List<string>();
+                    using (var client = new GZipWebClient())
+                    {
+                        foreach (var favIcon in curFavIcons)
+                        {
+                            favIcons.Add(favIcon);
+
+                            try
+                            {
+                                Uri cur = new Uri(favIcon);
+                                client.DownloadFile(new Uri(favIcon), Path.Combine(ICONS_PATH, cur.DnsSafeHost + ".ico"));
+                                hosts.Add(cur.DnsSafeHost);
+                            } catch (Exception e) { Console.WriteLine(e.Message); }
+                        }
+                    }
+                    if (hosts.Count > 0) UpdateRecentMenu(hosts);
+                }
+            });
+            favIconsThread.IsBackground = true;
+            favIconsThread.Start();
+        }
+
+        private void UpdateRecentMenu(List<string> hosts)
+        {
+            if (form.InvokeRequired) { form.BeginInvoke(new Action(() => UpdateRecentMenu(hosts))); return; }
+
+            foreach (var t1 in recentToolStripMenuItem.DropDownItems)
+            {
+                var curMenu =((ToolStripMenuItem)t1);
+                var curTag = (History.Entry)curMenu.Tag;
+
+                if ((curTag.UrlType == InputType.Web || curTag.UrlType == InputType.WebLive))
+                {
+                    string curHost = (new Uri(curTag.Url)).DnsSafeHost;
+                    string icoPath = Path.Combine(ICONS_PATH, curHost + ".ico");
+                    if (hosts.Contains(curHost) && File.Exists(icoPath))
+                        curMenu.Image = Image.FromFile(icoPath);
+                }
+            }
+        }
+        private void BuildRecentMenu()
+        {
+            if (!config.main.EmbeddedList) return;
+
+            if (form.InvokeRequired) { form.BeginInvoke(new Action(() => BuildRecentMenu())); return; }
+
+            lock (favIcons)
+            {
+                recentToolStripMenuItem.DropDownItems.Clear();
+                HashSet<string> curFavIcons = new HashSet<string>();
+
+                if (player.History.Entries.Count != 0)
+                {
+                    ToolStripMenuItem[] menuRecent = new ToolStripMenuItem[player.History.Entries.Count];
+
+                    for (int i=0; i<player.History.Entries.Count; i++)
+                    {
+                        try
+                        {
+                            var curEntry    = player.History.Entries[player.History.Entries.Count - (i + 1)];
+                            string text     = "";
+                            menuRecent[i]   = new ToolStripMenuItem();
+
+                            if (curEntry.UrlType == InputType.File)
+                            {
+                                FileInfo fi = new FileInfo(curEntry.Url);
+                                menuRecent[i].Image = Properties.Resources.VideoFile;
+                                menuRecent[i].ToolTipText = fi.DirectoryName;
+                                text = fi.Name;
+                            }
+                            else if (curEntry.UrlType == InputType.TorrentPart || curEntry.UrlType == InputType.TorrentFile)
+                            {
+                                menuRecent[i].Image = Properties.Resources.Torrent;
+                                text = curEntry.TorrentFile;
+                            }
+                            else if (curEntry.UrlType == InputType.Web || curEntry.UrlType == InputType.WebLive)
+                            {
+                                text = curEntry.Url;
+                                Uri uri = new Uri(curEntry.Url);
+
+                                if (File.Exists(Path.Combine(ICONS_PATH, uri.DnsSafeHost + ".ico")))
+                                    menuRecent[i].Image = Image.FromFile(Path.Combine(ICONS_PATH, uri.DnsSafeHost + ".ico"));
+                                else
+                                {
+                                    menuRecent[i].Image = Properties.Resources.Web;
+                                    if (!favIcons.Contains(uri.Scheme + "://" + uri.DnsSafeHost + "/favicon.ico"))
+                                        curFavIcons.Add(uri.Scheme + "://" + uri.DnsSafeHost + "/favicon.ico");
+                                }
+                            }
+
+                            if (text.Length > 100)
+                            {
+                                if (menuRecent[i].ToolTipText == null || menuRecent[i].ToolTipText == "")
+                                    menuRecent[i].ToolTipText = text;
+                                text = text.Substring(0, 100) + "...";
+                            }
+                            menuRecent[i].Text  = text;
+                            menuRecent[i].Tag   = curEntry;
+                            menuRecent[i].Click += MenuHistory_Click;
+
+                        } catch (Exception) { }
+                    }
+
+                    recentToolStripMenuItem.Text = $"Recent ({menuRecent.Length})";
+                    recentToolStripMenuItem.DropDownItems.AddRange(menuRecent);
+                }
+
+                if (curFavIcons.Count > 0) FetchIcons(curFavIcons);
+            }
+        }
+        private void MenuHistory_Click(object sender, EventArgs e)
+        {
+            curHistoryEntry = (History.Entry) ((ToolStripMenuItem)sender).Tag;
+
+            if (player.Url == curHistoryEntry.Url && curHistoryEntry.TorrentFile != null)
+                player.Open(curHistoryEntry.TorrentFile, true);
+            else
+                player.Open(curHistoryEntry.Url);
         }
         #endregion
 
@@ -258,7 +429,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (InvokeRequired) { BeginInvoke(new Action(() => Player_StatusChanged(source, e))); return; }
 
             if (e.status == MediaRouter.Status.PLAYING) 
-                { tblBar.btnPlay.BackgroundImage = Properties.Resources.Pause;  tblBar.btnPlay.Text  = " "; }
+                { tblBar.btnPlay.BackgroundImage = Properties.Resources.Pause;  tblBar.btnPlay.Text  = " "; playingStartedSec = (int)(player.CurTime / 10000000) + 1; timerLoop = 0; }
             else
                 { tblBar.btnPlay.BackgroundImage = Properties.Resources.Play;   tblBar.btnPlay.Text  = "";  }
         }
@@ -294,14 +465,24 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             if (!player.isPlaying) return;
 
-            if (!seeking)
+            if (!seeking && !player.isLive)
             {
                 if (tblBar.seekBar.Maximum == 1) return; // TEMP... thorws exception just after open
-                int barValue = (int)(player.CurTime / 10000000);
-                barValue = barValue > (int)tblBar.seekBar.Maximum ? (int)tblBar.seekBar.Maximum : barValue;
-                barValue = barValue < (int)tblBar.seekBar.Minimum ? (int)tblBar.seekBar.Minimum : barValue;
+                int      barValue = (int)(player.CurTime / 10000000) + 1;
+                if      (barValue > (int)tblBar.seekBar.Maximum) barValue = (int)tblBar.seekBar.Maximum;
+                else if (barValue < (int)tblBar.seekBar.Minimum) barValue = (int)tblBar.seekBar.Minimum;
 
                 tblBar.seekBar.SetValue(barValue);
+
+                // Saves the current second in history (should be only if the duration of movie is large enough and playing time was at least X secs) - see also on OpenFinished for Seek
+                timerLoop++;
+
+                if (timerLoop == 20)// && player.UrlType != InputType.WebLive)
+                {
+                    timerLoop = 0;
+                    if ((int)tblBar.seekBar.Value - playingStartedSec > 60)
+                        player.History.Update((int)(player.CurTime / 10000000), player.AudioExternalDelay, player.SubsExternalDelay);
+                }
             }
         }
         private ActivityMode CurActivityMode()
@@ -374,13 +555,17 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         #endregion
 
-        #region Torrent
-        public void OpenTorrentSuccess(bool success) { }
+        #region Implementation Main
+        public void Open(string url)
+        {
+            curHistoryEntry = null;
+            player.Open(url);
+        }
         public void MediaFilesReceived(List<string> mediaFiles, List<long> mediaFilesSizes)
         {
             if (!config.main.EmbeddedList)
             {
-                player.SetMediaFile(mediaFiles[0]);
+                player.Open(mediaFiles[0], true);
                 return;
             }
 
@@ -397,45 +582,31 @@ namespace SuRGeoNix.Flyleaf.Controls
             lstMediaFiles.Items.AddRange(mediaFilesSorted.ToArray());
             lstMediaFiles.EndUpdate();
 
-            if (lstMediaFiles.Items.Count == 1)
-                player.SetMediaFile(mediaFilesSorted[0]);
+            if (curHistoryEntry != null && curHistoryEntry.TorrentFile != null)
+                player.Open(curHistoryEntry.TorrentFile, true);
+            else if (lstMediaFiles.Items.Count == 1)
+                player.Open(mediaFilesSorted[0], true);
             else
                 FixLstMedia(true);
         }
-        #endregion
-
-        #region Implementation Main
-        public void Open(string url)
-        {
-            bool isSubs             = false;
-
-            string ext = url.Substring(url.LastIndexOf(".") + 1);
-            if ((new List<string> { "srt", "txt", "sub", "ssa", "ass" }).Contains(ext)) isSubs = true;
-
-            if (isSubs)
-            {
-                Encoding subsEnc = Subtitles.Detect(url);
-                if (subsEnc != Encoding.UTF8) url = Subtitles.Convert(url, subsEnc, Encoding.UTF8);
-                if (url == null || url.Trim() == "") return;
-
-                player.OpenSubs(url);
-            } 
-            else
-            {
-                player.Open(url);
-            }
-            
-        }
         public void OpenFinished(bool success, string selectedFile)
         {
-            if ( InvokeRequired  )
+            if (InvokeRequired)
             {
                 BeginInvoke(new Action(() => OpenFinished(success, selectedFile)));
                 return;
             }
 
-            tblBar.seekBar.SetValue(0);
-            tblBar.seekBar.Maximum = (int)(player.Duration / 10000000);
+            if (!player.isLive)
+            {
+                tblBar.seekBar.SetValue(0);
+                tblBar.seekBar.Maximum = (int)(player.Duration / 10000000);
+            }
+            else
+            {
+                tblBar.seekBar.Maximum = 1;
+                tblBar.seekBar.SetValue(1);
+            }
 
             if (player.isFailed) return;
 
@@ -452,7 +623,11 @@ namespace SuRGeoNix.Flyleaf.Controls
                 lstMediaFiles.Items.Add(selectedFile);
             }
 
-            Play();
+            // Open at saved history second (only if history secs > 1m and duration-secs > 5m and duration > 15m)
+            if (curHistoryEntry != null && !player.isLive && player.History.GetCurrent().CurSecond > 60 && (int)(player.Duration / 10000000) - player.History.GetCurrent().CurSecond > 60 * 5 && (int)(player.Duration / 10000000) > 60 * 15)
+                player.Seek(player.History.GetCurrent().CurSecond * 1000, true, true, true);
+            else
+                Play();
         }
         public void Play() { shutdownCountDown = -1; shutdownCancelled = false; player.Play(); }
         public void MuteUnmute()
@@ -491,11 +666,11 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         public void VolUp   (int v)
         {
-                if (player.Volume + v > 99) player.Volume = 100; else player.Volume += v;
+            if (player.Volume + v + 1 > 99) player.Volume = 100; else player.Volume += v + 1;
         }
         public void VolDown (int v)
         {
-                if (player.Volume  - v < 1) player.Volume = 0; else player.Volume -= v;
+            if (player.Volume  - (v - 1) < 1) player.Volume = 0; else player.Volume -= v - 1;
         }
         public void OnVolumeChanged(object sender, AudioPlayer.VolumeChangedArgs e)
         { 
@@ -641,6 +816,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
             if (config.bar.SeekOnSlide) player.Seek((int)seektime); else Interlocked.Exchange(ref player.SeekTime, seektime * 10000);
+            if (!player.isPlaying) player.Render(); // To refresh the OSD time (CPU/GPU heavy) - alternative solution in the Timer_Elapsed but with delay
         }
         private void SeekBar_MouseDown          (object sender, MouseEventArgs e)
         {
@@ -760,7 +936,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                     case Keys.C:
                         e.SuppressKeyPress = true;
 
-                        Clipboard.SetText(player.url);
+                        Clipboard.SetText(player.Url);
                         break;
 
                     case Keys.S: // SeekOnSlide On/Off
@@ -966,16 +1142,19 @@ namespace SuRGeoNix.Flyleaf.Controls
 
         private void lstMediaFiles_MouseClickDbl(object sender, MouseEventArgs e)
         {
+            curHistoryEntry = null;
+
             if (!player.isTorrent) { lstMediaFiles.Visible = false; if (!player.isPlaying) player.Render(); return; }
 
             if (lstMediaFiles.SelectedItem == null) return;
 
-            player.SetMediaFile(lstMediaFiles.SelectedItem.ToString());
+            player.Open(lstMediaFiles.SelectedItem.ToString(), true);
             FixLstMedia(false);
             Focus();
         }
         private void lstMediaFiles_KeyPress     (object sender, KeyPressEventArgs e)
         {
+            curHistoryEntry = null;
             userActivity = DateTime.UtcNow.Ticks;
 
             if (e.KeyChar != (char)13) { FlyLeaf_KeyPress(sender, e); return; }
@@ -983,7 +1162,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (!player.isTorrent) { FixLstMedia(false); return; }
             if (lstMediaFiles.SelectedItem == null) return;
 
-            player.SetMediaFile(lstMediaFiles.SelectedItem.ToString());
+            player.Open(lstMediaFiles.SelectedItem.ToString(), true);
             FixLstMedia(false);
             Focus();
         }
@@ -1012,15 +1191,20 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (visible)
             {
                 FixLvSubs(false);
-                lstMediaFiles.Width = Width / 2 + Width / 4;
-                lstMediaFiles.Height = Height / 2 + Height / 4;
-                lstMediaFiles.Location = new Point(Width / 8, Height / 8);
-                lstMediaFiles.Visible = true;
+                lstMediaFiles.Width     = Width  / 2 + Width  / 4;
+                lstMediaFiles.Height    = Height / 2 + Height / 4;
+                lstMediaFiles.Location  = new Point(Width / 8, Height / 8);
+
+                if (!lstMediaFiles.Visible)
+                {
+                    for (int i=0; i<lstMediaFiles.Items.Count-1; i++)
+                        if (lstMediaFiles.Items[i].ToString() == player.UrlName) { lstMediaFiles.SelectedItem = lstMediaFiles.Items[i]; break; }
+
+                    lstMediaFiles.Visible = true;
+                }
             }
             else
-            {
                 lstMediaFiles.Visible = false;
-            }
 
             if (!player.isPlaying) player.Render();
         }
@@ -1042,12 +1226,24 @@ namespace SuRGeoNix.Flyleaf.Controls
                         string lang = sub.lang != null ? sub.lang.LanguageName : "Unknown";
                         string rating = sub.sub != null ? sub.sub.SubRating : "0.0";
                         string downloaded = sub.sub != null && sub.sub.AvailableAt != null ? "Yes" : "";
-                        string location = sub.streamIndex != -1 ? "Embedded" : sub.path != null ? "External" : "Opensubtitles";
+                        string matchedby = "";
+                        if (sub.sub != null)
+                        {
+                            if (sub.sub.MatchedBy == "moviehash")
+                                matchedby = "M";
+                            else if (sub.sub.MatchedBy == "imdbid")
+                                matchedby = "I";
+                            else if (sub.sub.MatchedBy == "fulltext")
+                                matchedby = "F";
+                            else
+                                matchedby = "?";
+                        }
+                        string location = sub.streamIndex != -1 ? "Embedded" : sub.sub != null ? $"Opensubtitles {matchedby}" : "External";
                         lvSubs.Items.Add(new ListViewItem(new string[] { name, lang, rating, downloaded, location, i.ToString() }));
                     }
 
                     lvSubs.EndUpdate();
-                    if (lvSubs.Items.Count >= player.CurSubId && player.CurSubId >= 0) lvSubs.Items[player.CurSubId].Selected = true;
+                    if (lvSubs.Items.Count > 0 && player.CurSubId < lvSubs.Items.Count && player.CurSubId >= 0) lvSubs.Items[player.CurSubId].Selected = true;
                 }
 
                 lvSubs.Columns[1].AutoResize(ColumnHeaderAutoResizeStyle.HeaderSize);
@@ -1056,12 +1252,12 @@ namespace SuRGeoNix.Flyleaf.Controls
                 lvSubs.Columns[4].AutoResize(ColumnHeaderAutoResizeStyle.HeaderSize);
 
                 FixLstMedia(false);
-                lvSubs.Width = Width / 2 + Width / 4;
-                lvSubs.Height = Height / 2 + Height / 4;
+                lvSubs.Width    = Width  / 2 + Width  / 4;
+                lvSubs.Height   = Height / 2 + Height / 4;
                 lvSubs.Location = new Point(Width / 8, Height / 8);
-                lvSubs.Visible = true;
+                lvSubs.Visible  = true;
 
-                lvSubs.Columns[0].Width = lvSubs.Width - 440;
+                lvSubs.Columns[0].Width = lvSubs.Width - 460;
             }
             else
             {
@@ -1712,7 +1908,6 @@ namespace SuRGeoNix.Flyleaf.Controls
         #endregion
 
         #region Misc
-        private void FrmSettings_VisibleChanged(object sender, EventArgs e) { if (!frmSettings.Visible) player.streamer?.ParseSettingsToBitSwarm(); }
         private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             frmSettings.Show();

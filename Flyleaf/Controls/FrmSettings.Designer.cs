@@ -30,6 +30,10 @@
         {
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.btnClearHistory = new System.Windows.Forms.Button();
+            this.KeepHistoryEntries = new System.Windows.Forms.TextBox();
+            this.KeepHistory = new System.Windows.Forms.CheckBox();
+            this.label57 = new System.Windows.Forms.Label();
             this.label22 = new System.Windows.Forms.Label();
             this.ShutdownAfterIdle = new System.Windows.Forms.TextBox();
             this.IdleTimeout = new System.Windows.Forms.TextBox();
@@ -63,6 +67,8 @@
             this.audioEnabled = new System.Windows.Forms.CheckBox();
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.label56 = new System.Windows.Forms.Label();
+            this.label41 = new System.Windows.Forms.Label();
             this.videoQueueMinSize = new System.Windows.Forms.TextBox();
             this.videoThreads = new System.Windows.Forms.TextBox();
             this.videoQueueMaxSize = new System.Windows.Forms.TextBox();
@@ -104,6 +110,7 @@
             this.subsEnabled = new System.Windows.Forms.CheckBox();
             this.tabPage7 = new System.Windows.Forms.TabPage();
             this.groupBox9 = new System.Windows.Forms.GroupBox();
+            this.label18 = new System.Windows.Forms.Label();
             this.torRetriesBuffer = new System.Windows.Forms.TextBox();
             this.label52 = new System.Windows.Forms.Label();
             this.torTimeoutBuffer = new System.Windows.Forms.TextBox();
@@ -123,8 +130,14 @@
             this.label46 = new System.Windows.Forms.Label();
             this.label47 = new System.Windows.Forms.Label();
             this.groupBox11 = new System.Windows.Forms.GroupBox();
+            this.lblTorCacheSize = new System.Windows.Forms.Label();
+            this.btnTorRecalculate = new System.Windows.Forms.Button();
+            this.lblTorCacheSizeTemp = new System.Windows.Forms.Label();
+            this.btnTorDownloadTemp = new System.Windows.Forms.Button();
+            this.torDownloadTemp = new System.Windows.Forms.TextBox();
+            this.label58 = new System.Windows.Forms.Label();
             this.btnTorDownloadPath = new System.Windows.Forms.Button();
-            this.torDownlaodPath = new System.Windows.Forms.TextBox();
+            this.torDownloadPath = new System.Windows.Forms.TextBox();
             this.label55 = new System.Windows.Forms.Label();
             this.label54 = new System.Windows.Forms.Label();
             this.torDownloadNext = new System.Windows.Forms.CheckBox();
@@ -165,9 +178,6 @@
             this.btnSave = new System.Windows.Forms.Button();
             this.btnApply = new System.Windows.Forms.Button();
             this.cmbSettings = new System.Windows.Forms.ComboBox();
-            this.label18 = new System.Windows.Forms.Label();
-            this.label41 = new System.Windows.Forms.Label();
-            this.label56 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage5.SuspendLayout();
@@ -210,6 +220,10 @@
             // tabPage1
             // 
             this.tabPage1.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPage1.Controls.Add(this.btnClearHistory);
+            this.tabPage1.Controls.Add(this.KeepHistoryEntries);
+            this.tabPage1.Controls.Add(this.KeepHistory);
+            this.tabPage1.Controls.Add(this.label57);
             this.tabPage1.Controls.Add(this.label22);
             this.tabPage1.Controls.Add(this.ShutdownAfterIdle);
             this.tabPage1.Controls.Add(this.IdleTimeout);
@@ -226,6 +240,41 @@
             this.tabPage1.Size = new System.Drawing.Size(455, 479);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "General";
+            // 
+            // btnClearHistory
+            // 
+            this.btnClearHistory.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.btnClearHistory.Location = new System.Drawing.Point(237, 103);
+            this.btnClearHistory.Name = "btnClearHistory";
+            this.btnClearHistory.Size = new System.Drawing.Size(75, 23);
+            this.btnClearHistory.TabIndex = 24;
+            this.btnClearHistory.Text = "Clear";
+            this.btnClearHistory.UseVisualStyleBackColor = true;
+            // 
+            // KeepHistoryEntries
+            // 
+            this.KeepHistoryEntries.Location = new System.Drawing.Point(151, 105);
+            this.KeepHistoryEntries.Name = "KeepHistoryEntries";
+            this.KeepHistoryEntries.Size = new System.Drawing.Size(79, 20);
+            this.KeepHistoryEntries.TabIndex = 23;
+            // 
+            // KeepHistory
+            // 
+            this.KeepHistory.AutoSize = true;
+            this.KeepHistory.Location = new System.Drawing.Point(130, 108);
+            this.KeepHistory.Name = "KeepHistory";
+            this.KeepHistory.Size = new System.Drawing.Size(15, 14);
+            this.KeepHistory.TabIndex = 22;
+            this.KeepHistory.UseVisualStyleBackColor = true;
+            // 
+            // label57
+            // 
+            this.label57.AutoSize = true;
+            this.label57.Location = new System.Drawing.Point(9, 108);
+            this.label57.Name = "label57";
+            this.label57.Size = new System.Drawing.Size(118, 13);
+            this.label57.TabIndex = 21;
+            this.label57.Text = "Keep History (# Entries)";
             // 
             // label22
             // 
@@ -534,6 +583,24 @@
             this.groupBox2.TabIndex = 2;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Decoder";
+            // 
+            // label56
+            // 
+            this.label56.AutoSize = true;
+            this.label56.Location = new System.Drawing.Point(236, 25);
+            this.label56.Name = "label56";
+            this.label56.Size = new System.Drawing.Size(114, 13);
+            this.label56.TabIndex = 32;
+            this.label56.Text = "* Requires Re-opening";
+            // 
+            // label41
+            // 
+            this.label41.AutoSize = true;
+            this.label41.Location = new System.Drawing.Point(236, 48);
+            this.label41.Name = "label41";
+            this.label41.Size = new System.Drawing.Size(114, 13);
+            this.label41.TabIndex = 31;
+            this.label41.Text = "* Requires Re-opening";
             // 
             // videoQueueMinSize
             // 
@@ -948,12 +1015,21 @@
             this.groupBox9.Controls.Add(this.label45);
             this.groupBox9.Controls.Add(this.label46);
             this.groupBox9.Controls.Add(this.label47);
-            this.groupBox9.Location = new System.Drawing.Point(11, 175);
+            this.groupBox9.Location = new System.Drawing.Point(11, 223);
             this.groupBox9.Name = "groupBox9";
             this.groupBox9.Size = new System.Drawing.Size(439, 179);
             this.groupBox9.TabIndex = 7;
             this.groupBox9.TabStop = false;
             this.groupBox9.Text = "Timing Configuration";
+            // 
+            // label18
+            // 
+            this.label18.AutoSize = true;
+            this.label18.Location = new System.Drawing.Point(236, 49);
+            this.label18.Name = "label18";
+            this.label18.Size = new System.Drawing.Size(114, 13);
+            this.label18.TabIndex = 30;
+            this.label18.Text = "* Requires Re-opening";
             // 
             // torRetriesBuffer
             // 
@@ -1101,8 +1177,14 @@
             // 
             // groupBox11
             // 
+            this.groupBox11.Controls.Add(this.lblTorCacheSize);
+            this.groupBox11.Controls.Add(this.btnTorRecalculate);
+            this.groupBox11.Controls.Add(this.lblTorCacheSizeTemp);
+            this.groupBox11.Controls.Add(this.btnTorDownloadTemp);
+            this.groupBox11.Controls.Add(this.torDownloadTemp);
+            this.groupBox11.Controls.Add(this.label58);
             this.groupBox11.Controls.Add(this.btnTorDownloadPath);
-            this.groupBox11.Controls.Add(this.torDownlaodPath);
+            this.groupBox11.Controls.Add(this.torDownloadPath);
             this.groupBox11.Controls.Add(this.label55);
             this.groupBox11.Controls.Add(this.label54);
             this.groupBox11.Controls.Add(this.torDownloadNext);
@@ -1114,10 +1196,64 @@
             this.groupBox11.Controls.Add(this.label50);
             this.groupBox11.Location = new System.Drawing.Point(8, 45);
             this.groupBox11.Name = "groupBox11";
-            this.groupBox11.Size = new System.Drawing.Size(439, 122);
+            this.groupBox11.Size = new System.Drawing.Size(439, 172);
             this.groupBox11.TabIndex = 6;
             this.groupBox11.TabStop = false;
             this.groupBox11.Text = "General";
+            // 
+            // lblTorCacheSize
+            // 
+            this.lblTorCacheSize.AutoSize = true;
+            this.lblTorCacheSize.Location = new System.Drawing.Point(131, 146);
+            this.lblTorCacheSize.Name = "lblTorCacheSize";
+            this.lblTorCacheSize.Size = new System.Drawing.Size(39, 13);
+            this.lblTorCacheSize.TabIndex = 27;
+            this.lblTorCacheSize.Text = "Size: 0";
+            // 
+            // btnTorRecalculate
+            // 
+            this.btnTorRecalculate.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.btnTorRecalculate.Location = new System.Drawing.Point(325, 141);
+            this.btnTorRecalculate.Name = "btnTorRecalculate";
+            this.btnTorRecalculate.Size = new System.Drawing.Size(75, 23);
+            this.btnTorRecalculate.TabIndex = 26;
+            this.btnTorRecalculate.Text = "Recalculate";
+            this.btnTorRecalculate.UseVisualStyleBackColor = true;
+            // 
+            // lblTorCacheSizeTemp
+            // 
+            this.lblTorCacheSizeTemp.AutoSize = true;
+            this.lblTorCacheSizeTemp.Location = new System.Drawing.Point(226, 146);
+            this.lblTorCacheSizeTemp.Name = "lblTorCacheSizeTemp";
+            this.lblTorCacheSizeTemp.Size = new System.Drawing.Size(46, 13);
+            this.lblTorCacheSizeTemp.TabIndex = 25;
+            this.lblTorCacheSizeTemp.Text = "Temp: 0";
+            // 
+            // btnTorDownloadTemp
+            // 
+            this.btnTorDownloadTemp.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(161)));
+            this.btnTorDownloadTemp.Location = new System.Drawing.Point(325, 116);
+            this.btnTorDownloadTemp.Name = "btnTorDownloadTemp";
+            this.btnTorDownloadTemp.Size = new System.Drawing.Size(75, 23);
+            this.btnTorDownloadTemp.TabIndex = 24;
+            this.btnTorDownloadTemp.Text = "Browse ...";
+            this.btnTorDownloadTemp.UseVisualStyleBackColor = true;
+            // 
+            // torDownloadTemp
+            // 
+            this.torDownloadTemp.Location = new System.Drawing.Point(133, 118);
+            this.torDownloadTemp.Name = "torDownloadTemp";
+            this.torDownloadTemp.Size = new System.Drawing.Size(186, 20);
+            this.torDownloadTemp.TabIndex = 23;
+            // 
+            // label58
+            // 
+            this.label58.AutoSize = true;
+            this.label58.Location = new System.Drawing.Point(6, 121);
+            this.label58.Name = "label58";
+            this.label58.Size = new System.Drawing.Size(88, 13);
+            this.label58.TabIndex = 22;
+            this.label58.Text = "Download Temp:";
             // 
             // btnTorDownloadPath
             // 
@@ -1129,12 +1265,12 @@
             this.btnTorDownloadPath.Text = "Browse ...";
             this.btnTorDownloadPath.UseVisualStyleBackColor = true;
             // 
-            // torDownlaodPath
+            // torDownloadPath
             // 
-            this.torDownlaodPath.Location = new System.Drawing.Point(133, 92);
-            this.torDownlaodPath.Name = "torDownlaodPath";
-            this.torDownlaodPath.Size = new System.Drawing.Size(186, 20);
-            this.torDownlaodPath.TabIndex = 20;
+            this.torDownloadPath.Location = new System.Drawing.Point(133, 92);
+            this.torDownloadPath.Name = "torDownloadPath";
+            this.torDownloadPath.Size = new System.Drawing.Size(186, 20);
+            this.torDownloadPath.TabIndex = 20;
             // 
             // label55
             // 
@@ -1535,33 +1671,6 @@
             this.cmbSettings.Size = new System.Drawing.Size(121, 21);
             this.cmbSettings.TabIndex = 0;
             // 
-            // label18
-            // 
-            this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(236, 49);
-            this.label18.Name = "label18";
-            this.label18.Size = new System.Drawing.Size(114, 13);
-            this.label18.TabIndex = 30;
-            this.label18.Text = "* Requires Re-opening";
-            // 
-            // label41
-            // 
-            this.label41.AutoSize = true;
-            this.label41.Location = new System.Drawing.Point(236, 48);
-            this.label41.Name = "label41";
-            this.label41.Size = new System.Drawing.Size(114, 13);
-            this.label41.TabIndex = 31;
-            this.label41.Text = "* Requires Re-opening";
-            // 
-            // label56
-            // 
-            this.label56.AutoSize = true;
-            this.label56.Location = new System.Drawing.Point(236, 25);
-            this.label56.Name = "label56";
-            this.label56.Size = new System.Drawing.Size(114, 13);
-            this.label56.TabIndex = 32;
-            this.label56.Text = "* Requires Re-opening";
-            // 
             // FrmSettings
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1750,11 +1859,21 @@
         private System.Windows.Forms.CheckBox torEnabled;
         private System.Windows.Forms.Label label54;
         private System.Windows.Forms.Button btnTorDownloadPath;
-        private System.Windows.Forms.TextBox torDownlaodPath;
+        private System.Windows.Forms.TextBox torDownloadPath;
         private System.Windows.Forms.Label label55;
         private System.Windows.Forms.Label label41;
         private System.Windows.Forms.Label label18;
         private System.Windows.Forms.Label label56;
+        private System.Windows.Forms.Button btnClearHistory;
+        private System.Windows.Forms.TextBox KeepHistoryEntries;
+        private System.Windows.Forms.CheckBox KeepHistory;
+        private System.Windows.Forms.Label label57;
+        private System.Windows.Forms.Button btnTorDownloadTemp;
+        private System.Windows.Forms.TextBox torDownloadTemp;
+        private System.Windows.Forms.Label label58;
+        private System.Windows.Forms.Button btnTorRecalculate;
+        private System.Windows.Forms.Label lblTorCacheSizeTemp;
+        private System.Windows.Forms.Label lblTorCacheSize;
     }
 }
 

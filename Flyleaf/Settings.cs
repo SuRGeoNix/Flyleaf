@@ -48,6 +48,10 @@ namespace SuRGeoNix.Flyleaf
 
             public bool         ShutdownOnFinish    { get; set; }
             public int          ShutdownAfterIdle   { get; set; }
+
+            public bool         HistoryEnabled      { get; set; }
+            public int          HistoryEntries      { get; set; }
+
         }
 
         public class Audio
@@ -234,6 +238,9 @@ namespace SuRGeoNix.Flyleaf
 
             public bool         ShutdownOnFinish    { get; set; } = false;
             public int          ShutdownAfterIdle   { get; set; } = 300;
+
+            public bool         HistoryEnabled      { get { return player.HistoryEnabled; } set { player.HistoryEnabled = value; } }
+            public int          HistoryEntries      { get { return player.HistoryEntries; } set { player.HistoryEntries = value; } }
         }
         [Serializable]
         [Category("Flyleaf UI")]
@@ -289,7 +296,8 @@ namespace SuRGeoNix.Flyleaf
             public bool DownloadNext    { get; set; } = true;
             public int  BufferDuration  { get; set; } = 2000;
             public int  SleepMode       { get; set; } = -1;
-            public string DownloadPath  { get; set; } = Path.GetTempPath();
+            public string DownloadPath  { get; set; } = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents") : Path.Combine(Path.GetTempPath(), "Torrents");
+            public string DownloadTemp  { get; set; } = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents", "_incomplete") : Path.Combine(Path.GetTempPath(), "Torrents", "_incomplete");
 
             public int  MinThreads      { get; set; } =   15;
             public int  MaxThreads      { get; set; } =   80;
@@ -485,9 +493,10 @@ namespace SuRGeoNix.Flyleaf
             }
         }
 
+        public static string CONFIG_PATH = Path.Combine(Directory.GetCurrentDirectory(), "Config");
         public static void SaveSettings(Settings config, string filename = "SettingsUser.xml")
         {
-            using (FileStream fs = new FileStream(filename, FileMode.Create))
+            using (FileStream fs = new FileStream(Path.Combine(CONFIG_PATH, filename), FileMode.Create))
             {
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(Settings));
                 xmlSerializer.Serialize(fs, config);
@@ -495,7 +504,7 @@ namespace SuRGeoNix.Flyleaf
         }
         public static SettingsLoad LoadSettings(string filename = "SettingsUser.xml")
         {
-            using (FileStream fs = new FileStream(filename, FileMode.Open))
+            using (FileStream fs = new FileStream(Path.Combine(CONFIG_PATH, filename), FileMode.Open))
             {
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(SettingsLoad));
                 return (SettingsLoad) xmlSerializer.Deserialize(fs);
@@ -515,6 +524,8 @@ namespace SuRGeoNix.Flyleaf
             load.main.MessagesDuration        = config.main.MessagesDuration;
             load.main.ShutdownOnFinish        = config.main.ShutdownOnFinish;
             load.main.ShutdownAfterIdle       = config.main.ShutdownAfterIdle;
+            load.main.HistoryEnabled          = config.main.HistoryEnabled;
+            load.main.HistoryEntries          = config.main.HistoryEntries;
 
             load.bar                          = config.bar;
             load.keys                         = config.keys;
@@ -570,6 +581,8 @@ namespace SuRGeoNix.Flyleaf
             config.main.MessagesDuration        = load.main.MessagesDuration;
             config.main.ShutdownOnFinish        = load.main.ShutdownOnFinish;
             config.main.ShutdownAfterIdle       = load.main.ShutdownAfterIdle;
+            config.main.HistoryEnabled          = load.main.HistoryEnabled;
+            config.main.HistoryEntries          = load.main.HistoryEntries;
 
             config.bar                          = load.bar;
             config.keys                         = load.keys;
