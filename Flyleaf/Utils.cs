@@ -43,6 +43,20 @@ namespace SuRGeoNix.Flyleaf
             return moviesSorted;
         }
 
+        public static string[] GetSystemLanguages()
+        {
+            List<string>   Languages  = new List<string>();
+            Language       systemLang = Language.Get(System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
+            if (systemLang.LanguageName != "English") Languages.Add(systemLang.ToString());
+
+            foreach (System.Windows.Forms.InputLanguage lang in System.Windows.Forms.InputLanguage.InstalledInputLanguages)
+                if (Language.Get(lang.Culture.TwoLetterISOLanguageName).ISO639 != systemLang.ISO639 && Language.Get(lang.Culture.TwoLetterISOLanguageName).LanguageName != "English") Languages.Add(Language.Get(lang.Culture.TwoLetterISOLanguageName).ToString());
+
+            Languages.Add(Language.Get("English").ToString());
+
+            return Languages.ToArray();
+        }
+
         public static Texture2D LoadImage(Device device, System.Drawing.Bitmap bitmap)
         {
             // From File?
