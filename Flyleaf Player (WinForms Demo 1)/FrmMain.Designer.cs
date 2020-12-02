@@ -63,6 +63,8 @@
             this.flyleafPlayer1._main.ClearBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
             this.flyleafPlayer1._main.EmbeddedList = true;
             this.flyleafPlayer1._main.HideCursor = true;
+            this.flyleafPlayer1._main.HistoryEnabled = true;
+            this.flyleafPlayer1._main.HistoryEntries = 30;
             this.flyleafPlayer1._main.IdleTimeout = 7000;
             this.flyleafPlayer1._main.MessagesDuration = 4000;
             this.flyleafPlayer1._main.SampleFrame = ((System.Drawing.Bitmap)(resources.GetObject("resource.SampleFrame")));

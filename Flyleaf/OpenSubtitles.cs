@@ -195,30 +195,40 @@ namespace SuRGeoNix.Flyleaf
             }
         }
 
-        public string Download() // Download -> Unzip -> ConvertToUtf8
+        public void Download(string encoding = "utf8") // Download -> Unzip -> ConvertToUtf8
         {
-            using (var client = new WebClient())
+            try
             {
-                string zipPath = Path.GetTempPath() + SubFileName + "_" + SubLanguageID + ".srt.gz";
+                using (var client = new WebClient())
+                {
+                    // Too many invalid converts to utf8 with opensubtitles (SubEncoding is not trustworthy)
+                    //string subDownloadLinkEnc = SubDownloadLink.Replace("/download/", $"/download/subencoding-{encoding}/");
+                    string subDownloadLinkEnc = SubDownloadLink;
 
-                File.Delete(zipPath);
-                File.Delete(zipPath.Substring(0,zipPath.Length - 3));
+                    string zipPath = Path.GetTempPath() + SubFileName + "." + SubLanguageID + ".srt.gz";
 
-                Log($"Downloading {zipPath}");
-                client.DownloadFile(new Uri(SubDownloadLink), zipPath);
+                    File.Delete(zipPath);
+                    File.Delete(zipPath.Substring(0,zipPath.Length - 3));
 
-                Log($"Unzipping {zipPath}");
-                string unzipPath = Utils.GZipDecompress(zipPath);
-                Log($"Unzipped at {unzipPath}");
+                    Log($"Downloading {zipPath}");
+                    client.DownloadFile(new Uri(subDownloadLinkEnc), zipPath);
 
-                Encoding subsEnc = Subtitles.Detect(unzipPath);
-                Log($"Converting {subsEnc.ToString()} to UTF8");
-                if (subsEnc != Encoding.UTF8) unzipPath = Subtitles.Convert(unzipPath, subsEnc, Encoding.UTF8);
+                    Log($"Unzipping {zipPath}");
+                    string unzipPath = Utils.GZipDecompress(zipPath);
+                    Log($"Unzipped at {unzipPath}");
 
-                AvailableAt = unzipPath;
+                    //Encoding subsEnc = Subtitles.Detect(unzipPath);
+                    //Log($"Converting {subsEnc.ToString()} to UTF8");
+                    //if (subsEnc != Encoding.UTF8) unzipPath = Subtitles.Convert(unzipPath, subsEnc, Encoding.UTF8);
 
-                return unzipPath;
-            }
+                    AvailableAt = unzipPath;
+
+                    //return unzipPath;
+                }
+            } catch (Exception e) { AvailableAt = null; Log($"Failed to download subtitle {SubFileName} - {e.Message}"); }
+
+            
+            //return null;
         }
         public bool Equals(OpenSubtitles other)
         {
@@ -234,6 +244,7 @@ namespace SuRGeoNix.Flyleaf
 
         public string MatchedBy { get; set; } 
         public string IDSubMovieFile { get; set; } 
+        [System.Xml.Serialization.XmlIgnore]
         public string MovieHash { get; set; } 
         public string MovieByteSize { get; set; } 
         public string MovieTimeMS { get; set; } 
