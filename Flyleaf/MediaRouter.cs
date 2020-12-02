@@ -280,8 +280,6 @@ namespace SuRGeoNix.Flyleaf
             vFrames     = new ConcurrentQueue<MediaFrame>();
             sFrames     = new ConcurrentQueue<MediaFrame>();
             seekStack   = new ConcurrentStack<int>();
-
-            LoadDefaultLanguages();
         }
         public  void InitHandle(IntPtr handle, bool designMode = false)
         {
@@ -406,17 +404,6 @@ namespace SuRGeoNix.Flyleaf
 
             foreach (KeyValuePair<string, string> plugin in PluginsList)
                 if (File.Exists(plugin.Value)) Plugins.Add(plugin.Key);
-        }
-        private void LoadDefaultLanguages()
-        {
-            Languages           = new List<Language>();
-            Language systemLang = Language.Get(System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
-            if (systemLang.LanguageName != "English") Languages.Add(systemLang);
-
-            foreach (System.Windows.Forms.InputLanguage lang in System.Windows.Forms.InputLanguage.InstalledInputLanguages)
-                if (Language.Get(lang.Culture.TwoLetterISOLanguageName).ISO639 != systemLang.ISO639 && Language.Get(lang.Culture.TwoLetterISOLanguageName).LanguageName != "English") Languages.Add(Language.Get(lang.Culture.TwoLetterISOLanguageName));
-
-            Languages.Add(Language.Get("English"));
         }
         #endregion
 

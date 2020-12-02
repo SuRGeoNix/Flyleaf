@@ -117,8 +117,7 @@
             this.flyleafPlayer1._subtitles.DownloadSubs = SuRGeoNix.Flyleaf.MediaRouter.DownloadSubsMode.FilesAndTorrents;
             this.flyleafPlayer1._subtitles.Font = new System.Drawing.Font("Arial", 67F, System.Drawing.FontStyle.Bold);
             this.flyleafPlayer1._subtitles.Languages = new string[] {
-        "Greek",
-        "English"};
+        "Spanish"};
             this.flyleafPlayer1._subtitles.OnViewPort = false;
             this.flyleafPlayer1._subtitles.Position = new System.Drawing.Point(0, -20);
             this.flyleafPlayer1._subtitles.RectColor = System.Drawing.Color.FromArgb(((int)(((byte)(168)))), ((int)(((byte)(78)))), ((int)(((byte)(0)))), ((int)(((byte)(131)))));
