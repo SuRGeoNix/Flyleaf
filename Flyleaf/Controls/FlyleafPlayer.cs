@@ -247,7 +247,11 @@ namespace SuRGeoNix.Flyleaf.Controls
             timer.AutoReset             = true;
             timer.Elapsed               += Timer_Elapsed;
 
-            if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsDefault.xml"))) Settings.SaveSettings(config, "SettingsDefault.xml");
+            if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsDefault.xml")))
+            {
+                config.subtitles.Languages = Utils.GetSystemLanguages();
+                Settings.SaveSettings(config, "SettingsDefault.xml");
+            }
             if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsUser.xml"))) File.Copy(Path.Combine(Settings.CONFIG_PATH,"SettingsDefault.xml"), Path.Combine(Settings.CONFIG_PATH,"SettingsUser.xml"));
 
             userDefault     = Settings.LoadSettings();
