@@ -34,7 +34,8 @@ namespace SuRGeoNix.Flyleaf
         public static readonly object   lockerStatic = new object();
 
         // Audio Output Configuration
-        int _BITS = 16; int _CHANNELS = 2; 
+        //int _BITS = 16; 
+        int _CHANNELS = 2;
         public int _RATE = 48000; // Will be set from Input Format
 
         public bool     isPlaying   { get { return player.PlaybackState == PlaybackState.Playing ? true : false; } }
@@ -70,9 +71,11 @@ namespace SuRGeoNix.Flyleaf
         {
             //lock (locker)
             //{   
-                format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
+                //format = new WaveFormatExtensible(_RATE, _BITS, _CHANNELS);
+                format = WaveFormatExtensible.CreateIeeeFloatWaveFormat(_RATE, _CHANNELS);
+
                 buffer = new BufferedWaveProvider(format);
-                buffer.BufferLength = 1500 * 1024;
+                buffer.BufferLength = 3000 * 1024;
                 
                 player = new WaveOut();
                 player.DeviceNumber = 0;

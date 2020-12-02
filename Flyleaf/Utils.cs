@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Management;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Management;
 using System.Security;
 using System.Text;
 using System.Threading;
@@ -23,6 +24,7 @@ namespace SuRGeoNix.Flyleaf
     public class Utils
     {
         public static List<string> MovieExts = new List<string>() { "mp4", "m4v", "m4e", "mkv", "mpg", "mpeg" , "mpv", "mp4p", "mpe" , "m1v", "m2ts", "m2p", "m2v", "movhd", "moov", "movie", "movx", "mjp", "mjpeg", "mjpg", "amv" , "asf", "m4v", "3gp", "ogm", "ogg", "vob", "ts", "rm", "3gp", "3gp2", "3gpp", "3g2", "f4v", "f4a", "f4p", "f4b", "mts", "m2ts", "gifv", "avi", "mov", "flv", "wmv", "qt", "avchd", "swf", "cam", "nsv", "ram", "rm", "x264", "xvid", "wmx", "wvx", "wx", "video", "viv", "vivo", "vid", "dat", "bik", "bix", "dmf", "divx" };
+        public static List<string> SubsExts  = new List<string>() { "srt", "txt", "sub", "ssa", "ass" };
 
         public static List<string> GetMoviesSorted(List<string> movies)
         {
@@ -167,6 +169,8 @@ namespace SuRGeoNix.Flyleaf
 
             if (t != null && t.IsAlive)
             {
+                Console.WriteLine("Thread X did not finished properly!");
+
                 t.Abort();
                 escapeInfinity = maxMS / minMS;
                 while (t != null && t.IsAlive && escapeInfinity > 0)
@@ -224,6 +228,39 @@ namespace SuRGeoNix.Flyleaf
 
             return newFileName;
         }
+
+        public static string GetUserDownloadPath()
+        {
+            try { return Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\").GetValue("{374DE290-123F-4565-9164-39C4925E467B}").ToString(); } catch (Exception) { return null; }
+        }
+
+        public static long GetDirectorySize(string path)
+        {
+            long size = 0;
+            try
+            {
+                if (!Directory.Exists(path)) return 0;
+                size = new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories).Sum(file => file.Length);
+            } catch (Exception) { size = -1; }
+            
+            return size;
+        }
+        public static string BytesToReadableString_(long bytes) // BitSwarm *
+        {
+            string bd = "";
+
+            if (        bytes < 1024)
+                bd =    bytes + " B";
+            else if (   bytes > 1024    && bytes < 1024 * 1024)
+                bd =    String.Format("{0:n1}",bytes / 1024.0)                  + " KB";
+            else if (   bytes > 1024 * 1024 && bytes < 1024 * 1024 * 1024)
+                bd =    String.Format("{0:n1}",bytes / (1024 * 1024.0))         + " MB";
+            else if (   bytes > 1024 * 1024 * 1024 )
+                bd =    String.Format("{0:n1}",bytes / (1024 * 1024 * 1024.0))  + " GB";
+
+            return bd;
+        }
+
         public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(@"hh\:mm\:ss\:fff"); }
 
         public static void Shutdown()

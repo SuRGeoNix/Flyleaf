@@ -58,9 +58,9 @@ namespace SuRGeoNix.Flyleaf
         ShaderResourceView                  srvRGB, srvY, srvU, srvV;
         ShaderResourceViewDescription       srvDescYUV;
 
-        VideoDevice1                        videoDevice1;
+        VideoDevice                         videoDevice1;
         VideoProcessor                      videoProcessor;
-        VideoContext1                       videoContext1;
+        VideoContext                        videoContext1;
         VideoProcessorEnumerator            vpe;
         VideoProcessorContentDescription    vpcd;
         VideoProcessorOutputViewDescription vpovd;
@@ -207,9 +207,12 @@ namespace SuRGeoNix.Flyleaf
             };
 
             /* [Enable Debug Layer]
-             * 
+             * https://docs.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-devices-layers
              * https://docs.microsoft.com/en-us/windows/win32/direct3d11/using-the-debug-layer-to-test-apps
-             * To use this flag, you must have D3D11*SDKLayers.dll installed; otherwise, device creation fails. To get D3D11_1SDKLayers.dll, install the SDK for Windows 8.
+             * 
+             * For Windows 7 with Platform Update for Windows 7 (KB2670838) or Windows 8.x, to create a device that supports the debug layer, install the Windows Software Development Kit (SDK) for Windows 8.x to get D3D11_1SDKLayers.dll
+             * For Windows 10, to create a device that supports the debug layer, enable the "Graphics Tools" optional feature. Go to the Settings panel, under System, Apps & features, Manage optional Features, Add a feature, and then look for "Graphics Tools".
+             * 
              */
 
             // Enable on-demand to avoid "Failed to create device issue"
@@ -228,11 +231,11 @@ namespace SuRGeoNix.Flyleaf
             
             factoryWrite    = new FactoryDW();
             surface         = backBuffer.QueryInterface<Surface>();
-            rtv2d           = new RenderTarget(factory2d, surface, new RenderTargetProperties(new SharpDX.Direct2D1.PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
+            rtv2d           = new RenderTarget(factory2d, surface, new RenderTargetProperties(new PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
             brush2d         = new SolidColorBrush(rtv2d, Color.White);
 
-            string vertexProfile = "vs_5_0";
-            string pixelProfile = "ps_5_0";
+            string vertexProfile    = "vs_5_0";
+            string pixelProfile     = "ps_5_0";
 
             if (device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_9_1 ||
                 device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_9_2 ||
@@ -240,8 +243,8 @@ namespace SuRGeoNix.Flyleaf
                 device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_10_0 ||
                 device.FeatureLevel == SharpDX.Direct3D.FeatureLevel.Level_10_1)
             {
-                vertexProfile = "vs_4_0_level_9_1";
-                pixelProfile = "ps_4_0_level_9_1";
+                vertexProfile   = "vs_4_0_level_9_1";
+                pixelProfile    = "ps_4_0_level_9_1";
             }
 
             var VertexShaderByteCode    = ShaderBytecode.Compile(Properties.Resources.VertexShader,     "main", vertexProfile, ShaderFlags.Debug);
@@ -312,8 +315,9 @@ namespace SuRGeoNix.Flyleaf
             srvDescYUV.Texture2D.MostDetailedMip   = 0;
             srvDescYUV.Texture2D.MipLevels         = 1;
 
-            videoDevice1    = device.QueryInterfaceOrNull<VideoDevice1>();
-            videoContext1   = device.ImmediateContext.QueryInterfaceOrNull<VideoContext1>();
+            // Falling back from videoDevice1/videoContext1 to videoDevice/videoContext to ensure backwards compatibility
+            videoDevice1    = device.QueryInterfaceOrNull<VideoDevice>();
+            videoContext1   = device.ImmediateContext.QueryInterfaceOrNull<VideoContext>();
 
             if (videoDevice1 == null || videoContext1 == null) { SetViewport(); return; }
 
@@ -341,9 +345,6 @@ namespace SuRGeoNix.Flyleaf
             vpsa    = new VideoProcessorStream[1];
 
             SetViewport();
-
-            //foreach (var osdsurf in osd)
-                //osdsurf.Value.Init();
         }
         public  void Dispose()
         {
@@ -520,11 +521,20 @@ namespace SuRGeoNix.Flyleaf
         {
             if (ShouldVisible(player.Activity,msgToVis[OSDMessage.Type.Time]))
             {
-                long curTime = player.SeekTime == -1 ? player.CurTime : player.SeekTime;
                 if (player.Duration != 0)
-                    osd[msgToSurf[OSDMessage.Type.Time]].DrawText((new TimeSpan(curTime)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + " | " + (player.CurTime > 0 ? ((int)((player.CurTime + 1500000) / (player.Duration / 100))).ToString() : "0") + "%");
+                {
+                    long curTime = player.SeekTime == -1 ? player.CurTime : player.SeekTime;
+
+                    int percentage = (int)(((player.CurTime) / (player.Duration / 100)) + 0.3);
+                    if (percentage > 100) percentage = 100;
+                    if (percentage < 0) percentage = 0;
+
+                    if (curTime > player.Duration) curTime = player.Duration;
+
+                    osd[msgToSurf[OSDMessage.Type.Time]].DrawText((new TimeSpan(curTime)).ToString(@"hh\:mm\:ss") + " / " + (new TimeSpan(player.Duration)).ToString(@"hh\:mm\:ss") + " | " + percentage + "%");
+                }
                 else
-                    osd[msgToSurf[OSDMessage.Type.Time]].DrawText((new TimeSpan(curTime)).ToString(@"hh\:mm\:ss") + " / --:--:--");
+                    osd[msgToSurf[OSDMessage.Type.Time]].DrawText((new TimeSpan(player.CurTime)).ToString(@"hh\:mm\:ss") + " / --:--:--");
             }
             
             lock (messages)
@@ -604,7 +614,7 @@ namespace SuRGeoNix.Flyleaf
             if (device == null) return;
 
             // Should work better in case of frame delay (to avoid more delay on screamer)
-            if (Monitor.TryEnter(device, 4))
+            if (Monitor.TryEnter(device, 10))
             {
                 try
                 {
