@@ -993,7 +993,7 @@ namespace SuRGeoNix.Flyleaf
                 decCtx.activeStreamIds.Add(aStream->index);
             }
 
-            if (decCtx.type == AVMEDIA_TYPE_VIDEO)
+            if (decCtx.type == AVMEDIA_TYPE_VIDEO && !isForBuffering)
             {
                 for (int i=0; i<decCtx.fmtCtx->nb_streams; i++)
                 {
