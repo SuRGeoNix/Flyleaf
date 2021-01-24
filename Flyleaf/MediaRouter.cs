@@ -228,18 +228,25 @@ namespace SuRGeoNix.Flyleaf
 
             set
             {
-                // TODO: Unexplained delay during Torrent Streaming | To be reviewed
-
                 if (!decoder.isReady || !isReady || !decoder.hasSubs || subsExternalDelay == value) return;
 
                 subsExternalDelay = value;
-
-                if (decoder.subs != null) decoder.subs.ReSync();
-                sFrames = new ConcurrentQueue<MediaFrame>();
-
-                renderer.ClearMessages(OSDMessage.Type.Subtitles);
                 renderer.NewMessage(OSDMessage.Type.SubsDelay);
             }
+        }
+        public void     SubsResync()
+        {
+            if (!decoder.isReady || !isReady || !decoder.hasSubs) return;
+
+            sFrames = new ConcurrentQueue<MediaFrame>();
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
+            sFrame = null;
+            if (decoder.subs != null) decoder.subs.ReSync();
+            sFrames = new ConcurrentQueue<MediaFrame>();
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
+            sFrame = null;
+
+            renderer.NewMessage(OSDMessage.Type.SubsDelay);
         }
         public int      SubsPosition    { get { return renderer.SubsPosition;       } set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
         public float    SubsFontSize    { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; renderer?.NewMessage(OSDMessage.Type.SubsFontSize); } }
@@ -429,12 +436,14 @@ namespace SuRGeoNix.Flyleaf
                 }
                 Thread.Sleep(5);
             }
-        }        
+        }    
+        
+        MediaFrame sFrame = null;
         private void Screamer()
         {
             MediaFrame vFrame = null;
             MediaFrame aFrame = null;
-            MediaFrame sFrame = null;
+            sFrame = null;
       
             long    startedAtTicks;
 
@@ -998,7 +1007,10 @@ namespace SuRGeoNix.Flyleaf
 
             if (sub.streamIndex > 0)
             {
+                subsExternalDelay = 0;
                 sFrames = new ConcurrentQueue<MediaFrame>();
+                renderer.ClearMessages(OSDMessage.Type.Subtitles);
+                sFrame = null;
                 decoder.video.EnableEmbeddedSubs(sub.streamIndex);
             }
             else
@@ -1030,6 +1042,7 @@ namespace SuRGeoNix.Flyleaf
                 subsExternalDelay = 0;
                 sFrames = new ConcurrentQueue<MediaFrame>();
                 renderer.ClearMessages(OSDMessage.Type.Subtitles);
+                sFrame = null;
                 decoder.video.DisableEmbeddedSubs();
                 if (decoder.Open("", "", sub.pathUTF8) != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return; }
             }
