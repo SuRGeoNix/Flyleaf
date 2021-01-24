@@ -1,5 +1,5 @@
 ============
-Flyleaf v2.4
+Flyleaf v2.5
 ============
 A video player with HD & Streaming (Torrent/Web +) support
 						by John Stamatakis (aka SuRGeoNix)
@@ -21,11 +21,6 @@ Enhancements
 - Libraries	: Updating BitSwarm, FFmpeg, Youtube-DL, misc versions
 - Subtitles	: Better sorting and selection (giving match priority to moviehash instead of rating)
 - Youtube-DL: Better implementation ready to support more audio/video formats and be exposed as settings for user customization
-
-Issues
-- Fixing a minor memory leak issue on demuxing (thanks to pubpy2015)
-- Fixing other minor issues
-
 
 Project	: https://github.com/SuRGeoNix/Flyleaf
 License	: LGPL-3.0

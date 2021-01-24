@@ -47,6 +47,9 @@ namespace SuRGeoNix.Flyleaf
         internal FactoryDW                  factoryWrite;
         internal RenderTarget               rtv2d;
         internal SolidColorBrush            brush2d;
+        internal SolidColorBrush            brush2dOutline;
+
+        internal OutlineRenderer outlineRenderer = new OutlineRenderer();
 
         PixelShader                         pixelShader, pixelShaderYUV;
         VertexShader                        vertexShader;
@@ -233,6 +236,9 @@ namespace SuRGeoNix.Flyleaf
             surface         = backBuffer.QueryInterface<Surface>();
             rtv2d           = new RenderTarget(factory2d, surface, new RenderTargetProperties(new PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
             brush2d         = new SolidColorBrush(rtv2d, Color.White);
+            brush2dOutline  = new SolidColorBrush(rtv2d, Color.Gray);
+
+            outlineRenderer.renderer = this;
 
             string vertexProfile    = "vs_5_0";
             string pixelProfile     = "ps_5_0";
@@ -362,6 +368,7 @@ namespace SuRGeoNix.Flyleaf
                 Utilities.Dispose(ref factory2d);
                 Utilities.Dispose(ref factoryWrite);
                 Utilities.Dispose(ref brush2d);
+                Utilities.Dispose(ref brush2dOutline);
             }
             Utilities.Dispose(ref device);
         }
@@ -381,6 +388,7 @@ namespace SuRGeoNix.Flyleaf
                 Utilities.Dispose(ref surface);
                 Utilities.Dispose(ref backBuffer);
                 Utilities.Dispose(ref brush2d);
+                Utilities.Dispose(ref brush2dOutline);
                 
                 swapChain.ResizeBuffers(0, HookControl.Width, HookControl.Height, Format.Unknown, SwapChainFlags.None);
 
@@ -389,6 +397,7 @@ namespace SuRGeoNix.Flyleaf
                 surface     = backBuffer.QueryInterface<Surface>();
                 rtv2d       = new RenderTarget(factory2d, surface, new RenderTargetProperties(new PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
                 brush2d     = new SolidColorBrush(rtv2d, Color.White);
+                brush2dOutline  = new SolidColorBrush(rtv2d, Color.Gray);
 
                 SetViewport();
                 foreach (var osdsurf in osd)
@@ -666,5 +675,39 @@ namespace SuRGeoNix.Flyleaf
             lock(messages) foreach (OSDMessage.Type type in types) messages.Remove(type);
         }
         #endregion
+
+        public class OutlineRenderer : TextRendererBase
+        {
+            public MediaRenderer           renderer;
+
+            public override Result DrawGlyphRun(object clientDrawingContext, float baselineOriginX, float baselineOriginY, MeasuringMode measuringMode, GlyphRun glyphRun, GlyphRunDescription glyphRunDescription, ComObject clientDrawingEffect)
+            {
+                using (PathGeometry path = new PathGeometry(renderer.factory2d))
+                {
+                    using (GeometrySink sink = path.Open())
+                    {
+                        glyphRun.FontFace.GetGlyphRunOutline(glyphRun.FontSize, glyphRun.Indices, glyphRun.Advances, glyphRun.Offsets, glyphRun.Advances.Length, glyphRun.IsSideways, (glyphRun.BidiLevel % 2) > 0, sink);
+                        sink.Close();
+                    }
+
+                    var matrix = new Matrix3x2()
+                    {
+                        M11 = 1,
+                        M12 = 0,
+                        M21 = 0,
+                        M22 = 1,
+                        M31 = baselineOriginX,
+                        M32 = baselineOriginY
+                    };
+
+                    TransformedGeometry transformedGeometry = new TransformedGeometry(renderer.factory2d, path, matrix);
+                    renderer.rtv2d.DrawGeometry(transformedGeometry, renderer.brush2dOutline);
+                    Utilities.Dispose(ref transformedGeometry);
+
+                }
+
+                return new Result();   
+            }
+        }
     }
 }
