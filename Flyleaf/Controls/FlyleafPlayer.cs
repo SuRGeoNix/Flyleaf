@@ -1052,10 +1052,35 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         private void FlyLeaf_KeyUp              (object sender, KeyEventArgs e)
         {
-            if (e.Control) return;
+
+            if (e.Control)
+            {
+                switch (e.KeyCode)
+                {
+
+                    // SUBTITLES
+                    case Keys.OemSemicolon:
+                    case Keys.OemQuotes:
+                        if (!player.hasSubs) return;
+
+                        player.SubsResync();
+                        break;
+                }
+
+                return;
+            }
 
             switch (e.KeyCode)
             {
+
+                // SUBTITLES
+                case Keys.OemSemicolon:
+                case Keys.OemQuotes:
+                    if (!player.hasSubs) return;
+
+                    player.SubsResync();
+                    break;
+
                 case Keys.Left:
                 case Keys.Right:
 

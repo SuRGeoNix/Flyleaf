@@ -290,16 +290,27 @@ namespace SuRGeoNix.Flyleaf
         }
         public void Draw()
         {
-            int subsOffset = renderer.msgToSurf[OSDMessage.Type.Subtitles] == name ? renderer.SubsPosition : 0;
-
             if (rectEnabled)
             {
                 renderer.brush2d.Color = rectColor;
                 renderer.rtv2d.FillRectangle(rect, renderer.brush2d);
             }
-            
+
+            float x = hookViewport ? pos.X + renderer.GetViewport.X : pos.X;
+            float y = hookViewport ? pos.Y + renderer.GetViewport.Y : pos.Y;
             renderer.brush2d.Color = color;
-            renderer.rtv2d.DrawTextLayout(hookViewport ? new RawVector2(pos.X + renderer.GetViewport.X, pos.Y + renderer.GetViewport.Y - subsOffset) : new RawVector2(pos.X, pos.Y - subsOffset), layout, renderer.brush2d);
+
+            // Outline: For better performance maybe should create new fonts with outline
+            if (renderer.msgToSurf[OSDMessage.Type.Subtitles] == name)
+            {
+                y -= renderer.SubsPosition;
+                renderer.rtv2d.DrawTextLayout(new RawVector2(x, y), layout, renderer.brush2d);
+                layout.Draw(renderer.outlineRenderer, x, y);
+            }
+            else
+                renderer.rtv2d.DrawTextLayout(new RawVector2(x, y), layout, renderer.brush2d);
+
+                
         }
     }
 }
