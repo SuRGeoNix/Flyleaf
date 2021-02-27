@@ -376,9 +376,9 @@ namespace SuRGeoNix.Flyleaf
             public bool         HardwareAcceleration{ get { return player.HWAccel;              } set { player.HWAccel          = value; player.renderer.PresentFrame(null);} }
             public ViewPorts    AspectRatio         { get { return player.ViewPort;             } set { player.ViewPort         = value; player.renderer.HookResized(null,null);} }
             public float        CustomRatio         { get { return player.CustomRatio;          } set { player.CustomRatio      = value; player.renderer.HookResized(null,null);} }
-            public int          DecoderThreads      { get { return player.decoder.Threads;      } set { player.decoder.Threads  = value; } }
-            public int          QueueMinSize        { get { return player.VIDEO_MIX_QUEUE_SIZE; } set { player.VIDEO_MIX_QUEUE_SIZE = value; } }
-            public int          QueueMaxSize        { get { return player.VIDEO_MAX_QUEUE_SIZE; } set { player.VIDEO_MAX_QUEUE_SIZE = value; } }
+            public int          DecoderThreads      { get { return player.decoder.opt.video.DecoderThreads; } set { player.decoder.opt.video.DecoderThreads  = value; } }
+            public int          QueueMinSize        { get { return player.decoder.opt.MinQueueSize; } set { player.decoder.opt.MinQueueSize = value; } }
+            public int          QueueMaxSize        { get { return player.decoder.opt.MaxQueueSize; } set { player.decoder.opt.MaxQueueSize = value; } }
             public bool         VSync               { get { return player.renderer.VSync;       } set { player.renderer.VSync   = value; } }
         }
 

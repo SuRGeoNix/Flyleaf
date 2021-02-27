@@ -194,6 +194,19 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (config.bar._Visibility != VisibilityMode.Never)
             {
                 tblBar.volBar.SetValue(player.Volume);
+                player.renderer?.NewMessage(OSDMessage.Type.Volume);
+
+                if (player.Mute2)
+                {
+                    tblBar.btnMute.BackgroundImage = Properties.Resources.Mute;
+                    tblBar.btnMute.Text = " ";
+                    player.renderer?.NewMessage(OSDMessage.Type.Mute, "Muted");
+                }
+                else
+                {
+                    tblBar.btnMute.BackgroundImage = Properties.Resources.Speaker;
+                    tblBar.btnMute.Text = "";   
+                }
 
                 HandlersBar();
 
@@ -258,7 +271,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             systemDefault   = Settings.LoadSettings("SettingsDefault.xml");
 
             Settings.ParseSettings(userDefault, config);
-            player.streamer.config = config.torrent;
+            player.torrentStreamer.config = config.torrent;
             SettingsChanged();
 
             if (config.main.EmbeddedList)
@@ -315,6 +328,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
                             try
                             {
+                                // TODO: Support HTML background-image:url(data:image/svg+xml;base64, ... ) etc.
                                 Uri cur = new Uri(favIcon);
                                 client.DownloadFile(new Uri(favIcon), Path.Combine(ICONS_PATH, cur.DnsSafeHost + ".ico"));
                                 hosts.Add(cur.DnsSafeHost);
@@ -335,14 +349,22 @@ namespace SuRGeoNix.Flyleaf.Controls
             foreach (var t1 in recentToolStripMenuItem.DropDownItems)
             {
                 var curMenu =((ToolStripMenuItem)t1);
+                if (curMenu.Tag != null) continue;
+
                 var curTag = (History.Entry)curMenu.Tag;
 
-                if ((curTag.UrlType == InputType.Web || curTag.UrlType == InputType.WebLive))
+                if (curTag.UrlType == InputType.Web || curTag.UrlType == InputType.WebLive)
                 {
                     string curHost = (new Uri(curTag.Url)).DnsSafeHost;
                     string icoPath = Path.Combine(ICONS_PATH, curHost + ".ico");
                     if (hosts.Contains(curHost) && File.Exists(icoPath))
-                        curMenu.Image = Image.FromFile(icoPath);
+                    {
+                        try
+                        {
+                            curMenu.Image = Image.FromFile(icoPath);
+                        } catch (Exception e) { Console.WriteLine("Error " + e.Message + " - loading .ico from " + icoPath); }
+                    }
+                        
                 }
             }
         }
@@ -387,7 +409,18 @@ namespace SuRGeoNix.Flyleaf.Controls
                                 Uri uri = new Uri(curEntry.Url);
 
                                 if (File.Exists(Path.Combine(ICONS_PATH, uri.DnsSafeHost + ".ico")))
-                                    menuRecent[i].Image = Image.FromFile(Path.Combine(ICONS_PATH, uri.DnsSafeHost + ".ico"));
+                                {
+                                    try
+                                    {
+                                        menuRecent[i].Image = Image.FromFile(Path.Combine(ICONS_PATH, uri.DnsSafeHost + ".ico"));
+                                    } catch (Exception e)
+                                    {
+                                        File.Delete(Path.Combine(ICONS_PATH, uri.DnsSafeHost + ".ico"));
+                                        Console.WriteLine("Error " + e.Message + " - loading .ico from " + Path.Combine(ICONS_PATH, uri.DnsSafeHost + ".ico"));
+                                        menuRecent[i].Image = Properties.Resources.Web;
+                                    }
+                                    
+                                }
                                 else
                                 {
                                     menuRecent[i].Image = Properties.Resources.Web;
@@ -629,7 +662,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             // Open at saved history second (only if history secs > 1m and duration-secs > 5m and duration > 15m)
             if (curHistoryEntry != null && !player.isLive && player.History.GetCurrent().CurSecond > 60 && (int)(player.Duration / 10000000) - player.History.GetCurrent().CurSecond > 60 * 5 && (int)(player.Duration / 10000000) > 60 * 15)
-                player.Seek(player.History.GetCurrent().CurSecond * 1000, true, true, true);
+                { player.beforeSeeking = Status.PLAYING; player.Seek(player.History.GetCurrent().CurSecond * 1000, true, true); }
             else
                 Play();
         }
@@ -680,17 +713,23 @@ namespace SuRGeoNix.Flyleaf.Controls
         { 
             if (InvokeRequired) { BeginInvoke(new Action(() => OnVolumeChanged(sender, e))); return; }
 
-            tblBar.volBar.Value = e.volume;
+            if (tblBar.volBar.Value != e.volume)
+            {
+                tblBar.volBar.SetValue(e.volume);
+                player.renderer?.NewMessage(OSDMessage.Type.Volume);
+            }
 
-            if (e.mute)
+            if (e.mute && tblBar.btnMute.Text != " ")
             {
                 tblBar.btnMute.BackgroundImage = Properties.Resources.Mute;
                 tblBar.btnMute.Text = " ";
+                player.renderer?.NewMessage(OSDMessage.Type.Mute, "Muted");
             }
-            else
+            else if (!e.mute && tblBar.btnMute.Text != "")
             {
                 tblBar.btnMute.BackgroundImage = Properties.Resources.Speaker;
                 tblBar.btnMute.Text = "";   
+                player.renderer?.NewMessage(OSDMessage.Type.Mute, "Unmuted");
             }
         }
         #endregion
@@ -812,15 +851,31 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (lvSubs.Visible) FixLvSubs(false); else FixLvSubs(true);
         }
 
-        private void SeekBar_ValueChanged       (object sender, EventArgs e)
+        private void Seek(decimal value, bool foreward = false, bool priority = false, bool sliding = true)
         {
             if (!player.isReady) return;
 
             shutdownCountDown = -1; shutdownCancelled = false;
 
-            long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
-            if (config.bar.SeekOnSlide) player.Seek((int)seektime); else Interlocked.Exchange(ref player.SeekTime, seektime * 10000);
+            tblBar.seekBar.SetValue(value);
+            long seektime = ((long)(value) * 1000) + 500;
+
+            Console.WriteLine("Will seek at " + Utils.TicksToTime(seektime * 10000) + " | " + (foreward));
+
+            if (config.bar.SeekOnSlide || !sliding)
+            {
+                Interlocked.Exchange(ref player.SeekTime, seektime * 10000);
+                player.Seek((int)seektime, priority, foreward);
+            }
+            else 
+                Interlocked.Exchange(ref player.SeekTime, seektime * 10000);
+
             if (!player.isPlaying) player.Render(); // To refresh the OSD time (CPU/GPU heavy) - alternative solution in the Timer_Elapsed but with delay
+        }
+
+        private void SeekBar_ValueChanged       (object sender, EventArgs e)
+        {
+            Seek(tblBar.seekBar.Value);
         }
         private void SeekBar_MouseDown          (object sender, MouseEventArgs e)
         {
@@ -829,12 +884,8 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         private void SeekBar_MouseUp            (object sender, MouseEventArgs e)
         {
+            Seek(tblBar.seekBar.Value, false, true, false);
             seeking = false;
-
-            if (!player.isReady) return;
-
-            long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
-            player.Seek((int)seektime, true);
         }
 
         private void VolBar_ValueChanged        (object sender, EventArgs e)
@@ -845,7 +896,6 @@ namespace SuRGeoNix.Flyleaf.Controls
         private void FlyLeaf_DragEnter          (object sender, DragEventArgs e)
         {
             e.Effect = DragDropEffects.All;
-            //lastUserActionTicks = DateTime.UtcNow.Ticks;
         }
         private void FlyLeaf_DragDrop           (object sender, DragEventArgs e)
         {
@@ -988,7 +1038,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                     seekValue = tblBar.seekBar.Value + seekSum / 1000;
                     if (seekValue > tblBar.seekBar.Maximum) seekValue = tblBar.seekBar.Maximum;
                     if (seekValue < 0) seekValue = 0;
-                    if (seekValue != tblBar.seekBar.Value) tblBar.seekBar.Value = seekValue;
+                    if (seekValue != tblBar.seekBar.Value) Seek(seekValue, true, false, true);
 
                     break;
 
@@ -1002,7 +1052,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                     
                     seekValue = tblBar.seekBar.Value + seekSum / 1000;
                     if (seekValue < tblBar.seekBar.Minimum) seekValue = tblBar.seekBar.Minimum;
-                    if (seekValue != tblBar.seekBar.Value) tblBar.seekBar.Value = seekValue;
+                    if (seekValue != tblBar.seekBar.Value) Seek(seekValue, false, false, true);
 
                     break;
 
@@ -1063,7 +1113,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                     case Keys.OemQuotes:
                         if (!player.hasSubs) return;
 
-                        player.SubsResync();
+                        //player.SubsResync();
                         break;
                 }
 
@@ -1078,23 +1128,12 @@ namespace SuRGeoNix.Flyleaf.Controls
                 case Keys.OemQuotes:
                     if (!player.hasSubs) return;
 
-                    player.SubsResync();
+                    //player.SubsResync();
                     break;
 
                 case Keys.Left:
                 case Keys.Right:
-
-                    seeking = false;
-
-                    if (!player.isReady) return;
-
-                    //if (!config.bar.SeekOnSlide)
-                    //{
-                        seeking = true;
-                        long seektime = (((long)(tblBar.seekBar.Value) * 1000) + 500);
-                        player.Seek((int)seektime, true, e.KeyCode == Keys.Right ? true : false);
-                    //}
-                    
+                    Seek(tblBar.seekBar.Value, e.KeyCode == Keys.Right, true, false);
 
                     seeking     = false;
                     seekSum     = 0;

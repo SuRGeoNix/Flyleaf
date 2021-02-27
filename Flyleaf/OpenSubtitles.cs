@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Web;
 
 using Newtonsoft.Json;
@@ -50,7 +49,7 @@ namespace SuRGeoNix.Flyleaf
                 i++;
                 lhash += BitConverter.ToInt64(buffer, 0);
             }
-            input.Close();
+
             byte[] result = BitConverter.GetBytes(lhash);
             Array.Reverse(result);
             return result;
