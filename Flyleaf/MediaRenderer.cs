@@ -23,10 +23,11 @@ using Factory2D     = SharpDX.Direct2D1.Factory;
 using FactoryDW     = SharpDX.DirectWrite.Factory;
 
 using Point         = System.Drawing.Point;
-using MediaFrame    = SuRGeoNix.Flyleaf.MediaDecoder.MediaFrame;
 
 using static SuRGeoNix.Flyleaf.OSDMessage;
 using static SuRGeoNix.Flyleaf.MediaRouter;
+
+using SuRGeoNix.Flyleaf.MediaFramework;
 
 namespace SuRGeoNix.Flyleaf
 {
@@ -78,8 +79,12 @@ namespace SuRGeoNix.Flyleaf
         int vsync = 0;
         public bool     VSync               { get { return vsync == 1; } set { vsync = value ? 1 : 0; } }
 
-        Color clearColor = Color.Black;
-        public System.Drawing.Color ClearColor { get { return System.Drawing.Color.FromArgb(clearColor.A, clearColor.R, clearColor.G, clearColor.B); } set { clearColor = new Color(value.R, value.G, value.B, value.A); } }
+        Color clearColor    = Color.Black;
+        Color outlineColor  = Color.Black;
+        public System.Drawing.Color ClearColor      { get { return System.Drawing.Color.FromArgb(clearColor.A, clearColor.R, clearColor.G, clearColor.B); } set { clearColor = new Color(value.R, value.G, value.B, value.A); } }
+        public System.Drawing.Color OutlineColor    { get { return System.Drawing.Color.FromArgb(outlineColor.A, outlineColor.R, outlineColor.G, outlineColor.B); } set { outlineColor = new Color(value.R, value.G, value.B, value.A); if (rtv2d != null) brush2dOutline = new SolidColorBrush(rtv2d, outlineColor); } }
+
+        public int OutlinePixels {  get; set; } = 1;
 
         public Viewport GetViewport         { get; private set; }
         public IntPtr   HookHandle          { get; private set; }
@@ -113,7 +118,7 @@ namespace SuRGeoNix.Flyleaf
             osd.Add("tr2",  new OSDSurface(this, OSDSurface.Alignment.TOPRIGHT,     new Point(-12, 60), "Perpetua", 26));
             osd.Add("bl",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMLEFT,   new Point( 12,-12), "Perpetua", 26));
             osd.Add("br",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMRIGHT,  new Point(-12,-40), "Perpetua", 26));
-            osd.Add("bc",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMCENTER, new Point(  0,-20), "Arial",    67, System.Drawing.FontStyle.Bold, FontWeight.Heavy));
+            osd.Add("bc",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMCENTER, new Point(  0,-20), "Arial",    51, System.Drawing.FontStyle.Bold, FontWeight.Heavy));
 
             foreach (var osdsurf in osd)
             {
@@ -220,9 +225,9 @@ namespace SuRGeoNix.Flyleaf
 
             // Enable on-demand to avoid "Failed to create device issue"
             //#if DEBUG
-            //    Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.Debug | DeviceCreationFlags.BgraSupport, desc, out device, out swapChain);
+                //Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.Debug | DeviceCreationFlags.BgraSupport, desc, out device, out swapChain);
             //#else
-                Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.BgraSupport, desc, out device, out swapChain);
+                Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport, desc, out device, out swapChain);
             //#endif
 
             var factory     = swapChain.GetParent<FactoryDX>();
@@ -236,7 +241,7 @@ namespace SuRGeoNix.Flyleaf
             surface         = backBuffer.QueryInterface<Surface>();
             rtv2d           = new RenderTarget(factory2d, surface, new RenderTargetProperties(new PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
             brush2d         = new SolidColorBrush(rtv2d, Color.White);
-            brush2dOutline  = new SolidColorBrush(rtv2d, Color.Gray);
+            brush2dOutline  = new SolidColorBrush(rtv2d, outlineColor);
 
             outlineRenderer.renderer = this;
 
@@ -323,7 +328,7 @@ namespace SuRGeoNix.Flyleaf
 
             // Falling back from videoDevice1/videoContext1 to videoDevice/videoContext to ensure backwards compatibility
             videoDevice1    = device.QueryInterfaceOrNull<VideoDevice>();
-            videoContext1   = device.ImmediateContext.QueryInterfaceOrNull<VideoContext>();
+            videoContext1   = context.QueryInterfaceOrNull<VideoContext>();
 
             if (videoDevice1 == null || videoContext1 == null) { SetViewport(); return; }
 
@@ -359,6 +364,19 @@ namespace SuRGeoNix.Flyleaf
                 foreach (var osdsurf in osd) osdsurf.Value.Dispose();
                 osd.Clear();
 
+                Utilities.Dispose(ref vertexLayout);
+                Utilities.Dispose(ref vertexShader);
+                Utilities.Dispose(ref vertexBuffer);
+                Utilities.Dispose(ref pixelShader);
+                Utilities.Dispose(ref pixelShaderYUV);
+
+                Utilities.Dispose(ref textureRGB);
+                Utilities.Dispose(ref srvRGB);
+                Utilities.Dispose(ref srvY);
+                Utilities.Dispose(ref srvU);
+                Utilities.Dispose(ref srvV);
+                
+
                 Utilities.Dispose(ref vpiv);
                 Utilities.Dispose(ref vpov);
                 Utilities.Dispose(ref rtv);
@@ -369,6 +387,18 @@ namespace SuRGeoNix.Flyleaf
                 Utilities.Dispose(ref factoryWrite);
                 Utilities.Dispose(ref brush2d);
                 Utilities.Dispose(ref brush2dOutline);
+
+                Utilities.Dispose(ref factoryWrite);
+                Utilities.Dispose(ref factory2d);
+                Utilities.Dispose(ref surface);
+                Utilities.Dispose(ref swapChain);
+
+                context.Flush();
+                context.ClearState();
+                Utilities.Dispose(ref context);
+
+                if (videoContext1 != null) Utilities.Dispose(ref videoContext1);
+                if (videoDevice1 != null) Utilities.Dispose(ref videoDevice1);
             }
             Utilities.Dispose(ref device);
         }
@@ -397,7 +427,7 @@ namespace SuRGeoNix.Flyleaf
                 surface     = backBuffer.QueryInterface<Surface>();
                 rtv2d       = new RenderTarget(factory2d, surface, new RenderTargetProperties(new PixelFormat(Format.Unknown, SharpDX.Direct2D1.AlphaMode.Premultiplied)));
                 brush2d     = new SolidColorBrush(rtv2d, Color.White);
-                brush2dOutline  = new SolidColorBrush(rtv2d, Color.Gray);
+                brush2dOutline  = new SolidColorBrush(rtv2d, outlineColor);
 
                 SetViewport();
                 foreach (var osdsurf in osd)
@@ -410,7 +440,8 @@ namespace SuRGeoNix.Flyleaf
         {
             lock (device)
             {
-                if (textureRGB != null) Utilities.Dispose(ref textureRGB);
+                Utilities.Dispose(ref textureRGB);
+                Utilities.Dispose(ref srvRGB);
 
                 textureRGB =  new Texture2D(device, new Texture2DDescription()
                 {
@@ -464,10 +495,10 @@ namespace SuRGeoNix.Flyleaf
         #region Rendering / Presentation
         private void PresentNV12P010(MediaFrame frame, bool dispose = true)
         {
-            // TODO: Possible process it directly after decoding (back to FFmpeg) to avoid Flush?
             try
             {
                 Utilities.Dispose(ref vpiv);
+
                 videoDevice1.CreateVideoProcessorInputView(frame.textureHW, vpe, vpivd, out vpiv);
 
                 VideoProcessorStream vps = new VideoProcessorStream()
@@ -481,7 +512,8 @@ namespace SuRGeoNix.Flyleaf
                 context.PixelShader.SetShaderResource(0, srvRGB);
                 context.PixelShader.Set(pixelShader);
 
-            } catch (Exception) {
+            } catch (Exception e) {
+                Console.WriteLine(e.Message);
             } finally { if (dispose) Utilities.Dispose(ref frame.textureHW); }
         }
         private void PresentYUV     (MediaFrame frame, bool dispose = true)
@@ -555,11 +587,16 @@ namespace SuRGeoNix.Flyleaf
                     // Remove Timed-out Messages (Except subs if not playing)
                     List<OSDMessage.Type> removeKeys = new List<OSDMessage.Type>();
                     foreach (KeyValuePair<OSDMessage.Type, OSDMessage> msgKV in messages)
-                        if (curTicks - msgKV.Value.startAt > (long)msgKV.Value.duration * 10000)
+                        if (msgKV.Value.type == OSDMessage.Type.Subtitles)
                         {
-                            if (msgKV.Value.type == OSDMessage.Type.Subtitles && !player.isPlaying) continue; // Dont remove subs if stopped
-
-                            removeKeys.Add(msgKV.Key); 
+                            if (player.CurTime - msgKV.Value.startAt > (long)msgKV.Value.duration * 10000)
+                                removeKeys.Add(msgKV.Key); 
+                        }
+                        else if (curTicks - msgKV.Value.startAt > (long)msgKV.Value.duration * 10000) 
+                        {
+                            //if (msgKV.Value.type == OSDMessage.Type.Subtitles && !player.isPlaying) continue; // Dont remove subs if stopped
+                            
+                                removeKeys.Add(msgKV.Key); 
                         }
                     foreach (OSDMessage.Type key in removeKeys) messages.Remove(key);
 
@@ -666,7 +703,12 @@ namespace SuRGeoNix.Flyleaf
         }
         public void NewMessage(OSDMessage.Type type, string msg = "", List<SubStyle> styles = null, int duration = -1)
         {
-            lock (messages) messages[type] = new OSDMessage(type, msg, styles, duration);
+            lock (messages)
+            {
+                messages[type] = new OSDMessage(type, msg, styles, duration);
+                if (type == OSDMessage.Type.Subtitles)
+                    messages[type].startAt = player.CurTime;
+            }
             if (!player.isPlaying) PresentFrame(null);
         }
         public void ClearMessages() { lock(messages) messages.Clear(); }
@@ -676,6 +718,13 @@ namespace SuRGeoNix.Flyleaf
         }
         #endregion
 
+
+        /* NOTES
+         * 
+         * Text with custom effects will not have an outline (custom color/italic etc.) | possible resolve this by applying effects after glyphrun?
+         * Consider using outline brush color as user defined property (check also outline pixel width if possible)
+         * Running glyphrunoutline for each letter seems CPU performance issue, consider creating fonts with the outline once?
+         */
         public class OutlineRenderer : TextRendererBase
         {
             public MediaRenderer           renderer;
@@ -701,9 +750,9 @@ namespace SuRGeoNix.Flyleaf
                     };
 
                     TransformedGeometry transformedGeometry = new TransformedGeometry(renderer.factory2d, path, matrix);
-                    renderer.rtv2d.DrawGeometry(transformedGeometry, renderer.brush2dOutline);
+                    renderer.rtv2d.FillGeometry(transformedGeometry, renderer.brush2d);
+                    renderer.rtv2d.DrawGeometry(transformedGeometry, renderer.brush2dOutline, renderer.OutlinePixels);
                     Utilities.Dispose(ref transformedGeometry);
-
                 }
 
                 return new Result();   

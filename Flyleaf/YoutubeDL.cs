@@ -10,7 +10,7 @@ namespace SuRGeoNix.Flyleaf
     public class YoutubeDL
     {
         public static string plugin_path = "Plugins\\Youtube-dl\\youtube-dl.exe";
-        public static YoutubeDL Get(string url, out string aUrlBest, out string vUrlBest) // will add .info.json
+        public static YoutubeDL Get(string url, out string aUrlBest, out string vUrlBest, string referer) // will add .info.json
         {
             aUrlBest = null;
             vUrlBest = null;
@@ -22,7 +22,7 @@ namespace SuRGeoNix.Flyleaf
                 StartInfo = new ProcessStartInfo
                 {
                     FileName                = plugin_path,
-                    Arguments               = $"--no-check-certificate --skip-download --write-info-json -o \"{tmpFile}\" \"{url}\"",
+                    Arguments               = $"--referer \"{referer}\" --no-check-certificate --skip-download --write-info-json -o \"{tmpFile}\" \"{url}\"",
                     CreateNoWindow          = true,
                     UseShellExecute         = false,
                     RedirectStandardOutput  = true,
