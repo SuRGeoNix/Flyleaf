@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
 
 using SharpDX;
@@ -300,12 +301,20 @@ namespace SuRGeoNix.Flyleaf
             float y = hookViewport ? pos.Y + renderer.GetViewport.Y : pos.Y;
             renderer.brush2d.Color = color;
 
-            // Outline: For better performance maybe should create new fonts with outline
             if (renderer.msgToSurf[OSDMessage.Type.Subtitles] == name)
             {
                 y -= renderer.SubsPosition;
-                renderer.rtv2d.DrawTextLayout(new RawVector2(x, y), layout, renderer.brush2d);
-                layout.Draw(renderer.outlineRenderer, x, y);
+                //renderer.rtv2d.DrawTextLayout(new RawVector2(x, y), layout, renderer.brush2d);
+                try
+                {
+                    // Draw outline
+                    layout.Draw(renderer.outlineRenderer, x, y);
+                } catch (Exception)
+                {
+                    // Fallback in failure (will happen if custom effect were applied)
+                    renderer.rtv2d.DrawTextLayout(new RawVector2(x, y), layout, renderer.brush2d);
+                }
+                
             }
             else
                 renderer.rtv2d.DrawTextLayout(new RawVector2(x, y), layout, renderer.brush2d);
