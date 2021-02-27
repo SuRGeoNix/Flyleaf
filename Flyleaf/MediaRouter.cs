@@ -1,4 +1,4 @@
-﻿/* Media Player Synching & Control Flow - the "Mediator"
+﻿/* Media Player Synching & Control Flow - the "Mediator" | Old Notes from v2.4
  * 
  *              [UI - Flyleaf UserControl]
  *          
@@ -40,8 +40,8 @@ using System.Security;
 using System.Text;
 using System.Threading;
 
-using static SuRGeoNix.Flyleaf.MediaDecoder;
-using static SuRGeoNix.Flyleaf.OSDMessage;
+using SuRGeoNix.Flyleaf.MediaFramework;
+using SuRGeoNix.BitSwarmLib;
 
 namespace SuRGeoNix.Flyleaf
 {
@@ -49,35 +49,44 @@ namespace SuRGeoNix.Flyleaf
     {
         #region Declaration
         public AudioPlayer      audioPlayer;
-        public MediaDecoder     decoder;
+        public DecoderContext   decoder;
         public MediaRenderer    renderer;
-        public MediaStreamer    streamer;
+        public TorrentStreamer  torrentStreamer;
 
-        Thread                  screamer;
-        Thread                  openOrBuffer;
-        Thread                  seekRequest         = new Thread(() => { });
+        public Status           beforeSeeking;
+        Status                  status;
 
-        //Stopwatch               videoClock          = new Stopwatch();
-        long                    videoStartTicks     =-1;
-
-        long                    audioExternalDelay  = 0;
-        long                    subsExternalDelay   = 0;
-
-        // Seeking
-        ConcurrentStack<int>    seekStack;
         readonly object         lockSeek            = new object();
         readonly object         lockOpening         = new object();
+
+        Thread      screamer;
+        Thread      openOrBuffer;
+        Thread      openSubs;
+        Thread      seekRequest;
+
+        MediaFrame  sFrame;
+        MediaFrame  vFrame;
+        MediaFrame  aFrame;
+
+        long        startedAtTicks;
+        long        videoStartTicks;
+        long        audioExternalDelay;
+        long        subsExternalDelay;
+
+        bool        isSeeking2;
+        int         lastSeekMs;
+
+        ConcurrentStack<SeekData> seeks;
+
+        class SeekData
+        {
+            public int  ms;
+            public bool priority;
+            public bool foreward;
+
+            public SeekData(int ms, bool priority,  bool foreward) { this.ms = ms; this.priority = priority; this.foreward = foreward; }
+        }
         
-        // Queues
-        internal ConcurrentQueue<MediaFrame>         aFrames;
-        internal ConcurrentQueue<MediaFrame>         vFrames;
-        internal ConcurrentQueue<MediaFrame>         sFrames;
-
-        public int AUDIO_MIX_QUEUE_SIZE =  0;  public int AUDIO_MAX_QUEUE_SIZE =200;
-        public int VIDEO_MIX_QUEUE_SIZE = 20;  public int VIDEO_MAX_QUEUE_SIZE = 25;
-        public int  SUBS_MIN_QUEUE_SIZE =  0;  public int  SUBS_MAX_QUEUE_SIZE = 50;
-
-        // Idle [Activity / Visibility Mode]
         public enum DownloadSubsMode
         {
             Never,
@@ -137,16 +146,11 @@ namespace SuRGeoNix.Flyleaf
             STOPPING,
             STOPPED
         }
-        Status status;
-        Status beforeSeeking = Status.STOPPED;
 
         public Action<bool, string>             OpenFinishedClbk;
-        public Action<bool>                     BufferSuccessClbk;
         public Action<List<string>, List<long>> MediaFilesClbk;
-
-        public event EventHandler SubtitlesAvailable;
-
-        public event StatusChangedHandler StatusChanged;
+        public event EventHandler               SubtitlesAvailable;
+        public event StatusChangedHandler       StatusChanged;
         public delegate void StatusChangedHandler(object source, StatusChangedArgs e);
         public class StatusChangedArgs : EventArgs
         {
@@ -169,8 +173,8 @@ namespace SuRGeoNix.Flyleaf
 
         public string       Url             { get; internal set; }
         public InputType    UrlType         { get; internal set; }
-        public string       UrlFolder       { get { return isTorrent ? streamer.FolderComplete : (new FileInfo(Url)).DirectoryName; } }
-        public string       UrlName         { get { return isTorrent ? streamer.FileName : (File.Exists(Url) ? (new FileInfo(Url)).Name : Url); } }
+        public string       UrlFolder       { get { return isTorrent ? torrentStreamer.FolderComplete : (new FileInfo(Url)).DirectoryName; } }
+        public string       UrlName         { get { return isTorrent ? torrentStreamer.FileName : (File.Exists(Url) ? (new FileInfo(Url)).Name : Url); } }
         
         public History      History         { get; internal set; }
         public bool         HistoryEnabled  { get; set; } = true;
@@ -188,13 +192,12 @@ namespace SuRGeoNix.Flyleaf
         public ViewPorts ViewPort       { get; set; } = ViewPorts.KEEP;
         public float    DecoderRatio    { get; set; } = 16f/9f;
         public float    CustomRatio     { get; set; } = 16f/9f;
-        public bool     hasVideo        { get { return decoder.hasVideo;            } }
-        public long     Duration        { get { return hasVideo ? decoder.vStreamInfo.durationTicks : decoder.aStreamInfo.durationTicks; } }
-        public int      Width           { get { return decoder.vStreamInfo.width;   } }
-        public int      Height          { get { return decoder.vStreamInfo.height;  } }
-        public bool     HighQuality     { get { return decoder.HighQuality;         } set { decoder.HighQuality = value; } }
-        public bool     HWAccel         { get { return decoder.HWAccel;             } set { decoder.HWAccel = value; renderer?.NewMessage(OSDMessage.Type.HardwareAcceleration); } }
-        public bool     iSHWAccelSuccess{ get { return decoder.hwAccelSuccess; } }
+        public long     Duration        { get { if (!isReady) return 0; else return decoder.vStreamInfo.DurationTicks; } }
+        public int      Width           { get { return decoder.vStreamInfo.Width;   } }
+        public int      Height          { get { return decoder.vStreamInfo.Height;  } }
+        public bool     HighQuality     { get { return decoder.opt.video.SwsHighQuality; } set { decoder.opt.video.SwsHighQuality = value; } }
+        public bool     HWAccel         { get { return decoder.opt.video.HWAcceleration; } set { decoder.opt.video.HWAcceleration = value; renderer?.NewMessage(OSDMessage.Type.HardwareAcceleration); } }
+        public bool     iSHWAccelSuccess{ get { return decoder.vDecoder.hwAccelSuccess; } }
 
         // Audio
         public bool     hasAudio        { get { return decoder.hasAudio;            } }
@@ -208,14 +211,12 @@ namespace SuRGeoNix.Flyleaf
 
             set
             {
-                if (!decoder.isReady || !isReady || !decoder.hasAudio || audioExternalDelay == value) return;
+                if (!isReady || !decoder.hasAudio || audioExternalDelay == value) return;
 
                 audioExternalDelay = value;
-
-                if (decoder.audio != null) decoder.audio.ReSync();
-                aFrames = new ConcurrentQueue<MediaFrame>();
-
+                decoder.opt.audio.DelayTicks = audioExternalDelay;
                 renderer.NewMessage(OSDMessage.Type.AudioDelay);
+                decoder.aDemuxer.ReSync(CurTime/10000);
             }
         }
 
@@ -228,25 +229,13 @@ namespace SuRGeoNix.Flyleaf
 
             set
             {
-                if (!decoder.isReady || !isReady || !decoder.hasSubs || subsExternalDelay == value) return;
+                if (!isReady || !decoder.hasSubs || subsExternalDelay == value) return;
 
                 subsExternalDelay = value;
+                decoder.opt.subs.DelayTicks = subsExternalDelay;
                 renderer.NewMessage(OSDMessage.Type.SubsDelay);
+                decoder.sDemuxer.ReSync(CurTime/10000);
             }
-        }
-        public void     SubsResync()
-        {
-            if (!decoder.isReady || !isReady || !decoder.hasSubs) return;
-
-            sFrames = new ConcurrentQueue<MediaFrame>();
-            renderer.ClearMessages(OSDMessage.Type.Subtitles);
-            sFrame = null;
-            if (decoder.subs != null) decoder.subs.ReSync();
-            sFrames = new ConcurrentQueue<MediaFrame>();
-            renderer.ClearMessages(OSDMessage.Type.Subtitles);
-            sFrame = null;
-
-            renderer.NewMessage(OSDMessage.Type.SubsDelay);
         }
         public int      SubsPosition    { get { return renderer.SubsPosition;       } set { renderer.SubsPosition = value; renderer?.NewMessage(OSDMessage.Type.SubsHeight); } }
         public float    SubsFontSize    { get { return renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize; } set { renderer.osd[renderer.msgToSurf[OSDMessage.Type.Subtitles]].FontSize = value; renderer?.NewMessage(OSDMessage.Type.SubsFontSize); } }
@@ -281,12 +270,9 @@ namespace SuRGeoNix.Flyleaf
 
             this.verbosity = verbosity;
             renderer    = new MediaRenderer(this);
-            decoder     = new MediaDecoder(this);
+            decoder     = new DecoderContext();
 
-            aFrames     = new ConcurrentQueue<MediaFrame>();
-            vFrames     = new ConcurrentQueue<MediaFrame>();
-            sFrames     = new ConcurrentQueue<MediaFrame>();
-            seekStack   = new ConcurrentStack<int>();
+            seeks       = new ConcurrentStack<SeekData>();
         }
         public  void InitHandle(IntPtr handle, bool designMode = false)
         {
@@ -294,25 +280,24 @@ namespace SuRGeoNix.Flyleaf
 
             if (!designMode)
             {
-                audioPlayer = new AudioPlayer();
-                decoder.Init(verbosity);
-
-                streamer    = new MediaStreamer(this);
-                streamer.BufferingDoneClbk  = BufferingDone;
-                streamer.MediaFilesClbk     = MediaFilesClbk;
-
+                audioPlayer     = new AudioPlayer(renderer.HookControl);
+                torrentStreamer = new TorrentStreamer(this);
+                decoder.Init(renderer.device);
                 TimeBeginPeriod(5);
-
                 Initialize();
             }
         }
         private void Initialize(bool andStreamer = true)
         {
             Log($"[Initializing]");
-
+            
             PauseThreads();
-            if (andStreamer) streamer.Initialize();
-            if (openOrBuffer != null) openOrBuffer.Abort(); 
+            openOrBuffer?.Abort();
+
+            if (andStreamer)
+                torrentStreamer.Dispose();
+
+            
 
             isReady         = false;
             beforeSeeking   = Status.STOPPED;
@@ -323,9 +308,9 @@ namespace SuRGeoNix.Flyleaf
             CurTime             =  0;
             subsExternalDelay   =  0;
 
-            ClearMediaFrames();
+            sFrame = null;
             renderer.ClearMessages();
-            seekStack.Clear();
+            seeks.Clear();
 
             Log($"[Initialized]");
         }
@@ -333,35 +318,41 @@ namespace SuRGeoNix.Flyleaf
         {
             Log($"[Initializing Evn]");
 
-            if (!decoder.isReady)
-            {
-                renderer.NewMessage(OSDMessage.Type.Failed, $"Failed");
-                status = Status.FAILED;
-                OpenFinishedClbk?.BeginInvoke(false, UrlName, null, null);
-                return; 
-            }
 
             if (hasAudio)
             {
-                audioPlayer._RATE   = decoder._RATE;
+                audioPlayer._RATE   = decoder.opt.audio.SampleRate;
                 audioPlayer.Initialize();
             }
 
-            DecoderRatio = (float)decoder.vStreamInfo.width / (float)decoder.vStreamInfo.height;
-            renderer.FrameResized(decoder.vStreamInfo.width, decoder.vStreamInfo.height);
+            DecoderRatio = (float)decoder.vStreamInfo.Width / (float)decoder.vStreamInfo.Height;
+            renderer.FrameResized(decoder.vStreamInfo.Width, decoder.vStreamInfo.Height);
 
             if (UrlType == InputType.Web && Duration == 0) UrlType = InputType.WebLive;
 
             isReady = true; // Must be here for Audio/Subs Delays
 
-            if (HistoryEnabled && History.Add(Url, UrlType, (UrlType == InputType.TorrentFile || UrlType == InputType.TorrentPart ? streamer.FileName : null)))
+            if (HistoryEnabled && History.Add(Url, UrlType, (isTorrent ? torrentStreamer.FileName : null)))
             {
+                // Existing History Entry
                 History.Entry curHistory = History.GetCurrent();
                 AvailableSubs = curHistory.AvailableSubs;
                 if (AvailableSubs != null && AvailableSubs.Count > 0) OpenSubs(curHistory.CurSubId);
 
                 AudioExternalDelay  = curHistory.AudioExternalDelay;
                 SubsExternalDelay   = curHistory.SubsExternalDelay;
+            }
+            else
+            {
+                // Add Embedded Subs
+                foreach (StreamInfo si in decoder.demuxer.streams)
+                {
+                    if (si.Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE)
+                    {
+                        string lang = si.Metadata.ContainsKey("language") ? si.Metadata["language"] : (si.Metadata.ContainsKey("lang") ? si.Metadata["language"] : null);
+                        AvailableSubs.Add(new SubAvailable(Language.Get(lang), si.StreamIndex));
+                    }
+                }
             }
 
             // In case of history entry & already previously success Opensubtitles results dont search again
@@ -380,12 +371,15 @@ namespace SuRGeoNix.Flyleaf
                 }
                 else if (UrlType == InputType.TorrentFile   && (DownloadSubs == DownloadSubsMode.FilesAndTorrents || DownloadSubs == DownloadSubsMode.Torrents))
                 {
-                    string hash = Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(Path.Combine(streamer.FolderComplete, streamer.FileName)));
-                    FindAvailableSubs(streamer.FileName, hash, streamer.FileSize);
+                    string hash = Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(Path.Combine(UrlFolder, UrlName)));
+                    FindAvailableSubs(UrlName, hash, torrentStreamer.FileSize);
                 }
                 else if (UrlType == InputType.TorrentPart   && (DownloadSubs == DownloadSubsMode.FilesAndTorrents || DownloadSubs == DownloadSubsMode.Torrents))
                 {
-                    FindAvailableSubs(streamer.FileName, streamer.GetMovieHash(), streamer.FileSize);
+                    // Restore position for Demuxer (until proper APF fix for multiple instances)
+                    long t1 = torrentStreamer.Torrent.StreamFiles[UrlName].Stream.Position;
+                    FindAvailableSubs(UrlName, Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(torrentStreamer.Torrent.StreamFiles[UrlName].Stream)), torrentStreamer.FileSize);
+                    torrentStreamer.Torrent.StreamFiles[UrlName].Stream.Position = t1;
                 }
                 else
                 {
@@ -396,7 +390,7 @@ namespace SuRGeoNix.Flyleaf
 
             status = Status.OPENED;
 
-            // ShowOneFrame(); ?
+            //ShowOneFrame();
 
             renderer.NewMessage(OSDMessage.Type.Open, $"Opened");
             renderer.NewMessage(OSDMessage.Type.HardwareAcceleration);
@@ -415,129 +409,72 @@ namespace SuRGeoNix.Flyleaf
         #endregion
 
         #region Screaming
-        private void MediaBuffer()
+        private bool MediaBuffer()
         {
-            renderer.ClearMessages(OSDMessage.Type.Subtitles);
-
-            if (!decoder.isRunning || decoder.video.requiresResync) decoder.Run();
+            if (!decoder.isRunning) decoder.Play();
             audioPlayer.ResetClbk();
             audioPlayer.Play();
 
-            bool framePresented = false;
+            Log("[SCREAMER] Buffering ...");
 
-            while (isPlaying && vFrames.Count < (Duration == 0 ? VIDEO_MIX_QUEUE_SIZE * 3 : VIDEO_MIX_QUEUE_SIZE) && !decoder.Finished)
+            //while (isPlaying && decoder.video.frames.Count < (Duration == 0 ? VIDEO_MIX_QUEUE_SIZE * 3 : VIDEO_MIX_QUEUE_SIZE) && !decoder.Finished)
+
+            // At least 2 video frames & MinQueueSize video packets demuxed
+            while ((decoder.vDecoder.frames.Count < 3 || decoder.vDecoder.packets.Count < decoder.opt.MinQueueSize) && !decoder.Finished && isPlaying)
             {
-                if (!framePresented && vFrames.Count > 0)
-                {
-                    MediaFrame vFrame = null;
-                    vFrames.TryPeek(out vFrame);
-                    renderer.PresentFrame(vFrame);
-                    framePresented = true;
-                }
-                Thread.Sleep(5);
+                Thread.Sleep(15);
             }
+            Log("[SCREAMER] Buffering Done");
+
+            decoder.vDecoder.frames.TryDequeue(out vFrame); 
+            if (vFrame == null) { Log("[SCREAMER] [ERROR] No Frames!"); return false; }
+            decoder.aDecoder.frames.TryDequeue(out aFrame);
+            decoder.sDecoder.frames.TryDequeue(out sFrame);
+            SeekTime        = -1;
+            CurTime         = vFrame.timestamp;
+            videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
+            startedAtTicks = DateTime.UtcNow.Ticks;
+
+            Log($"[SCREAMER] Started -> {Utils.TicksToTime(CurTime)}");
+
+            return true;
         }    
-        
-        MediaFrame sFrame = null;
+
         private void Screamer()
         {
-            MediaFrame vFrame = null;
-            MediaFrame aFrame = null;
-            sFrame = null;
-      
-            long    startedAtTicks;
-
             long    elapsedTicks;
             int     vDistanceMs;
             int     aDistanceMs;
             int     sDistanceMs;
             int     sleepMs;
 
-            lock (lockSeek)
-            {
-                MediaBuffer();
-                vFrames.TryDequeue(out vFrame); if (vFrame == null) return;
-                aFrames.TryDequeue(out aFrame);
-                sFrames.TryDequeue(out sFrame);
-                SeekTime        = -1;
-                CurTime         = vFrame.timestamp;
-                videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
-                startedAtTicks = DateTime.UtcNow.Ticks;
-            }
-            
-            Log($"[SCREAMER] Started -> {Utils.TicksToTime(videoStartTicks)}");
+            if (!MediaBuffer()) return;
 
             while (isPlaying)
             {
-                if (vFrames.Count == 0)//|| (hasAudio && aFrames.Count < 1) )
+                if (decoder.vDecoder.frames.Count == 0)//|| (hasAudio && aFrames.Count < 1) )
                 {
-                    if (decoder.Finished) break;
-
-                    lock (lockSeek)
-                    {
-                        Log("Screamer Restarting ........................");
-
-                        if (isTorrent && streamer.RequiresBuffering)
-                        {
-                            audioPlayer.ResetClbk();
-                            streamer.Buffer((int)(CurTime / 10000));
-                            break;
-                        }
-
-                        MediaBuffer();
-                        vFrames.TryDequeue(out vFrame); if (vFrame == null) return;
-                        aFrames.TryDequeue(out aFrame);
-                        sFrames.TryDequeue(out sFrame);
-                        SeekTime        = -1;
-                        CurTime         = vFrame.timestamp;
-                        Log($"[SCREAMER] Restarted -> {Utils.TicksToTime(CurTime)}");
-                        videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
-                        startedAtTicks = DateTime.UtcNow.Ticks;
-                    }
-
-                    continue; 
+                    Log("[SCREAMER] Restarting ...");
+                    if (decoder.Finished)   break;
+                    if (!MediaBuffer())     return;
                 }
 
-                if (aFrame == null) aFrames.TryDequeue(out aFrame);
-                if (sFrame == null) sFrames.TryDequeue(out sFrame);
+                if (aFrame == null) decoder.aDecoder.frames.TryDequeue(out aFrame);
+                if (sFrame == null) decoder.sDecoder.frames.TryDequeue(out sFrame);
 
-                //elapsedTicks = videoStartTicks + videoClock.ElapsedTicks;
-                elapsedTicks = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
-
-                vDistanceMs   = (int) (((vFrame.timestamp) - elapsedTicks) / 10000);
-                aDistanceMs   = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
-                sDistanceMs   = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
-
-                sleepMs = Math.Min(vDistanceMs, aDistanceMs) - 2;
+                elapsedTicks    = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
+                vDistanceMs     = (int) (((vFrame.timestamp) - elapsedTicks) / 10000);
+                aDistanceMs     = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
+                sDistanceMs     = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
+                sleepMs         = Math.Min(vDistanceMs, aDistanceMs) - 2;
 
                 if (sleepMs < 0) sleepMs = 0;
-                if (sleepMs > 1)
+                if (sleepMs > 2)
                 {
                     if (sleepMs > 1000)
                     {
-                        lock (lockSeek)
-                        {
-                            Log("Screamer Restarting ........................ (Testing HLS)");
-
-                            if (isTorrent && streamer.RequiresBuffering)
-                            {
-                                audioPlayer.ResetClbk();
-                                streamer.Buffer((int)(CurTime / 10000));
-                                break;
-                            }
-
-                            MediaBuffer();
-                            vFrames.TryDequeue(out vFrame); if (vFrame == null) return;
-                            aFrames.TryDequeue(out aFrame);
-                            sFrames.TryDequeue(out sFrame);
-                            SeekTime        = -1;
-                            CurTime         = vFrame.timestamp;
-                            Log($"[SCREAMER] Restarted -> {Utils.TicksToTime(CurTime)}");
-                            videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
-
-                            startedAtTicks = DateTime.UtcNow.Ticks;
-                        }
-
+                        Log("[SCREAMER] Restarting ... (HLS?)");
+                        MediaBuffer();
                         continue; 
                     }
 
@@ -548,12 +485,12 @@ namespace SuRGeoNix.Flyleaf
                 {
                     CurTime = vFrame.timestamp;
                     renderer.PresentFrame(vFrame);
-                    vFrames.TryDequeue(out vFrame);
+                    decoder.vDecoder.frames.TryDequeue(out vFrame);
                 }
                 else if (vDistanceMs < -4)
                 {
                     ClearVideoFrame(vFrame);
-                    vFrames.TryDequeue(out vFrame);
+                    decoder.vDecoder.frames.TryDequeue(out vFrame);
                     Log($"vDistanceMs 2 |-> {vDistanceMs}");
                 }
 
@@ -562,30 +499,38 @@ namespace SuRGeoNix.Flyleaf
                     if (Math.Abs(aDistanceMs - sleepMs) < 35)
                     {
                         audioPlayer.FrameClbk(aFrame.audioData, 0, aFrame.audioData.Length);
-                        aFrames.TryDequeue(out aFrame);
+                        decoder.aDecoder.frames.TryDequeue(out aFrame);
                         if (aFrame != null)
                         {
                             audioPlayer.FrameClbk(aFrame.audioData, 0, aFrame.audioData.Length);
-                            aFrames.TryDequeue(out aFrame);
+                            decoder.aDecoder.frames.TryDequeue(out aFrame);
                         }
                     }
                     else if (aDistanceMs < -35)
                     {
                         Log($"aDistanceMs 2 |-> {aDistanceMs}");
-                        aFrames.TryDequeue(out aFrame);
+                        decoder.aDecoder.frames.TryDequeue(out aFrame);
                     }
                 }
 
                 if (sFrame != null)
                 {
-                    if (Math.Abs(sDistanceMs - sleepMs) < 80) {
+                    if (Math.Abs(sDistanceMs - sleepMs) < 30) {
                         renderer.NewMessage(OSDMessage.Type.Subtitles, sFrame.text, sFrame.subStyles, sFrame.duration);
-                        sFrames.TryDequeue(out sFrame);
+                        decoder.sDecoder.frames.TryDequeue(out sFrame);
                     }
-                    else if (sDistanceMs < -80)
+                    else if (sDistanceMs < -30)
                     {
-                        Log($"sDistanceMs 2 |-> {sDistanceMs}");
-                        sFrames.TryDequeue(out sFrame);
+                        if (sFrame.duration + sDistanceMs > 0)
+                        {
+                            renderer.NewMessage(OSDMessage.Type.Subtitles, sFrame.text, sFrame.subStyles, sFrame.duration + sDistanceMs);
+                            decoder.sDecoder.frames.TryDequeue(out sFrame);
+                        }
+                        else
+                        {
+                            Log($"sDistanceMs 2 |-> {sDistanceMs}");
+                            decoder.sDecoder.frames.TryDequeue(out sFrame);
+                        }
                     }
                 }
             }
@@ -621,15 +566,20 @@ namespace SuRGeoNix.Flyleaf
             {
                 Log($"Opening {url}");
                 renderer.NewMessage(OSDMessage.Type.Open, $"Opening {url}");
-
-                int ret;
                 status = Status.OPENING;
 
                 if (isTorrentFile)
                 {
                     openOrBuffer = new Thread(() =>
                     {
-                        streamer.SetMediaFile(url);
+                        if (torrentStreamer.OpenStream(url) != 0)
+                        {
+                            renderer.NewMessage(OSDMessage.Type.Failed, $"Failed");
+                            status = Status.FAILED;
+                            OpenFinishedClbk?.BeginInvoke(false, UrlName, null, null);
+                            return; 
+                        }
+
                         InitializeEnv();
                     });
                     openOrBuffer.SetApartmentState(ApartmentState.STA);
@@ -639,7 +589,7 @@ namespace SuRGeoNix.Flyleaf
 
                 Url = url;
 
-                if (Plugins.Contains("Torrent Streaming") && BitSwarmLib.BitSwarm.ValidateInput(url) != BitSwarmLib.BitSwarm.InputType.Unkown) //ext.ToLower() == "torrent" || scheme.ToLower() == "magnet")
+                if (Plugins.Contains("Torrent Streaming") && BitSwarm.ValidateInput(url) != BitSwarm.InputType.Unkown) //ext.ToLower() == "torrent" || scheme.ToLower() == "magnet")
                 {
                     if (MediaFilesClbk == null || !Plugins.Contains("Torrent Streaming")) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed: Torrents are disabled"); status = Status.FAILED; /*OpenTorrentSuccessClbk?.BeginInvoke(false, null, null);*/ return; }
 
@@ -647,16 +597,13 @@ namespace SuRGeoNix.Flyleaf
 
                     openOrBuffer = new Thread(() =>
                     {
-                        try
+                        if (torrentStreamer.Open(url) != 0)
                         {
-                            ret = streamer.Open(url);
-                            if (ret != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Failed"); status = Status.FAILED; /*OpenTorrentSuccessClbk?.BeginInvoke(false, null, null);*/ return; }
-
-                            status = Status.OPENED;
-                            renderer.NewMessage(OSDMessage.Type.Open, $"Opened");
-                            renderer.NewMessage(OSDMessage.Type.HardwareAcceleration);
-
-                        } catch (ThreadAbortException) { return; }
+                            renderer.NewMessage(OSDMessage.Type.Failed, $"Failed");
+                            status = Status.FAILED;
+                            OpenFinishedClbk?.BeginInvoke(false, UrlName, null, null);
+                            return; 
+                        }
                     });
                     openOrBuffer.SetApartmentState(ApartmentState.STA);
                     openOrBuffer.Start();
@@ -672,16 +619,35 @@ namespace SuRGeoNix.Flyleaf
                             string aUrl = null, vUrl = null;
 
                             UrlType = InputType.Web;
-                            YoutubeDL ytdl = YoutubeDL.Get(url, out aUrl, out vUrl);
+                            YoutubeDL ytdl = YoutubeDL.Get(url, out aUrl, out vUrl, scheme + "://" + (new Uri(url)).Host.ToLower());
                             
-                            if (vUrl != null)
-                                decoder.Open(vUrl, aUrl != null && vUrl != aUrl  ? aUrl : "", "", scheme + "://" + (new Uri(url)).Host.ToLower());
-                            InitializeEnv();
+                            //TODO pass as ref | scheme + "://" + (new Uri(url)).Host.ToLower()
+
+                            if (vUrl != null && decoder.Open(vUrl) == 0)
+                            {
+                                InitializeEnv();
+                            }
+                            else
+                            {
+                                renderer.NewMessage(OSDMessage.Type.Failed, $"Failed");
+                                status = Status.FAILED;
+                                OpenFinishedClbk?.BeginInvoke(false, UrlName, null, null);
+                                return; 
+                            }
                         }
                         else
                         {
                             UrlType = InputType.File;
-                            decoder.Open(url);
+                            //FileStream fsStream = new FileStream(url, FileMode.Open, FileAccess.Read);
+
+                            if (decoder.Open(url) != 0)
+                            {
+                                renderer.NewMessage(OSDMessage.Type.Failed, $"Failed");
+                                status = Status.FAILED;
+                                OpenFinishedClbk?.BeginInvoke(false, UrlName, null, null);
+                                return;
+                            }
+
                             InitializeEnv();
                         }
                     });
@@ -690,25 +656,16 @@ namespace SuRGeoNix.Flyleaf
                 }
             }
         }
-        public void Play(bool foreward = false)
-        { 
-            if (!decoder.isReady || decoder.isRunning || isPlaying) { StatusChanged?.Invoke(this, new StatusChangedArgs(status)); return; }
 
+        public void Play()
+        { 
+            if (!isReady || decoder.isRunning || isPlaying) { StatusChanged?.Invoke(this, new StatusChangedArgs(status)); return; }
+
+            Interlocked.Exchange(ref SeekTime, -1);
             renderer.ClearMessages(OSDMessage.Type.Paused);
             if (beforeSeeking != Status.PLAYING) renderer.NewMessage(OSDMessage.Type.Play, "Play");
             beforeSeeking = Status.PLAYING;
 
-            if (isTorrent && streamer.RequiresBuffering)
-            {
-                status = Status.BUFFERING;
-                streamer.Buffer((int)(CurTime / 10000), foreward);
-                return;
-            }
-
-            Play2();
-        }
-        public void Play2()
-        {
             renderer.ClearMessages(OSDMessage.Type.Buffering);
 
             PauseThreads();
@@ -735,90 +692,72 @@ namespace SuRGeoNix.Flyleaf
             screamer.SetApartmentState(ApartmentState.STA);
             screamer.Start();
         }
-
-        int prioritySeek = 0;
-        public void Seek(int ms2, bool priority = false, bool foreward = false, bool forcePlay = false)
+        public void Seek(int ms, bool priority = false, bool foreward = false)
         {
-            //ClearMediaFrames(); return; | For Unseekable - Live Stream | FormatContext flush / reopen?
+            SeekData seekData2 = new SeekData(ms, priority, foreward);
+            seeks.Push(seekData2);
 
-            if (!decoder.isReady) return;
-
-            if (!priority)
+            lock (lockSeek)
             {
-                Interlocked.Exchange(ref SeekTime, (long)ms2 * 10000);
-	            seekStack.Push(ms2);
-
-                if (seekRequest.IsAlive || Interlocked.Equals(prioritySeek, 1)) return;
+                if (isSeeking2 && !seekData2.priority) return;
+                isSeeking2 = true;
             }
-            else
-            {
-                Interlocked.Exchange(ref prioritySeek, 1);
-                Interlocked.Exchange(ref SeekTime, (long)ms2 * 10000);
-                PauseThreads();
-                Utils.EnsureThreadDone(seekRequest, 1000, 20);
-                seekStack.Push(ms2);
-                Interlocked.Exchange(ref prioritySeek, 0);
-            }
-            
-            int waitMs = priority ? 2000 : 40;
 
+            Utils.EnsureThreadDone(seekRequest);
             seekRequest = new Thread(() =>
             {
-                if (Monitor.TryEnter(lockSeek, waitMs) && Monitor.TryEnter(lockOpening, 5))
-		        {
-			        try
-			        {
-                        //TODO
-                        //seekLastValue = screamer start time leave    
+			    try
+			    {
+                    Console.WriteLine("** SEEK **");
+                    SeekData seekData;
+                    int i = 0;
+                    int seeksCount;
 
-                        if (isTorrent && streamer != null) streamer.Pause();
-                        PauseThreads();                        
-				        status = Status.SEEKING;
+                    //Thread.Sleep(150); // Decide time
+                    if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 < lastSeekMs && seekData.ms + 1000 > lastSeekMs)) { lock (lockSeek) isSeeking2 = false; Interlocked.Exchange(ref SeekTime, -1); return; }
+                    seeksCount = seeks.Count;
 
-                        do
-                        {
-                            renderer.ClearMessages(OSDMessage.Type.Play);
-                            renderer.ClearMessages(OSDMessage.Type.Buffering);
+                    PauseThreads();
+                    status = Status.SEEKING;
 
-                            if (!seekStack.TryPop(out int ms)) return;
-                            seekStack.Clear();
-
-                            if (Interlocked.Equals(prioritySeek, 1)) return;
-
-                            CurTime = (long)ms * 10000;
-                            decoder.Seek(ms, true, foreward);
-                            if (Interlocked.Equals(prioritySeek, 1)) return;
-
-                            if (seekStack.Count > 5) continue;
-                            if (beforeSeeking != Status.PLAYING) ShowOneFrame();
-                        } while (!seekStack.IsEmpty && decoder.isReady);
-
-                    } catch (Exception) { 
-                    } finally
-			        {
-                        Interlocked.Exchange(ref SeekTime, -1);
-				        status = Status.STOPPED;
-				        Monitor.Exit(lockSeek);
-                        Monitor.Exit(lockOpening);
-			        }
-
-			        if (beforeSeeking == Status.PLAYING || forcePlay)
+                    while (true)
                     {
-                        if (Interlocked.Equals(prioritySeek, 1)) return; 
-                        Play(foreward);
+                        i++;
+                        Console.WriteLine("** SEEK ** (Next " + i + ")");
+                        Console.WriteLine("Will seek at " + Utils.TicksToTime(seekData.ms * 10000) + " | " + (seekData.foreward) + " | IN");
+                        decoder.Seek(seekData.ms, seekData.foreward);
+                        ShowOneFrame();
+                        Interlocked.Exchange(ref SeekTime, -1);
+                        lastSeekMs = seekData.ms;
+
+                        if (seeks.IsEmpty) Thread.Sleep(10);
+                        if (seeksCount == seeks.Count) break;
+
+                        if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 < lastSeekMs && seekData.ms + 1000 > lastSeekMs)) break;
+                        seeksCount = seeks.Count;
                     }
-                    else if (isTorrent && streamer.RequiresBuffering) streamer.Buffer((int)(CurTime / 10000), foreward);
-		        }
+
+                    seeks.Clear();
+                    
+                    if (beforeSeeking == Status.PLAYING)
+                    {
+                        sFrame = null;
+                        Play();
+                    }
+                    else
+                        status = Status.STOPPED;
+                }
+                catch (Exception) { status = Status.STOPPED; } 
+
+                lock (lockSeek) isSeeking2 = false;
             });
-	        seekRequest.SetApartmentState(ApartmentState.STA);
-            Utils.EnsureThreadDone(seekRequest);
 	        seekRequest.Start();
         }
         public void Pause()
         {
             audioPlayer.ResetClbk();
 
-            if (!decoder.isReady || !decoder.isRunning || !isPlaying) StatusChanged(this, new StatusChangedArgs(status));
+            if (!isReady || !decoder.isRunning || !isPlaying) StatusChanged(this, new StatusChangedArgs(status));
 
             renderer.ClearMessages(OSDMessage.Type.Play);
             renderer.NewMessage(OSDMessage.Type.Paused, "Paused");
@@ -832,14 +771,13 @@ namespace SuRGeoNix.Flyleaf
             PauseThreads();
             Initialize();
 
+            if (decoder     != null) decoder.Stop();
             if (renderer    != null) renderer.Dispose();
             if (audioPlayer != null) audioPlayer.Close();
-            CurTime = 0;
         }
         #endregion
 
         #region Subtitles
-        Thread openSubs;
         public void FindAvailableSubs(string filename, string hash, long length)
         {
             if (Languages.Count < 1) return;
@@ -1008,10 +946,11 @@ namespace SuRGeoNix.Flyleaf
             if (sub.streamIndex > 0)
             {
                 subsExternalDelay = 0;
-                sFrames = new ConcurrentQueue<MediaFrame>();
-                renderer.ClearMessages(OSDMessage.Type.Subtitles);
                 sFrame = null;
-                decoder.video.EnableEmbeddedSubs(sub.streamIndex);
+                renderer.ClearMessages(OSDMessage.Type.Subtitles);
+                decoder.OpenSubs(sub.streamIndex);
+                sFrame = null;
+                renderer.ClearMessages(OSDMessage.Type.Subtitles);
             }
             else
             {
@@ -1040,11 +979,11 @@ namespace SuRGeoNix.Flyleaf
                 }
 
                 subsExternalDelay = 0;
-                sFrames = new ConcurrentQueue<MediaFrame>();
-                renderer.ClearMessages(OSDMessage.Type.Subtitles);
                 sFrame = null;
-                decoder.video.DisableEmbeddedSubs();
-                if (decoder.Open("", "", sub.pathUTF8) != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return; }
+                renderer.ClearMessages(OSDMessage.Type.Subtitles);
+                decoder.OpenSubs(sub.pathUTF8, CurTime/10000);
+                sFrame = null;
+                renderer.ClearMessages(OSDMessage.Type.Subtitles);
             }
 
             sub.used = true;
@@ -1055,7 +994,7 @@ namespace SuRGeoNix.Flyleaf
         }
         public void OpenSubs(string url)
         {
-            if (!decoder.isReady) return;
+            if (!isReady) return;
 
             for (int i=0; i<AvailableSubs.Count; i++)
                 if ((AvailableSubs[i].path != null && AvailableSubs[i].path.ToLower() == url.ToLower()) || (AvailableSubs[i].pathUTF8 != null && AvailableSubs[i].pathUTF8.ToLower() == url.ToLower()))
@@ -1077,12 +1016,12 @@ namespace SuRGeoNix.Flyleaf
             else
                 sub.pathUTF8 = sub.path;
 
-            decoder.video.DisableEmbeddedSubs();
-            sFrames = new ConcurrentQueue<MediaFrame>();
             subsExternalDelay = 0;
+            sFrame = null;
             renderer.ClearMessages(OSDMessage.Type.Subtitles);
-
-            if (decoder.Open("", "", sub.pathUTF8) != 0) { renderer.NewMessage(OSDMessage.Type.Failed, $"Subtitles Failed"); return; }
+            decoder.OpenSubs(sub.pathUTF8, CurTime/10000);
+            sFrame = null;
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
 
             AvailableSubs.Add(sub);
             CurSubId = AvailableSubs.Count - 1;
@@ -1094,16 +1033,18 @@ namespace SuRGeoNix.Flyleaf
         #region Misc
         private void ShowOneFrame()
         {
+            //return;
             //ClearMediaFrames();
             renderer.ClearMessages(OSDMessage.Type.Subtitles);
 
-            decoder.video.DecodeFrame();
+            //decoder.video.DecodeFrame();
             //decoder.subs.DecodeFrame(); requires resync | only embedded
 
-            if (vFrames.Count > 0)
+            if (decoder.vDecoder.frames.Count > 0)
             {
                 MediaFrame vFrame = null;
-                vFrames.TryDequeue(out vFrame);
+                decoder.vDecoder.frames.TryDequeue(out vFrame);
+                CurTime = vFrame.timestamp;
                 renderer.PresentFrame(vFrame);
             }
 
@@ -1118,18 +1059,12 @@ namespace SuRGeoNix.Flyleaf
             return;
         }
         public void Render() { renderer.PresentFrame(null); }
-        private void BufferingDone(bool done)
-        { 
-            if (!done) return;
-
-            if (beforeSeeking == Status.PLAYING) Play2();
-        }
         private void PauseThreads(bool andDecoder = true)
         {
             Log($"[Pausing All Threads] START");
             status = Status.STOPPING;
             Utils.EnsureThreadDone(screamer);
-            if (andDecoder) decoder.Pause();
+            if (andDecoder) decoder.Pause(); //if (torrent != null) { while (torrent.isReading){ torrent.cancel = true; Thread.Sleep(5); } torrent.cancel = false; } }
             if (hasAudio) audioPlayer.ResetClbk();
             status = Status.STOPPED;
             Log($"[Pausing All Threads] END");
@@ -1143,27 +1078,6 @@ namespace SuRGeoNix.Flyleaf
             audioPlayer.ResetClbk();
             status = Status.STOPPED;
             Log($"[Aborting All Threads] END");
-        }
-        
-        internal void ClearMediaFrames()
-        {
-            ClearVideoFrames();
-            lock (aFrames) aFrames = new ConcurrentQueue<MediaFrame>();
-            lock (sFrames) sFrames = new ConcurrentQueue<MediaFrame>();
-        }
-        internal void ClearVideoFrames()
-        {
-            lock (vFrames)
-            {
-                while (vFrames.Count > 0)
-                {
-                    MediaFrame m;
-                    vFrames.TryDequeue(out m);
-                    lock (renderer.device) renderer.device.ImmediateContext.Flush();
-                    ClearVideoFrame(m);
-                }
-                vFrames = new ConcurrentQueue<MediaFrame>();
-            }
         }
         internal void ClearVideoFrame(MediaFrame m)
         {
