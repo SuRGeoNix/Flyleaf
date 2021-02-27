@@ -1,5 +1,5 @@
 ============
-Flyleaf v2.5
+Flyleaf v2.4
 ============
 A video player with HD & Streaming (Torrent/Web +) support
 						by John Stamatakis (aka SuRGeoNix)

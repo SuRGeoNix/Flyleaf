@@ -541,7 +541,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             }
 
             Settings.ParseSettings(currentLoad, current);
-            player.streamer?.ParseSettingsToBitSwarm();
+            player.torrentStreamer?.ParseSettingsToBitSwarm();
         }
         private void btnSave_Click(object sender, EventArgs e)
         {
@@ -562,7 +562,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                     break;
             }
 
-            player.streamer?.ParseSettingsToBitSwarm();
+            player.torrentStreamer?.ParseSettingsToBitSwarm();
 
             Hide();
         }

@@ -171,7 +171,7 @@ namespace SuRGeoNix.Flyleaf
 
         public static void EnsureThreadDone(Thread t, long maxMS = 250, int minMS = 10)
         {
-            if (t != null && !t.IsAlive) return;
+            if (t == null || !t.IsAlive) return;
 
             long escapeInfinity = maxMS / minMS;
 
