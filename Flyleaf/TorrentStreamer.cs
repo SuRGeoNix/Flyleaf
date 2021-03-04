@@ -16,12 +16,11 @@ namespace SuRGeoNix.Flyleaf
         public Torrent          Torrent             { get; private set; }
         public bool             Disposed            { get; private set; }
 
+        public BitSwarm         bitSwarm;
+        public Options          bitSwarmOpt;
         public Settings.Torrent config;
 
         MediaRouter player;
-        BitSwarm    bitSwarm;
-        Options     bitSwarmOpt;
-
         int         fileIndex;
         int         fileIndexNext;
         bool        downloadNextStarted;
@@ -33,11 +32,14 @@ namespace SuRGeoNix.Flyleaf
         {
             Dispose();
             ParseSettingsToBitSwarm();
-            bitSwarmOpt.PieceTimeout = config.TimeoutGlobal;
-            bitSwarmOpt.PieceRetries = config.RetriesGlobal;
 
-            bitSwarmOpt.Verbosity = 4;
-            bitSwarmOpt.LogStats = true;
+            bitSwarmOpt.EnableBuffering = false;
+
+            if (player.verbosity > 0)
+            {
+                bitSwarmOpt.Verbosity   = 4;
+                bitSwarmOpt.LogStats    = true;
+            }
 
             bitSwarm                    = new BitSwarm(bitSwarmOpt);
             bitSwarm.MetadataReceived   += MetadataReceived;
@@ -51,6 +53,10 @@ namespace SuRGeoNix.Flyleaf
         {
             if (Disposed) return;
 
+            Log("Stopped");
+
+            player.decoder.Stop();
+            player.decoder.demuxer.ioStream = null;
             bitSwarm?.Dispose();
             Torrent?. Dispose();
             bitSwarm    = null;
@@ -67,6 +73,7 @@ namespace SuRGeoNix.Flyleaf
             try
             {
                 bitSwarm.Open(input);
+                Log("Starting");
                 bitSwarm.Start();
             }
             catch(Exception e)
@@ -103,23 +110,26 @@ namespace SuRGeoNix.Flyleaf
 
             int ret;
 
-            bitSwarmOpt.PieceTimeout    = config.TimeoutBuffer;
-            bitSwarmOpt.PieceRetries    = config.RetriesBuffer;
+            bitSwarm.FocusAreInUse      = false;
+            bitSwarmOpt.EnableBuffering = true;
 
             if (player.UrlType == InputType.TorrentPart)
             {
                 bitSwarm.IncludeFiles(new List<string>() { fileName });
-                if (!bitSwarm.isRunning) bitSwarm.Start();
-                ret = player.decoder.Open(Torrent.StreamFiles[FileName].Stream);
+                if (!bitSwarm.isRunning) { Log("Starting"); bitSwarm.Start(); }
+                ret = player.decoder.Open(Torrent.GetTorrentStream(FileName));
             }
             else
             {
-                if (!DownloadNext()) bitSwarm.Pause();
-                ret = player.decoder.Open(Path.Combine(FolderComplete, FileName));
+                if (!DownloadNext()) { Log("Pausing"); bitSwarm.Pause(); }
+
+                //if (Torrent.data.files[fileIndex] != null && Torrent.data.files[fileIndex].Created)
+                    //ret = player.decoder.Open(Torrent.GetTorrentStream(FileName));
+                //else
+                    ret = player.decoder.Open(Path.Combine(FolderComplete, FileName));       
             }
 
-            bitSwarmOpt.PieceTimeout = config.TimeoutGlobal;
-            bitSwarmOpt.PieceRetries = config.RetriesGlobal;
+            bitSwarmOpt.EnableBuffering = false;
 
             return ret;
         }
@@ -140,7 +150,7 @@ namespace SuRGeoNix.Flyleaf
 
                 bitSwarm.IncludeFiles(new List<string>() { Torrent.file.paths[fileIndex2] });
 
-                if (!bitSwarm.isRunning) bitSwarm.Start();
+                if (!bitSwarm.isRunning) { Log("Starting"); bitSwarm.Start(); }
 
                 fileIndexNext = fileIndex2;
                 return true;
@@ -148,7 +158,7 @@ namespace SuRGeoNix.Flyleaf
 
             return false;
         }
-        private void OnFinishing(object source, BitSwarm.FinishingArgs e) { Log("Download of " + Torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); }
+        private void OnFinishing(object source, BitSwarm.FinishingArgs e) { Log("Download of " + Torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log("Stopped");}
         private void StatsUpdated(object source, BitSwarm.StatsUpdatedArgs e) { player.renderer.NewMessage(OSDMessage.Type.TorrentStats, $"{(downloadNextStarted ? "(N) " : "")}D: {e.Stats.PeersDownloading} | W: {e.Stats.PeersChoked}/{e.Stats.PeersInQueue} | {String.Format("{0:n0}", (e.Stats.DownRate / 1024))} KB/s | {e.Stats.Progress}%"); }
         private void MetadataReceived(object source, BitSwarm.MetadataReceivedArgs e)
         {
@@ -172,17 +182,18 @@ namespace SuRGeoNix.Flyleaf
 
         public void ParseSettingsToBitSwarm()
         {
-            bitSwarmOpt.FolderComplete  = config.DownloadPath;
-            bitSwarmOpt.FolderIncomplete= config.DownloadTemp;
-            bitSwarmOpt.FolderTorrents  = config.DownloadTemp;
-            bitSwarmOpt.FolderSessions  = config.DownloadTemp;
-
-            bitSwarmOpt.SleepModeLimit  = config.SleepMode;
-            bitSwarmOpt.MinThreads      = config.MinThreads;
-            bitSwarmOpt.MaxThreads      = config.MaxThreads;
-            bitSwarmOpt.BlockRequests   = config.BlockRequests;
-            //bitSwarmOpt.PieceTimeout    = config.TimeoutGlobal;
-            //bitSwarmOpt.PieceRetries    = config.RetriesGlobal;
+            bitSwarmOpt.FolderComplete      = config.DownloadPath;
+            bitSwarmOpt.FolderIncomplete    = config.DownloadTemp;
+            bitSwarmOpt.FolderTorrents      = config.DownloadTemp;
+            bitSwarmOpt.FolderSessions      = config.DownloadTemp;
+            bitSwarmOpt.SleepModeLimit      = config.SleepMode;
+            bitSwarmOpt.MinThreads          = config.MinThreads;
+            bitSwarmOpt.MaxThreads          = config.MaxThreads;
+            bitSwarmOpt.BlockRequests       = config.BlockRequests;
+            bitSwarmOpt.PieceTimeout        = config.TimeoutGlobal;
+            bitSwarmOpt.PieceRetries        = config.RetriesGlobal;
+            bitSwarmOpt.PieceBufferTimeout  = config.TimeoutBuffer;
+            bitSwarmOpt.PieceBufferRetries  = config.RetriesBuffer;
         }
         private void Log(string msg) { if (player.verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [BitSwarm] {msg}"); }
     }

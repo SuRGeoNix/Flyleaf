@@ -86,6 +86,7 @@ namespace SuRGeoNix.Flyleaf
 
         public int OutlinePixels {  get; set; } = 1;
 
+        public bool     IsFullScreen        { get; set; }
         public Viewport GetViewport         { get; private set; }
         public IntPtr   HookHandle          { get; private set; }
         public Control  HookControl         { get; private set; }
@@ -118,7 +119,7 @@ namespace SuRGeoNix.Flyleaf
             osd.Add("tr2",  new OSDSurface(this, OSDSurface.Alignment.TOPRIGHT,     new Point(-12, 60), "Perpetua", 26));
             osd.Add("bl",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMLEFT,   new Point( 12,-12), "Perpetua", 26));
             osd.Add("br",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMRIGHT,  new Point(-12,-40), "Perpetua", 26));
-            osd.Add("bc",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMCENTER, new Point(  0,-20), "Arial",    51, System.Drawing.FontStyle.Bold, FontWeight.Heavy));
+            osd.Add("bc",   new OSDSurface(this, OSDSurface.Alignment.BOTTOMCENTER, new Point(  0,-55), "Arial",    39, System.Drawing.FontStyle.Bold, FontWeight.Heavy));
 
             foreach (var osdsurf in osd)
             {
@@ -470,10 +471,10 @@ namespace SuRGeoNix.Flyleaf
         }
         private void SetViewport()
         {
-            if (player.ViewPort != MediaRouter.ViewPorts.FILL)
+            if (IsFullScreen)
             {
                 float ratio = player.ViewPort == MediaRouter.ViewPorts.KEEP ? player.DecoderRatio : player.CustomRatio;
-                if ( HookControl.Width / ratio > HookControl.Height)
+                if (HookControl.Width / ratio > HookControl.Height)
                 {
                     GetViewport = new Viewport((int)(HookControl.Width - (HookControl.Height * ratio)) / 2, 0 ,(int) (HookControl.Height * ratio),HookControl.Height, 0.0f, 1.0f);
                     context.Rasterizer.SetViewport(GetViewport);
@@ -675,7 +676,7 @@ namespace SuRGeoNix.Flyleaf
                         // RGB
                         else if (frame.textureRGB != null)  PresentRGB(frame);
                     }
-                
+
                     context.OutputMerger.SetRenderTargets(rtv);
                     context.ClearRenderTargetView(rtv, clearColor);
                     context.Draw(6, 0);

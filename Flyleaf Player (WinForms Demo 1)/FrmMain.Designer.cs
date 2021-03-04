@@ -67,7 +67,7 @@
             this.flyleafPlayer1._main.HistoryEntries = 30;
             this.flyleafPlayer1._main.IdleTimeout = 7000;
             this.flyleafPlayer1._main.MessagesDuration = 4000;
-            this.flyleafPlayer1._main.SampleFrame = ((System.Drawing.Bitmap)(resources.GetObject("resource.SampleFrame")));
+            this.flyleafPlayer1._main.SampleFrame = null;
             this.flyleafPlayer1._main.ShutdownAfterIdle = 300;
             this.flyleafPlayer1._main.ShutdownOnFinish = false;
             this.flyleafPlayer1._message0.Surface = SuRGeoNix.Flyleaf.Settings.OSDSurfaces.TopLeft;
@@ -174,7 +174,10 @@
             this.flyleafPlayer1._surface7.RectPadding = new System.Windows.Forms.Padding(2, -2, 2, -2);
             this.flyleafPlayer1._video.AspectRatio = SuRGeoNix.Flyleaf.MediaRouter.ViewPorts.KEEP;
             this.flyleafPlayer1._video.CustomRatio = 1.777778F;
+            this.flyleafPlayer1._video.DecoderThreads = 16;
             this.flyleafPlayer1._video.HardwareAcceleration = true;
+            this.flyleafPlayer1._video.QueueMaxSize = 100;
+            this.flyleafPlayer1._video.QueueMinSize = 10;
             this.flyleafPlayer1._video.VSync = false;
             this.flyleafPlayer1.AllowDrop = true;
             this.flyleafPlayer1.BackColor = System.Drawing.Color.Black;

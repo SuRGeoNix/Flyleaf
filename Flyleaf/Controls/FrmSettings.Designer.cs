@@ -115,10 +115,6 @@
             this.label52 = new System.Windows.Forms.Label();
             this.torTimeoutBuffer = new System.Windows.Forms.TextBox();
             this.label53 = new System.Windows.Forms.Label();
-            this.torRetriesOpen = new System.Windows.Forms.TextBox();
-            this.label42 = new System.Windows.Forms.Label();
-            this.torTimeoutOpen = new System.Windows.Forms.TextBox();
-            this.label43 = new System.Windows.Forms.Label();
             this.torRetriesGlobal = new System.Windows.Forms.TextBox();
             this.label51 = new System.Windows.Forms.Label();
             this.torMinThreads = new System.Windows.Forms.TextBox();
@@ -1001,10 +997,6 @@
             this.groupBox9.Controls.Add(this.label52);
             this.groupBox9.Controls.Add(this.torTimeoutBuffer);
             this.groupBox9.Controls.Add(this.label53);
-            this.groupBox9.Controls.Add(this.torRetriesOpen);
-            this.groupBox9.Controls.Add(this.label42);
-            this.groupBox9.Controls.Add(this.torTimeoutOpen);
-            this.groupBox9.Controls.Add(this.label43);
             this.groupBox9.Controls.Add(this.torRetriesGlobal);
             this.groupBox9.Controls.Add(this.label51);
             this.groupBox9.Controls.Add(this.torMinThreads);
@@ -1017,7 +1009,7 @@
             this.groupBox9.Controls.Add(this.label47);
             this.groupBox9.Location = new System.Drawing.Point(11, 223);
             this.groupBox9.Name = "groupBox9";
-            this.groupBox9.Size = new System.Drawing.Size(439, 179);
+            this.groupBox9.Size = new System.Drawing.Size(439, 153);
             this.groupBox9.TabIndex = 7;
             this.groupBox9.TabStop = false;
             this.groupBox9.Text = "Timing Configuration";
@@ -1033,7 +1025,7 @@
             // 
             // torRetriesBuffer
             // 
-            this.torRetriesBuffer.Location = new System.Drawing.Point(285, 150);
+            this.torRetriesBuffer.Location = new System.Drawing.Point(285, 124);
             this.torRetriesBuffer.Name = "torRetriesBuffer";
             this.torRetriesBuffer.Size = new System.Drawing.Size(31, 20);
             this.torRetriesBuffer.TabIndex = 29;
@@ -1041,7 +1033,7 @@
             // label52
             // 
             this.label52.AutoSize = true;
-            this.label52.Location = new System.Drawing.Point(236, 153);
+            this.label52.Location = new System.Drawing.Point(236, 127);
             this.label52.Name = "label52";
             this.label52.Size = new System.Drawing.Size(43, 13);
             this.label52.TabIndex = 28;
@@ -1049,7 +1041,7 @@
             // 
             // torTimeoutBuffer
             // 
-            this.torTimeoutBuffer.Location = new System.Drawing.Point(130, 150);
+            this.torTimeoutBuffer.Location = new System.Drawing.Point(130, 124);
             this.torTimeoutBuffer.Name = "torTimeoutBuffer";
             this.torTimeoutBuffer.Size = new System.Drawing.Size(100, 20);
             this.torTimeoutBuffer.TabIndex = 27;
@@ -1057,43 +1049,11 @@
             // label53
             // 
             this.label53.AutoSize = true;
-            this.label53.Location = new System.Drawing.Point(6, 153);
+            this.label53.Location = new System.Drawing.Point(6, 127);
             this.label53.Name = "label53";
             this.label53.Size = new System.Drawing.Size(85, 13);
             this.label53.TabIndex = 26;
             this.label53.Text = "Timeout (Buffer):";
-            // 
-            // torRetriesOpen
-            // 
-            this.torRetriesOpen.Location = new System.Drawing.Point(285, 124);
-            this.torRetriesOpen.Name = "torRetriesOpen";
-            this.torRetriesOpen.Size = new System.Drawing.Size(31, 20);
-            this.torRetriesOpen.TabIndex = 25;
-            // 
-            // label42
-            // 
-            this.label42.AutoSize = true;
-            this.label42.Location = new System.Drawing.Point(236, 127);
-            this.label42.Name = "label42";
-            this.label42.Size = new System.Drawing.Size(43, 13);
-            this.label42.TabIndex = 24;
-            this.label42.Text = "Retries:";
-            // 
-            // torTimeoutOpen
-            // 
-            this.torTimeoutOpen.Location = new System.Drawing.Point(130, 124);
-            this.torTimeoutOpen.Name = "torTimeoutOpen";
-            this.torTimeoutOpen.Size = new System.Drawing.Size(100, 20);
-            this.torTimeoutOpen.TabIndex = 23;
-            // 
-            // label43
-            // 
-            this.label43.AutoSize = true;
-            this.label43.Location = new System.Drawing.Point(6, 127);
-            this.label43.Name = "label43";
-            this.label43.Size = new System.Drawing.Size(83, 13);
-            this.label43.TabIndex = 22;
-            this.label43.Text = "Timeout (Open):";
             // 
             // torRetriesGlobal
             // 
@@ -1834,10 +1794,6 @@
         private System.Windows.Forms.Label label52;
         private System.Windows.Forms.TextBox torTimeoutBuffer;
         private System.Windows.Forms.Label label53;
-        private System.Windows.Forms.TextBox torRetriesOpen;
-        private System.Windows.Forms.Label label42;
-        private System.Windows.Forms.TextBox torTimeoutOpen;
-        private System.Windows.Forms.Label label43;
         private System.Windows.Forms.TextBox torRetriesGlobal;
         private System.Windows.Forms.Label label51;
         private System.Windows.Forms.TextBox torMinThreads;

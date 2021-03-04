@@ -7,18 +7,21 @@ The very first problem that I came across was the programming language choice th
 
 The second problem was the lack of documentation for both these Libraries. So many years of their existence and their writings are unfortunately still poor. The only way to understand how they work is by reading low-level large open source code (from projects such as VLC, Kodi etc.).
 
-Finally, this tutorial/project implements GPU Video Decoding with FFmpeg (which uses DirectX) and GPU Video Processing with DirectX by copying FFmpeg &#39;s decoded texture subresource (from FFmpeg &#39;s Direct3D device) to a shared texture which then we use from our Direct3D device to perform GPU Video Processing (VideoProcessorBlt) to convert NV12 to RGBA and present it. I have included comments within the code to explain the important steps (see FFmpeg.GetFrame and DirectX.PresentFrame).
+The main process that this Project/Tutorial follows is the following :-
 
-For this project Install (Restore) the required NuGet Packages and include them in the project. Add FFmpeg Libraries to &lt;ProjectDir&gt;/Libraries/x86 and &lt;ProjectDir&gt;/Libraries/x64.
+* Creating a Direct3D 11 Device (both for Rendering & Decoding)
+* Parsing our Direct3D 11 Device to FFmpeg and initializing FFmpeg's HW Device Context
+* Parsing the created HW Device Context to the desired Video Codec (during Opening Codec)
+* FFmpeg Demuxing packets & HW Decoding Video Frames (NV12 | P010)
+* Copying from FFmpeg's Texture2D Pool array the current decoded Video Frame (CopySubresourceRegion)
+* DirectX Video Processing (VideoProcessorBlt) HW texture (Directly to Backbuffer)
+* Rendering the Backbuffer (PresentFrame)
+
+With the above process we manage to perform both Video Decoding but also Video Proccessing (NV12->RGB) without "touching" our CPU/RAM.
 
 **Required Libraries**
 
-- _[FFmpeg.Autogen](https://github.com/Ruslan-B/FFmpeg.AutoGen)_ (Latest) – NuGet Package
-- _[FFmpeg](https://ffmpeg.zeranoe.com/builds/)_ (Compatible with FFmpeg.Autogen – Linking -&gt; Shared)
 - _[SharpDX](http://sharpdx.org/)_ (Latest) – NuGet Package
-
-**Create a new Project**
-
-- Create a New Project -> Visual Studio C# Windows Forms App (.NET Framework)
-- From NuGet Package Manager Install _FFmpeg.Autogen &amp; SharpDX (DXGI &amp; Direct3D11)_
-- Copy FFmpeg Libraries (\*.dll) to your Project Target Directory (eg. Bin/Debug)
+- _[FFmpeg.Autogen](https://github.com/Ruslan-B/FFmpeg.AutoGen)_ (Latest) – NuGet Package
+- _[FFmpeg](https://github.com/BtbN/FFmpeg-Builds/releases)_ (Compatible with FFmpeg.Autogen – GPL shared)
+- Check FFmpeg.RegisterFFmpegBinaries() to link FFmpeg .dll libraries

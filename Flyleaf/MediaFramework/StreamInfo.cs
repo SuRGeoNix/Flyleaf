@@ -31,7 +31,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public double                       FPS                 { get; private set; }
         public AVRational                   AspectRatio         { get; private set; }
 
-
         // Audio
         public AVSampleFormat               SampleFormat        { get; private set; }
         public string                       SampleFormatStr     { get { return SampleFormat.ToString().Replace("AV_SAMPLE_FMT_",""); } }
@@ -41,28 +40,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public int                          Channels            { get; private set; }
         public int                          Bits                { get; private set; }
         public long                         AudioBitRate        { get; private set; }
-
-        //public int              index;
-        //public string           codec;
-        //public AVMediaType      type;
-        //public double           timebase;
-
-        //public long             durationTicks;
-        //public long             startTime;
-        //public long             bitrate;
-
-        //public int              format;
-
-        ////public AVPixelFormat    pixelFmt;
-        //public int              width;
-        //public int              height;
-
-        ////public AVSampleFormat   sampleFmt;
-        //public int              sampleRate;
-        //public int              channels;
-        //public int              bits;
-
-        //public Dictionary<string, string> metadata;
 
         public static StreamInfo Get(AVStream* st)
         {
@@ -78,8 +55,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
             if (si.Type == AVMEDIA_TYPE_VIDEO)
             {
-                //streamInfo.format       = st->codecpar->format;
-                
                 si.PixelFormat  = (AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), st->codecpar->format);
                 si.Width        = st->codecpar->width;
                 si.Height       = st->codecpar->height;
@@ -89,7 +64,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             }
             else if (si.Type == AVMEDIA_TYPE_AUDIO)
             {
-                //streamInfo.format       = st->codecpar->format;
                 si.SampleFormat = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), st->codecpar->format);
                 si.SampleRate   = st->codecpar->sample_rate;
                 si.ChannelLayout= st->codecpar->channel_layout;
@@ -97,10 +71,10 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 si.Bits         = st->codecpar->bits_per_coded_sample;
                 si.AudioBitRate = st->codecpar->bit_rate;
 
-                byte[] buf = new byte[10];
+                byte[] buf = new byte[50];
                 fixed (byte* bufPtr = buf)
                 {
-                    av_get_channel_layout_string(bufPtr, 100, si.Channels, si.ChannelLayout);
+                    av_get_channel_layout_string(bufPtr, 50, si.Channels, si.ChannelLayout);
                     si.ChannelLayoutStr = Utils.BytePtrToStringUTF8(bufPtr);
                 }
             }
@@ -113,12 +87,26 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 b = av_dict_get(st->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
                 if (b == null) break;
                 si.Metadata.Add(Utils.BytePtrToStringUTF8(b->key), Utils.BytePtrToStringUTF8(b->value));
-
             }
+
             //foreach (KeyValuePair<string, string> metaEntry in streamInfo.metadata)
                 //Log($"{metaEntry.Key} -> {metaEntry.Value}");
 
             return si;
+        }
+
+        public string GetDump()
+        {
+            string dump = "";
+
+            if (Type == AVMEDIA_TYPE_AUDIO)
+                dump = $"[#{StreamIndex} Audio] {CodecIDStr} {SampleFormatStr}@{Bits} {SampleRate/1000}KHz {ChannelLayoutStr} | {AudioBitRate}";
+            else if (Type == AVMEDIA_TYPE_VIDEO)
+                dump = $"[#{StreamIndex} Video] {CodecIDStr} {PixelFormatStr} {Width}x{Height} @ {FPS.ToString("#.###")} ({AspectRatio.den}/{AspectRatio.num}) | {VideoBitRate}";
+            else if (Type == AVMEDIA_TYPE_SUBTITLE)
+                dump = $"[#{StreamIndex}  Subs] {CodecIDStr} " + (Metadata.ContainsKey("language") ? Metadata["language"] : (Metadata.ContainsKey("lang") ? Metadata["language"] : ""));
+
+            return dump;
         }
 
         public static void Dump(StreamInfo si)
