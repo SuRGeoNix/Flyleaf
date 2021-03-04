@@ -229,7 +229,7 @@ namespace SuRGeoNix.Flyleaf
             public bool         EmbeddedList        { get; set; } = true;
             public bool         HideCursor          { get; set; } = true;
             [XmlIgnore]
-            public Color        ClearBackColor      { get { return player.renderer.ClearColor; } set { player.renderer.ClearColor = value; player.renderer.PresentFrame(null); } }
+            public Color        ClearBackColor      { get { return player.renderer.ClearColor; } set { if (player.renderer.ClearColor == value) return; player.renderer.ClearColor = value; player.renderer.PresentFrame(null); } }
             [XmlElement("ClearBackColor")]
             [Browsable(false)]
             [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
@@ -305,8 +305,8 @@ namespace SuRGeoNix.Flyleaf
 
             public int  TimeoutGlobal   { get; set; } = 1600;
             public int  RetriesGlobal   { get; set; } =    3;
-            public int  TimeoutOpen     { get; set; } =  700;
-            public int  RetriesOpen     { get; set; } =    7;
+            //public int  TimeoutOpen     { get; set; } =  700;
+            //public int  RetriesOpen     { get; set; } =    7;
             public int  TimeoutBuffer   { get; set; } =  550;
             public int  RetriesBuffer   { get; set; } =    8;
         }
@@ -377,8 +377,8 @@ namespace SuRGeoNix.Flyleaf
             public ViewPorts    AspectRatio         { get { return player.ViewPort;             } set { player.ViewPort         = value; player.renderer.HookResized(null,null);} }
             public float        CustomRatio         { get { return player.CustomRatio;          } set { player.CustomRatio      = value; player.renderer.HookResized(null,null);} }
             public int          DecoderThreads      { get { return player.decoder.opt.video.DecoderThreads; } set { player.decoder.opt.video.DecoderThreads  = value; } }
-            public int          QueueMinSize        { get { return player.decoder.opt.MinQueueSize; } set { player.decoder.opt.MinQueueSize = value; } }
-            public int          QueueMaxSize        { get { return player.decoder.opt.MaxQueueSize; } set { player.decoder.opt.MaxQueueSize = value; } }
+            public int          QueueMinSize        { get { return player.decoder.opt.demuxer.MinQueueSize; } set { player.decoder.opt.demuxer.MinQueueSize = value; } }
+            public int          QueueMaxSize        { get { return player.decoder.opt.demuxer.MaxQueueSize; } set { player.decoder.opt.demuxer.MaxQueueSize = value; } }
             public bool         VSync               { get { return player.renderer.VSync;       } set { player.renderer.VSync   = value; } }
         }
 

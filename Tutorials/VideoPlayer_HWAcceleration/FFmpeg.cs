@@ -19,33 +19,79 @@ using static FFmpeg.AutoGen.AVPixelFormat;
 
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
+using Device = SharpDX.Direct3D11.Device;
 
 namespace VideoPlayer_HWAcceleration
 {
     public unsafe class FFmpeg
     {
         #region Declaration
-        int verbosity;
 
-        // FFmpeg Setup
+        // FFmpeg Basic Setup
         AVFormatContext*        fmtCtx;
-        AVCodecContext*         aCodecCtx,  vCodecCtx,  sCodecCtx;
-        AVStream*               aStream,    vStream,    sStream;
-        AVCodec*                vCodec;
+        AVCodecContext*         vCodecCtx;
+        AVStream*               vStream;
 
         // HW Acceleration
-        Texture2D               nv12SharedTexture;
-        public bool             hwAccelStatus;
+        const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
+        const AVHWDeviceType    HW_DEVICE       = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA;
+        const AVPixelFormat     HW_PIX_FMT      = AVPixelFormat.AV_PIX_FMT_D3D11;
 
-        public FFmpeg(int verbosity = 0)
+        Device                  device;             // Direct3D 11 Device (We use it for HW Rendering and FFmpeg for HW Decoding)
+        AVBufferRef*            hw_device_ctx;      // FFmpeg's HW Device Context (To setup our video codec while opening it)
+        Texture2DDescription    textDescHW;         // HW Texture2D Description
+        Texture2D               textureHW;          // HW Texture2D
+        Texture2D               textureFFmpeg;      // HW Texture2D Array (FFmpeg's pool)
+
+        public FFmpeg()
         {
             RegisterFFmpegBinaries();
-
-            this.verbosity = verbosity;
             av_log_set_level(ffmpeg.AV_LOG_ERROR);
         }
 
         #endregion
+
+        // Creates FFmpeg's HW Device Context based on our rendering Direct3D 11 Device
+        public bool InitHWAccel(Device device)
+        {
+            int ret;
+
+            if (hw_device_ctx != null) return false;
+
+            hw_device_ctx  = av_hwdevice_ctx_alloc(HW_DEVICE);
+
+            AVHWDeviceContext* device_ctx = (AVHWDeviceContext*) hw_device_ctx->data;
+            AVD3D11VADeviceContext* d3d11va_device_ctx = (AVD3D11VADeviceContext*) device_ctx->hwctx;
+            d3d11va_device_ctx->device = (ID3D11Device*) device.NativePointer;
+
+            ret = av_hwdevice_ctx_init(hw_device_ctx);
+            if (ret != 0)
+            {
+                Log($"[ERROR-1]{ErrorCodeToMsg(ret)} ({ret})");
+                
+                fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
+                hw_device_ctx = null;
+                return false;
+            }
+
+            this.device = device;
+            return true;
+        }
+
+        // Ensures that the current Video Codec is supported from our GPU (for HW Decoding)
+        private bool CheckHWAccelCodecSupport(AVCodec* codec)
+        {
+            for (int i = 0; ; i++)
+            {
+                AVCodecHWConfig* config = avcodec_get_hw_config(codec, i);
+                if (config == null) break;
+                if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) == 0 || config->pix_fmt == AVPixelFormat.AV_PIX_FMT_NONE) continue;
+
+                if (config->device_type == HW_DEVICE && config->pix_fmt == HW_PIX_FMT) return true;
+            }
+
+            return false;
+        }
 
         /* 1. Format Context Open & Setup
          * 2. Streams Setup
@@ -66,7 +112,7 @@ namespace VideoPlayer_HWAcceleration
             ret = avformat_open_input(&fmtCtxPtr, url, null, null);
             if (ret < 0) { OpenFailed(ret, false); return false; }
 
-            // Streams Setup
+            // Video Stream Setup
             ret = avformat_find_stream_info(fmtCtx, null);
             if (ret < 0) { OpenFailed(ret); return false; }
 
@@ -74,97 +120,65 @@ namespace VideoPlayer_HWAcceleration
             if (ret < 0) { OpenFailed(ret); return false; }
             vStream = fmtCtx->streams[ret];
 
-            ret = av_find_best_stream(fmtCtx, AVMEDIA_TYPE_AUDIO,   -1, vStream->index, null, 0);
-            if (ret > 0) aStream = fmtCtx->streams[ret];
-
-            ret = av_find_best_stream(fmtCtx, AVMEDIA_TYPE_SUBTITLE,-1, aStream != null ? aStream->index : vStream->index, null, 0);
-            if (ret > 0) sStream = fmtCtx->streams[ret];
-
-            // Codecs Setup
-            ret = SetupCodec(vStream->index);
-            if (ret < 0) { OpenFailed(ret); return false; }
-
-            if (aStream != null)
-            {
-                ret = SetupCodec(aStream->index);
-                if (ret < 0) { OpenFailed(ret); return false; }
-            }
-
-            if (sStream != null)
-            {
-                ret = SetupCodec(sStream->index);
-                if (ret < 0) ErrorCodeToMsg(ret);
-            }
-
             // We use only Video for this Project (Discards All Streams except Video)
             for (int i=0; i<fmtCtx->nb_streams; i++)
-                if ( i != vStream->index ) fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                if (i != vStream->index) fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
 
-
-            // HWDevice Setup (FFmpeg will do the GPU Decoding)
-            AVBufferRef* hw_device_ctx;
-            ret = av_hwdevice_ctx_create(&hw_device_ctx, AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA, "auto", null, 0);
-            if ( ret != 0 ) { OpenFailed(ret); return false; } else hwAccelStatus = true;
-            vCodecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
-            av_buffer_unref(&hw_device_ctx);
+            SetupVideo();
 
             return true;
         }
-
-        // Codec Setup for Stream
-        private int SetupCodec(int streamId)
+        private bool SetupVideo()
         {
-            int ret = 0;
+            int ret;
 
-            if ( streamId == 0)
+            AVCodec* codec = avcodec_find_decoder(vStream->codecpar->codec_id);
+            if (codec == null)
+                { Log($"[CodecOpen] [ERROR-1] No suitable codec found"); return false; }
+
+            if (!CheckHWAccelCodecSupport(codec))
+                { Log($"[CodecOpen] [ERROR-1] HW Acceleration not supported for this codec"); return false; }
+
+            vCodecCtx = avcodec_alloc_context3(null);
+            if (vCodecCtx == null)
+                { Log($"[CodecOpen] [ERROR-2] Failed to allocate context3"); return false; }
+
+            ret = avcodec_parameters_to_context(vCodecCtx, vStream->codecpar);
+            if (ret < 0)
+                { Log($"[CodecOpen] [ERROR-3] {ErrorCodeToMsg(ret)} ({ret})"); return false; }
+
+            vCodecCtx->pkt_timebase  = vStream->time_base;
+            vCodecCtx->codec_id      = codec->id;
+
+            vCodecCtx->thread_count = Math.Min(Environment.ProcessorCount, vCodecCtx->codec_id == AVCodecID.AV_CODEC_ID_HEVC ? 32 : 16);
+            vCodecCtx->thread_type  = 0;
+            vCodecCtx->thread_safe_callbacks = 1;
+
+            vCodecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+
+            textDescHW = new Texture2DDescription()
             {
-                vCodecCtx   = vStream->codec;
-                vCodec      = ffmpeg.avcodec_find_decoder(vStream->codec->codec_id);
-                ret = ffmpeg.avcodec_open2(vCodecCtx, vCodec, null);
-                return 0;
-            }
+	            Usage               = ResourceUsage.Default,
 
-            AVCodecContext* codecCtx;
-            codecCtx = avcodec_alloc_context3(null);
-            if (codecCtx == null) return -1;
+                Width               = vCodecCtx->width,
+                Height              = vCodecCtx->height,
 
-            ret = avcodec_parameters_to_context(codecCtx, fmtCtx->streams[streamId]->codecpar);
-            if (ret < 0) { avcodec_free_context(&codecCtx); return ret; }
+                BindFlags           = BindFlags.Decoder,
+	            CpuAccessFlags      = CpuAccessFlags.None,
+	            OptionFlags         = ResourceOptionFlags.None,
 
-            codecCtx->pkt_timebase = fmtCtx->streams[streamId]->time_base;
+	            SampleDescription   = new SampleDescription(1, 0),
+	            ArraySize           = 1,
+	            MipLevels           = 1
+            };
 
-            AVCodec *codec = avcodec_find_decoder(codecCtx->codec_id);
-            if (codec == null) { avcodec_free_context(&codecCtx); return -1; }
-            codecCtx->codec_id = codec->id;
+            ret = avcodec_open2(vCodecCtx, codec, null);
+            if (ret == 0) return true;
 
-            AVDictionary *opt = null;
-
-            if (codecCtx->codec_type == AVMEDIA_TYPE_AUDIO || codecCtx->codec_type == AVMEDIA_TYPE_VIDEO)
-                av_dict_set(&opt, "refcounted_frames", "0", 0); // Probably Deprecated
-
-            ret = avcodec_open2(codecCtx, codec, &opt);
-            av_dict_free(&opt);
-            if (ret < 0) { avcodec_free_context(&codecCtx); return ret; }
-
-            fmtCtx->streams[streamId]->discard = AVDiscard.AVDISCARD_DEFAULT;
-
-            switch (codecCtx->codec_type)
-            {
-                case AVMEDIA_TYPE_AUDIO:
-                    aCodecCtx = codecCtx;
-                    break;
-                case AVMEDIA_TYPE_VIDEO:
-                    vCodecCtx = codecCtx;
-                    break;
-                case AVMEDIA_TYPE_SUBTITLE:
-                    sCodecCtx = codecCtx;
-                    break;
-            }
-
-            return 0;
+            return false;
         }
-        
-        // Video Decoding (GPU)
+
+        // Demuxing and HW Decoding
         private AVFrame* DecodeFrame(out int ret)
         {
             ret = 0;
@@ -182,14 +196,15 @@ namespace VideoPlayer_HWAcceleration
                     av_packet_unref(avpacket);
                     return null;
                 }
+
                 av_packet_unref(avpacket); ret = -1; return null;
             }
 
             if (avpacket->stream_index == vStream->index)
             {
                 ret = avcodec_send_packet(vCodecCtx, avpacket);
-                if (ret != 0) { 
-                    av_packet_unref(avpacket); ret = 0; return null; }
+                if (ret != 0)
+                    { av_packet_unref(avpacket); ret = 0; return null; }
 
                 ret = avcodec_receive_frame(vCodecCtx, avframe);
                 if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) { av_packet_unref(avpacket); ret = 0; return null; }
@@ -201,74 +216,45 @@ namespace VideoPlayer_HWAcceleration
             return avframe;
         }
 
-        /* We will do the GPU Video Processing (Convert NV12 to RGBA)
+        /* FFmpeg HW Decode and return Texture2D for rendering
          * 
          * FFmpeg source code -> https://github.com/FFmpeg/FFmpeg/blob/master/libavutil/hwcontext_d3d11va.c
          *     frame->data[0] = (uint8_t *)desc->texture;
          *     frame->data[1] = (uint8_t *)desc->index;
          *     
          * 1. Casting ID3D11Texture2D (d3d11.h) to Texture2D (SharpDX.Direct3D11) from avframe->data.ToArray()[0]
-         * 2. Subresource Array Index from avframe->data.ToArray()[1]
-         * 3. Creates a Shared Texture Copy by using FFmpeg ID3Device (nv12Texture.Device) so we can use it from our SharpDX.Direct3D11.Device later on
-         * 4. Returns Shared Texture's Handle (It will be the input for DirectX.PresentFrame(IntPtrnv12SharedResource)
-        */
-        public IntPtr GetFrame()
+         * 2. Creating new Texture2D based on FFmpeg TextureDescription (eg. NV12 width/height etc)
+         * 3. Copy Subresource from FFmpeg's Array Texture to our Texture and return it
+         */
+        public Texture2D GetFrame()
         {
             AVFrame* avframe;
             int ret = 0;
             do
             {
-                // Decode Video Frame
+                // Demux & Decode Video Frame (FFmpeg HW decodes with the supplied threads)
                 avframe = DecodeFrame(out ret);
 
-                // Return If we get an Actual Video Frame
-                if ( avframe != null )
+                if (avframe != null)
                 {
-                    if ( avframe->best_effort_timestamp != AV_NOPTS_VALUE)
+                    if (avframe->best_effort_timestamp != AV_NOPTS_VALUE)
                     {
-                        // Casting ID3D11Texture2D (d3d11.h) to Texture2D (SharpDX.Direct3D11) from avframe->data.ToArray()[0]
-                        Texture2D nv12Texture = new Texture2D((IntPtr) avframe->data.ToArray()[0]);
-
-                        // First Time Setup (for Height/Width) | Could be done while opening and decoding a single frame
-                        if (nv12SharedTexture == null)
-                        {
-                            // We expect AV_PIX_FMT_D3D11 Hardware Surface Format (NV12 | P010 not implemented)
-                            if ( avframe->format != (int) vCodecCtx->pix_fmt ) { hwAccelStatus = false; return IntPtr.Zero; }
-
-                            nv12SharedTexture =  new Texture2D(nv12Texture.Device, new Texture2DDescription()
-                            {
-                                Usage               = ResourceUsage.Default,
-                                Format              = Format.NV12,
-
-                                Width               = nv12Texture.Description.Width,
-                                Height              = nv12Texture.Description.Height,
-
-                                BindFlags           = BindFlags.ShaderResource | BindFlags.RenderTarget,
-                                CpuAccessFlags      = CpuAccessFlags.None,
-                                OptionFlags         = ResourceOptionFlags.Shared,
-
-                                SampleDescription   = new SampleDescription(1, 0),
-                                ArraySize           = 1,
-                                MipLevels           = 1
-                            });
-                        }
-
-                        // Creates a Shared Texture Copy by using FFmpeg ID3Device (nv12Texture.Device) so we can use it from our SharpDX.Direct3D11.Device later on
-                        nv12Texture.Device.ImmediateContext.CopySubresourceRegion(nv12Texture, (int)avframe->data.ToArray()[1], null, nv12SharedTexture, 0);
-                        var nv12SharedResource = nv12SharedTexture.QueryInterface<SharpDX.DXGI.Resource>();
+                        textureFFmpeg       = new Texture2D((IntPtr) avframe->data.ToArray()[0]);
+                        textDescHW.Format   = textureFFmpeg.Description.Format;
+                        textureHW           = new Texture2D(device, textDescHW);
+                        
+                        //lock (device)
+                        device.ImmediateContext.CopySubresourceRegion(textureFFmpeg, (int) avframe->data.ToArray()[1], new ResourceRegion(0,0,0,textureHW.Description.Width,textureHW.Description.Height,1), textureHW,0);
 
                         av_frame_free(&avframe);
 
-                        // Returns Shared Texture's Handle
-                        return nv12SharedResource.SharedHandle;
+                        return textureHW;
                     }
                 }
 
-                if (avframe != null) av_frame_free(&avframe);
-
             } while (ret != -1);
 
-            return IntPtr.Zero;
+            return null;
         }
 
         #region Misc
@@ -277,15 +263,6 @@ namespace VideoPlayer_HWAcceleration
         private void Initialize()
         {
             AVCodecContext* codecCtxPtr;
-            try
-            {
-                if (aStream != null)
-                {
-                    codecCtxPtr = aCodecCtx;
-                    avcodec_free_context( &codecCtxPtr);
-                }
-            } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
-
             try
             {
                 if (vStream != null)
@@ -297,21 +274,13 @@ namespace VideoPlayer_HWAcceleration
 
             try
             {
-                if (sStream != null)
-                {
-                    codecCtxPtr = sCodecCtx;
-                    avcodec_free_context(&codecCtxPtr);
-                }
-            } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
-
-            try
-            {
-                if ( fmtCtx != null)
+                if (fmtCtx != null)
                 {
                     AVFormatContext* fmtCtxPtr = fmtCtx;
                     avformat_close_input(&fmtCtxPtr);
                 }
-                fmtCtx  = null; aStream = null; vStream = null; sStream = null;
+                fmtCtx  = null;
+                vStream = null;
             } catch (Exception e) { Log("Error[" + (-1).ToString("D4") + "], Msg: " + e.Message + "\n" + e.StackTrace); }
         }
         private void OpenFailed(int ret, bool opened = true)
@@ -327,23 +296,32 @@ namespace VideoPlayer_HWAcceleration
             ffmpeg.av_strerror(error, buffer, 1024);
             return Marshal.PtrToStringAnsi((IntPtr)buffer);
         }
-        internal static void RegisterFFmpegBinaries()
+
+        public static bool alreadyRegister = false;
+        private void RegisterFFmpegBinaries()
         {
+            if (alreadyRegister) 
+                return;
+            alreadyRegister = true;
+
             var current = Environment.CurrentDirectory;
-            var probe = Environment.Is64BitProcess ? "x64" : "x86";
+            var probe = Path.Combine("Libs", Environment.Is64BitProcess ? "x64" : "x86", "FFmpeg");
+
             while (current != null)
             {
                 var ffmpegBinaryPath = Path.Combine(current, probe);
                 if (Directory.Exists(ffmpegBinaryPath))
                 {
-                    Console.WriteLine($"FFmpeg binaries found in: {ffmpegBinaryPath}");
-                    ffmpeg.RootPath = ffmpegBinaryPath;
+                    RootPath = ffmpegBinaryPath;
+                    uint ver = ffmpeg.avformat_version();
+                    Log($"[Version: {ver >> 16}.{ver >> 8 & 255}.{ver & 255}] [Location: {ffmpegBinaryPath}]");
+
                     return;
                 }
                 current = Directory.GetParent(current)?.FullName;
             }
         }
-        private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[FFMPEG] {msg}"); }
+        private void Log(string msg) { Console.WriteLine($"[FFMPEG] {msg}"); }
         #endregion
     }
 }
