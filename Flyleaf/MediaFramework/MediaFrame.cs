@@ -95,7 +95,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     mFrame.textureHW            = new Texture2D(decoder.decCtx.device, decoder.textDescHW);
 
                     lock (decoder.decCtx.device)
-                        decoder.decCtx.device.ImmediateContext.CopySubresourceRegion(decoder.textureFFmpeg, (int) frame->data.ToArray()[1], new ResourceRegion(0,0,0,mFrame.textureHW.Description.Width,mFrame.textureHW.Description.Height,1), mFrame.textureHW,0);
+                        decoder.decCtx.device.ImmediateContext.CopySubresourceRegion(decoder.textureFFmpeg, (int) frame->data.ToArray()[1], new ResourceRegion(0, 0, 0, mFrame.textureHW.Description.Width, mFrame.textureHW.Description.Height, 1), mFrame.textureHW, 0);
 
                     return ret;
                 }
