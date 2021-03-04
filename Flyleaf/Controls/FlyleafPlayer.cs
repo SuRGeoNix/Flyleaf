@@ -6,9 +6,9 @@
 using System;
 using System.IO;
 using System.Drawing;
+using System.Net;
 using System.Text;
 using System.Threading;
-using System.Security;
 using System.Windows.Forms;
 using System.ComponentModel;
 using System.Collections.Generic;
@@ -16,7 +16,6 @@ using System.Runtime.InteropServices;
 
 using static SuRGeoNix.Flyleaf.MediaRouter;
 using Timer = System.Timers.Timer;
-using System.Net;
 
 namespace SuRGeoNix.Flyleaf.Controls
 {
@@ -108,12 +107,11 @@ namespace SuRGeoNix.Flyleaf.Controls
             #else
                 player  = new MediaRouter(0);
             #endif
-            
-            config  = new Settings(player);
 
+            config                   = new Settings(player);
+            config.PropertyChanged   = SettingsChanged;
             Load                    += OnLoad;
             ParentChanged           += OnParentChanged;
-            config.PropertyChanged   = SettingsChanged;
         }
         private void SettingsChanged()
         {
@@ -133,7 +131,6 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         private void OnParentChanged(object sender, EventArgs e)
         {
-            //if (Parent != null) thisParent = Parent;
             if (player.renderer.HookControl != null) return;
             
             if (designMode)
@@ -155,6 +152,15 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             if (InvokeRequired) { BeginInvoke(new Action(() => Initialize())); return; }
 
+            #if DEBUG
+                player  = new MediaRouter(1);
+            #else
+                player  = new MediaRouter(0);
+            #endif
+
+            config                   = new Settings(player);
+            config.PropertyChanged   = SettingsChanged;
+
             try
             {
                 Directory.CreateDirectory(Settings.CONFIG_PATH);
@@ -166,8 +172,31 @@ namespace SuRGeoNix.Flyleaf.Controls
                 MessageBox.Show(e.Message, "Flyleaf: IO Error (Run as admin)", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+
+            if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsDefault.xml")))
+            {
+                config.subtitles.Languages = Utils.GetSystemLanguages();
+                Settings.SaveSettings(config, "SettingsDefault.xml");
+            }
+
+            bool firstTime = false;
+            if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsUser.xml")))
+            {
+                File.Copy(Path.Combine(Settings.CONFIG_PATH,"SettingsDefault.xml"), Path.Combine(Settings.CONFIG_PATH,"SettingsUser.xml"));
+                //firstTime = true;
+            }
+
+            userDefault     = Settings.LoadSettings();
+            systemDefault   = Settings.LoadSettings("SettingsDefault.xml");
+
+            // Temporarly Disable Rendering for faster boot
+            SharpDX.Direct3D11.Device tmp = player.renderer.device;
+            player.renderer.device = null;
+            if (!firstTime) Settings.ParseSettings(userDefault, config);
+            player.renderer.device = tmp;
+            SettingsChanged();
             
-            thisInitSize = Size;
+            thisInitSize        = Size;
             thisLastPos         = Location;
             thisLastSize        = Size;
             thisParent          = Parent;
@@ -187,9 +216,10 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             screen = Screen.FromControl(this).Bounds;
             player.InitHandle(config.hookForm.HookHandle ? form.Handle : Handle);
-            player.OpenFinishedClbk          = OpenFinished;
-            player.StatusChanged            += Player_StatusChanged;
-            player.audioPlayer.VolumeChanged+= OnVolumeChanged;
+            player.torrentStreamer.config        = config.torrent;
+            player.OpenFinishedClbk              = OpenFinished;
+            player.StatusChanged                += Player_StatusChanged;
+            player.audioPlayer.VolumeChanged    += OnVolumeChanged;
 
             if (config.bar._Visibility != VisibilityMode.Never)
             {
@@ -259,20 +289,6 @@ namespace SuRGeoNix.Flyleaf.Controls
             timer.SynchronizingObject   = this;
             timer.AutoReset             = true;
             timer.Elapsed               += Timer_Elapsed;
-
-            if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsDefault.xml")))
-            {
-                config.subtitles.Languages = Utils.GetSystemLanguages();
-                Settings.SaveSettings(config, "SettingsDefault.xml");
-            }
-            if (!File.Exists(Path.Combine(Settings.CONFIG_PATH, "SettingsUser.xml"))) File.Copy(Path.Combine(Settings.CONFIG_PATH,"SettingsDefault.xml"), Path.Combine(Settings.CONFIG_PATH,"SettingsUser.xml"));
-
-            userDefault     = Settings.LoadSettings();
-            systemDefault   = Settings.LoadSettings("SettingsDefault.xml");
-
-            Settings.ParseSettings(userDefault, config);
-            player.torrentStreamer.config = config.torrent;
-            SettingsChanged();
 
             if (config.main.EmbeddedList)
             {
@@ -641,8 +657,9 @@ namespace SuRGeoNix.Flyleaf.Controls
             }
             else
             {
-                tblBar.seekBar.Maximum = 1;
+                if (tblBar.seekBar.Maximum < 1) tblBar.seekBar.Maximum = 1;
                 tblBar.seekBar.SetValue(1);
+                tblBar.seekBar.Maximum = 1;
             }
 
             if (player.isFailed) return;
@@ -652,6 +669,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             else
                 { tblBar.btnMute.Enabled = true; tblBar.volBar.Enabled = true; }
 
+            player.renderer.IsFullScreen = isFullScreen;
             FixAspectRatio(true);
 
             if (config.main.EmbeddedList && !player.isTorrent)
@@ -667,6 +685,17 @@ namespace SuRGeoNix.Flyleaf.Controls
                 Play();
         }
         public void Play() { shutdownCountDown = -1; shutdownCancelled = false; player.Play(); }
+        public void Seek(decimal value, bool foreward = false, bool priority = false, bool sliding = true)
+        {
+            if (!player.isReady) return;
+
+            shutdownCountDown = -1;
+            shutdownCancelled = false;
+
+            tblBar.seekBar.SetValue(value);
+            long seektime = ((long)(value) * 1000) + 500;
+            if (config.bar.SeekOnSlide || !sliding) player.Seek((int)seektime, priority, foreward);
+        }
         public void MuteUnmute()
         {
             if (!player.hasAudio && !config.hookForm._Enabled) return;
@@ -764,6 +793,8 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             if (form.Width != screen.Width && form.Height != screen.Height)
             {
+                player.renderer.IsFullScreen = true;
+
                 formLastPos         = form.Location;
                 formLastSize        = form.Size;
                 formBorderStyle     = form.FormBorderStyle;
@@ -805,6 +836,8 @@ namespace SuRGeoNix.Flyleaf.Controls
                 form.FormBorderStyle = formBorderStyle;
                 Focus();
             }
+            
+            player.renderer.IsFullScreen = false;
             
             form.Location   = formLastPos;
             form.Size       = formLastSize;
@@ -849,28 +882,6 @@ namespace SuRGeoNix.Flyleaf.Controls
         private void BtnSubs_Click(object sender, EventArgs e)
         {
             if (lvSubs.Visible) FixLvSubs(false); else FixLvSubs(true);
-        }
-
-        private void Seek(decimal value, bool foreward = false, bool priority = false, bool sliding = true)
-        {
-            if (!player.isReady) return;
-
-            shutdownCountDown = -1; shutdownCancelled = false;
-
-            tblBar.seekBar.SetValue(value);
-            long seektime = ((long)(value) * 1000) + 500;
-
-            Console.WriteLine("Will seek at " + Utils.TicksToTime(seektime * 10000) + " | " + (foreward));
-
-            if (config.bar.SeekOnSlide || !sliding)
-            {
-                Interlocked.Exchange(ref player.SeekTime, seektime * 10000);
-                player.Seek((int)seektime, priority, foreward);
-            }
-            else 
-                Interlocked.Exchange(ref player.SeekTime, seektime * 10000);
-
-            if (!player.isPlaying) player.Render(); // To refresh the OSD time (CPU/GPU heavy) - alternative solution in the Timer_Elapsed but with delay
         }
 
         private void SeekBar_ValueChanged       (object sender, EventArgs e)
@@ -1037,7 +1048,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
                     seekValue = tblBar.seekBar.Value + seekSum / 1000;
                     if (seekValue > tblBar.seekBar.Maximum) seekValue = tblBar.seekBar.Maximum;
-                    if (seekValue < 0) seekValue = 0;
+                    if (seekValue < tblBar.seekBar.Minimum) seekValue = tblBar.seekBar.Minimum;
                     if (seekValue != tblBar.seekBar.Value) Seek(seekValue, true, false, true);
 
                     break;
@@ -1051,6 +1062,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                     seekSum -= seekStep * config.keys.SeekStep;
                     
                     seekValue = tblBar.seekBar.Value + seekSum / 1000;
+                    if (seekValue > tblBar.seekBar.Maximum) seekValue = tblBar.seekBar.Maximum;
                     if (seekValue < tblBar.seekBar.Minimum) seekValue = tblBar.seekBar.Minimum;
                     if (seekValue != tblBar.seekBar.Value) Seek(seekValue, false, false, true);
 
@@ -1976,18 +1988,38 @@ namespace SuRGeoNix.Flyleaf.Controls
         #endregion
 
         #region Misc
-        private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
+        private void fileListToolStripMenuItem_Click(object sender, EventArgs e)    { BtnPlaylist_Click(sender, e); }
+        private void mediaInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            frmSettings.Show();
+            string mediaInfo = "========== Main Demuxer ==========\r\n";
+
+            string mediaInfoMore = "";
+
+            if ((mediaInfoMore = player.decoder.demuxer.GetDump()) != null)
+                foreach (var si in player.decoder.demuxer.streams)
+                    mediaInfoMore += "\r\n" + si.GetDump();
+
+            mediaInfo += mediaInfoMore;
+            mediaInfo += "\r\n========== Audio Demuxer ==========\r\n";
+            
+            if ((mediaInfoMore = player.decoder.aDemuxer.GetDump()) != null)
+                foreach (var si in player.decoder.demuxer.streams)
+                    mediaInfoMore += "\r\n" + si.GetDump();
+
+            mediaInfo += mediaInfoMore;
+            mediaInfo += "\r\n========== Subs Demuxer ==========\r\n";
+
+            if ((mediaInfoMore = player.decoder.sDemuxer.GetDump()) != null)
+                foreach (var si in player.decoder.sDemuxer.streams)
+                    mediaInfoMore += "\r\n" + si.GetDump();
+
+            mediaInfo += mediaInfoMore;
+
+            MessageBox.Show(mediaInfo);
         }
-        private void subtitlesToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            BtnSubs_Click(sender, e);
-        }
-        private void fileListToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            BtnPlaylist_Click(sender, e);
-        }
+        private void settingsToolStripMenuItem_Click(object sender, EventArgs e)    { frmSettings.Show(); }
+        private void subtitlesToolStripMenuItem_Click(object sender, EventArgs e)   { BtnSubs_Click(sender, e); }
+        private void exitToolStripMenuItem_Click(object sender, EventArgs e)        { form?.Close(); }
         #endregion
     }
 }

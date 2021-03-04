@@ -375,8 +375,6 @@ namespace SuRGeoNix.Flyleaf.Controls
             torRetriesGlobal.Text       = load.torrent.RetriesGlobal.ToString();
             torTimeoutBuffer.Text       = load.torrent.TimeoutBuffer.ToString();
             torRetriesBuffer.Text       = load.torrent.RetriesBuffer.ToString();
-            torTimeoutOpen.Text         = load.torrent.TimeoutOpen.ToString();
-            torRetriesOpen.Text         = load.torrent.RetriesOpen.ToString();
         }
         private void FillFormToSettings(SettingsLoad load, bool surfCopyAll = false)
         {
@@ -473,8 +471,6 @@ namespace SuRGeoNix.Flyleaf.Controls
             load.torrent.RetriesGlobal      = int.Parse(torRetriesGlobal.Text);
             load.torrent.TimeoutBuffer      = int.Parse(torTimeoutBuffer.Text);
             load.torrent.RetriesBuffer      = int.Parse(torRetriesBuffer.Text);
-            load.torrent.TimeoutOpen        = int.Parse(torTimeoutOpen.Text);
-            load.torrent.RetriesOpen        = int.Parse(torRetriesOpen.Text);
         }
         private void FillSubsSurfaceToForm(SettingsLoad load, string surface)
         {

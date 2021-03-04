@@ -115,12 +115,21 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 ret = SetupAudio();
             else if (type == Type.Video)
                 ret = SetupVideo(codec);
+            else if (type == Type.Subs)
+                ret = SetupSubs();
 
             if (ret < 0) return ret;
 
             ret = avcodec_open2(codecCtx, codec, null);
             
             return ret;
+        }
+        public int SetupSubs()
+        {
+            opt.subs.Enabled    = true;
+            opt.subs.DelayTicks = 0;
+
+            return 0;
         }
         public int SetupAudio()
         {
@@ -129,6 +138,10 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             if (swrCtx ==  null) swrCtx = swr_alloc();
             
             m_max_dst_nb_samples    = -1;
+
+            opt.audio.Enabled       = true;
+            opt.audio.DelayTicks    = 0;
+
             opt.audio.SampleRate    = codecCtx->sample_rate;
             opt.audio.Channels      = av_get_channel_layout_nb_channels((ulong)opt.audio.ChannelLayout);
             opt.audio.Bits          = codecCtx->bits_per_coded_sample > 0 ? codecCtx->bits_per_coded_sample : 8;
@@ -179,7 +192,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                 BindFlags           = BindFlags.Decoder,
 	            CpuAccessFlags      = CpuAccessFlags.None,
-	            OptionFlags         = ResourceOptionFlags.Shared,
+	            OptionFlags         = ResourceOptionFlags.None,
 
 	            SampleDescription   = new SampleDescription(1, 0),
 	            ArraySize           = 1,
@@ -294,7 +307,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         
         public void Decode()
         {
-            int xf = 0;
+            //int xf = 0;
             int allowedErrors = 200;
             AVPacket *pkt;
 
@@ -396,7 +409,9 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                         }
                         else { Log($"[ERROR-2] {Utils.ErrorCodeToMsg(ret)} ({ret})"); break; }
                     }
+
                     av_packet_free(&pkt);
+
                     while (true)
                     {
                         lock (demuxer.decCtx.device)
@@ -430,7 +445,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                             if (mFrame != null)
                             {
                                 frames.Enqueue(mFrame);
-                                xf++;
+                                //xf++;
                             }
                             
                             av_frame_unref(frame);
@@ -451,7 +466,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     if (ret != AVERROR(EAGAIN)) { Log($"[ERROR-3] {Utils.ErrorCodeToMsg(ret)} ({ret})"); break; }
                 }
 
-                Log($"Done [XF: {xf}] [Errors: {200 - allowedErrors}]");
+                Log($"Done {(allowedErrors == 200 ? "" : "[Errors: {200 - allowedErrors}]")}");
             }
         }
 
