@@ -42,6 +42,7 @@ using System.Threading;
 
 using SuRGeoNix.Flyleaf.MediaFramework;
 using SuRGeoNix.BitSwarmLib;
+using System.Diagnostics;
 
 namespace SuRGeoNix.Flyleaf
 {
@@ -62,7 +63,6 @@ namespace SuRGeoNix.Flyleaf
         Thread      screamer;
         Thread      openOrBuffer;
         Thread      openSubs;
-        Thread      seekRequest;
 
         MediaFrame  sFrame;
         MediaFrame  vFrame;
@@ -70,12 +70,10 @@ namespace SuRGeoNix.Flyleaf
 
         long        startedAtTicks;
         long        videoStartTicks;
-        long        audioExternalDelay;
-        long        subsExternalDelay;
 
-        bool        isSeeking2;
+        Stopwatch   seekWatch;
         int         lastSeekMs;
-
+        Thread      seekRequest;
         ConcurrentStack<SeekData> seeks;
 
         class SeekData
@@ -142,7 +140,7 @@ namespace SuRGeoNix.Flyleaf
             BUFFERING,
             PLAYING,
             PAUSED,
-            SEEKING,
+            //SEEKING,
             STOPPING,
             STOPPED
         }
@@ -162,11 +160,11 @@ namespace SuRGeoNix.Flyleaf
         #region Properties
         public bool isPlaying       => status == Status.PLAYING;
         public bool isPaused        => status == Status.PAUSED;
-        public bool isSeeking       => status == Status.SEEKING;
         public bool isStopping      => status == Status.STOPPING;
         public bool isStopped       => status == Status.STOPPED;
         public bool isFailed        => status == Status.FAILED;
         public bool isOpened        => status == Status.OPENED;
+        public bool isSeeking       { get; private set; }
         public bool isReady         { get; private set; }
         public bool isTorrent       => UrlType == InputType.TorrentFile || UrlType == InputType.TorrentPart;
         public bool isLive          => Duration == 0; // || UrlType == InputType.WebLive;
@@ -176,9 +174,9 @@ namespace SuRGeoNix.Flyleaf
         public string       UrlFolder       { get { return isTorrent ? torrentStreamer.FolderComplete : (new FileInfo(Url)).DirectoryName; } }
         public string       UrlName         { get { return isTorrent ? torrentStreamer.FileName : (File.Exists(Url) ? (new FileInfo(Url)).Name : Url); } }
         
-        public History      History         { get; internal set; }
+        public History      History         { get; internal set; } = new History(Path.Combine(Directory.GetCurrentDirectory(), "History"), 30);
         public bool         HistoryEnabled  { get; set; } = true;
-        public int          HistoryEntries  { get { return History != null ? History.MaxEntries : 30; } set { if (History == null) History = new History(Path.Combine(Directory.GetCurrentDirectory(), "History"), value); History.MaxEntries = value; } }
+        public int          HistoryEntries  { get { return History.MaxEntries; } set { History.MaxEntries = value; } }
 
         public long CurTime         { get; private set; }
         public long SeekTime        = -1;
@@ -200,39 +198,69 @@ namespace SuRGeoNix.Flyleaf
         public bool     iSHWAccelSuccess{ get { return decoder.vDecoder.hwAccelSuccess; } }
 
         // Audio
-        public bool     hasAudio        { get { return decoder.hasAudio;            } }
-        public bool     doAudio         { get { return decoder.doAudio;             } set { decoder.doAudio = value; } }
+        public bool     hasAudio        { get { return decoder.hasAudio; } }
+        public bool     doAudio // Dynamic only for embedded
+        { 
+            get { return decoder.opt.audio.Enabled; } 
+            set
+            {
+                if (decoder.opt.audio.Enabled == value) return;
+                
+                decoder.opt.audio.Enabled = value;
+
+                if (value)
+                    decoder.OpenAudio(decoder.demuxer.defaultAudioStream);
+                else
+                    decoder.StopAudio();
+            } 
+        }
         public int      Volume          { get { return audioPlayer == null ? 0 : audioPlayer.Volume; } set { audioPlayer.SetVolume(value); renderer?.NewMessage(OSDMessage.Type.Volume); } }
         public bool     Mute            { get { return !audioPlayer.isPlaying;      } set { if (value) audioPlayer.Pause(); else audioPlayer.Play(); renderer?.NewMessage(OSDMessage.Type.Mute, Mute ? "Muted" : "Unmuted"); } }
         public bool     Mute2           { get { return audioPlayer.Mute;            } set { audioPlayer.Mute = value; renderer?.NewMessage(OSDMessage.Type.Mute, Mute2 ? "Muted" : "Unmuted"); } }
         public long     AudioExternalDelay
         {
-            get { return audioExternalDelay; }
+            get { return decoder.opt.audio.DelayTicks; }
 
             set
             {
-                if (!isReady || !decoder.hasAudio || audioExternalDelay == value) return;
+                if (!isReady || !decoder.hasAudio || decoder.opt.audio.DelayTicks == value) return;
 
-                audioExternalDelay = value;
-                decoder.opt.audio.DelayTicks = audioExternalDelay;
+                decoder.opt.audio.DelayTicks = value;
                 renderer.NewMessage(OSDMessage.Type.AudioDelay);
                 decoder.aDemuxer.ReSync(CurTime/10000);
             }
         }
 
         // Subs
-        public bool     hasSubs         { get { return decoder.hasSubs;             } }
-        public bool     doSubs          { get { return decoder.doSubs;              } set { if (!value) renderer.ClearMessages(OSDMessage.Type.Subtitles); decoder.doSubs  = value; } }
+        public bool     hasSubs         { get { return decoder.hasSubs; } }
+        public bool     doSubs          { 
+            get { return decoder.opt.subs.Enabled; } 
+            set
+            {
+                if (decoder.opt.subs.Enabled == value) return;
+                
+                decoder.opt.subs.Enabled = value;
+                if (CurSubId == -1) return;
+
+                if (value)
+                    OpenSubs(CurSubId);
+                else
+                    decoder.StopSubs();
+
+                sFrame = null;
+                renderer.ClearMessages(OSDMessage.Type.Subtitles);
+            } 
+        }
+
         public long     SubsExternalDelay
         {
-            get { return subsExternalDelay; }
+            get { return decoder.opt.subs.DelayTicks; }
 
             set
             {
-                if (!isReady || !decoder.hasSubs || subsExternalDelay == value) return;
+                if (!isReady || !decoder.hasSubs || decoder.opt.subs.DelayTicks == value) return;
 
-                subsExternalDelay = value;
-                decoder.opt.subs.DelayTicks = subsExternalDelay;
+                decoder.opt.subs.DelayTicks = value;
                 renderer.NewMessage(OSDMessage.Type.SubsDelay);
                 decoder.sDemuxer.ReSync(CurTime/10000);
             }
@@ -246,7 +274,7 @@ namespace SuRGeoNix.Flyleaf
         public int      PrevSubId       { get; private set; } = -1;
         public List<Language>       Languages       { get; set; } = new List<Language>();
         public List<SubAvailable>   AvailableSubs   { get; set; }
-        public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.FilesAndTorrents;
+        public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.FilesAndTorrents; //DownloadSubsMode.FilesAndTorrents;
         public class SubAvailable
         {
             public Language      lang;
@@ -271,8 +299,8 @@ namespace SuRGeoNix.Flyleaf
             this.verbosity = verbosity;
             renderer    = new MediaRenderer(this);
             decoder     = new DecoderContext();
-
             seeks       = new ConcurrentStack<SeekData>();
+            seekWatch   = new Stopwatch();
         }
         public  void InitHandle(IntPtr handle, bool designMode = false)
         {
@@ -297,16 +325,14 @@ namespace SuRGeoNix.Flyleaf
             if (andStreamer)
                 torrentStreamer.Dispose();
 
-            
-
-            isReady         = false;
-            beforeSeeking   = Status.STOPPED;
-
             AvailableSubs       = new List<SubAvailable>();
             CurSubId            = -1;
             PrevSubId           = -1;
             CurTime             =  0;
-            subsExternalDelay   =  0;
+            beforeSeeking       = Status.STOPPED;
+            lastSeekMs          = Int32.MinValue;
+            isReady             = false;
+            isSeeking           = false;
 
             sFrame = null;
             renderer.ClearMessages();
@@ -318,7 +344,6 @@ namespace SuRGeoNix.Flyleaf
         {
             Log($"[Initializing Evn]");
 
-
             if (hasAudio)
             {
                 audioPlayer._RATE   = decoder.opt.audio.SampleRate;
@@ -328,19 +353,23 @@ namespace SuRGeoNix.Flyleaf
             DecoderRatio = (float)decoder.vStreamInfo.Width / (float)decoder.vStreamInfo.Height;
             renderer.FrameResized(decoder.vStreamInfo.Width, decoder.vStreamInfo.Height);
 
-            if (UrlType == InputType.Web && Duration == 0) UrlType = InputType.WebLive;
-
-            isReady = true; // Must be here for Audio/Subs Delays
+            if (UrlType == InputType.Web && decoder.vStreamInfo.DurationTicks == 0) UrlType = InputType.WebLive;
 
             if (HistoryEnabled && History.Add(Url, UrlType, (isTorrent ? torrentStreamer.FileName : null)))
             {
                 // Existing History Entry
                 History.Entry curHistory = History.GetCurrent();
                 AvailableSubs = curHistory.AvailableSubs;
-                if (AvailableSubs != null && AvailableSubs.Count > 0) OpenSubs(curHistory.CurSubId);
 
-                AudioExternalDelay  = curHistory.AudioExternalDelay;
-                SubsExternalDelay   = curHistory.SubsExternalDelay;
+                if (AvailableSubs != null && AvailableSubs.Count > 0)
+                {
+                    //foreach (var sub in AvailableSubs) sub.used = false; // Reset used from history?
+                    CurSubId = curHistory.CurSubId;
+                    OpenSubs(curHistory.CurSubId, true);
+                }
+
+                decoder.opt.audio.DelayTicks  = curHistory.AudioExternalDelay;
+                decoder.opt.subs.DelayTicks   = curHistory.SubsExternalDelay;
             }
             else
             {
@@ -367,28 +396,28 @@ namespace SuRGeoNix.Flyleaf
                 {
                     FileInfo file = new FileInfo(Url);
                     string hash = Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(file.FullName));
-                    FindAvailableSubs(file.Name, hash, file.Length);
+                    FindAvailableSubs(file.Name, hash, file.Length, true);
+                }
+                else if (UrlType == InputType.TorrentPart   && (DownloadSubs == DownloadSubsMode.FilesAndTorrents || DownloadSubs == DownloadSubsMode.Torrents))
+                {
+                    FindAvailableSubs(UrlName, Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(torrentStreamer.Torrent.GetTorrentStream(UrlName))), torrentStreamer.FileSize, true);
                 }
                 else if (UrlType == InputType.TorrentFile   && (DownloadSubs == DownloadSubsMode.FilesAndTorrents || DownloadSubs == DownloadSubsMode.Torrents))
                 {
                     string hash = Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(Path.Combine(UrlFolder, UrlName)));
-                    FindAvailableSubs(UrlName, hash, torrentStreamer.FileSize);
-                }
-                else if (UrlType == InputType.TorrentPart   && (DownloadSubs == DownloadSubsMode.FilesAndTorrents || DownloadSubs == DownloadSubsMode.Torrents))
-                {
-                    // Restore position for Demuxer (until proper APF fix for multiple instances)
-                    long t1 = torrentStreamer.Torrent.StreamFiles[UrlName].Stream.Position;
-                    FindAvailableSubs(UrlName, Utils.ToHexadecimal(OpenSubtitles.ComputeMovieHash(torrentStreamer.Torrent.StreamFiles[UrlName].Stream)), torrentStreamer.FileSize);
-                    torrentStreamer.Torrent.StreamFiles[UrlName].Stream.Position = t1;
+                    FindAvailableSubs(UrlName, hash, torrentStreamer.FileSize, true);
                 }
                 else
                 {
                     FixSortSubs();
-                    OpenNextAvailableSub();
+                    OpenNextAvailableSub(true);
                 }
             }
 
-            status = Status.OPENED;
+            if (!doSubs && AvailableSubs.Count > 0 && CurSubId == -1) CurSubId = 0;
+
+            status  = Status.OPENED;
+            isReady = true;
 
             //ShowOneFrame();
 
@@ -416,14 +445,13 @@ namespace SuRGeoNix.Flyleaf
             audioPlayer.Play();
 
             Log("[SCREAMER] Buffering ...");
-
-            //while (isPlaying && decoder.video.frames.Count < (Duration == 0 ? VIDEO_MIX_QUEUE_SIZE * 3 : VIDEO_MIX_QUEUE_SIZE) && !decoder.Finished)
+            torrentStreamer.bitSwarmOpt.EnableBuffering = true;
 
             // At least 2 video frames & MinQueueSize video packets demuxed
-            while ((decoder.vDecoder.frames.Count < 3 || decoder.vDecoder.packets.Count < decoder.opt.MinQueueSize) && !decoder.Finished && isPlaying)
-            {
+            while ((decoder.vDecoder.frames.Count < 2 || decoder.vDecoder.packets.Count < decoder.opt.demuxer.MinQueueSize) && !decoder.Finished && isPlaying)
                 Thread.Sleep(15);
-            }
+
+            torrentStreamer.bitSwarmOpt.EnableBuffering = false;
             Log("[SCREAMER] Buffering Done");
 
             decoder.vDecoder.frames.TryDequeue(out vFrame); 
@@ -433,7 +461,7 @@ namespace SuRGeoNix.Flyleaf
             SeekTime        = -1;
             CurTime         = vFrame.timestamp;
             videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
-            startedAtTicks = DateTime.UtcNow.Ticks;
+            startedAtTicks  = DateTime.UtcNow.Ticks;
 
             Log($"[SCREAMER] Started -> {Utils.TicksToTime(CurTime)}");
 
@@ -452,11 +480,12 @@ namespace SuRGeoNix.Flyleaf
 
             while (isPlaying)
             {
-                if (decoder.vDecoder.frames.Count == 0)//|| (hasAudio && aFrames.Count < 1) )
+                if (vFrame == null)
                 {
+                    if (decoder.Finished) break;
+
                     Log("[SCREAMER] Restarting ...");
-                    if (decoder.Finished)   break;
-                    if (!MediaBuffer())     return;
+                    if (!MediaBuffer()) return;
                 }
 
                 if (aFrame == null) decoder.aDecoder.frames.TryDequeue(out aFrame);
@@ -535,7 +564,6 @@ namespace SuRGeoNix.Flyleaf
                 }
             }
 
-            ClearVideoFrame(vFrame);
             Log($"[SCREAMER] Finished -> {Utils.TicksToTime(CurTime)}");
         }
         #endregion
@@ -558,7 +586,7 @@ namespace SuRGeoNix.Flyleaf
             string scheme   = url.IndexOf(":")      > 0 ? url.Substring(0, url.IndexOf(":")) : "";
 
             // Open Subs
-            if (Utils.SubsExts.Contains(ext)) { OpenSubs(url); return; }
+            if (Utils.SubsExts.Contains(ext)) { if (isReady) OpenSubs(url); return; }
 
             Initialize(!isTorrentFile);
 
@@ -638,7 +666,10 @@ namespace SuRGeoNix.Flyleaf
                         else
                         {
                             UrlType = InputType.File;
+
+                            // Testing avIOContext
                             //FileStream fsStream = new FileStream(url, FileMode.Open, FileAccess.Read);
+                            //if (decoder.Open(fsStream) != 0)
 
                             if (decoder.Open(url) != 0)
                             {
@@ -682,74 +713,167 @@ namespace SuRGeoNix.Flyleaf
                     TimeBeginPeriod(1);
                     SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
                     Screamer();
-                } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
-
-                TimeEndPeriod(1);
-                SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
-                status = Status.STOPPED;
-                StatusChanged?.Invoke(this, new StatusChangedArgs(status));
+                } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); 
+                } finally
+                {
+                    ClearVideoFrame(vFrame);
+                    TimeEndPeriod(1);
+                    SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
+                    status = Status.STOPPED;
+                    StatusChanged?.Invoke(this, new StatusChangedArgs(status));
+                }
             });
             screamer.SetApartmentState(ApartmentState.STA);
             screamer.Start();
         }
+
         public void Seek(int ms, bool priority = false, bool foreward = false)
         {
             SeekData seekData2 = new SeekData(ms, priority, foreward);
+            SeekTime = seekData2.ms * (long)10000;
             seeks.Push(seekData2);
 
             lock (lockSeek)
             {
-                if (isSeeking2 && !seekData2.priority) return;
-                isSeeking2 = true;
+                if (isSeeking) return;
+                isSeeking = true;
+                //if (isSeeking2 && !seekData2.priority) return;
+
+                //if (isSeeking2)
+                //{
+                //    //if (isTorrent && decoder.demuxer.ioStream != null) ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
+                //    //decoder.interrupt = 1;
+                //}
             }
 
-            Utils.EnsureThreadDone(seekRequest);
+            if (seekRequest != null && seekRequest.IsAlive) seekRequest.Abort();
+            //Utils.EnsureThreadDone(seekRequest,12000);
+            //decoder.interrupt = 0;
+            
             seekRequest = new Thread(() =>
             {
 			    try
 			    {
-                    Console.WriteLine("** SEEK **");
+                    Log("Seek Thread Started!");
                     SeekData seekData;
-                    int i = 0;
                     int seeksCount;
+                    bool shouldPlay = false;
 
-                    //Thread.Sleep(150); // Decide time
-                    if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 < lastSeekMs && seekData.ms + 1000 > lastSeekMs)) { lock (lockSeek) isSeeking2 = false; Interlocked.Exchange(ref SeekTime, -1); return; }
+                    //Thread.Sleep(150); // Decide time?
+                    if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 <= lastSeekMs && seekData.ms + 1000 >= lastSeekMs)) { Log("Seek Thread Cancel!"); return; }
                     seeksCount = seeks.Count;
-
-                    PauseThreads();
-                    status = Status.SEEKING;
 
                     while (true)
                     {
-                        i++;
-                        Console.WriteLine("** SEEK ** (Next " + i + ")");
-                        Console.WriteLine("Will seek at " + Utils.TicksToTime(seekData.ms * 10000) + " | " + (seekData.foreward) + " | IN");
-                        decoder.Seek(seekData.ms, seekData.foreward);
-                        ShowOneFrame();
-                        Interlocked.Exchange(ref SeekTime, -1);
-                        lastSeekMs = seekData.ms;
 
-                        if (seeks.IsEmpty) Thread.Sleep(10);
-                        if (seeksCount == seeks.Count) break;
+                        Log("Seek Pause All Start");
+                        status = Status.STOPPING;
+                        if (isTorrent && decoder.demuxer.ioStream != null)
+                        {
+                            ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
+                            torrentStreamer.bitSwarmOpt.EnableBuffering = true;
+                        }
+                        Utils.EnsureThreadDone(screamer);
+                        decoder.Pause();
+                        Log("Seek Pause All Done");
 
-                        if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 < lastSeekMs && seekData.ms + 1000 > lastSeekMs)) break;
+                        bool aborted = false;
+                        bool decDone = false;
+                        bool gotIn   = false;
+                        lastSeekMs   = seekData.ms;
+                        seekWatch.Restart();
+
+                        Thread decThread = new Thread(() =>
+                        {
+                            try
+                            {
+                                gotIn = true;
+                                decoder.Seek(seekData.ms, seekData.foreward);
+                                decDone = true;
+                            }
+                            catch (Exception)
+                            {
+
+                                if (decoder.demuxer.fmtName != "QuickTime / MOV")
+                                {
+                                    Log("ReOpening Seek Fucked!");
+                                    decoder.ReOpen();
+                                }
+                                aborted = true;
+                            }
+                        });
+                        decThread.IsBackground = true;
+                        decThread.Start();
+
+                        while (!gotIn) Thread.Sleep(5);
+
+                        while (!decDone)
+                        {
+                            if (seekWatch.ElapsedMilliseconds > 250 && seeksCount != seeks.Count && seeks.TryPeek(out SeekData tmpSeekData))
+                            {
+                                if (tmpSeekData.ms - 1000 <= lastSeekMs && tmpSeekData.ms + 1000 >= lastSeekMs)
+                                {
+                                    Log("No abort - Next Seek Canceled " + Utils.TicksToTime(tmpSeekData.ms * (long)10000));
+                                    seeks.TryPop(out tmpSeekData);
+                                }
+                                else
+                                {
+                                    Log("Seek Abort " + seekWatch.ElapsedMilliseconds);
+                                    if (isTorrent && decoder.demuxer.ioStream != null) ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
+                                    decThread.Abort();
+                                
+                                    while (!decDone && !aborted) Thread.Sleep(20);
+                                    Log("Seek Abort Done");
+
+                                    if (torrentStreamer.bitSwarm != null) torrentStreamer.bitSwarm.FocusAreInUse = false; // Reset after abort thread
+                                    break; 
+                                }
+                            }
+
+                            if (!decDone)
+                            {
+                                Render(); // Update OSD SeekTime
+                                Thread.Sleep(20);
+                            }
+                        }
+
+                        seekWatch.Stop();
+
+                        if (decDone)
+                        {
+                            ShowOneFrame();
+
+                            if (beforeSeeking == Status.PLAYING)
+                            {
+                                if (seeksCount == seeks.Count)
+                                    Play();
+                                else
+                                    shouldPlay = true;
+                            }
+                        }
+
+                        //if (seeks.IsEmpty) Thread.Sleep(1000); // Decide time?
+                        if (seeksCount == seeks.Count) { Log("Seek Empty"); break; }
+
+                        if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 <= lastSeekMs && seekData.ms + 1000 >= lastSeekMs))
+                        { 
+                            if (shouldPlay) Play();
+                            Log("Seek Cancel");
+                            break; 
+                        }
                         seeksCount = seeks.Count;
                     }
 
                     seeks.Clear();
-                    
-                    if (beforeSeeking == Status.PLAYING)
-                    {
-                        sFrame = null;
-                        Play();
-                    }
-                    else
-                        status = Status.STOPPED;
                 }
-                catch (Exception) { status = Status.STOPPED; } 
-
-                lock (lockSeek) isSeeking2 = false;
+                catch (Exception) { }
+                finally
+                {
+                    if (!isPlaying) torrentStreamer.bitSwarmOpt.EnableBuffering = false;
+                    SeekTime = -1;
+                    lock (lockSeek) isSeeking = false;
+                    Log("Seek Thread Done!");
+                }
             });
 	        seekRequest.Start();
         }
@@ -778,7 +902,7 @@ namespace SuRGeoNix.Flyleaf
         #endregion
 
         #region Subtitles
-        public void FindAvailableSubs(string filename, string hash, long length)
+        public void FindAvailableSubs(string filename, string hash, long length, bool checkDoSubs = false)
         {
             if (Languages.Count < 1) return;
             Utils.EnsureThreadDone(openSubs);
@@ -828,7 +952,7 @@ namespace SuRGeoNix.Flyleaf
 
                 FixSortSubs();
                 SubtitlesAvailable?.Invoke(this, EventArgs.Empty);
-                OpenNextAvailableSub();
+                OpenNextAvailableSub(checkDoSubs);
                 
             });
             openSubs.SetApartmentState(ApartmentState.STA);
@@ -893,7 +1017,7 @@ namespace SuRGeoNix.Flyleaf
 
             AvailableSubs.AddRange(langUndefined);
         }
-        public void OpenNextAvailableSub()
+        public void OpenNextAvailableSub(bool checkDoSubs = false)
         {
             if (AvailableSubs.Count == 0) { renderer.NewMessage(OSDMessage.Type.TopLeft2, $"No Subtitles Found"); return; }
 
@@ -908,7 +1032,7 @@ namespace SuRGeoNix.Flyleaf
                     if (!AvailableSubs[i].used && AvailableSubs[i].lang?.LanguageName == lang.LanguageName)
                     {
                         renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {(AvailableSubs[i].streamIndex > 0 ? "Embedded" : "")} {lang.LanguageName})");
-                        OpenSubs(i);
+                        OpenSubs(i, checkDoSubs);
                         return;
                     }
                 }
@@ -922,7 +1046,7 @@ namespace SuRGeoNix.Flyleaf
                 if (!AvailableSubs[i].used && AvailableSubs[i].lang == null)
                 {
                     renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {(AvailableSubs[i].streamIndex > 0 ? "Embedded" : "")} Unknown)");
-                    OpenSubs(i);
+                    OpenSubs(i, checkDoSubs);
                     return;
                 }
             }
@@ -936,16 +1060,17 @@ namespace SuRGeoNix.Flyleaf
                     sub.used = false;
                     AvailableSubs[i] = sub;
                 }
-                OpenNextAvailableSub();
+                OpenNextAvailableSub(checkDoSubs);
             }
         }
-        public void OpenSubs(int availableIndex)
+        public void OpenSubs(int availableIndex, bool checkDoSubs = false)
         {
+            if (checkDoSubs && (!doSubs || availableIndex == -1)) return;
+
             SubAvailable sub = AvailableSubs[availableIndex];
 
             if (sub.streamIndex > 0)
             {
-                subsExternalDelay = 0;
                 sFrame = null;
                 renderer.ClearMessages(OSDMessage.Type.Subtitles);
                 decoder.OpenSubs(sub.streamIndex);
@@ -978,7 +1103,6 @@ namespace SuRGeoNix.Flyleaf
                         return;
                 }
 
-                subsExternalDelay = 0;
                 sFrame = null;
                 renderer.ClearMessages(OSDMessage.Type.Subtitles);
                 decoder.OpenSubs(sub.pathUTF8, CurTime/10000);
@@ -992,9 +1116,9 @@ namespace SuRGeoNix.Flyleaf
 
             History.Update(AvailableSubs, CurSubId);
         }
-        public void OpenSubs(string url)
+        private void OpenSubs(string url, bool checkDoSubs = false)
         {
-            if (!isReady) return;
+            if (checkDoSubs && doSubs) return;
 
             for (int i=0; i<AvailableSubs.Count; i++)
                 if ((AvailableSubs[i].path != null && AvailableSubs[i].path.ToLower() == url.ToLower()) || (AvailableSubs[i].pathUTF8 != null && AvailableSubs[i].pathUTF8.ToLower() == url.ToLower()))
@@ -1016,7 +1140,6 @@ namespace SuRGeoNix.Flyleaf
             else
                 sub.pathUTF8 = sub.path;
 
-            subsExternalDelay = 0;
             sFrame = null;
             renderer.ClearMessages(OSDMessage.Type.Subtitles);
             decoder.OpenSubs(sub.pathUTF8, CurTime/10000);
@@ -1033,41 +1156,33 @@ namespace SuRGeoNix.Flyleaf
         #region Misc
         private void ShowOneFrame()
         {
-            //return;
-            //ClearMediaFrames();
+            sFrame = null;
             renderer.ClearMessages(OSDMessage.Type.Subtitles);
-
-            //decoder.video.DecodeFrame();
-            //decoder.subs.DecodeFrame(); requires resync | only embedded
 
             if (decoder.vDecoder.frames.Count > 0)
             {
                 MediaFrame vFrame = null;
                 decoder.vDecoder.frames.TryDequeue(out vFrame);
-                CurTime = vFrame.timestamp;
+                CurTime     = vFrame.timestamp;
+                SeekTime    = -1;
                 renderer.PresentFrame(vFrame);
             }
-
-            // should also check timestamp based on vFrame.timestamp
-            //if (sFrames.Count > 0 && hasSubs && doSubs)
-            //{
-            //    MediaFrame sFrame = null;
-            //    sFrames.TryPeek(out sFrame);
-            //    renderer.NewMessage(OSDMessage.Type.Subtitles, sFrame.text, sFrame.subStyles, sFrame.duration);
-            //}
-
             return;
         }
         public void Render() { renderer.PresentFrame(null); }
         private void PauseThreads(bool andDecoder = true)
         {
-            Log($"[Pausing All Threads] START");
+            //Log($"[Pausing All Threads] START");
             status = Status.STOPPING;
             Utils.EnsureThreadDone(screamer);
-            if (andDecoder) decoder.Pause(); //if (torrent != null) { while (torrent.isReading){ torrent.cancel = true; Thread.Sleep(5); } torrent.cancel = false; } }
+            if (andDecoder)
+            {
+	            if (isTorrent && decoder.demuxer.ioStream != null) ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
+	            decoder.Pause();
+            }
             if (hasAudio) audioPlayer.ResetClbk();
             status = Status.STOPPED;
-            Log($"[Pausing All Threads] END");
+            //Log($"[Pausing All Threads] END");
         }
         private void AbortThreads(bool andDecoder = true)
         {

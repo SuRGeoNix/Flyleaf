@@ -81,8 +81,8 @@
     <Reference Include="BencodeNET, Version=3.1.4.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\BencodeNET.3.1.4\lib\netstandard2.0\BencodeNET.dll</HintPath>
     </Reference>
-    <Reference Include="BitSwarmLib, Version=2.3.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\BitSwarm.2.3.3\lib\netstandard2.0\BitSwarmLib.dll</HintPath>
+    <Reference Include="BitSwarmLib, Version=2.3.4.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\BitSwarm.2.3.4\lib\netstandard2.0\BitSwarmLib.dll</HintPath>
     </Reference>
     <Reference Include="ColorSlider">
       <HintPath>Libs\ColorSlider.dll</HintPath>
@@ -96,8 +96,8 @@
     <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.12.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="Partfiles, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\APF.1.2.0\lib\netstandard2.0\Partfiles.dll</HintPath>
+    <Reference Include="Partfiles, Version=1.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\APF.1.3.0\lib\netstandard2.0\Partfiles.dll</HintPath>
     </Reference>
     <Reference Include="SharpDX, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
       <HintPath>..\packages\SharpDX.4.2.0\lib\net45\SharpDX.dll</HintPath>

@@ -16,7 +16,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         const AVPixelFormat     HW_PIX_FMT      = AVPixelFormat.AV_PIX_FMT_D3D11;
 
         public AVBufferRef*     hw_device_ctx;
-        //public Device           device;
 
         public int Init(Device device)
         {
@@ -42,72 +41,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
             return ret;
         }
-        public VideoAcceleration()
-        {
-
-            //// Check if system has D3D11VA device
-            //List<AVHWDeviceType> devices = GetHWDevices();
-
-            //foreach (AVHWDeviceType device in devices)
-            //    if (device == HW_DEVICE) { DeviceExists = true;  break; }
-
-            //if (!DeviceExists) return;
-
-            //// Create D3D11VA device
-            //fixed (AVBufferRef** ptr = &hw_device_ctx)
-            //    if (av_hwdevice_ctx_create(ptr, HW_DEVICE, "auto", null, 0) != 0) return;
-
-            //// Parse AVD3D11Device to SharpDX
-            //AVHWDeviceContext* hw_device_ctx3 = (AVHWDeviceContext*)hw_device_ctx->data;
-            //AVD3D11VADeviceContext* hw_d3d11_dev_ctx = (AVD3D11VADeviceContext*)hw_device_ctx3->hwctx;
-            //device = Device.FromPointer<Device>((IntPtr) hw_d3d11_dev_ctx->device);
-
-            //DeviceCreated = true;
-
-
-
-
-
-
-
-            // TEMPORARY TESTING
-            //SwapChain   swapChain;
-            
-            //var desc = new SwapChainDescription()
-            //{
-            //    BufferCount         = 1,
-            //    ModeDescription     = new ModeDescription(0, 0, new Rational(0, 0), Format.B8G8R8A8_UNorm), // BGRA | Required for Direct2D/DirectWrite (<Win8)
-            //    IsWindowed          = true,
-            //    OutputHandle        = tmpHandle,
-            //    SampleDescription   = new SampleDescription(1, 0),
-            //    SwapEffect          = SwapEffect.Discard,
-            //    Usage               = Usage.RenderTargetOutput
-            //};
-            //Device.CreateWithSwapChain(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.Debug | DeviceCreationFlags.BgraSupport, desc, out renderDevice, out swapChain);
-
-            // Check valid hw/sw formats
-            /*
-            AVHWFramesConstraints* hw_frames_const = av_hwdevice_get_hwframe_constraints(hw_device_ctx, null);
-            for (AVPixelFo  rmat* p = hw_frames_const->valid_hw_formats; *p != AVPixelFormat.AV_PIX_FMT_NONE; p++)
-                Log((*p).ToString());
-
-            Log("====");
-            for (AVPixelFormat* p = hw_frames_const->valid_sw_formats; *p != AVPixelFormat.AV_PIX_FMT_NONE; p++)
-                Log((*p).ToString());
-
-            av_hwframe_constraints_free(&hw_frames_const);*/
-
-
-            
-
-
-            //bool t1 = CodecSupported(avcodec_find_decoder(AVCodecID.AV_CODEC_ID_H264));
-            //bool t2 = CodecSupported(avcodec_find_decoder(AVCodecID.AV_CODEC_ID_HEVC));
-            //bool t3 = CodecSupported(avcodec_find_decoder(AVCodecID.AV_CODEC_ID_VP9));
-
-            //AVCodec *codec = avcodec_find_decoder(AVCodecID.AV_CODEC_ID_VP9);
-            //var tt2 = GetHWDevicesSupported(codec);
-        }
+        public VideoAcceleration() { }
 
         public static bool CheckCodecSupport(AVCodec* codec)
         {

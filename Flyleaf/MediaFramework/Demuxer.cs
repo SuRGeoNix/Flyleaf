@@ -18,6 +18,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public Status               status;
         public Type                 type;
         AVMediaType                 mType;
+        public string               fmtName;
 
         public DecoderContext       decCtx;
         Decoder                     decoder;
@@ -25,28 +26,46 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public AVFormatContext      *fmtCtx;
         public List<int>            enabledStreams;
         public StreamInfo[]         streams;
+        public int                  defaultAudioStream;
 
         Thread                      demuxThread;
         public AutoResetEvent       demuxARE;
         bool                        forcePause;
 
-        
-
         List<object>    gcPrevent = new List<object>();
         AVIOContext*    ioCtx;
-        Stream          ioStream;
+        public Stream   ioStream;
         const int       ioBufferSize    = 0x200000;
         byte[]          ioBuffer;
-        byte*           ioBufferUnmanaged;
 
         avio_alloc_context_read_packet IORead = (opaque, buffer, bufferSize) =>
         {
             GCHandle decCtxHandle = (GCHandle) ((IntPtr) opaque);
             DecoderContext decCtx = (DecoderContext) decCtxHandle.Target;
 
+            //Console.WriteLine($"** R | { decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position}");
+
+            // During seek, it will destroy the sesion on Matroska (requires reopen the format input)
+            if (decCtx.interrupt == 1) { Console.WriteLine("[Stream] Interrupt 1"); return AVERROR_EXIT; }
+
             // Check whether is possible direct access from ioBuffer to ioBufferUnmanaged to avoid Marshal.Copy each time
             int ret = decCtx.demuxer.ioStream.Read(decCtx.demuxer.ioBuffer, 0, bufferSize);
-            if (ret < 0) throw new Exception("Prevent Reading!");
+
+            if (ret < 0 || decCtx.interrupt == 1)
+            {
+                if (ret == -1)
+                    Console.WriteLine("[Stream] Cancel");
+                else if (ret == -2)
+                    Console.WriteLine("[Stream] Error");
+                else
+                    Console.WriteLine("[Stream] Interrupt 2");
+
+                if (ret > 0) decCtx.demuxer.ioStream.Position -= ret;
+                if (decCtx.demuxer.ioStream.Position < 0) decCtx.demuxer.ioStream.Position = 0;
+
+                return AVERROR_EXIT;
+            }
+
             Marshal.Copy(decCtx.demuxer.ioBuffer, 0, (IntPtr) buffer, ret);
 
             return ret;
@@ -56,6 +75,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         {
             GCHandle decCtxHandle = (GCHandle) ((IntPtr) opaque);
             DecoderContext decCtx = (DecoderContext) decCtxHandle.Target;
+
+            //Console.WriteLine($"** S | {decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position}");
 
             if (wehnce == AVSEEK_SIZE) return decCtx.demuxer.ioStream.Length;
 
@@ -71,7 +92,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             GCHandle decCtxHandle = (GCHandle)((IntPtr)p0);
             DecoderContext decCtx = (DecoderContext)decCtxHandle.Target;
 
-            if (decCtx.interrupt == 1) Console.WriteLine("----------- InterruptClbk ------------");
+            //if (decCtx.interrupt == 1) Console.WriteLine("----------- InterruptClbk ------------");
             return decCtx.interrupt;
         };
 
@@ -99,11 +120,26 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     break;
             }
 
-            demuxARE = new AutoResetEvent(false);
-            enabledStreams = new List<int>();
+            demuxARE            = new AutoResetEvent(false);
+            enabledStreams      = new List<int>();
+            defaultAudioStream  = -1;
 
-            ioread.Pointer = Marshal.GetFunctionPointerForDelegate(IORead);
-            ioseek.Pointer = Marshal.GetFunctionPointerForDelegate(IOSeek);
+            interruptClbk.Pointer   = Marshal.GetFunctionPointerForDelegate(InterruptClbk);
+            ioread.Pointer          = Marshal.GetFunctionPointerForDelegate(IORead);
+            ioseek.Pointer          = Marshal.GetFunctionPointerForDelegate(IOSeek);
+
+            gcPrevent = new List<object>();
+            gcPrevent.Add(ioread);
+            gcPrevent.Add(ioseek);
+            gcPrevent.Add(IORead);
+            gcPrevent.Add(IOSeek);
+        }
+
+        public string GetDump()
+        {
+            if (status == Status.NOTSET) return null;
+
+            return $"[# Format] {Utils.BytePtrToStringUTF8(fmtCtx->iformat->long_name)}/{Utils.BytePtrToStringUTF8(fmtCtx->iformat->name)} | {Utils.BytePtrToStringUTF8(fmtCtx->iformat->extensions)} | {new TimeSpan(fmtCtx->start_time * 10)}/{new TimeSpan(fmtCtx->duration * 10)}";
         }
 
         public int Open(string url, bool doAudio = true, bool doSubs = true, Stream stream = null)
@@ -140,30 +176,14 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             av_dict_set_int(&opt, "reconnect_streamed"      , 1, 0);    // auto reconnect streamed / non seekable streams
             av_dict_set_int(&opt, "reconnect_delay_max"     , 10, 0);   // max reconnect delay in seconds after which to give up
             //av_dict_set_int(&opt, "reconnect_at_eof", 1, 0);          // auto reconnect at EOF | Maybe will use this for another similar issues? | will not stop the decoders (no EOF)
+            //av_dict_set_int(&opt, "rw_timeout", 1, 0);
 
             fmtCtx = avformat_alloc_context();
 
-            interruptClbk.Pointer = Marshal.GetFunctionPointerForDelegate(InterruptClbk);
-            fmtCtx->interrupt_callback.callback = interruptClbk;
-            fmtCtx->interrupt_callback.opaque = (void*)decCtx.decCtxPtr;
-
             if (stream != null)
             {
-                if (ioBuffer == null)
-                {
-                    ioBuffer            = new byte[ioBufferSize];
-                    
-                    gcPrevent = new List<object>();
-                    gcPrevent.Add(ioread);
-                    gcPrevent.Add(ioseek);
-                    gcPrevent.Add(IORead);
-                    gcPrevent.Add(IOSeek);
-                }
-
-                //av_free(ioBufferUnmanaged);
-                ioBufferUnmanaged   = (byte*)av_malloc(ioBufferSize);
-
-                ioCtx           = avio_alloc_context(ioBufferUnmanaged, ioBufferSize, 0, (void*) decCtx.decCtxPtr, ioread, null, ioseek);
+                if (ioBuffer == null) ioBuffer  = new byte[ioBufferSize]; // NOTE: if we use small buffer ffmpeg might request more than we suggest
+                ioCtx           = avio_alloc_context((byte*)av_malloc(ioBufferSize), ioBufferSize, 0, (void*) decCtx.decCtxPtr, ioread, null, ioseek);
                 fmtCtx->pb      = ioCtx;
                 fmtCtx->flags  |= AVFMT_FLAG_CUSTOM_IO;
                 ioStream        = stream;
@@ -171,17 +191,17 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             }
 
             AVFormatContext* fmtCtxPtr = fmtCtx;
-            ret = avformat_open_input(&fmtCtxPtr, url, null, &opt);
+            ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : url, null, &opt);
             if (ret < 0) { Log($"[Format] [ERROR-1] {Utils.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
 
             // validate that we need this
             av_format_inject_global_side_data(fmtCtx);
 
-            // validate that we need this
             ret = avformat_find_stream_info(fmtCtx, null);
             if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); return ret; }
 
             StreamInfo.Fill(this);
+            fmtName = Utils.BytePtrToStringUTF8(fmtCtx->iformat->long_name);
 
             ret = av_find_best_stream(fmtCtx, mType, -1, -1, null, 0);
             if (ret < 0) { Log($"[Format] [ERROR-3] {Utils.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); return ret; }
@@ -193,10 +213,16 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             {
                 case AVMEDIA_TYPE_VIDEO:
 
+                    ret = av_find_best_stream(fmtCtx, AVMEDIA_TYPE_AUDIO, -1, decoder.st->index, null, 0);
+                    if (ret >= 0) defaultAudioStream = ret;
+
                     if (doAudio)
                     {
-                        if ((ret = av_find_best_stream(fmtCtx, AVMEDIA_TYPE_AUDIO, -1, decoder.st->index, null, 0)) >= 0)
+                        if (ret >= 0)
+                        {
+                            defaultAudioStream = ret;
                             decCtx.aDecoder.Open(this, fmtCtx->streams[ret]);
+                        }
                         else if (ret != AVERROR_STREAM_NOT_FOUND)
                             Log($"[Format] [ERROR-7] [Audio] {Utils.ErrorCodeToMsg(ret)} ({ret})");
                     }
@@ -208,6 +234,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                         else if (ret != AVERROR_STREAM_NOT_FOUND)
                             Log($"[Format] [ERROR-7] [Subs ] {Utils.ErrorCodeToMsg(ret)} ({ret})");
                     }
+
                     break;
 
                 case AVMEDIA_TYPE_AUDIO:
@@ -245,8 +272,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
             if (status == Status.NOTSET) return;
 
-            if (pkt != null)    fixed (AVPacket** ptr = &pkt)           av_packet_free(ptr);
-            if (ioCtx != null)  fixed (AVIOContext** ptr = &ioCtx)      avio_context_free(ptr);
+            if (pkt != null)    fixed (AVPacket** ptr = &pkt) av_packet_free(ptr);
+            if (ioCtx != null)  { av_free(ioCtx->buffer); fixed (AVIOContext** ptr = &ioCtx) avio_context_free(ptr); }
             if (fmtCtx != null) fixed (AVFormatContext** ptr = &fmtCtx) avformat_close_input(ptr);
             GC.Collect();
 
@@ -254,6 +281,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             streams         = null;
             ioStream        = null;
             status          = Status.NOTSET;
+            defaultAudioStream = -1;
         }
         public void RefreshStreams()
         {
@@ -273,9 +301,14 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             forcePause          = false;
             decoder.forcePause  = false;
         }
-        public void Seek(long ms, bool foreward = false)
+
+        public bool isSeeking = false;
+
+        //[HandleProcessCorruptedStateExceptions]
+        //[SecurityCritical]
+        public int Seek(long ms, bool foreward = false)
         {
-            if (status == Status.NOTSET) return;
+            if (status == Status.NOTSET) return -1;
             if (status == Status.END) status = Status.READY; //Open(url, ...); // Usefull for HTTP
 
             int ret;
@@ -294,6 +327,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 //if (seek2any) avformat_seek_file(fmtCtx, -1, Int64.MinValue, seekTs, seekTs, AVSEEK_FLAG_ANY); // Same as av_seek_frame ?
                 if (ret < 0) Log($"[SEEK] [ERROR-2] {Utils.ErrorCodeToMsg(ret)} ({ret})");
             }
+
+            return ret;
         }
         public long CalcSeekTimestamp(long ms)
         {
@@ -343,7 +378,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
         public void Demux()
         {
-            int vf = 0,af = 0,sf = 0;
+            //int vf = 0,af = 0,sf = 0;
 
             while (true)
             {
@@ -357,7 +392,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                 while (true)
                 {
-                    while (decoder.packets.Count > decCtx.opt.MaxQueueSize && decCtx.status == Status.PLAY && !forcePause) Thread.Sleep(20); 
+                    while (decoder.packets.Count > decCtx.opt.demuxer.MaxQueueSize && decCtx.status == Status.PLAY && !forcePause) Thread.Sleep(20); 
                     if (decCtx.status != Status.PLAY || forcePause) break;
 
                     ret = av_read_frame(fmtCtx, pkt);
@@ -403,7 +438,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     }
                 }
 
-                Log($"Done [Total: {vf+af+sf}] [VF: {vf}, AF: {af}, SF: {sf}]");
+                Log($"Done");// [Total: {vf+af+sf}] [VF: {vf}, AF: {af}, SF: {sf}]");
             }
         }
 

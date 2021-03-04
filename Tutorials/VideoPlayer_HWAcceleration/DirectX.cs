@@ -22,7 +22,7 @@ namespace VideoPlayer_HWAcceleration
     class DirectX
     {
         #region Declaration
-        Device                              _device;
+        internal Device                     _device;
         SwapChain                           _swapChain;
 
         Texture2D                           _backBuffer;
@@ -116,11 +116,9 @@ namespace VideoPlayer_HWAcceleration
          * 3. Calls Video Processor Blt to convert (in GPU) Shared NV12 Texture to our BackBuffer RBGA/BGRA Texture
          * 4. Finally Presents the Frame to the outputHandle (SampleUI Form)
          */
-        public void PresentFrame(IntPtr nv12SharedResource)
+        public void PresentFrame(Texture2D textureHW)
         {
-            Texture2D nv12SharedTexture = _device.OpenSharedResource<Texture2D>(nv12SharedResource);
-
-            videoDevice1.CreateVideoProcessorInputView(nv12SharedTexture, vpe, vpivd, out vpiv);
+            videoDevice1.CreateVideoProcessorInputView(textureHW, vpe, vpivd, out vpiv);
             VideoProcessorStream vps = new VideoProcessorStream()
             {
                 PInputSurface = vpiv,
@@ -132,7 +130,7 @@ namespace VideoPlayer_HWAcceleration
             _swapChain.Present(0, PresentFlags.None);
 
             Utilities.Dispose(ref vpiv);
-            Utilities.Dispose(ref nv12SharedTexture);
+            Utilities.Dispose(ref textureHW);
         }
     }
 }
