@@ -77,6 +77,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public bool Finished    { get { if (vDecoder != null && vDecoder.status == Status.END) return true; else return false; } }
         public bool isRunning   { get { if (vDecoder.status == Status.PLAY || aDecoder.status == Status.PLAY || sDecoder.status == Status.PLAY) return true; else return false;} }
 
+        public string Referer   { get; set; } // Temporary to allow more Youtube-dl urls
+
         public StreamInfo vStreamInfo
         {
             get

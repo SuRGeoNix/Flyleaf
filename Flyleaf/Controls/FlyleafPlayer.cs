@@ -694,7 +694,15 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             tblBar.seekBar.SetValue(value);
             long seektime = ((long)(value) * 1000) + 500;
-            if (config.bar.SeekOnSlide || !sliding) player.Seek((int)seektime, priority, foreward);
+
+            if (config.bar.SeekOnSlide || !sliding)
+                player.Seek((int)seektime, priority, foreward);
+            else
+            {
+                player.SeekTime = seektime * 10000;
+                if (!player.isPlaying) player.Render();
+            }
+                
         }
         public void MuteUnmute()
         {
