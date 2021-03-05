@@ -299,15 +299,13 @@ namespace SuRGeoNix.Flyleaf
             public string DownloadPath  { get; set; } = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents") : Path.Combine(Path.GetTempPath(), "Torrents");
             public string DownloadTemp  { get; set; } = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents", "_incomplete") : Path.Combine(Path.GetTempPath(), "Torrents", "_incomplete");
 
-            public int  MinThreads      { get; set; } =   15;
-            public int  MaxThreads      { get; set; } =   80;
+            public int  MinThreads      { get; set; } =   12;
+            public int  MaxThreads      { get; set; } =   70;
             public int  BlockRequests   { get; set; } =    2;
 
-            public int  TimeoutGlobal   { get; set; } = 1600;
-            public int  RetriesGlobal   { get; set; } =    3;
-            //public int  TimeoutOpen     { get; set; } =  700;
-            //public int  RetriesOpen     { get; set; } =    7;
-            public int  TimeoutBuffer   { get; set; } =  550;
+            public int  TimeoutGlobal   { get; set; } = 2000;
+            public int  RetriesGlobal   { get; set; } =    5;
+            public int  TimeoutBuffer   { get; set; } =  700;
             public int  RetriesBuffer   { get; set; } =    8;
         }
 
