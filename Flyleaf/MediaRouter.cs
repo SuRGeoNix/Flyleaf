@@ -117,6 +117,7 @@ namespace SuRGeoNix.Flyleaf
             File,
             TorrentPart,
             TorrentFile,
+            Other,
             Web,
             WebLive
         }
@@ -274,7 +275,7 @@ namespace SuRGeoNix.Flyleaf
         public int      PrevSubId       { get; private set; } = -1;
         public List<Language>       Languages       { get; set; } = new List<Language>();
         public List<SubAvailable>   AvailableSubs   { get; set; }
-        public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.FilesAndTorrents; //DownloadSubsMode.FilesAndTorrents;
+        public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.FilesAndTorrents;
         public class SubAvailable
         {
             public Language      lang;
@@ -318,12 +319,14 @@ namespace SuRGeoNix.Flyleaf
         private void Initialize(bool andStreamer = true)
         {
             Log($"[Initializing]");
-            
-            PauseThreads();
-            openOrBuffer?.Abort();
 
-            if (andStreamer)
-                torrentStreamer.Dispose();
+            renderer.ClearMessages();
+            seeks.Clear();
+            PauseThreads();
+            if (openOrBuffer != null && openOrBuffer.IsAlive) { decoder.interrupt = 1; while (openOrBuffer.IsAlive) Thread.Sleep(20); decoder.interrupt = 0; } // Temporary solution
+            //openOrBuffer?.Abort(); // Will freeze on avformat_open_input
+
+            if (andStreamer) torrentStreamer.Dispose();
 
             AvailableSubs       = new List<SubAvailable>();
             CurSubId            = -1;
@@ -333,10 +336,8 @@ namespace SuRGeoNix.Flyleaf
             lastSeekMs          = Int32.MinValue;
             isReady             = false;
             isSeeking           = false;
-
-            sFrame = null;
-            renderer.ClearMessages();
-            seeks.Clear();
+            sFrame              = null;
+            decoder.Referer     = null;
 
             Log($"[Initialized]");
         }
@@ -610,7 +611,7 @@ namespace SuRGeoNix.Flyleaf
 
                         InitializeEnv();
                     });
-                    openOrBuffer.SetApartmentState(ApartmentState.STA);
+                    openOrBuffer.IsBackground = true;
                     openOrBuffer.Start();
                     return;
                 }
@@ -633,7 +634,7 @@ namespace SuRGeoNix.Flyleaf
                             return; 
                         }
                     });
-                    openOrBuffer.SetApartmentState(ApartmentState.STA);
+                    openOrBuffer.IsBackground = true;
                     openOrBuffer.Start();
                 }
                 else
@@ -648,13 +649,11 @@ namespace SuRGeoNix.Flyleaf
 
                             UrlType = InputType.Web;
                             YoutubeDL ytdl = YoutubeDL.Get(url, out aUrl, out vUrl, scheme + "://" + (new Uri(url)).Host.ToLower());
-                            
-                            //TODO pass as ref | scheme + "://" + (new Uri(url)).Host.ToLower()
+
+                            decoder.Referer = scheme + "://" + (new Uri(url)).Host.ToLower();
 
                             if (vUrl != null && decoder.Open(vUrl) == 0)
-                            {
                                 InitializeEnv();
-                            }
                             else
                             {
                                 renderer.NewMessage(OSDMessage.Type.Failed, $"Failed");
@@ -665,7 +664,13 @@ namespace SuRGeoNix.Flyleaf
                         }
                         else
                         {
-                            UrlType = InputType.File;
+                            Uri uri = null;
+                            try { uri = new Uri(url); } catch (Exception) { }
+
+                            if (uri != null && uri.IsFile)
+                                UrlType = InputType.File;
+                            else
+                                UrlType = InputType.Other;
 
                             // Testing avIOContext
                             //FileStream fsStream = new FileStream(url, FileMode.Open, FileAccess.Read);
@@ -682,7 +687,7 @@ namespace SuRGeoNix.Flyleaf
                             InitializeEnv();
                         }
                     });
-                    openOrBuffer.SetApartmentState(ApartmentState.STA);
+                    openOrBuffer.IsBackground = true;
                     openOrBuffer.Start();
                 }
             }
@@ -733,31 +738,17 @@ namespace SuRGeoNix.Flyleaf
             SeekTime = seekData2.ms * (long)10000;
             seeks.Push(seekData2);
 
-            lock (lockSeek)
-            {
-                if (isSeeking) return;
-                isSeeking = true;
-                //if (isSeeking2 && !seekData2.priority) return;
-
-                //if (isSeeking2)
-                //{
-                //    //if (isTorrent && decoder.demuxer.ioStream != null) ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
-                //    //decoder.interrupt = 1;
-                //}
-            }
-
+            lock (lockSeek) { if (isSeeking) return; isSeeking = true; }
             if (seekRequest != null && seekRequest.IsAlive) seekRequest.Abort();
-            //Utils.EnsureThreadDone(seekRequest,12000);
-            //decoder.interrupt = 0;
-            
+
             seekRequest = new Thread(() =>
             {
 			    try
 			    {
                     Log("Seek Thread Started!");
                     SeekData seekData;
-                    int seeksCount;
-                    bool shouldPlay = false;
+                    int      seeksCount;
+                    bool     shouldPlay = false;
 
                     //Thread.Sleep(150); // Decide time?
                     if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 <= lastSeekMs && seekData.ms + 1000 >= lastSeekMs)) { Log("Seek Thread Cancel!"); return; }
@@ -765,7 +756,6 @@ namespace SuRGeoNix.Flyleaf
 
                     while (true)
                     {
-
                         Log("Seek Pause All Start");
                         status = Status.STOPPING;
                         if (isTorrent && decoder.demuxer.ioStream != null)
@@ -793,10 +783,11 @@ namespace SuRGeoNix.Flyleaf
                             }
                             catch (Exception)
                             {
-
+                                // TBR | We force ThreadAbortException to avoid destroying ffmpeg's sesions during seek 
+                                //if (decoder.demuxer.fmtName == "Matroska / WebM") // | Maybe only on matroska?
                                 if (decoder.demuxer.fmtName != "QuickTime / MOV")
                                 {
-                                    Log("ReOpening Seek Fucked!");
+                                    Log("Seek Crashed - Reopening");
                                     decoder.ReOpen();
                                 }
                                 aborted = true;
@@ -835,6 +826,8 @@ namespace SuRGeoNix.Flyleaf
                                 Render(); // Update OSD SeekTime
                                 Thread.Sleep(20);
                             }
+                            else
+                                break;
                         }
 
                         seekWatch.Stop();
