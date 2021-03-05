@@ -335,7 +335,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         }
         public long CalcSeekTimestamp(long ms)
         {
-            long ticks = (ms * 10000) - decCtx.opt.audio.LatencyTicks;
+            long ticks = ((ms * 10000) + streams[decoder.st->index].StartTime) - decCtx.opt.audio.LatencyTicks;
 
             switch (type)
             {
@@ -416,7 +416,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                         case AVMEDIA_TYPE_AUDIO:
                             decCtx.aDecoder.packets.Enqueue((IntPtr)pkt);
                             pkt = av_packet_alloc();
-                            //Log("[Audio] " + Utils.TicksToTime((long)(pkt->pts * streams[decCtx.audio.st->index].timebase)) + " | pts -> " + pkt->pts);
+                            //Log("[Audio] " + Utils.TicksToTime((long)(pkt->pts * streams[decCtx.aDecoder.st->index].Timebase)) + " | pts -> " + pkt->pts);
                             //af++;
                             break;
 
@@ -431,7 +431,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                         case AVMEDIA_TYPE_SUBTITLE:
                             decCtx.sDecoder.packets.Enqueue((IntPtr)pkt);
                             pkt = av_packet_alloc();
-                            //Log("[ Subs] " + Utils.TicksToTime((long)(pkt->pts * streams[decCtx.subs.st->index].timebase)) + " | pts -> " + pkt->pts);
+                            //Log("[ Subs] " + Utils.TicksToTime((long)(pkt->pts * streams[decCtx.sDecoder.st->index].Timebase)) + " | pts -> " + pkt->pts);
                             //sf++;
                             break;
 
