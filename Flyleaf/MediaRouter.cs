@@ -275,7 +275,11 @@ namespace SuRGeoNix.Flyleaf
         public int      PrevSubId       { get; private set; } = -1;
         public List<Language>       Languages       { get; set; } = new List<Language>();
         public List<SubAvailable>   AvailableSubs   { get; set; }
+        #if DEBUG
+        public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.Never;
+        #else
         public DownloadSubsMode     DownloadSubs    { get; set; } = DownloadSubsMode.FilesAndTorrents;
+        #endif
         public class SubAvailable
         {
             public Language      lang;
@@ -420,8 +424,9 @@ namespace SuRGeoNix.Flyleaf
             status  = Status.OPENED;
             isReady = true;
 
+            //decoder.Seek(0);
             //ShowOneFrame();
-
+            
             renderer.NewMessage(OSDMessage.Type.Open, $"Opened");
             renderer.NewMessage(OSDMessage.Type.HardwareAcceleration);
             OpenFinishedClbk?.BeginInvoke(true, UrlName, null, null);
@@ -449,7 +454,7 @@ namespace SuRGeoNix.Flyleaf
             torrentStreamer.bitSwarmOpt.EnableBuffering = true;
 
             // At least 2 video frames & MinQueueSize video packets demuxed
-            while ((decoder.vDecoder.frames.Count < 2 || decoder.vDecoder.packets.Count < decoder.opt.demuxer.MinQueueSize) && !decoder.Finished && isPlaying)
+            while ((decoder.vDecoder.frames.Count < 2 || (decoder.vDecoder.packets.Count < decoder.opt.demuxer.MinQueueSize && decoder.demuxer.status == MediaFramework.Status.PLAY)) && !decoder.Finished && isPlaying)
                 Thread.Sleep(15);
 
             torrentStreamer.bitSwarmOpt.EnableBuffering = false;
@@ -501,7 +506,8 @@ namespace SuRGeoNix.Flyleaf
                 if (sleepMs < 0) sleepMs = 0;
                 if (sleepMs > 2)
                 {
-                    if (sleepMs > 1000)
+                    // It will not allowed uncommon formats with slow frame rates to play (maybe check if fps = 1? means dynamic fps?)
+                    if (sleepMs > 1000) 
                     {
                         Log("[SCREAMER] Restarting ... (HLS?)");
                         MediaBuffer();
@@ -749,9 +755,10 @@ namespace SuRGeoNix.Flyleaf
                     SeekData seekData;
                     int      seeksCount;
                     bool     shouldPlay = false;
+                    int      cancelOffsetMs = 500;
 
                     //Thread.Sleep(150); // Decide time?
-                    if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 <= lastSeekMs && seekData.ms + 1000 >= lastSeekMs)) { Log("Seek Thread Cancel!"); return; }
+                    if (!seeks.TryPop(out seekData) || (seekData.ms - cancelOffsetMs <= lastSeekMs && seekData.ms + cancelOffsetMs >= lastSeekMs)) { Log("Seek Thread Cancel!"); return; }
                     seeksCount = seeks.Count;
 
                     while (true)
@@ -802,7 +809,7 @@ namespace SuRGeoNix.Flyleaf
                         {
                             if (seekWatch.ElapsedMilliseconds > 250 && seeksCount != seeks.Count && seeks.TryPeek(out SeekData tmpSeekData))
                             {
-                                if (tmpSeekData.ms - 1000 <= lastSeekMs && tmpSeekData.ms + 1000 >= lastSeekMs)
+                                if (tmpSeekData.ms - cancelOffsetMs <= lastSeekMs && tmpSeekData.ms + cancelOffsetMs >= lastSeekMs)
                                 {
                                     Log("No abort - Next Seek Canceled " + Utils.TicksToTime(tmpSeekData.ms * (long)10000));
                                     seeks.TryPop(out tmpSeekData);
@@ -848,7 +855,7 @@ namespace SuRGeoNix.Flyleaf
                         //if (seeks.IsEmpty) Thread.Sleep(1000); // Decide time?
                         if (seeksCount == seeks.Count) { Log("Seek Empty"); break; }
 
-                        if (!seeks.TryPop(out seekData) || (seekData.ms - 1000 <= lastSeekMs && seekData.ms + 1000 >= lastSeekMs))
+                        if (!seeks.TryPop(out seekData) || (seekData.ms - cancelOffsetMs <= lastSeekMs && seekData.ms + cancelOffsetMs >= lastSeekMs))
                         { 
                             if (shouldPlay) Play();
                             Log("Seek Cancel");
