@@ -156,13 +156,14 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             this.url = url;
             Log($"Opening {url}");
 
+            // TODO: Expose AV Format Options to Settings
             AVDictionary *opt = null;
             av_dict_set_int(&opt, "probesize", 116 * 1024 * (long)1024, 0);         // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
             av_dict_set_int(&opt, "analyzeduration", 333 * (long)1000 * (long)1000, 0);  // (Microseconds) Default 5 seconds | Higher for network streams
             //av_dict_set_int(&opt, "max_probe_packets ", 15500, 0);         // (Packets) Default 2500
 
             // Required for Youtube-dl to avoid 403 Forbidden
-            //av_dict_set(&opt, "referer", referer, 0);
+            if (decCtx.Referer != null) av_dict_set(&opt, "referer", decCtx.Referer, 0);
 
             /* Issue with HTTP/TLS - (sample video -> https://www.youtube.com/watch?v=sExEvN1bPRo)
              * 
@@ -176,9 +177,11 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             av_dict_set_int(&opt, "reconnect_streamed"      , 1, 0);    // auto reconnect streamed / non seekable streams
             av_dict_set_int(&opt, "reconnect_delay_max"     , 10, 0);   // max reconnect delay in seconds after which to give up
             //av_dict_set_int(&opt, "reconnect_at_eof", 1, 0);          // auto reconnect at EOF | Maybe will use this for another similar issues? | will not stop the decoders (no EOF)
-            //av_dict_set_int(&opt, "rw_timeout", 1, 0);
+            av_dict_set_int(&opt, "stimeout", 10 * 1000 * 1000, 0);     // RTSP microseconds timeout
 
             fmtCtx = avformat_alloc_context();
+            fmtCtx->interrupt_callback.callback = interruptClbk;
+            fmtCtx->interrupt_callback.opaque = (void*)decCtx.decCtxPtr;
 
             if (stream != null)
             {
