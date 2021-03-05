@@ -428,17 +428,17 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                                 continue;
                             }
 
-                            //Log(Utils.TicksToTime((long)(mFrame.pts * demuxer.streams[st->index].timebase)) + " | pts -> " + mFrame.pts);
+                            //Log(Utils.TicksToTime((long)(mFrame.pts * demuxer.streams[st->index].Timebase)) + " | pts -> " + mFrame.pts);
 
                             if (type == Type.Video)
                             {
-                                mFrame.timestamp = ((long)(mFrame.pts * info.Timebase)) + opt.audio.LatencyTicks;
+                                mFrame.timestamp = ((long)(mFrame.pts * info.Timebase) - demuxer.streams[st->index].StartTime) + opt.audio.LatencyTicks;
                                 if (MediaFrame.ProcessVideoFrame(this, mFrame, frame) != 0) mFrame = null;
 
                             }
                             else // Audio
                             {
-                                mFrame.timestamp = ((long)(mFrame.pts * info.Timebase)) + opt.audio.DelayTicks;
+                                mFrame.timestamp = ((long)(mFrame.pts * info.Timebase) - demuxer.streams[st->index].StartTime) + opt.audio.DelayTicks;
                                 if (MediaFrame.ProcessAudioFrame(this, mFrame, frame) < 0) mFrame = null;
                             }
 
@@ -466,7 +466,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     if (ret != AVERROR(EAGAIN)) { Log($"[ERROR-3] {Utils.ErrorCodeToMsg(ret)} ({ret})"); break; }
                 }
 
-                Log($"Done {(allowedErrors == 200 ? "" : "[Errors: {200 - allowedErrors}]")}");
+                Log($"Done {(allowedErrors == 200 ? "" : $"[Errors: {200 - allowedErrors}]")}");
             }
         }
 
