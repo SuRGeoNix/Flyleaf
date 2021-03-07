@@ -115,8 +115,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 ret = SetupAudio();
             else if (type == Type.Video)
                 ret = SetupVideo(codec);
-            else if (type == Type.Subs)
-                ret = SetupSubs();
 
             if (ret < 0) return ret;
 
@@ -124,13 +122,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             
             return ret;
         }
-        public int SetupSubs()
-        {
-            opt.subs.Enabled    = true;
-            opt.subs.DelayTicks = 0;
 
-            return 0;
-        }
         public int SetupAudio()
         {
             int ret;
@@ -138,9 +130,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             if (swrCtx ==  null) swrCtx = swr_alloc();
             
             m_max_dst_nb_samples    = -1;
-
-            opt.audio.Enabled       = true;
-            opt.audio.DelayTicks    = 0;
 
             opt.audio.SampleRate    = codecCtx->sample_rate;
             opt.audio.Channels      = av_get_channel_layout_nb_channels((ulong)opt.audio.ChannelLayout);
