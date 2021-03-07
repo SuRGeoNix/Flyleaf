@@ -163,34 +163,20 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         {
             int ret;
 
-            long saveADelay     = opt.audio.DelayTicks;
-            long saveSDelay     = opt.subs.DelayTicks;
-            bool saveAEnable    = opt.audio.Enabled;
-            bool saveSEnable    = opt.subs.Enabled;
+            List<int> savedStreams   = new List<int>();
+            int       savedSEmbedded = sDecoder.isEmbedded && sDecoder.st != null ? sDecoder.st->index : -1;
 
-            bool savedAStatus   = aDemuxer.status != Status.NOTSET;
-            bool savedSStatus   = sDemuxer.status != Status.NOTSET;
-            string savedAUrl    = aDemuxer.url;
-            string savedSUrl    = sDemuxer.url;
-            int savedSEmbedded  = sDecoder.st != null ? sDecoder.st->index : -1;
+            foreach (var tmp1 in demuxer.enabledStreams)
+                savedStreams.Add(tmp1);
 
-            List<int> savedStreams = new List<int>();
-            foreach (var tmp1 in demuxer.enabledStreams) savedStreams.Add(tmp1);
-            ret = demuxer.Open(demuxer.url, opt.audio.Enabled, false, demuxer.ioStream);
+            ret = demuxer.Open(demuxer.url, opt.audio.Enabled, false, demuxer.ioStream, false);
             if (ret != 0) return ret;
+
             demuxer.enabledStreams = savedStreams;
             demuxer.RefreshStreams();
 
-            if (savedAStatus) ret = aDemuxer.Open(savedAUrl);
-            if (savedSStatus) 
-                ret = sDemuxer.Open(savedSUrl);
-            else if (savedSEmbedded != -1)
+            if (opt.subs.Enabled && savedSEmbedded != -1)
                 OpenSubs(savedSEmbedded);
-
-            opt.audio.DelayTicks= saveADelay;
-            opt.subs.DelayTicks = saveSDelay;
-            opt.audio.Enabled   = saveAEnable;
-            opt.subs.Enabled    = saveSEnable;
 
             return 0;
         }
@@ -238,8 +224,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public void Stop()
         {
             Pause();
-            aDemuxer.Close();
-            sDemuxer.Close();
             demuxer.Close();
         }
         public void StopAudio()
