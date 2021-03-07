@@ -328,7 +328,7 @@ namespace SuRGeoNix.Flyleaf
             seeks.Clear();
             PauseThreads();
             if (openOrBuffer != null && openOrBuffer.IsAlive) { decoder.interrupt = 1; while (openOrBuffer.IsAlive) Thread.Sleep(20); decoder.interrupt = 0; } // Temporary solution
-            //openOrBuffer?.Abort(); // Will freeze on avformat_open_input
+            if (seekRequest != null && seekRequest.IsAlive) seekRequest.Abort();
 
             if (andStreamer) torrentStreamer.Dispose();
 
@@ -446,32 +446,37 @@ namespace SuRGeoNix.Flyleaf
         #region Screaming
         private bool MediaBuffer()
         {
-            if (!decoder.isRunning) decoder.Play();
-            audioPlayer.ResetClbk();
-            audioPlayer.Play();
+            lock (lockSeek)
+            {
+                if (!decoder.isRunning) decoder.Play();
+                audioPlayer.ResetClbk();
+                audioPlayer.Play();
 
-            Log("[SCREAMER] Buffering ...");
-            torrentStreamer.bitSwarmOpt.EnableBuffering = true;
+                Log("[SCREAMER] Buffering ...");
+                torrentStreamer.bitSwarmOpt.EnableBuffering = true;
+                renderer.NewMessage(OSDMessage.Type.Buffering, $"Loading ...", null, 999999);
 
-            // At least 2 video frames & MinQueueSize video packets demuxed
-            while ((decoder.vDecoder.frames.Count < 2 || (decoder.vDecoder.packets.Count < decoder.opt.demuxer.MinQueueSize && decoder.demuxer.status == MediaFramework.Status.PLAY)) && !decoder.Finished && isPlaying)
-                Thread.Sleep(15);
+                // At least 2 video frames & MinQueueSize video packets demuxed
+                while ((decoder.vDecoder.frames.Count < 2 || (decoder.vDecoder.packets.Count < decoder.opt.demuxer.MinQueueSize && decoder.demuxer.status == MediaFramework.Status.PLAY)) && !decoder.Finished && isPlaying)
+                    Thread.Sleep(15);
 
-            torrentStreamer.bitSwarmOpt.EnableBuffering = false;
-            Log("[SCREAMER] Buffering Done");
+                renderer.ClearMessages(OSDMessage.Type.Buffering);
+                torrentStreamer.bitSwarmOpt.EnableBuffering = false;
+                Log("[SCREAMER] Buffering Done");
 
-            decoder.vDecoder.frames.TryDequeue(out vFrame); 
-            if (vFrame == null) { Log("[SCREAMER] [ERROR] No Frames!"); return false; }
-            decoder.aDecoder.frames.TryDequeue(out aFrame);
-            decoder.sDecoder.frames.TryDequeue(out sFrame);
-            SeekTime        = -1;
-            CurTime         = vFrame.timestamp;
-            videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
-            startedAtTicks  = DateTime.UtcNow.Ticks;
+                decoder.vDecoder.frames.TryDequeue(out vFrame); 
+                if (vFrame == null) { Log("[SCREAMER] [ERROR] No Frames!"); return false; }
+                decoder.aDecoder.frames.TryDequeue(out aFrame);
+                decoder.sDecoder.frames.TryDequeue(out sFrame);
+                SeekTime        = -1;
+                CurTime         = vFrame.timestamp;
+                videoStartTicks = aFrame != null && aFrame.timestamp < vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000) ? aFrame.timestamp : vFrame.timestamp - (AudioPlayer.NAUDIO_DELAY_MS * (long)10000);
+                startedAtTicks  = DateTime.UtcNow.Ticks;
 
-            Log($"[SCREAMER] Started -> {Utils.TicksToTime(CurTime)}");
+                Log($"[SCREAMER] Started -> {Utils.TicksToTime(CurTime)} | [V: {Utils.TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {Utils.TicksToTime(aFrame.timestamp)}]"));
 
-            return true;
+                return true;
+            }
         }    
 
         private void Screamer()
@@ -509,7 +514,7 @@ namespace SuRGeoNix.Flyleaf
                     // It will not allowed uncommon formats with slow frame rates to play (maybe check if fps = 1? means dynamic fps?)
                     if (sleepMs > 1000) 
                     {
-                        Log("[SCREAMER] Restarting ... (HLS?)");
+                        Log("[SCREAMER] Restarting ... (HLS?) | + " + Utils.TicksToTime(sleepMs * (long)10000));
                         MediaBuffer();
                         continue; 
                     }
@@ -600,7 +605,7 @@ namespace SuRGeoNix.Flyleaf
             lock (lockOpening)
             {
                 Log($"Opening {url}");
-                renderer.NewMessage(OSDMessage.Type.Open, $"Opening {url}");
+                renderer.NewMessage(OSDMessage.Type.Open, $"Opening {url}", null, 999999);
                 status = Status.OPENING;
 
                 if (isTorrentFile)
@@ -699,17 +704,20 @@ namespace SuRGeoNix.Flyleaf
             }
         }
 
-        public void Play()
+        public void Play(bool todoPlay2 = false)
         { 
+            if (isSeeking && !todoPlay2)
+            {
+                if (beforeSeeking == Status.PLAYING) beforeSeeking = Status.PAUSED; else beforeSeeking = Status.PLAYING;
+                StatusChanged(this, new StatusChangedArgs(beforeSeeking));
+                return;
+            }
+
             if (!isReady || decoder.isRunning || isPlaying) { StatusChanged?.Invoke(this, new StatusChangedArgs(status)); return; }
 
             Interlocked.Exchange(ref SeekTime, -1);
             renderer.ClearMessages(OSDMessage.Type.Paused);
-            if (beforeSeeking != Status.PLAYING) renderer.NewMessage(OSDMessage.Type.Play, "Play");
-            beforeSeeking = Status.PLAYING;
-
-            renderer.ClearMessages(OSDMessage.Type.Buffering);
-
+            if (beforeSeeking != Status.PLAYING) { renderer.NewMessage(OSDMessage.Type.Play, "Play"); beforeSeeking = Status.PLAYING; }
             PauseThreads();
             status = Status.PLAYING;
 
@@ -731,7 +739,7 @@ namespace SuRGeoNix.Flyleaf
                     TimeEndPeriod(1);
                     SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
                     status = Status.STOPPED;
-                    StatusChanged?.Invoke(this, new StatusChangedArgs(status));
+                    if (!isSeeking) StatusChanged?.Invoke(this, new StatusChangedArgs(status));
                 }
             });
             screamer.SetApartmentState(ApartmentState.STA);
@@ -753,124 +761,148 @@ namespace SuRGeoNix.Flyleaf
 			    {
                     Log("Seek Thread Started!");
                     SeekData seekData;
-                    int      seeksCount;
                     bool     shouldPlay = false;
-                    int      cancelOffsetMs = 500;
+                    int      cancelOffsetMs = 1500; //  lastSeekMs +-
+                    int      stayAliveMs    = 5000; //  Wait for more seek requests
+                    int      networkAbortMs =  250; //  Time to wait before aborting the seek request;
+                    int      networkDecideMs=   20; //  Delay to ensure actual seek request (to avoid more aborts)
 
-                    //Thread.Sleep(150); // Decide time?
-                    if (!seeks.TryPop(out seekData) || (seekData.ms - cancelOffsetMs <= lastSeekMs && seekData.ms + cancelOffsetMs >= lastSeekMs)) { Log("Seek Thread Cancel!"); return; }
-                    seeksCount = seeks.Count;
-
-                    while (true)
+                    while(true)
                     {
-                        Log("Seek Pause All Start");
-                        status = Status.STOPPING;
-                        if (isTorrent && decoder.demuxer.ioStream != null)
+                        bool seekPop = seeks.TryPop(out seekData); seeks.Clear();
+
+                        if (!seekPop || (seekData.ms - cancelOffsetMs <= lastSeekMs && seekData.ms + cancelOffsetMs >= lastSeekMs))
                         {
-                            ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
-                            torrentStreamer.bitSwarmOpt.EnableBuffering = true;
+                            //if (seekPop) Log("Seek Ignored 1 " + Utils.TicksToTime(seekData.ms * (long)10000));
+
+                            // Decide Time (to avoid stop/start seekThread
+                            if (seeks.Count == 0)
+                            {
+                                //Log("Seek Waits | " + shouldPlay);
+                                // mini !isSeeking
+                                SeekTime = -1; //if (isPlaying) SeekTime = -1;
+                                seekWatch.Restart();
+                                Status beforeSeekingSaved = beforeSeeking;
+                                if (beforeSeeking == Status.PLAYING && shouldPlay) { shouldPlay = false; Play(true); beforeSeekingSaved = Status.PLAYING; }
+
+                                do
+                                {
+                                    if (beforeSeekingSaved != beforeSeeking)
+                                    {
+                                        if (beforeSeeking == Status.PLAYING)
+                                            Play(true);
+                                        else
+                                        {
+                                            //Log("Seek Pause All Start");
+                                            status = Status.STOPPING;
+                                            Utils.EnsureThreadDone(screamer);
+                                            decoder.Pause();
+                                            //Log("Seek Pause All Done");
+                                        }
+
+                                        beforeSeekingSaved = beforeSeeking;
+                                    }
+
+                                    if (seekWatch.ElapsedMilliseconds > stayAliveMs) { Log("Seek Exhausted"); return; }
+                                    Render();
+                                    Thread.Sleep(35);
+                                } while (seeks.Count == 0);
+                                seekWatch.Stop();
+                            }
+
+                            continue;
                         }
+
+                        if (isPlaying) shouldPlay = true;
+                        //Log("Seek Pause All Start");
+                        status = Status.STOPPING;
                         Utils.EnsureThreadDone(screamer);
                         decoder.Pause();
-                        Log("Seek Pause All Done");
+                        //Log("Seek Pause All Done");
 
-                        bool aborted = false;
-                        bool decDone = false;
-                        bool gotIn   = false;
-                        lastSeekMs   = seekData.ms;
-                        seekWatch.Restart();
+                        renderer.NewMessage(OSDMessage.Type.Buffering, $"Seeking ...", null, 999999);
 
-                        Thread decThread = new Thread(() =>
+                        if (UrlType != InputType.File && UrlType != InputType.TorrentFile) // Only "Slow" Network Streams (Web/RTSP/Torrent etc.)
                         {
-                            try
+                            Thread.Sleep(networkDecideMs);
+                            if (seeks.Count != 0) { /*Log("Seek Ignores");*/ continue; }
+                            lastSeekMs = seekData.ms;
+
+                            int decStatus = -1;
+                            Thread decThread = new Thread(() =>
                             {
-                                gotIn = true;
-                                decoder.Seek(seekData.ms, seekData.foreward);
-                                decDone = true;
-                            }
-                            catch (Exception)
+                                torrentStreamer.bitSwarmOpt.EnableBuffering = true;
+                                decStatus = 0;
+
+                                try { decoder.Seek(seekData.ms, seekData.foreward); }
+                                catch (Exception) 
+                                    { torrentStreamer.bitSwarmOpt.EnableBuffering = false; decStatus = 2; return; }
+
+                                torrentStreamer.bitSwarmOpt.EnableBuffering = false;
+                                decStatus = 1;
+                            });
+                            decThread.IsBackground = true;
+                            decThread.Start();
+                            seekWatch.Restart();
+
+                            while (decStatus < 1)
                             {
-                                // TBR | We force ThreadAbortException to avoid destroying ffmpeg's sesions during seek 
-                                //if (decoder.demuxer.fmtName == "Matroska / WebM") // | Maybe only on matroska?
-                                if (decoder.demuxer.fmtName != "QuickTime / MOV")
+                                if (seekWatch.ElapsedMilliseconds > networkAbortMs)
                                 {
-                                    Log("Seek Crashed - Reopening");
-                                    decoder.ReOpen();
+                                    seekPop = seeks.TryPeek(out seekData);
+
+                                    if (!seekPop || (seekData.ms - cancelOffsetMs <= lastSeekMs && seekData.ms + cancelOffsetMs >= lastSeekMs))
+                                    {
+                                        //if (seekPop) Log("Seek Ignored 2 " + Utils.TicksToTime(seekData.ms * (long)10000));
+                                        seeks.Clear();
+                                    }
+                                    else
+                                    {
+                                        seekWatch.Stop();
+
+                                        //Log("Seek Abort " + seekWatch.ElapsedMilliseconds);
+                                        if (isTorrent && decoder.demuxer.ioStream != null) ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
+
+                                        decThread.Abort();
+                                        while (decStatus < 1) { Render(); Thread.Sleep(20); }
+
+                                        // Only No-index Seek Entries? TBR | Possible ReOpen in new thread
+                                        if ((UrlType == InputType.TorrentPart || UrlType == InputType.Other) && decoder.demuxer.fmtName != "QuickTime / MOV")
+                                        {
+                                            //Log("Seek Crashed - Reopening");
+                                            decoder.ReOpen();
+                                        }
+                                            
+                                        //Log("Seek Abort Done");
+                                        if (torrentStreamer.bitSwarm != null) torrentStreamer.bitSwarm.FocusAreInUse = false; // Reset after abort thread
+                                        break;
+                                    }
+
+                                    seekWatch.Restart();
                                 }
-                                aborted = true;
+
+                                if (decStatus < 1) { Render(); Thread.Sleep(20); } else break;
                             }
-                        });
-                        decThread.IsBackground = true;
-                        decThread.Start();
 
-                        while (!gotIn) Thread.Sleep(5);
-
-                        while (!decDone)
+                            seekWatch.Stop();
+                            if (decStatus == 2) continue;
+                        }
+                        else
                         {
-                            if (seekWatch.ElapsedMilliseconds > 250 && seeksCount != seeks.Count && seeks.TryPeek(out SeekData tmpSeekData))
-                            {
-                                if (tmpSeekData.ms - cancelOffsetMs <= lastSeekMs && tmpSeekData.ms + cancelOffsetMs >= lastSeekMs)
-                                {
-                                    Log("No abort - Next Seek Canceled " + Utils.TicksToTime(tmpSeekData.ms * (long)10000));
-                                    seeks.TryPop(out tmpSeekData);
-                                }
-                                else
-                                {
-                                    Log("Seek Abort " + seekWatch.ElapsedMilliseconds);
-                                    if (isTorrent && decoder.demuxer.ioStream != null) ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
-                                    decThread.Abort();
-                                
-                                    while (!decDone && !aborted) Thread.Sleep(20);
-                                    Log("Seek Abort Done");
-
-                                    if (torrentStreamer.bitSwarm != null) torrentStreamer.bitSwarm.FocusAreInUse = false; // Reset after abort thread
-                                    break; 
-                                }
-                            }
-
-                            if (!decDone)
-                            {
-                                Render(); // Update OSD SeekTime
-                                Thread.Sleep(20);
-                            }
-                            else
-                                break;
+                            lastSeekMs = seekData.ms;
+                            decoder.Seek(seekData.ms, seekData.foreward);
                         }
 
-                        seekWatch.Stop();
-
-                        if (decDone)
-                        {
-                            ShowOneFrame();
-
-                            if (beforeSeeking == Status.PLAYING)
-                            {
-                                if (seeksCount == seeks.Count)
-                                    Play();
-                                else
-                                    shouldPlay = true;
-                            }
-                        }
-
-                        //if (seeks.IsEmpty) Thread.Sleep(1000); // Decide time?
-                        if (seeksCount == seeks.Count) { Log("Seek Empty"); break; }
-
-                        if (!seeks.TryPop(out seekData) || (seekData.ms - cancelOffsetMs <= lastSeekMs && seekData.ms + cancelOffsetMs >= lastSeekMs))
-                        { 
-                            if (shouldPlay) Play();
-                            Log("Seek Cancel");
-                            break; 
-                        }
-                        seeksCount = seeks.Count;
+                        ShowOneFrame();
+                        shouldPlay = true;
                     }
-
-                    seeks.Clear();
                 }
                 catch (Exception) { }
                 finally
                 {
-                    if (!isPlaying) torrentStreamer.bitSwarmOpt.EnableBuffering = false;
                     SeekTime = -1;
+                    lastSeekMs = Int32.MinValue;
+                    seekWatch.Stop();
                     lock (lockSeek) isSeeking = false;
                     Log("Seek Thread Done!");
                 }
@@ -880,6 +912,13 @@ namespace SuRGeoNix.Flyleaf
         public void Pause()
         {
             audioPlayer.ResetClbk();
+
+            if (isSeeking)
+            {
+                if (beforeSeeking == Status.PLAYING) beforeSeeking = Status.PAUSED; else beforeSeeking = Status.PLAYING;
+                StatusChanged(this, new StatusChangedArgs(beforeSeeking));
+                return;
+            }
 
             if (!isReady || !decoder.isRunning || !isPlaying) StatusChanged(this, new StatusChangedArgs(status));
 
@@ -1175,11 +1214,7 @@ namespace SuRGeoNix.Flyleaf
             //Log($"[Pausing All Threads] START");
             status = Status.STOPPING;
             Utils.EnsureThreadDone(screamer);
-            if (andDecoder)
-            {
-	            if (isTorrent && decoder.demuxer.ioStream != null) ((BitSwarmLib.BEP.TorrentStream) decoder.demuxer.ioStream).Cancel();
-	            decoder.Pause();
-            }
+            if (andDecoder) decoder.Pause();
             if (hasAudio) audioPlayer.ResetClbk();
             status = Status.STOPPED;
             //Log($"[Pausing All Threads] END");

@@ -43,7 +43,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             GCHandle decCtxHandle = (GCHandle) ((IntPtr) opaque);
             DecoderContext decCtx = (DecoderContext) decCtxHandle.Target;
 
-            //Console.WriteLine($"** R | { decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position}");
+            //Console.WriteLine($"** R | { decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position} | {decCtx.demuxer.fmtCtx->io_repositioned}");
 
             // During seek, it will destroy the sesion on Matroska (requires reopen the format input)
             if (decCtx.interrupt == 1) { Console.WriteLine("[Stream] Interrupt 1"); return AVERROR_EXIT; }
@@ -173,15 +173,25 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
              * [tls @ 0e691280] The specified session has been invalidated for some reason.
              * [DECTX AVMEDIA_TYPE_AUDIO] AVMEDIA_TYPE_UNKNOWN - Error[-0005], Msg: I/O error
              */
+
+            //av_dict_set(&opt, "rtsp_transport", "tcp", 0);
+
+            //av_dict_set_int(&opt, "rw_timeout", 10 * 1000 * 1000, 0);
+            //av_dict_set_int(&opt, "timeout", 10 * 1000 * 1000, 0);
+
+            av_dict_set_int(&opt, "stimeout", 10 * 1000 * 1000, 0);     // RTSP microseconds timeout
+
             av_dict_set_int(&opt, "reconnect"               , 1, 0);    // auto reconnect after disconnect before EOF
             av_dict_set_int(&opt, "reconnect_streamed"      , 1, 0);    // auto reconnect streamed / non seekable streams
             av_dict_set_int(&opt, "reconnect_delay_max"     , 10, 0);   // max reconnect delay in seconds after which to give up
             //av_dict_set_int(&opt, "reconnect_at_eof", 1, 0);          // auto reconnect at EOF | Maybe will use this for another similar issues? | will not stop the decoders (no EOF)
-            av_dict_set_int(&opt, "stimeout", 10 * 1000 * 1000, 0);     // RTSP microseconds timeout
+            
+            
 
             fmtCtx = avformat_alloc_context();
             fmtCtx->interrupt_callback.callback = interruptClbk;
             fmtCtx->interrupt_callback.opaque = (void*)decCtx.decCtxPtr;
+            fmtCtx->flags |= AVFMT_FLAG_DISCARD_CORRUPT;
 
             if (stream != null)
             {
@@ -259,6 +269,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 status = Status.READY;
 
             pkt = av_packet_alloc();
+
             return 0;
         }
         public void Close()
@@ -312,22 +323,22 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public int Seek(long ms, bool foreward = false)
         {
             if (status == Status.NOTSET) return -1;
-            if (status == Status.END) status = Status.READY; //Open(url, ...); // Usefull for HTTP
+            if (status == Status.END) { if (fmtCtx->pb == null) Open(url, decCtx.opt.audio.Enabled, false); else status = Status.READY; } //Open(url, ...); // Usefull for HTTP
 
             int ret;
             long seekTs = CalcSeekTimestamp(ms);
-            Log("[SEEK] " + Utils.TicksToTime(seekTs * 10));
+            Log("[SEEK] " + Utils.TicksToTime(seekTs));
 
             if (foreward)
-                ret = av_seek_frame(fmtCtx, -1, seekTs, AVSEEK_FLAG_FRAME);
+                ret = av_seek_frame(fmtCtx, -1, seekTs / 10, AVSEEK_FLAG_FRAME);
             else
-                ret = av_seek_frame(fmtCtx, -1, seekTs, AVSEEK_FLAG_BACKWARD);
+                ret = av_seek_frame(fmtCtx, -1, seekTs / 10, AVSEEK_FLAG_BACKWARD);
 
             if (ret < 0)
             {
                 Log($"[SEEK] [ERROR-1] {Utils.ErrorCodeToMsg(ret)} ({ret})");
-                ret = av_seek_frame(fmtCtx, -1, seekTs, AVSEEK_FLAG_ANY);
-                //if (seek2any) avformat_seek_file(fmtCtx, -1, Int64.MinValue, seekTs, seekTs, AVSEEK_FLAG_ANY); // Same as av_seek_frame ?
+                ret = av_seek_frame(fmtCtx, -1, seekTs / 10, AVSEEK_FLAG_ANY);
+                //if (seek2any) avformat_seek_file(fmtCtx, -1, Int64.MinValue, seekTs / 10, seekTs / 10, AVSEEK_FLAG_ANY); // Same as av_seek_frame ?
                 if (ret < 0) Log($"[SEEK] [ERROR-2] {Utils.ErrorCodeToMsg(ret)} ({ret})");
             }
 
@@ -337,20 +348,13 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         {
             long ticks = ((ms * 10000) + streams[decoder.st->index].StartTime) - decCtx.opt.audio.LatencyTicks;
 
-            switch (type)
-            {
-                case Type.Video:
-                    return ticks / 10;
+            if (type == Type.Audio) ticks -= decCtx.opt.audio.DelayTicks;
+            if (type == Type.Subs ) ticks -= decCtx.opt.subs. DelayTicks;
 
-                case Type.Audio:
-                    return (ticks - decCtx.opt.audio.DelayTicks) / 10;
+            if (ticks < streams[decoder.st->index].StartTime) ticks = streams[decoder.st->index].StartTime;// + (1 * (long)10000);
+            else if (ticks > streams[decoder.st->index].StartTime + streams[decoder.st->index].DurationTicks) ticks = streams[decoder.st->index].StartTime + streams[decoder.st->index].DurationTicks;
 
-                case Type.Subs:
-                    return (ticks - decCtx.opt.subs.DelayTicks)  / 10;
-
-                default:
-                    return 0;
-            }
+            return ticks;
         }
         public void ReSync(long ms = -1)
         {
