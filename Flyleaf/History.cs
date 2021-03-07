@@ -14,9 +14,7 @@ namespace SuRGeoNix.Flyleaf
             public string   TorrentFile         { get; set; } = null;
             public long     OpenedAt            { get; set; } = DateTime.Now.Ticks;
             public int      CurSecond           { get; set; } =  0;
-            
             public long     AudioExternalDelay  { get; set; } =  0;
-            public long     SubsExternalDelay   { get; set; } =  0;
             public int      CurSubId            { get; set; } = -1;
 
             [XmlIgnore]
@@ -92,8 +90,6 @@ namespace SuRGeoNix.Flyleaf
         public History(string folder, int maxEntries)
         {
             Folder = folder;
-            //Directory.CreateDirectory(Folder);
-
             this.maxEntries = maxEntries;
             Load();
             Dump();
@@ -146,9 +142,11 @@ namespace SuRGeoNix.Flyleaf
             {
                 if (Entries.Count == 0) return;
 
-                Entries[Entries.Count - 1].AudioExternalDelay   = audioExternalDelay;
-                Entries[Entries.Count - 1].SubsExternalDelay    = subsExternalDelay;
                 Entries[Entries.Count - 1].CurSecond            = curSecond;
+                Entries[Entries.Count - 1].AudioExternalDelay   = audioExternalDelay;
+
+                if (Entries[Entries.Count - 1].AvailableSubs != null && Entries[Entries.Count - 1].CurSubId >= 0)
+                    Entries[Entries.Count - 1].AvailableSubs[Entries[Entries.Count - 1].CurSubId].subsExternalDelay  = subsExternalDelay;
 
                 SaveLast();
             }   
