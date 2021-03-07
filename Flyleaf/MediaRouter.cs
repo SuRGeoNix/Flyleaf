@@ -289,6 +289,8 @@ namespace SuRGeoNix.Flyleaf
             public OpenSubtitles sub;
             public bool          used;
 
+            public long          subsExternalDelay  = 0;
+
             public SubAvailable() { streamIndex = -1; }
             public SubAvailable(Language lang, string path)      {this.lang = lang; this.streamIndex = -1;           this.sub = null; this.path = path; used = true;  this.pathUTF8 = null; }
             public SubAvailable(Language lang, int streamIndex)  {this.lang = lang; this.streamIndex = streamIndex;  this.sub = null; this.path = null; used = false; this.pathUTF8 = null; }
@@ -343,6 +345,9 @@ namespace SuRGeoNix.Flyleaf
             sFrame              = null;
             decoder.Referer     = null;
 
+            decoder.opt.audio.DelayTicks    = 0;
+            decoder.opt.subs.DelayTicks     = 0;
+
             Log($"[Initialized]");
         }
         private void InitializeEnv()
@@ -365,6 +370,7 @@ namespace SuRGeoNix.Flyleaf
                 // Existing History Entry
                 History.Entry curHistory = History.GetCurrent();
                 AvailableSubs = curHistory.AvailableSubs;
+                decoder.opt.audio.DelayTicks = curHistory.AudioExternalDelay;
 
                 if (AvailableSubs != null && AvailableSubs.Count > 0)
                 {
@@ -372,9 +378,6 @@ namespace SuRGeoNix.Flyleaf
                     CurSubId = curHistory.CurSubId;
                     OpenSubs(curHistory.CurSubId, true);
                 }
-
-                decoder.opt.audio.DelayTicks  = curHistory.AudioExternalDelay;
-                decoder.opt.subs.DelayTicks   = curHistory.SubsExternalDelay;
             }
             else
             {
@@ -415,7 +418,7 @@ namespace SuRGeoNix.Flyleaf
                 else
                 {
                     FixSortSubs();
-                    OpenNextAvailableSub(true);
+                    if (curSubId == -1) OpenNextAvailableSub(true);
                 }
             }
 
@@ -659,9 +662,19 @@ namespace SuRGeoNix.Flyleaf
                             string aUrl = null, vUrl = null;
 
                             UrlType = InputType.Web;
-                            YoutubeDL ytdl = YoutubeDL.Get(url, out aUrl, out vUrl, scheme + "://" + (new Uri(url)).Host.ToLower());
+                            Uri uri = new Uri(url);
+                            
+                            string url2 = url;
+
+                            // Remove list/channels currently from youtube
+                            if (System.Text.RegularExpressions.Regex.IsMatch(uri.DnsSafeHost, @"\.youtube\.", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                            {
+                                var t2 = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                                url2 = uri.Scheme + "://" + uri.Host + uri.AbsolutePath + "?v=" + t2["v"];
+                            }
 
                             decoder.Referer = scheme + "://" + (new Uri(url)).Host.ToLower();
+                            YoutubeDL ytdl = YoutubeDL.Get(url2, out aUrl, out vUrl, decoder.Referer);
 
                             if (vUrl != null && decoder.Open(vUrl) == 0)
                                 InitializeEnv();
@@ -986,13 +999,15 @@ namespace SuRGeoNix.Flyleaf
                     subs.AddRange(OpenSubtitles.SearchByName(filename, lang)); // TODO: Search with more efficient movie title
                 }
 
-                for (int i=0; i<subs.Count; i++)
-                    AvailableSubs.Add(new SubAvailable(Language.Get(subs[i].LanguageName), subs[i]));
+                if (subs.Count > 0)
+                {
+                    for (int i=0; i<subs.Count; i++)
+                        AvailableSubs.Add(new SubAvailable(Language.Get(subs[i].LanguageName), subs[i]));
 
-                FixSortSubs();
-                SubtitlesAvailable?.Invoke(this, EventArgs.Empty);
-                OpenNextAvailableSub(checkDoSubs);
-                
+                    FixSortSubs();
+                    SubtitlesAvailable?.Invoke(this, EventArgs.Empty);
+                    OpenNextAvailableSub(checkDoSubs);
+                }
             });
             openSubs.SetApartmentState(ApartmentState.STA);
             openSubs.Start();
@@ -1107,15 +1122,14 @@ namespace SuRGeoNix.Flyleaf
             if (checkDoSubs && (!doSubs || availableIndex == -1)) return;
 
             SubAvailable sub = AvailableSubs[availableIndex];
+            decoder.opt.subs.DelayTicks = sub.subsExternalDelay;
+            decoder.opt.subs.Enabled    = true;
+
+            sFrame = null;
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
 
             if (sub.streamIndex > 0)
-            {
-                sFrame = null;
-                renderer.ClearMessages(OSDMessage.Type.Subtitles);
                 decoder.OpenSubs(sub.streamIndex);
-                sFrame = null;
-                renderer.ClearMessages(OSDMessage.Type.Subtitles);
-            }
             else
             {
                 if (sub.pathUTF8 == null)
@@ -1142,17 +1156,13 @@ namespace SuRGeoNix.Flyleaf
                         return;
                 }
 
-                sFrame = null;
-                renderer.ClearMessages(OSDMessage.Type.Subtitles);
                 decoder.OpenSubs(sub.pathUTF8, CurTime/10000);
-                sFrame = null;
-                renderer.ClearMessages(OSDMessage.Type.Subtitles);
             }
 
-            sub.used = true;
-            AvailableSubs[availableIndex] = sub;
             CurSubId = availableIndex;
-
+            sub.used = true;
+            sFrame   = null;
+            renderer.ClearMessages(OSDMessage.Type.Subtitles);
             History.Update(AvailableSubs, CurSubId);
         }
         private void OpenSubs(string url, bool checkDoSubs = false)
@@ -1167,6 +1177,8 @@ namespace SuRGeoNix.Flyleaf
                 }
 
             SubAvailable sub = new SubAvailable(null, url);
+            decoder.opt.subs.DelayTicks = 0;
+            decoder.opt.subs.Enabled    = true;
 
             Encoding subsEnc = Subtitles.Detect(url);
             if (subsEnc != Encoding.UTF8)
