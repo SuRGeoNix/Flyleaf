@@ -351,7 +351,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             if (type == Type.Audio) ticks -= decCtx.opt.audio.DelayTicks;
             if (type == Type.Subs ) ticks -= decCtx.opt.subs. DelayTicks;
 
-            if (ticks < streams[decoder.st->index].StartTime) ticks = streams[decoder.st->index].StartTime;// + (1 * (long)10000);
+            if (ticks < streams[decoder.st->index].StartTime) ticks = streams[decoder.st->index].StartTime;
             else if (ticks > streams[decoder.st->index].StartTime + streams[decoder.st->index].DurationTicks) ticks = streams[decoder.st->index].StartTime + streams[decoder.st->index].DurationTicks;
 
             return ticks;

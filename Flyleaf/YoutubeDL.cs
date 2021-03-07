@@ -7,6 +7,12 @@ using Newtonsoft.Json;
 
 namespace SuRGeoNix.Flyleaf
 {
+    /* TODO
+     * 
+     * 1) Support multiple formats / video codecs etc
+     * 2) Support Channels/Lists etc. (currently it crashes... wait for full list to complete and can't be aborted)
+     */
+
     public class YoutubeDL
     {
         public static string plugin_path = "Plugins\\Youtube-dl\\youtube-dl.exe";
