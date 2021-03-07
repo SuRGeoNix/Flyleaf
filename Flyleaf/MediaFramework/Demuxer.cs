@@ -48,6 +48,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             // During seek, it will destroy the sesion on Matroska (requires reopen the format input)
             if (decCtx.interrupt == 1) { Console.WriteLine("[Stream] Interrupt 1"); return AVERROR_EXIT; }
 
+            //Thread.Sleep(1700); // Testing "slow" network streams
+
             // Check whether is possible direct access from ioBuffer to ioBufferUnmanaged to avoid Marshal.Copy each time
             int ret = decCtx.demuxer.ioStream.Read(decCtx.demuxer.ioBuffer, 0, bufferSize);
 
@@ -142,15 +144,15 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             return $"[# Format] {Utils.BytePtrToStringUTF8(fmtCtx->iformat->long_name)}/{Utils.BytePtrToStringUTF8(fmtCtx->iformat->name)} | {Utils.BytePtrToStringUTF8(fmtCtx->iformat->extensions)} | {new TimeSpan(fmtCtx->start_time * 10)}/{new TimeSpan(fmtCtx->duration * 10)}";
         }
 
-        public int Open(string url, bool doAudio = true, bool doSubs = true, Stream stream = null)
+        public int Open(string url, bool doAudio = true, bool doSubs = true, Stream stream = null, bool closeExternals = true)
         {
-            if (type == Type.Video)
+            if (type == Type.Video && closeExternals)
             {
                 decCtx.aDemuxer.Close();
                 decCtx.sDemuxer.Close();
             }
 
-            Close();
+            Close(closeExternals);
 
             int ret;
             this.url = url;
@@ -272,14 +274,17 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
             return 0;
         }
-        public void Close()
+        public void Close(bool closeExternals = true)
         {
             decoder.Close();
 
             if (type == Type.Video)
             {
-                decCtx.aDecoder.Close();
-                decCtx.sDecoder.Close();
+                if (decCtx.aDecoder.isEmbedded || closeExternals)
+                    decCtx.aDecoder.Close();
+
+                if (decCtx.sDecoder.isEmbedded || closeExternals)
+                    decCtx.sDecoder.Close();
             }
 
             if (demuxThread != null && demuxThread.IsAlive) demuxThread.Abort();
