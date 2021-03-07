@@ -158,7 +158,7 @@ namespace SuRGeoNix.Flyleaf
 
             return false;
         }
-        private void OnFinishing(object source, BitSwarm.FinishingArgs e) { Log("Download of " + Torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log("Stopped");}
+        private void OnFinishing(object source, BitSwarm.FinishingArgs e) { player.UrlType = InputType.TorrentFile; Log("Download of " + Torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log("Stopped");}
         private void StatsUpdated(object source, BitSwarm.StatsUpdatedArgs e) { player.renderer.NewMessage(OSDMessage.Type.TorrentStats, $"{(downloadNextStarted ? "(N) " : "")}D: {e.Stats.PeersDownloading} | W: {e.Stats.PeersChoked}/{e.Stats.PeersInQueue} | {String.Format("{0:n0}", (e.Stats.DownRate / 1024))} KB/s | {e.Stats.Progress}%"); }
         private void MetadataReceived(object source, BitSwarm.MetadataReceivedArgs e)
         {

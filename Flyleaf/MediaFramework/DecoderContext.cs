@@ -328,7 +328,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                             {
                                 MediaFrame mFrame = new MediaFrame();
                                 mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
-                                mFrame.timestamp = (long)((mFrame.pts * vDecoder.info.Timebase) + opt.audio.LatencyTicks);
+                                mFrame.timestamp = ((long)(mFrame.pts * vDecoder.info.Timebase) - demuxer.streams[vDecoder.st->index].StartTime) + opt.audio.LatencyTicks;
 
                                 if (mFrame.pts == AV_NOPTS_VALUE)
                                 {

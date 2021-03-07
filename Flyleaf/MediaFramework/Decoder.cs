@@ -460,6 +460,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     {
                         status = Status.END;
                         Log("EOF");
+                        if (type == Type.Video) { Log("EOF All"); decCtx.status = Status.END; }
                         break;
                     }
 
