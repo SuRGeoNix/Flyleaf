@@ -128,7 +128,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             for (int i=0; i<demuxer.fmtCtx->nb_streams; i++)
             {
                 demuxer.streams[i] = Get(demuxer.fmtCtx->streams[i]);
-                if (demuxer.streams[i].DurationTicks <= 0) demuxer.streams[i].DurationTicks = demuxer.fmtCtx->duration * 10;
+                if (demuxer.streams[i].DurationTicks <= 0) demuxer.streams[i].DurationTicks = demuxer.decCtx.demuxer.fmtCtx->duration * 10;
                 Dump(demuxer.streams[i]);                
             }
                 
