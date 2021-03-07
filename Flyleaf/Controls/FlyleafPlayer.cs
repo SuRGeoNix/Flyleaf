@@ -481,10 +481,10 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             if (InvokeRequired) { BeginInvoke(new Action(() => Player_StatusChanged(source, e))); return; }
 
-            if (e.status == MediaRouter.Status.PLAYING) 
-                { tblBar.btnPlay.BackgroundImage = Properties.Resources.Pause;  tblBar.btnPlay.Text  = " "; playingStartedSec = (int)(player.CurTime / 10000000) + 1; timerLoop = 0; }
+            if (e.status == MediaRouter.Status.PLAYING)
+                { tblBar.btnPlay.BackgroundImage = Properties.Resources.Pause; tblBar.btnPlay.Text  = " "; playingStartedSec = (int)(player.CurTime / 10000000) + 1; timerLoop = 0; }
             else
-                { tblBar.btnPlay.BackgroundImage = Properties.Resources.Play;   tblBar.btnPlay.Text  = "";  }
+                { tblBar.btnPlay.BackgroundImage = Properties.Resources.Play;  tblBar.btnPlay.Text  = "";  }
         }
         private void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
@@ -613,6 +613,8 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             curHistoryEntry = null;
             player.Open(url);
+            tblBar.seekBar.Maximum = 1;
+            tblBar.seekBar.SetValue(1);
         }
         public void MediaFilesReceived(List<string> mediaFiles, List<long> mediaFilesSizes)
         {
@@ -1209,16 +1211,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                 else if (lvSubs.Visible) FixLvSubs(false);
                 else if (isFullScreen) FullScreenToggle();
             }
-            //{
-            //    if (picHelp.Visible)
-            //        picHelp.Visible = false;
-
-            //    else
-            //        MediaFilesToggle();
-            //}
-
-            //lastUserActionTicks         = DateTime.UtcNow.Ticks;
-            }
+        }
 
         private void FlyLeaf_MouseMove          (object sender, MouseEventArgs e)
         {
