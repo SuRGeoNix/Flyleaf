@@ -613,8 +613,12 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             curHistoryEntry = null;
             player.Open(url);
-            tblBar.seekBar.Maximum = 1;
-            tblBar.seekBar.SetValue(1);
+            string ext = url.LastIndexOf(".")  > 0 ? url.Substring(url.LastIndexOf(".") + 1) : "";
+            if (!Utils.SubsExts.Contains(ext))
+            {
+                tblBar.seekBar.Maximum = 1;
+                tblBar.seekBar.SetValue(1);
+            }
         }
         public void MediaFilesReceived(List<string> mediaFiles, List<long> mediaFilesSizes)
         {
