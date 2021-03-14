@@ -15,6 +15,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public string                       CodecName           { get; private set; } //{ get { return CodecID.ToString().Replace("AV_CODEC_ID_", ""); } }
         public int                          StreamIndex         { get; private set; }
         public double                       Timebase            { get; private set; }
+        public string                       Language            { get; private set; }
 
         public long                         BitRate             { get; private set; }
         public long                         DurationTicks       { get; private set; }
@@ -90,8 +91,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 si.Metadata.Add(Utils.BytePtrToStringUTF8(b->key), Utils.BytePtrToStringUTF8(b->value));
             }
 
-            //foreach (KeyValuePair<string, string> metaEntry in streamInfo.metadata)
-                //Log($"{metaEntry.Key} -> {metaEntry.Value}");
+            foreach (var kv in si.Metadata)
+                if (kv.Key.ToLower() == "language" || kv.Key.ToLower() == "lang") { si.Language = kv.Value; break; }
 
             return si;
         }
@@ -101,24 +102,16 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             string dump = "";
 
             if (Type == AVMEDIA_TYPE_AUDIO)
-                dump = $"[#{StreamIndex} Audio] {CodecName} {SampleFormatStr}@{Bits} {SampleRate/1000}KHz {ChannelLayoutStr} | {AudioBitRate}";
+                dump = $"[#{StreamIndex} Audio{(Language != null ? "-" + Language : "")}] {CodecName} {SampleFormatStr}@{Bits} {SampleRate/1000}KHz {ChannelLayoutStr} | {AudioBitRate}";
             else if (Type == AVMEDIA_TYPE_VIDEO)
                 dump = $"[#{StreamIndex} Video] {CodecName} {PixelFormatStr} {Width}x{Height} @ {FPS.ToString("#.###")} ({AspectRatio.den}/{AspectRatio.num}) | {VideoBitRate}";
             else if (Type == AVMEDIA_TYPE_SUBTITLE)
-                dump = $"[#{StreamIndex}  Subs] {CodecName} " + (Metadata.ContainsKey("language") ? Metadata["language"] : (Metadata.ContainsKey("lang") ? Metadata["language"] : ""));
+                dump = $"[#{StreamIndex}  Subs{(Language != null ? "-" + Language : "")}] {CodecName}";
 
             return dump;
         }
 
-        public static void Dump(StreamInfo si)
-        {
-            if (si.Type == AVMEDIA_TYPE_AUDIO)
-                Console.WriteLine($"[#{si.StreamIndex} Audio] {si.CodecName} {si.SampleFormatStr}@{si.Bits} {si.SampleRate/1000}KHz {si.ChannelLayoutStr} | {si.AudioBitRate}");
-            else if (si.Type == AVMEDIA_TYPE_VIDEO)
-                Console.WriteLine($"[#{si.StreamIndex} Video] {si.CodecName} {si.PixelFormatStr} {si.Width}x{si.Height} @ {si.FPS.ToString("#.###")} ({si.AspectRatio.den}/{si.AspectRatio.num}) | {si.VideoBitRate}");
-            else if (si.Type == AVMEDIA_TYPE_SUBTITLE)
-                Console.WriteLine($"[#{si.StreamIndex}  Subs] {si.CodecName} " + (si.Metadata.ContainsKey("language") ? si.Metadata["language"] : (si.Metadata.ContainsKey("lang") ? si.Metadata["language"] : "")));
-        }
+        public static void PrintDump(StreamInfo si) { Console.WriteLine(si.GetDump()); }
 
         public static void Fill(Demuxer demuxer)
         {
@@ -129,7 +122,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             {
                 demuxer.streams[i] = Get(demuxer.fmtCtx->streams[i]);
                 if (demuxer.streams[i].DurationTicks <= 0) demuxer.streams[i].DurationTicks = demuxer.decCtx.demuxer.fmtCtx->duration * 10;
-                Dump(demuxer.streams[i]);                
+                PrintDump(demuxer.streams[i]);                
             }
                 
         }

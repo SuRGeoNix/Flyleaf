@@ -10,8 +10,9 @@ namespace SuRGeoNix.Flyleaf
         public class Entry
         {
             public string   Url                 { get; set; } = null;
+            public string   UrlName             { get; set; } = null;
             public MediaRouter.InputType UrlType{ get; set; } = MediaRouter.InputType.File;
-            public string   TorrentFile         { get; set; } = null;
+            public string   SubUrl              { get; set; } = null;
             public long     OpenedAt            { get; set; } = DateTime.Now.Ticks;
             public int      CurSecond           { get; set; } =  0;
             public long     AudioExternalDelay  { get; set; } =  0;
@@ -47,8 +48,8 @@ namespace SuRGeoNix.Flyleaf
             public List<MediaRouter.SubAvailable> availableSubs;
 
             public Entry() { }
-            public Entry(string url) : this(url, MediaRouter.InputType.File, null)      { }
-            public Entry(string url, MediaRouter.InputType urlType, string torrentFile)    { Url = url; UrlType = urlType; TorrentFile = torrentFile; }
+            public Entry(string url) : this(url, MediaRouter.InputType.File, null, null) { }
+            public Entry(string url, MediaRouter.InputType urlType, string subUrl, string urlName) { Url = url; UrlType = urlType; SubUrl = subUrl; UrlName = urlName; }
         }
 
         public event HistoryChangedHandler HistoryChanged;
@@ -95,7 +96,7 @@ namespace SuRGeoNix.Flyleaf
             Dump();
         }
 
-        public bool Add(string url, MediaRouter.InputType urlType, string subUrl = null)
+        public bool Add(string url, MediaRouter.InputType urlType, string subUrl = null, string urlName = null)
         {
             lock (locker)
             {
@@ -110,7 +111,7 @@ namespace SuRGeoNix.Flyleaf
                     RemoveAll(url, subUrl);
                 }
                 else
-                    entry = new Entry(url, urlType, subUrl);
+                    entry = new Entry(url, urlType, subUrl, urlName);
 
                 int removeCount = Entries.Count - maxEntries;
                 for (int i=0; i<=removeCount; i++) Entries.RemoveAt(0);
@@ -156,7 +157,7 @@ namespace SuRGeoNix.Flyleaf
             lock (locker)
             {
                 for (int i=Entries.Count-1; i>=0; i--)
-                    if (Entries[i].Url == url && (subUrl == null || (Entries[i].TorrentFile != null && Entries[i].TorrentFile == subUrl))) Entries.RemoveAt(i);
+                    if (Entries[i].Url == url && (subUrl == null || (Entries[i].SubUrl != null && Entries[i].SubUrl == subUrl))) Entries.RemoveAt(i);
             }
         }
 
@@ -165,7 +166,7 @@ namespace SuRGeoNix.Flyleaf
             lock (locker)
             {
                 for (int i=Entries.Count-1; i>=0; i--)
-                    if (Entries[i].Url == url && (subUrl == null || (Entries[i].TorrentFile != null && Entries[i].TorrentFile == subUrl))) return i;
+                    if (Entries[i].Url == url && (subUrl == null || (Entries[i].SubUrl != null && Entries[i].SubUrl == subUrl))) return i;
 
                 return -1;
             }
@@ -241,7 +242,7 @@ namespace SuRGeoNix.Flyleaf
         {
             string str = "";
             foreach (var h in Entries)
-                str += $"DT: {(new DateTime(h.OpenedAt)).ToString()}, URL: {h.Url}, INTURL: {(h.TorrentFile != null ? h.TorrentFile : "")}, SUBS: {(h.AvailableSubs == null ? "0" : h.AvailableSubs.Count.ToString())}, SUBID: {h.CurSubId}\n";
+                str += $"DT: {(new DateTime(h.OpenedAt)).ToString()}, URL: {h.Url}, INTURL: {(h.SubUrl != null ? h.SubUrl : "")}, SUBS: {(h.AvailableSubs == null ? "0" : h.AvailableSubs.Count.ToString())}, SUBID: {h.CurSubId}\n";
             Console.WriteLine(str);
         }
     }

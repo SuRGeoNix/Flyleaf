@@ -16,6 +16,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         AVFrame* frame;
 
         public bool     isPlaying           => status == Status.PLAY;
+        //public bool     isWaiting           { get; private set; }
+
         public Status   status;
         public Type     type;
         public bool     isEmbedded;
@@ -260,8 +262,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public void Close()
         {
             if (status == Status.NOTSET) return;
-
-            if (decodeThread.IsAlive) decodeThread.Abort();
+            if (decodeThread.IsAlive) { forcePause = true; Thread.Sleep(20); if (decodeThread.IsAlive) decodeThread.Abort(); }
 
             if (demuxer.enabledStreams.Contains(st->index))
             {
@@ -284,20 +285,18 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             avcodec_close(codecCtx);
             if (frame != null) fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
             if (codecCtx != null) fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
-            codecCtx = null;
+            codecCtx    = null;
             decodeARE.Reset();
-            demuxer = null;
-            st = null;
-            info = null;
-            isEmbedded = false;
-            status = Status.NOTSET;
+            demuxer     = null;
+            st          = null;
+            info        = null;
+            isEmbedded  = false;
+            status      = Status.NOTSET;
         }
 
-        
         public void Decode()
         {
             //int xf = 0;
-            int allowedErrors = 200;
             AVPacket *pkt;
 
             while (true)
@@ -305,18 +304,52 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 if (status != Status.END) status = Status.READY;
                 decodeARE.Reset();
                 decodeARE.WaitOne();
-                status   = Status.PLAY;
-                forcePause = false;
+                status              = Status.PLAY;
+                forcePause          = false;
+                bool shouldStop     = false;
+                int  allowedErrors  = decCtx.opt.demuxer.MaxErrors;
+                int  ret            = -1;
+
                 Log("Started");
 
-                if (demuxer.status == Status.READY) demuxer.demuxARE.Set();
-
-                int ret;
+                // Wait for demuxer to come up
+                if (demuxer.status == Status.READY)
+                {
+                    demuxer.demuxARE.Set();
+                    while (!demuxer.isPlaying && demuxer.status != Status.END) Thread.Sleep(1);
+                }
 
                 while (true)
                 {
-                    while (((packets.Count == 0 && demuxer.status != Status.END) || frames.Count > 3) && demuxer.decCtx.status == Status.PLAY && !forcePause) Thread.Sleep(10);
-                    if (demuxer.decCtx.status != Status.PLAY || forcePause) break;
+                    // No Packets || Max Frames Brakes
+                    if (packets.Count == 0 ||
+                        (type == Type.Audio && frames.Count > decCtx.opt.audio.MaxDecodedFrames) || 
+                        (type == Type.Video && frames.Count > decCtx.opt.video.MaxDecodedFrames) || 
+                        (type == Type.Subs  && frames.Count > decCtx.opt.subs. MaxDecodedFrames))
+                    {
+                        shouldStop  = false;
+                        //isWaiting   = true;
+
+                        do
+                        {
+                            if (!decCtx.isPlaying || forcePause) // Proper Pause
+                                { Log("Pausing"); shouldStop = true; break; }
+                            else if (packets.Count == 0 && demuxer.status == Status.END) // Drain
+                                { Log("Draining"); break; }
+                            //else if (packets.Count == 0 && (!demuxer.isPlaying || demuxer.isWaiting)) // No reason to run
+                            else if (packets.Count == 0 && (!demuxer.isPlaying || ((!isEmbedded || type == Type.Video) && demuxer.isWaiting))) // No reason to run
+                                { Log("Exhausted " + isPlaying); shouldStop = true; break; }
+
+                            Thread.Sleep(10);
+
+                        } while (packets.Count == 0 ||
+                                (type == Type.Audio && frames.Count > decCtx.opt.audio.MaxDecodedFrames) || 
+                                (type == Type.Video && frames.Count > decCtx.opt.video.MaxDecodedFrames) || 
+                                (type == Type.Subs  && frames.Count > decCtx.opt.subs. MaxDecodedFrames));
+
+                        //isWaiting = false;
+                        if (shouldStop) break;
+                    }
 
                     if (packets.Count == 0 && demuxer.status == Status.END)
                     {
@@ -358,8 +391,20 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                             // drain mode todo
                             // pkt->data set to NULL && pkt->size = 0 until it stops returning subtitles
                             ret = avcodec_decode_subtitle2(codecCtx, &sub, &gotFrame, pkt);
+                            if (ret < 0)
+                            {
+                                allowedErrors--;
+                                Log($"[ERROR-2] {Utils.ErrorCodeToMsg(ret)} ({ret})");
 
-                            if (ret < 0)  { Log($"[ERROR-1] {Utils.ErrorCodeToMsg(ret)} ({ret})"); continue; }
+                                if (allowedErrors == 0)
+                                {
+                                    Log("[ERROR-0] Too many errors!");
+                                    break;
+                                }
+
+                                continue;
+                            }
+                            
                             if (gotFrame < 1 || sub.num_rects < 1 ) continue;
 
                             MediaFrame.ProcessSubsFrame(this, mFrame, &sub);
@@ -377,10 +422,17 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     
                     if (ret != 0 && ret != AVERROR(EAGAIN))
                     {
-                        if (ret == AVERROR_INVALIDDATA)
+                        if (ret == AVERROR_EOF)
+                        {
+                            status = Status.END;
+                            Log("EOF");
+                            break;
+                        }
+                        else
+                        //if (ret == AVERROR_INVALIDDATA) // We also get Error number -16976906 occurred
                         {
                             allowedErrors--;
-                            Log("[WARNING] Invalid data");
+                            Log($"[ERROR-2] {Utils.ErrorCodeToMsg(ret)} ({ret})");
 
                             if (allowedErrors == 0)
                             {
@@ -390,13 +442,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                             continue;
                         }
-                        else if (ret == AVERROR_EOF)
-                        {
-                            status = Status.END;
-                            Log("EOF");
-                            break;
-                        }
-                        else { Log($"[ERROR-2] {Utils.ErrorCodeToMsg(ret)} ({ret})"); break; }
                     }
 
                     av_packet_free(&pkt);
@@ -421,13 +466,15 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                             if (type == Type.Video)
                             {
+                                if (hwAccelSuccess && frame->hw_frames_ctx == null) hwAccelSuccess = false;
                                 mFrame.timestamp = ((long)(mFrame.pts * info.Timebase) - demuxer.streams[st->index].StartTime) + opt.audio.LatencyTicks;
                                 if (MediaFrame.ProcessVideoFrame(this, mFrame, frame) != 0) mFrame = null;
 
                             }
                             else // Audio
                             {
-                                mFrame.timestamp = ((long)(mFrame.pts * info.Timebase) - demuxer.streams[st->index].StartTime) + opt.audio.DelayTicks;
+                                
+                                mFrame.timestamp = ((long)(mFrame.pts * info.Timebase) - demuxer.streams[st->index].StartTime) + opt.audio.DelayTicks + (demuxer.streams[st->index].StartTime - demuxer.decCtx.vDecoder.info.StartTime);
                                 if (MediaFrame.ProcessAudioFrame(this, mFrame, frame) < 0) mFrame = null;
                             }
 
@@ -449,14 +496,15 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     {
                         status = Status.END;
                         Log("EOF");
-                        if (type == Type.Video) { Log("EOF All"); decCtx.status = Status.END; }
+                        if      (type == Type.Video && decCtx.aDecoder.status != Status.PLAY) { Log("EOF All"); decCtx.status = Status.END; }
+                        else if (type == Type.Audio && decCtx.vDecoder.status != Status.PLAY) { Log("EOF All"); decCtx.status = Status.END; }
                         break;
                     }
 
                     if (ret != AVERROR(EAGAIN)) { Log($"[ERROR-3] {Utils.ErrorCodeToMsg(ret)} ({ret})"); break; }
                 }
 
-                Log($"Done {(allowedErrors == 200 ? "" : $"[Errors: {200 - allowedErrors}]")}");
+                Log($"Done {(allowedErrors == decCtx.opt.demuxer.MaxErrors ? "" : $"[Errors: {decCtx.opt.demuxer.MaxErrors - allowedErrors}]")}");
             }
         }
 
