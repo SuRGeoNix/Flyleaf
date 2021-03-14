@@ -2,118 +2,170 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Windows.Forms;
 
 using Newtonsoft.Json;
 
+using SuRGeoNix.Flyleaf.MediaFramework;
+
 namespace SuRGeoNix.Flyleaf
 {
-    /* TODO
-     * 
-     * 1) Support multiple formats / video codecs etc
-     * 2) Support Channels/Lists etc. (currently it crashes... wait for full list to complete and can't be aborted)
-     */
-
     public class YoutubeDL
     {
         public static string plugin_path = "Plugins\\Youtube-dl\\youtube-dl.exe";
-        public static YoutubeDL Get(string url, out string aUrlBest, out string vUrlBest, string referer) // will add .info.json
+
+        public string json_path { get; private set; }
+        public static string GetJsonPath(string url)
         {
-            aUrlBest = null;
-            vUrlBest = null;
-
-            string tmpFile = Path.Combine(Path.GetTempPath(),Guid.NewGuid().ToString());
-
-            Process proc = new Process 
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName                = plugin_path,
-                    Arguments               = $"--referer \"{referer}\" --no-check-certificate --skip-download --write-info-json -o \"{tmpFile}\" \"{url}\"",
-                    CreateNoWindow          = true,
-                    UseShellExecute         = false,
-                    RedirectStandardOutput  = true,
-                    //RedirectStandardError = true,
-                    WindowStyle             = ProcessWindowStyle.Hidden
-                }
-            };
-            proc.Start();
-            proc.WaitForExit();
-
-            //string lines = "";
-            //while (!proc.StandardOutput.EndOfStream)
-            //    lines += proc.StandardOutput.ReadLine() + "\r\n";
-            //Console.WriteLine(lines);
-
-            if (!File.Exists($"{tmpFile}.info.json")) return null;
-
-            string json = File.ReadAllText($"{tmpFile}.info.json");
-            JsonSerializerSettings settings = new JsonSerializerSettings();
-            settings.NullValueHandling = NullValueHandling.Ignore;
-
-            YoutubeDL ytdl = JsonConvert.DeserializeObject<YoutubeDL>(json, settings);
-
-            if (ytdl == null || ytdl.formats == null || ytdl.formats.Count == 0) return null;
-
-            for (int i=0; i<ytdl.formats.Count; i++) Dump(ytdl.formats[i]);
-
-            // TODO: To let user choose formats
-
-            //var aUrlsI =
-            //    from format in ytdl.formats
-            //    where format.abr == 192
-            //    orderby format.abr descending
-            //    select format;
-
-            //var vUrlsI =
-            //    from format in ytdl.formats
-            //    where format.height == 1080
-            //    orderby format.height descending
-            //    select format;
-
-            //aUrlBest = aUrlsI.ToList()[0].url;
-            //vUrlBest = vUrlsI.ToList()[0].url;
-            //Console.WriteLine("Will use ...");
-            //Dump(aUrlsI.ToList()[0]);
-            //Dump(vUrlsI.ToList()[0]);
-
-            //var aUrlsI = 
-            //    from format in ytdl.formats
-            //    where format.abr > 0
-            //    orderby format.abr descending
-            //    select format;
-
-            //var vUrlsI = 
-            //    from format in ytdl.formats
-            //    where format.height > 0
-            //    orderby format.height descending
-            //    select format;
-
-            //Console.WriteLine("Will use ...");
-            //List<Format> aUrls = aUrlsI.ToList();
-            //List<Format> vUrls = vUrlsI.ToList();
-            //if (aUrls.Count != 0)
-            //{
-            //    aUrlBest = aUrls[0].url;
-            //    Dump(aUrls[0]);
-            //}
-
-            //if (vUrls.Count != 0)
-            //{
-            //    vUrlBest = vUrls.ToList()[0].url;
-            //    Dump(vUrls[0]);
-            //}
-
-            aUrlBest = null;
-            vUrlBest = ytdl.formats[ytdl.formats.Count - 1].url;
-            Console.WriteLine("Will use ...");
-            Dump(ytdl.formats[ytdl.formats.Count - 1]);
-
-            return ytdl;
+            return Path.Combine(Directory.GetCurrentDirectory(), "History", "Youtube-DL", BitConverter.ToString(MD5CryptoServiceProvider.Create().ComputeHash(Encoding.UTF8.GetBytes(url))).Replace("-", "").ToLower());
         }
+        public static void ParseHeaders(Dictionary<string, string> headers, DecoderContext decoder)
+        {
+            decoder.Headers     = "";
+            decoder.Referer     = "";
+            decoder.UserAgent   = "";
 
+            foreach (var hdr in headers)
+            {
+                if (hdr.Key.ToLower() == "user-agent")
+                    decoder.UserAgent = hdr.Value;
+                else if (hdr.Key.ToLower() == "referer")
+                    decoder.Referer = hdr.Value;
+                else
+                    decoder.Headers += hdr.Key + ": " + hdr.Value + "\r\n";
+            }
+        }
+        public static bool IsBlackListed(List<string> blacklist, string codec)
+        {
+            foreach (string codec2 in blacklist)
+                if (System.Text.RegularExpressions.Regex.IsMatch(codec, codec2, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    return true;
+
+            return false;
+        }
+        public static YoutubeDL New(string url)
+        {
+            try
+            {
+                // Download .Json if not exists already
+                string tmpFile = GetJsonPath(url);
+                if (!File.Exists($"{tmpFile}.info.json"))
+                {
+                    Process proc = new Process 
+                    {
+                        StartInfo = new ProcessStartInfo
+                        {
+                            FileName                = plugin_path,
+                            Arguments               = $"--no-check-certificate --skip-download --sub-lang en --write-info-json -o \"{tmpFile}\" \"{url}\"",
+                            CreateNoWindow          = true,
+                            UseShellExecute         = false,
+                            //RedirectStandardOutput  = true,
+                            //RedirectStandardError = true,
+                            WindowStyle             = ProcessWindowStyle.Hidden
+                        }
+                    };
+                    proc.Start();
+                    proc.WaitForExit();
+
+                    if (!File.Exists($"{tmpFile}.info.json")) return null;
+                }
+
+                // Parse Json Object
+                string json = File.ReadAllText($"{tmpFile}.info.json");
+                JsonSerializerSettings settings = new JsonSerializerSettings();
+                settings.NullValueHandling = NullValueHandling.Ignore;
+                YoutubeDL ytdl = JsonConvert.DeserializeObject<YoutubeDL>(json, settings);
+                ytdl.json_path = $"{tmpFile}.info.json";
+                if (ytdl == null || ytdl.formats == null || ytdl.formats.Count == 0) return null;
+
+                // Fix Nulls (we are not sure if they have audio/video)
+                for (int i=0; i<ytdl.formats.Count; i++)
+                {
+                    if (ytdl.formats[i].vcodec == null) ytdl.formats[i].vcodec = "";
+                    if (ytdl.formats[i].acodec == null) ytdl.formats[i].acodec = "";
+
+                    Dump(ytdl.formats[i]);
+                }
+
+                return ytdl;
+                
+            } catch (Exception e) { Console.WriteLine($"[Youtube-DL] Error ... {e.Message}"); }
+
+            return null;
+        }
         public static void Dump(Format fmt)
         {
             Console.WriteLine($"ABR:{fmt.abr} VBR:{fmt.vbr} TBR:{fmt.tbr} ACodec: {fmt.acodec} VCodec: {fmt.vcodec} [{fmt.width}x{fmt.height}@{fmt.fps}]");
+        }
+
+        public Format GetAudioOnly()
+        {
+            // Prefer best with no video (dont waste bandwidth)
+            for (int i=formats.Count-1; i>= 0; i--)
+                if (formats[i].vcodec == "none" && formats[i].acodec.Trim() != "" && formats[i].acodec != "none")
+                    return formats[i];
+
+            // Prefer audio from worst video
+            for (int i=0; i<formats.Count; i++)
+                if (formats[i].acodec.Trim() != "" && formats[i].acodec != "none")
+                    return formats[i];
+
+            return null;
+        }
+        public Format GetBestMatch(Control control)
+        {
+            // TODO: Expose in settings (vCodecs Blacklist) || Create a HW decoding failed list dynamic (check also for whitelist)
+            List<string> vCodecsBlacklist = new List<string>() { "vp9" };
+
+            if (control.InvokeRequired)
+                return (Format) control.Invoke(new Func<Format>(() => GetBestMatch(control)));
+            else
+            {
+                // Current Screen Resolution | TODO: Check when the control changes screens and get also refresh rate (back to renderer)
+                var bounds = Screen.FromControl(control).Bounds;
+
+                // Video Streams Order based on Screen Resolution
+                var iresults =
+                    from    format in formats
+                    where   format.height <= bounds.Height && format.vcodec != "none"
+                    orderby format.tbr      descending
+                    orderby format.fps      descending
+                    orderby format.height   descending
+                    orderby format.width    descending
+                    select  format;
+
+                if (iresults == null) return formats[formats.Count-1]; // Fallback: Youtube-DL best match
+                List<Format> results = iresults.ToList();
+                if (results.Count == 0) return null;
+
+                // Best Resolution
+                int bestWidth  = (int) results[0].width;
+                int bestHeight = (int) results[0].height;
+
+                // Choose from the best resolution (0. with acodec and not blacklisted 1. not blacklisted 2. any)
+                int priority = 0;
+                while (priority < 3)
+                {
+                    for (int i=0; i<results.Count; i++)
+                    {
+                        if (results[i].width != bestWidth || results[i].height != bestHeight) break;
+
+                        if (priority == 0 && !IsBlackListed(vCodecsBlacklist, results[i].vcodec) && results[i].acodec != "none")
+                            return results[i];
+                        else if (priority == 1 && !IsBlackListed(vCodecsBlacklist, results[i].vcodec))
+                            return results[i];
+                        else if (priority == 2)
+                            return results[i];
+                    }
+
+                    priority++;
+                }
+
+                return formats[formats.Count-1]; // Fallback: Youtube-DL best match
+            }
         }
 
         public object series { get; set; } 

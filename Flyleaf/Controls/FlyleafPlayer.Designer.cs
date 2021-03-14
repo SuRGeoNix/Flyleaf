@@ -43,10 +43,14 @@
             this.subtitlesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
-            this.tblBar = new SuRGeoNix.Flyleaf.Controls.FlyleafBar();
+            this.vStreamsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mediaInfoToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.tblBar = new SuRGeoNix.Flyleaf.Controls.FlyleafBar();
+            this.aStreamsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.sStreamsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             this.menu.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -118,11 +122,15 @@
             this.subtitlesToolStripMenuItem,
             this.settingsToolStripMenuItem,
             this.toolStripSeparator2,
+            this.aStreamsToolStripMenuItem,
+            this.sStreamsToolStripMenuItem,
+            this.vStreamsToolStripMenuItem,
+            this.toolStripSeparator4,
             this.mediaInfoToolStripMenuItem,
             this.toolStripSeparator3,
             this.exitToolStripMenuItem});
             this.menu.Name = "menu";
-            this.menu.Size = new System.Drawing.Size(181, 176);
+            this.menu.Size = new System.Drawing.Size(181, 248);
             // 
             // recentToolStripMenuItem
             // 
@@ -161,10 +169,30 @@
             this.toolStripSeparator2.Name = "toolStripSeparator2";
             this.toolStripSeparator2.Size = new System.Drawing.Size(177, 6);
             // 
+            // vStreamsToolStripMenuItem
+            // 
+            this.vStreamsToolStripMenuItem.Name = "vStreamsToolStripMenuItem";
+            this.vStreamsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.vStreamsToolStripMenuItem.Text = "Video Streams";
+            // 
+            // mediaInfoToolStripMenuItem
+            // 
+            this.mediaInfoToolStripMenuItem.Name = "mediaInfoToolStripMenuItem";
+            this.mediaInfoToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mediaInfoToolStripMenuItem.Text = "Media Info";
+            this.mediaInfoToolStripMenuItem.Click += new System.EventHandler(this.mediaInfoToolStripMenuItem_Click);
+            // 
             // toolStripSeparator3
             // 
             this.toolStripSeparator3.Name = "toolStripSeparator3";
             this.toolStripSeparator3.Size = new System.Drawing.Size(177, 6);
+            // 
+            // exitToolStripMenuItem
+            // 
+            this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.exitToolStripMenuItem.Text = "Exit";
+            this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
             // tblBar
             // 
@@ -175,19 +203,22 @@
             this.tblBar.TabIndex = 0;
             this.tblBar.TabStop = false;
             // 
-            // mediaInfoToolStripMenuItem
+            // aStreamsToolStripMenuItem
             // 
-            this.mediaInfoToolStripMenuItem.Name = "mediaInfoToolStripMenuItem";
-            this.mediaInfoToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.mediaInfoToolStripMenuItem.Text = "Media Info";
-            this.mediaInfoToolStripMenuItem.Click += new System.EventHandler(this.mediaInfoToolStripMenuItem_Click);
+            this.aStreamsToolStripMenuItem.Name = "aStreamsToolStripMenuItem";
+            this.aStreamsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.aStreamsToolStripMenuItem.Text = "Audio Streams";
             // 
-            // exitToolStripMenuItem
+            // sStreamsToolStripMenuItem
             // 
-            this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.exitToolStripMenuItem.Text = "Exit";
-            this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+            this.sStreamsToolStripMenuItem.Name = "sStreamsToolStripMenuItem";
+            this.sStreamsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.sStreamsToolStripMenuItem.Text = "Subtitle Streams";
+            // 
+            // toolStripSeparator4
+            // 
+            this.toolStripSeparator4.Name = "toolStripSeparator4";
+            this.toolStripSeparator4.Size = new System.Drawing.Size(177, 6);
             // 
             // FlyleafPlayer
             // 
@@ -224,5 +255,9 @@
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
         private System.Windows.Forms.ToolStripMenuItem mediaInfoToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem vStreamsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem aStreamsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem sStreamsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
     }
 }

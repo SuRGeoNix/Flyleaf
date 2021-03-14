@@ -15,8 +15,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
     {
         public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(@"hh\:mm\:ss\:fff"); }
 
-
-
         public static bool alreadyRegister = false;
         public static void RegisterFFmpegBinaries()
         {
@@ -78,6 +76,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             Log(line.Trim());
         };
 
-        private static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [MediaFramework] {msg}"); }
+        private static void Log(string msg) { try { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [MediaFramework] {msg}"); } catch (Exception) { Console.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
     }
 }

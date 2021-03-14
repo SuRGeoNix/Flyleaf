@@ -32,7 +32,6 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             flyLeaf3.MouseLeave += FlyLeaf_LostFocus;
             flyLeaf4.MouseLeave += FlyLeaf_LostFocus;
         }
-        private void flyLeaf1_Load(object sender, EventArgs e) {}
 
         int activeRow = -1;
         int activeColumn = -1;
