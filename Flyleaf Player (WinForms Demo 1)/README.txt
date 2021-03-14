@@ -28,7 +28,25 @@ Issues
 	- Screamer would not scream last video frame
 	- Rendering on non-fullscreen was not accurate (aspect ratio issue)
 	- Temporarly disabling rendering to boot faster (during settings loading)
+
+Changes 2.5.3
+	- Finalizing Youtube-dl properly including all the required headers/cookies/user-agent/referrer etc. (TODO: black/white lists for codecs)
+	- Audio/Video stream selection on pop-up menu. Change resolution, will try to add best audio match automatically (+Youtube-dl)
+	- Video stream best match based on screen resolution (Youtube-dl)
+	- Audio stream best match based on Language priorities (in case of multi audio streams with different languages)
+	- Audio volume affects directly Master (to achieve constant changes, will be reviewed)
+	- Adding video title instead of url for web in recent history and OSD
+	- MediaBuffer: Ensures that it has enough video & audio frames before playing (no audio silence on start / minqueuesize currently not required by default and set to 1)
+	- Fixing issues with seeking, timestamps & invalid packets
+	- Fixing a crashing issue when the GPU does not support codec decoding
+	- Fixing a crashing issue on opening
+	- Overall more smooth playback (support for higher fps) and better audio sync
 	
+Changes 2.5.2
+	- Saving Subs delay in History seperately for each subtitle
+	- Fixing subs to open properly from history and after seek abort (reopening), including the proper delay
+	- Fixing an issue with youtube urls (for channels/lists, not supported currently will play single video) which was crashing the app
+
 Changes 2.5.1
 	- Finalizing new Seek also for network (slow) streams
 	- Fixing a critical issue for all other non-common protocols (rtsp/ftp etc.)
@@ -38,7 +56,7 @@ Changes 2.5.1
 	- Fixing an issue with BitSwarm with PieceRetries (was dropping peers that shouldn't)
 	- Adding http-refer for youtube-dl urls to support more sites
 	- Adjusting default torrent streaming timing settings & default timeout for rtsp (10 seconds)
-
+		
 Project	: https://github.com/SuRGeoNix/Flyleaf
 License	: LGPL-3.0
 <3<3<3<3: FFmpeg, FFmpeg.Autogen, Opensubtitles & SharpDX
