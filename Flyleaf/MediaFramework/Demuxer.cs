@@ -12,6 +12,9 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 {
     public unsafe class Demuxer
     {
+        public bool                 isPlaying   => status == Status.PLAY;
+        public bool                 isWaiting   { get; private set; }
+
         AVPacket* pkt;
 
         public string               url;
@@ -37,6 +40,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public Stream   ioStream;
         const int       ioBufferSize    = 0x200000;
         byte[]          ioBuffer;
+
+        internal string headers, referer, userAgent;
 
         avio_alloc_context_read_packet IORead = (opaque, buffer, bufferSize) =>
         {
@@ -160,12 +165,20 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
             // TODO: Expose AV Format Options to Settings
             AVDictionary *opt = null;
-            av_dict_set_int(&opt, "probesize", 116 * 1024 * (long)1024, 0);         // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
-            av_dict_set_int(&opt, "analyzeduration", 333 * (long)1000 * (long)1000, 0);  // (Microseconds) Default 5 seconds | Higher for network streams
+
+            // Reduce those on network streams for faster opening
+            av_dict_set_int(&opt, "probesize", 116 * (long)1024 * 1024, 0);         // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
+            av_dict_set_int(&opt, "analyzeduration", 333 * (long)1000 * 1000, 0);  // (Microseconds) Default 5 seconds | Higher for network streams
             //av_dict_set_int(&opt, "max_probe_packets ", 15500, 0);         // (Packets) Default 2500
 
-            // Required for Youtube-dl to avoid 403 Forbidden
-            if (decCtx.Referer != null) av_dict_set(&opt, "referer", decCtx.Referer, 0);
+            // Required for Youtube-dl to avoid 403 Forbidden (Saves them in case of re-open)
+            headers     = decCtx.Headers;
+            referer     = decCtx.Referer;
+            userAgent   = decCtx.UserAgent;
+
+            if (headers  != null && headers   != "") av_dict_set(&opt, "headers",   headers,    0);
+            if (referer  != null && referer   != "") av_dict_set(&opt, "referer",   referer,    0);
+            if (userAgent!= null && userAgent != "") av_dict_set(&opt, "user_agent",userAgent,  0);
 
             /* Issue with HTTP/TLS - (sample video -> https://www.youtube.com/watch?v=sExEvN1bPRo)
              * 
@@ -176,23 +189,29 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
              * [DECTX AVMEDIA_TYPE_AUDIO] AVMEDIA_TYPE_UNKNOWN - Error[-0005], Msg: I/O error
              */
 
-            //av_dict_set(&opt, "rtsp_transport", "tcp", 0);
+            av_dict_set_int(&opt, "reconnect"               , 1, 0);    // auto reconnect after disconnect before EOF
+            av_dict_set_int(&opt, "reconnect_streamed"      , 1, 0);    // auto reconnect streamed / non seekable streams
+            av_dict_set_int(&opt, "reconnect_delay_max"     , 1, 0);   // max reconnect delay in seconds after which to give up
+            //av_dict_set_int(&opt, "reconnect_on_network_error", 1, 0);
+            //av_dict_set_int(&opt, "reconnect_at_eof", 1, 0);          // auto reconnect at EOF | Maybe will use this for another similar issues? | will not stop the decoders (no EOF)
+            //av_dict_set_int(&opt, "multiple_requests", 1, 0);
 
+            // RTSP
+            av_dict_set(&opt, "rtsp_transport", "tcp", 0);              // Seems UDP causing issues (use this by default?)
+            av_dict_set_int(&opt, "stimeout", 20 * 1000 * 1000, 0);     // RTSP microseconds timeout
+
+            // hls more? | https://ffmpeg.org/ffmpeg-formats.html#toc-hls-1
+            //av_dict_set_int(&opt, "max_reload", 1123123, 0);
+            //av_dict_set_int(&opt, "m3u8_hold_counters", 1123123, 0);
+
+            // misc
+            //av_dict_set_int(&opt, "multiple_requests", 1, 0);
             //av_dict_set_int(&opt, "rw_timeout", 10 * 1000 * 1000, 0);
             //av_dict_set_int(&opt, "timeout", 10 * 1000 * 1000, 0);
 
-            av_dict_set_int(&opt, "stimeout", 10 * 1000 * 1000, 0);     // RTSP microseconds timeout
-
-            av_dict_set_int(&opt, "reconnect"               , 1, 0);    // auto reconnect after disconnect before EOF
-            av_dict_set_int(&opt, "reconnect_streamed"      , 1, 0);    // auto reconnect streamed / non seekable streams
-            av_dict_set_int(&opt, "reconnect_delay_max"     , 10, 0);   // max reconnect delay in seconds after which to give up
-            //av_dict_set_int(&opt, "reconnect_at_eof", 1, 0);          // auto reconnect at EOF | Maybe will use this for another similar issues? | will not stop the decoders (no EOF)
-            
-            
-
             fmtCtx = avformat_alloc_context();
             fmtCtx->interrupt_callback.callback = interruptClbk;
-            fmtCtx->interrupt_callback.opaque = (void*)decCtx.decCtxPtr;
+            fmtCtx->interrupt_callback.opaque   = (void*)decCtx.decCtxPtr;
             fmtCtx->flags |= AVFMT_FLAG_DISCARD_CORRUPT;
 
             if (stream != null)
@@ -234,10 +253,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     if (doAudio)
                     {
                         if (ret >= 0)
-                        {
-                            defaultAudioStream = ret;
                             decCtx.aDecoder.Open(this, fmtCtx->streams[ret]);
-                        }
                         else if (ret != AVERROR_STREAM_NOT_FOUND)
                             Log($"[Format] [ERROR-7] [Audio] {Utils.ErrorCodeToMsg(ret)} ({ret})");
                     }
@@ -321,43 +337,45 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             decoder.forcePause  = false;
         }
 
-        public bool isSeeking = false;
-
-        //[HandleProcessCorruptedStateExceptions]
-        //[SecurityCritical]
         public int Seek(long ms, bool foreward = false)
         {
             if (status == Status.NOTSET) return -1;
             if (status == Status.END) { if (fmtCtx->pb == null) Open(url, decCtx.opt.audio.Enabled, false); else status = Status.READY; } //Open(url, ...); // Usefull for HTTP
 
             int ret;
-            long seekTs = CalcSeekTimestamp(ms);
-            Log("[SEEK] " + Utils.TicksToTime(seekTs));
+            long seekTs = CalcSeekTimestamp(ms, ref foreward);
+            //Log($"[SEEK] {(foreward ? "F" : "B")} | {Utils.TicksToTime(seekTs)}");
 
-            if (foreward)
-                ret = av_seek_frame(fmtCtx, -1, seekTs / 10, AVSEEK_FLAG_FRAME);
+            if (type != Type.Video)
+            {
+                ret = foreward ?
+                    avformat_seek_file(fmtCtx, -1, seekTs / 10,     seekTs / 10, Int64.MaxValue, AVSEEK_FLAG_ANY):
+                    avformat_seek_file(fmtCtx, -1, Int64.MinValue,  seekTs / 10, seekTs / 10,    AVSEEK_FLAG_ANY);
+            } 
             else
-                ret = av_seek_frame(fmtCtx, -1, seekTs / 10, AVSEEK_FLAG_BACKWARD);
+            {
+                ret =  av_seek_frame(fmtCtx, -1, seekTs / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
+            }
 
             if (ret < 0)
             {
-                Log($"[SEEK] [ERROR-1] {Utils.ErrorCodeToMsg(ret)} ({ret})");
-                ret = av_seek_frame(fmtCtx, -1, seekTs / 10, AVSEEK_FLAG_ANY);
-                //if (seek2any) avformat_seek_file(fmtCtx, -1, Int64.MinValue, seekTs / 10, seekTs / 10, AVSEEK_FLAG_ANY); // Same as av_seek_frame ?
-                if (ret < 0) Log($"[SEEK] [ERROR-2] {Utils.ErrorCodeToMsg(ret)} ({ret})");
+                Log($"[SEEK] [ERROR-11] {Utils.ErrorCodeToMsg(ret)} ({ret})");
+                //ret = avformat_seek_file(fmtCtx, -1, Int64.MinValue, seekTs / 10, Int64.MaxValue, AVSEEK_FLAG_ANY); // Same as av_seek_frame ?
+                ret = av_seek_frame(fmtCtx, -1, seekTs / 10, foreward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
+                if (ret < 0) Log($"[SEEK] [ERROR-12] {Utils.ErrorCodeToMsg(ret)} ({ret})");
             }
 
             return ret;
         }
-        public long CalcSeekTimestamp(long ms)
+        public long CalcSeekTimestamp(long ms, ref bool foreward)
         {
-            long ticks = ((ms * 10000) + streams[decoder.st->index].StartTime) - decCtx.opt.audio.LatencyTicks;
+            long ticks = ((ms * 10000) + streams[decoder.st->index].StartTime);
 
-            if (type == Type.Audio) ticks -= decCtx.opt.audio.DelayTicks;
+            if (type == Type.Audio) ticks -= (decCtx.opt.audio.DelayTicks + decCtx.opt.audio.LatencyTicks);
             if (type == Type.Subs ) ticks -= decCtx.opt.subs. DelayTicks;
 
-            if (ticks < streams[decoder.st->index].StartTime) ticks = streams[decoder.st->index].StartTime;
-            else if (ticks > streams[decoder.st->index].StartTime + streams[decoder.st->index].DurationTicks) ticks = streams[decoder.st->index].StartTime + streams[decoder.st->index].DurationTicks;
+            if (ticks < streams[decoder.st->index].StartTime) { ticks = streams[decoder.st->index].StartTime; foreward = true; }
+            else if (ticks >= streams[decoder.st->index].StartTime + streams[decoder.st->index].DurationTicks) { ticks = streams[decoder.st->index].StartTime + streams[decoder.st->index].DurationTicks; foreward = false; }
 
             return ticks;
         }
@@ -400,23 +418,29 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 status = Status.PLAY;
                 forcePause = false;
                 Log("Started");
-                int ret;
+                int ret = 0;
 
                 while (true)
                 {
-                    while (decoder.packets.Count > decCtx.opt.demuxer.MaxQueueSize && decCtx.status == Status.PLAY && !forcePause) Thread.Sleep(20); 
+                    while (decoder.packets.Count > decCtx.opt.demuxer.MaxQueueSize && decCtx.isPlaying && !forcePause) { isWaiting = true; Thread.Sleep(20); }
+                    isWaiting = false;
                     if (decCtx.status != Status.PLAY || forcePause) break;
 
                     ret = av_read_frame(fmtCtx, pkt);
 
-                    if (ret == AVERROR_EOF)
+                    if (ret != 0)
                     {
-                        av_packet_unref(pkt);
-                        status = Status.END;
-                        Log($"EOF");
+                        if (ret == AVERROR_EOF || ret == AVERROR_EXIT || fmtCtx->pb->eof_reached == 1)
+                        {
+                            av_packet_unref(pkt);
+                            status = Status.END;
+                            Log($"EOF");
+                        }
+                        else
+                            Log($"[ERROR-1] {Utils.ErrorCodeToMsg(ret)} ({ret})");
+
                         break;
                     }
-                    else if (ret != 0) { Log($"[ERROR-1] {Utils.ErrorCodeToMsg(ret)} ({ret})"); break; }
 
                     if (!enabledStreams.Contains(pkt->stream_index)) { av_packet_unref(pkt); continue; }
 
@@ -431,7 +455,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                         case AVMEDIA_TYPE_VIDEO:
                             decCtx.vDecoder.packets.Enqueue((IntPtr)pkt);
-                            //Log("[Video] " + Utils.TicksToTime((long)(pkt->pts * streams[decCtx.vDecoder.st->index].Timebase)) + " | pts -> " + pkt->pts + " | " + pkt->dts);
+                            //Log("[Video] " + Utils.TicksToTime((long)(pkt->pts * streams[decCtx.vDecoder.st->index].Timebase)) + " | pts -> " + pkt->pts + " | " + pkt->dts + " | " + decoder.packets.Count);
                             pkt = av_packet_alloc();
                             
                             //vf++;
@@ -449,6 +473,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                             break;
                     }
                 }
+
+                if (type == Type.Video && ret != 0 && status != Status.END) { decCtx.status = Status.PAUSE; Log("Stop All"); }
 
                 Log($"Done");// [Total: {vf+af+sf}] [VF: {vf}, AF: {af}, SF: {sf}]");
             }

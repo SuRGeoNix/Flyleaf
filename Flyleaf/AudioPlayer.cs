@@ -9,18 +9,18 @@ using System.Threading;
 
 namespace SuRGeoNix.Flyleaf
 {
-    public class AudioPlayer : IMMNotificationClient, IAudioSessionEventsHandler //,UserControl (to avoid uiThread)
+    public class AudioPlayer : IMMNotificationClient, IAudioSessionEventsHandler
     {
         public bool     isPlaying   { get { return player.PlaybackState == PlaybackState.Playing ? true : false; } }
-        public int      Volume      { get { try { lock (locker) return (int) (player.Volume * device.AudioEndpointVolume.MasterVolumeLevelScalar * 100); } catch (Exception e) { Log("ERROR " + e.Message); return -1; } }  set { SetVolume(value); } }
-        public bool     Mute        { get { return GetSetMute(); }  set { GetSetMute(false, value); } }
+        public int      Volume      { get { return GetVolume();  } set { SetVolume(value); } }
+        public bool     Mute        { get { return GetSetMute(); } set { GetSetMute(false, value); } }
 
         public Control          uiThread;                   // Requires to run on same thread (using UI thread) | Warning! Any access to audio device should be invoke ui thread (otherwise will hang on player.Dispose() | player.Init())
 
         public const int        NAUDIO_DELAY_MS = 300;      // Latency (buffer before play), consider same audio delay for video player in order to be sync
-        public int              _RATE           = 48000;    // Will be set from Input Format
-        int                     _CHANNELS       = 2;        // Currently fixed
-        //int                     _BITS           = 16;       // Currently not used (CreateIeeeFloatWaveFormat 32bit, if we need to set it use WaveFormatExtensible)
+        int                     CHANNELS        = 2;        // Currently fixed
+        public int              Rate            = 48000;    // Will be set from Input Format
+        //int                     _BITS           = 16;     // Currently not used (CreateIeeeFloatWaveFormat 32bit, if we need to set it use WaveFormatExtensible)
 
         WaveOut                 player;
         WaveFormat              format;
@@ -28,8 +28,6 @@ namespace SuRGeoNix.Flyleaf
 
         MMDeviceEnumerator      deviceEnum;
         MMDevice                device;     // Current Master Audio
-        //MMDevice                deviceInit; // Initial NAudio's Device/Session
-        AudioEndpointVolume     deviceVol;
         AudioSessionControl     session;    // Current App Audio Session
 
         int                                 processId;
@@ -60,13 +58,14 @@ namespace SuRGeoNix.Flyleaf
             
             Initialize();
         }
-
-        public void Initialize() // !!! Must be called from the same thread that was initialized
+        public void Initialize(int rate = -1) // !!! Must be called from the same thread that was initialized
         {
-            if (uiThread.InvokeRequired) { uiThread.BeginInvoke(new Action(() => Initialize())); return; }
+            if (uiThread.InvokeRequired) { uiThread.BeginInvoke(new Action(() => Initialize(rate))); return; }
 
             lock (locker)
             {
+                if (rate != -1) Rate = rate;
+
                 // Dispose | UnRegister 
                 if (device  != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
                 if (session != null) session.UnRegisterEventClient(this);
@@ -75,13 +74,14 @@ namespace SuRGeoNix.Flyleaf
                 if (session != null) session.UnRegisterEventClient(this);
 
                 // Initialize
-                format = WaveFormatExtensible.CreateIeeeFloatWaveFormat(_RATE, _CHANNELS);
+                format = WaveFormatExtensible.CreateIeeeFloatWaveFormat(Rate, CHANNELS);
                 buffer = new BufferedWaveProvider(format);
                 buffer.BufferLength = 1000 * 1024;
                 player = new WaveOut();
                 player.DeviceNumber = 0;
                 player.DesiredLatency = NAUDIO_DELAY_MS;
                 player.Init(buffer);
+                player.Volume = 1; // Currently we change only Master volume to achieve constants change levels
                 player.Play();
 
                 device = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
@@ -107,29 +107,18 @@ namespace SuRGeoNix.Flyleaf
         public void Stop()  { lock (locker) { player.Stop(); Initialize(); } }
         public void Close() { lock (locker) { if (player != null) player.Dispose(); } }
 
+        public int GetVolume()
+        {
+            lock (locker)
+                return (int)(device.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
+        }
         public void SetVolume(int volume)
         {
             lock (locker)
             {
-                try
-                {
-                    deviceVol = device.AudioEndpointVolume;
-                    
-                    float volumef = volume / 100f;
-                    float master = deviceVol.MasterVolumeLevelScalar;
-                    if (volumef > master)
-                    {
-                        device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
-                        try
-                        {
-                            deviceVol.MasterVolumeLevelScalar = volumef;
-                            player.Volume = volumef / deviceVol.MasterVolumeLevelScalar;
-                        } catch (Exception) { }
-                        device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
-                    }
-                    else
-                        player.Volume = volumef / deviceVol.MasterVolumeLevelScalar;
-                } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
+                device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
+                device.AudioEndpointVolume.MasterVolumeLevelScalar = volume / 100f;
+                device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
             }
         }
         private bool GetSetMute(bool Get = true, bool mute = false)
@@ -138,10 +127,9 @@ namespace SuRGeoNix.Flyleaf
             {
                 try
                 {
-                    deviceVol = device.AudioEndpointVolume;
-                    if (Get) return (session.SimpleAudioVolume.Mute | deviceVol.Mute);
+                    if (Get) return (session.SimpleAudioVolume.Mute | device.AudioEndpointVolume.Mute);
                     session.SimpleAudioVolume.Mute = mute;
-                    if (deviceVol.Mute) deviceVol.Mute = false;
+                    if (device.AudioEndpointVolume.Mute) device.AudioEndpointVolume.Mute = false;
                 } catch (Exception) { }                
             }
 
@@ -155,11 +143,17 @@ namespace SuRGeoNix.Flyleaf
             {
                 if (player.PlaybackState != PlaybackState.Playing) return;
 
+                if (this.buffer.BufferedDuration.Milliseconds > NAUDIO_DELAY_MS)
+                {
+                    Log("Resynch !!! | " + this.buffer.BufferedBytes);
+                    this.buffer.ClearBuffer();
+                }
+
                 this.buffer.AddSamples(buffer, offset, count);
             }
             catch (Exception e)
             {
-                Log("[NAUDIO] " + e.Message + " " + e.StackTrace);
+                Log(e.Message + " " + e.StackTrace);
             }
         }
         public void ResetClbk() { lock (locker) buffer.ClearBuffer(); }

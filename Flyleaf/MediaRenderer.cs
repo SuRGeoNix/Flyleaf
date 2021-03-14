@@ -657,11 +657,12 @@ namespace SuRGeoNix.Flyleaf
         }
         public  void PresentFrame   (MediaFrame frame = null)
         {
-            // Design Mode Only?
             if (device == null) return;
 
-            // Should work better in case of frame delay (to avoid more delay on screamer)
-            if (Monitor.TryEnter(device, 10))
+            // Drop Frames | Priority on video frames
+            bool gotIn = frame == null ? Monitor.TryEnter(device, 1) : Monitor.TryEnter(device, 5); // Should be calculated based on fps (also calculate time of present)
+
+            if (gotIn)
             {
                 try
                 {

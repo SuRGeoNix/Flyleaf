@@ -298,6 +298,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
                 player.History.HistoryChanged += History_HistoryChanged;
                 BuildRecentMenu();
+                HideStreamsMenu();
             }
 
             if (!config.main.EmbeddedList && config.main.HistoryEnabled) config.main.HistoryEnabled = false;
@@ -357,7 +358,6 @@ namespace SuRGeoNix.Flyleaf.Controls
             favIconsThread.IsBackground = true;
             favIconsThread.Start();
         }
-
         private void UpdateRecentMenu(List<string> hosts)
         {
             if (form.InvokeRequired) { form.BeginInvoke(new Action(() => UpdateRecentMenu(hosts))); return; }
@@ -383,6 +383,9 @@ namespace SuRGeoNix.Flyleaf.Controls
                         
                 }
             }
+
+            menu.Refresh();
+            menu.Update();
         }
         private void BuildRecentMenu()
         {
@@ -417,11 +420,11 @@ namespace SuRGeoNix.Flyleaf.Controls
                             else if (curEntry.UrlType == InputType.TorrentPart || curEntry.UrlType == InputType.TorrentFile)
                             {
                                 menuRecent[i].Image = Properties.Resources.Torrent;
-                                text = curEntry.TorrentFile;
+                                text = curEntry.SubUrl;
                             }
                             else if (curEntry.UrlType == InputType.Web || curEntry.UrlType == InputType.WebLive)
                             {
-                                text = curEntry.Url;
+                                text = curEntry.UrlName.Substring(0, Math.Min(curEntry.UrlName.Length, 60));
                                 Uri uri = new Uri(curEntry.Url);
 
                                 if (File.Exists(Path.Combine(ICONS_PATH, uri.DnsSafeHost + ".ico")))
@@ -443,6 +446,11 @@ namespace SuRGeoNix.Flyleaf.Controls
                                     if (!favIcons.Contains(uri.Scheme + "://" + uri.DnsSafeHost + "/favicon.ico"))
                                         curFavIcons.Add(uri.Scheme + "://" + uri.DnsSafeHost + "/favicon.ico");
                                 }
+                            }
+                            else
+                            {
+                                text = curEntry.SubUrl != null ? curEntry.SubUrl : curEntry.Url;
+                                menuRecent[i].Image = Properties.Resources.Play;
                             }
 
                             if (text.Length > 100)
@@ -469,11 +477,155 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             curHistoryEntry = (History.Entry) ((ToolStripMenuItem)sender).Tag;
 
-            if (player.Url == curHistoryEntry.Url && curHistoryEntry.TorrentFile != null)
-                player.Open(curHistoryEntry.TorrentFile, true);
+            if (player.Url == curHistoryEntry.Url && curHistoryEntry.SubUrl != null)
+                Open(curHistoryEntry.SubUrl, true);
             else
-                player.Open(curHistoryEntry.Url);
+                Open(curHistoryEntry.Url, false, true);
         }
+        #endregion
+
+        #region Streams
+        private void BuildStreamsMenu(string subUrl = null)
+        {
+            if (!config.main.EmbeddedList) return;
+            if (form.InvokeRequired) { form.BeginInvoke(new Action(() => BuildRecentMenu())); return; }
+
+            HideStreamsMenu();
+            List<ToolStripMenuItem> aStreams = new List<ToolStripMenuItem>();
+            List<ToolStripMenuItem> vStreams = new List<ToolStripMenuItem>();
+            List<ToolStripMenuItem> sStreams = new List<ToolStripMenuItem>();
+
+            // Embedded Streams
+            var embedded = player.decoder.demuxer.streams;
+            for (int i=0; i<embedded.Length; i++)
+            {
+                if (embedded[i].Type != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO && embedded[i].Type != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)
+                    continue;
+
+                ToolStripMenuItem stream = new ToolStripMenuItem();
+                stream.Checked  = player.decoder.demuxer.enabledStreams.Contains(embedded[i].StreamIndex) ? true : false;
+                stream.Tag      = embedded[i];
+                stream.Text     = embedded[i].GetDump();
+
+                if (embedded[i].Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)
+                {
+                    stream.Click   += EmbeddedVideoStreams_Click;
+                    vStreams.Add(stream);
+                }
+                else if (embedded[i].Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO)
+                {
+                    stream.Click   += EmbeddedAudioStreams_Click;
+                    aStreams.Add(stream);
+                }
+            }
+
+            // Youtube-DL Streams
+            if (player.ytdl != null && player.ytdl.formats != null && player.ytdl.formats.Count > 1)
+            {
+                for (int i=player.ytdl.formats.Count-1; i>=0; i--)
+                {
+                    var fmt = player.ytdl.formats[i];
+                    if (fmt.vcodec == "none" && fmt.acodec == "none") continue;
+
+                    if (fmt.vcodec != "none")
+                    {
+                        ToolStripMenuItem stream = new ToolStripMenuItem();
+
+                        stream.Checked = player.decoder.demuxer.url == fmt.url ? true : false;
+                        stream.Text = $"{fmt.width}x{fmt.height}@{fmt.fps} ({fmt.vcodec} | {fmt.acodec}) | {fmt.tbr} Kbps";
+
+                        stream.Tag  = fmt.url;
+                        stream.Click += VideoStreams_Click;
+                        vStreams.Add(stream);
+                    }
+                
+                    if (fmt.acodec != "none")
+                    {
+                        ToolStripMenuItem stream = new ToolStripMenuItem();
+
+                        stream.Checked = (player.hasAudio && ((player.decoder.aDemuxer.status != MediaFramework.Status.NOTSET && player.decoder.aDemuxer.url == fmt.url) || (player.decoder.aDemuxer.status == MediaFramework.Status.NOTSET && player.decoder.demuxer.url == fmt.url))) ? true : false;
+                        stream.Text = $"{fmt.width}x{fmt.height}@{fmt.fps} ({fmt.vcodec} | {fmt.acodec}) | {fmt.tbr} Kbps";
+
+                        stream.Tag  = fmt.url;
+                        stream.Click += AudioStreams_Click;
+                        aStreams.Add(stream);
+                    }
+                }
+            }
+
+            if (vStreams.Count > 0)
+            {
+                vStreamsToolStripMenuItem.Visible = true;
+                vStreamsToolStripMenuItem.Text = $"Video Streams ({vStreams.Count})";
+                vStreamsToolStripMenuItem.DropDownItems.AddRange(vStreams.ToArray());
+            }
+
+            if (aStreams.Count > 0)
+            {
+                aStreamsToolStripMenuItem.Visible = true;
+                aStreamsToolStripMenuItem.Text = $"Audio Streams ({aStreams.Count})";
+                aStreamsToolStripMenuItem.DropDownItems.AddRange(aStreams.ToArray());
+            }
+
+            //if (sStreams.Count > 0)
+            //{
+            //    sStreamsToolStripMenuItem.Visible = true;
+            //    sStreamsToolStripMenuItem.Text = $"Subtitle Streams ({sStreams.Count})";
+            //    sStreamsToolStripMenuItem.DropDownItems.AddRange(sStreams.ToArray());
+            //}
+
+            if (vStreams.Count != 0 || aStreams.Count != 0 || sStreams.Count != 0)
+                toolStripSeparator2.Visible = true;
+        }
+
+        private void EmbeddedAudioStreams_Click(object sender, EventArgs e)
+        {
+            MediaFramework.StreamInfo t1 = (MediaFramework.StreamInfo) ((ToolStripMenuItem)sender).Tag;
+            player.OpenAudio(t1.StreamIndex);
+            //player.decoder.OpenAudio(t1.StreamIndex);
+            BuildStreamsMenu();
+            //player.Seek((int) (player.CurTime/10000), true, true);
+        }
+        private void EmbeddedVideoStreams_Click(object sender, EventArgs e)
+        {
+            var save = player.beforeSeeking;
+            player.Pause();
+            player.beforeSeeking = save;
+            MediaFramework.StreamInfo t1 = (MediaFramework.StreamInfo) ((ToolStripMenuItem)sender).Tag;
+            player.decoder.OpenVideo(t1.StreamIndex);
+            BuildStreamsMenu();
+            player.Seek((int) (player.CurTime/10000), true, true);
+        }
+
+        private void HideStreamsMenu()
+        {
+            vStreamsToolStripMenuItem.DropDownItems.Clear();
+            vStreamsToolStripMenuItem.Visible = false;
+
+            aStreamsToolStripMenuItem.DropDownItems.Clear();
+            aStreamsToolStripMenuItem.Visible = false;
+
+            sStreamsToolStripMenuItem.DropDownItems.Clear();
+            sStreamsToolStripMenuItem.Visible = false;
+
+            toolStripSeparator2.Visible = false;
+        }
+        private void VideoStreams_Click(object sender, EventArgs e)
+        {
+            Open(((ToolStripMenuItem)sender).Tag.ToString(), true);
+        }
+        private void AudioStreams_Click(object sender, EventArgs e)
+        {
+            player.OpenAudio(((ToolStripMenuItem)sender).Tag.ToString(), true);
+
+            // Refresh Streams
+            Thread t1 = new Thread(() => { Thread.Sleep(1000); BuildStreamsMenu(); Thread.Sleep(10000); BuildStreamsMenu(); });
+            t1.IsBackground = true; t1.Start();
+        }
+        //private void SubtitleStreams_Click(object sender, EventArgs e)
+        //{
+        //    player.OpenSubs(((ToolStripMenuItem)sender).Tag.ToString());
+        //}
         #endregion
 
         #region Activity
@@ -591,9 +743,11 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             if (resizing) return;
 
+            if (player.UrlName != null && player.UrlName.Trim() != "" && (player.UrlType == InputType.Web || player.UrlType == InputType.WebLive || player.UrlType == InputType.Other))
+                player.renderer.NewMessage(OSDMessage.Type.TopRight, player.UrlName.Substring(0, Math.Min(player.UrlName.Length, 60)), null, config.main.IdleTimeout);
+
             ToggleBarVisibility();
-            if (!player.isPlaying) player.Render();
-            
+            if (!player.isPlaying) player.Render();            
         }
         private void ToggleBarVisibility()
         {
@@ -609,13 +763,16 @@ namespace SuRGeoNix.Flyleaf.Controls
         #endregion
 
         #region Implementation Main
-        public void Open(string url)
+        public void Open(string url, bool isSubUrl = false, bool opensHistory = false)
         {
-            curHistoryEntry = null;
-            player.Open(url);
-            string ext = url.LastIndexOf(".")  > 0 ? url.Substring(url.LastIndexOf(".") + 1) : "";
+            if (!isSubUrl && !opensHistory) curHistoryEntry = null;
+
+            player.Open(url, isSubUrl);
+
+            string ext = url.LastIndexOf(".") > 0 ? url.Substring(url.LastIndexOf(".") + 1) : "";
             if (!Utils.SubsExts.Contains(ext))
             {
+                HideStreamsMenu();
                 tblBar.seekBar.Maximum = 1;
                 tblBar.seekBar.SetValue(1);
             }
@@ -624,7 +781,7 @@ namespace SuRGeoNix.Flyleaf.Controls
         {
             if (!config.main.EmbeddedList)
             {
-                player.Open(mediaFiles[0], true);
+                Open(mediaFiles[0], true);
                 return;
             }
 
@@ -641,15 +798,17 @@ namespace SuRGeoNix.Flyleaf.Controls
             lstMediaFiles.Items.AddRange(mediaFilesSorted.ToArray());
             lstMediaFiles.EndUpdate();
 
-            if (curHistoryEntry != null && curHistoryEntry.TorrentFile != null)
-                player.Open(curHistoryEntry.TorrentFile, true);
+            if (curHistoryEntry != null && curHistoryEntry.SubUrl != null)
+                Open(curHistoryEntry.SubUrl, true);
             else if (lstMediaFiles.Items.Count == 1)
-                player.Open(mediaFilesSorted[0], true);
+                Open(mediaFilesSorted[0], true);
             else
                 FixLstMedia(true);
         }
         public void OpenFinished(bool success, string selectedFile)
         {
+            if (!success) return;
+
             if (InvokeRequired)
             {
                 BeginInvoke(new Action(() => OpenFinished(success, selectedFile)));
@@ -668,6 +827,8 @@ namespace SuRGeoNix.Flyleaf.Controls
                 tblBar.seekBar.Maximum = 1;
             }
 
+            BuildStreamsMenu(selectedFile);
+
             if (player.isFailed) return;
 
             if (!player.hasAudio || !player.doAudio) 
@@ -683,6 +844,9 @@ namespace SuRGeoNix.Flyleaf.Controls
                 lstMediaFiles.Items.Clear();
                 lstMediaFiles.Items.Add(selectedFile);
             }
+
+            if (player.UrlName != null && player.UrlName.Trim() != "" && (player.UrlType == InputType.Web || player.UrlType == InputType.WebLive || player.UrlType == InputType.Other))
+                player.renderer.NewMessage(OSDMessage.Type.TopRight, player.UrlName.Substring(0, Math.Min(player.UrlName.Length, 60)), null, config.main.IdleTimeout);
 
             // Open at saved history second (only if history secs > 1m and duration-secs > 5m and duration > 15m)
             if (curHistoryEntry != null && !player.isLive && player.History.GetCurrent().CurSecond > 60 && (int)(player.Duration / 10000000) - player.History.GetCurrent().CurSecond > 60 * 5 && (int)(player.Duration / 10000000) > 60 * 15)
@@ -1014,8 +1178,10 @@ namespace SuRGeoNix.Flyleaf.Controls
 
                     case Keys.C:
                         e.SuppressKeyPress = true;
-
-                        Clipboard.SetText(player.Url);
+                        if (player.Url == null)
+                            Clipboard.SetText("");
+                        else
+                            Clipboard.SetText(player.Url);
                         break;
 
                     case Keys.S: // SeekOnSlide On/Off
@@ -1233,7 +1399,7 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             if (lstMediaFiles.SelectedItem == null) return;
 
-            player.Open(lstMediaFiles.SelectedItem.ToString(), true);
+            Open(lstMediaFiles.SelectedItem.ToString(), true);
             FixLstMedia(false);
             Focus();
         }
@@ -1247,7 +1413,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (!player.isTorrent) { FixLstMedia(false); return; }
             if (lstMediaFiles.SelectedItem == null) return;
 
-            player.Open(lstMediaFiles.SelectedItem.ToString(), true);
+            Open(lstMediaFiles.SelectedItem.ToString(), true);
             FixLstMedia(false);
             Focus();
         }
@@ -1283,7 +1449,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                 if (!lstMediaFiles.Visible)
                 {
                     for (int i=0; i<lstMediaFiles.Items.Count-1; i++)
-                        if (lstMediaFiles.Items[i].ToString() == player.UrlName) { lstMediaFiles.SelectedItem = lstMediaFiles.Items[i]; break; }
+                        if (lstMediaFiles.Items[i].ToString() == player.SubUrl) { lstMediaFiles.SelectedItem = lstMediaFiles.Items[i]; break; }
 
                     lstMediaFiles.Visible = true;
                 }
@@ -2008,7 +2174,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             mediaInfo += "\r\n========== Audio Demuxer ==========\r\n";
             
             if ((mediaInfoMore = player.decoder.aDemuxer.GetDump()) != null)
-                foreach (var si in player.decoder.demuxer.streams)
+                foreach (var si in player.decoder.aDemuxer.streams)
                     mediaInfoMore += "\r\n" + si.GetDump();
 
             mediaInfo += mediaInfoMore;
