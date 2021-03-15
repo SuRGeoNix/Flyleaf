@@ -247,7 +247,7 @@ namespace SuRGeoNix.Flyleaf
                 if (CurSubId == -1) return;
 
                 if (value)
-                    OpenSubs(CurSubId);
+                    OpenSubs2(CurSubId);
                 else
                     decoder.StopSubs();
 
@@ -392,7 +392,7 @@ namespace SuRGeoNix.Flyleaf
                 {
                     //foreach (var sub in AvailableSubs) sub.used = false; // Reset used from history?
                     CurSubId = curHistory.CurSubId;
-                    OpenSubs(curHistory.CurSubId, true);
+                    OpenSubs2(curHistory.CurSubId, true);
                 }
             }
             else
@@ -694,7 +694,7 @@ namespace SuRGeoNix.Flyleaf
             string scheme   = url.IndexOf(":")      > 0 ? url.Substring(0, url.IndexOf(":")) : "";
 
             // Open Subs
-            if (Utils.SubsExts.Contains(ext)) { if (isReady) OpenSubs(url); return; }
+            if (Utils.SubsExts.Contains(ext)) { if (isReady) OpenSubs2(url); return; }
 
             long prevTime = decoder.Finished ? -1 : CurTime;
             Initialize(isSubUrl);
@@ -841,6 +841,7 @@ namespace SuRGeoNix.Flyleaf
                     if (decoder.OpenAudio(streamIndex) != 0) return;
 
                     bool isPlaying = this.isPlaying;
+                    decoder.opt.audio.DelayTicks = 0;
                     audioPlayer.Initialize(decoder.opt.audio.SampleRate);
                     Pause();
 
@@ -875,6 +876,7 @@ namespace SuRGeoNix.Flyleaf
                         YoutubeDL.ParseHeaders(ytdl.formats[subUrlIndex].http_headers, decoder);
                         if (decoder.OpenAudio(url) != 0) return;
 
+                        decoder.opt.audio.DelayTicks = 0;
                         audioPlayer.Initialize(decoder.opt.audio.SampleRate);
 
                         bool isPlaying = this.isPlaying;
@@ -914,6 +916,57 @@ namespace SuRGeoNix.Flyleaf
                 });
                 openVideoThread.IsBackground = true;
                 openVideoThread.Start();
+            }
+        }
+        public void OpenSubs(int availableIndex)
+        {
+            Utils.EnsureThreadDone(openSubsThread);
+            openSubsThread = new Thread(() => { OpenSubs2(availableIndex); });
+            openSubsThread.IsBackground = true;
+            openSubsThread.Start();
+        }
+
+        public void OpenNextAvailableSub(bool checkDoSubs = false)
+        {
+            if (AvailableSubs.Count == 0) { renderer.NewMessage(OSDMessage.Type.TopLeft2, $"No Subtitles Found"); return; }
+
+            bool allused = true;
+
+            // Find best match (lang priority - not already used - rating?)
+            foreach (Language lang in Languages)
+            {
+                for (int i=0; i<AvailableSubs.Count; i++)
+                {
+                    if (!AvailableSubs[i].used) allused = false;
+                    if (!AvailableSubs[i].used && AvailableSubs[i].lang?.LanguageName == lang.LanguageName)
+                    {
+                        renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {(AvailableSubs[i].streamIndex > 0 ? "Embedded" : "")} {lang.LanguageName})");
+                        OpenSubs2(i, checkDoSubs);
+                        return;
+                    }
+                }
+            }
+
+            // Check also the non-lang (external subs)
+            for (int i=0; i<AvailableSubs.Count; i++)
+            {
+                if (!AvailableSubs[i].used) allused = false;
+
+                if (!AvailableSubs[i].used && AvailableSubs[i].lang == null)
+                {
+                    renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {(AvailableSubs[i].streamIndex > 0 ? "Embedded" : "")} Unknown)");
+                    OpenSubs2(i, checkDoSubs);
+                    return;
+                }
+            }
+
+            // Reset used and start from the beggining
+            if (allused && AvailableSubs.Count > 0 && Languages.Count > 0)
+            {
+                for (int i=0; i<AvailableSubs.Count; i++)
+                    AvailableSubs[i].used = false;
+
+                OpenNextAvailableSub(checkDoSubs);
             }
         }
         public void Play(bool todoPlay2 = false)
@@ -1168,11 +1221,11 @@ namespace SuRGeoNix.Flyleaf
         #endregion
 
         #region Subtitles
-        public void FindAvailableSubs(string filename, string hash, long length, bool checkDoSubs = false)
+        private void FindAvailableSubs(string filename, string hash, long length, bool checkDoSubs = false)
         {
             if (Languages.Count < 1) return;
-            Utils.EnsureThreadDone(openSubsThread);
 
+            Utils.EnsureThreadDone(openSubsThread);
             openSubsThread = new Thread(() =>
             {
                 // TODO: (Local Files Search || Torrent Files) should use movie title not file name
@@ -1226,7 +1279,7 @@ namespace SuRGeoNix.Flyleaf
             openSubsThread.SetApartmentState(ApartmentState.STA);
             openSubsThread.Start();
         }
-        public void FixSortSubs()
+        private void FixSortSubs()
         {
             // Unique by SubHashes (if any)
             List<SubAvailable> uniqueList = new List<SubAvailable>();
@@ -1285,50 +1338,8 @@ namespace SuRGeoNix.Flyleaf
 
             AvailableSubs.AddRange(langUndefined);
         }
-        public void OpenNextAvailableSub(bool checkDoSubs = false)
-        {
-            if (AvailableSubs.Count == 0) { renderer.NewMessage(OSDMessage.Type.TopLeft2, $"No Subtitles Found"); return; }
-
-            bool allused = true;
-
-            // Find best match (lang priority - not already used - rating?)
-            foreach (Language lang in Languages)
-            {
-                for (int i=0; i<AvailableSubs.Count; i++)
-                {
-                    if (!AvailableSubs[i].used) allused = false;
-                    if (!AvailableSubs[i].used && AvailableSubs[i].lang?.LanguageName == lang.LanguageName)
-                    {
-                        renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {(AvailableSubs[i].streamIndex > 0 ? "Embedded" : "")} {lang.LanguageName})");
-                        OpenSubs(i, checkDoSubs);
-                        return;
-                    }
-                }
-            }
-
-            // Check also the non-lang (external subs)
-            for (int i=0; i<AvailableSubs.Count; i++)
-            {
-                if (!AvailableSubs[i].used) allused = false;
-
-                if (!AvailableSubs[i].used && AvailableSubs[i].lang == null)
-                {
-                    renderer.NewMessage(OSDMessage.Type.TopLeft2, $"Found {AvailableSubs.Count} Subtitles (Using {(AvailableSubs[i].streamIndex > 0 ? "Embedded" : "")} Unknown)");
-                    OpenSubs(i, checkDoSubs);
-                    return;
-                }
-            }
-
-            // Reset used and start from the beggining
-            if (allused && AvailableSubs.Count > 0 && Languages.Count > 0)
-            {
-                for (int i=0; i<AvailableSubs.Count; i++)
-                    AvailableSubs[i].used = false;
-
-                OpenNextAvailableSub(checkDoSubs);
-            }
-        }
-        public void OpenSubs(int availableIndex, bool checkDoSubs = false)
+        
+        private void OpenSubs2(int availableIndex, bool checkDoSubs = false)
         {
             if (checkDoSubs && (!doSubs || availableIndex == -1)) return;
 
@@ -1376,14 +1387,14 @@ namespace SuRGeoNix.Flyleaf
             renderer.ClearMessages(OSDMessage.Type.Subtitles);
             History.Update(AvailableSubs, CurSubId);
         }
-        private void OpenSubs(string url, bool checkDoSubs = false)
+        private void OpenSubs2(string url, bool checkDoSubs = false)
         {
             if (checkDoSubs && doSubs) return;
 
             for (int i=0; i<AvailableSubs.Count; i++)
                 if ((AvailableSubs[i].path != null && AvailableSubs[i].path.ToLower() == url.ToLower()) || (AvailableSubs[i].pathUTF8 != null && AvailableSubs[i].pathUTF8.ToLower() == url.ToLower()))
                 {
-                    OpenSubs(i);
+                    OpenSubs2(i);
                     return;
                 }
 
