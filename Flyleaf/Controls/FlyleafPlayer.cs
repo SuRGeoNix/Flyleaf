@@ -158,8 +158,15 @@ namespace SuRGeoNix.Flyleaf.Controls
                 player  = new MediaRouter(0);
             #endif
 
-            config                   = new Settings(player);
-            config.PropertyChanged   = SettingsChanged;
+            if (!DesignerSettings)
+            {
+                config                   = new Settings(player);
+                config.PropertyChanged   = SettingsChanged;
+            }
+            else
+                player.renderer.IsFullScreen = true;
+
+            player.renderer.OSDEnabled = OSDEnabled;
 
             try
             {
@@ -1011,7 +1018,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                 Focus();
             }
             
-            player.renderer.IsFullScreen = false;
+            if (!DesignerSettings) player.renderer.IsFullScreen = false;
             
             form.Location   = formLastPos;
             form.Size       = formLastSize;
@@ -2008,6 +2015,14 @@ namespace SuRGeoNix.Flyleaf.Controls
         [Browsable(false)]
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Hidden)]
         public Settings         config              { get; set; }
+
+        [Category("Flyleaf UI")]
+        [DisplayName("_DESIGNER_CONF_ENABLED")]
+        public  bool DesignerSettings               { get; set; } = true;
+
+        [Category("Flyleaf UI")]
+        [DisplayName("_OSD_ENABLED")]
+        public  bool OSDEnabled                     { get; set; } = true;
 
         [DesignerSerializationVisibilityAttribute(DesignerSerializationVisibility.Content)]
         [DisplayName("FL Main")]
