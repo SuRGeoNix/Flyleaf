@@ -184,6 +184,6 @@ namespace SuRGeoNix.Flyleaf
         public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason) { }
 
         // Logging
-        private void Log(string msg) { Console.WriteLine("[AUDIO]" + msg); }
+        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [NAUDIO] {msg}"); }
     }
 }

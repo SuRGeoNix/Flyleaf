@@ -11,7 +11,7 @@ namespace SuRGeoNix.Flyleaf
 {
     public class OpenSubtitles
     {
-        static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [OPENSUBS] {msg}"); }
+        static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [OPENSUBS] {msg}"); }
 
         static readonly string  restUrl     = "https://rest.opensubtitles.org/search";
         static readonly string  userAgent   = "Flyleaf v2.0";
