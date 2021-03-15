@@ -50,7 +50,7 @@ namespace SuRGeoNix.Flyleaf
         internal SolidColorBrush            brush2d;
         internal SolidColorBrush            brush2dOutline;
 
-        internal OutlineRenderer outlineRenderer = new OutlineRenderer();
+        internal OutlineRenderer            outlineRenderer = new OutlineRenderer();
 
         PixelShader                         pixelShader, pixelShaderYUV;
         VertexShader                        vertexShader;
@@ -86,6 +86,7 @@ namespace SuRGeoNix.Flyleaf
 
         public int OutlinePixels {  get; set; } = 1;
 
+        public bool     OSDEnabled          { get; set; } = true;
         public bool     IsFullScreen        { get; set; }
         public Viewport GetViewport         { get; private set; }
         public IntPtr   HookHandle          { get; private set; }
@@ -462,6 +463,7 @@ namespace SuRGeoNix.Flyleaf
                 });
 
                 srvRGB          = new ShaderResourceView(device, textureRGB);
+                SetViewport();
             }
 
             if (videoDevice1 == null || videoContext1 == null) return;
@@ -471,7 +473,12 @@ namespace SuRGeoNix.Flyleaf
         }
         private void SetViewport()
         {
-            if (IsFullScreen)
+            if (!IsFullScreen || player.ViewPort == MediaRouter.ViewPorts.FILL)
+            {
+                GetViewport = new Viewport(0, 0, HookControl.Width, HookControl.Height);
+                context.Rasterizer.SetViewport(0, 0, HookControl.Width, HookControl.Height);
+            }
+            else
             {
                 float ratio = player.ViewPort == MediaRouter.ViewPorts.KEEP ? player.DecoderRatio : player.CustomRatio;
                 if (HookControl.Width / ratio > HookControl.Height)
@@ -484,11 +491,6 @@ namespace SuRGeoNix.Flyleaf
                     GetViewport = new Viewport(0,(int)(HookControl.Height - (HookControl.Width / ratio)) / 2, HookControl.Width,(int) (HookControl.Width / ratio), 0.0f, 1.0f);
                     context.Rasterizer.SetViewport(GetViewport);
                 }
-            }
-            else
-            {
-                GetViewport = new Viewport(0, 0, HookControl.Width, HookControl.Height);
-                context.Rasterizer.SetViewport(0, 0, HookControl.Width, HookControl.Height);
             }
         }
         #endregion
@@ -682,13 +684,17 @@ namespace SuRGeoNix.Flyleaf
                     context.ClearRenderTargetView(rtv, clearColor);
                     context.Draw(6, 0);
 
-                    rtv2d.BeginDraw();
-                    try
+                    if (OSDEnabled)
                     {
-                        PresentOSD();
-                    } finally {
-                        rtv2d.EndDraw();
+                        rtv2d.BeginDraw();
+                        try
+                        {
+                            PresentOSD();
+                        } finally {
+                            rtv2d.EndDraw();
+                        }
                     }
+                    
                     swapChain.Present(vsync, PresentFlags.None);
 
                 } finally { Monitor.Exit(device); }
@@ -701,10 +707,12 @@ namespace SuRGeoNix.Flyleaf
         #region Messages
         public void NewMessage(OSDMessage.Type type, string msg, SubStyle style, int duration = -1)
         {
+            if (!OSDEnabled) return;
             NewMessage(type, msg, new List<SubStyle>() { style }, duration);
         }
         public void NewMessage(OSDMessage.Type type, string msg = "", List<SubStyle> styles = null, int duration = -1)
         {
+            if (!OSDEnabled) return;
             lock (messages)
             {
                 messages[type] = new OSDMessage(type, msg, styles, duration);
