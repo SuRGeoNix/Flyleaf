@@ -181,9 +181,11 @@
             this.flyleafPlayer1._video.VSync = false;
             this.flyleafPlayer1.AllowDrop = true;
             this.flyleafPlayer1.BackColor = System.Drawing.Color.Black;
+            this.flyleafPlayer1.DesignerSettings = false;
             this.flyleafPlayer1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flyleafPlayer1.Location = new System.Drawing.Point(0, 0);
             this.flyleafPlayer1.Name = "flyleafPlayer1";
+            this.flyleafPlayer1.OSDEnabled = true;
             this.flyleafPlayer1.Size = new System.Drawing.Size(1310, 833);
             this.flyleafPlayer1.TabIndex = 0;
             this.flyleafPlayer1.TabStop = false;
