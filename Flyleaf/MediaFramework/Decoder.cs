@@ -508,6 +508,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             }
         }
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [Decoder: {type.ToString().PadLeft(5, ' ')}] {msg}"); }
+        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Decoder: {type.ToString().PadLeft(5, ' ')}] {msg}"); }
     }
 }

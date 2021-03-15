@@ -34,6 +34,9 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             public int              DecoderThreads  { get; set; } = Environment.ProcessorCount;
             public int              MaxDecodedFrames{ get; set; } = Environment.ProcessorCount; // To be Exposed
             public bool             SwsHighQuality  { get; set; } = false;
+
+            //public int              PreferredWidth  { get; set; }
+            //public int              PreferredHeight { get; set; }
         }
         public class Audio
         {
@@ -167,24 +170,19 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public int ReOpen()
         {
             int ret;
-
-            List<int> savedStreams   = new List<int>();
-            int       savedSEmbedded = sDecoder.isEmbedded && sDecoder.st != null ? sDecoder.st->index : -1;
-
-            foreach (var tmp1 in demuxer.enabledStreams)
-                savedStreams.Add(tmp1);
+            int sStreamIndex = sDecoder.isEmbedded && sDecoder.status != Status.NOTSET && sDecoder.st != null ? sDecoder.st->index : -1;
+            int aStreamIndex = aDecoder.isEmbedded && aDecoder.status != Status.NOTSET && aDecoder.st != null ? aDecoder.st->index : -1;
 
             Headers     = demuxer.headers;
             Referer     = demuxer.referer;
             UserAgent   = demuxer.userAgent;
 
-            ret = demuxer.Open(demuxer.url, opt.audio.Enabled && aDemuxer.status == Status.NOTSET, false, demuxer.ioStream, false);
+            ret = demuxer.Open(demuxer.url, false, false, demuxer.ioStream, false);
             if (ret != 0) return ret;
 
-            demuxer.enabledStreams = savedStreams;
-            demuxer.RefreshStreams();
-
-            if (opt.audio.Enabled && aDemuxer.status != Status.NOTSET)
+            if (aStreamIndex != -1 && opt.audio.Enabled) OpenAudio(aStreamIndex);
+            if (sStreamIndex != -1 && opt.subs.Enabled)  OpenSubs(sStreamIndex);
+            if (aStreamIndex == -1 && aDemuxer.status != Status.NOTSET && opt.audio.Enabled)
             {
                 Headers     = aDemuxer.headers;
                 Referer     = aDemuxer.referer;
@@ -193,42 +191,55 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 OpenAudio(aDemuxer.url);
             }
 
-            if (opt.subs.Enabled && savedSEmbedded != -1)
-                OpenSubs(savedSEmbedded);
-
             return 0;
         }
 
-        public void OpenVideo(int streamIndex)
+        public int OpenVideo(int streamIndex, bool doAudio = false)
         {
-            if (demuxer.status == Status.NOTSET) return;
-            if (streamIndex < 0 || streamIndex >= demuxer.streams.Length) return;
+            if (demuxer.status == Status.NOTSET) return - 1;
+            if (streamIndex < 0 || streamIndex >= demuxer.streams.Length) return -1;
 
-            vDecoder.Open(demuxer, demuxer.fmtCtx->streams[streamIndex]);
+            if (vDecoder.Open(demuxer, demuxer.fmtCtx->streams[streamIndex]) < 0) return -1;
+
+            if (doAudio)
+            {
+                int aStreamIndex = av_find_best_stream(demuxer.fmtCtx, AVMEDIA_TYPE_AUDIO, -1, streamIndex, null, 0);
+                if (aStreamIndex >= 0) OpenAudio(aStreamIndex);
+            }
+
             if (isRunning) vDecoder.decodeARE.Set();
+
+            return 0;
         }
-        public void OpenAudio(int streamIndex, long ms = -1)
+        public int OpenAudio(int streamIndex, long ms = -1)
         {
-            if (demuxer.status == Status.NOTSET) return;
-            if (streamIndex < 0 || streamIndex >= demuxer.streams.Length) return;
+            int ret = -1;
 
-            aDecoder.Open(demuxer, demuxer.fmtCtx->streams[streamIndex]);
+            if (demuxer.status == Status.NOTSET) return ret;
+            if (streamIndex < 0 || streamIndex >= demuxer.streams.Length) return ret;
 
+            StopAudio();
+            ret = aDecoder.Open(demuxer, demuxer.fmtCtx->streams[streamIndex]);
             if (ms != -1)
             {
                 Seek(ms);
                 if (isRunning) Play();
             }
+
+            return ret;
         }
         public int OpenAudio(string url, long ms = -1, bool addDelay = false)
         {
             int ret = -1;
             if (demuxer.status == Status.NOTSET) return ret;
 
+            StopAudio();
             long openElapsedTicks = DateTime.UtcNow.Ticks;
             ret = aDemuxer.Open(url);
             if (ms != -1)
                 aDemuxer.ReSync(!addDelay ? ms : ms + ((DateTime.UtcNow.Ticks - openElapsedTicks)/10000));
+
+            //if (isRunning) aDecoder.decodeARE.Set();
 
             return ret;
         }
@@ -237,9 +248,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             if (demuxer.status == Status.NOTSET) return;
             if (streamIndex < 0 || streamIndex >= demuxer.streams.Length) return;
 
-            //if (sDemuxer.status != Status.NOTSET) sDemuxer.Close();
-
-            //bool shouldRun = isRunning;
+            StopSubs();
 
             sDecoder.Open(demuxer, demuxer.fmtCtx->streams[streamIndex]);
             if (ms != -1)
@@ -252,6 +261,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public void OpenSubs(string url, long ms)
         {
             if (demuxer.status == Status.NOTSET) return;
+
+            StopSubs();
 
             sDemuxer.Open(url);
             sDemuxer.ReSync(ms);
@@ -416,6 +427,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             return firstTs;
         }
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [DecoderContext] {msg}"); }
+        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [DecoderContext] {msg}"); }
     }
 }

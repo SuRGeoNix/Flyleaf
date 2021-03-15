@@ -195,6 +195,6 @@ namespace SuRGeoNix.Flyleaf
             bitSwarmOpt.PieceBufferTimeout  = config.TimeoutBuffer;
             bitSwarmOpt.PieceBufferRetries  = config.RetriesBuffer;
         }
-        private void Log(string msg) { if (player.verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [BitSwarm] {msg}"); }
+        private void Log(string msg) { if (player.verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [BitSwarm] {msg}"); }
     }
 }
