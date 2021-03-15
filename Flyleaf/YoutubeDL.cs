@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 
 using Newtonsoft.Json;
@@ -46,32 +47,39 @@ namespace SuRGeoNix.Flyleaf
 
             return false;
         }
-        public static YoutubeDL New(string url)
+        public static YoutubeDL New(string url, ref int interrupt)
         {
             try
             {
-                // Download .Json if not exists already
+                // Download .Json if not exists already || Disabled should check also expiration timestamps
                 string tmpFile = GetJsonPath(url);
-                if (!File.Exists($"{tmpFile}.info.json"))
-                {
-                    Process proc = new Process 
-                    {
-                        StartInfo = new ProcessStartInfo
-                        {
-                            FileName                = plugin_path,
-                            Arguments               = $"--no-check-certificate --skip-download --sub-lang en --write-info-json -o \"{tmpFile}\" \"{url}\"",
-                            CreateNoWindow          = true,
-                            UseShellExecute         = false,
-                            //RedirectStandardOutput  = true,
-                            //RedirectStandardError = true,
-                            WindowStyle             = ProcessWindowStyle.Hidden
-                        }
-                    };
-                    proc.Start();
-                    proc.WaitForExit();
 
-                    if (!File.Exists($"{tmpFile}.info.json")) return null;
-                }
+                //if (!File.Exists($"{tmpFile}.info.json"))
+                //{
+                Process proc = new Process 
+                {
+                    /* --flat-playlist                      Do not extract the videos of a playlist, only list them.
+                        * --no-playlist                        Download only the video, if the URL refers to a video and a playlist.
+                        * --youtube-skip-dash-manifest         Do not download the DASH manifests and related data on YouTube videos
+                        * --merge-output-format FORMAT         If a merge is required (e.g. bestvideo+bestaudio), output to given container format. One of mkv, mp4, ogg, webm, flv. Ignored if no merge is required
+                        */
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName                = plugin_path,
+                        Arguments               = $"--no-check-certificate --skip-download --write-info-json -o \"{tmpFile}\" \"{url}\"",
+                        CreateNoWindow          = true,
+                        UseShellExecute         = false,
+                        //RedirectStandardOutput  = true,
+                        //RedirectStandardError = true,
+                        WindowStyle             = ProcessWindowStyle.Hidden
+                    }
+                };
+                proc.Start();
+                while (!proc.HasExited && interrupt == 0) { Thread.Sleep(35); }
+                if (interrupt == 1) { if (!proc.HasExited) proc.Kill(); return null; }
+
+                if (!File.Exists($"{tmpFile}.info.json")) return null;
+                //}
 
                 // Parse Json Object
                 string json = File.ReadAllText($"{tmpFile}.info.json");
@@ -115,6 +123,8 @@ namespace SuRGeoNix.Flyleaf
 
             return null;
         }
+
+        //public int lastScreenWidth, lastScreenHeight;
         public Format GetBestMatch(Control control)
         {
             // TODO: Expose in settings (vCodecs Blacklist) || Create a HW decoding failed list dynamic (check also for whitelist)
@@ -126,11 +136,13 @@ namespace SuRGeoNix.Flyleaf
             {
                 // Current Screen Resolution | TODO: Check when the control changes screens and get also refresh rate (back to renderer)
                 var bounds = Screen.FromControl(control).Bounds;
+                //lastScreenWidth = bounds.Width;
+                //lastScreenHeight = bounds.Height;
 
                 // Video Streams Order based on Screen Resolution
                 var iresults =
                     from    format in formats
-                    where   format.height <= bounds.Height && format.vcodec != "none"
+                    where   format.height <= bounds.Height && format.vcodec != "none" && (format.protocol == null || !System.Text.RegularExpressions.Regex.IsMatch(format.protocol, "dash", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                     orderby format.tbr      descending
                     orderby format.fps      descending
                     orderby format.height   descending
@@ -167,6 +179,10 @@ namespace SuRGeoNix.Flyleaf
                 return formats[formats.Count-1]; // Fallback: Youtube-DL best match
             }
         }
+
+        public string url { get; set; }
+        //public string manifest_url { get; set; }
+        //public string fragment_base_url { get; set; }
 
         public object series { get; set; } 
         public string format { get; set; } 
@@ -232,7 +248,7 @@ namespace SuRGeoNix.Flyleaf
         public class Format
         {
             public string url { get; set; } 
-            public string manifest_url { get; set; } 
+            //public string manifest_url { get; set; } 
             public object player_url { get; set; } 
 
 

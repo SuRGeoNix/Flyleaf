@@ -76,6 +76,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             Log(line.Trim());
         };
 
-        private static void Log(string msg) { try { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [MediaFramework] {msg}"); } catch (Exception) { Console.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
+        private static void Log(string msg) { try { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [MediaFramework] {msg}"); } catch (Exception) { Console.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -151,6 +152,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
         public int Open(string url, bool doAudio = true, bool doSubs = true, Stream stream = null, bool closeExternals = true)
         {
+            if (url == null && stream == null) return -1;
+
             if (type == Type.Video && closeExternals)
             {
                 decCtx.aDemuxer.Close();
@@ -191,7 +194,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
             av_dict_set_int(&opt, "reconnect"               , 1, 0);    // auto reconnect after disconnect before EOF
             av_dict_set_int(&opt, "reconnect_streamed"      , 1, 0);    // auto reconnect streamed / non seekable streams
-            av_dict_set_int(&opt, "reconnect_delay_max"     , 1, 0);   // max reconnect delay in seconds after which to give up
+            av_dict_set_int(&opt, "reconnect_delay_max"     , 5, 0);    // max reconnect delay in seconds after which to give up
             //av_dict_set_int(&opt, "reconnect_on_network_error", 1, 0);
             //av_dict_set_int(&opt, "reconnect_at_eof", 1, 0);          // auto reconnect at EOF | Maybe will use this for another similar issues? | will not stop the decoders (no EOF)
             //av_dict_set_int(&opt, "multiple_requests", 1, 0);
@@ -236,6 +239,21 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
             StreamInfo.Fill(this);
             fmtName = Utils.BytePtrToStringUTF8(fmtCtx->iformat->long_name);
+            
+            // In case of multiple video streams (Youtube-dl manifest?)
+            //if (decCtx.opt.video.PreferredHeight != -1 && type == Type.Video)
+            //{
+            //    ret = -1;
+            //    var iresults =
+            //        from    vstream in streams
+            //        where   vstream.Type == AVMEDIA_TYPE_VIDEO && vstream.Height <= decCtx.opt.video.PreferredHeight
+            //        orderby vstream.Height descending
+            //        select  vstream;
+
+            //    var results = iresults.ToList();
+            //    if (results.Count != 0) ret = iresults.ToList()[0].StreamIndex;
+            //}
+            //if (ret == -1)
 
             ret = av_find_best_stream(fmtCtx, mType, -1, -1, null, 0);
             if (ret < 0) { Log($"[Format] [ERROR-3] {Utils.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); return ret; }
@@ -430,11 +448,17 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                     if (ret != 0)
                     {
-                        if (ret == AVERROR_EOF || ret == AVERROR_EXIT || fmtCtx->pb->eof_reached == 1)
+                        if (ret == AVERROR_EXIT)
+                        {
+                            Log("AVERROR_EXIT!!! " + decCtx.interrupt);
+                            continue;
+                        }
+
+                        if (ret == AVERROR_EOF)// || fmtCtx->pb->eof_reached == 1)// || ret == AVERROR_EXIT)
                         {
                             av_packet_unref(pkt);
                             status = Status.END;
-                            Log($"EOF");
+                            Log($"EOF ({(ret == AVERROR_EOF ? 1 : (fmtCtx->pb->eof_reached == 1 ? 2 : 3))}) | {decCtx.interrupt}");
                         }
                         else
                             Log($"[ERROR-1] {Utils.ErrorCodeToMsg(ret)} ({ret})");
@@ -480,6 +504,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             }
         }
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [Demuxer: {type.ToString().PadLeft(5, ' ')}] {msg}"); }
+        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Demuxer: {type.ToString().PadLeft(5, ' ')}] {msg}"); }
     }
 }

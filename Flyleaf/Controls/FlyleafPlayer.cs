@@ -297,6 +297,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                 ContextMenuStrip = menu;
 
                 player.History.HistoryChanged += History_HistoryChanged;
+                menu.Opening += Menu_Opening;
                 BuildRecentMenu();
                 HideStreamsMenu();
             }
@@ -484,119 +485,8 @@ namespace SuRGeoNix.Flyleaf.Controls
         }
         #endregion
 
-        #region Streams
-        private void BuildStreamsMenu(string subUrl = null)
-        {
-            if (!config.main.EmbeddedList) return;
-            if (form.InvokeRequired) { form.BeginInvoke(new Action(() => BuildRecentMenu())); return; }
-
-            HideStreamsMenu();
-            List<ToolStripMenuItem> aStreams = new List<ToolStripMenuItem>();
-            List<ToolStripMenuItem> vStreams = new List<ToolStripMenuItem>();
-            List<ToolStripMenuItem> sStreams = new List<ToolStripMenuItem>();
-
-            // Embedded Streams
-            var embedded = player.decoder.demuxer.streams;
-            for (int i=0; i<embedded.Length; i++)
-            {
-                if (embedded[i].Type != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO && embedded[i].Type != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)
-                    continue;
-
-                ToolStripMenuItem stream = new ToolStripMenuItem();
-                stream.Checked  = player.decoder.demuxer.enabledStreams.Contains(embedded[i].StreamIndex) ? true : false;
-                stream.Tag      = embedded[i];
-                stream.Text     = embedded[i].GetDump();
-
-                if (embedded[i].Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)
-                {
-                    stream.Click   += EmbeddedVideoStreams_Click;
-                    vStreams.Add(stream);
-                }
-                else if (embedded[i].Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO)
-                {
-                    stream.Click   += EmbeddedAudioStreams_Click;
-                    aStreams.Add(stream);
-                }
-            }
-
-            // Youtube-DL Streams
-            if (player.ytdl != null && player.ytdl.formats != null && player.ytdl.formats.Count > 1)
-            {
-                for (int i=player.ytdl.formats.Count-1; i>=0; i--)
-                {
-                    var fmt = player.ytdl.formats[i];
-                    if (fmt.vcodec == "none" && fmt.acodec == "none") continue;
-
-                    if (fmt.vcodec != "none")
-                    {
-                        ToolStripMenuItem stream = new ToolStripMenuItem();
-
-                        stream.Checked = player.decoder.demuxer.url == fmt.url ? true : false;
-                        stream.Text = $"{fmt.width}x{fmt.height}@{fmt.fps} ({fmt.vcodec} | {fmt.acodec}) | {fmt.tbr} Kbps";
-
-                        stream.Tag  = fmt.url;
-                        stream.Click += VideoStreams_Click;
-                        vStreams.Add(stream);
-                    }
-                
-                    if (fmt.acodec != "none")
-                    {
-                        ToolStripMenuItem stream = new ToolStripMenuItem();
-
-                        stream.Checked = (player.hasAudio && ((player.decoder.aDemuxer.status != MediaFramework.Status.NOTSET && player.decoder.aDemuxer.url == fmt.url) || (player.decoder.aDemuxer.status == MediaFramework.Status.NOTSET && player.decoder.demuxer.url == fmt.url))) ? true : false;
-                        stream.Text = $"{fmt.width}x{fmt.height}@{fmt.fps} ({fmt.vcodec} | {fmt.acodec}) | {fmt.tbr} Kbps";
-
-                        stream.Tag  = fmt.url;
-                        stream.Click += AudioStreams_Click;
-                        aStreams.Add(stream);
-                    }
-                }
-            }
-
-            if (vStreams.Count > 0)
-            {
-                vStreamsToolStripMenuItem.Visible = true;
-                vStreamsToolStripMenuItem.Text = $"Video Streams ({vStreams.Count})";
-                vStreamsToolStripMenuItem.DropDownItems.AddRange(vStreams.ToArray());
-            }
-
-            if (aStreams.Count > 0)
-            {
-                aStreamsToolStripMenuItem.Visible = true;
-                aStreamsToolStripMenuItem.Text = $"Audio Streams ({aStreams.Count})";
-                aStreamsToolStripMenuItem.DropDownItems.AddRange(aStreams.ToArray());
-            }
-
-            //if (sStreams.Count > 0)
-            //{
-            //    sStreamsToolStripMenuItem.Visible = true;
-            //    sStreamsToolStripMenuItem.Text = $"Subtitle Streams ({sStreams.Count})";
-            //    sStreamsToolStripMenuItem.DropDownItems.AddRange(sStreams.ToArray());
-            //}
-
-            if (vStreams.Count != 0 || aStreams.Count != 0 || sStreams.Count != 0)
-                toolStripSeparator2.Visible = true;
-        }
-
-        private void EmbeddedAudioStreams_Click(object sender, EventArgs e)
-        {
-            MediaFramework.StreamInfo t1 = (MediaFramework.StreamInfo) ((ToolStripMenuItem)sender).Tag;
-            player.OpenAudio(t1.StreamIndex);
-            //player.decoder.OpenAudio(t1.StreamIndex);
-            BuildStreamsMenu();
-            //player.Seek((int) (player.CurTime/10000), true, true);
-        }
-        private void EmbeddedVideoStreams_Click(object sender, EventArgs e)
-        {
-            var save = player.beforeSeeking;
-            player.Pause();
-            player.beforeSeeking = save;
-            MediaFramework.StreamInfo t1 = (MediaFramework.StreamInfo) ((ToolStripMenuItem)sender).Tag;
-            player.decoder.OpenVideo(t1.StreamIndex);
-            BuildStreamsMenu();
-            player.Seek((int) (player.CurTime/10000), true, true);
-        }
-
+        #region Audio/Video Streams
+        private void Menu_Opening(object sender, CancelEventArgs e) { BuildStreamsMenu(); }
         private void HideStreamsMenu()
         {
             vStreamsToolStripMenuItem.DropDownItems.Clear();
@@ -610,6 +500,118 @@ namespace SuRGeoNix.Flyleaf.Controls
 
             toolStripSeparator2.Visible = false;
         }
+        private void BuildStreamsMenu()
+        {
+            try
+            {
+                if (!config.main.EmbeddedList) return;
+                if (form.InvokeRequired) { form.BeginInvoke(new Action(() => BuildRecentMenu())); return; }
+
+                HideStreamsMenu();
+                List<ToolStripMenuItem> aStreams = new List<ToolStripMenuItem>();
+                List<ToolStripMenuItem> vStreams = new List<ToolStripMenuItem>();
+                List<ToolStripMenuItem> sStreams = new List<ToolStripMenuItem>();
+
+                // Embedded Streams
+                var embedded = player.decoder.demuxer.streams;
+                if (embedded != null)
+                {
+                    for (int i=0; i<embedded.Length; i++)
+                    {
+                        if (embedded[i].Type != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO && embedded[i].Type != FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)
+                            continue;
+
+                        ToolStripMenuItem stream = new ToolStripMenuItem();
+                        stream.Checked  = player.decoder.demuxer.enabledStreams.Contains(embedded[i].StreamIndex) ? true : false;
+                        stream.Tag      = embedded[i];
+                        stream.Text     = embedded[i].GetDump();
+
+                        if (embedded[i].Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)
+                        {
+                            stream.Click   += EmbeddedVideoStreams_Click;
+                            vStreams.Add(stream);
+                        }
+                        else if (embedded[i].Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO)
+                        {
+                            stream.Click   += EmbeddedAudioStreams_Click;
+                            aStreams.Add(stream);
+                        }
+                    }
+                }
+                // Youtube-DL Streams
+                if (player.ytdl != null && player.ytdl.formats != null && player.ytdl.formats.Count > 1)
+                {
+                    for (int i=player.ytdl.formats.Count-1; i>=0; i--)
+                    {
+                        var fmt = player.ytdl.formats[i];
+                        if (fmt.vcodec == "none" && fmt.acodec == "none") continue;
+
+                        if (fmt.vcodec != "none")
+                        {
+                            //if (!System.Text.RegularExpressions.Regex.IsMatch(fmt.protocol, "dash"))
+                            //{
+                            ToolStripMenuItem stream = new ToolStripMenuItem();
+
+                            stream.Checked = player.decoder.demuxer.url == fmt.url ? true : false;
+                            stream.Text = $"{fmt.width}x{fmt.height}@{fmt.fps} ({fmt.vcodec} | {fmt.acodec}) | {fmt.tbr} Kbps | {(fmt.protocol != null ? fmt.protocol : "")}";
+
+                            stream.Tag  = fmt.url;
+                            stream.Click += VideoStreams_Click;
+                            vStreams.Add(stream);
+                            //}
+                        }
+                
+                        if (fmt.acodec != "none")
+                        {
+                            ToolStripMenuItem stream = new ToolStripMenuItem();
+
+                            stream.Checked = (player.hasAudio && ((player.decoder.aDemuxer.status != MediaFramework.Status.NOTSET && player.decoder.aDemuxer.url == fmt.url) || (player.decoder.aDemuxer.status == MediaFramework.Status.NOTSET && player.decoder.demuxer.url == fmt.url))) ? true : false;
+                            stream.Text = $"{fmt.width}x{fmt.height}@{fmt.fps} ({fmt.vcodec} | {fmt.acodec}) | {fmt.tbr} Kbps";
+
+                            stream.Tag  = fmt.url;
+                            stream.Click += AudioStreams_Click;
+                            aStreams.Add(stream);
+                        }
+                    }
+                }
+
+                if (vStreams.Count > 0)
+                {
+                    vStreamsToolStripMenuItem.Visible = true;
+                    vStreamsToolStripMenuItem.Text = $"Video Streams ({vStreams.Count})";
+                    vStreamsToolStripMenuItem.DropDownItems.AddRange(vStreams.ToArray());
+                }
+
+                if (aStreams.Count > 0)
+                {
+                    aStreamsToolStripMenuItem.Visible = true;
+                    aStreamsToolStripMenuItem.Text = $"Audio Streams ({aStreams.Count})";
+                    aStreamsToolStripMenuItem.DropDownItems.AddRange(aStreams.ToArray());
+                }
+
+                //if (sStreams.Count > 0)
+                //{
+                //    sStreamsToolStripMenuItem.Visible = true;
+                //    sStreamsToolStripMenuItem.Text = $"Subtitle Streams ({sStreams.Count})";
+                //    sStreamsToolStripMenuItem.DropDownItems.AddRange(sStreams.ToArray());
+                //}
+
+                if (vStreams.Count != 0 || aStreams.Count != 0 || sStreams.Count != 0)
+                    toolStripSeparator2.Visible = true;
+
+            } catch (Exception) { }
+        }
+
+        private void EmbeddedAudioStreams_Click(object sender, EventArgs e)
+        {
+            MediaFramework.StreamInfo t1 = (MediaFramework.StreamInfo) ((ToolStripMenuItem)sender).Tag;
+            player.OpenAudio(t1.StreamIndex);
+        }
+        private void EmbeddedVideoStreams_Click(object sender, EventArgs e)
+        {
+            MediaFramework.StreamInfo t1 = (MediaFramework.StreamInfo) ((ToolStripMenuItem)sender).Tag;
+            player.OpenVideo(t1.StreamIndex);
+        }
         private void VideoStreams_Click(object sender, EventArgs e)
         {
             Open(((ToolStripMenuItem)sender).Tag.ToString(), true);
@@ -617,10 +619,6 @@ namespace SuRGeoNix.Flyleaf.Controls
         private void AudioStreams_Click(object sender, EventArgs e)
         {
             player.OpenAudio(((ToolStripMenuItem)sender).Tag.ToString(), true);
-
-            // Refresh Streams
-            Thread t1 = new Thread(() => { Thread.Sleep(1000); BuildStreamsMenu(); Thread.Sleep(10000); BuildStreamsMenu(); });
-            t1.IsBackground = true; t1.Start();
         }
         //private void SubtitleStreams_Click(object sender, EventArgs e)
         //{
@@ -826,8 +824,6 @@ namespace SuRGeoNix.Flyleaf.Controls
                 tblBar.seekBar.SetValue(1);
                 tblBar.seekBar.Maximum = 1;
             }
-
-            BuildStreamsMenu(selectedFile);
 
             if (player.isFailed) return;
 
