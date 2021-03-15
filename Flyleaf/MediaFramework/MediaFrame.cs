@@ -217,6 +217,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             return ret;
         }
 
-        private static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [MediaFrame] {msg}"); }
+        private static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [MediaFrame] {msg}"); }
     }
 }

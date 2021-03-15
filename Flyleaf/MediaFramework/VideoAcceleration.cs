@@ -68,6 +68,6 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             return hwDevices;
         }
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("H.mm.ss.fff")}] [HWAcceleration] {msg}"); }
+        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [HWAcceleration] {msg}"); }
     }
 }
