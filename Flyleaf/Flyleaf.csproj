@@ -205,9 +205,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\PixelShader_YUV.hlsl" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Controls\FlyleafBar.resx">
       <DependentUpon>FlyleafBar.cs</DependentUpon>
     </EmbeddedResource>
@@ -227,12 +224,28 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\PixelShader.hlsl" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Shaders\VertexShader.hlsl" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Shaders\PixelShader.hlsl" />
+    <None Include="Shaders\BT601.Y_U_V.FULL.hlsl" />
+    <None Include="Shaders\BT601.Y_U_V.LIMITED.hlsl" />
+    <None Include="Shaders\BT601.Y_UV.FULL.hlsl" />
+    <None Include="Shaders\BT601.Y_UV.LIMITED.hlsl" />
+    <None Include="Shaders\BT601.Y_VU.FULL.hlsl" />
+    <None Include="Shaders\BT601.Y_VU.LIMITED.hlsl" />
+    <None Include="Shaders\BT709.Y_U_V.FULL.hlsl" />
+    <None Include="Shaders\BT709.Y_U_V.LIMITED.hlsl" />
+    <None Include="Shaders\BT709.Y_UV.FULL.hlsl" />
+    <None Include="Shaders\BT709.Y_UV.LIMITED.hlsl" />
+    <None Include="Shaders\BT709.Y_VU.FULL.hlsl" />
+    <None Include="Shaders\BT709.Y_VU.LIMITED.hlsl" />
+    <None Include="Shaders\BT2020.Y_U_V.FULL.hlsl" />
+    <None Include="Shaders\BT2020.Y_U_V.LIMITED.hlsl" />
+    <None Include="Shaders\BT2020.Y_UV.FULL.hlsl" />
+    <None Include="Shaders\BT2020.Y_UV.LIMITED.hlsl" />
+    <None Include="Shaders\BT2020.Y_VU.FULL.hlsl" />
+    <None Include="Shaders\BT2020.Y_VU.LIMITED.hlsl" />
     <None Include="Images\VideoFile.png" />
     <None Include="Images\Web.png" />
     <Content Include="Images\Mute.png" />
