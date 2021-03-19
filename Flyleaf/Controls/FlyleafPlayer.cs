@@ -678,11 +678,14 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (!seeking && !player.isLive)
             {
                 if (tblBar.seekBar.Maximum == 1) return; // TEMP... thorws exception just after open
-                int      barValue = (int)(player.CurTime / 10000000) + 1;
+                int      barValue = (int)(player.CurTime / 10000000);
                 if      (barValue > (int)tblBar.seekBar.Maximum) barValue = (int)tblBar.seekBar.Maximum;
                 else if (barValue < (int)tblBar.seekBar.Minimum) barValue = (int)tblBar.seekBar.Minimum;
 
-                tblBar.seekBar.SetValue(barValue);
+                if (barValue == tblBar.seekBar.Maximum -1)
+                    tblBar.seekBar.SetValue(tblBar.seekBar.Maximum);
+                else
+                    tblBar.seekBar.SetValue(barValue);
 
                 // Saves the current second in history (should be only if the duration of movie is large enough and playing time was at least X secs) - see also on OpenFinished for Seek
                 timerLoop++;
@@ -824,6 +827,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 tblBar.seekBar.SetValue(0);
                 tblBar.seekBar.Maximum = (int)(player.Duration / 10000000);
+                if (tblBar.seekBar.Maximum == 1) tblBar.seekBar.SetValue(1);
             }
             else
             {
@@ -1038,7 +1042,7 @@ namespace SuRGeoNix.Flyleaf.Controls
             if (!config.hookForm._Enabled || !config.hookForm.AutoResize) return;
             if (form.InvokeRequired) { form.BeginInvoke(new Action(() => FixAspectRatio())); return; }
 
-            float AspectRatio = config.video.AspectRatio == ViewPorts.KEEP ? player.DecoderRatio : player.CustomRatio;
+            float AspectRatio = config.video.AspectRatio == ViewPorts.KEEP ? player.decoder.vStreamInfo.AspectRatio : player.CustomRatio;
 
             if (fromOpen) 
                 if (config.hookForm._Enabled && config.hookForm.HookHandle) form.Size = formInitSize; else form.Size = thisInitSize;
@@ -1361,10 +1365,13 @@ namespace SuRGeoNix.Flyleaf.Controls
             {
                 if (player.ViewPort == MediaRouter.ViewPorts.KEEP) player.ViewPort = MediaRouter.ViewPorts.FILL;
                 else if (player.ViewPort != MediaRouter.ViewPorts.KEEP) player.ViewPort = MediaRouter.ViewPorts.KEEP;
+
+                if (isFullScreen) player.renderer.HookResized(null, null);
             }
             else if (c == KeyCodeToUnicode(Keys.M) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.M)) { MuteUnmute(); }
             else if (c == KeyCodeToUnicode(Keys.S) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.S))
             {
+                //player.renderer.tryNext(); // Testing SwapChains ColorSpaces
                 player.doSubs = !player.doSubs;
             }
             else if (c == KeyCodeToUnicode(Keys.A) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.A))
@@ -1714,7 +1721,7 @@ namespace SuRGeoNix.Flyleaf.Controls
                             
                         if (config.video.AspectRatio != ViewPorts.FILL)
                         {
-                            float AspectRatio = config.video.AspectRatio == ViewPorts.KEEP ? player.DecoderRatio : player.CustomRatio;
+                            float AspectRatio = config.video.AspectRatio == ViewPorts.KEEP ? player.decoder.vStreamInfo.AspectRatio : player.CustomRatio;
 
                             // RESIZE FORM [KEEP ASPECT RATIO]
                             if (displayMoveSideCur == 1)

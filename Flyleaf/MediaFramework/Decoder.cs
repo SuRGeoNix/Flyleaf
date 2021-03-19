@@ -39,9 +39,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public bool                         hwAccelSuccess;
 
         public SwsContext*                  swsCtx;
-        internal Texture2DDescription       textDescHW;
-        internal Texture2DDescription       textDescYUV;
-        internal Texture2DDescription       textDescRGB;
+        internal Texture2DDescription       textDesc, textDescUV;
         internal Texture2D                  textureFFmpeg;
 
         public SwrContext*                  swrCtx;
@@ -156,16 +154,24 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         {
             hwAccelSuccess = false;
 
-            if (opt.video.HWAcceleration && VideoAcceleration.CheckCodecSupport(codec))
+            if (opt.video.HWAcceleration)
             {
-                if (demuxer.decCtx.va.hw_device_ctx == null) demuxer.decCtx.va.Init(demuxer.decCtx.device);
-
-                if (demuxer.decCtx.va.hw_device_ctx != null)
+                if (VideoAcceleration.CheckCodecSupport(codec))
                 {
-                    codecCtx->hw_device_ctx = av_buffer_ref(demuxer.decCtx.va.hw_device_ctx);
-                    hwAccelSuccess = true;
+                    if (demuxer.decCtx.va.hw_device_ctx == null) demuxer.decCtx.va.Init(demuxer.decCtx.device);
+
+                    if (demuxer.decCtx.va.hw_device_ctx != null)
+                    {
+                        codecCtx->hw_device_ctx = av_buffer_ref(demuxer.decCtx.va.hw_device_ctx);
+                        hwAccelSuccess = true;
+                        Log("HW Acceleration Success");
+                    }
                 }
+                else
+                    Log("HW Acceleration Failed");
             }
+            else
+                Log("HW Acceleration Disabled");
 
             codecCtx->thread_count = Math.Min(opt.video.DecoderThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
             codecCtx->thread_type  = 0;
@@ -173,59 +179,39 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             //vCodecCtx->active_thread_type = FF_THREAD_SLICE;
             codecCtx->thread_safe_callbacks = 1;
 
-            // Hardware Texture (NV12 | P010) | Format will be set from source
-            textDescHW = new Texture2DDescription()
+            AVPixFmtDescriptor* pixFmtDesc = av_pix_fmt_desc_get((AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), info.PixelFormat));
+            int bits = pixFmtDesc->comp.ToArray()[0].depth;
+
+            textDesc = new Texture2DDescription()
             {
-	            Usage               = ResourceUsage.Default,
-
-                Width               = codecCtx->width,
-                Height              = codecCtx->height,
-
-                BindFlags           = BindFlags.Decoder,
-	            CpuAccessFlags      = CpuAccessFlags.None,
-	            OptionFlags         = ResourceOptionFlags.None,
-
-	            SampleDescription   = new SampleDescription(1, 0),
-	            ArraySize           = 1,
-	            MipLevels           = 1
-            };
-
-            // YUV Pixel Shader (textureY | textureU | textureV)
-            textDescYUV = new Texture2DDescription()
-            {
-                Usage               = ResourceUsage.Immutable,
-                Format              = Format.R8_UNorm,
-
-                Width               = codecCtx->width,
-                Height              = codecCtx->height,
-
+                Usage               = ResourceUsage.Default,
                 BindFlags           = BindFlags.ShaderResource,
-                CpuAccessFlags      = CpuAccessFlags.None,
-                OptionFlags         = ResourceOptionFlags.None,
+
+                Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm, // FOR HW/SW will be set later
+                Width               = codecCtx->width,
+                Height              = codecCtx->height,
 
                 SampleDescription   = new SampleDescription(1, 0),
                 ArraySize           = 1,
                 MipLevels           = 1
             };
 
-            // RGBA Sws Scale
-            textDescRGB = new Texture2DDescription()
+            textDescUV = new Texture2DDescription()
             {
-                Usage               = ResourceUsage.Immutable,
-                Format              = Format.R8G8B8A8_UNorm,
-
-                Width               = codecCtx->width,
-                Height              = codecCtx->height,
-
+                Usage               = ResourceUsage.Default,
                 BindFlags           = BindFlags.ShaderResource,
-                CpuAccessFlags      = CpuAccessFlags.None,
-                OptionFlags         = ResourceOptionFlags.None,
+
+                //Format              = bits > 8 ? Format.R16G16_UNorm : Format.R8G8_UNorm, // FOR HW/SW will be set later
+                Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm, // FOR HW/SW will be set later
+                Width               = codecCtx->width >> info.PixelFormatDesc->log2_chroma_w,
+                Height              = codecCtx->height >> info.PixelFormatDesc->log2_chroma_h,
 
                 SampleDescription   = new SampleDescription(1, 0),
                 ArraySize           = 1,
                 MipLevels           = 1
             };
 
+            decCtx.VideoCodecChanged_();
             return 0;
         }
 
@@ -241,16 +227,8 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             }
 
             if (type == Type.Video)
-            {
-                foreach (MediaFrame m in frames)
-                {
-                    SharpDX.Utilities.Dispose(ref m.textureHW);
-                    SharpDX.Utilities.Dispose(ref m.textureY);
-                    SharpDX.Utilities.Dispose(ref m.textureU);
-                    SharpDX.Utilities.Dispose(ref m.textureV);
-                    SharpDX.Utilities.Dispose(ref m.textureRGB);
-                }
-            }
+                foreach (MediaFrame frame in frames)
+                    if (frame.textures != null) for (int i=0; i<frame.textures.Length; i++) SharpDX.Utilities.Dispose(ref frame.textures[i]);
 
             packets = new ConcurrentQueue<IntPtr>();
             frames = new ConcurrentQueue<MediaFrame>();
@@ -316,7 +294,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 if (demuxer.status == Status.READY)
                 {
                     demuxer.demuxARE.Set();
-                    while (!demuxer.isPlaying && demuxer.status != Status.END) Thread.Sleep(1);
+                    while (!demuxer.isPlaying && demuxer.status != Status.END && !forcePause && decCtx.isPlaying) Thread.Sleep(1);
                 }
 
                 while (true)
@@ -417,8 +395,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                         }
                     }
 
-                    lock (demuxer.decCtx.device)
-                        ret = avcodec_send_packet(codecCtx, pkt);
+                    ret = avcodec_send_packet(codecCtx, pkt);
                     
                     if (ret != 0 && ret != AVERROR(EAGAIN))
                     {
@@ -448,8 +425,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                     while (true)
                     {
-                        lock (demuxer.decCtx.device)
-                            ret = avcodec_receive_frame(codecCtx, frame);
+                        ret = avcodec_receive_frame(codecCtx, frame);
 
                         if (ret == 0)
                         {
@@ -463,10 +439,15 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                             }
 
                             //Log(Utils.TicksToTime((long)(mFrame.pts * demuxer.streams[st->index].Timebase)) + " | pts -> " + mFrame.pts);
-
+                            
                             if (type == Type.Video)
                             {
-                                if (hwAccelSuccess && frame->hw_frames_ctx == null) hwAccelSuccess = false;
+                                if (hwAccelSuccess && frame->hw_frames_ctx == null)
+                                {
+                                    Log("HW Acceleration Failed 2");
+                                    hwAccelSuccess = false;
+                                    decCtx.VideoCodecChanged_();
+                                }
                                 mFrame.timestamp = ((long)(mFrame.pts * info.Timebase) - demuxer.streams[st->index].StartTime) + opt.audio.LatencyTicks;
                                 if (MediaFrame.ProcessVideoFrame(this, mFrame, frame) != 0) mFrame = null;
 

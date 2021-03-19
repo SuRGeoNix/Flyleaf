@@ -118,6 +118,60 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+  <data name="BT2020_Y_UV_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT2020.Y_UV.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT2020_Y_UV_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT2020.Y_UV.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT2020_Y_U_V_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT2020.Y_U_V.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT2020_Y_U_V_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT2020.Y_U_V.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT2020_Y_VU_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT2020.Y_VU.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT2020_Y_VU_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT2020.Y_VU.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT601_Y_UV_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT601.Y_UV.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT601_Y_UV_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT601.Y_UV.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT601_Y_U_V_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT601.Y_U_V.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT601_Y_U_V_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT601.Y_U_V.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT601_Y_VU_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT601.Y_VU.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT601_Y_VU_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT601.Y_VU.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT709_Y_UV_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT709.Y_UV.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT709_Y_UV_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT709.Y_UV.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT709_Y_U_V_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT709.Y_U_V.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT709_Y_U_V_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT709.Y_U_V.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT709_Y_VU_FULL" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT709.Y_VU.FULL.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="BT709_Y_VU_LIMITED" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Shaders\BT709.Y_VU.LIMITED.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
   <data name="Mute" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Images\Mute.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
@@ -126,9 +180,6 @@
   </data>
   <data name="PixelShader" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Shaders\PixelShader.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="PixelShader_YUV" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Shaders\PixelShader_YUV.hlsl;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="Play" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Images\Play.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>

@@ -392,6 +392,12 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                                 if (firstTs == -1)
                                 {
+                                    if (vDecoder.hwAccelSuccess && frame->hw_frames_ctx == null)
+                                    {
+                                        Log("HW Acceleration Failed 2");
+                                        vDecoder.hwAccelSuccess = false;
+                                        VideoCodecChanged_();
+                                    }
                                     if (vDecoder.hwAccelSuccess && frame->hw_frames_ctx == null) vDecoder.hwAccelSuccess = false;
                                     firstTs = mFrame.timestamp;
                                 }
@@ -426,6 +432,10 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
             
             return firstTs;
         }
+
+        public event         VideoCodecChangedHandler VideoCodecChanged;
+        public delegate void VideoCodecChangedHandler(object source, EventArgs e);
+        internal void VideoCodecChanged_() { VideoCodecChanged?.Invoke(this, new EventArgs()); }
 
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [DecoderContext] {msg}"); }
     }
