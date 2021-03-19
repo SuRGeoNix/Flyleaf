@@ -201,6 +201,8 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             this.flyLeaf4._video.CustomRatio = 1.777778F;
             this.flyLeaf4._video.DecoderThreads = 16;
             this.flyLeaf4._video.HardwareAcceleration = true;
+            this.flyLeaf4._video.QueueMaxSize = 200;
+            this.flyLeaf4._video.QueueMinSize = 1;
             this.flyLeaf4._video.VSync = false;
             this.flyLeaf4.AllowDrop = true;
             this.flyLeaf4.BackColor = System.Drawing.Color.Black;
@@ -355,6 +357,8 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             this.flyLeaf3._video.CustomRatio = 1.777778F;
             this.flyLeaf3._video.DecoderThreads = 16;
             this.flyLeaf3._video.HardwareAcceleration = true;
+            this.flyLeaf3._video.QueueMaxSize = 200;
+            this.flyLeaf3._video.QueueMinSize = 1;
             this.flyLeaf3._video.VSync = false;
             this.flyLeaf3.AllowDrop = true;
             this.flyLeaf3.BackColor = System.Drawing.Color.Black;
@@ -509,6 +513,8 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             this.flyLeaf2._video.CustomRatio = 1.777778F;
             this.flyLeaf2._video.DecoderThreads = 16;
             this.flyLeaf2._video.HardwareAcceleration = true;
+            this.flyLeaf2._video.QueueMaxSize = 200;
+            this.flyLeaf2._video.QueueMinSize = 1;
             this.flyLeaf2._video.VSync = false;
             this.flyLeaf2.AllowDrop = true;
             this.flyLeaf2.BackColor = System.Drawing.Color.Black;
@@ -663,6 +669,8 @@ namespace SuRGeoNix.FlyleafMultiPlayer
             this.flyLeaf1._video.CustomRatio = 1.777778F;
             this.flyLeaf1._video.DecoderThreads = 16;
             this.flyLeaf1._video.HardwareAcceleration = true;
+            this.flyLeaf1._video.QueueMaxSize = 200;
+            this.flyLeaf1._video.QueueMinSize = 1;
             this.flyLeaf1._video.VSync = false;
             this.flyLeaf1.AllowDrop = true;
             this.flyLeaf1.BackColor = System.Drawing.Color.Black;
