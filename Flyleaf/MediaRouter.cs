@@ -192,7 +192,6 @@ namespace SuRGeoNix.Flyleaf
 
         // Video
         public ViewPorts ViewPort       { get; set; } = ViewPorts.KEEP;
-        public float    DecoderRatio    { get; set; } = 16f/9f;
         public float    CustomRatio     { get; set; } = 16f/9f;
         public long     Duration        { get { if (decoder == null) return 0; else return decoder.vStreamInfo.DurationTicks; } }
         public int      Width           { get { return decoder.vStreamInfo.Width;   } }
@@ -321,6 +320,7 @@ namespace SuRGeoNix.Flyleaf
                 audioPlayer     = new AudioPlayer(renderer.HookControl);
                 torrentStreamer = new TorrentStreamer(this);
                 decoder.Init(renderer.device);
+                decoder.VideoCodecChanged += renderer.FrameResized;
                 TimeBeginPeriod(5);
                 Initialize();
             }
@@ -370,14 +370,8 @@ namespace SuRGeoNix.Flyleaf
 
             Log($"[Initializing Evn]");
 
-            if (!hasAudio)
-                OpenBestAudio();
-
-            if (hasAudio)
-                audioPlayer.Initialize(decoder.opt.audio.SampleRate);
-
-            DecoderRatio = (float)decoder.vStreamInfo.Width / (float)decoder.vStreamInfo.Height;
-            renderer.FrameResized(decoder.vStreamInfo.Width, decoder.vStreamInfo.Height);
+            if (!hasAudio) OpenBestAudio();
+            if ( hasAudio) audioPlayer.Initialize(decoder.opt.audio.SampleRate);
 
             if (UrlType == InputType.Web && decoder.vStreamInfo.DurationTicks == 0) UrlType = InputType.WebLive;
 
@@ -544,7 +538,7 @@ namespace SuRGeoNix.Flyleaf
 
             } while (!shouldStop && (!gotVideo || !gotAudio));
 
-            if (shouldStop)     { Log("[SCREAMER] Stopped"); return false; }
+            if (shouldStop && !(decoder.Finished && isPlaying && vFrame != null)) { Log("[SCREAMER] Stopped"); return false; }
             if (vFrame == null) { Log("[SCREAMER] [ERROR] No Frames!"); return false; }
 
             // Wait 1: Ensure we have enough buffering packets to play (mainly for network streams)
@@ -616,27 +610,6 @@ namespace SuRGeoNix.Flyleaf
                     Thread.Sleep(sleepMs);
                 }
 
-                if (aFrame != null) // Should use different thread for better accurancy (renderer might delay it on high fps) | also on high offset we will have silence between samples
-                {
-                    if (Math.Abs(aDistanceMs - sleepMs) <= 10)
-                    {
-                        //Log($"[A] Presenting {Utils.TicksToTime(aFrame.timestamp)}");
-                        audioPlayer.FrameClbk(aFrame.audioData, 0, aFrame.audioData.Length);
-                        decoder.aDecoder.frames.TryDequeue(out aFrame);
-                    }
-                    else if (aDistanceMs < -10) // Will be transfered back to decoder to drop invalid timestamps
-                    {
-                        Log("-=-=-=-=-=-=");
-                        for (int i=0; i<50; i++)
-                        {
-                            Log($"aDistanceMs 2 |-> {aDistanceMs}");
-                            decoder.aDecoder.frames.TryDequeue(out aFrame);
-                            aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
-                            if (aDistanceMs > 0) break;
-                        }
-                    }
-                }
-
                 if (Math.Abs(vDistanceMs - sleepMs) <= 2)
                 {
                     //Log($"[V] Presenting {Utils.TicksToTime(vFrame.timestamp)}");
@@ -648,6 +621,27 @@ namespace SuRGeoNix.Flyleaf
                     ClearVideoFrame(vFrame);
                     decoder.vDecoder.frames.TryDequeue(out vFrame);
                     Log($"vDistanceMs 2 |-> {vDistanceMs}");
+                }
+
+                if (aFrame != null) // Should use different thread for better accurancy (renderer might delay it on high fps) | also on high offset we will have silence between samples
+                {
+                    if (Math.Abs(aDistanceMs - sleepMs) <= 10)
+                    {
+                        //Log($"[A] Presenting {Utils.TicksToTime(aFrame.timestamp)}");
+                        audioPlayer.FrameClbk(aFrame.audioData, 0, aFrame.audioData.Length);
+                        decoder.aDecoder.frames.TryDequeue(out aFrame);
+                    }
+                    else if (aDistanceMs < -10) // Will be transfered back to decoder to drop invalid timestamps
+                    {
+                        Log("-=-=-=-=-=-=");
+                        for (int i=0; i<25; i++)
+                        {
+                            Log($"aDistanceMs 2 |-> {aDistanceMs}");
+                            decoder.aDecoder.frames.TryDequeue(out aFrame);
+                            aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
+                            if (aDistanceMs > 0) break;
+                        }
+                    }
                 }
 
                 if (sFrame != null)
@@ -906,8 +900,6 @@ namespace SuRGeoNix.Flyleaf
                     Pause();
                     decoder.Pause();
                     if (decoder.OpenVideo(streamIndex, true) != 0) return;
-                    DecoderRatio = (float)decoder.vStreamInfo.Width / (float)decoder.vStreamInfo.Height;
-                    renderer.FrameResized(decoder.vStreamInfo.Width, decoder.vStreamInfo.Height);
                     if (isLive)
                         decoder.aDecoder.Flush();
                     else
@@ -1472,14 +1464,10 @@ namespace SuRGeoNix.Flyleaf
             }
             decoder.interrupt = 0;
         }
-        internal void ClearVideoFrame(MediaFrame m)
+        internal void ClearVideoFrame(MediaFrame frame)
         {
-            if (m == null) return;
-            SharpDX.Utilities.Dispose(ref m.textureHW);
-            SharpDX.Utilities.Dispose(ref m.textureY);
-            SharpDX.Utilities.Dispose(ref m.textureU);
-            SharpDX.Utilities.Dispose(ref m.textureV);
-            SharpDX.Utilities.Dispose(ref m.textureRGB);
+            if (frame == null || frame.textures == null) return;
+            for (int i=0; i<frame.textures.Length; i++) SharpDX.Utilities.Dispose(ref frame.textures[i]);
         }
 
         private void Log(string msg) { if (verbosity > 0) Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] {msg}"); }

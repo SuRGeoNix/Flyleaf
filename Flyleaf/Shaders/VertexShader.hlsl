@@ -1,16 +1,16 @@
-struct VS_INPUT
+struct VertexShaderInput
 {
-	float4 Pos : POSITION;
-	float2 Tex : TEXCOORD;
+    float4 pos : POSITION;
+    float2 tex : TEXCOORD0;
 };
 
-struct VS_OUTPUT
+struct VertexShaderOutput
 {
-	float4 Pos : SV_POSITION;
-	float2 Tex : TEXCOORD;
+    float4 pos : SV_POSITION;
+    float2 tex : TEXCOORD0;
 };
 
-VS_OUTPUT main(VS_INPUT input)
+VertexShaderOutput main(VertexShaderInput input)
 {
-	return input;
+    return input;
 }
