@@ -61,6 +61,186 @@ namespace SuRGeoNix.Flyleaf.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT2020_Y_U_V_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT2020_Y_U_V_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT2020_Y_U_V_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT2020_Y_U_V_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT2020_Y_UV_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT2020_Y_UV_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT2020_Y_UV_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT2020_Y_UV_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT2020_Y_VU_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT2020_Y_VU_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT2020_Y_VU_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT2020_Y_VU_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT601_Y_U_V_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT601_Y_U_V_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT601_Y_U_V_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT601_Y_U_V_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT601_Y_UV_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT601_Y_UV_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT601_Y_UV_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT601_Y_UV_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT601_Y_VU_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT601_Y_VU_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT601_Y_VU_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT601_Y_VU_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT709_Y_U_V_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT709_Y_U_V_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT709_Y_U_V_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT709_Y_U_V_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT709_Y_UV_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT709_Y_UV_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT709_Y_UV_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT709_Y_UV_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT709_Y_VU_FULL {
+            get {
+                object obj = ResourceManager.GetObject("BT709_Y_VU_FULL", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] BT709_Y_VU_LIMITED {
+            get {
+                object obj = ResourceManager.GetObject("BT709_Y_VU_LIMITED", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
         internal static System.Drawing.Bitmap Mute {
@@ -86,16 +266,6 @@ namespace SuRGeoNix.Flyleaf.Properties {
         internal static byte[] PixelShader {
             get {
                 object obj = ResourceManager.GetObject("PixelShader", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] PixelShader_YUV {
-            get {
-                object obj = ResourceManager.GetObject("PixelShader_YUV", resourceCulture);
                 return ((byte[])(obj));
             }
         }

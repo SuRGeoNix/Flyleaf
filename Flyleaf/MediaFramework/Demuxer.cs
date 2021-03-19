@@ -305,7 +305,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 status = Status.READY;
 
             pkt = av_packet_alloc();
-
+            //Console.WriteLine($"CP: {decoder.codecCtx->colorspace} | PR: {decoder.codecCtx->color_primaries} | TRC: {decoder.codecCtx->color_trc} | CR: {decoder.codecCtx->color_range}");
             return 0;
         }
         public void Close(bool closeExternals = true)
@@ -437,6 +437,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                 forcePause = false;
                 Log("Started");
                 int ret = 0;
+                int allowedErrors = 30;
 
                 while (true)
                 {
@@ -451,6 +452,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                         if (ret == AVERROR_EXIT)
                         {
                             Log("AVERROR_EXIT!!! " + decCtx.interrupt);
+                            allowedErrors--; if (allowedErrors == 0) break;
                             continue;
                         }
 
