@@ -17,7 +17,7 @@ namespace SuRGeoNix.Flyleaf
 
         public Control          uiThread;                   // Requires to run on same thread (using UI thread) | Warning! Any access to audio device should be invoke ui thread (otherwise will hang on player.Dispose() | player.Init())
 
-        public const int        NAUDIO_DELAY_MS = 300;      // Latency (buffer before play), consider same audio delay for video player in order to be sync
+        public const int        NAUDIO_DELAY_MS = 200;      // Latency (buffer before play), consider same audio delay for video player in order to be sync
         int                     CHANNELS        = 2;        // Currently fixed
         public int              Rate            = 48000;    // Will be set from Input Format
         //int                     _BITS           = 16;     // Currently not used (CreateIeeeFloatWaveFormat 32bit, if we need to set it use WaveFormatExtensible)
@@ -107,6 +107,27 @@ namespace SuRGeoNix.Flyleaf
         public void Stop()  { lock (locker) { player.Stop(); Initialize(); } }
         public void Close() { lock (locker) { if (player != null) player.Dispose(); } }
 
+        public void FrameClbk(byte[] buffer, int offset, int count)
+        {
+            try
+            {
+                if (player.PlaybackState != PlaybackState.Playing) return;
+
+                if (this.buffer.BufferedDuration.Milliseconds > NAUDIO_DELAY_MS)
+                {
+                    // We will see this happen on HLS streams that change source (eg. ads - like two streams playing audio in parallel)
+                    Log("Resynch !!! | " + this.buffer.BufferedBytes);
+                    this.buffer.ClearBuffer();
+                }
+
+                this.buffer.AddSamples(buffer, offset, count);
+            }
+            catch (Exception e)
+            {
+                Log(e.Message + " " + e.StackTrace);
+            }
+        }
+
         public int GetVolume()
         {
             lock (locker)
@@ -135,28 +156,6 @@ namespace SuRGeoNix.Flyleaf
 
             return false;
         }
-
-        // Callbacks
-        public void FrameClbk(byte[] buffer, int offset, int count)
-        {
-            try
-            {
-                if (player.PlaybackState != PlaybackState.Playing) return;
-
-                if (this.buffer.BufferedDuration.Milliseconds > NAUDIO_DELAY_MS)
-                {
-                    Log("Resynch !!! | " + this.buffer.BufferedBytes);
-                    this.buffer.ClearBuffer();
-                }
-
-                this.buffer.AddSamples(buffer, offset, count);
-            }
-            catch (Exception e)
-            {
-                Log(e.Message + " " + e.StackTrace);
-            }
-        }
-        public void ResetClbk() { lock (locker) buffer.ClearBuffer(); }
 
         // Master Audio Events | MMDeviceEnumerator
         public void OnMasterVolumeChanged(AudioVolumeNotificationData data)
