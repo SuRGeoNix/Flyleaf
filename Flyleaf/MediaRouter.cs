@@ -485,13 +485,12 @@ namespace SuRGeoNix.Flyleaf
         #region Screaming
         private bool MediaBuffer()
         {
+            audioPlayer.Pause();
             if (!decoder.isRunning)
             {
                 if (decoder.Finished) decoder.Seek(0);
                 decoder.Play();
             }
-            audioPlayer.ResetClbk();
-            audioPlayer.Play();
 
             Log("[SCREAMER] Buffering ...");
             torrentStreamer.bitSwarmOpt.EnableBuffering = true;
@@ -559,6 +558,7 @@ namespace SuRGeoNix.Flyleaf
             startedAtTicks  = DateTime.UtcNow.Ticks;
             CurTime         = videoStartTicks;
 
+            audioPlayer.Play();
             Log($"[SCREAMER] Started -> {Utils.TicksToTime(videoStartTicks)} | [V: {Utils.TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {Utils.TicksToTime(aFrame.timestamp)}]"));
 
             return true;
@@ -639,7 +639,7 @@ namespace SuRGeoNix.Flyleaf
                             Log($"aDistanceMs 2 |-> {aDistanceMs}");
                             decoder.aDecoder.frames.TryDequeue(out aFrame);
                             aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
-                            if (aDistanceMs > 0) break;
+                            if (aDistanceMs > -7) break;
                         }
                     }
                 }
@@ -995,6 +995,7 @@ namespace SuRGeoNix.Flyleaf
 
                 finally
                 {
+                    audioPlayer.Pause();
                     ClearVideoFrame(vFrame); vFrame = null;
                     TimeEndPeriod(1);
                     SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
@@ -1181,7 +1182,7 @@ namespace SuRGeoNix.Flyleaf
         }
         public void Pause()
         {
-            audioPlayer.ResetClbk();
+            audioPlayer.Pause();
 
             if (isSeeking)
             {
@@ -1440,7 +1441,7 @@ namespace SuRGeoNix.Flyleaf
             status = Status.STOPPING;
             Utils.EnsureThreadDone(screamer);
             decoder.Pause();
-            if (hasAudio) audioPlayer.ResetClbk();
+            audioPlayer.Pause();
             status = Status.STOPPED;
         }
         private void StopThreads()
