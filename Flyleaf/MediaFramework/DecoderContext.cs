@@ -377,15 +377,16 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                             AVFrame* frame = av_frame_alloc();
                             lock (device)
                             ret = avcodec_receive_frame(vDecoder.codecCtx, frame);
-
+                            
                             if (ret == 0)
                             {
                                 MediaFrame mFrame = new MediaFrame();
                                 mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                                 mFrame.timestamp = ((long)(mFrame.pts * vDecoder.info.Timebase) - demuxer.streams[vDecoder.st->index].StartTime) + opt.audio.LatencyTicks;
 
-                                if (mFrame.pts == AV_NOPTS_VALUE)
+                                if (mFrame.pts == AV_NOPTS_VALUE || frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
                                 {
+                                    if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I) Log($"Invalid Seek to Keyframe, skip... {frame->pict_type} | {frame->key_frame.ToString()}");
                                     av_frame_free(&frame);
                                     continue;
                                 }

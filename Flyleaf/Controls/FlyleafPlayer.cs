@@ -1371,12 +1371,16 @@ namespace SuRGeoNix.Flyleaf.Controls
             else if (c == KeyCodeToUnicode(Keys.M) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.M)) { MuteUnmute(); }
             else if (c == KeyCodeToUnicode(Keys.S) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.S))
             {
-                //player.renderer.tryNext(); // Testing SwapChains ColorSpaces
                 player.doSubs = !player.doSubs;
             }
             else if (c == KeyCodeToUnicode(Keys.A) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.A))
             {
                 player.doAudio = !player.doAudio;
+
+                if (!player.hasAudio || !player.doAudio) 
+                    { tblBar.btnMute.Enabled = false; tblBar.volBar.Enabled = false; }
+                else
+                    { tblBar.btnMute.Enabled = true; tblBar.volBar.Enabled = true; }
             }
             else if (c == KeyCodeToUnicode(Keys.O) || Char.ToUpper(c) == KeyCodeToUnicode(Keys.O))
             {

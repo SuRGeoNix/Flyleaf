@@ -37,7 +37,7 @@ namespace SuRGeoNix.Flyleaf
 
             if (player.verbosity > 0)
             {
-                bitSwarmOpt.Verbosity   = 4;
+                bitSwarmOpt.Verbosity   = 1;
                 bitSwarmOpt.LogStats    = true;
             }
 

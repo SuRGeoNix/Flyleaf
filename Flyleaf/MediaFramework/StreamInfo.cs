@@ -90,7 +90,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
 
                     if (st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT470BG)
                         si.ColorSpace = "BT601";
-                    else if (si.Height >= 720)
+                    if (si.Width > 1024 || si.Height >= 600)
                         si.ColorSpace = "BT709";
                     else
                         si.ColorSpace = "BT601";
