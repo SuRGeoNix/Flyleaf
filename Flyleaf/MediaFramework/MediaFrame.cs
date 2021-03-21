@@ -15,8 +15,7 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public long         timestamp;
         public long         pts;
 
-        public Texture2D[]  textures;   // Video Textures
-
+        public Texture2D[]  textures;   // Video Textures (planes)
         public byte[]       audioData;  // Audio Samples
             
         // Subtitles
@@ -24,48 +23,46 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
         public string       text;
         public List<OSDMessage.SubStyle> subStyles;
 
-        public static void CreateTexture(Decoder decoder, IntPtr dataPtr, int pitch, Texture2DDescription textDesc, out Texture2D texture)
-        {
-            DataStream ds   = new DataStream(pitch * textDesc.Height, true, true);
-            DataBox    db   = new DataBox();
-            db.DataPointer  = ds.DataPointer;
-            db.RowPitch     = pitch;
-            ds.WriteRange(dataPtr, ds.Length);
-            texture = new Texture2D(decoder.decCtx.device, textDesc, new DataBox[] { db });
-            Utilities.Dispose(ref ds);
-        }
         public static int ProcessVideoFrame(Decoder decoder, MediaFrame mFrame, AVFrame* frame)
         {
             int ret = 0;
 
             try
             {
-                // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg -> texture (RX_RXGX) -> PixelShader (Y_UV)
-                if (decoder.hwAccelSuccess) // frame->format == (int) AVPixelFormat.AV_PIX_FMT_D3D11 (NV12 | P010)
+                // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)
+                if (decoder.hwAccelSuccess)
                 {
                     decoder.textureFFmpeg   = new Texture2D((IntPtr) frame->data.ToArray()[0]);
                     decoder.textDesc.Format = decoder.textureFFmpeg.Description.Format;
-                    mFrame.textures         = new Texture2D[1];
-                    mFrame.textures[0]      = new Texture2D(decoder.decCtx.device, decoder.textDesc);
+                    mFrame. textures        = new Texture2D[1];
+                    mFrame. textures[0]     = new Texture2D(decoder.decCtx.device, decoder.textDesc);
                     decoder.decCtx.device.ImmediateContext.CopySubresourceRegion(decoder.textureFFmpeg, (int) frame->data.ToArray()[1], new ResourceRegion(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1), mFrame.textures[0], 0);
 
                     return ret;
                 }
 
-                // Software Frame (8-bit YUV)     | YUV byte* -> Device YUV (srv R8 * 3) -> PixelShader (Y_U_V)
-                else if (decoder.info.PixelFormatType == PixelFormatType.Software_Handled)// || frame->format == (int)AVPixelFormat.AV_PIX_FMT_YUV420P)
+                // Software Frame (8-bit YUV)   | YUV byte* -> Device Texture[3] (RX) / SRV (RX_RX_RX) -> PixelShader (Y_U_V)
+                else if (decoder.info.PixelFormatType == PixelFormatType.Software_Handled)
                 {
-                    // TODO: Semi-Planar
                     mFrame.textures = new Texture2D[3];
 
                     // YUV Planar [Y0 ...] [U0 ...] [V0 ....]
                     if (decoder.info.IsPlanar)
                     {
-                        CreateTexture(decoder, (IntPtr)frame->data.ToArray()[0], frame->linesize.ToArray()[0], decoder.textDesc,   out mFrame.textures[0]);
-                        CreateTexture(decoder, (IntPtr)frame->data.ToArray()[1], frame->linesize.ToArray()[1], decoder.textDescUV, out mFrame.textures[1]);
-                        CreateTexture(decoder, (IntPtr)frame->data.ToArray()[2], frame->linesize.ToArray()[2], decoder.textDescUV, out mFrame.textures[2]);
+                        DataBox db          = new DataBox();
+                        db.DataPointer      = (IntPtr)frame->data.ToArray()[0];
+                        db.RowPitch         = frame->linesize.ToArray()[0];
+                        mFrame.textures[0]  = new Texture2D(decoder.decCtx.device, decoder.textDesc,  new DataBox[] { db });
 
-                        return ret;
+                        db                  = new DataBox();
+                        db.DataPointer      = (IntPtr)frame->data.ToArray()[1];
+                        db.RowPitch         = frame->linesize.ToArray()[1];
+                        mFrame.textures[1]  = new Texture2D(decoder.decCtx.device, decoder.textDescUV, new DataBox[] { db });
+
+                        db                  = new DataBox();
+                        db.DataPointer      = (IntPtr)frame->data.ToArray()[2];
+                        db.RowPitch         = frame->linesize.ToArray()[2];
+                        mFrame.textures[2]  = new Texture2D(decoder.decCtx.device, decoder.textDescUV, new DataBox[] { db });
                     }
 
                     // YUV Packed ([Y0U0Y1V0] ....)
@@ -91,14 +88,14 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                         byte* dataPtr = frame->data.ToArray()[0];
                         AVComponentDescriptor[] comps = decoder.info.PixelFormatDesc->comp.ToArray();
 
-                        for (int i=0; i<totalSize; i += decoder.info.Comp0Step)
-                            dsY.WriteByte((byte)(*(dataPtr + i)));
+                        for (int i=0; i<totalSize; i+=decoder.info.Comp0Step)
+                            dsY.WriteByte(*(dataPtr + i));
 
-                        for (int i=1; i<totalSize; i += decoder.info.Comp1Step)
-                            dsU.WriteByte((byte)(*(dataPtr + i)));
+                        for (int i=1; i<totalSize; i+=decoder.info.Comp1Step)
+                            dsU.WriteByte(*(dataPtr + i));
 
-                        for (int i=3; i<totalSize; i += decoder.info.Comp2Step)
-                            dsV.WriteByte((byte)(*(dataPtr + i)));
+                        for (int i=3; i<totalSize; i+=decoder.info.Comp2Step)
+                            dsV.WriteByte(*(dataPtr + i));
 
                         mFrame.textures[0] = new Texture2D(decoder.decCtx.device, decoder.textDesc,   new DataBox[] { dbY });
                         mFrame.textures[1] = new Texture2D(decoder.decCtx.device, decoder.textDescUV, new DataBox[] { dbU });
@@ -108,37 +105,31 @@ namespace SuRGeoNix.Flyleaf.MediaFramework
                     }
                 }
 
-                // Software Frame (OTHER/sws_scale) | X byte* -> Sws_Scale RGBA -> Device RGA
+                // Software Frame (OTHER/sws_scale) | X byte* -> Sws_Scale RGBA -> Device Texture[1] (RGBA) / SRV (RGBA) -> PixelShader (RGBA)
                 else
                 {
                     if (decoder.swsCtx == null)
                     {
-                        decoder.textDesc.Format                 = SharpDX.DXGI.Format.R8G8B8A8_UNorm;
-                        decoder.outData                         = new byte_ptrArray4();
-                        decoder.outLineSize                     = new int_array4();
-                        decoder.outBufferSize                   = av_image_get_buffer_size(decoder.opt.video.PixelFormat, decoder.codecCtx->width, decoder.codecCtx->height, 1);
+                        decoder.textDesc.Format = SharpDX.DXGI.Format.R8G8B8A8_UNorm;
+                        decoder.outData         = new byte_ptrArray4();
+                        decoder.outLineSize     = new int_array4();
+                        decoder.outBufferSize   = av_image_get_buffer_size(decoder.opt.video.PixelFormat, decoder.codecCtx->width, decoder.codecCtx->height, 1);
                         Marshal.FreeHGlobal(decoder.outBufferPtr);
-                        decoder.outBufferPtr                    = Marshal.AllocHGlobal(decoder.outBufferSize);
+                        decoder.outBufferPtr    = Marshal.AllocHGlobal(decoder.outBufferSize);
+                        av_image_fill_arrays(ref decoder.outData, ref decoder.outLineSize, (byte*) decoder.outBufferPtr, decoder.opt.video.PixelFormat, decoder.codecCtx->width, decoder.codecCtx->height, 1);
                         
-                        av_image_fill_arrays(ref decoder.outData, ref decoder.outLineSize, (byte*)decoder.outBufferPtr, decoder.opt.video.PixelFormat, decoder.codecCtx->width, decoder.codecCtx->height, 1);
-                        
-                        int vSwsOptFlags = decoder.opt.video.SwsHighQuality ? DecoderContext.SCALING_HQ : DecoderContext.SCALING_LQ;
-                        decoder.swsCtx = sws_getContext(decoder.codecCtx->coded_width, decoder.codecCtx->coded_height, decoder.codecCtx->pix_fmt, decoder.codecCtx->width, decoder.codecCtx->height, decoder.opt.video.PixelFormat, vSwsOptFlags, null, null, null);
+                        int vSwsOptFlags        = decoder.opt.video.SwsHighQuality ? DecoderContext.SCALING_HQ : DecoderContext.SCALING_LQ;
+                        decoder.swsCtx          = sws_getContext(decoder.codecCtx->coded_width, decoder.codecCtx->coded_height, decoder.codecCtx->pix_fmt, decoder.codecCtx->width, decoder.codecCtx->height, decoder.opt.video.PixelFormat, vSwsOptFlags, null, null, null);
                         if (decoder.swsCtx == null) { Log($"[ProcessVideoFrame|RGB] [ERROR-1] Failed to allocate SwsContext"); return ret; }
                     }
 
                     sws_scale(decoder.swsCtx, frame->data, frame->linesize, 0, frame->height, decoder.outData, decoder.outLineSize);
 
-                    DataStream ds   = new DataStream(decoder.outLineSize[0] * decoder.textDesc.Height, true, true);
-                    DataBox    db   = new DataBox();
-
-                    db.DataPointer  = ds.DataPointer;
-                    db.RowPitch     = decoder.outLineSize[0];
-                    ds.WriteRange((IntPtr)decoder.outData.ToArray()[0], ds.Length);
-
+                    DataBox db          = new DataBox();
+                    db.DataPointer      = (IntPtr)decoder.outData.ToArray()[0];
+                    db.RowPitch         = decoder.outLineSize[0];
                     mFrame.textures     = new Texture2D[1];
                     mFrame.textures[0]  = new Texture2D(decoder.decCtx.device, decoder.textDesc, new DataBox[] { db });
-                    Utilities.Dispose(ref ds);
                 }
 
                 return ret;

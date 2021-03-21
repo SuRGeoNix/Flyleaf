@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -158,6 +159,8 @@ namespace SuRGeoNix.Flyleaf
             SetSampleFrame(bitmap);
         }
         public  void SetSampleFrame(System.Drawing.Bitmap bitmap) { /* TODO */ }
+
+        //Output6 output6;
         private void Initialize()
         {
             HookControl          = Control.FromHandle(HookHandle);
@@ -175,7 +178,7 @@ namespace SuRGeoNix.Flyleaf
              * For Windows 10, to create a device that supports the debug layer, enable the "Graphics Tools" optional feature. Go to the Settings panel, under System, Apps & features, Manage optional Features, Add a feature, and then look for "Graphics Tools".
              */
 
-            //OSDEnabled = true;
+            //OSDEnabled = false;
             //HDREnabled = true;
             //device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug, ((SharpDX.Direct3D.FeatureLevel[]) Enum.GetValues(typeof(SharpDX.Direct3D.FeatureLevel))).Reverse().ToArray() );
             //device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug, new SharpDX.Direct3D.FeatureLevel[] { SharpDX.Direct3D.FeatureLevel.Level_10_1 });
@@ -190,20 +193,28 @@ namespace SuRGeoNix.Flyleaf
                 device2.MaximumFrameLatency = 1; // Dont queue more than 1 frame
 
                 // Adapters
+                #if DEBUG
                 foreach (var adapter2 in factory.Adapters)
                 {
                     // TODO: calc dpi (will change desktop width/height)
                     Log($"{adapter2.Description.Description} DSM: {(int)(adapter2.Description.DedicatedSystemMemory / 1024)}MB, DVM: {(int)(adapter2.Description.DedicatedVideoMemory / 1024)}MB, SSM: {(int)(adapter2.Description.SharedSystemMemory / 1024)}MB, OUT: {adapter2.Outputs.Length}");
-                    foreach (var output in adapter2.Outputs) Log($"\t - {output.Description.DeviceName} ({output.Description.DesktopBounds.Right - output.Description.DesktopBounds.Left}x{output.Description.DesktopBounds.Bottom - output.Description.DesktopBounds.Top})");
+                    foreach (var output in adapter2.Outputs)
+                    {
+                        //if (output6 == null) output6 = output.QueryInterface<Output6>();
+                        Log($"\t - {output.Description.DeviceName} ({output.Description.DesktopBounds.Right - output.Description.DesktopBounds.Left}x{output.Description.DesktopBounds.Bottom - output.Description.DesktopBounds.Top})");
+                    }
                 }
-                
+                #endif
+
                 // Swap Chain (TODO: Backwards compatibility)
                 var desc1 = new SwapChainDescription1()
                 {
-                    BufferCount = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? 6 : 1,                            // Should be 1 for Win < 8 | HDR 60 fps requires 6 for non drops
+                    BufferCount = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? 6 : 1,  // Should be 1 for Win < 8 | HDR 60 fps requires 6 for non drops
                     SwapEffect  = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_12_0 ? SwapEffect.FlipSequential : SwapEffect.FlipDiscard,
                     //Format      = HDREnabled ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm, // Create always 10 bit and fallback to 8?
                     Format      = Format.B8G8R8A8_UNorm,
+                    //Format      = Format.R16G16B16A16_Float,
+                    //Format      = Format.R10G10B10A2_UNorm,
                     Width       = HookControl.Width,
                     Height      = HookControl.Height,
                     AlphaMode   = SharpDX.DXGI.AlphaMode.Ignore,
@@ -256,13 +267,13 @@ namespace SuRGeoNix.Flyleaf
                 AddressU = TextureAddressMode.Clamp,
                 AddressV = TextureAddressMode.Clamp,
                 AddressW = TextureAddressMode.Clamp,
-                ComparisonFunction = Comparison.Always,
+                ComparisonFunction = Comparison.Never,
                 Filter = Filter.MinMagMipLinear,
                 //Filter = Filter.MinMagMipPoint,
                 //MaximumAnisotropy = 1,
                 //MinimumLod = 0.05f,
                 //MipLodBias = 0.0f,
-                //MaximumLod = 1200f//float.MaxValue
+                MaximumLod = float.MaxValue
             });
 
             // Vertex & Pixel Shader Compiler (Temporary on runtime)
@@ -408,6 +419,8 @@ namespace SuRGeoNix.Flyleaf
                 Log($"Selected PixelShader: {curPixelShaderStr}");
                 curPixelShader = pixelShaders[curPixelShaderStr];
 
+                //curPixelShader = pixelShaders["BT2020_Y_UV_LIMITED"];
+                //curPixelShader = pixelShaders["PixelShader"];
                 SetViewport();
             }
         }
@@ -554,15 +567,14 @@ namespace SuRGeoNix.Flyleaf
                         else if (player.decoder.vStreamInfo.PixelFormatType == PixelFormatType.Software_Handled)
                         {
                             curSRVs     = new ShaderResourceView[3];
-                            curSRVs[0]  = new ShaderResourceView(device, frame.textures[0], srvDescR);
-                            curSRVs[1]  = new ShaderResourceView(device, frame.textures[1], srvDescR);
-                            curSRVs[2]  = new ShaderResourceView(device, frame.textures[2], srvDescR);
+                            curSRVs[0]  = new ShaderResourceView(device, frame.textures[0]);
+                            curSRVs[1]  = new ShaderResourceView(device, frame.textures[1]);
+                            curSRVs[2]  = new ShaderResourceView(device, frame.textures[2]);
                         }
                         else
                         {
                             curSRVs     = new ShaderResourceView[1];
                             curSRVs[0]  = new ShaderResourceView(device, frame.textures[0]);
-                            context.PixelShader.Set(curPixelShader);
                         }
 
                         context.PixelShader.Set(curPixelShader);
@@ -586,11 +598,11 @@ namespace SuRGeoNix.Flyleaf
                     
                     swapChain.Present(vsync, PresentFlags.None);
 
-                    if (frame != null && frame.textures != null)
-                        for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]);
-
-                    if (curSRVs != null)
-                        for (int i=0; i<curSRVs.Length; i++) Utilities.Dispose(ref curSRVs[i]);
+                    if (frame != null)
+                    {
+                        if (frame.textures  != null)   for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]);
+                        if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { Utilities.Dispose(ref curSRVs[i]); } curSRVs = null; }
+                    }
 
                 } finally { Monitor.Exit(device); }
 
@@ -624,7 +636,14 @@ namespace SuRGeoNix.Flyleaf
 
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [RENDERER] {msg}"); }
 
-        // Testing SwapChain ColorSpace
+        #region HDR Testing
+        /* 
+         * 1) SharpDX doesn't support Output6 flags to check HDR support 
+         * 2) SharpDX doesn't support HDR+ (HdrMetadataType enum)
+         * 3) SharpDX HdrMetadataHdr10 structure had invalid format (solved with our custom HdrMetadataHdr10)
+         * 4) SharpDX SetHDRMetaData had no effect on HDR display (will be re-tested - might an issue with hdmi cable)
+         * 5) PixelShaders / Tone mappers required for non HDR displays to translate HDR->SDR
+         */
         int curColor = 0;
         public void tryNext()
         {
@@ -635,11 +654,51 @@ namespace SuRGeoNix.Flyleaf
             {
                 if ((int) t1.CheckColorSpaceSupport((ColorSpaceType) Enum.Parse(typeof(ColorSpaceType), colors[i])) > 0 )
                 {
-                    //HdrMetadataHdr10 hdr10 = new HdrMetadataHdr10()
-                    //{
-                    //    MinMasteringLuminance = 0.05f;
-                    //}
-                    //t1.SetHDRMetaData(HdrMetadataType.Hdr10, )
+                    HdrMetadataHdr10 hdr10 = new HdrMetadataHdr10();
+                    
+                    
+                    //IntPtr t21 = new IntPtr();
+                    //Marshal.StructureToPtr(hdr10, t133, true);
+                    //var t001 = Marshal.SizeOf(hdr10);
+                    int t132 = Utilities.SizeOf<HdrMetadataHdr10>();
+                    var t133 = Utilities.GetIUnknownForObject(hdr10);
+
+
+                    hdr10.RedPrimary[0] = 34000;
+                    hdr10.RedPrimary[1] = 16000;
+                    hdr10.GreenPrimary[0] = 13250;
+                    hdr10.GreenPrimary[1] = 34500;
+                    hdr10.BluePrimary[0] = 7500;
+                    hdr10.BluePrimary[1] = 3000;
+                    hdr10.WhitePoint[0] = 15635;
+                    hdr10.WhitePoint[1] = 16450;
+                    hdr10.MaxMasteringLuminance = 12000000;
+                    hdr10.MinMasteringLuminance = 500;
+                    //hdr10.MaxContentLightLevel = 2000;
+                    //hdr10.MaxFrameAverageLightLevel = 500;
+
+                    
+
+                    //hdr10.RedPrimary[0] = (ushort) (0.680f * 50000);
+                    //hdr10.RedPrimary[1] =(ushort) (0.320f * 50000);
+                    //hdr10.GreenPrimary[0] =(ushort) (0.265f * 50000);
+                    //hdr10.GreenPrimary[1] =(ushort) (0.690f * 50000);
+                    //hdr10.BluePrimary[0] =(ushort) (0.150f * 50000);
+                    //hdr10.BluePrimary[1] =(ushort) (0.060f * 50000);
+                    //hdr10.WhitePoint[0] =(ushort) (0.3127f * 50000);
+                    //hdr10.WhitePoint[1] =(ushort) (0.3290f * 50000);
+                    //hdr10.MaxMasteringLuminance = (1000 * 10000);
+                    //hdr10.MinMasteringLuminance = (int) (0.001f * 10000);
+                    //hdr10.MaxContentLightLevel = 2000;
+                    //hdr10.MaxFrameAverageLightLevel = 500;
+
+                    t1.SetHDRMetaData(HdrMetadataType.Hdr10, t132, t133);
+
+                    //t1.ColorSpace1 = ColorSpaceType.RgbFullG22NoneP709;
+                    //t1.ColorSpace1 = ColorSpaceType.RgbFullG2084NoneP2020;
+
+                    //DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 | SDR
+                    //DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 | HDR
                     t1.ColorSpace1 = (ColorSpaceType) Enum.Parse(typeof(ColorSpaceType), colors[i]);
                     Log("Using " + (ColorSpaceType) Enum.Parse(typeof(ColorSpaceType), colors[i]));
                     curColor = i+1;
@@ -652,6 +711,48 @@ namespace SuRGeoNix.Flyleaf
             }
         }
 
+        public struct HdrMetadataHdr10
+        {
+            //
+            // Summary:
+            //     The chromaticity coordinates of the 1.0 red value. Index 0 contains the X coordinate
+            //     and index 1 contains the Y coordinate.
+            public fixed ushort RedPrimary[2];
+            //
+            // Summary:
+            //     The chromaticity coordinates of the 1.0 green value. Index 0 contains the X coordinate
+            //     and index 1 contains the Y coordinate.
+            public fixed ushort GreenPrimary[2];
+            //
+            // Summary:
+            //     The chromaticity coordinates of the 1.0 blue value. Index 0 contains the X coordinate
+            //     and index 1 contains the Y coordinate.
+            public fixed ushort BluePrimary[2];
+            //
+            // Summary:
+            //     The chromaticity coordinates of the white point. Index 0 contains the X coordinate
+            //     and index 1 contains the Y coordinate.
+            public fixed ushort WhitePoint[2];
+            //
+            // Summary:
+            //     The maximum number of nits of the display used to master the content. Units are
+            //     0.0001 nit, so if the value is 1 nit, the value should be 10,000.
+            public uint MaxMasteringLuminance;
+            //
+            // Summary:
+            //     The minimum number of nits (in units of 0.00001 nit) of the display used to master
+            //     the content.
+            public uint MinMasteringLuminance;
+            //
+            // Summary:
+            //     The maximum nit value (in units of 0.00001 nit) used anywhere in the content.
+            public ushort MaxContentLightLevel;
+            //
+            // Summary:
+            //     The per-frame average of the maximum nit values (in units of 0.00001 nit).
+            public ushort MaxFrameAverageLightLevel;
+        }
+        #endregion
 
         /* NOTES
          * 
