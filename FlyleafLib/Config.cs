@@ -1,0 +1,280 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Xml.Serialization;
+
+using SharpDX;
+using FlyleafLib.MediaPlayer;
+
+namespace FlyleafLib
+{
+    /// <summary>
+    /// Player's main configuration
+    /// </summary>
+    public class Config : NotifyPropertyChanged
+    {
+        public static Config Load(string path)
+        {
+            using (FileStream fs = new FileStream(path, FileMode.Open))
+            {
+                XmlSerializer xmlSerializer = new XmlSerializer(typeof(Config));
+                return (Config) xmlSerializer.Deserialize(fs);
+            }
+        }
+        public void Save(string path)
+        {
+            using (FileStream fs = new FileStream(path, FileMode.Create))
+            {
+                XmlSerializer xmlSerializer = new XmlSerializer(GetType());
+                xmlSerializer.Serialize(fs, this);
+            }
+        }
+        public Config() { }
+        internal void SetPlayer(Player player)
+        {
+            decoder.player  = player;
+            audio.player    = player;
+            video.player    = player;
+            subs.player     = player;
+        }
+        public Config Clone()
+        {
+            Config config   = new Config();
+            config          = (Config) MemberwiseClone();
+
+            config.audio    = audio.Clone();
+            config.video    = video.Clone();
+            config.subs     = subs.Clone();
+            config.demuxer  = demuxer.Clone();
+            config.decoder  = decoder.Clone();
+
+            return config;
+        }
+
+        public Demuxer  demuxer = new Demuxer();
+        public Decoder  decoder = new Decoder();
+        public Video    video   = new Video();
+        public Audio    audio   = new Audio();
+        public Subs     subs    = new Subs();
+
+        public class Demuxer : NotifyPropertyChanged
+        {
+            public Demuxer Clone()
+            {
+                Demuxer demuxer         = (Demuxer) MemberwiseClone();
+
+                demuxer.AudioFormatOpt = new SerializableDictionary<string, string>();
+                foreach (var kv in AudioFormatOpt) demuxer.AudioFormatOpt.Add(kv.Key, kv.Value);
+
+                demuxer.VideoFormatOpt = new SerializableDictionary<string, string>();
+                foreach (var kv in VideoFormatOpt) demuxer.VideoFormatOpt.Add(kv.Key, kv.Value);
+
+                demuxer.SubsFormatOpt = new SerializableDictionary<string, string>();
+                foreach (var kv in SubsFormatOpt) demuxer.SubsFormatOpt.Add(kv.Key, kv.Value);
+
+                return demuxer;
+            }
+
+            /// <summary>
+            /// Minimum required demuxed packets before playing
+            /// </summary>
+            public int              MinQueueSize    { get; set; } = 1;
+
+            /// <summary>
+            /// Maximum allowed packets for buffering
+            /// </summary>
+            public int              MaxQueueSize    { get; set; } = 200;
+
+            /// <summary>
+            /// Maximum allowed errors before stopping
+            /// </summary>
+            public int              MaxErrors       { get; set; } = 30;
+
+            /// <summary>
+            /// FFmpeg's format options for audio demuxer
+            /// </summary>
+            public SerializableDictionary<string, string>
+                                    AudioFormatOpt  { get; set; } = DefaultVideoFormatOpt();
+
+            /// <summary>
+            /// FFmpeg's format options for main (video) demuxer
+            /// </summary>
+            public SerializableDictionary<string, string>
+                                    VideoFormatOpt  { get; set; } = DefaultVideoFormatOpt();
+
+            /// <summary>
+            /// FFmpeg's format options for subtitles demuxer
+            /// </summary>
+            public SerializableDictionary<string, string>
+                                    SubsFormatOpt   { get; set; } = DefaultVideoFormatOpt();
+
+            public SerializableDictionary<string, string> GetFormatOptPtr(MediaType type) { return type == MediaType.Video ? VideoFormatOpt : (type == MediaType.Audio ? AudioFormatOpt : SubsFormatOpt); }
+            public static SerializableDictionary<string, string> DefaultVideoFormatOpt()
+            {
+                SerializableDictionary<string, string> defaults = new SerializableDictionary<string, string>();
+
+                //defaults.Add("probesize",           (116 * (long)1024 * 1024).ToString());      // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
+                //defaults.Add("analyzeduration",     (333 * (long)1000 * 1000).ToString());      // (Microseconds) Default 5 seconds | Higher for network streams
+                defaults.Add("reconnect",           "1");                                       // auto reconnect after disconnect before EOF
+                defaults.Add("reconnect_streamed",  "1");                                       // auto reconnect streamed / non seekable streams
+                defaults.Add("reconnect_delay_max", "5");                                       // max reconnect delay in seconds after which to give up
+                defaults.Add("rtsp_transport",      "tcp");                                     // Seems UDP causing issues (use this by default?)
+                defaults.Add("stimeout",            (20 * 1000 * 1000).ToString());             // RTSP microseconds timeout
+
+                return defaults;
+            }
+        }
+
+        public class Decoder : NotifyPropertyChanged
+        {
+            internal Player player;
+
+            public Decoder Clone() { return (Decoder) MemberwiseClone(); }
+
+            /// <summary>
+            /// Activates Direct3D video acceleration (decoding)
+            /// </summary>
+            public bool             HWAcceleration  { get; set; } = true;
+
+            /// <summary>
+            /// Threads that will be used from the decoder
+            /// </summary>
+            public int              VideoThreads    { get; set; } = Environment.ProcessorCount;
+
+            /// <summary>
+            /// Minimum required video frames before playing
+            /// </summary>
+            public int              MinVideoFrames  { get; set; } = 3;
+
+            /// <summary>
+            /// Minimum required audio frames before playing
+            /// </summary>
+            public int              MinAudioFrames  { get; set; } = 6;
+
+            /// <summary>
+            /// Maximum video frames to be decoded and processed for rendering
+            /// </summary>
+            public int              MaxVideoFrames  { get; set; } = Environment.ProcessorCount;
+
+            /// <summary>
+            /// Maximum audio frames to be decoded and processed for playback
+            /// </summary>
+            public int              MaxAudioFrames  { get; set; } = 30;
+
+            /// <summary>
+            /// Maximum subtitle frames to be decoded
+            /// </summary>
+            public int              MaxSubsFrames   { get; set; } = 10;
+
+            /// <summary>
+            /// Maximum allowed errors before stopping
+            /// </summary>
+            public int              MaxErrors       { get; set; } = 200;
+        }
+
+        public class Video : NotifyPropertyChanged
+        {
+            internal Player player;
+
+            public Video Clone() { return (Video) MemberwiseClone(); }
+
+            /// <summary>
+            /// Custom aspect ratio (AspectRatio must be set to Custom to have an effect)
+            /// </summary>
+            public AspectRatio      CustomAspectRatio     { get => _CustomAspectRatio;  set { bool changed = _CustomAspectRatio != value; Set(ref _CustomAspectRatio, value); if (changed) AspectRatio = AspectRatio.Custom; } }
+            AspectRatio    _CustomAspectRatio = new AspectRatio(16, 9);
+
+            /// <summary>
+            /// Video aspect ratio
+            /// </summary>
+            public AspectRatio      AspectRatio     { get => _AspectRatio;  set { Set(ref _AspectRatio, value); player?.renderer?.SetViewport(); } }
+            AspectRatio    _AspectRatio = AspectRatio.Keep;
+            
+            /// <summary>
+            /// Backcolor of the player's surface
+            /// </summary>
+            public System.Windows.Media.Color
+                                    ClearColor      { get => Utils.SharpDXToWpfColor(_ClearColor);  set { Set(ref _ClearColor, Utils.WpfToSharpDXColor(value)); player?.renderer?.PresentFrame(); } }
+            internal Color _ClearColor = Color.Black;
+
+            public bool             SwsHighQuality  { get; set; } = false;
+            public short            VSync           { get; set; }
+        }
+
+        public class Audio : NotifyPropertyChanged
+        {
+            internal Player player;
+
+            public Audio Clone() { return (Audio) MemberwiseClone(); }
+
+            /// <summary>
+            /// Whether audio should be enabled or not
+            /// </summary>
+            public bool             Enabled         { get => _Enabled;      set { Set(ref _Enabled, value); if (value) player?.EnableAudio(); else player?.DisableAudio(); } }
+            bool    _Enabled = true;
+
+            internal void SetEnabled(bool enabled = true) { _Enabled = enabled; Raise(nameof(Enabled)); }
+
+            /// <summary>
+            /// NAudio's latency (required buffered duration before playing)
+            /// </summary>
+            public long             LatencyTicks    { get; set; } = AudioPlayer.NAUDIO_DELAY_MS * 10000;
+
+            /// <summary>
+            /// Audio languages preference by priority
+            /// </summary>
+            public List<Language>   Languages       { get { if (_Languages == null) _Languages = Utils.GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
+            List<Language> _Languages;
+
+            /// <summary>
+            /// Audio delay ticks (will be parsed in current active stream and will be resetted on each new input)
+            /// </summary>
+            public long             DelayTicks      { get { if (player != null && player.Session.CurAudioStream != null) return player.Session.CurAudioStream.Delay; else return _DelayTicks; }   set { if (player != null && player.Session.CurAudioStream != null) player.Session.CurAudioStream.Delay = value; Set(ref _DelayTicks, value); player?.SetAudioDelay(); } }
+            long    _DelayTicks = 0;
+
+            public void SetDelayTicks(long delay) { _DelayTicks = 0; Raise(nameof(DelayTicks)); }
+        }
+
+        public class Subs : NotifyPropertyChanged
+        {
+            internal Player player;
+
+            public Subs Clone()
+            {
+                Subs subs = new Subs();
+                subs = (Subs) MemberwiseClone();
+
+                subs.Languages = new List<Language>();
+                if (Languages != null) foreach(var lang in Languages) subs.Languages.Add(lang);
+
+                return subs;
+            }
+
+            /// <summary>
+            /// Subtitle languages preference by priority
+            /// </summary>
+            public List<Language>   Languages           { get { if (_Languages == null) _Languages = Utils.GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
+            List<Language> _Languages;
+
+            /// <summary>
+            /// Whether subtitles should be enabled or not
+            /// </summary>
+            public bool             Enabled             { get => _Enabled;      set { Set(ref _Enabled, value); if (value) player?.EnableSubs(); else player?.DisableSubs(); } }
+            bool    _Enabled = true;
+
+            /// <summary>
+            /// Whether to use online search plugins or not
+            /// </summary>
+            public bool             UseOnlineDatabases  { get => _UseOnlineDatabases; set { Set(ref _UseOnlineDatabases, value); } }
+            bool    _UseOnlineDatabases = false;
+
+            internal void SetEnabled(bool enabled = true) { _Enabled = enabled; Raise(nameof(Enabled)); }
+            
+            /// <summary>
+            /// Subtitle delay ticks (will be parsed in current active stream and will be resetted on each new input)
+            /// </summary>
+            public long             DelayTicks          { get { if (player != null && player.Session.CurSubtitleStream != null) return player.Session.CurSubtitleStream.Delay; else return _DelayTicks; }   set { if (player != null && player.Session.CurSubtitleStream != null) player.Session.CurSubtitleStream.Delay = value; Set(ref _DelayTicks, value); player?.SetSubsDelay(); } }
+            long    _DelayTicks = 0;
+        }
+    }
+}
