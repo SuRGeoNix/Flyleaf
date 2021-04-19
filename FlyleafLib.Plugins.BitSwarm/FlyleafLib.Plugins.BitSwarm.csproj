@@ -85,4 +85,8 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>mkdir "$(SolutionDir)"Plugins\BitSwarm
+copy /Y *.dll "$(SolutionDir)"Plugins\BitSwarm</PostBuildEvent>
+  </PropertyGroup>
 </Project>
