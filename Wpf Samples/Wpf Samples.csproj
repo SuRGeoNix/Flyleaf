@@ -63,12 +63,6 @@
     <Reference Include="FFmpeg.AutoGen, Version=4.4.0.0, Culture=neutral, PublicKeyToken=9b7632533a381715, processorArchitecture=MSIL">
       <HintPath>..\packages\FFmpeg.AutoGen.4.4.0\lib\net472\FFmpeg.AutoGen.dll</HintPath>
     </Reference>
-    <Reference Include="FlyleafLib, Version=3.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\FlyleafLib.3.0.0-alpha1\lib\net472\FlyleafLib.dll</HintPath>
-    </Reference>
-    <Reference Include="FlyleafLib.Controls.WPF, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\FlyleafLib.Controls.WPF.1.0.0-alpha1\lib\net472\FlyleafLib.Controls.WPF.dll</HintPath>
-    </Reference>
     <Reference Include="MaterialDesignColors, Version=2.0.0.2422, Culture=neutral, PublicKeyToken=df2a72020bd7962a, processorArchitecture=MSIL">
       <HintPath>..\packages\MaterialDesignColors.2.0.0\lib\net452\MaterialDesignColors.dll</HintPath>
     </Reference>
@@ -196,6 +190,16 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj">
+      <Project>{6fd09ec0-aece-4534-911b-8457633a9ceb}</Project>
+      <Name>FlyleafLib.Controls.WPF</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\FlyleafLib\FlyleafLib.csproj">
+      <Project>{31c6cbf5-1e30-475d-bc57-028eff3f0c91}</Project>
+      <Name>FlyleafLib</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\MaterialDesignThemes.4.0.0\build\MaterialDesignThemes.targets" Condition="Exists('..\packages\MaterialDesignThemes.4.0.0\build\MaterialDesignThemes.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
@@ -204,4 +208,30 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\MaterialDesignThemes.4.0.0\build\MaterialDesignThemes.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\MaterialDesignThemes.4.0.0\build\MaterialDesignThemes.targets'))" />
   </Target>
+  <PropertyGroup>
+    <PostBuildEvent>xcopy "$(SolutionDir)"Plugins Plugins\ /E /Y
+
+if $(ConfigurationName) == Release (
+
+mkdir Libs\
+del /S /F /Q Libs\
+
+if $(PlatformName) == AnyCPU (
+  xcopy "$(SolutionDir)"Libs\* Libs\  /E /Y
+)
+if $(PlatformName) == x64 (
+  xcopy "$(SolutionDir)"Libs\x64\* Libs\x64\  /E /Y
+)
+
+move *.dll Libs\
+
+del *.xml
+del *.pdb
+del FlyleafLib*.config
+
+)</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>del /S /F /Q "$(TargetDir)"</PreBuildEvent>
+  </PropertyGroup>
 </Project>
