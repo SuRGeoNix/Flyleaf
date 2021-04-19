@@ -62,4 +62,8 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>mkdir "$(SolutionDir)"Plugins\OpenSubtitles
+copy /Y *.dll "$(SolutionDir)"Plugins\OpenSubtitles</PostBuildEvent>
+  </PropertyGroup>
 </Project>

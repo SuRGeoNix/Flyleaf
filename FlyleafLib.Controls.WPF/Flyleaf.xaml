@@ -225,7 +225,7 @@
 
                                             <!--Quality + Movies Title-->
                                             <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                                <Button x:Name="PART_ContextMenuOwner_Video">
+                                                <Button x:Name="PART_ContextMenuOwner_Video" Command="{Binding ShowVideoMenu}">
                                                     <Button.Style>
                                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                                             <Setter Property="Content" Value=""/>
