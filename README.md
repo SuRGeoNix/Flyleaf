@@ -2,6 +2,11 @@
 
 ![alt text](Images/FlyleafSample.png)
 ---
+
+>Notes<br/>
+>Flyleaf v3.0 releases can be found on NuGet https://www.nuget.org/packages?q=flyleaf<br/>
+>You can find a pre-compiled sample version at https://github.com/SuRGeoNix/Flyleaf/releases/tag/v3.0-preview
+
 ### [Supported Features]
 * ***Light***: for GPU/CPU/RAM as it supports video acceleration, post-processing with pixel shaders and it is coded from scratch
 * ***High Performance***: threading implementation and efficient aborting/cancelation allows to achieve fast seeking
