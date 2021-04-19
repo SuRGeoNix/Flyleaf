@@ -63,4 +63,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>mkdir "$(SolutionDir)"Plugins\Youtube-DL
+copy /Y *.dll "$(SolutionDir)"Plugins\Youtube-DL
+copy /Y "$(ProjectDir)"Libs\* "$(SolutionDir)"Plugins\Youtube-DL</PostBuildEvent>
+  </PropertyGroup>
 </Project>
