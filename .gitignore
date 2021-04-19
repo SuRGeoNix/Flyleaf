@@ -337,5 +337,8 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 
+# Plugins
+Plugins/
+
 # Nuspec
 *.nuspec
