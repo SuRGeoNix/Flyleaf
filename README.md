@@ -4,8 +4,9 @@
 ---
 
 >Notes<br/>
->Flyleaf v3.0 releases can be found on NuGet https://www.nuget.org/packages?q=flyleaf<br/>
->You can find a pre-compiled sample version at https://github.com/SuRGeoNix/Flyleaf/releases/tag/v3.0-preview
+>1. Flyleaf v3.0 releases can be found on NuGet https://www.nuget.org/packages?q=flyleaf<br/>
+>2. You can find a pre-compiled sample version at https://github.com/SuRGeoNix/Flyleaf/releases/tag/v3.0-preview
+>3. Start your own custom ViewModel based on [Sample2_Custom](https://github.com/SuRGeoNix/Flyleaf/tree/master/Wpf%20Samples)
 
 ### [Supported Features]
 * ***Light***: for GPU/CPU/RAM as it supports video acceleration, post-processing with pixel shaders and it is coded from scratch
