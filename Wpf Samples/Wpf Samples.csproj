@@ -146,6 +146,7 @@
     <Compile Include="Sample2_Custom.xaml.cs">
       <DependentUpon>Sample2_Custom.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Sample2_ViewModel.cs" />
     <Page Include="Sample1_Basic.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
