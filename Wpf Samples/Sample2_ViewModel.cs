@@ -109,8 +109,6 @@ namespace Wpf_Samples
         public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = "../../Sample.mp4"; Player.Open(UserInput); }
         public void PauseVideoAction(object param)  { Player.Pause(); }
         public void PlayVideoAction(object param)   { Player.Play(); }
-
-        
         #endregion
 
         #region Events
