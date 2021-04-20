@@ -532,7 +532,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Play()
         {
-            if (!Session.CanPlay) return;
+            if (!Session.CanPlay || Status == Status.Playing) return;
 
             playAfterSeek = true;
             Status = Status.Playing;

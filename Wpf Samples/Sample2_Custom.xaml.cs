@@ -20,10 +20,12 @@ namespace Wpf_Samples
     /// </summary>
     public partial class Sample2_Custom : Window
     {
+        Sample2_ViewModel s2vm = new Sample2_ViewModel();
         public Sample2_Custom()
         {
             Utils.FFmpeg.RegisterFFmpeg(":2");
             InitializeComponent();
+            flview.DataContext = s2vm;
         }
     }
 }
