@@ -20,6 +20,7 @@ namespace FlyleafLib.Controls.WPF
         internal void SetContent(UIElement newContent)
         {
             grid.Children.Clear();
+            if (newContent == null) return;
             grid.Children.Add(newContent);
         }
 

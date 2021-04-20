@@ -35,6 +35,13 @@ namespace FlyleafLib.Controls.WPF
         public Config.Video     Video       => Config.video;
         public Config.Decoder   Decoder     => Config.decoder;
         public Config.Demuxer   Demuxer     => Config.demuxer;
+
+        bool _IsFullscreen;
+        public bool IsFullscreen
+        {
+            get => _IsFullscreen;
+            set => Set(ref _IsFullscreen, value);
+        }
         #endregion
 
         #region Settings
@@ -68,13 +75,19 @@ namespace FlyleafLib.Controls.WPF
             if (IsDesignMode) return;
 
             DataContext = this;
-            Loaded += (s, e) => { if (!playerInitialized) InitializePlayer(); };
         }
         public override void OnApplyTemplate()
         {
             base.OnApplyTemplate(); 
-
             if (IsDesignMode) return;
+            Initialize();
+        }
+
+        bool playerInitialized = false;
+        private void Initialize()
+        {
+            if (playerInitialized) return;
+            playerInitialized = true;
 
             popUpMenu           = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner", this))?.ContextMenu;
             popUpMenuSubtitles  = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner_Subtitles", this))?.ContextMenu;
@@ -87,12 +100,6 @@ namespace FlyleafLib.Controls.WPF
                 dialogSettingsIdentifier = $"DialogSettings_{Guid.NewGuid()}";
                 dialogSettings.Identifier = dialogSettingsIdentifier;
             }
-        }
-
-        bool playerInitialized = false;
-        private void InitializePlayer()
-        {
-            playerInitialized = true;
 
             if (popUpMenu           != null) popUpMenu.PlacementTarget          = this;
             if (popUpMenuSubtitles  != null) popUpMenuSubtitles.PlacementTarget = this;
@@ -349,6 +356,18 @@ namespace FlyleafLib.Controls.WPF
             else
                 Player.Play();
         }
+        
+        public ICommand ToggleFullscreen    { get; set; }
+
+        public void ToggleFullscreenAction(object obj = null)
+        {
+            if (FlyleafView.IsFullScreen)
+                FlyleafView.NormalScreen();
+            else
+                FlyleafView.FullScreen();
+
+            IsFullscreen = FlyleafView.IsFullScreen;
+        }
         #endregion
 
         #region TODO
@@ -456,60 +475,6 @@ namespace FlyleafLib.Controls.WPF
                 CurrentMode = GetCurrentActivityMode();
             }
             Console.WriteLine("Im done");
-        }
-        #endregion
-
-        #region Fullscreen Mode
-        bool _IsFullscreen;
-        public bool IsFullscreen
-        {
-            get => _IsFullscreen;
-            set => Set(ref _IsFullscreen, value);
-        }
-        object  oldContent, oldParent;
-        public ICommand ToggleFullscreen    { get; set; }
-
-        public void ToggleFullscreenAction(object obj = null)
-        {
-            if (IsFullscreen)
-            {
-                if (oldParent == null) return;
-
-                WindowFront.WindowBack.Content = null;
-                WindowFront.WindowBack.Content = oldContent;
-
-                if (oldParent is StackPanel)
-                    ((StackPanel)oldParent).Children.Add(FlyleafView);
-                else if (oldParent is Grid)
-                    ((Grid)oldParent).Children.Add(FlyleafView);
-                else
-                    return;
-
-                WindowFront.WindowBack.ResizeMode   = ResizeMode.CanResize;
-                WindowFront.WindowBack.WindowStyle  = WindowStyle.SingleBorderWindow;
-                WindowFront.WindowBack.WindowState  = WindowState.Normal;
-            }
-            else
-            {
-                oldParent = FlyleafView.Parent;
-
-                if (FlyleafView.Parent is StackPanel)
-                    ((StackPanel)FlyleafView.Parent).Children.Remove(FlyleafView);
-                else if (FlyleafView.Parent is Grid)
-                    ((Grid)FlyleafView.Parent).Children.Remove(FlyleafView);
-                else
-                    return;
-
-                oldContent  = WindowFront.WindowBack.Content;
-                WindowFront.WindowBack.Content = FlyleafView;
-
-                WindowFront.WindowBack.ResizeMode   = ResizeMode.NoResize;
-                WindowFront.WindowBack.WindowStyle  = WindowStyle.None;
-                WindowFront.WindowBack.WindowState  = WindowState.Maximized;
-            }
-
-            IsFullscreen = !IsFullscreen;
-            WindowFront.Activate();
         }
         #endregion
 

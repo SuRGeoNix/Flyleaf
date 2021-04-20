@@ -6,31 +6,36 @@
         xmlns:local="clr-namespace:Wpf_Samples"
         
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
-        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" x:Class="Wpf_Samples.Sample2_Custom"
+        x:Class="Wpf_Samples.Sample2_Custom"
         mc:Ignorable="d"
         
         Title="Flyleaf Sample 2 (Custom)" Height="450" Width="800">
     <Window.Resources>
-        <Style x:Key="FlyleafStyle1" TargetType="{x:Type fl:Flyleaf}">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type fl:Flyleaf}">
-                        <Grid>
-                            <!-- Custom Content by still using the Embedded Control's Functionality & View Model -->
-
-                            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center" Text="Overlay Text" FontSize="35" Foreground="Orange"/>
-                            <TextBlock Text="{Binding Session.SubsText}" FontSize="35" Foreground="Orange"/>
-                            <TextBlock Text="{Binding Player.Status}" HorizontalAlignment="Right" FontSize="35" Foreground="Red"/>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <fl:TicksToTimeConverter x:Key="TicksToTime"/>
     </Window.Resources>
-    
     <Grid>
-        <fl:VideoView  x:Name="flview">
-            <fl:Flyleaf x:Name="flwpf" Style="{StaticResource FlyleafStyle1}" />
+        <fl:VideoView x:Name="flview" FlyleafView="{Binding VideoView, Mode=OneWayToSource}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
+                
+                <TextBox Margin="10" Width="200" Text="{Binding UserInput}"/>
+                <TextBlock Grid.Column="1" Margin="10" TextAlignment="Right" Text="{Binding Player.Status}" FontSize="22" Foreground="Red"/>
+
+                <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="10" Orientation="Horizontal">
+                    <Button Margin="10,0,0,0" Content="Open"    Command="{Binding OpenVideo}"/>
+                    <Button Margin="10,0,0,0" Content="Play"    Command="{Binding PlayVideo}"/>
+                    <Button Margin="10,0,0,0" Content="Pause"   Command="{Binding PauseVideo}"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Grid.Column="1" Margin="10" TextAlignment="Right" Text="{Binding Session.CurTime, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Orange"/>
+            </Grid>
         </fl:VideoView>
     </Grid>
 </Window>
