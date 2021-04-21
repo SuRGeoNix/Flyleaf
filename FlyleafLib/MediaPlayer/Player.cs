@@ -1024,9 +1024,7 @@ namespace FlyleafLib.MediaPlayer
         /// Fires on Audio / Video open success or failure
         /// </summary>
         public event EventHandler<OpenCompletedArgs> OpenCompleted;
-        protected virtual void OnOpenCompleted(MediaType type, bool success) { OpenCompleted?.BeginInvoke(this, new OpenCompletedArgs(type, success), null, null);  }
-
-        //protected virtual void OnOpenCompleted(MediaType type, bool success) { Task.Run(() => OpenCompleted?.Invoke(this, new OpenCompletedArgs(type, success))); }
+        protected virtual void OnOpenCompleted(MediaType type, bool success) { Task.Run(() => OpenCompleted?.Invoke(this, new OpenCompletedArgs(type, success))); }
         #endregion
 
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
