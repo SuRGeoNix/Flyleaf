@@ -1,16 +1,22 @@
-﻿<Window x:Class="Wpf_Samples.Sample1"
+﻿<Window x:Class="Wpf_Samples.Sample3_MultiPlayer"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Wpf_Samples"
-        mc:Ignorable="d"
-        
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
-        Title="Flyleaf Sample 1 (Basic)" Height="450" Width="800">
-    <Grid>
-        <fl:VideoView Player="{Binding Player}">
+        mc:Ignorable="d"
+        Title="Sample3_MultiPlayer" Height="450" Width="800" Background="Black" Loaded="Window_Loaded">
+    <Grid x:Name="grid1">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <fl:VideoView Player="{Binding Player1}">
+            <flwpf:Flyleaf IdleTimeout="0" EnableKeyBindings="False"/>
+        </fl:VideoView>
+        <fl:VideoView Grid.Column="1" Player="{Binding Player2}">
             <flwpf:Flyleaf/>
         </fl:VideoView>
     </Grid>

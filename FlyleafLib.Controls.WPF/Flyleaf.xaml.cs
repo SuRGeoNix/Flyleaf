@@ -9,12 +9,13 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
+using Dragablz;
 using WpfColorFontDialog;
 using MaterialDesignThemes.Wpf;
+using MaterialDesignColors;
+
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins.MediaStream;
-using Dragablz;
-using MaterialDesignColors;
 
 namespace FlyleafLib.Controls.WPF
 {
@@ -22,12 +23,13 @@ namespace FlyleafLib.Controls.WPF
     {
         #region Properties
         private bool            IsDesignMode=> (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
-        
-        public FlyleafWindow    WindowFront => FlyleafView.WindowFront;
-        public VideoView        FlyleafView { get; set; }
 
-        public Player           Player      => FlyleafView.Player;
+        public Player           Player      { get => _Player; set { _Player = value; InitializePlayer(); } }
+        Player _Player;
         public AudioPlayer      AudioPlayer => Player.audioPlayer;
+        public FlyleafWindow    WindowFront => FlyleafView.WindowFront;
+        public VideoView        FlyleafView => Player.VideoView;
+        
         public Session          Session     => Player.Session;
         public Config           Config      => Player.Config;
         public Config.Audio     Audio       => Config.audio;
@@ -40,7 +42,7 @@ namespace FlyleafLib.Controls.WPF
         public bool IsFullscreen
         {
             get => _IsFullscreen;
-            set => Set(ref _IsFullscreen, value);
+            private set => Set(ref _IsFullscreen, value);
         }
         #endregion
 
@@ -76,18 +78,61 @@ namespace FlyleafLib.Controls.WPF
 
             DataContext = this;
         }
+
         public override void OnApplyTemplate()
         {
-            base.OnApplyTemplate(); 
+            base.OnApplyTemplate();
             if (IsDesignMode) return;
+
             Initialize();
+            //if (Player != null) 
+
+            //templateAppied = true;
         }
 
+        bool templateAppied = false;
         bool playerInitialized = false;
-        private void Initialize()
+
+        private void InitializePlayer()
         {
             if (playerInitialized) return;
             playerInitialized = true;
+
+            FlyleafView.Resources   = Resources;
+            FlyleafView.FontFamily  = FontFamily;
+            FlyleafView.FontSize    = FontSize;
+
+            // Keys
+            if (EnableKeyBindings)
+            {
+                WindowFront.KeyDown         += Flyleaf_KeyDown;
+                FlyleafView.KeyDown         += Flyleaf_KeyDown;
+                WindowFront.KeyUp           += Flyleaf_KeyUp;
+                FlyleafView.KeyUp           += Flyleaf_KeyUp;
+            }
+
+            // Mouse (this will not fire on mouse events use Control)
+            if (EnableMouseEvents)
+            {
+                WindowFront.MouseMove       += Flyleaf_MouseMove; 
+                Player.Control.MouseMove    += Control_MouseMove;
+
+                Player.Control.DoubleClick  += Control_DoubleClick;
+                Player.Control.MouseClick   += Control_MouseClick;
+            }
+
+            // Drag & Drop
+            Player.Control.AllowDrop    = true;
+            Player.Control.DragEnter    += Control_DragEnter;
+            Player.Control.DragDrop     += Control_DragDrop;
+
+            // Player / Session
+            Player.OpenCompleted        += Player_OpenCompleted;
+        }
+
+        private void Initialize()
+        {
+            //Console.WriteLine(Player.PlayerId + "   fldkasjflkdsajflksafdj lkdfasklfjdsalkfdjsa flkdsajfklsadjfklsa");
 
             popUpMenu           = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner", this))?.ContextMenu;
             popUpMenuSubtitles  = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner_Subtitles", this))?.ContextMenu;
@@ -142,38 +187,7 @@ namespace FlyleafLib.Controls.WPF
                 };
             }
 
-            FlyleafView.Resources   = Resources;
-            FlyleafView.FontFamily  = FontFamily;
-            FlyleafView.FontSize    = FontSize;
-
-            //WindowBack.Background = new SolidColorBrush(Color.FromRgb(0,0,0)); // In case of single player for resizing (Main's backcolor should be equal to ClearColor)
-
-            // Keys
-            if (EnableKeyBindings)
-            {
-                WindowFront.KeyDown         += Flyleaf_KeyDown;
-                FlyleafView.KeyDown         += Flyleaf_KeyDown;
-                WindowFront.KeyUp           += Flyleaf_KeyUp;
-                FlyleafView.KeyUp           += Flyleaf_KeyUp;
-            }
-
-            // Mouse (this will not fire on mouse events use Control)
-            if (EnableMouseEvents)
-            {
-                WindowFront.MouseMove       += Flyleaf_MouseMove; 
-                Player.Control.MouseMove    += Control_MouseMove;
-
-                Player.Control.DoubleClick  += Control_DoubleClick;
-                Player.Control.MouseClick   += Control_MouseClick;
-            }
-
-            // Drag & Drop
-            Player.Control.AllowDrop    = true;
-            Player.Control.DragEnter    += Control_DragEnter;
-            Player.Control.DragDrop     += Control_DragDrop;
-
-            // Player / Session
-            Player.OpenCompleted        += Player_OpenCompleted;
+            
 
             RegisterCommands();
             if (Subtitles != null)
@@ -379,6 +393,7 @@ namespace FlyleafLib.Controls.WPF
         }
         public void Player_OpenCompleted(object sender, Player.OpenCompletedArgs e)
         {
+            Console.WriteLine($"{Player.PlayerId} {e.type} {e.success} fldksajflksdajffdslakjfsdalkfjas");
             switch (e.type)
             {
                 case MediaType.Video:
@@ -468,14 +483,25 @@ namespace FlyleafLib.Controls.WPF
 
         private void IdleThread()
         {
-            Console.WriteLine("Im up");
             while (_IdleTimeout > 0)
             {
                 Thread.Sleep(500);
-                CurrentMode = GetCurrentActivityMode();
+                var newMode = GetCurrentActivityMode();
+                if (newMode != CurrentMode)
+                {
+                    if (newMode == ActivityMode.Idle && IsFullscreen)
+                        Dispatcher.Invoke(() => { while (ShowCursor(false) >= 0) { } });
+
+                    if (newMode == ActivityMode.FullActive)
+                        Dispatcher.Invoke(() => { while (ShowCursor(true)   < 0) { } });
+
+                    CurrentMode = newMode;
+                }
             }
-            Console.WriteLine("Im done");
         }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern int ShowCursor(bool bShow);
         #endregion
 
         #region Events
