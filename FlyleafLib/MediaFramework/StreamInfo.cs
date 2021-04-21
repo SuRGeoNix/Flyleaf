@@ -93,8 +93,6 @@ namespace FlyleafLib.MediaFramework
                 si.FPS              = av_q2d(st->r_frame_rate);
                 var gcd = Utils.GCD(si.Width, si.Height);
                 si.AspectRatio      = new AspectRatio(si.Width / gcd , si.Height / gcd);
-                //si.AspectRatio      = new AspectRatio((float)si.Width / (float)si.Height);  //st->codecpar->sample_aspect_ratio;
-                //si.VideoBitRate     = st->codecpar->bit_rate;
 
                 if (si.PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
                 {
@@ -139,7 +137,6 @@ namespace FlyleafLib.MediaFramework
                 si.ChannelLayout= st->codecpar->channel_layout;
                 si.Channels     = st->codecpar->channels;
                 si.Bits         = st->codecpar->bits_per_coded_sample;
-                //si.AudioBitRate = st->codecpar->bit_rate;
 
                 byte[] buf = new byte[50];
                 fixed (byte* bufPtr = buf)
@@ -184,16 +181,12 @@ namespace FlyleafLib.MediaFramework
 
         public static void Fill(Demuxer demuxer)
         {
-            //Console.WriteLine($"[# Format] {Utils.BytePtrToStringUTF8(demuxer.fmtCtx->iformat->long_name)}/{Utils.BytePtrToStringUTF8(demuxer.fmtCtx->iformat->name)} | {Utils.BytePtrToStringUTF8(demuxer.fmtCtx->iformat->extensions)} | {new TimeSpan(demuxer.fmtCtx->start_time * 10)}/{new TimeSpan(demuxer.fmtCtx->duration * 10)}");
-
             demuxer.streams = new StreamInfo[demuxer.fmtCtx->nb_streams];
             for (int i = 0; i < demuxer.fmtCtx->nb_streams; i++)
             {
                 demuxer.streams[i] = Get(demuxer.fmtCtx->streams[i]);
                 if (demuxer.streams[i].Duration <= 0) demuxer.streams[i].Duration = demuxer.decCtx.demuxer.fmtCtx->duration * 10;
-                //PrintDump(demuxer.streams[i]);
             }
-
         }
     }
 }
