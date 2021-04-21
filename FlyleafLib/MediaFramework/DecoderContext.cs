@@ -96,28 +96,30 @@ namespace FlyleafLib.MediaFramework
             if (aStreamIndex != -1 && cfg.audio.Enabled) OpenAudio(aStreamIndex);
             if (sStreamIndex != -1 && cfg.subs.Enabled)  OpenSubs(sStreamIndex);
             if (aStreamIndex == -1 && aDemuxer.status != Status.None && cfg.audio.Enabled) OpenAudio(aDemuxer.url);
-            // Where is sDemuxer?
+            // sDemuxer?
 
             return 0;
         }
 
-        public int OpenVideo(int streamIndex, bool doAudio = false)
+        public int OpenVideo(int streamIndex)
         {
             if (demuxer.status == Status.None) return - 1;
             if (streamIndex < 0 || streamIndex >= demuxer.fmtCtx->nb_streams) return -1;
+            //if (demuxer.enabledStreams.Contains(streamIndex)) return 0; // ??
+
+            int sStreamIndex = sDecoder.isEmbedded && sDecoder.status != Status.None && sDecoder.st != null ? sDecoder.st->index : -1;
+            int aStreamIndex = aDecoder.isEmbedded && aDecoder.status != Status.None && aDecoder.st != null ? aDecoder.st->index : -1;
 
             if (vDecoder.Open(demuxer, demuxer.fmtCtx->streams[streamIndex]) < 0) return -1;
 
-            if (doAudio)
-            {
-                int aStreamIndex = av_find_best_stream(demuxer.fmtCtx, AVMEDIA_TYPE_AUDIO, -1, streamIndex, null, 0);
-                if (aStreamIndex >= 0) OpenAudio(aStreamIndex);
-            }
-
-            if (isRunning) vDecoder.decodeARE.Set();
+            if (aStreamIndex != -1 && cfg.audio.Enabled) OpenAudio(aStreamIndex);
+            if (sStreamIndex != -1 && cfg.subs.Enabled)  OpenSubs(sStreamIndex);
+            if (aStreamIndex == -1 && aDemuxer.status != Status.None && cfg.audio.Enabled) OpenAudio(aDemuxer.url);
+            // sDemuxer?
 
             return 0;
         }
+
         public int OpenAudio(int streamIndex)//, long ms = -1)
         {
             int ret = -1;
@@ -143,6 +145,7 @@ namespace FlyleafLib.MediaFramework
 
             return ret;
         }
+
         public int OpenSubs(int streamIndex)
         {
             int ret = -1;
