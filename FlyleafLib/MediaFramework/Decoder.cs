@@ -238,8 +238,14 @@ namespace FlyleafLib.MediaFramework
         }
         public void Close()
         {
+            if (decodeThread != null && decodeThread.IsAlive)
+            {
+                forcePause = true;
+                if (!isPlaying) decodeARE.Set();
+                Utils.EnsureThreadDone(decodeThread);
+            }
+
             if (status == Status.None) return;
-            if (decodeThread.IsAlive) { forcePause = true; Thread.Sleep(20); if (decodeThread.IsAlive) decodeThread.Abort(); }
 
             if (demuxer.enabledStreams.Contains(st->index))
             {
@@ -270,6 +276,7 @@ namespace FlyleafLib.MediaFramework
             info        = null;
             isEmbedded  = false;
             status      = Status.None;
+            forcePause  = false;
         }
 
         public void Decode()
@@ -282,8 +289,9 @@ namespace FlyleafLib.MediaFramework
                 if (status != Status.Ended) status = Status.Paused;
                 decodeARE.Reset();
                 decodeARE.WaitOne();
-                status              = Status.Playing;
+                if (forcePause) { forcePause = false; break; }
                 forcePause          = false;
+                status              = Status.Playing;
                 bool shouldStop     = false;
                 int  allowedErrors  = decCtx.cfg.decoder.MaxErrors;
                 int  ret            = -1;
