@@ -6,11 +6,12 @@
         xmlns:local="clr-namespace:Wpf_Samples"
         mc:Ignorable="d"
         
-        xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
+        xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
+        xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
         Title="Flyleaf Sample 1 (Basic)" Height="450" Width="800">
     <Grid>
-        <fl:VideoView  x:Name="flview">
-            <fl:Flyleaf x:Name="flwpf" />
+        <fl:VideoView Player="{Binding Player}">
+            <flwpf:Flyleaf/>
         </fl:VideoView>
     </Grid>
 </Window>

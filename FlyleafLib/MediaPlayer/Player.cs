@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Text;
 using System.Reflection;
 using System.Windows;
@@ -19,17 +20,35 @@ using FlyleafLib.Plugins.MediaStream;
 
 using static FlyleafLib.Utils;
 using static FlyleafLib.Utils.NativeMethods;
-
+using FlyleafLib.Controls.WPF;
 
 namespace FlyleafLib.MediaPlayer
 {
     public unsafe class Player : NotifyPropertyChanged
     {
         #region Properties
+
+        /// <summary>
+        /// VideoView wil be set once from the Binding OneWayToSource and then we can Initialize our ViewModel (Normally, this should be called only once)
+        /// IsFullScreen/FullScreen/NormalScreen
+        /// </summary>
+        public VideoView    VideoView       { get ; set; }
+
         /// <summary>
         /// Flyleaf Control (WinForms)
         /// </summary>
-        public Flyleaf      Control         { get; set; } 
+        public Flyleaf      Control         { get => _Control; set { if (value.Handle == _Control?.Handle) return; InitializeControl1(_Control, value); } }
+        Flyleaf _Control;
+
+        /// <summary>
+        /// Foreground window with overlay content (to catch events and resolve airspace issues)
+        /// </summary>
+        public Window       WindowFront     => VideoView.WindowFront;
+
+        /// <summary>
+        /// Background/Main window
+        /// </summary>
+        public Window       WindowBack      => VideoView.WindowFront.WindowBack;
 
         /// <summary>
         /// Player's Configuration
@@ -121,23 +140,35 @@ namespace FlyleafLib.MediaPlayer
         #endregion
 
         #region Initialize / Dispose
-		public Player() { Interlocked.Increment(ref curPlayerId); PlayerId = curPlayerId; Log("Constructor"); Session = new Session(this); }
-		
-        /// <summary>
-        /// Initializes player's engine (audio player, decoder, demuxer and renderer)
-        /// </summary>
-        /// <param name="config">engine's configuration otherwise default will be used (creates a clone, access Player.Session for direct changes)</param>
-        public void Start(Config config = null)
+		public Player(Config config = null)
         {
+            Log("Constructor");
+            Config = config == null ? new Config() : config; // Possible clone for multiple players?
+        }
+
+        private void InitializeControl1(Flyleaf oldValue, Flyleaf newValue)
+        {
+            Interlocked.Increment(ref curPlayerId);
+            PlayerId = curPlayerId; 
             Log("[Starting]");
-            
+
+            Session         = new Session(this);
             seeks           = new ConcurrentStack<SeekData>();
             seekWatch       = new Stopwatch();
-            Config          = config == null ? new Config() : config;
-            Config.SetPlayer(this);
-            
             audioPlayer     = new AudioPlayer();
             decoder         = new DecoderContext(this, audioPlayer);
+
+            if (newValue.Handle != null)
+                InitializeControl2(newValue);
+            else
+                newValue.HandleCreated += (o, e) => { InitializeControl2(newValue); };
+        }
+
+        private void InitializeControl2(Flyleaf newValue)
+        {
+            _Control = newValue;
+            _Control.Player = this;
+
             renderer        = new Renderer(this, decoder, Config);
             decoder.Init(renderer, Config);
             renderer.PresentFrame();
@@ -209,6 +240,7 @@ namespace FlyleafLib.MediaPlayer
 
         private void Initialize()
         {
+            var t1 = Environment.Version;
             Log($"[Initializing]");
 
             // Prevent Seek Process
@@ -660,7 +692,7 @@ namespace FlyleafLib.MediaPlayer
                         // Direct Seek | Abortable Seek (Local vs Network)
                         bool seekFailed = false;
 
-                        if (Session.Movie.UrlType != UrlType.File) // Only "Slow" Network Streams (Web/RTSP/Torrent etc.)
+                        if (Session.Movie.UrlType != UrlType.File && !Utils.PreventAborts) // Only "Slow" Network Streams (Web/RTSP/Torrent etc.)
                         {
                             //Thread.Sleep(networkDecideMs);
                             if (seeks.Count != 0) { /*Log("Seek Ignores");*/ continue; }
@@ -747,11 +779,22 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Stop()
         {
-            Pause();
-            decoder.Stop();
-            decoder.StopAudio();
-            decoder.StopSubs();
             Initialize();
+        }
+
+        bool disposed = false;
+        public void Dispose()
+        {
+            if (disposed) return;
+            Stop();
+            audioPlayer.Dispose(); 
+            renderer.Dispose();
+
+            audioPlayer = null;
+            renderer = null;
+            decoder = null;
+            GC.Collect();
+            disposed = true;
         }
         #endregion
 
@@ -982,6 +1025,8 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public event EventHandler<OpenCompletedArgs> OpenCompleted;
         protected virtual void OnOpenCompleted(MediaType type, bool success) { OpenCompleted?.BeginInvoke(this, new OpenCompletedArgs(type, success), null, null);  }
+
+        //protected virtual void OnOpenCompleted(MediaType type, bool success) { Task.Run(() => OpenCompleted?.Invoke(this, new OpenCompletedArgs(type, success))); }
         #endregion
 
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }

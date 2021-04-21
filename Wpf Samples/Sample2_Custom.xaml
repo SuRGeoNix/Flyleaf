@@ -5,16 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Wpf_Samples"
         
-        xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
+        xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         x:Class="Wpf_Samples.Sample2_Custom"
         mc:Ignorable="d"
         
         Title="Flyleaf Sample 2 (Custom)" Height="450" Width="800">
-    <Window.Resources>
-        <fl:TicksToTimeConverter x:Key="TicksToTime"/>
-    </Window.Resources>
     <Grid>
-        <fl:VideoView x:Name="flview" FlyleafView="{Binding VideoView, Mode=OneWayToSource}">
+        <fl:VideoView x:Name="flview" Player="{Binding Player}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -33,8 +30,6 @@
                     <Button Margin="10,0,0,0" Content="Play"    Command="{Binding PlayVideo}"/>
                     <Button Margin="10,0,0,0" Content="Pause"   Command="{Binding PauseVideo}"/>
                 </StackPanel>
-
-                <TextBlock Grid.Row="1" Grid.Column="1" Margin="10" TextAlignment="Right" Text="{Binding Session.CurTime, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Orange"/>
             </Grid>
         </fl:VideoView>
     </Grid>
