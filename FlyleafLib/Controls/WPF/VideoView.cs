@@ -62,7 +62,6 @@ namespace FlyleafLib.Controls.WPF
             //Player              = flyleafWF.Player;
             windowsFormsHost    = (WindowsFormsHost) Template.FindName(PART_PlayerHost, this);
             WindowFront         = new FlyleafWindow(windowsFormsHost);
-            WindowFront.Closing+= (o, e) => { Player?.Dispose(); };
 
             var curContent = Content;
             IsUpdatingContent = true;
