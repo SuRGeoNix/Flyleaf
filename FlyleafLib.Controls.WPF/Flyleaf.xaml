@@ -32,7 +32,6 @@
                             </ControlTemplate.Resources>
 
                             <!--CONTENT HERE-->
-
                             <Grid x:Name="PART_ContextMenuOwner" ContextMenu="{StaticResource PopUpMenu}">
 
                                 <!--Pop Up Dialog (Settings/Set Values)-->

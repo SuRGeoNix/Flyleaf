@@ -329,6 +329,9 @@ namespace FlyleafLib.MediaFramework
                         if (shouldStop) break;
                     }
 
+                    if (!decCtx.isPlaying || forcePause) 
+                        break;
+
                     if (packets.Count == 0 && demuxer.status == Status.Ended)
                     {
                         if (type == MediaType.Video)

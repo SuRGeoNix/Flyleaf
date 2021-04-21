@@ -44,11 +44,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 if (rate != -1) Rate = rate;
 
-                // Dispose | UnRegister 
-                if (device  != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
-                if (session != null) session.UnRegisterEventClient(this);
-                if (player  != null) player.Dispose();
-                if (buffer  != null) buffer.ClearBuffer();
+                Dispose();
 
                 // Initialize
                 format = WaveFormatExtensible.CreateIeeeFloatWaveFormat(Rate, CHANNELS);
@@ -82,7 +78,17 @@ namespace FlyleafLib.MediaPlayer
         public void Play()  { lock (locker) { buffer.ClearBuffer(); player.Play(); } }
         public void Pause() { lock (locker) { player.Pause(); buffer.ClearBuffer(); } }
         public void Stop()  { lock (locker) { player.Stop(); Initialize(); } }
-        public void Close() { lock (locker) { if (player != null) player.Dispose(); } }
+        public void Dispose()
+        {
+            lock (locker)
+            {
+                // Dispose | UnRegister 
+                if (device  != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
+                if (session != null) session.UnRegisterEventClient(this);
+                if (player  != null) player.Dispose();
+                if (buffer  != null) buffer.ClearBuffer();
+            } 
+        }
 
         public void FrameClbk(byte[] buffer)//, int offset, int count)
         {
