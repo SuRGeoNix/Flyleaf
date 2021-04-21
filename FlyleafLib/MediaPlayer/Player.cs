@@ -24,7 +24,7 @@ using FlyleafLib.Controls.WPF;
 
 namespace FlyleafLib.MediaPlayer
 {
-    public unsafe class Player : NotifyPropertyChanged
+    public unsafe class Player : NotifyPropertyChanged, IDisposable
     {
         #region Properties
 

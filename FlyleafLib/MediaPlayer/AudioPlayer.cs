@@ -7,7 +7,7 @@ using NAudio.CoreAudioApi.Interfaces;
 
 namespace FlyleafLib.MediaPlayer
 {
-    public class AudioPlayer : NotifyPropertyChanged, IMMNotificationClient, IAudioSessionEventsHandler
+    public class AudioPlayer : NotifyPropertyChanged, IMMNotificationClient, IAudioSessionEventsHandler, IDisposable
     {
         #region Declaration
         public bool     isPlaying   { get { return player.PlaybackState == PlaybackState.Playing ? true : false; } }
