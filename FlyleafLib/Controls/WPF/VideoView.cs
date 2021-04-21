@@ -1,5 +1,6 @@
 ﻿/* This class is based on https://github.com/videolan/libvlcsharp/tree/3.x/src/LibVLCSharp.WPF */
 
+using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -46,6 +47,7 @@ namespace FlyleafLib.Controls.WPF
             Player Player = e.NewValue as Player;
             Player.VideoView = VideoView;
             Player.Control = VideoView.FlyleafWF;
+            Console.WriteLine("OnPlayerChanged() Sets Control to Player");
             if (VideoView.ControlRequiresPlayer != null) VideoView.ControlRequiresPlayer.Player = Player;
         }
 
@@ -79,6 +81,7 @@ namespace FlyleafLib.Controls.WPF
             {
                 Player.VideoView = this;
                 Player.Control = FlyleafWF;
+                Console.WriteLine("OnApplyTemplate() Sets Control to Player");
                 if (ControlRequiresPlayer != null) ControlRequiresPlayer.Player = Player;
             }
         }
@@ -95,7 +98,6 @@ namespace FlyleafLib.Controls.WPF
                 WindowFront.SetContent((UIElement)newContent);
             }
         }
-
 
         public bool IsFullScreen { get ; private set; }
 
