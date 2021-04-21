@@ -26,7 +26,7 @@
                                     </Storyboard>
 
                                     <Storyboard x:Key="fadeOut">
-                                        <DoubleAnimation BeginTime="0:0:0" Storyboard.TargetProperty="Opacity"  To="0" Duration="0:0:2.0"  AutoReverse="False"/>
+                                        <DoubleAnimation BeginTime="0:0:0" Storyboard.TargetProperty="Opacity"  To="0" Duration="0:0:2.0" AutoReverse="False"/>
                                     </Storyboard>
                                 </ResourceDictionary>
                             </ControlTemplate.Resources>
@@ -35,11 +35,10 @@
                             <Grid x:Name="PART_ContextMenuOwner" ContextMenu="{StaticResource PopUpMenu}">
 
                                 <!--Pop Up Dialog (Settings/Set Values)-->
-                                <materialDesign:DialogHost x:Name="PART_DialogSettings"/> <!--Identifier="DialogSettings"/>-->
+                                <materialDesign:DialogHost x:Name="PART_DialogSettings"/>
 
                                 <!--Subtitles-->
                                 <TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding Session.SubsText}"/>
-                                <!--<TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="fldaskjfldksajflksadj"/>-->
 
                                 <!--Flyleaf Bar-->
                                 <materialDesign:Card TextElement.FontSize="14" TextElement.FontWeight="Medium" TextElement.Foreground="{DynamicResource MaterialDesignBody}" FontFamily="{materialDesign:MaterialDesignFont}" VerticalAlignment="Bottom" Focusable="False" Background="{StaticResource RadialBrush}">

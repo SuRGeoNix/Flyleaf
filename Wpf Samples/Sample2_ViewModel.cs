@@ -85,18 +85,12 @@ namespace Wpf_Samples
         /// <summary>
         /// ViewMode's Constructor
         /// </summary>
-        public Sample2_ViewModel()
+        public Sample2_ViewModel(Player player)
         {
+            Player = player;
             OpenVideo   = new RelayCommand(OpenVideoAction);
             PauseVideo  = new RelayCommand(PauseVideoAction);
             PlayVideo   = new RelayCommand(PlayVideoAction);
-        }
-
-        /// <summary>
-        /// ViewModel's Initialization as we have VideoView
-        /// </summary>
-        public void Initialize()
-        {
             UserInput = "../../../Sample.mp4";
             Player.OpenCompleted += Player_OpenCompleted;
         }
