@@ -165,7 +165,25 @@ namespace FlyleafLib.MediaRenderer
             else
                 SetViewport();
         }
+        public void Dispose()
+        {
+            lock (device)
+            {
+                player.Control.Resize -= ResizeBuffers;
 
+                Utilities.Dispose(ref rtv);
+                Utilities.Dispose(ref backBuffer);
+                Utilities.Dispose(ref swapChain);
+                Utilities.Dispose(ref vertexLayout);
+                Utilities.Dispose(ref vertexBuffer);
+
+                context.Flush();
+                context.ClearState();
+                Utilities.Dispose(ref context);
+            }
+
+            Utilities.Dispose(ref device);
+        }
         private void ResizeBuffers(object sender, EventArgs e)
         {
             if (device == null) return;
@@ -186,7 +204,7 @@ namespace FlyleafLib.MediaRenderer
 
         public void SetViewport()
         {
-            if (cfg.video.AspectRatio == AspectRatio.Fill || !player.Session.CanPlay)
+            if (cfg.video.AspectRatio == AspectRatio.Fill || (cfg.video.AspectRatio == AspectRatio.Keep && decoder.vDecoder.info == null))// || !player.Session.CanPlay)
             {
                 GetViewport     = new Viewport(0, 0, player.Control.Width, player.Control.Height);
                 context.Rasterizer.SetViewport(0, 0, player.Control.Width, player.Control.Height);
