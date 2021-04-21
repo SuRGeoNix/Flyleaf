@@ -59,12 +59,15 @@ namespace FlyleafLib.Controls.WPF
 
         #region Initialize
         public TextBlock Subtitles { get; set; }
+        Thickness subsInitialMargin;
+
         ContextMenu popUpMenu, popUpMenuSubtitles, popUpMenuVideo;
         MenuItem    popUpAspectRatio;
         MenuItem    popUpKeepAspectRatio;
         MenuItem    popUpCustomAspectRatio;
         MenuItem    popUpCustomAspectRatioSet;
         string      dialogSettingsIdentifier;
+        bool        playerInitialized;
 
         public Flyleaf()
         {
@@ -85,55 +88,9 @@ namespace FlyleafLib.Controls.WPF
             if (IsDesignMode) return;
 
             Initialize();
-            //if (Player != null) 
-
-            //templateAppied = true;
         }
-
-        bool templateAppied = false;
-        bool playerInitialized = false;
-
-        private void InitializePlayer()
-        {
-            if (playerInitialized) return;
-            playerInitialized = true;
-
-            FlyleafView.Resources   = Resources;
-            FlyleafView.FontFamily  = FontFamily;
-            FlyleafView.FontSize    = FontSize;
-
-            // Keys
-            if (EnableKeyBindings)
-            {
-                WindowFront.KeyDown         += Flyleaf_KeyDown;
-                FlyleafView.KeyDown         += Flyleaf_KeyDown;
-                WindowFront.KeyUp           += Flyleaf_KeyUp;
-                FlyleafView.KeyUp           += Flyleaf_KeyUp;
-            }
-
-            // Mouse (this will not fire on mouse events use Control)
-            if (EnableMouseEvents)
-            {
-                WindowFront.MouseMove       += Flyleaf_MouseMove; 
-                Player.Control.MouseMove    += Control_MouseMove;
-
-                Player.Control.DoubleClick  += Control_DoubleClick;
-                Player.Control.MouseClick   += Control_MouseClick;
-            }
-
-            // Drag & Drop
-            Player.Control.AllowDrop    = true;
-            Player.Control.DragEnter    += Control_DragEnter;
-            Player.Control.DragDrop     += Control_DragDrop;
-
-            // Player / Session
-            Player.OpenCompleted        += Player_OpenCompleted;
-        }
-
         private void Initialize()
         {
-            //Console.WriteLine(Player.PlayerId + "   fldkasjflkdsajflksafdj lkdfasklfjdsalkfdjsa flkdsajfklsadjfklsa");
-
             popUpMenu           = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner", this))?.ContextMenu;
             popUpMenuSubtitles  = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner_Subtitles", this))?.ContextMenu;
             popUpMenuVideo      = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner_Video", this))?.ContextMenu;
@@ -187,8 +144,6 @@ namespace FlyleafLib.Controls.WPF
                 };
             }
 
-            
-
             RegisterCommands();
             if (Subtitles != null)
             {
@@ -208,11 +163,45 @@ namespace FlyleafLib.Controls.WPF
             }
             
         }
+        private void InitializePlayer()
+        {
+            if (playerInitialized) return;
+            playerInitialized = true;
+
+            FlyleafView.Resources   = Resources;
+            FlyleafView.FontFamily  = FontFamily;
+            FlyleafView.FontSize    = FontSize;
+
+            // Keys
+            if (EnableKeyBindings)
+            {
+                WindowFront.KeyDown         += Flyleaf_KeyDown;
+                FlyleafView.KeyDown         += Flyleaf_KeyDown;
+                WindowFront.KeyUp           += Flyleaf_KeyUp;
+                FlyleafView.KeyUp           += Flyleaf_KeyUp;
+            }
+
+            // Mouse (this will not fire on mouse events use Control)
+            if (EnableMouseEvents)
+            {
+                WindowFront.MouseMove       += Flyleaf_MouseMove; 
+                Player.Control.MouseMove    += Control_MouseMove;
+
+                Player.Control.DoubleClick  += Control_DoubleClick;
+                Player.Control.MouseClick   += Control_MouseClick;
+            }
+
+            // Drag & Drop
+            Player.Control.AllowDrop    = true;
+            Player.Control.DragEnter    += Control_DragEnter;
+            Player.Control.DragDrop     += Control_DragDrop;
+
+            // Player / Session
+            Player.OpenCompleted        += Player_OpenCompleted;
+        }
         #endregion
         
         #region ICommands
-        Thickness subsInitialMargin;
-
         void RegisterCommands()
         {
             TogglePlayPause     = new RelayCommand(TogglePlayPauseAction); //, p => Session.CanPlay);
@@ -246,27 +235,23 @@ namespace FlyleafLib.Controls.WPF
 
         public ICommand OpenStream { get; set; }
         public void OpenStreamAction(object stream) { Player.Open((StreamBase)stream); }
-        public ICommand ResetSubsPositionY { get; set; }
 
+        public ICommand ResetSubsPositionY { get; set; }
         public void ResetSubsPositionYAction(object obj = null) { Subtitles.Margin = subsInitialMargin; }
 
         public ICommand ResetSubsDelayMs { get; set; }
-
         public void ResetSubsDelayMsAction(object obj = null) { Subs.DelayTicks = 0; }
 
         public ICommand ResetAudioDelayMs { get; set; }
-
         public void ResetAudioDelayMsAction(object obj = null) { Audio.DelayTicks = 0; }
 
         public ICommand SetSubsPositionY { get; set; }
-        
-
         public void SetSubsPositionYAction(object y) { Thickness t = Subtitles.Margin; t.Bottom += int.Parse(y.ToString()); Subtitles.Margin = t; Raise("Subtitles"); }
+
         public ICommand SetAudioDelayMs { get; set; }
         public void SetAudioDelayMsAction(object delay) { Audio.DelayTicks += (int.Parse(delay.ToString())) * (long)10000; }
 
         public ICommand SetSubsDelayMs { get; set; }
-
         public void SetSubsDelayMsAction(object delay) { Subs.DelayTicks += (int.Parse(delay.ToString())) * (long)10000; }
 
         public ICommand OpenFromFileDialog  { get; set; }
@@ -336,6 +321,7 @@ namespace FlyleafLib.Controls.WPF
                 SubtitlesFontColor      = Subtitles.Foreground;
             }
         }
+
         public ICommand OpenSettings        { get; set; }
         public async void OpenSettingsAction(object obj = null)
         {
@@ -372,7 +358,6 @@ namespace FlyleafLib.Controls.WPF
         }
         
         public ICommand ToggleFullscreen    { get; set; }
-
         public void ToggleFullscreenAction(object obj = null)
         {
             if (FlyleafView.IsFullScreen)
@@ -393,7 +378,6 @@ namespace FlyleafLib.Controls.WPF
         }
         public void Player_OpenCompleted(object sender, Player.OpenCompletedArgs e)
         {
-            Console.WriteLine($"{Player.PlayerId} {e.type} {e.success} fldksajflksdajffdslakjfsdalkfjas");
             switch (e.type)
             {
                 case MediaType.Video:
