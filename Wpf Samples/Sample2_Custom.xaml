@@ -21,7 +21,7 @@
                     <RowDefinition Height="auto"/>
                     <RowDefinition Height="auto"/>
                 </Grid.RowDefinitions>
-                
+
                 <TextBox Margin="10" Width="200" Text="{Binding UserInput}"/>
                 <TextBlock Grid.Column="1" Margin="10" TextAlignment="Right" Text="{Binding Player.Status}" FontSize="22" Foreground="Red"/>
 
