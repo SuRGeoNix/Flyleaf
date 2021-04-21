@@ -28,17 +28,17 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Holds the decocer's current Video stream
         /// </summary>
-        public StreamInfo       VideoInfo           => player.decoder.vDecoder.info;
+        public StreamInfo       VideoInfo           => player.decoder?.vDecoder?.info;
 
         /// <summary>
         /// Holds the decoder's current Audio stream
         /// </summary>
-        public StreamInfo       AudioInfo           => player.decoder.aDecoder.info;
+        public StreamInfo       AudioInfo           => player.decoder?.aDecoder?.info;
 
         /// <summary>
         /// Holds the decoder's current Subtitle stream
         /// </summary>
-        public StreamInfo       SubsInfo            => player.decoder.sDecoder.info;
+        public StreamInfo       SubsInfo            => player.decoder?.sDecoder?.info;
 
         /// <summary>
         /// Holds the current Video stream

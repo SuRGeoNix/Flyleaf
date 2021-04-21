@@ -411,9 +411,23 @@ namespace FlyleafLib.MediaPlayer
 
             // TODO: Switch Embedded Video Streeams
             if (stream.DecoderInput.Stream != null)
-                { if (decoder.Open(stream.DecoderInput.Stream) != 0) { OpenFailed(); return; } }
-
-            else if (string.IsNullOrEmpty(stream.DecoderInput.Url) || decoder.Open(stream.DecoderInput.Url) != 0) { OpenFailed(); return; }
+            {
+                if (decoder.Open(stream.DecoderInput.Stream) != 0)
+                {
+                    OpenFailed(); 
+                    return;
+                }
+            }
+            else if (string.IsNullOrEmpty(stream.DecoderInput.Url) && stream.DecoderInput.StreamIndex != -1 && decoder.OpenVideo(stream.DecoderInput.StreamIndex) != 0)
+            {
+                OpenFailed(); 
+                return;
+            }
+            else if (string.IsNullOrEmpty(stream.DecoderInput.Url) || decoder.Open(stream.DecoderInput.Url) != 0)
+            {
+                OpenFailed(); 
+                return;
+            }
 
             Session.CurVideoStream      = stream;
             Session.CurVideoStream.InUse= true;

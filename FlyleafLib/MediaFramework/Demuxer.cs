@@ -279,8 +279,6 @@ namespace FlyleafLib.MediaFramework
                 forcePause = true;
                 if (!isPlaying) demuxARE.Set();
                 Utils.EnsureThreadDone(demuxThread);
-
-                demuxThread.Abort();
             }
 
             if (status == Status.None) return;
