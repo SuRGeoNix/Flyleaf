@@ -19,27 +19,27 @@ namespace Wpf_Samples
         /// VideoView wil be set once from the Binding OneWayToSource and then we can Initialize our ViewModel (Normally, this should be called only once)
         /// IsFullScreen/FullScreen/NormalScreen
         /// </summary>
-        public VideoView    VideoView
-        {
-            get { return _VideoView; }
-            set { _VideoView = value; Initialize(); }
-        }
-        private VideoView  _VideoView;
+        //public VideoView    VideoView
+        //{
+        //    get { return _VideoView; }
+        //    set { _VideoView = value; Initialize(); }
+        //}
+        //private VideoView  _VideoView;
 
-        /// <summary>
-        /// WindowsFormsHost child control (to catch events and resolve airspace issues)
-        /// </summary>
-        public FlyleafWF    WinFormsControl => Player.Control;
+        ///// <summary>
+        ///// WindowsFormsHost child control (to catch events and resolve airspace issues)
+        ///// </summary>
+        //public FlyleafWF    WinFormsControl => Player.Control;
 
-        /// <summary>
-        /// Foreground window with overlay content (to catch events and resolve airspace issues)
-        /// </summary>
-        public Window       WindowFront     => VideoView.WindowFront;
+        ///// <summary>
+        ///// Foreground window with overlay content (to catch events and resolve airspace issues)
+        ///// </summary>
+        //public Window       WindowFront     => VideoView.WindowFront;
 
-        /// <summary>
-        /// Background/Main window
-        /// </summary>
-        public Window       WindowBack      => VideoView.WindowBack;
+        ///// <summary>
+        ///// Background/Main window
+        ///// </summary>
+        //public Window       WindowBack      => VideoView.WindowBack;
         #endregion
 
         #region ViewModel's Properties
@@ -58,7 +58,7 @@ namespace Wpf_Samples
         /// <summary>
         /// Player's functions (open new input or existing stream/play/pause/seek forewards or backwards etc.) + Plugins[Plugin_Name].[Media]Streams + Status [see Player.cs for details]
         /// </summary>
-        public Player       Player      => VideoView?.Player;
+        public Player       Player      { get ; set; }
 
         /// <summary>
         /// Audio Player's functions (play/pause) +  Volume/Mute [see AudioPlayer.cs]
@@ -97,7 +97,7 @@ namespace Wpf_Samples
         /// </summary>
         public void Initialize()
         {
-            UserInput = "../../Sample.mp4";
+            UserInput = "../../../Sample.mp4";
             Player.OpenCompleted += Player_OpenCompleted;
         }
         #endregion
@@ -106,7 +106,7 @@ namespace Wpf_Samples
         public ICommand     OpenVideo   { get ; set; }
         public ICommand     PauseVideo  { get ; set; }
         public ICommand     PlayVideo   { get ; set; }
-        public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = "../../Sample.mp4"; Player.Open(UserInput); }
+        public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = "../../../Sample.mp4"; Player.Open(UserInput); }
         public void PauseVideoAction(object param)  { Player.Pause(); }
         public void PlayVideoAction(object param)   { Player.Play(); }
         #endregion

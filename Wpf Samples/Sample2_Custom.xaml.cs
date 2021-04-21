@@ -1,4 +1,5 @@
 ﻿using FlyleafLib;
+using FlyleafLib.MediaPlayer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,10 +22,13 @@ namespace Wpf_Samples
     public partial class Sample2_Custom : Window
     {
         Sample2_ViewModel s2vm = new Sample2_ViewModel();
+        
         public Sample2_Custom()
         {
             Utils.FFmpeg.RegisterFFmpeg(":2");
             InitializeComponent();
+            
+            s2vm.Player = new Player();
             flview.DataContext = s2vm;
         }
     }

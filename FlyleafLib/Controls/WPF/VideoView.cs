@@ -21,17 +21,33 @@ namespace FlyleafLib.Controls.WPF
         WindowsFormsHost        windowsFormsHost;
         private bool            IsDesignMode => (bool)DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
 
-        public Player           Player      { get; private set; }
+        //public Player           Player      { get; private set; }
         public FlyleafWindow    WindowFront { get; set; }
         public Window           WindowBack  => WindowFront.WindowBack;
-
-        public VideoView FlyleafView
+        public FlyleafWF FlyleafWF { get ; set; }
+        public Player Player
         {
-            get { return (VideoView)GetValue(FlyleafViewProperty); }
-            set { SetValue(FlyleafViewProperty, value); }
+            get { return (Player)GetValue(PlayerProperty); }
+            set { SetValue(PlayerProperty, value); }
         }
-        public static readonly DependencyProperty FlyleafViewProperty =
-            DependencyProperty.Register("FlyleafView", typeof(VideoView), typeof(VideoView), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty PlayerProperty =
+            DependencyProperty.Register("Player", typeof(Player), typeof(VideoView), new PropertyMetadata(null, OnPlayerChanged));
+
+        public IVideoView ControlRequiresPlayer;
+
+        private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (e.NewValue == null) return;
+
+            VideoView VideoView = d as VideoView;
+            if (VideoView.FlyleafWF == null) return;
+
+            Player Player = e.NewValue as Player;
+            Player.VideoView = VideoView;
+            Player.Control = VideoView.FlyleafWF;
+            if (VideoView.ControlRequiresPlayer != null) VideoView.ControlRequiresPlayer.Player = Player;
+        }
 
         public VideoView() { DefaultStyleKey = typeof(VideoView); }
         public override void OnApplyTemplate()
@@ -40,10 +56,11 @@ namespace FlyleafLib.Controls.WPF
 
             if (IsDesignMode) return;
 
-            FlyleafWF flyleafWF = (FlyleafWF) Template.FindName(PART_PlayerView, this);
-            Player              = flyleafWF.Player;
+            FlyleafWF = (FlyleafWF) Template.FindName(PART_PlayerView, this);
+            //Player              = flyleafWF.Player;
             windowsFormsHost    = (WindowsFormsHost) Template.FindName(PART_PlayerHost, this);
             WindowFront         = new FlyleafWindow(windowsFormsHost);
+            WindowFront.Closing+= (o, e) => { Player?.Dispose(); };
 
             var curContent = Content;
             IsUpdatingContent = true;
@@ -51,11 +68,19 @@ namespace FlyleafLib.Controls.WPF
             finally { IsUpdatingContent = false; }
 
             // TBR: Parsing the Player and VideoView to Control/ViewModel
-            if (curContent != null && curContent is IVideoView) ((IVideoView)curContent).FlyleafView = this;
+            //if (curContent != null && curContent is IVideoView) ((IVideoView)curContent).FlyleafView = this;
             WindowFront.SetContent((UIElement) curContent);
             WindowFront.DataContext = DataContext;
-            FlyleafView = this;
-            Player.Start();
+
+            if (curContent != null && curContent is IVideoView) 
+                ControlRequiresPlayer = ((IVideoView)curContent);
+
+            if (Player != null && Player.VideoView == null)
+            {
+                Player.VideoView = this;
+                Player.Control = FlyleafWF;
+                if (ControlRequiresPlayer != null) ControlRequiresPlayer.Player = Player;
+            }
         }
         protected override void OnContentChanged(object oldContent, object newContent)
         {

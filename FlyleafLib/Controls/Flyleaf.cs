@@ -11,11 +11,11 @@ namespace FlyleafLib.Controls
 
         public Flyleaf()
         {
-            Console.WriteLine("Control Created");
-            /*InitializeComponent();*/
-            Player = new Player();
-            Player.Control = this;
-            BackColor = System.Drawing.Color.Black;
+            //Console.WriteLine("Control Created");
+            ///*InitializeComponent();*/
+            //Player = new Player();
+            //Player.Control = this;
+            //BackColor = System.Drawing.Color.Black;
         }
 
         protected override void OnPaintBackground(PaintEventArgs pe) {  Player?.renderer?.PresentFrame(); }
