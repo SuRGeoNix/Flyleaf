@@ -274,7 +274,14 @@ namespace FlyleafLib.MediaFramework
                     decCtx.sDecoder.Close();
             }
 
-            if (demuxThread != null && demuxThread.IsAlive) demuxThread.Abort();
+            if (demuxThread != null && demuxThread.IsAlive)
+            {
+                forcePause = true;
+                if (!isPlaying) demuxARE.Set();
+                Utils.EnsureThreadDone(demuxThread);
+
+                demuxThread.Abort();
+            }
 
             if (status == Status.None) return;
 
@@ -287,6 +294,7 @@ namespace FlyleafLib.MediaFramework
             streams         = null;
             ioStream        = null;
             status          = Status.None;
+            forcePause      = false;
             defaultAudioStream = -1;
         }
 
@@ -387,6 +395,7 @@ namespace FlyleafLib.MediaFramework
                 if (status != Status.Ended) status = Status.Paused;
                 demuxARE.Reset();
                 demuxARE.WaitOne();
+                if (forcePause) { forcePause = false; break; }
                 status = Status.Playing;
                 forcePause = false;
                 Log("Started");

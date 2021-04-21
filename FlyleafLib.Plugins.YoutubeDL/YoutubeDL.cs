@@ -46,7 +46,7 @@ namespace FlyleafLib.Plugins
             try
             {
                 uri = new Uri(Session.InitialUrl);
-                if (uri.Scheme.ToLower() != "http" && uri.Scheme.ToLower() != "https") return null;
+                if ((uri.Scheme.ToLower() != "http" && uri.Scheme.ToLower() != "https") || Utils.GetUrlExtention(Session.InitialUrl).ToLower() == "m3u8") return null;
             } catch (Exception) { return null; }
 
             try
