@@ -29,9 +29,6 @@ namespace FlyleafLib.MediaFramework
         public AVFormatContext      *fmtCtx;
         public List<int>            enabledStreams;
         public StreamInfo[]         streams;
-        //public List<AudioStream>    AudioStreams    { get; set; } = new List<AudioStream>();
-        //public List<VideoStream>    VideoStreams    { get; set; } = new List<VideoStream>();
-        //public List<SubtitleStream> SubtitleStreams { get; set; } = new List<SubtitleStream>();
 
         public int                  defaultAudioStream;
 

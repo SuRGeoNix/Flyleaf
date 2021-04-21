@@ -163,7 +163,6 @@ namespace FlyleafLib.MediaPlayer
             else
                 newValue.HandleCreated += (o, e) => { InitializeControl2(newValue); };
         }
-
         private void InitializeControl2(Flyleaf newValue)
         {
             _Control = newValue;
@@ -176,8 +175,8 @@ namespace FlyleafLib.MediaPlayer
             Log("[Started]");
         }
 
-        // Pre-load common assemblies
-        static JsonSerializerSettings loadjson = new JsonSerializerSettings();
+        
+        static JsonSerializerSettings loadjson = new JsonSerializerSettings(); // Pre-load common assemblies
         private void LoadPlugins()
         {
             // Load .dll Assemblies
@@ -289,7 +288,7 @@ namespace FlyleafLib.MediaPlayer
             foreach(var plugin in Plugins.Values) plugin.OnInitializingSwitch();
 
             // Reset Rest
-            decoder.Stop();
+            decoder.Pause();
             decoder.interrupt = 1;
             EnsureThreadDone(tOpenVideo);
             EnsureThreadDone(tOpenAudio);
@@ -409,25 +408,19 @@ namespace FlyleafLib.MediaPlayer
             var stream = ((IPluginVideo)curVideoPlugin).OpenVideo(vStream);            
             if (stream == null) { OpenFailed(); return; }
 
-            // TODO: Switch Embedded Video Streeams
+            int ret = -1;
+
             if (stream.DecoderInput.Stream != null)
-            {
-                if (decoder.Open(stream.DecoderInput.Stream) != 0)
-                {
-                    OpenFailed(); 
-                    return;
-                }
-            }
-            else if (string.IsNullOrEmpty(stream.DecoderInput.Url) && stream.DecoderInput.StreamIndex != -1 && decoder.OpenVideo(stream.DecoderInput.StreamIndex) != 0)
-            {
-                OpenFailed(); 
-                return;
-            }
-            else if (string.IsNullOrEmpty(stream.DecoderInput.Url) || decoder.Open(stream.DecoderInput.Url) != 0)
-            {
-                OpenFailed(); 
-                return;
-            }
+                ret = decoder.Open(stream.DecoderInput.Stream);
+
+            else if (!string.IsNullOrEmpty(stream.DecoderInput.Url))
+                ret = decoder.Open(stream.DecoderInput.Url);
+
+            // TODO: Select best embedded video stream similarly with Youtube-DL plugin
+            else if (stream.DecoderInput.StreamIndex != -1)
+                ret = decoder.OpenVideo(stream.DecoderInput.StreamIndex);
+
+            if (ret != 0) { OpenFailed(); return; }
 
             Session.CurVideoStream      = stream;
             Session.CurVideoStream.InUse= true;
@@ -435,13 +428,15 @@ namespace FlyleafLib.MediaPlayer
 
             foreach(var plugin in Plugins.Values) plugin.OnVideoOpened();
 
-            if (Config.audio.Enabled)
+            if (!HasAudio && Config.audio.Enabled)
                 OpenAudio();
 
-            if (Config.subs.Enabled)
+            if (!HasSubs && Config.subs.Enabled)
                 foreach(var lang in Config.subs.Languages) if (OpenSubs(lang)) break; // Probably in tOpenThread (check torrent stream for messing with position)
 
             if (Session.CurTime != 0 && Session.Movie.Duration != 0) decoder.Seek(Session.CurTime/10000, true);
+
+            // if playafterseek play?
 
             InitializeEnv();
         }
