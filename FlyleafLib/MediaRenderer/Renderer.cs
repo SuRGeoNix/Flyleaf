@@ -19,7 +19,7 @@ using FlyleafLib.MediaPlayer;
 
 namespace FlyleafLib.MediaRenderer
 {
-    public class Renderer
+    public class Renderer : IDisposable
     {
         public Viewport     GetViewport     { get; private set; }
         public RendererInfo Info            { get; internal set; }
