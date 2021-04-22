@@ -123,7 +123,7 @@
                                                             <Setter.Value>
                                                                 <ContextMenu>
                                                                     <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Subs.Enabled}"/>
-                                                                    <MenuItem Header="Use Online DBs" IsCheckable="True" IsChecked="{Binding Subs.UseOnlineDatabases}"/>
+                                                                    <MenuItem Header="Fonts..." Command="{Binding SetSubtitlesFont}"/>
                                                                     <MenuItem Header="{Binding Subs.DelayTicks, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
                                                                         <MenuItem Header="Reset..." Command="{Binding ResetSubsDelayMs}"/>
                                                                         <Separator />
@@ -145,7 +145,6 @@
                                                                         <MenuItem Header="Down x 10" CommandParameter="-20"     Command="{Binding SetSubsPositionY}"/>
                                                                         <MenuItem Header="Down"      CommandParameter=" -2"     Command="{Binding SetSubsPositionY}"/>
                                                                     </MenuItem>
-                                                                    <MenuItem Header="Fonts..." Command="{Binding SetSubtitlesFont}"/>
                                                                     <MenuItem Header="Streams">
                                                                         <MenuItem Header="External" ItemsSource="{Binding Player.Plugins[DefaultExternal].SubtitleStreams}" AlternationCount="{Binding Player.Plugins[DefaultExternal].SubtitleStreams.Count}">
                                                                             <MenuItem.ItemContainerStyle>
@@ -214,6 +213,7 @@
                                                                             </MenuItem.ItemTemplate>
                                                                         </MenuItem>
                                                                     </MenuItem>
+                                                                    <MenuItem Header="Use Online DBs" IsCheckable="True" IsChecked="{Binding Subs.UseOnlineDatabases}"/>
                                                                 </ContextMenu>
                                                             </Setter.Value>
                                                         </Setter>
