@@ -130,8 +130,9 @@
     <Compile Include="MediaPlayer\Player.cs" />
     <Compile Include="MediaRenderer\Shaders_v4.cs" />
     <Compile Include="MediaRenderer\Shaders_v5.cs" />
+    <Compile Include="Plugins\Default.cs" />
+    <Compile Include="Plugins\DefaultExternal.cs" />
     <Compile Include="Plugins\PluginBase.cs" />
-    <Compile Include="Plugins\PluginsLocal.cs" />
     <Compile Include="MediaPlayer\Session.cs" />
     <Compile Include="MediaRenderer\Renderer.cs" />
     <Compile Include="MediaRenderer\RendererInfo.cs" />
