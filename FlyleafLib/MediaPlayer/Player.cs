@@ -305,7 +305,7 @@ namespace FlyleafLib.MediaPlayer
             if (Utils.SubsExts.Contains(Utils.GetUrlExtention(url)))
             {
                 if (Config.subs.Enabled == false) Config.subs.SetEnabled();
-                Open(((IPluginExternalSubtitles)Plugins["ExternalSubs"]).OpenSubtitles(url));
+                Open(((IPluginExternal)Plugins["DefaultExternal"]).OpenSubtitles(url));
                 return;
             }
 
@@ -330,10 +330,26 @@ namespace FlyleafLib.MediaPlayer
                     break;
                 }
             });
-            tOpenVideo.IsBackground = true;
-            tOpenVideo.Start();
+            tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
         }
         
+        /// <summary>
+        /// Opens a new external Video from a custom System.IO.Stream
+        /// </summary>
+        /// <param name="stream"></param>
+        public void Open(Stream stream)
+        {
+            Initialize();
+
+            tOpenVideo = new Thread(() => 
+            {
+                curVideoPlugin = Plugins["DefaultExternal"];
+                Open(((IPluginExternal)Plugins["DefaultExternal"]).OpenVideo(stream));
+
+            });
+            tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
+        }
+
         /// <summary>
         /// Opens an existing AVS stream from Plugins[_PLUGIN_NAME_].[AVS]Stream
         /// </summary>

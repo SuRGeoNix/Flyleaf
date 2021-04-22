@@ -266,7 +266,7 @@
             </MenuItem>
             <MenuItem Header="Fonts..." Command="{Binding SetSubtitlesFont}"/>
             <MenuItem Header="Streams">
-                <MenuItem Header="External" ItemsSource="{Binding Player.Plugins[ExternalSubs].SubtitleStreams}" AlternationCount="{Binding Player.Plugins[ExternalSubs].SubtitleStreams.Count}">
+                <MenuItem Header="External" ItemsSource="{Binding Player.Plugins[DefaultExternal].SubtitleStreams}" AlternationCount="{Binding Player.Plugins[DefaultExternal].SubtitleStreams.Count}">
                     <MenuItem.ItemContainerStyle>
                         <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
                             <Setter Property="Command" Value="{Binding DataContext.OpenStream, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>

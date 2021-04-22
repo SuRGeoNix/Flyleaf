@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 
 using FlyleafLib.MediaPlayer;
@@ -81,8 +82,9 @@ namespace FlyleafLib.Plugins
         SubtitleStream OpenSubtitles(SubtitleStream stream);
     }
 
-    public interface IPluginExternalSubtitles : IPluginSubtitles
+    public interface IPluginExternal : IPluginSubtitles, IPluginVideo
     {
+        VideoStream OpenVideo(Stream stream);
         SubtitleStream OpenSubtitles(string url);
     }
 }

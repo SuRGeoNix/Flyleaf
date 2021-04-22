@@ -84,10 +84,7 @@ namespace FlyleafLib.MediaPlayer
             deviceEnum.RegisterEndpointNotificationCallback(this);
             
             foreach(var device in deviceEnum.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
-                Log($"{device.ID} | {device.InstanceId} | {device.FriendlyName} | {device.FriendlyName}");
-
-            foreach(var device in DirectSoundOut.Devices)
-                Log($"# {device.Guid} | {device.Description}");
+                Log($"{device.ID} | {device.InstanceId} | {device.FriendlyName} ({device.FriendlyName})");
 
             Initialize();
         }
