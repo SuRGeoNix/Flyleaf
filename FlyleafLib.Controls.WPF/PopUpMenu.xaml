@@ -242,7 +242,7 @@
         
         <MenuItem Header="Subtitles" Icon="{materialDesign:PackIcon SubtitlesOutline}">
             <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Subs.Enabled}"/>
-            <MenuItem Header="Use Online DBs" IsCheckable="True" IsChecked="{Binding Subs.UseOnlineDatabases}"/>
+            <MenuItem Header="Fonts..." Command="{Binding SetSubtitlesFont}"/>
             <MenuItem Header="{Binding Subs.DelayTicks, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
                 <MenuItem Header="Reset..." Command="{Binding ResetSubsDelayMs}"/>
                 <Separator />
@@ -264,7 +264,6 @@
                 <MenuItem Header="Down x 10" CommandParameter="-20"     Command="{Binding SetSubsPositionY}"/>
                 <MenuItem Header="Down"      CommandParameter=" -2"     Command="{Binding SetSubsPositionY}"/>
             </MenuItem>
-            <MenuItem Header="Fonts..." Command="{Binding SetSubtitlesFont}"/>
             <MenuItem Header="Streams">
                 <MenuItem Header="External" ItemsSource="{Binding Player.Plugins[DefaultExternal].SubtitleStreams}" AlternationCount="{Binding Player.Plugins[DefaultExternal].SubtitleStreams.Count}">
                     <MenuItem.ItemContainerStyle>
@@ -333,6 +332,7 @@
                     </MenuItem.ItemTemplate>
                 </MenuItem>
             </MenuItem>
+            <MenuItem Header="Use Online DBs" IsCheckable="True" IsChecked="{Binding Subs.UseOnlineDatabases}"/>
         </MenuItem>
 
         <MenuItem Header="Video" Icon="{materialDesign:PackIcon VideoOutline}">
@@ -345,7 +345,6 @@
                 </MenuItem.ItemContainerStyle>
             </MenuItem>
             <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Decoder.HWAcceleration}"/>
-            <MenuItem Header="V.Sync" IsCheckable="True" IsChecked="{Binding Video.VSync}"/>
             <MenuItem Header="Streams">
                 <MenuItem Header="Embedded" ItemsSource="{Binding Player.Plugins[Default].VideoStreams}">
                     <MenuItem.ItemContainerStyle>
@@ -428,6 +427,14 @@
                     </MenuItem.ItemTemplate>
                 </MenuItem>
             </MenuItem>
+            <MenuItem Header="Take a Snapshot" Command="{Binding TakeSnapshot}" Icon="{materialDesign:PackIcon Kind=PhotoCamera}"/>
+            <MenuItem Header="V.Sync" IsCheckable="True" IsChecked="{Binding Video.VSync}"/>
+            <MenuItem Header="Zoom">
+                <MenuItem Header="Reset ..." Command="{Binding ZoomReset}"/>
+                <MenuItem Header="Zoom In"   Command="{Binding Zoom}" CommandParameter="50"   Icon="{materialDesign:PackIcon Kind=ZoomIn}"/>
+                <MenuItem Header="Zoom out"  Command="{Binding Zoom}" CommandParameter="-50"  Icon="{materialDesign:PackIcon Kind=ZoomOut}"/>
+            </MenuItem>
+            
         </MenuItem>
 
         <Separator />
