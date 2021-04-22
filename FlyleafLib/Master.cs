@@ -30,22 +30,22 @@ namespace FlyleafLib
         /// <summary>
         /// Manages audio devices, volume & mute
         /// </summary>
-        public static AudioMaster   AudioMaster     { get; private set; }
+        public static AudioMaster   AudioMaster     { get; }
 
         /// <summary>
         /// Holds player instances
         /// </summary>
-        public static List<Player>  Players         { get; private set; }
+        public static List<Player>  Players         { get; }
 
         /// <summary>
         /// Disables aborts (mainly required during seek) (Testing support for .NET 5)
         /// </summary>
-        public static bool          PreventAborts   { get; private set; }
+        public static bool          PreventAborts   { get; set; }
 
         /// <summary>
         /// Holds loaded plugin types
         /// </summary>
-        public static List<Type>    Plugins         { get; private set; }
+        public static List<Type>    Plugins         { get; }
         
         private static void LoadPlugins()
         {
