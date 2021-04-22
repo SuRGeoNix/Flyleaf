@@ -119,7 +119,7 @@ namespace FlyleafLib
             try
             {
                 uint ver = avformat_version();
-                Log($"[FFmepgLoader] [Version: {ver >> 16}.{ver >> 8 & 255}.{ver & 255}] [Location: {RootPath}]");
+                Log($"[FFmpegLoader] [Version: {ver >> 16}.{ver >> 8 & 255}.{ver & 255}] [Location: {RootPath}]");
                 av_log_set_level(verbosity);
                 av_log_set_callback(Utils.FFmpeg.ffmpegLogCallback);
 
