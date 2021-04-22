@@ -39,6 +39,7 @@ namespace FlyleafLib.MediaFramework
         Thread                              decodeThread;
         public AutoResetEvent               decodeARE;
         public bool                         forcePause;
+        public bool                         stopThread;
 
         public bool                         hwAccelSuccess;
 
@@ -85,8 +86,7 @@ namespace FlyleafLib.MediaFramework
             if (decodeThread == null || !decodeThread.IsAlive)
             {
                 decodeThread = new Thread(() => Decode());
-                decodeThread.IsBackground = true;
-                decodeThread.Start();
+                decodeThread.Name = $"{type} Decoder"; decodeThread.IsBackground= true; decodeThread.Start();
                 while (status != Status.Paused) Thread.Sleep(5);
             }
             else
@@ -240,9 +240,10 @@ namespace FlyleafLib.MediaFramework
         {
             if (decodeThread != null && decodeThread.IsAlive)
             {
-                forcePause = true;
-                if (!isPlaying) decodeARE.Set();
+                stopThread = true;
+                decodeARE.Set();
                 Utils.EnsureThreadDone(decodeThread);
+                stopThread = false;
             }
 
             if (status == Status.None) return;
@@ -276,7 +277,6 @@ namespace FlyleafLib.MediaFramework
             info        = null;
             isEmbedded  = false;
             status      = Status.None;
-            forcePause  = false;
         }
 
         public void Decode()
@@ -284,12 +284,12 @@ namespace FlyleafLib.MediaFramework
             //int xf = 0;
             AVPacket *pkt;
 
-            while (true)
+            while (!stopThread)
             {
                 if (status != Status.Ended) status = Status.Paused;
                 decodeARE.Reset();
                 decodeARE.WaitOne();
-                if (forcePause) { forcePause = false; break; }
+                if (stopThread) { stopThread = false; break; }
                 forcePause          = false;
                 status              = Status.Playing;
                 bool shouldStop     = false;
@@ -305,7 +305,7 @@ namespace FlyleafLib.MediaFramework
                     while (!demuxer.isPlaying && demuxer.status != Status.Ended && !forcePause && decCtx.isPlaying) Thread.Sleep(1);
                 }
 
-                while (true)
+                while (!stopThread)
                 {
                     // No Packets || Max Frames Brakes
                     if (packets.Count == 0 ||
