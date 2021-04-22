@@ -33,9 +33,10 @@ namespace FlyleafLib.MediaFramework
 
         public int                  defaultAudioStream;
 
-        internal Thread                      demuxThread;
+        internal Thread             demuxThread;
         public AutoResetEvent       demuxARE;
         bool                        forcePause;
+        public bool                 stopThread;
 
         List<object>    gcPrevent = new List<object>();
         AVIOContext*    ioCtx;
@@ -253,8 +254,7 @@ namespace FlyleafLib.MediaFramework
             if (demuxThread == null || !demuxThread.IsAlive)
             {
                 demuxThread = new Thread(() => Demux());
-                demuxThread.IsBackground= true;   
-                demuxThread.Start();
+                demuxThread.Name = $"{type} Demuxer"; demuxThread.IsBackground= true; demuxThread.Start();
                 while (status != Status.Paused) Thread.Sleep(5); // Wait for thread to come up
             }
             else
@@ -269,8 +269,7 @@ namespace FlyleafLib.MediaFramework
         {
             Utils.EnsureThreadDone(demuxThread, 20, 3);
             demuxThread = new Thread(() => Demux());
-            demuxThread.IsBackground= true;   
-            demuxThread.Start();
+            demuxThread.Name = $"{type} Demuxer"; demuxThread.IsBackground= true; demuxThread.Start();
             while (status != Status.Paused) Thread.Sleep(5);
         }
 
@@ -289,9 +288,10 @@ namespace FlyleafLib.MediaFramework
 
             if (demuxThread != null && demuxThread.IsAlive)
             {
-                forcePause = true;
-                if (!isPlaying) demuxARE.Set();
+                stopThread = true;
+                demuxARE.Set();
                 Utils.EnsureThreadDone(demuxThread);
+                stopThread = false;
             }
 
             if (status == Status.None) return;
@@ -401,19 +401,19 @@ namespace FlyleafLib.MediaFramework
         {
             //int vf = 0,af = 0,sf = 0;
 
-            while (true)
+            while (!stopThread)
             {
                 if (status != Status.Ended) status = Status.Paused;
                 demuxARE.Reset();
                 demuxARE.WaitOne();
-                if (forcePause) { forcePause = false; break; }
+                if (stopThread) { stopThread = false; break; }
                 status = Status.Playing;
                 forcePause = false;
                 Log("Started");
                 int ret = 0;
                 int allowedErrors = decCtx.cfg.demuxer.MaxErrors;
 
-                while (true)
+                while (!stopThread)
                 {
                     while (decoder.packets.Count > decCtx.cfg.demuxer.MaxQueueSize && decCtx.isPlaying && !forcePause) { isWaiting = true; Thread.Sleep(20); }
                     isWaiting = false;
