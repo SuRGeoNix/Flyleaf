@@ -6,43 +6,10 @@ using FlyleafLib.Plugins.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
-    public class ExternalSubs : PluginBase, IPluginExternalSubtitles
-    {
-        public bool Download(SubtitleStream stream) { return true; }
-
-        public SubtitleStream OpenSubtitles(string url)
-        {
-            foreach(var stream in SubtitleStreams)
-                if (stream.DecoderInput.Url == url || stream.Tag.ToString() == url) return stream;
-
-            SubtitleStreams.Add(new SubtitleStream()
-            {
-                DecoderInput= new DecoderInput() { Url = url },
-                Downloaded  = true,
-                Tag         = url // Use it here because of possible convert to Utf8 and rename
-            });
-
-            return SubtitleStreams[SubtitleStreams.Count - 1];
-        }
-
-        public SubtitleStream OpenSubtitles(SubtitleStream stream)
-        {
-            foreach(var sstream in SubtitleStreams)
-                if (sstream.Tag == stream.Tag) return stream;
-
-            return null;
-        }
-
-        public SubtitleStream OpenSubtitles(Language lang) { return null; }
-
-        public void Search(Language lang) { }
-    }
     public unsafe class Default : PluginBase, IPluginVideo, IPluginAudio, IPluginSubtitles
     {
         public bool IsPlaylist => false;
-
         Session Session => Player.Session;
-        //Movie SingleMovie => Player.Session.SingleMovie;
 
         public override void OnInitialized()
         {
@@ -54,8 +21,8 @@ namespace FlyleafLib.Plugins
             base.OnInitializingSwitch();
             base.OnInitialized();
         }
-        VideoStream defaultVideo;
 
+        VideoStream defaultVideo;
         public override void OnVideoOpened()
         {
             foreach(var stream in Player.decoder.demuxer.streams)
@@ -103,7 +70,6 @@ namespace FlyleafLib.Plugins
 
             defaultVideo.InUse = true;
         }
-
         public OpenVideoResults OpenVideo()
         {
             // Fill Basic Info & Return the provided url
@@ -138,7 +104,6 @@ namespace FlyleafLib.Plugins
             defaultVideo.DecoderInput.Url = Session.InitialUrl;
             return new OpenVideoResults(defaultVideo);
         }
-
         public VideoStream OpenVideo(VideoStream stream) { return stream; }
 
         public AudioStream OpenAudio(AudioStream stream) 
@@ -150,7 +115,6 @@ namespace FlyleafLib.Plugins
 
             return null;
         }
-
         public AudioStream OpenAudio()
         {
             if (AudioStreams.Count == 0) return null;
@@ -167,9 +131,7 @@ namespace FlyleafLib.Plugins
         }
 
         public void Search(Language lang) { }
-
         public bool Download(SubtitleStream stream) { return true; }
-
         public SubtitleStream OpenSubtitles(Language lang)
         {
             foreach(var stream in SubtitleStreams)
@@ -177,7 +139,6 @@ namespace FlyleafLib.Plugins
 
             return null;
         }
-
         public SubtitleStream OpenSubtitles(SubtitleStream stream)
         {
             if (stream.DecoderInput.StreamIndex == -1) return null;

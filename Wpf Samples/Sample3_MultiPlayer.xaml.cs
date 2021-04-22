@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Threading.Tasks;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 
@@ -35,11 +35,10 @@ namespace Wpf_Samples
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            Console.WriteLine("Load 1");
             Player1.Open("../../../Sample.mp4");
-            Console.WriteLine("Load 2");
-            Player2.Open("../../../Sample.mp4");
-            Console.WriteLine("Load 3");
+
+            // Sample using a 'custom' stream input
+            Player2.Open(new FileStream("../../../Sample.mp4", FileMode.Open));
         }
     }
 }
