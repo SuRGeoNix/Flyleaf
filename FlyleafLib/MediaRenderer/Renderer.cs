@@ -24,11 +24,11 @@ namespace FlyleafLib.MediaRenderer
         public Viewport     GetViewport     { get; private set; }
         public RendererInfo Info            { get; internal set; }
 
-        Player          player;
-        DecoderContext  decoder => player.decoder;
-        Config          cfg => player.Config;
-        //DeviceDebug     deviceDbg;
-
+        Player              player;
+        DecoderContext      decoder => player.decoder;
+        Config              cfg     => player.Config;
+        
+        //DeviceDebug                         deviceDbg;
         internal Device                     device;
         DeviceContext                       context;
         SwapChain1                          swapChain;
@@ -182,6 +182,7 @@ namespace FlyleafLib.MediaRenderer
 
             Utilities.Dispose(ref device);
         }
+
         private void ResizeBuffers(object sender, EventArgs e)
         {
             if (device == null) return;
@@ -199,32 +200,7 @@ namespace FlyleafLib.MediaRenderer
                 PresentFrame(null);
             }
         }
-
-        public void SetViewport()
-        {
-            if (cfg.video.AspectRatio == AspectRatio.Fill || (cfg.video.AspectRatio == AspectRatio.Keep && decoder.vDecoder.info == null))// || !player.Session.CanPlay)
-            {
-                GetViewport     = new Viewport(0, 0, player.Control.Width, player.Control.Height);
-                context.Rasterizer.SetViewport(0, 0, player.Control.Width, player.Control.Height);
-            }
-            else
-            {
-                float ratio = cfg.video.AspectRatio == AspectRatio.Keep ? decoder.vDecoder.info.AspectRatio.Value : (cfg.video.AspectRatio == AspectRatio.Custom ? cfg.video.CustomAspectRatio.Value : cfg.video.AspectRatio.Value);
-                if (ratio <= 0) ratio = 1;
-
-                if (player.Control.Width / ratio > player.Control.Height)
-                {
-                    GetViewport = new Viewport((int)(player.Control.Width - (player.Control.Height * ratio)) / 2, 0 ,(int) (player.Control.Height * ratio),player.Control.Height, 0.0f, 1.0f);
-                    context.Rasterizer.SetViewport(GetViewport);
-                }
-                else
-                {
-                    GetViewport = new Viewport(0,(int)(player.Control.Height - (player.Control.Width / ratio)) / 2, player.Control.Width,(int) (player.Control.Width / ratio), 0.0f, 1.0f);
-                    context.Rasterizer.SetViewport(GetViewport);
-                }
-            }
-        }
-        public void FrameResized()
+        internal void FrameResized()
         {
             lock (device)
             {
@@ -268,8 +244,31 @@ namespace FlyleafLib.MediaRenderer
                 SetViewport();
             }
         }
+        public void SetViewport()
+        {
+            if (cfg.video.AspectRatio == AspectRatio.Fill || (cfg.video.AspectRatio == AspectRatio.Keep && decoder.vDecoder.info == null))// || !player.Session.CanPlay)
+            {
+                GetViewport     = new Viewport(0, 0, player.Control.Width, player.Control.Height);
+                context.Rasterizer.SetViewport(0, 0, player.Control.Width, player.Control.Height);
+            }
+            else
+            {
+                float ratio = cfg.video.AspectRatio == AspectRatio.Keep ? decoder.vDecoder.info.AspectRatio.Value : (cfg.video.AspectRatio == AspectRatio.Custom ? cfg.video.CustomAspectRatio.Value : cfg.video.AspectRatio.Value);
+                if (ratio <= 0) ratio = 1;
 
-        public  void PresentFrame   (MediaFrame frame = null)
+                if (player.Control.Width / ratio > player.Control.Height)
+                {
+                    GetViewport = new Viewport((int)(player.Control.Width - (player.Control.Height * ratio)) / 2, 0 ,(int) (player.Control.Height * ratio),player.Control.Height, 0.0f, 1.0f);
+                    context.Rasterizer.SetViewport(GetViewport);
+                }
+                else
+                {
+                    GetViewport = new Viewport(0,(int)(player.Control.Height - (player.Control.Width / ratio)) / 2, player.Control.Width,(int) (player.Control.Width / ratio), 0.0f, 1.0f);
+                    context.Rasterizer.SetViewport(GetViewport);
+                }
+            }
+        }
+        public void PresentFrame(MediaFrame frame = null)
         {
             if (device == null) return;
 
@@ -322,6 +321,73 @@ namespace FlyleafLib.MediaRenderer
             } else { Log("Dropped Frame - Lock timeout " + ( frame != null ? Utils.TicksToTime(frame.timestamp) : "")); Utils.DisposeVideoFrame(frame); }
         }
 
+        public void TakeSnapshot(string fileName)
+        {
+	        Texture2D snapshotTexture;
+
+	        lock (device)
+	        {
+		        Utilities.Dispose(ref rtv);
+                Utilities.Dispose(ref backBuffer);
+
+                swapChain.ResizeBuffers(0, decoder.vDecoder.info.Width, decoder.vDecoder.info.Height, Format.Unknown, SwapChainFlags.None);
+                backBuffer  = Texture2D.FromSwapChain<Texture2D>(swapChain, 0);
+                rtv         = new RenderTargetView(device, backBuffer);
+		        context.Rasterizer.SetViewport(0, 0, backBuffer.Description.Width, backBuffer.Description.Height);
+
+		        for (int i=0; i<swapChain.Description.BufferCount; i++)
+		        { 
+			        context.OutputMerger.SetRenderTargets(rtv);
+			        context.ClearRenderTargetView(rtv, cfg.video._ClearColor);
+			        context.Draw(6, 0);
+			        swapChain.Present(cfg.video.VSync, PresentFlags.None);
+		        }
+		
+		        snapshotTexture = new Texture2D(device, new Texture2DDescription()
+		        {
+			        Usage           = ResourceUsage.Staging,
+			        ArraySize       = 1,
+			        MipLevels       = 1,
+			        Width           = backBuffer.Description.Width,
+			        Height          = backBuffer.Description.Height,
+			        Format          = Format.B8G8R8A8_UNorm,
+			        BindFlags       = BindFlags.None,
+			        CpuAccessFlags  = CpuAccessFlags.Read,
+			        OptionFlags     = ResourceOptionFlags.None,
+			        SampleDescription = new SampleDescription(1, 0)         
+		        });
+		        context.CopyResource(backBuffer, snapshotTexture);
+		        ResizeBuffers(null, null);
+	        }
+
+	        System.Drawing.Bitmap snapshotBitmap = new System.Drawing.Bitmap(snapshotTexture.Description.Width, snapshotTexture.Description.Height);
+	        DataBox db      = context.MapSubresource(snapshotTexture, 0, MapMode.Read, SharpDX.Direct3D11.MapFlags.None);
+	        var bitmapData  = snapshotBitmap.LockBits(new System.Drawing.Rectangle(0, 0, snapshotBitmap.Width, snapshotBitmap.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+	        var sourcePtr   = db.DataPointer;
+	        var destPtr     = bitmapData.Scan0;
+	        for (int y = 0; y < snapshotBitmap.Height; y++)
+	        {
+		        Utilities.CopyMemory(destPtr, sourcePtr, snapshotBitmap.Width * 4);
+
+		        sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
+		        destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
+	        }
+	        snapshotBitmap.UnlockBits(bitmapData);
+	        context.UnmapSubresource(snapshotTexture, 0);
+	        snapshotTexture.Dispose();
+
+            try { snapshotBitmap.Save(fileName); } catch (Exception) { }
+	        snapshotBitmap.Dispose();
+        }
+        public void SetViewport(int x, int y, int width, int height)
+        {
+            context.Rasterizer.SetViewport(x, y, width, height);
+            if (!player.IsPlaying) PresentFrame();
+        }
+        public void Zoom(int zoom)
+        {
+            SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
+        }
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [Renderer] {msg}"); }
     }
 }

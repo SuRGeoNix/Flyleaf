@@ -189,6 +189,9 @@ namespace FlyleafLib.Controls.WPF
 
                 Player.Control.DoubleClick  += Control_DoubleClick;
                 Player.Control.MouseClick   += Control_MouseClick;
+
+                Player.Control.MouseWheel   += Control_MouseWheel;
+                WindowFront.MouseWheel      += WindowFront_MouseWheel;
             }
 
             // Drag & Drop
@@ -200,7 +203,7 @@ namespace FlyleafLib.Controls.WPF
             Player.OpenCompleted        += Player_OpenCompleted;
         }
         #endregion
-        
+
         #region ICommands
         void RegisterCommands()
         {
@@ -225,7 +228,20 @@ namespace FlyleafLib.Controls.WPF
 
             ShowSubtitlesMenu   = new RelayCommand(ShowSubtitlesMenuAction);
             ShowVideoMenu       = new RelayCommand(ShowVideoMenuAction);
+            TakeSnapshot        = new RelayCommand(TakeSnapshotAction);
+            ZoomReset           = new RelayCommand(ZoomResetAction);
+            Zoom                = new RelayCommand(ZoomAction);
         }
+
+        int curZoom = 0;
+        public ICommand ZoomReset { get; set; }
+        public void ZoomResetAction(object obj = null) { curZoom = 0; Player.renderer.Zoom(curZoom);  }
+
+        public ICommand Zoom { get; set; }
+        public void ZoomAction(object offset) { curZoom += int.Parse(offset.ToString()); Player.renderer.Zoom(curZoom); }
+
+        public ICommand TakeSnapshot { get; set; }
+        public void TakeSnapshotAction(object obj = null) { Player.renderer.TakeSnapshot(System.IO.Path.Combine(Environment.CurrentDirectory,"FlyleafSnapshot.bmp")); }
 
         public ICommand ShowSubtitlesMenu { get; set; }
         public void ShowSubtitlesMenuAction(object obj = null) { popUpMenuSubtitles.IsOpen = true; }
@@ -582,6 +598,23 @@ namespace FlyleafLib.Controls.WPF
             {
                 string text = e.Data.GetData(DataFormats.Text, false).ToString();
                 if (text.Length > 0) Open(text);
+            }
+        }
+
+        private void Control_MouseWheel(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Delta != 0)
+            {
+                curZoom += e.Delta > 0 ? 50 : -50;
+                Player.renderer.Zoom(curZoom);
+            }
+        }
+        private void WindowFront_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (e.Delta != 0)
+            {
+                curZoom += e.Delta > 0 ? 50 : -50;
+                Player.renderer.Zoom(curZoom);
             }
         }
         #endregion
