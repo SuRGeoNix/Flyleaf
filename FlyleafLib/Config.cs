@@ -218,7 +218,7 @@ namespace FlyleafLib
             /// <summary>
             /// NAudio's latency (required buffered duration before playing)
             /// </summary>
-            public long             LatencyTicks    { get; set; } = AudioPlayer.NAUDIO_DELAY_MS * 10000;
+            public long             LatencyTicks    { get; set; } = 200 * 10000;
 
             /// <summary>
             /// Audio languages preference by priority
