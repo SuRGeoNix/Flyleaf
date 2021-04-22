@@ -69,7 +69,7 @@ namespace FlyleafLib
             foreach (var type in types)
                 { Log($"[PluginLoader] {type.FullName}"); Plugins.Add(type); }
 
-            // Fix Assemblies redirect bindings and binaryFormater
+            // Fix Assemblies redirect bindings and binaryFormater (currently just for BitSwarm plugin)
             AppDomain.CurrentDomain.AssemblyResolve += (o, a) =>
             {
                 foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
