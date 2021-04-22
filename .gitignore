@@ -338,7 +338,7 @@ ASALocalRun/
 healthchecksdb
 
 # Plugins
-Plugins/
+/Plugins/
 
 # Nuspec
 *.nuspec

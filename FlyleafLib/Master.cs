@@ -6,7 +6,6 @@ using System.Reflection;
 
 using Newtonsoft.Json;
 
-using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaPlayer;
@@ -21,8 +20,8 @@ namespace FlyleafLib
     {
         static Master()
         {
-            Plugins = new List<Type>();
-            Players = new List<Player>();
+            Plugins     = new List<Type>();
+            Players     = new List<Player>();
             AudioMaster = new AudioMaster();
             LoadPlugins();
         }
@@ -30,22 +29,22 @@ namespace FlyleafLib
         /// <summary>
         /// Manages audio devices, volume & mute
         /// </summary>
-        public static AudioMaster   AudioMaster     { get; private set; }
+        public static AudioMaster   AudioMaster     { get; }
 
         /// <summary>
         /// Holds player instances
         /// </summary>
-        public static List<Player>  Players         { get; private set; }
+        public static List<Player>  Players         { get; }
 
         /// <summary>
         /// Disables aborts (mainly required during seek) (Testing support for .NET 5)
         /// </summary>
-        public static bool          PreventAborts   { get; private set; }
+        public static bool          PreventAborts   { get;  set; }
 
         /// <summary>
         /// Holds loaded plugin types
         /// </summary>
-        public static List<Type>    Plugins         { get; private set; }
+        public static List<Type>    Plugins         { get; }
         
         private static void LoadPlugins()
         {
@@ -74,7 +73,7 @@ namespace FlyleafLib
             AppDomain.CurrentDomain.AssemblyResolve += (o, a) =>
             {
                 foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                    if (assembly.GetName().Name == (new AssemblyName(a.Name)).Name)
+                    if (assembly.GetName().Name == (new AssemblyName(a.Name)).Name && (assembly.GetName().Name == "BitSwarmLib" || assembly.GetName().Name == "System.Buffers"))
                     {
                         Log($"[AssemblyResolver] Found {assembly.FullName}");
                         return assembly;
@@ -95,10 +94,8 @@ namespace FlyleafLib
         public static void RegisterFFmpeg(string absolutePath = ":1", int verbosity = AV_LOG_WARNING) //AV_LOG_MAX_OFFSET
         {
             if (Utils.IsDesignMode || alreadyRegister) return;
-            //if (alreadyRegister) return;
             alreadyRegister = true;
-
-            RootPath = null;
+            RootPath        = null;
 
             if (absolutePath == ":1") 
                 RootPath = Environment.CurrentDirectory;
@@ -107,7 +104,7 @@ namespace FlyleafLib
             else
             {
                 var current = Environment.CurrentDirectory;
-                var probe = Path.Combine("Libs", Environment.Is64BitProcess ? "x64" : "x86", "FFmpeg");
+                var probe   = Path.Combine("Libs", Environment.Is64BitProcess ? "x64" : "x86", "FFmpeg");
 
                 while (current != null)
                 {
@@ -122,7 +119,7 @@ namespace FlyleafLib
             try
             {
                 uint ver = avformat_version();
-                Log($"[Version: {ver >> 16}.{ver >> 8 & 255}.{ver & 255}] [Location: {RootPath}]");
+                Log($"[FFmepgLoader] [Version: {ver >> 16}.{ver >> 8 & 255}.{ver & 255}] [Location: {RootPath}]");
                 av_log_set_level(verbosity);
                 av_log_set_callback(Utils.FFmpeg.ffmpegLogCallback);
 

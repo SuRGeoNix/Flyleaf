@@ -74,27 +74,29 @@ namespace FlyleafLib.Plugins
 
         private void MetadataReceived(object source, SuRGeoNix.BitSwarmLib.BitSwarm.MetadataReceivedArgs e)
         {
-            try { 
-            Torrent     = e.Torrent;
-            sortedPaths = Utils.GetMoviesSorted(Torrent.file.paths);
-
-            foreach(var file in sortedPaths)
+            try
             {
-                //var fileSize = Torrent.file.lengths[Torrent.file.paths.IndexOf(file)];
+                Torrent     = e.Torrent;
+                sortedPaths = Utils.GetMoviesSorted(Torrent.file.paths);
 
-                VideoStreams.Add(new VideoStream()
+                foreach (var file in sortedPaths)
                 {
-                    Movie = new Movie()
-                    {
-                        UrlType = UrlType.Torrent,
-                        Title = file
-                    }
-                });
-            }
+                    //var fileSize = Torrent.file.lengths[Torrent.file.paths.IndexOf(file)];
 
-            if (VideoStreams.Count == 0) { Player.OpenFailed(); return; }
-            if (!isOpening) Player.Open(VideoStreams[0]);
-            } catch(Exception e2)
+                    VideoStreams.Add(new VideoStream()
+                    {
+                        Movie = new Movie()
+                        {
+                            UrlType = UrlType.Torrent,
+                            Title = file
+                        }
+                    });
+                }
+
+                if (VideoStreams.Count == 0) { Player.OpenFailed(); return; }
+                if (!isOpening) Player.Open(VideoStreams[0]);
+            }
+            catch (Exception e2)
             {
                 Log("Error ... " + e2.Message);
             }
@@ -192,18 +194,14 @@ namespace FlyleafLib.Plugins
             }
             catch(Exception e)
             {
+                if (System.Text.RegularExpressions.Regex.IsMatch(e.Message, "completed or is invalid"))
+                {
+                    isOpening = false;
+                    MetadataReceived(this, new SuRGeoNix.BitSwarmLib.BitSwarm.MetadataReceivedArgs(bitSwarm.torrent));
+                    return new OpenVideoResults() { runAsync = true };
+                }
+
                 Log("Error ... " + e.Message);
-
-                //TODO...
-
-                //if (Regex.IsMatch(e.Message, "completed or is invalid"))
-                //{
-                //    MetadataReceived(this, new SuRGeoNix.BitSwarmLib.BitSwarm.MetadataReceivedArgs(bitSwarm.torrent));
-                //    return 0;
-                //}
-
-                //Initialize();
-                //return -1;
             }
 
             isOpening = false;
