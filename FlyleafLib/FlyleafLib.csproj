@@ -112,6 +112,7 @@
     <Compile Include="Controls\WPF\VideoView.cs" />
     <Compile Include="Globals.cs" />
     <Compile Include="Language.cs" />
+    <Compile Include="Master.cs" />
     <Compile Include="MediaFramework\Decoder.cs" />
     <Compile Include="MediaFramework\DecoderContext.cs" />
     <Compile Include="MediaFramework\Demuxer.cs" />

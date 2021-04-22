@@ -18,7 +18,8 @@ namespace Wpf_Samples
 
         public Sample3_MultiPlayer()
         {
-            Utils.FFmpeg.RegisterFFmpeg(":2");
+            Master.AudioMaster.VolumeHandler = VolumeHandler.Master;
+            Master.RegisterFFmpeg(":2");
             InitializeComponent();
 
             DataContext = this;

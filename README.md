@@ -46,4 +46,5 @@
 * ***FFmpeg.AutoGen***
 * ***NAudio***
 * ***SharpDX***
-* Major open source media players ***VLC***, ***Kodi***, ***FFplay*** and for online subs ***OpenSubtitles***
+* Major open source media players ***VLC***, ***Kodi***, ***FFplay***
+* For plugins thanks to ***Youtube-DL*** and ***OpenSubtitles.org***

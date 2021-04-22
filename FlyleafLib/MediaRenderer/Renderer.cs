@@ -25,8 +25,8 @@ namespace FlyleafLib.MediaRenderer
         public RendererInfo Info            { get; internal set; }
 
         Player          player;
-        DecoderContext  decoder;
-        Config          cfg;
+        DecoderContext  decoder => player.decoder;
+        Config          cfg => player.Config;
         //DeviceDebug     deviceDbg;
 
         internal Device                     device;
@@ -62,11 +62,9 @@ namespace FlyleafLib.MediaRenderer
                  1.0f,   1.0f,  0,      1.0f, 0.0f
             };
 
-        public Renderer(Player player, DecoderContext decoder, Config cfg)
+        public Renderer(Player player)
         {
             this.player = player;
-            this.decoder= decoder;
-            this.cfg    = cfg;
             this.player.Control.Resize += ResizeBuffers;
 
             /* [Enable Debug Layer]
