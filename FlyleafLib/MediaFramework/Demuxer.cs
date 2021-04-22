@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -29,9 +30,6 @@ namespace FlyleafLib.MediaFramework
         public AVFormatContext      *fmtCtx;
         public List<int>            enabledStreams;
         public StreamInfo[]         streams;
-        //public List<AudioStream>    AudioStreams    { get; set; } = new List<AudioStream>();
-        //public List<VideoStream>    VideoStreams    { get; set; } = new List<VideoStream>();
-        //public List<SubtitleStream> SubtitleStreams { get; set; } = new List<SubtitleStream>();
 
         public int                  defaultAudioStream;
 
@@ -198,7 +196,22 @@ namespace FlyleafLib.MediaFramework
             DemuxerInfo.Fill(this);
             Log("\r\n[# Format] " + DemuxerInfo.GetDumpAll(this));
 
-            ret = av_find_best_stream(fmtCtx, mType, -1, -1, null, 0);
+            // In case of multiple video streams select best Height based on current Display (fallback to default) | Maybe FPS too?
+            ret = -1;
+            if (type == MediaType.Video)
+            {
+                var iresults =
+                    from    vstream in streams
+                    where   vstream.Type == AVMEDIA_TYPE_VIDEO && vstream.Height <= decCtx.renderer.Info.ScreenBounds.Height
+                    orderby vstream.Height descending
+                    select  vstream;
+
+                var results = iresults.ToList();
+                if (results.Count != 0) ret = iresults.ToList()[0].StreamIndex;
+            }
+
+            if (ret == -1)
+                ret = av_find_best_stream(fmtCtx, mType, -1, -1, null, 0);
             if (ret < 0) { Log($"[Format] [ERROR-3] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); return ret; }
 
             ret = decoder.Open(this, fmtCtx->streams[ret]);

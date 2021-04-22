@@ -24,7 +24,7 @@ namespace WinForms_Sample__Basic_
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            FlyleafLib.Utils.FFmpeg.RegisterFFmpeg(":2");
+            FlyleafLib.Master.RegisterFFmpeg(":2");
             player.Control = flyleaf1;
             player.Open(@"../../../Sample.mp4");
             player.OpenCompleted += (o, x) => { if (x.success && x.type == FlyleafLib.MediaType.Video) player.Play(); };
