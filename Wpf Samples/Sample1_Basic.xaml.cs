@@ -15,7 +15,7 @@ namespace Wpf_Samples
 
         public Sample1()
         {
-            Utils.FFmpeg.RegisterFFmpeg(":2");
+            Master.RegisterFFmpeg(":2");
             InitializeComponent();
             DataContext = this;
         }

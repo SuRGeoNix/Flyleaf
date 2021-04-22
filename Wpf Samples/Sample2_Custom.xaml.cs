@@ -26,7 +26,7 @@ namespace Wpf_Samples
         
         public Sample2_Custom()
         {
-            Utils.FFmpeg.RegisterFFmpeg(":2");
+            Master.RegisterFFmpeg(":2");
             InitializeComponent();
             
             player = new Player();

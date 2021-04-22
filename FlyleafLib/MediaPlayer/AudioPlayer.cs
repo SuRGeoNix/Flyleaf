@@ -1,5 +1,6 @@
 ﻿using System;
-using System.Diagnostics;
+using System.Collections.Generic;
+using System.Linq;
 
 using NAudio.Wave;
 using NAudio.CoreAudioApi;
@@ -7,131 +8,155 @@ using NAudio.CoreAudioApi.Interfaces;
 
 namespace FlyleafLib.MediaPlayer
 {
-    public class AudioPlayer : NotifyPropertyChanged, IMMNotificationClient, IAudioSessionEventsHandler, IDisposable
+    public class AudioMaster : NotifyPropertyChanged, IMMNotificationClient, IAudioSessionEventsHandler, IDisposable
     {
-        #region Declaration
-        public bool     isPlaying   { get { return player.PlaybackState == PlaybackState.Playing ? true : false; } }
-        public int      Volume      { get { return GetVolume();  } set { SetVolume(value); } }
-        public bool     Mute        { get { return GetMute(); } set { SetMute(value); } }
+        #region Properties (Public)
+        /// <summary>
+        /// Whether to use application's session volume manager or master volume
+        /// </summary>
+        public VolumeHandler VolumeHandler  { get; set; } = VolumeHandler.Session;
 
-        public const int        NAUDIO_DELAY_MS = 200;      // Latency (buffer before play), consider same audio delay for video player in order to be sync
-        int                     CHANNELS        = 2;        // Currently fixed
-        int                     Rate            = 48000;    // Will be set from Input Format
-        DirectSoundOut          player;
-        WaveFormat              format;
-        BufferedWaveProvider    buffer;
+        /// <summary>
+        /// Default device name
+        /// </summary>
+        public string   DefaultDeviceName   { get; private set; } = DirectSoundOut.Devices.ToList()[0].Description;
 
-        MMDeviceEnumerator      deviceEnum;
-        MMDevice                device;     // Current Master Audio
-        AudioSessionControl     session;    // Current App Audio Session
+        /// <summary>
+        /// 
+        /// </summary>
+        public List<string> Devices
+        {
+            get
+            {
+                List<string> devices = new List<string>();
+                foreach (var device in DirectSoundOut.Devices.ToList()) devices.Add(device.Description);
+                return devices;
+            }
+        }
 
-        int                                 processId;
-        readonly object                     locker       = new object();
+        /// <summary>
+        /// Current audio device name (see Devices for valid input names)
+        /// </summary>
+        public string Device
+        {
+            get => _Device;
+            set
+            {
+                bool found = false;
+                foreach (var device in DirectSoundOut.Devices.ToList())
+                    if (device.Description == value)
+                    {
+                        _Device = value;
+                        DeviceIdNaudio = device.Guid;
+                        DeviceId = device.ModuleName;
+                        found = true;
+                    }
+
+                if (!found) throw new Exception("The specified audio device doesn't exist");
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the volume (valid values 0-100)
+        /// </summary>
+        public int      Volume      { get { return GetVolume(); } set { SetVolume(value); } }
+
+        /// <summary>
+        /// Gets or sets the volume mute
+        /// </summary>
+        public bool     Mute        { get { return GetMute();   } set { SetMute  (value); } }
         #endregion
 
-        #region Initialize
-        public AudioPlayer()
+        #region Declaration
+        string _Device = DirectSoundOut.Devices.ToList()[0].Description;
+        string  DeviceId;
+        internal Guid       DeviceIdNaudio;
+        MMDeviceEnumerator  deviceEnum;
+        MMDevice            device;     // Current Master  Audio
+        AudioSessionControl session;    // Current Session Audio
+        readonly object     locker = new object();
+        #endregion
+
+        #region Initialize / Dispose
+        public AudioMaster()
         {
             deviceEnum = new MMDeviceEnumerator();
             deviceEnum.RegisterEndpointNotificationCallback(this);
-            processId = Process.GetCurrentProcess().Id;
             
+            foreach(var device in deviceEnum.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+                Log($"{device.ID} | {device.InstanceId} | {device.FriendlyName} | {device.FriendlyName}");
+
+            foreach(var device in DirectSoundOut.Devices)
+                Log($"# {device.Guid} | {device.Description}");
+
             Initialize();
         }
-        public void Initialize(int rate = -1) // Rate should be saved in case of internal Initialize during device reset etc.
+        public void Initialize()
         {
             lock (locker)
             {
-                if (rate != -1) Rate = rate;
+                foreach(var player in Master.Players)
+                    player.audioPlayer.Initialize();
 
-                Dispose();
+                if (Device == DefaultDeviceName)
+                    device = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                else
+                    device = deviceEnum.GetDevice(DeviceId);
 
-                // Initialize
-                format = WaveFormatExtensible.CreateIeeeFloatWaveFormat(Rate, CHANNELS);
-                buffer = new BufferedWaveProvider(format);
-                buffer.BufferLength = 1000 * 1024;
-                player = new DirectSoundOut(NAUDIO_DELAY_MS);
-                player.Init(buffer);
-                player.Volume = 1; // Currently we change only Master volume to achieve constants change levels
-                player.Play();
-
-                device = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
                 device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
-
-                for (int i = 0; i < device.AudioSessionManager.Sessions.Count; i++)
+                device.AudioSessionManager.OnSessionCreated += (o, newSession) =>
                 {
-                    if (processId == device.AudioSessionManager.Sessions[i].GetProcessID) // && !deviceInit.AudioSessionManager.Sessions[i].IsSystemSoundsSession)
-                    {
-                        session = device.AudioSessionManager.Sessions[i];
-                        player.Volume = session.SimpleAudioVolume.Volume;
-                        session.RegisterEventClient(this);
-                    }
-                }
+                    if (session != null) { session.UnRegisterEventClient(this); }
+                    session = new AudioSessionControl(newSession);
+                    session.RegisterEventClient(this);
+                    if (VolumeHandler == VolumeHandler.Master) session.SimpleAudioVolume.Volume = 1;
+                    Raise(nameof(Volume));
+                    Raise(nameof(Mute));
+                };
 
                 Raise(nameof(Volume));
                 Raise(nameof(Mute));
             }
         }
-        #endregion
-
-        #region Main Implementation
-        public void Play()  { lock (locker) { buffer.ClearBuffer(); player.Play(); } }
-        public void Pause() { lock (locker) { player.Pause(); buffer.ClearBuffer(); } }
-        public void Stop()  { lock (locker) { player.Stop(); Initialize(); } }
         public void Dispose()
         {
             lock (locker)
             {
-                // Dispose | UnRegister 
                 if (device  != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
                 if (session != null) session.UnRegisterEventClient(this);
-                if (player  != null) player.Dispose();
-                if (buffer  != null) buffer.ClearBuffer();
+                device = null;
+                session = null;
             } 
         }
+        #endregion
 
-        public void FrameClbk(byte[] buffer)//, int offset, int count)
-        {
-            try
-            {
-                if (player.PlaybackState != PlaybackState.Playing) return;
-
-                if (this.buffer.BufferedDuration.Milliseconds > NAUDIO_DELAY_MS + 50)
-                {
-                    // We will see this happen on HLS streams that change source (eg. ads - like two streams playing audio in parallel)
-                    Log("Resynch !!! | " + this.buffer.BufferedBytes + " | " + this.buffer.BufferedDuration);
-                    this.buffer.ClearBuffer();
-                }
-
-                this.buffer.AddSamples(buffer, 0, buffer.Length);
-            }
-            catch (Exception e)
-            {
-                Log(e.Message + " " + e.StackTrace);
-            }
-        }
-
-        public int  GetVolume()
+        #region Volume / Mute
+        private int  GetVolume()
         {
             lock (locker)
-                return (int)(device.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
+                return VolumeHandler == VolumeHandler.Master || session == null ? (int)(device.AudioEndpointVolume.MasterVolumeLevelScalar * 100) : (int)(session.SimpleAudioVolume.Volume * 100);
+                
         }
-        public void SetVolume(int volume)
+        private void SetVolume(int volume)
         {
             volume = volume > 100 ? 100 : (volume < 0 ? 0 : volume);
 
             lock (locker)
             {
-                device.AudioEndpointVolume.OnVolumeNotification     -= OnMasterVolumeChanged;
-                device.AudioEndpointVolume.MasterVolumeLevelScalar   = volume / 100f;
-                device.AudioEndpointVolume.OnVolumeNotification     += OnMasterVolumeChanged;
+                if (VolumeHandler == VolumeHandler.Master || session == null)
+                {
+                    device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
+                    device.AudioEndpointVolume.MasterVolumeLevelScalar = volume / 100f;
+                    device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
+                }
+                else
+                    session.SimpleAudioVolume.Volume = volume / 100f;
             }
 
             if (Mute) Mute = false;
 
             Raise(nameof(Volume));
         }
-
         private bool GetMute()
         {
             lock (locker)
@@ -164,19 +189,20 @@ namespace FlyleafLib.MediaPlayer
         {
             Raise(nameof(Volume));
             Raise(nameof(Mute));
-            //VolumeChanged?.BeginInvoke(this, new VolumeChangedArgs((int) (player.Volume * data.MasterVolume * 100), data.Muted), null, null);
         }
-        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string newDeviceId)
         {
-            Log($"OnDefaultDeviceChanged {defaultDeviceId}");
+            if (DeviceId == newDeviceId) return;
+            Log($"OnDefaultDeviceChanged {newDeviceId}");
             Initialize();
         }
         public void OnDeviceRemoved(string deviceId)
         {
+            if (DeviceId != DefaultDeviceName && DeviceId != deviceId) return;
             Log($"OnDeviceRemoved {deviceId}");
             Initialize();
         }
-        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { /*Log($"OnPropertyValueChanged {pwstrDeviceId} - {key.formatId}");*/ }
+        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { Log($"OnPropertyValueChanged {pwstrDeviceId} - {key.formatId}"); }
         public void OnDeviceStateChanged(string deviceId, DeviceState newState) { Log($"OnDeviceStateChanged {newState.ToString()}");}
         public void OnDeviceAdded(string pwstrDeviceId) { Log($"OnDeviceAdded {pwstrDeviceId}");}
         #endregion
@@ -186,16 +212,85 @@ namespace FlyleafLib.MediaPlayer
         {
             Raise(nameof(Volume));
             Raise(nameof(Mute));
-            //VolumeChanged?.BeginInvoke(this, new VolumeChangedArgs((int) (player.Volume * device.AudioEndpointVolume.MasterVolumeLevelScalar * 100), session.SimpleAudioVolume.Mute || device.AudioEndpointVolume.Mute), null, null);
         }
         public void OnDisplayNameChanged(string displayName) { }
         public void OnIconPathChanged(string iconPath) { }
         public void OnChannelVolumeChanged(uint channelCount, IntPtr newVolumes, uint channelIndex) { }
         public void OnGroupingParamChanged(ref Guid groupingId) { }
-        public void OnStateChanged(AudioSessionState state) { }
-        public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason) { }
+        public void OnStateChanged(AudioSessionState state) { Log("OnStateChanged"); }
+        public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason) { Log("OnSessionDisconnected"); }
         #endregion
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [NAUDIO] {msg}"); }
+        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [AudioMaster] {msg}"); }
+    }
+    public class AudioPlayer : IDisposable
+    {
+        
+        #region Declaration
+        Player videoPlayer;
+        Config cfg => videoPlayer.Config;
+
+        int                     CHANNELS        = 2;        // Currently fixed
+        int                     Rate            = 48000;    // Will be set from Input Format
+        DirectSoundOut          player;
+        WaveFormat              format;
+        BufferedWaveProvider    buffer;
+
+        readonly object         locker       = new object();
+        #endregion
+
+        #region Initialize / Dispose
+        public AudioPlayer(Player player) { videoPlayer = player; }
+        public void Initialize(int rate = -1) // Rate should be saved in case of internal Initialize during device reset etc.
+        {
+            lock (locker)
+            {
+                if (rate != -1) Rate = rate;
+
+                Dispose();
+
+                format = WaveFormatExtensible.CreateIeeeFloatWaveFormat(Rate, CHANNELS);
+                buffer = new BufferedWaveProvider(format);
+                buffer.BufferLength = 1000 * 1024;
+                if (Master.AudioMaster.Device == Master.AudioMaster.DefaultDeviceName)
+                    player = new DirectSoundOut((int)(cfg.audio.LatencyTicks / 10000));
+                else
+                    player = new DirectSoundOut(Master.AudioMaster.DeviceIdNaudio, (int)(cfg.audio.LatencyTicks / 10000));
+                player.Init(buffer);
+                player.Play();
+            }
+        }
+        public void Dispose()
+        {
+            player?.Dispose();
+            player = null;
+            buffer = null;
+        }
+        #endregion
+
+        #region Buffer Fill Callback
+        internal void FrameClbk(byte[] data)//, int offset, int count)
+        {
+            lock (locker)
+            {
+                try
+                {
+                    if (buffer.BufferedDuration.Milliseconds > (cfg.audio.LatencyTicks / 10000) + 50) // We will see this happen on HLS streams that change source (eg. ads - like two streams playing audio in parallel)
+                    {
+                        Log("Resynch !!! | " + buffer.BufferedBytes + " | " + buffer.BufferedDuration);
+                        buffer.ClearBuffer();
+                    }
+
+                    buffer.AddSamples(data, 0, data.Length);
+                }
+                catch (Exception e)
+                {
+                    Log(e.Message + " " + e.StackTrace);
+                }
+            }
+        }
+        #endregion
+
+        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [AudioPlayer] {msg}"); }
     }
 }

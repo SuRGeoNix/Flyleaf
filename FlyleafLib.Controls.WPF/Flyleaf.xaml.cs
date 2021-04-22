@@ -26,7 +26,7 @@ namespace FlyleafLib.Controls.WPF
 
         public Player           Player      { get => _Player; set { _Player = value; InitializePlayer(); } }
         Player _Player;
-        public AudioPlayer      AudioPlayer => Player.audioPlayer;
+        public AudioMaster      AudioPlayer => Master.AudioMaster;
         public FlyleafWindow    WindowFront => FlyleafView.WindowFront;
         public VideoView        FlyleafView => Player.VideoView;
         
