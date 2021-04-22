@@ -33,7 +33,7 @@
 ### [Build Requirements]
 * .NET Framework 4.7.2
 * FFmpeg shared libraries (compatible with FFmpeg.Autogen)
-* Use Utils.FFmpeg.RegisterFFmpeg(*ffmpeg_path*) to register them
+* Use Master.RegisterFFmpeg(*ffmpeg_path*) to register them
 * To use plugins put them in *Plugins/PluginName* folder
 * Debugging with BitSwarm plugin should disable NullReference exceptions
 * Don't run VS designer in x64

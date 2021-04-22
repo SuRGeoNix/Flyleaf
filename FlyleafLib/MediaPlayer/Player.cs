@@ -585,9 +585,7 @@ namespace FlyleafLib.MediaPlayer
                     }
                 }
             });
-            tPlay.IsBackground = true;
-            tPlay.Name = "Play";
-            tPlay.Start();
+            tPlay.Name = "Play"; tPlay.IsBackground = true; tPlay.Start();
         }
 
         /// <summary>

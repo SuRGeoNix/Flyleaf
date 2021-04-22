@@ -22,7 +22,7 @@ namespace FlyleafLib.MediaPlayer
         public string   DefaultDeviceName   { get; private set; } = DirectSoundOut.Devices.ToList()[0].Description;
 
         /// <summary>
-        /// 
+        /// List with the names of available audio devices (use these names to change current Device)
         /// </summary>
         public List<string> Devices
         {
@@ -50,6 +50,8 @@ namespace FlyleafLib.MediaPlayer
                         DeviceIdNaudio = device.Guid;
                         DeviceId = device.ModuleName;
                         found = true;
+
+                        Initialize();
                     }
 
                 if (!found) throw new Exception("The specified audio device doesn't exist");
