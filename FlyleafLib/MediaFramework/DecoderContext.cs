@@ -44,7 +44,7 @@ namespace FlyleafLib.MediaFramework
             this.cfg        = cfg;
             status          = Status.None;
 
-            Utils.FFmpeg.RegisterFFmpeg();
+            Master.RegisterFFmpeg();
 
             vDecoder    = new Decoder(MediaType.Video, this);
             aDecoder    = new Decoder(MediaType.Audio, this);
