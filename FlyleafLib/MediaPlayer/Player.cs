@@ -155,8 +155,10 @@ namespace FlyleafLib.MediaPlayer
             Session         = new Session(this);
             seeks           = new ConcurrentStack<SeekData>();
             seekWatch       = new Stopwatch();
-            audioPlayer     = new AudioPlayer();
+            audioPlayer     = new AudioPlayer(this);
             decoder         = new DecoderContext(this, audioPlayer);
+
+            Master.Players.Add(this);
 
             if (newValue.Handle != null)
                 InitializeControl2(newValue);
@@ -167,37 +169,16 @@ namespace FlyleafLib.MediaPlayer
         {
             _Control = newValue;
             _Control.Player = this;
-
-            renderer        = new Renderer(this, decoder, Config);
+            renderer = new Renderer(this);
             decoder.Init(renderer, Config);
             renderer.PresentFrame();
             LoadPlugins();
             Log("[Started]");
         }
-
-        
-        static JsonSerializerSettings loadjson = new JsonSerializerSettings(); // Pre-load common assemblies
         private void LoadPlugins()
         {
-            // Load .dll Assemblies
-            if (Directory.Exists("Plugins"))
-            {
-                string[] dirs = Directory.GetDirectories("Plugins");
-                foreach(string dir in dirs)
-                    foreach(string file in Directory.GetFiles(dir, "*.dll"))
-                        try { Assembly.LoadFrom(Path.GetFullPath(file));}
-                        catch (Exception e) { Log($"[Plugins] [Error] Failed to load assembly ({e.Message} {Utils.GetRecInnerException(e)})"); }
-            }
-
-            // Find PluginBase Types | Try Catch in for can crash if older version exists
-            var interfaceType = typeof(PluginBase);
-            Type[] types = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(a => a.GetTypes())
-            .Where(p => interfaceType.IsAssignableFrom(p) && p.IsClass && p.Name != nameof(PluginBase))
-            .ToArray();
-
             // Load Plugins
-            foreach (var type in types)
+            foreach (var type in Master.Plugins)
                 try
                 {
                     var plugin = (PluginBase) Activator.CreateInstance(type);
@@ -220,21 +201,6 @@ namespace FlyleafLib.MediaPlayer
                 if (plugin.Key != "Default" && plugin.Value is IPluginSubtitles)  subtitlePlugins.Add(plugin.Value);
             }
             videoPlugins.Add(Plugins["Default"]);
-
-            // Fix Assemblies redirect bindings and binaryFormater
-            AppDomain.CurrentDomain.AssemblyResolve += (o, a) =>
-            {
-                foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                    if (assembly.GetName().Name == (new AssemblyName(a.Name)).Name)
-                    {
-                        Log($"[AssemblyResolver] Found {assembly.FullName}");
-                        return assembly;
-                    }
-
-                Log($"[AssemblyResolver] for {a.Name} not found");
-
-                return null;
-            };
         }
 
         private void Initialize()
@@ -590,7 +556,7 @@ namespace FlyleafLib.MediaPlayer
 
                 finally
                 {
-                    audioPlayer.Pause();
+                    //audioPlayer.Pause();
                     Utils.DisposeVideoFrame(vFrame); vFrame = null;
                     Utils.NativeMethods.TimeEndPeriod(1);
                     Utils.NativeMethods.SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
@@ -701,7 +667,7 @@ namespace FlyleafLib.MediaPlayer
                         // Direct Seek | Abortable Seek (Local vs Network)
                         bool seekFailed = false;
 
-                        if (Session.Movie.UrlType != UrlType.File && !Utils.PreventAborts) // Only "Slow" Network Streams (Web/RTSP/Torrent etc.)
+                        if (Session.Movie.UrlType != UrlType.File && !Master.PreventAborts) // Only "Slow" Network Streams (Web/RTSP/Torrent etc.)
                         {
                             //Thread.Sleep(networkDecideMs);
                             if (seeks.Count != 0) { /*Log("Seek Ignores");*/ continue; }
@@ -810,7 +776,7 @@ namespace FlyleafLib.MediaPlayer
         #region Scream
         private bool MediaBuffer()
         {
-            audioPlayer.Pause();
+            //audioPlayer.Pause();
             if (!decoder.isRunning)
             {
                 if (HasEnded) decoder.Seek(0);
@@ -842,7 +808,7 @@ namespace FlyleafLib.MediaPlayer
 
                     if (!gotAudio && aFrame != null)
                     {
-                        if (vFrame.timestamp - aFrame.timestamp > AudioPlayer.NAUDIO_DELAY_MS * (long)10000)
+                        if (vFrame.timestamp - aFrame.timestamp > Config.audio.LatencyTicks)
                             decoder.aDecoder.frames.TryDequeue(out aFrame);
                         else if (decoder.aDecoder.frames.Count >= Config.decoder.MinAudioFrames)
                             gotAudio = true;
@@ -871,14 +837,14 @@ namespace FlyleafLib.MediaPlayer
             if (sFrame == null) decoder.sDecoder.frames.TryDequeue(out sFrame);
 
             if (aFrame != null && aFrame.timestamp < vFrame.timestamp) 
-                videoStartTicks = Math.Max(aFrame.timestamp, vFrame.timestamp - ((long)10000 * AudioPlayer.NAUDIO_DELAY_MS));
+                videoStartTicks = Math.Max(aFrame.timestamp, vFrame.timestamp - Config.audio.LatencyTicks);
             else
-                videoStartTicks = vFrame.timestamp - ((long)10000 * AudioPlayer.NAUDIO_DELAY_MS);
+                videoStartTicks = vFrame.timestamp - Config.audio.LatencyTicks;
 
             startedAtTicks  = DateTime.UtcNow.Ticks;
             Session.SetCurTime(videoStartTicks);
 
-            audioPlayer.Play();
+            //audioPlayer.Play();
             Log($"[SCREAMER] Started -> {Utils.TicksToTime(videoStartTicks)} | [V: {Utils.TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {Utils.TicksToTime(aFrame.timestamp)}]"));
 
             return true;
@@ -926,14 +892,10 @@ namespace FlyleafLib.MediaPlayer
                         continue; 
                     }
 
-                    //Session.SetCurTime(elapsedTicks);
-
+                    // Informs the application with CurTime when the second changes
                     if ((int)Session.CurTime / 10000000 != (int)elapsedTicks / 10000000)
                         Session.SetCurTime(elapsedTicks);
-                    //else
-                    //    _Session.CurTime = elapsedTicks;
 
-                    //Session.CurTime = elapsedTicks;
                     Thread.Sleep(sleepMs);
                 }
 

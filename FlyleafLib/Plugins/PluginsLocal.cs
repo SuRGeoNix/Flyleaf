@@ -17,9 +17,9 @@ namespace FlyleafLib.Plugins
 
             SubtitleStreams.Add(new SubtitleStream()
             {
-                DecoderInput = new DecoderInput() { Url = url },
-                Downloaded = true,
-                Tag = url // Use it here because of possible convert to Utf8 and rename
+                DecoderInput= new DecoderInput() { Url = url },
+                Downloaded  = true,
+                Tag         = url // Use it here because of possible convert to Utf8 and rename
             });
 
             return SubtitleStreams[SubtitleStreams.Count - 1];
@@ -63,41 +63,41 @@ namespace FlyleafLib.Plugins
                 {
                     AudioStreams.Add(new AudioStream()
                     {
-                        DecoderInput = new DecoderInput() { StreamIndex = stream.StreamIndex },
-                        BitRate = stream.BitRate,
-                        Language = Language.Get(stream.Language),
+                        DecoderInput    = new DecoderInput() { StreamIndex = stream.StreamIndex },
+                        BitRate         = stream.BitRate,
+                        Language        = Language.Get(stream.Language),
 
-                        SampleFormat = stream.SampleFormatStr,
-                        SampleRate = stream.SampleRate,
-                        Channels = stream.Channels,
-                        Bits = stream.Bits
+                        SampleFormat    = stream.SampleFormatStr,
+                        SampleRate      = stream.SampleRate,
+                        Channels        = stream.Channels,
+                        Bits            = stream.Bits
                     });
                 }
                 else if (stream.Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)
                 {
-                    VideoStream videoStream = new VideoStream();
-                    VideoStream ptrVideoStream = stream.StreamIndex == Player.decoder.vDecoder.st->index ? defaultVideo : videoStream;
+                    VideoStream videoStream     = new VideoStream();
+                    VideoStream ptrVideoStream  = stream.StreamIndex == Player.decoder.vDecoder.st->index ? defaultVideo : videoStream;
 
                     ptrVideoStream.DecoderInput = new DecoderInput() { StreamIndex = stream.StreamIndex };
-                    ptrVideoStream.BitRate = stream.BitRate;
-                    ptrVideoStream.Language = Language.Get(stream.Language);
+                    ptrVideoStream.BitRate      = stream.BitRate;
+                    ptrVideoStream.Language     = Language.Get(stream.Language);
 
-                    ptrVideoStream.PixelFormat = stream.PixelFormatStr;
-                    ptrVideoStream.Width = stream.Width;
-                    ptrVideoStream.Height = stream.Height;
-                    ptrVideoStream.FPS = stream.FPS;
+                    ptrVideoStream.PixelFormat  = stream.PixelFormatStr;
+                    ptrVideoStream.Width        = stream.Width;
+                    ptrVideoStream.Height       = stream.Height;
+                    ptrVideoStream.FPS          = stream.FPS;
                     VideoStreams.Add(ptrVideoStream);
                 }
                 else if (stream.Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE)
                 {
                     SubtitleStreams.Add(new SubtitleStream()
                     {
-                        DecoderInput = new DecoderInput() { StreamIndex = stream.StreamIndex },
-                        BitRate = stream.BitRate,
-                        Language = Language.Get(stream.Language),
+                        DecoderInput    = new DecoderInput() { StreamIndex = stream.StreamIndex },
+                        BitRate         = stream.BitRate,
+                        Language        = Language.Get(stream.Language),
 
-                        Downloaded = true,
-                        Converted = true
+                        Downloaded      = true,
+                        Converted       = true
                     });
                 }
 
@@ -126,8 +126,8 @@ namespace FlyleafLib.Plugins
                 else
                 {
                     Session.SingleMovie.UrlType = UrlType.Other;
-                    Session.SingleMovie.Title = Session.InitialUrl;
-                    Session.SingleMovie.Folder = Path.GetTempPath();
+                    Session.SingleMovie.Title   = Session.InitialUrl;
+                    Session.SingleMovie.Folder  = Path.GetTempPath();
                 }
             }
             catch (Exception)
