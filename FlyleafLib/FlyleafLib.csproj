@@ -106,6 +106,7 @@
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AudioMaster.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="Controls\WPF\FlyleafWindow.cs" />
     <Compile Include="Controls\WPF\IVideoView.cs" />
