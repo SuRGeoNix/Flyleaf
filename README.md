@@ -19,7 +19,8 @@
 
 ### [Missing Features]
 * HDR support
-* Video Capture / Record / Zoom / Post Process Filters (Brightness/Sharping etc.)
+* Video Recording / Post Process Filters (Brightness/Sharping etc.)
+* Audio with Multi-Players uses the same Volume/Mute handler
 * Speed (Step/Fast Backwards/Forwards)
 * Windows OS is required
 
