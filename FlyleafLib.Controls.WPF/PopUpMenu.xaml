@@ -437,8 +437,9 @@
             
         </MenuItem>
 
-        <Separator />
-        <MenuItem Header="Media Info" Icon="{materialDesign:PackIcon InfoOutline}"/>
+        <!--<Separator />
+        <MenuItem Header="Media Info" Icon="{materialDesign:PackIcon InfoOutline}"/>-->
+        
         <Separator />
         <MenuItem Header="Exit" Icon="{materialDesign:PackIcon ExitToApp}" Command="{Binding ExitApplication}"/>
     </ContextMenu>

@@ -54,9 +54,9 @@ namespace FlyleafLib.Controls.WPF
 
             if (volume == 0)
                 return Volumes.Mute;
-            else if (volume > 65)
+            else if (volume > 99)
                 return Volumes.High;
-            else if (volume > 32)
+            else if (volume > 49)
                 return Volumes.Med;
             else
                 return Volumes.Low;

@@ -7,7 +7,7 @@
     <ProjectGuid>{DC0B8BD8-BC22-4B04-B0C6-0FEB83D8345F}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>Wpf_Samples</RootNamespace>
-    <AssemblyName>Wpf Samples</AssemblyName>
+    <AssemblyName>Flyleaf</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -55,6 +55,9 @@
     <LangVersion>7.3</LangVersion>
     <ErrorReport>prompt</ErrorReport>
     <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Flyleaf.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Dragablz, Version=0.0.3.223, Culture=neutral, processorArchitecture=MSIL">
@@ -209,6 +212,12 @@
       <Project>{31c6cbf5-1e30-475d-bc57-028eff3f0c91}</Project>
       <Name>FlyleafLib</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Flyleaf.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Flyleaf.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\MaterialDesignThemes.4.0.0\build\MaterialDesignThemes.targets" Condition="Exists('..\packages\MaterialDesignThemes.4.0.0\build\MaterialDesignThemes.targets')" />

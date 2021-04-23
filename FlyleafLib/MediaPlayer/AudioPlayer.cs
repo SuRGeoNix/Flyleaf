@@ -15,7 +15,22 @@ namespace FlyleafLib.MediaPlayer
         public int Volume
         {
             get => volumeSampleProvider == null ? 50 : (int) (volumeSampleProvider.Volume * 100);
-            set { volumeSampleProvider.Volume = value / 100.0f; Raise(nameof(Volume)); if (mute) { mute = false; Raise(nameof(Mute)); } }
+            set
+            {
+                volumeSampleProvider.Volume = value / 100.0f;
+                Raise(nameof(Volume));
+
+                if (value == 0)
+                {
+                    Mute = true;
+                    prevVolume = 0.15f;
+                }
+                else if (mute)
+                {
+                    mute = false;
+                    Raise(nameof(Mute));
+                }
+            }
         }
         private float prevVolume = 0.5f;
 
@@ -33,7 +48,10 @@ namespace FlyleafLib.MediaPlayer
                     volumeSampleProvider.Volume = 0; // no raise
                 }
                 else
+                {
                     volumeSampleProvider.Volume = prevVolume;
+                    Raise(nameof(Volume));
+                }
 
                 Set(ref mute, value);
             }
@@ -45,7 +63,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public string Device
         {
-            get => _Device;
+            get => _Device == null ? Master.AudioMaster.Device : _Device;
             set
             {
                 bool found = false;
@@ -66,6 +84,7 @@ namespace FlyleafLib.MediaPlayer
         string                  _Device;
         internal Guid           DeviceIdNaudio;
         #endregion
+
         #region Declaration
         Player                  videoPlayer;
         Config                  cfg => videoPlayer.Config;
@@ -81,7 +100,7 @@ namespace FlyleafLib.MediaPlayer
         #endregion
 
         #region Initialize / Dispose
-        public AudioPlayer(Player player) { videoPlayer = player; }
+        public AudioPlayer(Player player) { videoPlayer = player; Initialize(); }
         public void Initialize(int rate = -1) // Rate should be saved in case of internal Initialize during device reset etc.
         {
             prevVolume = volumeSampleProvider == null ? 0.5f : volumeSampleProvider.Volume;
@@ -97,20 +116,11 @@ namespace FlyleafLib.MediaPlayer
                 buffer.BufferLength = 1000 * 1024;
                 volumeSampleProvider= new VolumeSampleProvider(buffer.ToSampleProvider());
 
-                if (Device == null)
-                {
-                    if (Master.AudioMaster.Device == Master.AudioMaster.DefaultDeviceName)
-                        player = new DirectSoundOut((int)(cfg.audio.LatencyTicks / 10000));
-                    else
-                        player = new DirectSoundOut(Master.AudioMaster.DeviceIdNaudio, (int)(cfg.audio.LatencyTicks / 10000));
-                }
+
+                if (Device == Master.AudioMaster.DefaultDeviceName)
+                    player = new DirectSoundOut((int)(cfg.audio.LatencyTicks / 10000));
                 else
-                {
-                    if (Device == Master.AudioMaster.DefaultDeviceName)
-                        player = new DirectSoundOut((int)(cfg.audio.LatencyTicks / 10000));
-                    else
-                        player = new DirectSoundOut(DeviceIdNaudio, (int)(cfg.audio.LatencyTicks / 10000));
-                }
+                    player = new DirectSoundOut(_Device == null ? Master.AudioMaster.DeviceIdNaudio : DeviceIdNaudio, (int)(cfg.audio.LatencyTicks / 10000));
 
                 player.Init(volumeSampleProvider);
                 player.Play();
