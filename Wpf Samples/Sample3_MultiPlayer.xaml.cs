@@ -18,7 +18,6 @@ namespace Wpf_Samples
 
         public Sample3_MultiPlayer()
         {
-            Master.AudioMaster.VolumeHandler = VolumeHandler.Master;
             Master.RegisterFFmpeg(":2");
             InitializeComponent();
 
@@ -36,6 +35,9 @@ namespace Wpf_Samples
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             Player1.Open("../../../Sample.mp4");
+
+            // Sample using different audio device on Player 2
+            //Player2.audioPlayer.Device = "4 - 24G2W1G4 (AMD High Definition Audio Device)";
 
             // Sample using a 'custom' stream input
             Player2.Open(new FileStream("../../../Sample.mp4", FileMode.Open));
