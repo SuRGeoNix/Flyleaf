@@ -1,12 +1,13 @@
-# *Flyleaf v3.0*: Video Player .NET Framework Library & WinForms/WPF Control
+# *Flyleaf v3.0*: Video Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)
 
-![alt text](Images/FlyleafSample.png)
+![alt text](Images/Flyleafv3.0.png)
 ---
 
 >Notes<br/>
->1. Flyleaf v3.0 releases can be found on NuGet https://www.nuget.org/packages?q=flyleaf<br/>
->2. You can find a pre-compiled sample version at https://github.com/SuRGeoNix/Flyleaf/releases/tag/v3.0-preview
->3. Start your own custom ViewModel based on [Sample2_Custom](https://github.com/SuRGeoNix/Flyleaf/tree/master/Wpf%20Samples)
+>1. FlyleafLib's releases will be on [NuGet](https://www.nuget.org/packages?q=flyleaf)
+>2. You can find a pre-compiled sample version on GitHub's releases
+>3. To create your own custom control only FlyleafLib package is required
+>4. Start your own custom WPF MVVM based on [Sample2_Custom](https://github.com/SuRGeoNix/Flyleaf/tree/master/Wpf%20Samples)
 
 ### [Supported Features]
 * ***Light***: for GPU/CPU/RAM as it supports video acceleration, post-processing with pixel shaders and it is coded from scratch
@@ -20,19 +21,20 @@
 ### [Missing Features]
 * HDR support
 * Video Recording / Post Process Filters (Brightness/Sharping etc.)
-* Audio with Multi-Players uses the same Volume/Mute handler
 * Speed (Step/Fast Backwards/Forwards)
 * Windows OS is required
 
 ### [Major changes from v2.6]
 * Separating controls and plugins (*bitswarm, youtube-dl, opensubtitles*) from the library
 * Recoding MediaRouter to support workflows for plugins (a base for later on to support scrappers etc.)
+* Recoding AudioPlayer to support any user defined device and different configuration (device,volume,mute) in case of multiple players
 * Dropping OSD support from MediaRender and removing Direct2D rendering (was used mainly to achieve transparent overlay content which can be done now with WPF)
 * Dropping WinForms embedded functionality support (at least for now, still supports "naked" control) and focusing on WPF/MVVM to achieve better graphics/effects/styles/themes/templates etc.
+* Adding new features such as Take a Snapshot and Pan Zoom In/Out
 * Creating library's and WPF control's NuGet packages
 
 ### [Build Requirements]
-* .NET Framework 4.7.2
+* .NET Framework 4.7.2 (Seems to be compatible with .NET 5, use Master.PreventAborts=true)
 * FFmpeg shared libraries (compatible with FFmpeg.Autogen)
 * Use Master.RegisterFFmpeg(*ffmpeg_path*) to register them
 * To use plugins put them in *Plugins/PluginName* folder

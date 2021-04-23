@@ -88,6 +88,7 @@
                         <RowDefinition Height="30"/>
                         <RowDefinition Height="30"/>
                         <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Text="Enabled" VerticalAlignment="Center"/>
@@ -98,6 +99,9 @@
 
                     <TextBlock Grid.Row="2" Text="Latency" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Audio.LatencyTicks, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+
+                    <TextBlock Grid.Row="3" Text="Device" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="3" Grid.Column="1" x:Name="cmbAudioDevice" Tag="_save" ItemsSource="{Binding AudioMaster.Devices}" SelectedItem="{Binding AudioPlayer.Device, UpdateSourceTrigger=Explicit}" />
                 </Grid>
                 <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                     <Button Content="Apply" FontWeight="ExtraBold" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="apply"/>

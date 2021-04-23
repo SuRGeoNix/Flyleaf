@@ -48,11 +48,9 @@ namespace FlyleafLib.Controls.WPF
                                 break;
                             case TextBox t:
                                 (t.GetBindingExpression(TextBox.TextProperty)).UpdateSource();
-                                Console.WriteLine("Saving T");
                                 break;
                             case ComboBox c:
                                 (c.GetBindingExpression(ComboBox.SelectedItemProperty)).UpdateSource();
-                                Console.WriteLine("Saving C");
                                 break;
                         } 
                     }
