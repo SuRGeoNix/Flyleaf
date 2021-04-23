@@ -210,7 +210,7 @@ namespace FlyleafLib
             /// <summary>
             /// Whether audio should be enabled or not
             /// </summary>
-            public bool             Enabled         { get => _Enabled;      set { Set(ref _Enabled, value); if (value) player?.EnableAudio(); else player?.DisableAudio(); } }
+            public bool             Enabled         { get => _Enabled;      set { bool changed = _Enabled != value;  Set(ref _Enabled, value); if (changed) if (value) player?.EnableAudio(); else player?.DisableAudio(); } }
             bool    _Enabled = true;
 
             internal void SetEnabled(bool enabled = true) { _Enabled = enabled; Raise(nameof(Enabled)); }
@@ -259,7 +259,7 @@ namespace FlyleafLib
             /// <summary>
             /// Whether subtitles should be enabled or not
             /// </summary>
-            public bool             Enabled             { get => _Enabled;      set { Set(ref _Enabled, value); if (value) player?.EnableSubs(); else player?.DisableSubs(); } }
+            public bool             Enabled             { get => _Enabled;      set { bool changed = _Enabled != value; Set(ref _Enabled, value); if (changed) if (value) player?.EnableSubs(); else player?.DisableSubs(); } }
             bool    _Enabled = true;
 
             /// <summary>
