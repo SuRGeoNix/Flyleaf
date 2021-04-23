@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace FlyleafLib
@@ -12,17 +13,21 @@ namespace FlyleafLib
         public string UploadEnabled;
         public string WebEnabled;
 
-        public Language() { Language lang = Get("eng"); IdSubLanguage = lang.IdSubLanguage; ISO639 = lang.ISO639; LanguageName = lang.LanguageName; }
-        public Language(string IdSubLanguage, string ISO639, string LanguageName, string UploadEnabled, string WebEnabled)
+        public Language()
         {
-            this.IdSubLanguage  = IdSubLanguage;
-            this.ISO639         = ISO639;
-            this.LanguageName   = LanguageName;
-            this.UploadEnabled  = UploadEnabled;
-            this.WebEnabled     = WebEnabled;
+            var lang = Get("eng"); IdSubLanguage = lang.IdSubLanguage; ISO639 = lang.ISO639; LanguageName = lang.LanguageName;
         }
 
-        public static readonly List<Language> Languages = new List<Language>()
+        public Language(string IdSubLanguage, string ISO639, string LanguageName, string UploadEnabled, string WebEnabled)
+        {
+            this.IdSubLanguage = IdSubLanguage;
+            this.ISO639 = ISO639;
+            this.LanguageName = LanguageName;
+            this.UploadEnabled = UploadEnabled;
+            this.WebEnabled = WebEnabled;
+        }
+
+        public static readonly List<Language> Languages = new List<Language>
         {
             new Language("aar","aa","Afar, afar","0","0"),
             new Language("abk","ab","Abkhazian","1","0"),
@@ -505,18 +510,42 @@ namespace FlyleafLib
             new Language("spn","sp","Spanish (EU)","1","0")
         };
 
+        private static readonly IDictionary<string, string> AlternativeNames = new Dictionary<string, string>
+        {
+            { "nld", "dut" },
+            { "deu", "ger" },
+            { "fra", "fre" },
+            { "gre", "ell" },
+            { "gr", "el" }
+        };
+
         public static Language Get(string name)
         {
-            if(string.IsNullOrEmpty(name)) return Get("und");
+            if (string.IsNullOrEmpty(name))
+            {
+                return Get("und");
+            }
 
-            var res = Languages.Where(lang => lang.ISO639 == name.ToLower() || lang.IdSubLanguage == name.ToLower() || lang.LanguageName.ToLower() == name.ToLower()).ToList();
-            if (res.Count > 0) return res.ElementAt(0);
+            var res = Languages.FirstOrDefault(lang => string.Equals(name, lang.IdSubLanguage, StringComparison.OrdinalIgnoreCase) ||
+                                                       string.Equals(name, lang.ISO639, StringComparison.OrdinalIgnoreCase) ||
+                                                       string.Equals(name, lang.LanguageName, StringComparison.OrdinalIgnoreCase));
 
-            if (name.ToLower() == "gr" || name.ToLower() == "gre") return Get("el"); // For Greek (Possible other languages have the same issue? should check the ISOs)
+            if (res != null)
+            {
+                return res;
+            }
+
+            if (AlternativeNames.TryGetValue(name, out var alternativeName))
+            {
+                return Get(alternativeName);
+            }
 
             return Get("und");
         }
 
-        public override string ToString() { return LanguageName; }
+        public override string ToString()
+        {
+            return LanguageName;
+        }
     }
 }
