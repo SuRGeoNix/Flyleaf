@@ -37,13 +37,6 @@ namespace FlyleafLib
         Other
     }
 
-    public enum VolumeHandler
-    {
-        Session,
-        Master,
-        //Both // TODO: When you move out of Session upper limits volume up on master
-    }
-
     public class DecoderInput
     {
         /// <summary>
