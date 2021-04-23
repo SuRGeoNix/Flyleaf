@@ -326,58 +326,58 @@ namespace FlyleafLib.MediaRenderer
 	        Texture2D snapshotTexture;
 
 	        lock (device)
-	        {
-		        Utilities.Dispose(ref rtv);
+            {
+                Utilities.Dispose(ref rtv);
                 Utilities.Dispose(ref backBuffer);
 
                 swapChain.ResizeBuffers(0, decoder.vDecoder.info.Width, decoder.vDecoder.info.Height, Format.Unknown, SwapChainFlags.None);
                 backBuffer  = Texture2D.FromSwapChain<Texture2D>(swapChain, 0);
                 rtv         = new RenderTargetView(device, backBuffer);
-		        context.Rasterizer.SetViewport(0, 0, backBuffer.Description.Width, backBuffer.Description.Height);
+                context.Rasterizer.SetViewport(0, 0, backBuffer.Description.Width, backBuffer.Description.Height);
 
-		        for (int i=0; i<swapChain.Description.BufferCount; i++)
-		        { 
-			        context.OutputMerger.SetRenderTargets(rtv);
-			        context.ClearRenderTargetView(rtv, cfg.video._ClearColor);
-			        context.Draw(6, 0);
-			        swapChain.Present(cfg.video.VSync, PresentFlags.None);
-		        }
+                for (int i=0; i<swapChain.Description.BufferCount; i++)
+                { 
+	                context.OutputMerger.SetRenderTargets(rtv);
+	                context.ClearRenderTargetView(rtv, cfg.video._ClearColor);
+	                context.Draw(6, 0);
+	                swapChain.Present(cfg.video.VSync, PresentFlags.None);
+                }
 		
-		        snapshotTexture = new Texture2D(device, new Texture2DDescription()
-		        {
-			        Usage           = ResourceUsage.Staging,
-			        ArraySize       = 1,
-			        MipLevels       = 1,
-			        Width           = backBuffer.Description.Width,
-			        Height          = backBuffer.Description.Height,
-			        Format          = Format.B8G8R8A8_UNorm,
-			        BindFlags       = BindFlags.None,
-			        CpuAccessFlags  = CpuAccessFlags.Read,
-			        OptionFlags     = ResourceOptionFlags.None,
-			        SampleDescription = new SampleDescription(1, 0)         
-		        });
-		        context.CopyResource(backBuffer, snapshotTexture);
-		        ResizeBuffers(null, null);
-	        }
+                snapshotTexture = new Texture2D(device, new Texture2DDescription()
+                {
+	                Usage           = ResourceUsage.Staging,
+	                ArraySize       = 1,
+	                MipLevels       = 1,
+	                Width           = backBuffer.Description.Width,
+	                Height          = backBuffer.Description.Height,
+	                Format          = Format.B8G8R8A8_UNorm,
+	                BindFlags       = BindFlags.None,
+	                CpuAccessFlags  = CpuAccessFlags.Read,
+	                OptionFlags     = ResourceOptionFlags.None,
+	                SampleDescription = new SampleDescription(1, 0)         
+                });
+                context.CopyResource(backBuffer, snapshotTexture);
+                ResizeBuffers(null, null);
+            }
 
-	        System.Drawing.Bitmap snapshotBitmap = new System.Drawing.Bitmap(snapshotTexture.Description.Width, snapshotTexture.Description.Height);
-	        DataBox db      = context.MapSubresource(snapshotTexture, 0, MapMode.Read, SharpDX.Direct3D11.MapFlags.None);
-	        var bitmapData  = snapshotBitmap.LockBits(new System.Drawing.Rectangle(0, 0, snapshotBitmap.Width, snapshotBitmap.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-	        var sourcePtr   = db.DataPointer;
-	        var destPtr     = bitmapData.Scan0;
-	        for (int y = 0; y < snapshotBitmap.Height; y++)
-	        {
-		        Utilities.CopyMemory(destPtr, sourcePtr, snapshotBitmap.Width * 4);
+            System.Drawing.Bitmap snapshotBitmap = new System.Drawing.Bitmap(snapshotTexture.Description.Width, snapshotTexture.Description.Height);
+            DataBox db      = context.MapSubresource(snapshotTexture, 0, MapMode.Read, SharpDX.Direct3D11.MapFlags.None);
+            var bitmapData  = snapshotBitmap.LockBits(new System.Drawing.Rectangle(0, 0, snapshotBitmap.Width, snapshotBitmap.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            var sourcePtr   = db.DataPointer;
+            var destPtr     = bitmapData.Scan0;
+            for (int y = 0; y < snapshotBitmap.Height; y++)
+            {
+                Utilities.CopyMemory(destPtr, sourcePtr, snapshotBitmap.Width * 4);
 
-		        sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
-		        destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
-	        }
-	        snapshotBitmap.UnlockBits(bitmapData);
-	        context.UnmapSubresource(snapshotTexture, 0);
-	        snapshotTexture.Dispose();
+                sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
+                destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
+            }
+            snapshotBitmap.UnlockBits(bitmapData);
+            context.UnmapSubresource(snapshotTexture, 0);
+            snapshotTexture.Dispose();
 
             try { snapshotBitmap.Save(fileName); } catch (Exception) { }
-	        snapshotBitmap.Dispose();
+            snapshotBitmap.Dispose();
         }
         public void SetViewport(int x, int y, int width, int height)
         {

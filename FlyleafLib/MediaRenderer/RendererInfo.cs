@@ -5,9 +5,9 @@ namespace FlyleafLib.MediaRenderer
     public unsafe class RendererInfo
     {
         public string   AdapterDesc     { get; set; }
-        public UInt64    SystemMemory    { get; set; }
-        public UInt64    VideoMemory     { get; set; }
-        public UInt64    SharedMemory    { get; set; }
+        public UInt64   SystemMemory    { get; set; }
+        public UInt64   VideoMemory     { get; set; }
+        public UInt64   SharedMemory    { get; set; }
         public int      Outputs         { get; set; }
         public string   OutputName      { get; set; }
         public int      ScreenWidth     { get; set; }
