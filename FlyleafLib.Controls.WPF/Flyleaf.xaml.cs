@@ -27,7 +27,7 @@ namespace FlyleafLib.Controls.WPF
         public Player           Player      { get => _Player; set { _Player = value; InitializePlayer(); } }
         Player _Player;
         public AudioPlayer      AudioPlayer => Player.audioPlayer;
-        //public AudioMaster      AudioPlayer => Master.AudioMaster;
+        public AudioMaster      AudioMaster => Master.AudioMaster;
         public FlyleafWindow    WindowFront => FlyleafView.WindowFront;
         public VideoView        FlyleafView => Player.VideoView;
         
@@ -359,10 +359,7 @@ namespace FlyleafLib.Controls.WPF
         public ICommand ToggleMute          { get; set; }
         public void ToggleMuteAction(object obj = null)
         {
-            if (AudioPlayer.Mute || AudioPlayer.Volume == 0)
-                AudioPlayer.Mute = false;
-            else
-                AudioPlayer.Mute = true;
+            AudioPlayer.Mute = !AudioPlayer.Mute;
         }
 
         public ICommand TogglePlayPause     { get; set; }
