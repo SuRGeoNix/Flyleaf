@@ -82,7 +82,8 @@ namespace FlyleafLib.MediaRenderer
 
         public override string ToString()
         {
-            return $"[Adapter] {AdapterDesc} System: {GetBytesReadable(SystemMemory)} Video: {GetBytesReadable(VideoMemory)} Shared: {GetBytesReadable(SharedMemory)}\r\n[Output ] {OutputName} {ScreenWidth}x{ScreenHeight}@({ScreenBounds.X}:{ScreenBounds.Y})";
+            var gcd = Utils.GCD(ScreenWidth, ScreenHeight);
+            return $"[Adapter] {AdapterDesc} System: {GetBytesReadable(SystemMemory)} Video: {GetBytesReadable(VideoMemory)} Shared: {GetBytesReadable(SharedMemory)}\r\n[Output ] {OutputName} (X={ScreenBounds.X}, Y={ScreenBounds.Y}) {ScreenWidth}x{ScreenHeight} [{ScreenWidth/gcd}:{ScreenHeight/gcd}]";
         }
     }
 }

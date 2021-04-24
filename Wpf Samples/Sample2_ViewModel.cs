@@ -16,30 +16,24 @@ namespace Wpf_Samples
     {
         #region Airspace / Windows / Controls / Events
         /// <summary>
-        /// VideoView wil be set once from the Binding OneWayToSource and then we can Initialize our ViewModel (Normally, this should be called only once)
-        /// IsFullScreen/FullScreen/NormalScreen
+        /// The Content Control which hosts WindowsFormsHost (useful for airspace issues &amp; change to fullscreen mode)
         /// </summary>
-        //public VideoView    VideoView
-        //{
-        //    get { return _VideoView; }
-        //    set { _VideoView = value; Initialize(); }
-        //}
-        //private VideoView  _VideoView;
+        public VideoView    VideoView       => Player.VideoView;
+
+        /// <summary>
+        /// The foreground window which will be created from VideoView and hosts our content (useful for airspace issues)
+        /// </summary>
+        public Window       WindowFront     => VideoView.WindowFront;
+
+        /// <summary>
+        /// The background window which hosts the VideoView (useful for airspace issues)
+        /// </summary>
+        public Window       WindowBack      => VideoView.WindowBack;
 
         ///// <summary>
         ///// WindowsFormsHost child control (to catch events and resolve airspace issues)
         ///// </summary>
-        //public FlyleafWF    WinFormsControl => Player.Control;
-
-        ///// <summary>
-        ///// Foreground window with overlay content (to catch events and resolve airspace issues)
-        ///// </summary>
-        //public Window       WindowFront     => VideoView.WindowFront;
-
-        ///// <summary>
-        ///// Background/Main window
-        ///// </summary>
-        //public Window       WindowBack      => VideoView.WindowBack;
+        public FlyleafWF    WinFormsControl => Player.Control;
         #endregion
 
         #region ViewModel's Properties
@@ -58,12 +52,17 @@ namespace Wpf_Samples
         /// <summary>
         /// Player's functions (open new input or existing stream/play/pause/seek forewards or backwards etc.) + Plugins[Plugin_Name].[Media]Streams + Status [see Player.cs for details]
         /// </summary>
-        public Player       Player      { get ; set; }
+        public Player       Player          { get ; set; }
 
         /// <summary>
-        /// Audio Player's functions (play/pause) +  Volume/Mute [see AudioPlayer.cs]
+        /// Audio Player's Volume/Mute and can set different Device for each player [see AudioPlayer.cs]
         /// </summary>
-        public AudioPlayer  AudioPlayer => Player.audioPlayer;
+        public AudioPlayer  AudioPlayer     => Player.audioPlayer;
+
+        /// <summary>
+        /// Global audio configuration (common Device, Session &amp; Master Volume/Mute) [see AudioMaster.cs]
+        /// </summary>
+        public AudioMaster  AudioMaster     => Master.AudioMaster;
 
         /// <summary>
         /// Player's Current Session (CurTime/CanPlay/SubText/InitialUrl + [Media]Info/Cur[Media]Stream/ [see Session.cs for details]

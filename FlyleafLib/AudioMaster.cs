@@ -90,9 +90,11 @@ namespace FlyleafLib
             deviceEnum = new MMDeviceEnumerator();
             deviceEnum.RegisterEndpointNotificationCallback(this);
             
+            string dump = "Audio devices ...\r\n";
             foreach(var device in deviceEnum.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
-                Log($"{device.ID} | {device.InstanceId} | {device.FriendlyName} ({device.FriendlyName})");
+                dump += $"{device.ID} | {device.FriendlyName}\r\n";
 
+            Log(dump);
             Initialize();
         }
         public void Initialize()
@@ -232,6 +234,6 @@ namespace FlyleafLib
         public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason) { /*Log("OnSessionDisconnected");*/ }
         #endregion
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [AudioMaster] {msg}"); }
+        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] [AudioMaster] {msg}"); }
     }
 }
