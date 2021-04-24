@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -14,13 +15,12 @@ using System.Xml.Schema;
 using System.Xml.Serialization;
 
 using SharpDX;
+//using SharpDX.D3DCompiler; // Enable this if you need to re-compile shaders
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework;
-using SharpDX.D3DCompiler;
-using System.ComponentModel;
 
 namespace FlyleafLib
 {
@@ -184,38 +184,6 @@ namespace FlyleafLib
         public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(@"hh\:mm\:ss\:fff"); }
         private static void Log(string msg) { try { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [MediaEngine] {msg}"); } catch (Exception) { Console.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
         #endregion
-
-        public static class MediaRenderer
-        {
-            /// <summary>
-            /// Using Project Resources and gets all byte[] data
-            /// </summary>
-            public static void CompileShaders()
-            {
-                // v5
-                //string vertexProfile    = "vs_5_0";
-                //string pixelProfile     = "ps_5_0";
-
-                // v4
-                string vertexProfile    = "vs_4_0_level_9_1";
-                string pixelProfile     = "ps_4_0_level_9_1";
-
-                string shadersCode = "";
-                System.Resources.ResourceSet rsrcSet = Properties.Resources.ResourceManager.GetResourceSet(CultureInfo.CurrentUICulture, true, true);
-                foreach (System.Collections.DictionaryEntry entry in rsrcSet)
-                    if (entry.Value is byte[])
-                    {
-                        byte[] byteCode = ShaderBytecode.Compile((byte[])rsrcSet.GetObject(entry.Key.ToString()), "main", entry.Key.ToString() == "VertexShader" ? pixelProfile : vertexProfile, ShaderFlags.Debug);
-
-                        shadersCode += $"{{ \"{entry.Key.ToString()}\", new byte[] {{ {byteCode[0]}";
-                        for (int i = 1; i < byteCode.Length; i++)
-                            shadersCode += $",{byteCode[i]}";
-                        shadersCode += $" }}}},\r\n";
-                    }
-
-                File.WriteAllText(@"Shaders.cs", shadersCode);
-            }
-        }
 
         public unsafe static class FFmpeg
         {
@@ -531,6 +499,40 @@ namespace FlyleafLib
                 return false;
             }
         }
+
+        #region Enable this if you need to re-compile shaders
+        //public static class MediaRenderer
+        //{
+        //    /// <summary>
+        //    /// Using Project Resources and gets all byte[] data
+        //    /// </summary>
+        //    public static void CompileShaders()
+        //    {
+        //        // v5
+        //        //string vertexProfile    = "vs_5_0";
+        //        //string pixelProfile     = "ps_5_0";
+
+        //        // v4
+        //        string vertexProfile    = "vs_4_0_level_9_1";
+        //        string pixelProfile     = "ps_4_0_level_9_1";
+
+        //        string shadersCode = "";
+        //        System.Resources.ResourceSet rsrcSet = Properties.Resources.ResourceManager.GetResourceSet(CultureInfo.CurrentUICulture, true, true);
+        //        foreach (System.Collections.DictionaryEntry entry in rsrcSet)
+        //            if (entry.Value is byte[])
+        //            {
+        //                byte[] byteCode = ShaderBytecode.Compile((byte[])rsrcSet.GetObject(entry.Key.ToString()), "main", entry.Key.ToString() == "VertexShader" ? pixelProfile : vertexProfile, ShaderFlags.Debug);
+
+        //                shadersCode += $"{{ \"{entry.Key.ToString()}\", new byte[] {{ {byteCode[0]}";
+        //                for (int i = 1; i < byteCode.Length; i++)
+        //                    shadersCode += $",{byteCode[i]}";
+        //                shadersCode += $" }}}},\r\n";
+        //            }
+
+        //        File.WriteAllText(@"Shaders.cs", shadersCode);
+        //    }
+        //}
+        #endregion
     }
 
 

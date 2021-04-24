@@ -1,9 +1,8 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    
                     xmlns:local="clr-namespace:FlyleafLib.Controls.WPF"
-                    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-                    xmlns:fl="clr-namespace:FlyleafLib;assembly=FlyleafLib"
-                    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+                    xmlns:flconv="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
                     >
 
     <ResourceDictionary.MergedDictionaries>
@@ -73,10 +72,10 @@
         </ResourceDictionary>
     </ResourceDictionary.MergedDictionaries>
 
-    <local:StringToRationalConverter x:Key="StringToRational"/>
-    <local:TicksToTimeConverter x:Key="TicksToTime"/>
-    <local:TicksToSecondsConverter x:Key="TicksToSeconds" />
-    <local:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
+    <flconv:StringToRationalConverter x:Key="StringToRational"/>
+    <flconv:TicksToTimeConverter x:Key="TicksToTime"/>
+    <flconv:TicksToSecondsConverter x:Key="TicksToSeconds" />
+    <flconv:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
     <local:VolumeToLevelsConverter x:Key="VolumeToLevels"/>
     <local:QualityToLevelsConverter x:Key="QualityToLevels"/>
 </ResourceDictionary>

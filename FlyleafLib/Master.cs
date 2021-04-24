@@ -4,8 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-using Newtonsoft.Json;
-
 using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaPlayer;
@@ -20,6 +18,8 @@ namespace FlyleafLib
     {
         static Master()
         {
+            AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve;
+            
             Plugins     = new List<Type>();
             Players     = new List<Player>();
             AudioMaster = new AudioMaster();
@@ -27,7 +27,7 @@ namespace FlyleafLib
         }
 
         /// <summary>
-        /// Manages audio devices, volume & mute
+        /// Manages audio devices, volume &amp; mute
         /// </summary>
         public static AudioMaster   AudioMaster     { get; }
 
@@ -68,23 +68,23 @@ namespace FlyleafLib
             // Load Plugins
             foreach (var type in types)
                 { Log($"[PluginLoader] {type.FullName}"); Plugins.Add(type); }
-
-            // Fix Assemblies redirect bindings and binaryFormater (currently just for BitSwarm plugin)
-            AppDomain.CurrentDomain.AssemblyResolve += (o, a) =>
-            {
-                foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                    if (assembly.GetName().Name == (new AssemblyName(a.Name)).Name && (assembly.GetName().Name == "BitSwarmLib" || assembly.GetName().Name == "System.Buffers"))
-                    {
-                        Log($"[AssemblyResolver] Found {assembly.FullName}");
-                        return assembly;
-                    }
-
-                Log($"[AssemblyResolver] for {a.Name} not found");
-
-                return null;
-            };
         }
-        static JsonSerializerSettings loadjson = new JsonSerializerSettings(); // Pre-load common assemblies
+
+        private static Assembly AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            // Fix Assemblies redirect bindings and binaryFormater (currently just for BitSwarm plugin)
+
+            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                if (assembly.GetName().Name == (new AssemblyName(args.Name)).Name && (assembly.GetName().Name == "BitSwarmLib" || assembly.GetName().Name == "System.Buffers"))
+                {
+                    Log($"[AssemblyResolver] Found {assembly.FullName}");
+                    return assembly;
+                }
+
+            Log($"[AssemblyResolver] for {args.Name} not found");
+
+            return null;
+        }
 
         /// <summary>
         /// Registers FFmpeg libraries (ensure you provide x86 or x64 based on your project)
