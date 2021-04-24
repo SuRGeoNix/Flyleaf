@@ -11,19 +11,23 @@ using FlyleafWF = FlyleafLib.Controls.Flyleaf;
 
 namespace FlyleafLib.Controls.WPF
 {
+    [TemplatePart(Name = PART_PlayerGrid, Type = typeof(Grid))]
     [TemplatePart(Name = PART_PlayerHost, Type = typeof(WindowsFormsHost))]
     [TemplatePart(Name = PART_PlayerView, Type = typeof(FlyleafWF))]
     public class VideoView : ContentControl, IVideoView
     {
+        private const string    PART_PlayerGrid = "PART_PlayerGrid";
         private const string    PART_PlayerHost = "PART_PlayerHost";
         private const string    PART_PlayerView = "PART_PlayerView";
+        private IVideoView      ControlRequiresPlayer; // kind of dependency injection (used for WPF control)
+        private bool            IsUpdatingContent;
 
-        bool                    IsUpdatingContent;
-        WindowsFormsHost        windowsFormsHost;
-        private bool            IsDesignMode=> (bool)DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
-        public FlyleafWindow    WindowFront { get; set; }
-        public Window           WindowBack  => WindowFront.WindowBack;
-        public FlyleafWF        FlyleafWF   { get ; set; }
+        private bool            IsDesignMode    => (bool)DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
+        public WindowsFormsHost WinFormsHost    { get; set; }   // Airspace: catch back events (key events working, mouse event not working ... the rest not tested)
+        public FlyleafWindow    WindowFront     { get; set; }   // Airspace: catch any front events
+        public Window           WindowBack      => WindowFront.WindowBack;
+        public FlyleafWF        FlyleafWF       { get; set; }   // Airspace: catch any back events, the problem is that they don't speak the same language (WinForms/WPF)
+        public Grid             PlayerGrid      { get; set; }
         public Player           Player
         {
             get { return (Player)GetValue(PlayerProperty); }
@@ -33,8 +37,6 @@ namespace FlyleafLib.Controls.WPF
         public static readonly DependencyProperty PlayerProperty =
             DependencyProperty.Register("Player", typeof(Player), typeof(VideoView), new PropertyMetadata(null, OnPlayerChanged));
 
-        public IVideoView ControlRequiresPlayer;
-
         private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (e.NewValue == null) return;
@@ -42,22 +44,24 @@ namespace FlyleafLib.Controls.WPF
             VideoView VideoView = d as VideoView;
             if (VideoView.FlyleafWF == null) return;
 
-            Player Player = e.NewValue as Player;
-            Player.VideoView = VideoView;
-            Player.Control = VideoView.FlyleafWF;
+            Player Player       = e.NewValue as Player;
+            Player.VideoView    = VideoView;
+            Player.Control      = VideoView.FlyleafWF;
             if (VideoView.ControlRequiresPlayer != null) VideoView.ControlRequiresPlayer.Player = Player;
         }
 
         public VideoView() { DefaultStyleKey = typeof(VideoView); }
+
         public override void OnApplyTemplate()
         {
             base.ApplyTemplate();
 
             if (IsDesignMode) return;
-
-            FlyleafWF       = Template.FindName(PART_PlayerView, this) as FlyleafWF;
-            windowsFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
-            WindowFront     = new FlyleafWindow(windowsFormsHost);
+            
+            PlayerGrid  = Template.FindName(PART_PlayerGrid, this) as Grid;
+            WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
+            FlyleafWF   = Template.FindName(PART_PlayerView, this) as FlyleafWF;
+            WindowFront = new FlyleafWindow(WinFormsHost);
 
             var curContent = Content;
             IsUpdatingContent = true;
@@ -72,8 +76,8 @@ namespace FlyleafLib.Controls.WPF
 
             if (Player != null && Player.VideoView == null)
             {
-                Player.VideoView = this;
-                Player.Control = FlyleafWF;
+                Player.VideoView= this;
+                Player.Control  = FlyleafWF;
                 if (ControlRequiresPlayer != null) ControlRequiresPlayer.Player = Player;
             }
         }
@@ -93,48 +97,36 @@ namespace FlyleafLib.Controls.WPF
 
         public bool IsFullScreen { get ; private set; }
 
-        object  oldContent, oldParent;
+        object  oldContent;
         public bool FullScreen()
         {
             if (WindowBack == null) return false;
 
-            oldParent = Parent;
+            PlayerGrid.Children.Remove(WinFormsHost);
 
-            if (Parent is StackPanel)
-                ((StackPanel)Parent).Children.Remove(this);
-            else if (Parent is Grid)
-                ((Grid)Parent).Children.Remove(this);
-            else
-                return false;
-
-            oldContent  = WindowBack.Content;
-            WindowBack.Content = this;
-
-            WindowBack.ResizeMode   = ResizeMode.NoResize;
+            oldContent = WindowBack.Content;
+            WindowBack.Content = WinFormsHost;
+            
+            WindowBack.ResizeMode   = ResizeMode. NoResize;
             WindowBack.WindowStyle  = WindowStyle.None;
             WindowBack.WindowState  = WindowState.Maximized;
 
             IsFullScreen = true;
-            WindowFront.Activate();
+            //WindowFront.Activate(); // GPU performance issue? (renderer should be the active window on fullscreen? but only when it goes to fullscreen, after that is fine if you activate front window) TBR...
 
             return true;
         }
 
         public bool NormalScreen()
         {
-            if (oldParent == null || WindowBack == null) return false;
+            if (WindowBack == null) return false;
 
             WindowBack.Content = null;
             WindowBack.Content = oldContent;
 
-            if (oldParent is StackPanel)
-                ((StackPanel)oldParent).Children.Add(this);
-            else if (oldParent is Grid)
-                ((Grid)oldParent).Children.Add(this);
-            else
-                return false;
+            PlayerGrid.Children.Add(WinFormsHost);
 
-            WindowBack.ResizeMode   = ResizeMode.CanResize;
+            WindowBack.ResizeMode   = ResizeMode. CanResize;
             WindowBack.WindowStyle  = WindowStyle.SingleBorderWindow;
             WindowBack.WindowState  = WindowState.Normal;
 
