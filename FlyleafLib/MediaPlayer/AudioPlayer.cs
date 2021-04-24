@@ -144,7 +144,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 try
                 {
-                    if (buffer.BufferedDuration.Milliseconds > (cfg.audio.LatencyTicks / 10000) + 50) // We will see this happen on HLS streams that change source (eg. ads - like two streams playing audio in parallel)
+                    if (buffer.BufferedDuration.Milliseconds > (cfg.audio.LatencyTicks / 10000) + 150) // We will see this happen on HLS streams that change source (eg. ads - like two streams playing audio in parallel)
                     {
                         Log("Resynch !!! | " + buffer.BufferedBytes + " | " + buffer.BufferedDuration);
                         buffer.ClearBuffer();

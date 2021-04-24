@@ -2,15 +2,11 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
-using System.Reflection;
 using System.Windows;
-
-using Newtonsoft.Json; // Required for Plugins (PreLoad here)
 
 using FlyleafLib.Controls;
 using FlyleafLib.MediaFramework;
