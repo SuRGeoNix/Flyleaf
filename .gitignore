@@ -340,5 +340,6 @@ healthchecksdb
 # Plugins
 /Plugins/
 
-# Nuspec
+# NuGet Pack
 *.nuspec
+pack.bat

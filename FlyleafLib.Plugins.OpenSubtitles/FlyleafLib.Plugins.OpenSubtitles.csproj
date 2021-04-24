@@ -33,7 +33,7 @@
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
-      <Private>False</Private>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -64,6 +64,9 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>mkdir "$(SolutionDir)"Plugins\OpenSubtitles
-copy /Y *.dll "$(SolutionDir)"Plugins\OpenSubtitles</PostBuildEvent>
+mkdir "$(SolutionDir)"Plugins\SharedLibs
+
+move Newtonsoft.Json.dll "$(SolutionDir)"Plugins\SharedLibs
+move *.dll "$(SolutionDir)"Plugins\OpenSubtitles</PostBuildEvent>
   </PropertyGroup>
 </Project>
