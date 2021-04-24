@@ -60,12 +60,15 @@ namespace FlyleafLib.MediaPlayer
         
         /// <summary>
         /// Current audio player's device name (see Master.AudioMaster.Devices for valid input names)
+        /// Set to null to use AudioMaster's Device which handles all instances (Default)
         /// </summary>
         public string Device
         {
             get => _Device == null ? Master.AudioMaster.Device : _Device;
             set
             {
+                if (value == null) { _Device = null; Initialize(); return; } // Let the user to change back to AudioMaster's Device
+
                 bool found = false;
                 foreach (var device in DirectSoundOut.Devices.ToList())
                     if (device.Description == value)
@@ -115,7 +118,6 @@ namespace FlyleafLib.MediaPlayer
                 buffer = new BufferedWaveProvider(format);
                 buffer.BufferLength = 1000 * 1024;
                 volumeSampleProvider= new VolumeSampleProvider(buffer.ToSampleProvider());
-
 
                 if (Device == Master.AudioMaster.DefaultDeviceName)
                     player = new DirectSoundOut((int)(cfg.audio.LatencyTicks / 10000));
