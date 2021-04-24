@@ -22,17 +22,12 @@ namespace FlyleafLib.Plugins
 
         YoutubeDLJson ytdl;
 
-        public static string plugin_path = "Plugins\\Youtube-dl\\youtube-dl.exe";
+        public static string plugin_path = "Plugins\\YoutubeDL\\youtube-dl.exe";
 
         static JsonSerializerSettings settings = new JsonSerializerSettings();
         static YoutubeDL() { settings.NullValueHandling = NullValueHandling.Ignore; }
 
-        
-
-        public override void OnLoad()
-        {
-            
-        }
+        public override void OnLoad() { }
 
         public override void OnInitialized()
         {
