@@ -38,7 +38,8 @@
 * .NET Framework 4.7.2 (Seems to be compatible with .NET 5, use Master.PreventAborts=true)
 * FFmpeg shared libraries (compatible with FFmpeg.Autogen)
 * Use Master.RegisterFFmpeg(*ffmpeg_path*) to register them
-* To use plugins put them in *Plugins/PluginName* folder
+* To use plugins requires at least one time to build the solution in *Release* configuration
+* Generaly plugins should exist in *Plugins* output/target directory
 * Debugging with BitSwarm plugin should disable NullReference exceptions
 * Don't run VS designer in x64
 * If you are editing WPF flyleaf's template use style with StaticResource and not DynamicResource
