@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Forms.Integration;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -28,8 +29,9 @@ namespace FlyleafLib.Controls.WPF
         Player _Player;
         public AudioPlayer      AudioPlayer => Player.audioPlayer;
         public AudioMaster      AudioMaster => Master.AudioMaster;
-        public FlyleafWindow    WindowFront => FlyleafView.WindowFront;
-        public VideoView        FlyleafView => Player.VideoView;
+        public FlyleafWindow    WindowFront => VideoView.WindowFront;
+        public WindowsFormsHost WinFormsHost=> VideoView.WinFormsHost;
+        public VideoView        VideoView   => Player.VideoView;
         
         public Session          Session     => Player.Session;
         public Config           Config      => Player.Config;
@@ -113,6 +115,7 @@ namespace FlyleafLib.Controls.WPF
                 var videoItem = from object item in popUpMenu.Items where item is MenuItem && ((MenuItem)item).Header.ToString() == "Video" select item;
                 var aspectRatioItem = from object item in ((MenuItem)videoItem.ToArray()[0]).Items where ((MenuItem)item).Header.ToString() == "Aspect Ratio" select item;
                 popUpAspectRatio = (MenuItem)aspectRatioItem.ToArray()[0];
+                popUpMenu.MouseMove += (o, e) => { lastMouseActivity = DateTime.UtcNow.Ticks; };
             }
 
             if (popUpAspectRatio != null)
@@ -169,38 +172,37 @@ namespace FlyleafLib.Controls.WPF
             if (playerInitialized) return;
             playerInitialized = true;
 
-            FlyleafView.Resources   = Resources;
-            FlyleafView.FontFamily  = FontFamily;
-            FlyleafView.FontSize    = FontSize;
+            VideoView.Resources   = Resources;
+            VideoView.FontFamily  = FontFamily;
+            VideoView.FontSize    = FontSize;
 
-            // Keys
+            // Keys (WFH will work for backwindow's key events) | both WPF
             if (EnableKeyBindings)
             {
-                WindowFront.KeyDown         += Flyleaf_KeyDown;
-                FlyleafView.KeyDown         += Flyleaf_KeyDown;
-                WindowFront.KeyUp           += Flyleaf_KeyUp;
-                FlyleafView.KeyUp           += Flyleaf_KeyUp;
+                WindowFront.KeyDown += Flyleaf_KeyDown;
+                WinFormsHost.KeyDown+= Flyleaf_KeyDown;
+                WindowFront.KeyUp   += Flyleaf_KeyUp;
+                WinFormsHost.KeyUp  += Flyleaf_KeyUp;
             }
 
-            // Mouse (this will not fire on mouse events use Control)
+            // Mouse (For back window we can only use Player.Control to catch mouse events) | WinFroms + WPF :(
             if (EnableMouseEvents)
             {
-                WindowFront.MouseMove       += Flyleaf_MouseMove; 
-                Player.Control.MouseMove    += Control_MouseMove;
+                Player.Control.DoubleClick  += (o, e) => { ToggleFullscreenAction(); };
+                Player.Control.MouseClick   += (o, e) => { if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true; };
 
-                Player.Control.DoubleClick  += Control_DoubleClick;
-                Player.Control.MouseClick   += Control_MouseClick;
+                WindowFront.MouseMove       += (o, e) => { lastMouseActivity = DateTime.UtcNow.Ticks; };
+                Player.Control.MouseMove    += (o, e) => { lastMouseActivity = DateTime.UtcNow.Ticks; };
 
-                Player.Control.MouseWheel   += Control_MouseWheel;
-                WindowFront.MouseWheel      += WindowFront_MouseWheel;
+                Player.Control.MouseWheel   += (o, e) => { Flyleaf_MouseWheel(e.Delta); };
+                WindowFront.MouseWheel      += (o, e) => { Flyleaf_MouseWheel(e.Delta); };
             }
 
             // Drag & Drop
             Player.Control.AllowDrop    = true;
-            Player.Control.DragEnter    += Control_DragEnter;
-            Player.Control.DragDrop     += Control_DragDrop;
+            Player.Control.DragEnter    += Flyleaf_DragEnter;
+            Player.Control.DragDrop     += Flyleaf_DragDrop;
 
-            // Player / Session
             Player.OpenCompleted        += Player_OpenCompleted;
         }
         #endregion
@@ -374,12 +376,12 @@ namespace FlyleafLib.Controls.WPF
         public ICommand ToggleFullscreen    { get; set; }
         public void ToggleFullscreenAction(object obj = null)
         {
-            if (FlyleafView.IsFullScreen)
-                FlyleafView.NormalScreen();
+            if (VideoView.IsFullScreen)
+                VideoView.NormalScreen();
             else
-                FlyleafView.FullScreen();
+                VideoView.FullScreen();
 
-            IsFullscreen = FlyleafView.IsFullScreen;
+            IsFullscreen = VideoView.IsFullScreen;
         }
         #endregion
 
@@ -484,19 +486,22 @@ namespace FlyleafLib.Controls.WPF
             while (_IdleTimeout > 0)
             {
                 Thread.Sleep(500);
+
                 var newMode = GetCurrentActivityMode();
                 if (newMode != CurrentMode)
                 {
                     if (newMode == ActivityMode.Idle && IsFullscreen)
-                        Dispatcher.Invoke(() => { while (ShowCursor(false) >= 0) { } });
+                        Dispatcher.Invoke(() => { while (ShowCursor(false) >= 0) { } isCursorHidden = true;});
 
-                    if (newMode == ActivityMode.FullActive)
+                    if (isCursorHidden && newMode == ActivityMode.FullActive)
                         Dispatcher.Invoke(() => { while (ShowCursor(true)   < 0) { } });
 
                     CurrentMode = newMode;
                 }
             }
         }
+
+        bool isCursorHidden;
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern int ShowCursor(bool bShow);
@@ -571,21 +576,8 @@ namespace FlyleafLib.Controls.WPF
 
             lastKeyboardActivity = DateTime.UtcNow.Ticks;
         }
-        private void Flyleaf_MouseMove(object sender, MouseEventArgs e)
-        {
-            lastMouseActivity = DateTime.UtcNow.Ticks;
-        }
-        private void Control_MouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            lastMouseActivity = DateTime.UtcNow.Ticks;
-        }
-        private void Control_MouseClick(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true;
-        }
-        private void Control_DoubleClick(object sender, EventArgs e) { ToggleFullscreenAction(); }
-        private void Control_DragEnter(object sender, System.Windows.Forms.DragEventArgs e) { e.Effect = System.Windows.Forms.DragDropEffects.All; }
-        private void Control_DragDrop(object sender, System.Windows.Forms.DragEventArgs e)
+        private void Flyleaf_DragEnter(object sender, System.Windows.Forms.DragEventArgs e) { e.Effect = System.Windows.Forms.DragDropEffects.All; }
+        private void Flyleaf_DragDrop(object sender, System.Windows.Forms.DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
@@ -598,22 +590,12 @@ namespace FlyleafLib.Controls.WPF
                 if (text.Length > 0) Open(text);
             }
         }
+        private void Flyleaf_MouseWheel(int delta)
+        {
+            if (delta == 0) return;
 
-        private void Control_MouseWheel(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            if (e.Delta != 0)
-            {
-                curZoom += e.Delta > 0 ? 50 : -50;
-                Player.renderer.Zoom(curZoom);
-            }
-        }
-        private void WindowFront_MouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            if (e.Delta != 0)
-            {
-                curZoom += e.Delta > 0 ? 50 : -50;
-                Player.renderer.Zoom(curZoom);
-            }
+            curZoom += delta > 0 ? 50 : -50;
+            Player.renderer.Zoom(curZoom);
         }
         #endregion
 
