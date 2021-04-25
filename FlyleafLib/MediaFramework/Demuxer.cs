@@ -188,8 +188,8 @@ namespace FlyleafLib.MediaFramework
             ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : url, null, &opt);
             if (ret < 0) { Log($"[Format] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
 
-            // validate that we need this
-            av_format_inject_global_side_data(fmtCtx);
+            // validate that we need this (maybe for hdr or audio side/extra data? TBR)
+            //av_format_inject_global_side_data(fmtCtx);
 
             ret = avformat_find_stream_info(fmtCtx, null);
             if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); return ret; }
@@ -203,7 +203,7 @@ namespace FlyleafLib.MediaFramework
             {
                 var iresults =
                     from    vstream in streams
-                    where   vstream.Type == AVMEDIA_TYPE_VIDEO && vstream.Height <= decCtx.renderer.Info.ScreenBounds.Height
+                    where   vstream.Type == AVMEDIA_TYPE_VIDEO && vstream.Height <= decCtx.renderer.Info.ScreenBounds.Height && vstream.CodecName != "mjpeg" // Better way to exclude attached images?
                     orderby vstream.Height descending
                     select  vstream;
 

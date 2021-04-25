@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Web;
 
 using Newtonsoft.Json;
+
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins.MediaStream;
 
@@ -13,14 +14,13 @@ namespace FlyleafLib.Plugins
 {
     public class OpenSubtitles : PluginBase, IPluginSubtitles
     {
+        public static int TimeoutSeconds { get; set; } = 15; // TODO config
+
         Session Session => Player.Session;
 
-        internal static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [OpenSubtitles] {msg}"); }
-
+        static Dictionary<string, List<OpenSubtitlesJson>> cache = new Dictionary<string, List<OpenSubtitlesJson>>();
         static readonly string  restUrl     = "https://rest.opensubtitles.org/search";
         static readonly string  userAgent   = "Flyleaf v2.0";
-
-        static Dictionary<string, List<OpenSubtitlesJson>> cache = new Dictionary<string, List<OpenSubtitlesJson>>();
 
         // https://trac.OpenSubtitlesJson.org/projects/OpenSubtitlesJson/wiki/HashSourceCodes
         public static byte[] ComputeMovieHash(string filename)
@@ -72,7 +72,7 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, 0, 0, -1) })
+            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, TimeoutSeconds) })
             {
                 string resp = "";
                 List<OpenSubtitlesJson> subs = new List<OpenSubtitlesJson>();
@@ -80,15 +80,15 @@ namespace FlyleafLib.Plugins
                 client.DefaultRequestHeaders.Accept.Clear();
                 client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
 
-                //try
-                //{
+                try
+                {
                     Log($"Searching for /moviebytesize-{length}/moviehash-{hash}");
                     resp = client.PostAsync($"{restUrl}/moviebytesize-{length}/moviehash-{hash}", null).Result.Content.ReadAsStringAsync().Result;
                     subs = JsonConvert.DeserializeObject<List<OpenSubtitlesJson>>(resp);
                     Log($"Search Results {subs.Count}");
                     cache.Add(hash + "|" + length, subs);
                     foreach (OpenSubtitlesJson sub in subs) subsCopy.Add(sub);
-                //} catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+                } catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
 
                 return subsCopy;
             }
@@ -105,7 +105,7 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, 0, 0, -1) })
+            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, TimeoutSeconds) })
             {
                 string resp = "";
                 List<OpenSubtitlesJson> subs = new List<OpenSubtitlesJson>();
@@ -143,7 +143,7 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, 0, 0, -1) })
+            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, TimeoutSeconds) })
             {
                 string resp = "";
                 List<OpenSubtitlesJson> subs = new List<OpenSubtitlesJson>();
@@ -284,11 +284,7 @@ namespace FlyleafLib.Plugins
         SubtitleStream IPluginSubtitles.OpenSubtitles(Language lang)
         {
             foreach(var stream in SubtitleStreams)
-            {
                 if (stream.Language == lang) return stream;
-                break;
-                //if (((OpenSubtitlesJson)stream.Tag).)
-            }
 
             return null;
         }
@@ -297,7 +293,9 @@ namespace FlyleafLib.Plugins
         {
             if (stream.Tag == null || !(stream.Tag is OpenSubtitlesJson)) return null;
 
-            return (SubtitleStream)stream;
+            return stream;
         }
+
+        static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [OpenSubtitles] {msg}"); }
     }
 }
