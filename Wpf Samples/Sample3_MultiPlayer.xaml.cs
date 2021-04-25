@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 
@@ -18,13 +19,19 @@ namespace Wpf_Samples
 
         public Sample3_MultiPlayer()
         {
+            // Registering FFmpeg libraries (instead of specific path using default :2 option for Libs\(x86 or x64 dynamic)\FFmpeg from current to base)
             Master.RegisterFFmpeg(":2");
-            InitializeComponent();
 
+            InitializeComponent();
             DataContext = this;
 
+            // Samples using custom configurations
             Config playerConfig1 = new Config();
             playerConfig1.video.AspectRatio = AspectRatio.Fill;
+
+            // Even more advanced AVFormatOptions for main/Video demuxer (When streams are not fully identified and ffmpeg requires more analyzation)
+            //playerConfig1.demuxer.VideoFormatOpt.Add("probesize",(116 * (long)1024 * 1024).ToString());
+            //playerConfig1.demuxer.VideoFormatOpt.Add("analyzeduration",(333 * (long)1000 * 1000).ToString());
             Player1 = new Player(playerConfig1);
 
             Config playerConfig2 = new Config();
@@ -34,13 +41,29 @@ namespace Wpf_Samples
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            Player1.Open("../../../Sample.mp4");
+            // Sample using rtsp stream
+            Player1.Open("rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov");
 
-            // Sample using different audio device on Player 2
-            //Player2.audioPlayer.Device = "4 - 24G2W1G4 (AMD High Definition Audio Device)";
+            // Sample using different (random) audio device on Player 2
+            foreach(var device in Master.AudioMaster.Devices)
+                Console.WriteLine($"Available device: {device}");
 
-            // Sample using a 'custom' stream input
-            Player2.Open(new FileStream("../../../Sample.mp4", FileMode.Open));
+            string selectedDevice = Master.AudioMaster.Devices[(new Random()).Next(0, Master.AudioMaster.Devices.Count)];
+            Console.WriteLine($"Selected device: {selectedDevice}");
+            Player2.audioPlayer.Device = selectedDevice;
+
+            // Sample using a 'custom' input IO stream
+            Stream customInput = new FileStream("../../../Sample.mp4", FileMode.Open);
+            Player2.Open(customInput);
+
+            // Sample performing Seek on Player1 (after 10 seconds -to ensure open completed- in the middle of the movie)
+            Thread seekThread = new Thread(() =>
+            {
+                Thread.Sleep(10000);
+                Player1.Seek((int) ((Player1.Session.Movie.Duration/10000) / 2));
+            });
+            seekThread.IsBackground = true;
+            seekThread.Start();
         }
     }
 }
