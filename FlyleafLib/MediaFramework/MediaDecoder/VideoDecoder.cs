@@ -39,7 +39,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         byte_ptrArray4          outData;
         int_array4              outLineSize;
 
-        bool                    keyFrameRequired;
+        internal bool           keyFrameRequired;
 
         public VideoDecoder(MediaContext.DecoderContext decCtx) : base(decCtx)
         {

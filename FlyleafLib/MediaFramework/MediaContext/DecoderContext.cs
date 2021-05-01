@@ -261,6 +261,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
                                     Log(Utils.TicksToTime((long)(mFrame.pts * VideoDecoder.VideoStream.Timebase)) + " | pts -> " + mFrame.pts);
                                     VideoDecoder.Frames.Enqueue(mFrame);
                                     av_frame_unref(frame);
+                                    VideoDecoder.keyFrameRequired = false;
+
                                     return mFrame.timestamp;
                                 }
                             }
