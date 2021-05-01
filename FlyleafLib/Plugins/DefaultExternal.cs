@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-using FlyleafLib.Plugins.MediaStream;
+using FlyleafLib.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
@@ -8,34 +8,34 @@ namespace FlyleafLib.Plugins
     {
         public bool IsPlaylist => false;
 
-        public bool Download(SubtitleStream stream) { return true; }
+        public bool Download(SubtitlesStream stream) { return true; }
 
-        public SubtitleStream OpenSubtitles(string url)
+        public SubtitlesStream OpenSubtitles(string url)
         {
-            foreach(var stream in SubtitleStreams)
-                if (stream.DecoderInput.Url == url || stream.Tag.ToString() == url) return stream;
+            foreach(var stream in SubtitlesStreams)
+                if (stream.Url == url || stream.Tag.ToString() == url) return stream;
 
-            SubtitleStreams.Add(new SubtitleStream()
+            SubtitlesStreams.Add(new SubtitlesStream()
             {
-                DecoderInput= new DecoderInput() { Url = url },
+                Url = url,
                 Downloaded  = true,
                 Tag         = url // Use it here because of possible convert to Utf8 and rename
             });
 
-            return SubtitleStreams[SubtitleStreams.Count - 1];
+            return SubtitlesStreams[SubtitlesStreams.Count - 1];
         }
-        public SubtitleStream OpenSubtitles(SubtitleStream stream)
+        public SubtitlesStream OpenSubtitles(SubtitlesStream stream)
         {
-            foreach(var sstream in SubtitleStreams)
+            foreach(var sstream in SubtitlesStreams)
                 if (sstream.Tag == stream.Tag) return stream;
 
             return null;
         }
-        public SubtitleStream OpenSubtitles(Language lang) { return null; }
+        public SubtitlesStream OpenSubtitles(Language lang) { return null; }
 
         public VideoStream OpenVideo(Stream stream)
         {
-            VideoStreams.Add(new VideoStream() { DecoderInput = new DecoderInput() { Stream = stream } });
+            VideoStreams.Add(new VideoStream() { Stream = stream });
             return VideoStreams[VideoStreams.Count - 1];
         }
         public OpenVideoResults OpenVideo() { return null; }

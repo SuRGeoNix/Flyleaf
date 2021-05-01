@@ -7,7 +7,7 @@ using static FFmpeg.AutoGen.AVMediaType;
 
 using Device = SharpDX.Direct3D11.Device;
 
-namespace FlyleafLib.MediaFramework
+namespace FlyleafLib.MediaFramework.MediaDecoder
 {
     public unsafe class VideoAcceleration
     {
@@ -42,6 +42,8 @@ namespace FlyleafLib.MediaFramework
             return ret;
         }
         public VideoAcceleration() { }
+
+        public VideoAcceleration(Device device) { Init(device); }
 
         public static bool CheckCodecSupport(AVCodec* codec)
         {

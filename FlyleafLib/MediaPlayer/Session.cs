@@ -1,6 +1,6 @@
 ﻿using FlyleafLib.MediaFramework;
 using FlyleafLib.Plugins;
-using FlyleafLib.Plugins.MediaStream;
+using FlyleafLib.MediaStream;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -28,17 +28,17 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Holds the decocer's current Video stream
         /// </summary>
-        public StreamInfo       VideoInfo           => player.decoder?.vDecoder?.info;
+        public VideoStream      VideoInfo          => player.decoder?.VideoDecoder?.VideoStream;
 
         /// <summary>
         /// Holds the decoder's current Audio stream
         /// </summary>
-        public StreamInfo       AudioInfo           => player.decoder?.aDecoder?.info;
+        public AudioStream      AudioInfo          => player.decoder?.AudioDecoder?.AudioStream;
 
         /// <summary>
         /// Holds the decoder's current Subtitle stream
         /// </summary>
-        public StreamInfo       SubsInfo            => player.decoder?.sDecoder?.info;
+        public SubtitlesStream  SubsInfo            => player.decoder?.SubtitlesDecoder?.SubtitlesStream;
 
         /// <summary>
         /// Holds the current Video stream
@@ -53,7 +53,7 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Holds the current Subtitle stream
         /// </summary>
-        public SubtitleStream   CurSubtitleStream   { get; internal set; }
+        public SubtitlesStream   CurSubtitleStream   { get; internal set; }
 
         /// <summary>
         /// Holds the last enabled Audio stream in case of disabling
@@ -63,7 +63,7 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Holds the last enabled Subtitle stream in case of disabling
         /// </summary>
-        public SubtitleStream   LastSubtitleStream  { get; internal set; }
+        public SubtitlesStream  LastSubtitleStream  { get; internal set; }
 
         /// <summary>
         /// Holds the initial user's video input

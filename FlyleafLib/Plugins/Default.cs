@@ -1,8 +1,13 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+
+using FFmpeg.AutoGen;
+using static FFmpeg.AutoGen.AVMediaType;
+using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.Plugins.MediaStream;
+using FlyleafLib.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
@@ -23,52 +28,37 @@ namespace FlyleafLib.Plugins
         }
 
         VideoStream defaultVideo;
+
         public override void OnVideoOpened()
         {
-            foreach(var stream in Player.decoder.demuxer.streams)
-                if (stream.Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO)
-                {
-                    AudioStreams.Add(new AudioStream()
-                    {
-                        DecoderInput    = new DecoderInput() { StreamIndex = stream.StreamIndex },
-                        BitRate         = stream.BitRate,
-                        Language        = Language.Get(stream.Language),
+            // TODO add also external demuxers (add range)
+            AudioStreams = Player.decoder.VideoDemuxer.AudioStreams;
+            VideoStreams = Player.decoder.VideoDemuxer.VideoStreams;
+            SubtitlesStreams = Player.decoder.VideoDemuxer.SubtitlesStreams;
 
-                        SampleFormat    = stream.SampleFormatStr,
-                        SampleRate      = stream.SampleRate,
-                        Channels        = stream.Channels,
-                        Bits            = stream.Bits
-                    });
-                }
-                else if (stream.Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO)
-                {
-                    VideoStream videoStream     = new VideoStream();
-                    VideoStream ptrVideoStream  = stream.StreamIndex == Player.decoder.vDecoder.st->index ? defaultVideo : videoStream;
+            // if (!player.HasVideo) ... possible allow plugins to select embedded video?
 
-                    ptrVideoStream.DecoderInput = new DecoderInput() { StreamIndex = stream.StreamIndex };
-                    ptrVideoStream.BitRate      = stream.BitRate;
-                    ptrVideoStream.Language     = Language.Get(stream.Language);
+            // Try to find best video stream based on current screen resolution
+            var iresults =
+                from    vstream in VideoStreams
+                where   vstream.Type == MediaType.Video && vstream.Height <= Player.renderer.Info.ScreenBounds.Height && vstream.CodecName != "mjpeg" // Better way to exclude attached images?
+                orderby vstream.Height descending
+                select  vstream;
 
-                    ptrVideoStream.PixelFormat  = stream.PixelFormatStr;
-                    ptrVideoStream.Width        = stream.Width;
-                    ptrVideoStream.Height       = stream.Height;
-                    ptrVideoStream.FPS          = stream.FPS;
-                    VideoStreams.Add(ptrVideoStream);
-                }
-                else if (stream.Type == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_SUBTITLE)
-                {
-                    SubtitleStreams.Add(new SubtitleStream()
-                    {
-                        DecoderInput    = new DecoderInput() { StreamIndex = stream.StreamIndex },
-                        BitRate         = stream.BitRate,
-                        Language        = Language.Get(stream.Language),
+            var results = iresults.ToList();
 
-                        Downloaded      = true,
-                        Converted       = true
-                    });
-                }
+            if (results.Count != 0)
+                Player.decoder.VideoDecoder.Open(iresults.ToList()[0]);
+            else
+            {
+                // Let FFmpeg decide
+                int vstreamIndex = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
+                if (vstreamIndex < 0) return;
 
-            defaultVideo.InUse = true;
+                foreach(var vstream in VideoStreams)
+                    if (vstream.StreamIndex == vstreamIndex)
+                        { Player.decoder.VideoDecoder.Open(vstream); break; }
+            }
         }
         public OpenVideoResults OpenVideo()
         {
@@ -101,17 +91,17 @@ namespace FlyleafLib.Plugins
                 Session.SingleMovie.UrlType = UrlType.Other;
             }
 
-            defaultVideo.DecoderInput.Url = Session.InitialUrl;
+            defaultVideo.Url = Session.InitialUrl;
             return new OpenVideoResults(defaultVideo);
         }
         public VideoStream OpenVideo(VideoStream stream) { return stream; }
 
         public AudioStream OpenAudio(AudioStream stream) 
         {
-            if (stream.DecoderInput.StreamIndex == -1) return null;
+            if (stream.StreamIndex == -1) return null;
 
             foreach(var astream in AudioStreams)
-                if (astream.DecoderInput.StreamIndex == stream.DecoderInput.StreamIndex) return astream;
+                if (astream.StreamIndex == stream.StreamIndex) return astream;
 
             return null;
         }
@@ -124,27 +114,27 @@ namespace FlyleafLib.Plugins
                     if (stream.Language == lang) return stream;
 
             // Fall-back to FFmpeg's default
-            int ret = FFmpeg.AutoGen.ffmpeg.av_find_best_stream(Player.decoder.demuxer.fmtCtx, FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_AUDIO, -1, Player.decoder.vDecoder.st->index, null, 0);
-            foreach(var stream in AudioStreams) if (stream.DecoderInput.StreamIndex == ret) return stream;
+            int ret = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, Player.decoder.VideoDecoder.Stream.StreamIndex, null, 0);
+            foreach(var stream in AudioStreams) if (stream.StreamIndex == ret) return stream;
 
             return null;
         }
 
         public void Search(Language lang) { }
-        public bool Download(SubtitleStream stream) { return true; }
-        public SubtitleStream OpenSubtitles(Language lang)
+        public bool Download(SubtitlesStream stream) { return true; }
+        public SubtitlesStream OpenSubtitles(Language lang)
         {
-            foreach(var stream in SubtitleStreams)
+            foreach(var stream in SubtitlesStreams)
                 if (lang == stream.Language) return stream;
 
             return null;
         }
-        public SubtitleStream OpenSubtitles(SubtitleStream stream)
+        public SubtitlesStream OpenSubtitles(SubtitlesStream stream)
         {
-            if (stream.DecoderInput.StreamIndex == -1) return null;
+            if (stream.StreamIndex == -1) return null;
 
-            foreach(var sstream in SubtitleStreams)
-                if (sstream.DecoderInput.StreamIndex == stream.DecoderInput.StreamIndex) return sstream;
+            foreach(var sstream in SubtitlesStreams)
+                if (sstream.StreamIndex == stream.StreamIndex) return sstream;
 
             return null;
         }

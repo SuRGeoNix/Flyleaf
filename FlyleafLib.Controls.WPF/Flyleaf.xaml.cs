@@ -16,7 +16,7 @@ using MaterialDesignThemes.Wpf;
 using MaterialDesignColors;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.Plugins.MediaStream;
+using FlyleafLib.MediaStream;
 
 namespace FlyleafLib.Controls.WPF
 {
@@ -236,12 +236,11 @@ namespace FlyleafLib.Controls.WPF
             Zoom                = new RelayCommand(ZoomAction);
         }
 
-        int curZoom = 0;
         public ICommand ZoomReset { get; set; }
-        public void ZoomResetAction(object obj = null) { curZoom = 0; Player.renderer.Zoom(curZoom);  }
+        public void ZoomResetAction(object obj = null) { Player.renderer.Zoom = 0;  }
 
         public ICommand Zoom { get; set; }
-        public void ZoomAction(object offset) { curZoom += int.Parse(offset.ToString()); Player.renderer.Zoom(curZoom); }
+        public void ZoomAction(object offset) { Player.renderer.Zoom += int.Parse(offset.ToString()); }
 
         public ICommand TakeSnapshot { get; set; }
         public void TakeSnapshotAction(object obj = null) { Player.renderer.TakeSnapshot(System.IO.Path.Combine(Environment.CurrentDirectory,"FlyleafSnapshot.bmp")); }
@@ -594,8 +593,7 @@ namespace FlyleafLib.Controls.WPF
         {
             if (delta == 0) return;
 
-            curZoom += delta > 0 ? 50 : -50;
-            Player.renderer.Zoom(curZoom);
+            Player.renderer.Zoom += delta > 0 ? 50 : -50;
         }
         #endregion
 

@@ -4,7 +4,7 @@ using System.IO;
 using System.Reflection;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.Plugins.MediaStream;
+using FlyleafLib.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
@@ -15,9 +15,9 @@ namespace FlyleafLib.Plugins
 
         public Player   Player;
 
-        public List<AudioStream>    AudioStreams    {get; set; }    = new List<AudioStream>();
-        public List<VideoStream>    VideoStreams    {get; set; }    = new List<VideoStream>();
-        public List<SubtitleStream> SubtitleStreams {get; set; }    = new List<SubtitleStream>();
+        public List<AudioStream>        AudioStreams        { get; set; } = new List<AudioStream>();
+        public List<VideoStream>        VideoStreams        { get; set; } = new List<VideoStream>();
+        public List<SubtitlesStream>    SubtitlesStreams     { get; set; } = new List<SubtitlesStream>();
 
         public virtual void OnLoad() { }
 
@@ -29,7 +29,7 @@ namespace FlyleafLib.Plugins
             Player = null;
             AudioStreams = null;
             VideoStreams = null;
-            SubtitleStreams = null;
+            SubtitlesStreams = null;
 
             disposed = true;
         }
@@ -39,7 +39,7 @@ namespace FlyleafLib.Plugins
         {
             AudioStreams.Clear();
             VideoStreams.Clear();
-            SubtitleStreams.Clear();
+            SubtitlesStreams.Clear();
         }
 
         public virtual void OnInitializingSwitch() { }
@@ -77,14 +77,14 @@ namespace FlyleafLib.Plugins
     public interface IPluginSubtitles
     {
         void Search(Language lang);
-        bool Download(SubtitleStream stream);
-        SubtitleStream OpenSubtitles(Language lang);
-        SubtitleStream OpenSubtitles(SubtitleStream stream);
+        bool Download(SubtitlesStream stream);
+        SubtitlesStream OpenSubtitles(Language lang);
+        SubtitlesStream OpenSubtitles(SubtitlesStream stream);
     }
 
     public interface IPluginExternal : IPluginSubtitles, IPluginVideo
     {
         VideoStream OpenVideo(Stream stream);
-        SubtitleStream OpenSubtitles(string url);
+        SubtitlesStream OpenSubtitles(string url);
     }
 }
