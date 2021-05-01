@@ -6,7 +6,7 @@ namespace FlyleafLib.Plugins
     internal class YoutubeDLJson
     {
         public string url { get; set; }
-        //public string manifest_url { get; set; }
+        public string manifest_url { get; set; }
         //public string fragment_base_url { get; set; }
         public object series { get; set; }
         public string format { get; set; }
@@ -72,7 +72,7 @@ namespace FlyleafLib.Plugins
         public class Format
         {
             public string url { get; set; }
-            //public string manifest_url { get; set; } 
+            public string manifest_url { get; set; } 
             public object player_url { get; set; }
 
 

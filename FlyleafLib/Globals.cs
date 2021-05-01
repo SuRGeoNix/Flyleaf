@@ -5,23 +5,13 @@ using System.Runtime.CompilerServices;
 
 namespace FlyleafLib
 {
-    public enum Status
+    public enum PixelFormatType
     {
-        None,
-
-        Opening,
-        OpenFailed,
-        Opened,
-
-        Playing,
-        Seeking,
-        Stopping,
-
-        Paused,
-        Stopped,
-        Ended,
-        Failed
+        Hardware,
+        Software_Handled,
+        Software_Sws
     }
+
     public enum MediaType
     {
         Audio,
@@ -37,23 +27,6 @@ namespace FlyleafLib
         Other
     }
 
-    public class DecoderInput
-    {
-        /// <summary>
-        /// Any FFmpeg valid video url
-        /// </summary>
-        public string   Url         { get; set; }
-
-        /// <summary>
-        /// Any main Demuxer's existing stream index (demuxer.streams[])
-        /// </summary>
-        public int      StreamIndex { get; set; } = -1;
-
-        /// <summary>
-        /// Any valid custom Stream type (CanRead/CanSeek)
-        /// </summary>
-        public Stream   Stream      { get; set; }
-    }
     public class Movie
     {
         public string   Url         { get; set; }

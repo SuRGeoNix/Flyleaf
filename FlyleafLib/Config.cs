@@ -218,7 +218,7 @@ namespace FlyleafLib
             /// <summary>
             /// NAudio's latency (required buffered duration before playing)
             /// </summary>
-            public long             LatencyTicks    { get; set; } = 200 * 10000;
+            public long             LatencyTicks    { get; set; } = 70 * 10000;
 
             /// <summary>
             /// Audio languages preference by priority
@@ -231,8 +231,6 @@ namespace FlyleafLib
             /// </summary>
             public long             DelayTicks      { get { if (player != null && player.Session.CurAudioStream != null) return player.Session.CurAudioStream.Delay; else return _DelayTicks; }   set { if (player != null && player.Session.CurAudioStream != null) player.Session.CurAudioStream.Delay = value; Set(ref _DelayTicks, value); player?.SetAudioDelay(); } }
             long    _DelayTicks = 0;
-
-            public void SetDelayTicks(long delay) { _DelayTicks = 0; Raise(nameof(DelayTicks)); }
         }
 
         public class Subs : NotifyPropertyChanged

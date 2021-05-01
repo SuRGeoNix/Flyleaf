@@ -8,7 +8,7 @@ using System.Web;
 using Newtonsoft.Json;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.Plugins.MediaStream;
+using FlyleafLib.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
@@ -228,7 +228,7 @@ namespace FlyleafLib.Plugins
             }
 
             foreach(var sub in subs)
-                SubtitleStreams.Add(new SubtitleStream()
+                SubtitlesStreams.Add(new SubtitlesStream()
                 {
                     UrlName     = sub.SubFileName,
                     Rating      = sub.SubRating,
@@ -257,11 +257,11 @@ namespace FlyleafLib.Plugins
 
             string hash = null;
             if (Player.Session.Movie.FileSize != 0)
-                if (Session.CurVideoStream != null && Session.CurVideoStream.DecoderInput.Stream != null)
+                if (Session.CurVideoStream != null && Session.CurVideoStream.Stream != null)
                 {
-                    var savePos = Session.CurVideoStream.DecoderInput.Stream.Position;
-                    hash  = Utils.ToHexadecimal(ComputeMovieHash(Session.CurVideoStream.DecoderInput.Stream, Player.Session.Movie.FileSize));
-                    Session.CurVideoStream.DecoderInput.Stream.Position = savePos;
+                    var savePos = Session.CurVideoStream.Stream.Position;
+                    hash  = Utils.ToHexadecimal(ComputeMovieHash(Session.CurVideoStream.Stream, Player.Session.Movie.FileSize));
+                    Session.CurVideoStream.Stream.Position = savePos;
                 }
                 else
                     hash = Utils.ToHexadecimal(ComputeMovieHash(Player.Session.Movie.Url));
@@ -269,33 +269,33 @@ namespace FlyleafLib.Plugins
             Search(Player.Session.Movie.Title, hash, Player.Session.Movie.FileSize, Player.Config.subs.Languages);
         }
 
-        public bool Download(SubtitleStream stream)
+        public bool Download(SubtitlesStream stream)
         {
             if (stream.Tag == null || !(stream.Tag is OpenSubtitlesJson)) return false;
 
             var sub = (OpenSubtitlesJson) stream.Tag;
             if (sub.Download() != 0) return false;
 
-            stream.DecoderInput.Url = sub.AvailableAt;
+            stream.Url = sub.AvailableAt;
 
             return true;
         }
 
-        SubtitleStream IPluginSubtitles.OpenSubtitles(Language lang)
+        SubtitlesStream IPluginSubtitles.OpenSubtitles(Language lang)
         {
-            foreach(var stream in SubtitleStreams)
+            foreach(var stream in SubtitlesStreams)
                 if (stream.Language == lang) return stream;
 
             return null;
         }
 
-        SubtitleStream IPluginSubtitles.OpenSubtitles(SubtitleStream stream)
+        SubtitlesStream IPluginSubtitles.OpenSubtitles(SubtitlesStream stream)
         {
             if (stream.Tag == null || !(stream.Tag is OpenSubtitlesJson)) return null;
 
             return stream;
         }
 
-        static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [OpenSubtitles] {msg}"); }
+        internal static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [OpenSubtitles] {msg}"); }
     }
 }

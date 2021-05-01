@@ -14,15 +14,20 @@ using InputElement  = SharpDX.Direct3D11.InputElement;
 using Filter        = SharpDX.Direct3D11.Filter;
 using DeviceContext = SharpDX.Direct3D11.DeviceContext;
 
-using FlyleafLib.MediaFramework;
 using FlyleafLib.MediaPlayer;
+using FlyleafLib.MediaFramework.MediaContext;
+using FlyleafLib.MediaFramework.MediaFrame;
+
+using VideoDecoder = FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder;
 
 namespace FlyleafLib.MediaRenderer
 {
     public class Renderer : IDisposable
     {
-        public Viewport     GetViewport     { get; private set; }
         public RendererInfo Info            { get; internal set; }
+        public Viewport     GetViewport     { get; private set; }
+        public int          Zoom            { get => zoom; set { zoom = value; SetViewport(); if (!player.IsPlaying) PresentFrame(); } }
+        int zoom;
 
         Player              player;
         DecoderContext      decoder => player.decoder;
@@ -81,7 +86,7 @@ namespace FlyleafLib.MediaRenderer
 
             //device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug, ((SharpDX.Direct3D.FeatureLevel[]) Enum.GetValues(typeof(SharpDX.Direct3D.FeatureLevel))).Reverse().ToArray() );
             //deviceDbg = new DeviceDebug(device); // To Report Live Objects if required
-            device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport, ((SharpDX.Direct3D.FeatureLevel[]) Enum.GetValues(typeof(SharpDX.Direct3D.FeatureLevel))).Reverse().ToArray() );
+            device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport, !Utils.IsWin10 ? null : ((SharpDX.Direct3D.FeatureLevel[]) Enum.GetValues(typeof(SharpDX.Direct3D.FeatureLevel))).Reverse().ToArray());
             using (var mthread = device.QueryInterface<Multithread>()) mthread.SetMultithreadProtected(true);
 
             using (var device2 = device.QueryInterface<SharpDX.DXGI.Device2>())
@@ -206,7 +211,7 @@ namespace FlyleafLib.MediaRenderer
             {
                 srvDescR = new ShaderResourceViewDescription()
                 {
-                    Format      = decoder.vDecoder.info.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
+                    Format      = decoder.VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
                     Dimension   = SharpDX.Direct3D.ShaderResourceViewDimension.Texture2D,
                     Texture2D   = new ShaderResourceViewDescription.Texture2DResource()
                     {
@@ -217,7 +222,7 @@ namespace FlyleafLib.MediaRenderer
 
                 srvDescRG = new ShaderResourceViewDescription()
                 {
-                    Format      = decoder.vDecoder.info.PixelBits > 8 ? Format.R16G16_UNorm : Format.R8G8_UNorm,
+                    Format      = decoder.VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16G16_UNorm : Format.R8G8_UNorm,
                     Dimension   = SharpDX.Direct3D.ShaderResourceViewDimension.Texture2D,
                     Texture2D   = new ShaderResourceViewDescription.Texture2DResource()
                     {
@@ -229,14 +234,14 @@ namespace FlyleafLib.MediaRenderer
                 string yuvtype = "";
                 string curPixelShaderStr = "";
 
-                if (decoder.vDecoder.hwAccelSuccess)
+                if (decoder.VideoDecoder.VideoAccelerated)
                     yuvtype = "Y_UV";
-                else if (decoder.vDecoder.info.PixelFormatType == PixelFormatType.Software_Handled)
+                else if (decoder.VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
                     yuvtype = "Y_U_V";
                 else
                     curPixelShaderStr = "PixelShader";
 
-                if (yuvtype != "") curPixelShaderStr = $"{decoder.vDecoder.info.ColorSpace}_{yuvtype}_{decoder.vDecoder.info.ColorRange}";
+                if (yuvtype != "") curPixelShaderStr = $"{decoder.VideoDecoder.VideoStream.ColorSpace}_{yuvtype}_{decoder.VideoDecoder.VideoStream.ColorRange}";
                 
                 Log($"Selected PixelShader: {curPixelShaderStr}");
                 curPixelShader = pixelShaders[curPixelShaderStr];
@@ -246,29 +251,30 @@ namespace FlyleafLib.MediaRenderer
         }
         public void SetViewport()
         {
-            if (cfg.video.AspectRatio == AspectRatio.Fill || (cfg.video.AspectRatio == AspectRatio.Keep && decoder.vDecoder.info == null))// || !player.Session.CanPlay)
+            if (cfg.video.AspectRatio == AspectRatio.Fill || (cfg.video.AspectRatio == AspectRatio.Keep && decoder.VideoDecoder.VideoStream == null))// || !player.Session.CanPlay)
             {
                 GetViewport     = new Viewport(0, 0, player.Control.Width, player.Control.Height);
-                context.Rasterizer.SetViewport(0, 0, player.Control.Width, player.Control.Height);
+                context.Rasterizer.SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
             }
             else
             {
-                float ratio = cfg.video.AspectRatio == AspectRatio.Keep ? decoder.vDecoder.info.AspectRatio.Value : (cfg.video.AspectRatio == AspectRatio.Custom ? cfg.video.CustomAspectRatio.Value : cfg.video.AspectRatio.Value);
+                float ratio = cfg.video.AspectRatio == AspectRatio.Keep ? decoder.VideoDecoder.VideoStream.AspectRatio.Value : (cfg.video.AspectRatio == AspectRatio.Custom ? cfg.video.CustomAspectRatio.Value : cfg.video.AspectRatio.Value);
                 if (ratio <= 0) ratio = 1;
 
                 if (player.Control.Width / ratio > player.Control.Height)
                 {
                     GetViewport = new Viewport((int)(player.Control.Width - (player.Control.Height * ratio)) / 2, 0 ,(int) (player.Control.Height * ratio),player.Control.Height, 0.0f, 1.0f);
-                    context.Rasterizer.SetViewport(GetViewport);
+                    context.Rasterizer.SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
                 }
                 else
                 {
                     GetViewport = new Viewport(0,(int)(player.Control.Height - (player.Control.Width / ratio)) / 2, player.Control.Width,(int) (player.Control.Width / ratio), 0.0f, 1.0f);
-                    context.Rasterizer.SetViewport(GetViewport);
+                    context.Rasterizer.SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
                 }
             }
         }
-        public void PresentFrame(MediaFrame frame = null)
+
+        public void PresentFrame(VideoFrame frame = null)
         {
             if (device == null) return;
 
@@ -281,13 +287,13 @@ namespace FlyleafLib.MediaRenderer
                 {
                     if (frame != null)
                     {
-                        if (decoder.vDecoder.hwAccelSuccess)
+                        if (decoder.VideoDecoder.VideoAccelerated)
                         {
                             curSRVs     = new ShaderResourceView[2];
                             curSRVs[0]  = new ShaderResourceView(device, frame.textures[0], srvDescR);
                             curSRVs[1]  = new ShaderResourceView(device, frame.textures[0], srvDescRG);
                         }
-                        else if (decoder.vDecoder.info.PixelFormatType == PixelFormatType.Software_Handled)
+                        else if (decoder.VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
                         {
                             curSRVs     = new ShaderResourceView[3];
                             curSRVs[0]  = new ShaderResourceView(device, frame.textures[0]);
@@ -318,7 +324,7 @@ namespace FlyleafLib.MediaRenderer
 
                 } finally { Monitor.Exit(device); }
 
-            } else { Log("Dropped Frame - Lock timeout " + ( frame != null ? Utils.TicksToTime(frame.timestamp) : "")); Utils.DisposeVideoFrame(frame); }
+            } else { Log("Dropped Frame - Lock timeout " + ( frame != null ? Utils.TicksToTime(frame.timestamp) : "")); VideoDecoder.DisposeFrame(frame); }
         }
 
         public void TakeSnapshot(string fileName)
@@ -330,7 +336,7 @@ namespace FlyleafLib.MediaRenderer
                 Utilities.Dispose(ref rtv);
                 Utilities.Dispose(ref backBuffer);
 
-                swapChain.ResizeBuffers(0, decoder.vDecoder.info.Width, decoder.vDecoder.info.Height, Format.Unknown, SwapChainFlags.None);
+                swapChain.ResizeBuffers(0, decoder.VideoDecoder.VideoStream.Width, decoder.VideoDecoder.VideoStream.Height, Format.Unknown, SwapChainFlags.None);
                 backBuffer  = Texture2D.FromSwapChain<Texture2D>(swapChain, 0);
                 rtv         = new RenderTargetView(device, backBuffer);
                 context.Rasterizer.SetViewport(0, 0, backBuffer.Description.Width, backBuffer.Description.Height);
@@ -379,15 +385,7 @@ namespace FlyleafLib.MediaRenderer
             try { snapshotBitmap.Save(fileName); } catch (Exception) { }
             snapshotBitmap.Dispose();
         }
-        public void SetViewport(int x, int y, int width, int height)
-        {
-            context.Rasterizer.SetViewport(x, y, width, height);
-            if (!player.IsPlaying) PresentFrame();
-        }
-        public void Zoom(int zoom)
-        {
-            SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
-        }
+
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [Renderer] {msg}"); }
     }
 }
