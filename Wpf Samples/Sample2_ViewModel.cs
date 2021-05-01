@@ -81,6 +81,8 @@ namespace Wpf_Samples
         #endregion
 
         #region Initialize
+        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../Sample.mp4";
+
         /// <summary>
         /// ViewMode's Constructor
         /// </summary>
@@ -90,7 +92,7 @@ namespace Wpf_Samples
             OpenVideo   = new RelayCommand(OpenVideoAction);
             PauseVideo  = new RelayCommand(PauseVideoAction);
             PlayVideo   = new RelayCommand(PlayVideoAction);
-            UserInput = "../../../Sample.mp4";
+            UserInput   = sampleVideo;
             Player.OpenCompleted += Player_OpenCompleted;
         }
         #endregion
@@ -99,7 +101,7 @@ namespace Wpf_Samples
         public ICommand     OpenVideo   { get ; set; }
         public ICommand     PauseVideo  { get ; set; }
         public ICommand     PlayVideo   { get ; set; }
-        public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = "../../../Sample.mp4"; Player.Open(UserInput); }
+        public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = sampleVideo; Player.Open(UserInput); }
         public void PauseVideoAction(object param)  { Player.Pause(); }
         public void PlayVideoAction(object param)   { Player.Play(); }
         #endregion
