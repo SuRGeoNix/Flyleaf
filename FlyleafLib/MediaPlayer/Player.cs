@@ -273,6 +273,7 @@ namespace FlyleafLib.MediaPlayer
         public void OpenFailed()
         {
             if (Status == Status.Stopped) return;
+            if (curVideoPlugin != null) Log($"[VideoPlugin] {curVideoPlugin} Failed");
 
             Initialize();
             Status = Status.Failed;
@@ -333,6 +334,7 @@ namespace FlyleafLib.MediaPlayer
 
             tOpenVideo = new Thread(() => 
             {
+                Status = Status.Opening;
                 curVideoPlugin = Plugins["DefaultExternal"];
                 Open(((IPluginExternal)Plugins["DefaultExternal"]).OpenVideo(stream));
 
@@ -361,7 +363,11 @@ namespace FlyleafLib.MediaPlayer
                 else
                 {
                     InitializeSwitch();
-                    tOpenVideo = new Thread(() => { OpenVideo((VideoStream)inputStream); });
+                    tOpenVideo = new Thread(() =>
+                    {
+                        Status = Status.Opening;
+                        OpenVideo((VideoStream)inputStream); 
+                    });
                     tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
                 }
             }
@@ -694,6 +700,7 @@ namespace FlyleafLib.MediaPlayer
 
             Log("[SCREAMER] Buffering ...");
             VideoDecoder.DisposeFrame(vFrame);
+            if (aFrame != null) aFrame.audioData = new byte[0];
             vFrame = null;
             aFrame = null;
             sFrame = null;
@@ -733,7 +740,7 @@ namespace FlyleafLib.MediaPlayer
                     if (!gotAudio && aFrame != null)
                     {
                         if (vFrame.timestamp - aFrame.timestamp > Config.audio.LatencyTicks)
-                            decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
+                            { decoder.AudioDecoder.Frames.TryDequeue(out aFrame); aFrame.audioData = new byte[0]; }
                         else if (decoder.AudioDecoder.Frames.Count >= Config.decoder.MinAudioFrames)
                             gotAudio = true;
                     }
@@ -951,7 +958,7 @@ namespace FlyleafLib.MediaPlayer
     {
         None,
 
-        Opening,
+        Opening,    // Opening Video (from Initialized state - not embedded/switch)
         OpenFailed,
         Opened,
 
