@@ -100,14 +100,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             ret = SubtitlesDecoder.Open(SubtitlesDemuxer.SubtitlesStreams[0]);
             if (ret != 0) return ret;
 
-            if (ms != -1)
-                SubtitlesDemuxer.Seek(player.IsPlaying ? ms + ((DateTime.UtcNow.Ticks - openElapsedTicks)/10000) : ms);
-
-            if (player.IsPlaying)
-            {
-                SubtitlesDemuxer.Start();
-                SubtitlesDecoder.Start();
-            }
+            if (ms != -1) SeekSubtitles(player.IsPlaying ? ms + ((DateTime.UtcNow.Ticks - openElapsedTicks)/10000) : ms);
 
             return ret;
         }

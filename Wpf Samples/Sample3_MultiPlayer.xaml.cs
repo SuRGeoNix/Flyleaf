@@ -17,6 +17,8 @@ namespace Wpf_Samples
         public Player       Player1      { get ; set; }
         public Player       Player2      { get ; set; }
 
+        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../Sample.mp4";
+
         public Sample3_MultiPlayer()
         {
             // Registering FFmpeg libraries (instead of specific path using default :2 option for Libs\(x86 or x64 dynamic)\FFmpeg from current to base)
@@ -41,8 +43,15 @@ namespace Wpf_Samples
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Sample using rtsp stream
-            Player1.Open("rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov");
+            // Sample using rtsp stream (slow one)
+            //Player1.Open("rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov");
+
+            // Sample HLS videos https://ottverse.com/free-hls-m3u8-test-urls/
+            Player1.Open("https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8");
+
+            // Sample using a 'custom' IO stream
+            Stream customInput = new FileStream(sampleVideo, FileMode.Open);
+            Player2.Open(customInput);
 
             // Sample using different (random) audio device on Player 2
             foreach(var device in Master.AudioMaster.Devices)
@@ -51,10 +60,6 @@ namespace Wpf_Samples
             string selectedDevice = Master.AudioMaster.Devices[(new Random()).Next(0, Master.AudioMaster.Devices.Count)];
             Console.WriteLine($"Selected device: {selectedDevice}");
             Player2.audioPlayer.Device = selectedDevice;
-
-            // Sample using a 'custom' input IO stream
-            Stream customInput = new FileStream("../../../Sample.mp4", FileMode.Open);
-            Player2.Open(customInput);
 
             // Sample performing Seek on Player1 (after 10 seconds -to ensure open completed- in the middle of the movie)
             Thread seekThread = new Thread(() =>

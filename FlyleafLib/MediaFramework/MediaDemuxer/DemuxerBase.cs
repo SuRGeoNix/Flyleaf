@@ -135,31 +135,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             return ret; // 0 for success
         }
 
-        public void Stop()
-        {
-            if (Status == Status.Stopped) return;
-
-            StopThread();
-
-            // Free Streams
-            AudioStreams.Clear();
-            VideoStreams.Clear();
-            SubtitlesStreams.Clear();
-            EnabledStreams.Clear();
-
-            // Free Packets
-            DisposePackets(AudioPackets);
-            DisposePackets(VideoPackets);
-            DisposePackets(SubtitlesPackets);
-            if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
-
-            // Close Format / Custom Contexts
-            if (fmtCtx != null) fixed (AVFormatContext** ptr = &fmtCtx) avformat_close_input(ptr);
-            CustomIOContext.Dispose();
-
-            Status = Status.Stopped;
-        }
-
         public void FillInfo()
         {
             Name        = Utils.BytePtrToStringUTF8(fmtCtx->iformat->name);
@@ -250,6 +225,30 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Status = Status.Pausing;
             while (Status == Status.Pausing) Thread.Sleep(5);
         }
+        public void Stop()
+        {
+            if (Status == Status.Stopped) return;
+
+            StopThread();
+
+            // Free Streams
+            AudioStreams.Clear();
+            VideoStreams.Clear();
+            SubtitlesStreams.Clear();
+            EnabledStreams.Clear();
+
+            // Free Packets
+            DisposePackets(AudioPackets);
+            DisposePackets(VideoPackets);
+            DisposePackets(SubtitlesPackets);
+            if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
+
+            // Close Format / Custom Contexts
+            if (fmtCtx != null) fixed (AVFormatContext** ptr = &fmtCtx) avformat_close_input(ptr);
+            CustomIOContext.Dispose();
+
+            Status = Status.Stopped;
+        }
         public void StopThread()
         {
             if (thread == null || !thread.IsAlive) return;
@@ -270,12 +269,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             int ret;
             long seekTs = CalcSeekTimestamp(ms, ref foreward);
-            
-            // Free Packets
+
+            // Interrupt av_read_frame (will cause AVERROR_EXITs)
             DemuxInterrupt = 1;
             lock (lockFmtCtx)
             {
                 DemuxInterrupt = 0;
+
+                // Free Packets
                 DisposePackets(AudioPackets);
                 DisposePackets(VideoPackets);
                 DisposePackets(SubtitlesPackets);
@@ -342,6 +343,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 threadCounter++;
                 int ret = 0;
                 int allowedErrors = cfg.demuxer.MaxErrors;
+                bool gotAVERROR_EXIT = false;
 
                 while (Status == Status.Demuxing || Status == Status.Seeking)
                 {
@@ -354,6 +356,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (Status != Status.QueueFull) break;
                         Status = Status.Demuxing;
                     } // While Queue Full
+                    else if (gotAVERROR_EXIT)
+                    {
+                        gotAVERROR_EXIT = false;
+                        Thread.Sleep(5); // Possible come from seek or Player's stopping...
+                    }
 
                     lock (lockFmtCtx)
                     {
@@ -363,23 +370,21 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         // Check for Errors / End
                         if (ret != 0)
                         {
+                            av_packet_unref(packet);
+
                             if (ret == AVERROR_EXIT)
                             {
-                                Log("AVERROR_EXIT");
-                                allowedErrors--;
+                                //Log("AVERROR_EXIT");
+                                if (DemuxInterrupt != 0) allowedErrors--;
                                 if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); break; }
+                                gotAVERROR_EXIT = true;
                                 continue;
                             }
 
                             if (ret == AVERROR_EOF)
-                            {
-                                av_packet_unref(packet);
                                 Status = Status.Ended;
-                            }
                             else
-                            {
                                 Log($"[ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
-                            }
 
                             break;
                         }
@@ -432,8 +437,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 packets.TryDequeue(out IntPtr packetPtr);
                 if (packetPtr == IntPtr.Zero) continue;
                 AVPacket* packet = (AVPacket*)packetPtr;
-                av_packet_unref(packet);
-                //av_packet_free(&packet);
+                av_packet_free(&packet);
             }
         }
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{decCtx.player.PlayerId}] [Demuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
