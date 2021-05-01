@@ -102,16 +102,15 @@ namespace FlyleafLib.MediaRenderer
                 var desc1 = new SwapChainDescription1()
                 {
                     BufferCount = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? 6 : 1,  // Should be 1 for Win < 8 | HDR 60 fps requires 6 for non drops
-                    SwapEffect  = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_12_0 ? SwapEffect.FlipSequential : SwapEffect.FlipDiscard,
+                    SwapEffect  = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_12_0 ? SwapEffect.FlipSequential : SwapEffect.Discard,
+
                     //Format      = HDREnabled ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm, // Create always 10 bit and fallback to 8?
                     Format      = Format.B8G8R8A8_UNorm,
-                    //Format      = Format.R16G16B16A16_Float,
-                    //Format      = Format.R10G10B10A2_UNorm,
                     Width       = player.Control.Width,
                     Height      = player.Control.Height,
                     AlphaMode   = AlphaMode.Ignore,
                     Usage       = Usage.RenderTargetOutput,
-                    Scaling     = Scaling.None,
+                    Scaling     = Utils.IsWin10 ? Scaling.None : Scaling.Stretch,
                     //Flags = SwapChainFlags.AllowModeSwitch,
                     //Flags = 0 (or if already in fullscreen while recreating -> SwapChainFlags.AllowModeSwitch)
                     SampleDescription = new SampleDescription()
