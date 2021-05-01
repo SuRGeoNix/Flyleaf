@@ -146,18 +146,18 @@
                                                                         <MenuItem Header="Down"      CommandParameter=" -2"     Command="{Binding SetSubsPositionY}"/>
                                                                     </MenuItem>
                                                                     <MenuItem Header="Streams">
-                                                                        <MenuItem Header="External" ItemsSource="{Binding Player.Plugins[DefaultExternal].SubtitleStreams}" AlternationCount="{Binding Player.Plugins[DefaultExternal].SubtitleStreams.Count}">
+                                                                        <MenuItem Header="External" ItemsSource="{Binding Player.Plugins[DefaultExternal].SubtitlesStreams}" AlternationCount="{Binding Player.Plugins[DefaultExternal].SubtitlesStreams.Count}">
                                                                             <MenuItem.ItemContainerStyle>
                                                                                 <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
                                                                                     <Setter Property="Command" Value="{Binding DataContext.OpenStream, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                     <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                     <Setter Property="IsCheckable" Value="True"/>
                                                                                     <Setter Property="IsChecked" Value="{Binding InUse, Mode=OneWay}"/>
-                                                                                    <Setter Property="Header" Value="{Binding DecoderInput.Url}"/>
+                                                                                    <Setter Property="Header" Value="{Binding Url}"/>
                                                                                 </Style>
                                                                             </MenuItem.ItemContainerStyle>
                                                                         </MenuItem>
-                                                                        <MenuItem Header="Embedded" ItemsSource="{Binding Player.Plugins[Default].SubtitleStreams}">
+                                                                        <MenuItem Header="Embedded" ItemsSource="{Binding Player.Plugins[Default].SubtitlesStreams}">
                                                                             <MenuItem.ItemContainerStyle>
                                                                                 <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
                                                                                     <Setter Property="Command" Value="{Binding DataContext.OpenStream, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
@@ -171,7 +171,7 @@
                                                                                     <TextBlock>
                                                                                         <TextBlock.Text>
                                                                                             <MultiBinding StringFormat=" [#{0}] {1}">
-                                                                                                <Binding Path="DecoderInput.StreamIndex"/>
+                                                                                                <Binding Path="StreamIndex"/>
                                                                                                 <Binding Path="Language"/>
                                                                                             </MultiBinding>
                                                                                         </TextBlock.Text>
@@ -179,12 +179,12 @@
                                                                                 </DataTemplate>
                                                                             </MenuItem.ItemTemplate>
                                                                         </MenuItem>
-                                                                        <MenuItem Header="OpenSubtitles" ItemsSource="{Binding Player.Plugins[OpenSubtitles].SubtitleStreams}">
+                                                                        <MenuItem Header="OpenSubtitles" ItemsSource="{Binding Player.Plugins[OpenSubtitles].SubtitlesStreams}">
                                                                             <MenuItem.Style>
                                                                                 <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
                                                                                     <Setter Property="Visibility" Value="Visible"/>
                                                                                     <Style.Triggers>
-                                                                                        <DataTrigger Binding="{Binding Player.Plugins[OpenSubtitles].SubtitleStreams}" Value="{x:Null}">
+                                                                                        <DataTrigger Binding="{Binding Player.Plugins[OpenSubtitles].SubtitlesStreams}" Value="{x:Null}">
                                                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                                                         </DataTrigger>
                                                                                     </Style.Triggers>

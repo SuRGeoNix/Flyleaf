@@ -98,6 +98,9 @@ namespace FlyleafLib.Controls.WPF
         public bool IsFullScreen { get ; private set; }
 
         object  oldContent;
+        ResizeMode oldMode;
+        WindowStyle oldStyle;
+        WindowState oldState;
         public bool FullScreen()
         {
             if (WindowBack == null) return false;
@@ -107,6 +110,10 @@ namespace FlyleafLib.Controls.WPF
             oldContent = WindowBack.Content;
             WindowBack.Content = WinFormsHost;
             
+            oldMode     = WindowBack.ResizeMode;
+            oldStyle    = WindowBack.WindowStyle;
+            oldState    = WindowBack.WindowState;
+
             WindowBack.ResizeMode   = ResizeMode. NoResize;
             WindowBack.WindowStyle  = WindowStyle.None;
             WindowBack.WindowState  = WindowState.Maximized;
@@ -126,9 +133,9 @@ namespace FlyleafLib.Controls.WPF
 
             PlayerGrid.Children.Add(WinFormsHost);
 
-            WindowBack.ResizeMode   = ResizeMode. CanResize;
-            WindowBack.WindowStyle  = WindowStyle.SingleBorderWindow;
-            WindowBack.WindowState  = WindowState.Normal;
+            WindowBack.ResizeMode   = oldMode;
+            WindowBack.WindowStyle  = oldStyle;
+            WindowBack.WindowState  = oldState;
 
             IsFullScreen = false;
             WindowFront.Activate();

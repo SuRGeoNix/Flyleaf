@@ -9,7 +9,7 @@ using System.Threading;
 using System.Web;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.Plugins.MediaStream;
+using FlyleafLib.MediaStream;
 
 using static FlyleafLib.Plugins.YoutubeDLJson;
 
@@ -68,8 +68,8 @@ namespace FlyleafLib.Plugins
                     }
                 };
                 proc.Start();
-                while (!proc.HasExited && Player.decoder.interrupt == 0) { Thread.Sleep(35); }
-                if (Player.decoder.interrupt == 1) { if (!proc.HasExited) proc.Kill(); return null; }
+                while (!proc.HasExited && Player.Status == Status.Opening) { Thread.Sleep(35); }
+                if (Player.Status != Status.Opening) { if (!proc.HasExited) proc.Kill(); return null; }
                 if (!File.Exists($"{tmpFile}.info.json")) return null;
 
                 // Parse Json Object
@@ -91,7 +91,7 @@ namespace FlyleafLib.Plugins
                     {
                         VideoStreams.Add(new VideoStream()
                         {
-                            DecoderInput = new DecoderInput() { Url = fmt.url },
+                            Url = fmt.url,
                             BitRate = (long) fmt.vbr,
                             CodecName = fmt.vcodec,
                             Language = Language.Get(fmt.language),
@@ -105,7 +105,7 @@ namespace FlyleafLib.Plugins
                     {
                         AudioStreams.Add(new AudioStream()
                         {
-                            DecoderInput = new DecoderInput() { Url = fmt.url },
+                            Url = fmt.url,
                             BitRate = (long) fmt.abr,
                             CodecName = fmt.acodec,
                             Language = Language.Get(fmt.language)
@@ -119,7 +119,7 @@ namespace FlyleafLib.Plugins
                 Player.Session.SingleMovie.Title = ytdl.title;
 
                 foreach(var t1 in VideoStreams)
-                    if (fmt.url == t1.DecoderInput.Url) return new OpenVideoResults(t1);
+                    if (fmt.url == t1.Url) return new OpenVideoResults(t1);
 
             }
             catch (Exception e) { Console.WriteLine($"[Youtube-DL] Error ... {e.Message}"); }
@@ -131,26 +131,26 @@ namespace FlyleafLib.Plugins
         {
             var fmt = GetAudioOnly();
             foreach(var t1 in AudioStreams)
-                if (fmt.url == t1.DecoderInput.Url) return t1;
+                if (fmt.url == t1.Url) return t1;
 
             return null;
         }
 
         public VideoStream OpenVideo(VideoStream stream)
         {
-            if (string.IsNullOrEmpty(stream.DecoderInput.Url)) return null;
+            if (string.IsNullOrEmpty(stream.Url)) return null;
 
             foreach(var vstream in VideoStreams)
-                if (vstream.DecoderInput.Url == stream.DecoderInput.Url) return vstream;
+                if (vstream.Url == stream.Url) return vstream;
 
             return null;
         }
         public AudioStream OpenAudio(AudioStream stream)
         {
-            if (string.IsNullOrEmpty(stream.DecoderInput.Url)) return null;
+            if (string.IsNullOrEmpty(stream.Url)) return null;
 
             foreach(var astream in AudioStreams)
-                if (astream.DecoderInput.Url == stream.DecoderInput.Url) return astream;
+                if (astream.Url == stream.Url) return astream;
 
             return null;
         }
