@@ -740,7 +740,7 @@ namespace FlyleafLib.MediaPlayer
                     if (!gotAudio && aFrame != null)
                     {
                         if (vFrame.timestamp - aFrame.timestamp > Config.audio.LatencyTicks)
-                            { decoder.AudioDecoder.Frames.TryDequeue(out aFrame); aFrame.audioData = new byte[0]; }
+                            { aFrame.audioData = new byte[0]; decoder.AudioDecoder.Frames.TryDequeue(out aFrame); }
                         else if (decoder.AudioDecoder.Frames.Count >= Config.decoder.MinAudioFrames)
                             gotAudio = true;
                     }
