@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.Plugins.MediaStream;
+using FlyleafLib.MediaStream;
 using SuRGeoNix.BitSwarmLib;
 using SuRGeoNix.BitSwarmLib.BEP;
 
@@ -41,7 +41,7 @@ namespace FlyleafLib.Plugins
         public override void OnInitializing()
         {
             if (Player.curVideoPlugin == null || Player.curVideoPlugin.PluginName != PluginName) return;
-            if (Session.CurVideoStream != null && Session.CurVideoStream.DecoderInput.Stream is TorrentStream) ((TorrentStream)Session.CurVideoStream.DecoderInput.Stream).Cancel();
+            if (Session.CurVideoStream != null && Session.CurVideoStream.Stream is TorrentStream) ((TorrentStream)Session.CurVideoStream.Stream).Cancel();
 
             try
             {
@@ -62,7 +62,7 @@ namespace FlyleafLib.Plugins
         public override void OnInitializingSwitch()
         {
             if (Player.curVideoPlugin == null || Player.curVideoPlugin.PluginName != PluginName) return;
-            if (Session.CurVideoStream != null && Session.CurVideoStream.DecoderInput.Stream is TorrentStream) ((TorrentStream)Session.CurVideoStream.DecoderInput.Stream).Cancel();
+            if (Session.CurVideoStream != null && Session.CurVideoStream.Stream is TorrentStream) ((TorrentStream)Session.CurVideoStream.Stream).Cancel();
             if (cfg != null) cfg.EnableBuffering = false;
         }
 
@@ -145,14 +145,14 @@ namespace FlyleafLib.Plugins
 
             if (!Downloaded)
             {
-                stream.DecoderInput.Stream  = Torrent.GetTorrentStream(FileName);
+                stream.Stream  = Torrent.GetTorrentStream(FileName);
                 bitSwarm.IncludeFiles(new List<string>() { FileName });
                 if (!bitSwarm.isRunning) { Log("Starting"); bitSwarm.Start(); }
             }
             else if (File.Exists(Path.Combine(FolderComplete, FileName)))
             {
-                stream.DecoderInput.Stream = null;
-                stream.DecoderInput.Url = Path.Combine(FolderComplete, FileName);
+                stream.Stream = null;
+                stream.Url = Path.Combine(FolderComplete, FileName);
 
                 if (!DownloadNext()) { Log("Pausing"); bitSwarm.Pause(); }
             }

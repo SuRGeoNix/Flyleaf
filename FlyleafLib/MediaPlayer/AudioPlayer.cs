@@ -120,9 +120,9 @@ namespace FlyleafLib.MediaPlayer
                 volumeSampleProvider= new VolumeSampleProvider(buffer.ToSampleProvider());
 
                 if (Device == Master.AudioMaster.DefaultDeviceName)
-                    player = new DirectSoundOut((int)(cfg.audio.LatencyTicks / 10000));
+                    player = new DirectSoundOut(-30 + (int)(cfg.audio.LatencyTicks / 10000));
                 else
-                    player = new DirectSoundOut(_Device == null ? Master.AudioMaster.DeviceIdNaudio : DeviceIdNaudio, (int)(cfg.audio.LatencyTicks / 10000));
+                    player = new DirectSoundOut(_Device == null ? Master.AudioMaster.DeviceIdNaudio : DeviceIdNaudio, -30 + (int)(cfg.audio.LatencyTicks / 10000));
 
                 player.Init(volumeSampleProvider);
                 player.Play();
@@ -157,6 +157,10 @@ namespace FlyleafLib.MediaPlayer
                     Log(e.Message + " " + e.StackTrace);
                 }
             }
+        }
+        public void ClearBuffer()
+        {
+            lock (locker) buffer.ClearBuffer();
         }
         #endregion
 

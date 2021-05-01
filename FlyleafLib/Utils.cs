@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -9,10 +8,13 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
+
+using Microsoft.Win32;
 
 using SharpDX;
 //using SharpDX.D3DCompiler; // Enable this if you need to re-compile shaders
@@ -29,6 +31,7 @@ namespace FlyleafLib
         #region MediaEngine
         //public static private bool            IsDesignMode=> (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
         public static bool          IsDesignMode    = (LicenseManager.UsageMode == LicenseUsageMode.Designtime);
+        public static bool          IsWin10         = Regex.IsMatch(Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ProductName", "").ToString(), "Windows 10");
         public static List<string>  MovieExts       = new List<string>() { "mp4", "m4v", "m4e", "mkv", "mpg", "mpeg" , "mpv", "mp4p", "mpe" , "m1v", "m2ts", "m2p", "m2v", "movhd", "moov", "movie", "movx", "mjp", "mjpeg", "mjpg", "amv" , "asf", "m4v", "3gp", "ogm", "ogg", "vob", "ts", "rm", "3gp", "3gp2", "3gpp", "3g2", "f4v", "f4a", "f4p", "f4b", "mts", "m2ts", "gifv", "avi", "mov", "flv", "wmv", "qt", "avchd", "swf", "cam", "nsv", "ram", "rm", "x264", "xvid", "wmx", "wvx", "wx", "video", "viv", "vivo", "vid", "dat", "bik", "bix", "dmf", "divx" };
         public static List<string>  SubsExts        = new List<string>() { "srt", "txt", "sub", "ssa", "ass" };
 
@@ -92,10 +95,7 @@ namespace FlyleafLib
             return Languages;
         }
 
-        public static void DisposeVideoFrames(ConcurrentQueue<MediaFrame> frames) { if (frames != null) foreach (MediaFrame frame in frames) DisposeVideoFrame(frame); }
-        public static void DisposeVideoFrame(MediaFrame frame) { if (frame != null && frame.textures != null) for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]); }
-
-        public static void EnsureThreadDone(Thread t, long maxMS = 250, int minMS = 10)
+        public static void EnsureThreadDone(Thread t, long maxMS = 30000, int minMS = 10)
         {
             if (t == null || !t.IsAlive) return;
 
