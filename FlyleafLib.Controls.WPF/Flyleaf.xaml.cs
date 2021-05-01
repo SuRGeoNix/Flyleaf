@@ -509,8 +509,42 @@ namespace FlyleafLib.Controls.WPF
         #region Events
         private void Flyleaf_KeyDown(object sender, KeyEventArgs e)
         {
+            Thickness t;
+
             if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier)) return;
 
+            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                switch (e.Key)
+                {
+                    case Key.OemOpenBrackets:
+                        Audio.DelayTicks -= 1000 * 10000;
+                        break;
+
+                    case Key.OemCloseBrackets:
+                        Audio.DelayTicks += 1000 * 10000;
+                        break;
+
+                    case Key.OemSemicolon:
+                        Subs.DelayTicks -= 1000 * 10000;
+                        break;
+
+                    case Key.OemQuotes:
+                        Subs.DelayTicks += 1000 * 10000;
+                        break;
+
+                    case Key.Up:
+                        t = Subtitles.Margin; t.Bottom += 2; Subtitles.Margin = t; Raise("Subtitles");
+                        break;
+
+                    case Key.Down:
+                        t = Subtitles.Margin; t.Bottom -= 2; Subtitles.Margin = t; Raise("Subtitles");
+                        break;
+                }
+
+                return;
+            }
+            
             switch (e.Key)
             {
                 case Key.Up:
@@ -551,7 +585,25 @@ namespace FlyleafLib.Controls.WPF
         }
         private void Flyleaf_KeyUp(object sender, KeyEventArgs e)
         {
+            lastKeyboardActivity = DateTime.UtcNow.Ticks;
+
             if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier) && e.Key == Key.Escape) { DialogHost.Close(dialogSettingsIdentifier, "cancel"); return; }
+
+            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                switch (e.Key)
+                {
+                    case Key.C:
+                        Clipboard.SetText(Session.InitialUrl);
+                        break;
+
+                    case Key.V:
+                        Open(Clipboard.GetText());
+                        break;
+                }
+
+                return;
+            }
 
             switch (e.Key)
             {
@@ -572,8 +624,6 @@ namespace FlyleafLib.Controls.WPF
                     if (IsFullscreen) ToggleFullscreenAction();
                     break;
             }
-
-            lastKeyboardActivity = DateTime.UtcNow.Ticks;
         }
         private void Flyleaf_DragEnter(object sender, System.Windows.Forms.DragEventArgs e) { e.Effect = System.Windows.Forms.DragDropEffects.All; }
         private void Flyleaf_DragDrop(object sender, System.Windows.Forms.DragEventArgs e)
