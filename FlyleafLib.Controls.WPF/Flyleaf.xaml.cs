@@ -563,6 +563,14 @@ namespace FlyleafLib.Controls.WPF
                     case Key.Down:
                         t = Subtitles.Margin; t.Bottom -= 2; Subtitles.Margin = t; Raise("Subtitles");
                         break;
+
+                    case Key.C:
+                        Clipboard.SetText(Session.InitialUrl);
+                        break;
+
+                    case Key.V:
+                        Open(Clipboard.GetText());
+                        break;
                 }
 
                 return;
@@ -611,22 +619,6 @@ namespace FlyleafLib.Controls.WPF
             lastKeyboardActivity = DateTime.UtcNow.Ticks;
 
             if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier) && e.Key == Key.Escape) { DialogHost.Close(dialogSettingsIdentifier, "cancel"); return; }
-
-            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
-            {
-                switch (e.Key)
-                {
-                    case Key.C:
-                        Clipboard.SetText(Session.InitialUrl);
-                        break;
-
-                    case Key.V:
-                        Open(Clipboard.GetText());
-                        break;
-                }
-
-                return;
-            }
 
             switch (e.Key)
             {

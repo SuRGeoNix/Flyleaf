@@ -37,9 +37,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
             Master.RegisterFFmpeg();
             this.player = player;
 
-            AudioDemuxer        = new AudioDemuxer(this);
-            VideoDemuxer        = new VideoDemuxer(this);
-            SubtitlesDemuxer    = new SubtitlesDemuxer(this);
+            AudioDemuxer        = new AudioDemuxer(cfg, player.PlayerId);
+            VideoDemuxer        = new VideoDemuxer(cfg, player.PlayerId);
+            SubtitlesDemuxer    = new SubtitlesDemuxer(cfg, player.PlayerId);
 
             VideoDecoder        = new VideoDecoder(this);
             AudioDecoder        = new AudioDecoder(this);
@@ -116,7 +116,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             lock (AudioDecoder.lockCodecCtx)
             lock (SubtitlesDecoder.lockCodecCtx)
             {
-                ret = VideoDemuxer.Seek(ms, foreward);
+                ret = VideoDemuxer.Seek(CalcSeekTimestamp(VideoDemuxer, ms, ref foreward), foreward);
                 VideoDecoder.Flush();
                 if (AudioDecoder.OnVideoDemuxer) AudioDecoder.Flush();
                 if (SubtitlesDecoder.OnVideoDemuxer) SubtitlesDecoder.Flush();
@@ -132,7 +132,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             lock (AudioDecoder.lockCodecCtx)
             {
-                ret = AudioDemuxer.Seek(ms, foreward);
+                ret = AudioDemuxer.Seek(CalcSeekTimestamp(AudioDemuxer, ms, ref foreward), foreward);
                 AudioDecoder.Flush();
             }
 
@@ -152,7 +152,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             lock (SubtitlesDecoder.lockCodecCtx)
             {
-                ret = SubtitlesDemuxer.Seek(ms, foreward);
+                ret = SubtitlesDemuxer.Seek(CalcSeekTimestamp(SubtitlesDemuxer, ms, ref foreward), foreward);
                 SubtitlesDecoder.Flush();
             }
 
@@ -195,14 +195,42 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         public void Stop()
         {
+            VideoDemuxer.DemuxInterrupt = 1;
+            AudioDemuxer.DemuxInterrupt = 1;
+            SubtitlesDemuxer.DemuxInterrupt = 1;
+
             VideoDemuxer.Stop();
             AudioDemuxer.Stop();
             SubtitlesDemuxer.Stop();
             VideoDecoder.Stop();
             AudioDecoder.Stop();
             SubtitlesDecoder.Stop();
+
+            VideoDemuxer.DemuxInterrupt = 0;
+            AudioDemuxer.DemuxInterrupt = 0;
+            SubtitlesDemuxer.DemuxInterrupt = 0;
         }
 
+        public long CalcSeekTimestamp(DemuxerBase demuxer, long ms, ref bool foreward)
+        {
+            long ticks = ((ms * 10000) + demuxer.StartTime);
+
+            if (demuxer.Type == MediaType.Audio) ticks -= (cfg.audio.DelayTicks + cfg.audio.LatencyTicks);
+            if (demuxer.Type == MediaType.Subs ) ticks -=  cfg.subs. DelayTicks;
+
+            if (ticks < demuxer.StartTime) 
+            {
+                ticks = demuxer.StartTime;
+                foreward = true;
+            }
+            else if (ticks >= demuxer.StartTime + VideoDemuxer.Duration) 
+            {
+                ticks = demuxer.StartTime + VideoDemuxer.Duration;
+                foreward = false;
+            }
+
+            return ticks;
+        }
         public long GetVideoFrame()
         {
             int ret;

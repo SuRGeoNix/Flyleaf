@@ -8,6 +8,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
     public class SubtitlesDemuxer : DemuxerBase
     {
-        public SubtitlesDemuxer(MediaContext.DecoderContext decCtx) : base(decCtx) { }
+        public SubtitlesDemuxer(Config cfg, int uniqueId) : base(cfg, uniqueId) { }
     }
 }
