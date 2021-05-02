@@ -480,6 +480,29 @@ namespace FlyleafLib.Controls.WPF
             return ActivityMode.Idle;
         }
 
+        bool _ShowGPUUsage;
+        public bool ShowGPUUsage
+        {   get => _ShowGPUUsage;
+            set { Set(ref _ShowGPUUsage, value); if (value) StartGPUUsage(); else GPUUsage = ""; }
+        }
+        
+        string _GPUUsage;
+        public string GPUUsage
+        {   get => _GPUUsage;
+            set => Set(ref _GPUUsage, value);
+        }
+        Thread gpuThread;
+        private void StartGPUUsage()
+        {
+            if (gpuThread != null && gpuThread.IsAlive) { ShowGPUUsage = false; return; }
+            gpuThread = new Thread(() =>
+            {
+                while (_ShowGPUUsage) GPUUsage = Utils.GetGPUUsage().ToString("0.00") + "%";
+                ShowGPUUsage = false;
+            });
+            gpuThread.IsBackground = true; gpuThread.Start();
+        }
+
         private void IdleThread()
         {
             while (_IdleTimeout > 0)
