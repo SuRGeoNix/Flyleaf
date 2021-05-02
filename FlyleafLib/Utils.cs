@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -21,8 +22,6 @@ using SharpDX;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
-
-using FlyleafLib.MediaFramework;
 
 namespace FlyleafLib
 {
@@ -68,22 +67,10 @@ namespace FlyleafLib
             return dump;
         }
         public static string GetUrlExtention(string url) { return url.LastIndexOf(".")  > 0 ? url.Substring(url.LastIndexOf(".") + 1) : ""; }
-        public static UrlType GetUrlType(string url)
-        {
-            Uri uri = null;
-
-            //if (BitSwarm.ValidateInput(url) != BitSwarm.InputType.Unkown)           return UrlType.Torrent;
-            try { uri = new Uri(url); } catch (Exception)                         { return UrlType.Other; }
-            //if (uri.Scheme.ToLower() == "http" || uri.Scheme.ToLower() == "https")  return UrlType.Web;
-            if (File.Exists(url))                                                   return UrlType.File;
-
-            return UrlType.Other;
-        }
-
         public static List<Language> GetSystemLanguages()
         {
             List<Language>  Languages  = new List<Language>();
-            Language        systemLang = Language.Get(System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
+            Language        systemLang = Language.Get(CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
             if (systemLang.LanguageName != "English") Languages.Add(systemLang);
 
             foreach (System.Windows.Forms.InputLanguage lang in System.Windows.Forms.InputLanguage.InstalledInputLanguages)
@@ -125,7 +112,38 @@ namespace FlyleafLib
             }
         }
 
-        public static string GetUserDownloadPath() { try { return Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\").GetValue("{374DE290-123F-4565-9164-39C4925E467B}").ToString(); } catch (Exception) { return null; } }
+        public static string GetUserDownloadPath() { try { return Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\").GetValue("{374DE290-123F-4565-9164-39C4925E467B}").ToString(); } catch (Exception) { return null; } }
+
+        static List<PerformanceCounter> gpuCounters;
+
+        public static void GetGPUCounters()
+        {
+            var category        = new PerformanceCounterCategory("GPU Engine");
+            var counterNames    = category.GetInstanceNames();
+            gpuCounters         = new List<PerformanceCounter>();
+
+            foreach (string counterName in counterNames)
+                if (counterName.EndsWith("engtype_3D"))
+                    foreach (PerformanceCounter counter in category.GetCounters(counterName))
+                        if (counter.CounterName == "Utilization Percentage")
+                            gpuCounters.Add(counter);
+        }
+        public static float GetGPUUsage()
+        {
+            float result = 0f;
+
+            try
+            {
+                if (gpuCounters == null) GetGPUCounters();
+
+                gpuCounters.ForEach(x => { _ = x.NextValue(); });
+                Thread.Sleep(1000);
+                gpuCounters.ForEach(x => { result += x.NextValue(); });
+
+            } catch (Exception e) { Log($"[GPUUsage] Error {e.Message}"); result = -1f; GetGPUCounters(); }
+
+            return result;
+        }
         public static string GZipDecompress(string filename)
         {
             string newFileName = "";
