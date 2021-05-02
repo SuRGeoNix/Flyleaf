@@ -36,6 +36,9 @@
 
                                 <!--Pop Up Dialog (Settings/Set Values)-->
                                 <materialDesign:DialogHost x:Name="PART_DialogSettings"/>
+                                
+                                <!--GPU Usage-->
+                                <TextBlock Margin="0 0 0 50" VerticalAlignment="top" HorizontalAlignment="Right" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding GPUUsage}"/>
 
                                 <!--Subtitles-->
                                 <TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding Session.SubsText}"/>
