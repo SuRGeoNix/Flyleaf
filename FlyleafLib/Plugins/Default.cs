@@ -41,7 +41,7 @@ namespace FlyleafLib.Plugins
             // Try to find best video stream based on current screen resolution
             var iresults =
                 from    vstream in VideoStreams
-                where   vstream.Type == MediaType.Video && vstream.Height <= Player.renderer.Info.ScreenBounds.Height && vstream.CodecName != "mjpeg" // Better way to exclude attached images?
+                where   vstream.Type == MediaType.Video && vstream.Height <= Player.renderer.Info.ScreenBounds.Height
                 orderby vstream.Height descending
                 select  vstream;
 
