@@ -37,10 +37,9 @@ namespace FlyleafLib.MediaPlayer
         Flyleaf _Control;
 
         /// <summary>
-        /// Player's Configuration
+        /// Player's Configuration (set once in the constructor)
         /// </summary>
-        public Config       Config          { get => _Config; set { _Config = value; _Config.SetPlayer(this); } }
-        Config _Config;
+        public Config       Config          { get; private set; }
 
         /// <summary>
         /// Player's Session
@@ -577,7 +576,7 @@ namespace FlyleafLib.MediaPlayer
 
                 finally
                 {
-                    decoder.Pause();
+                    if (Status == Status.Stopped) decoder.Stop(); else decoder.Pause();
                     audioPlayer.ClearBuffer();
                     VideoDecoder.DisposeFrame(vFrame); vFrame = null;
                     Utils.NativeMethods.TimeEndPeriod(1);

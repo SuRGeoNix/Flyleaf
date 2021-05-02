@@ -42,8 +42,10 @@ namespace FlyleafLib.MediaStream
             Width           = st->codecpar->width;
             Height          = st->codecpar->height;
             FPS             = av_q2d(st->r_frame_rate);
+
             var gcd = Utils.GCD(Width, Height);
-            AspectRatio     = new AspectRatio(Width / gcd , Height / gcd);
+            if (gcd != 0)
+                AspectRatio = new AspectRatio(Width / gcd , Height / gcd);
 
             if (PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
             {
