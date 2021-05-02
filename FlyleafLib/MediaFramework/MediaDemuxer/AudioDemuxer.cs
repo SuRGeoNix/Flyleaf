@@ -8,6 +8,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
     public class AudioDemuxer : DemuxerBase
     {
-        public AudioDemuxer(MediaContext.DecoderContext decCtx) : base(decCtx) { }
+        public AudioDemuxer(Config cfg, int uniqueId) : base(cfg, uniqueId) { }
     }
 }
