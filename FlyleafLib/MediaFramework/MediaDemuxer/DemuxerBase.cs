@@ -496,9 +496,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
 
             ret = avio_open(&oFmtCtx->pb, filename, AVIO_FLAG_WRITE);
-            if (ret < 0) return ret;
+            if (ret < 0) { avformat_free_context(oFmtCtx); return ret; }
 
             ret = avformat_write_header(oFmtCtx, null);
+            if (ret < 0) { avformat_free_context(oFmtCtx); return ret; }
 
             return ret;
         }
@@ -567,7 +568,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             }
 
                             if (ret == AVERROR_EOF)
-                                Status = Status.Ended;
+                                { Status = Status.Ended; DownloadPercentage = 100; }
                             else
                                 Log2($"[ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
 
