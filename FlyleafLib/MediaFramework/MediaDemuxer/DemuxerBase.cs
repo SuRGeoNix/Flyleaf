@@ -490,7 +490,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 out_stream = avformat_new_stream(oFmtCtx, null);
                 ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
                 if ((oFmt->flags & AVFMT_GLOBALHEADER) != 0)
+#pragma warning disable CS0618 // Type or member is obsolete
                     out_stream->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+#pragma warning restore CS0618 // Type or member is obsolete
                 out_stream->codecpar->codec_tag = 0;
                 mapInOutStreams.Add(EnabledStreams[i], outputStreamsCounter++);
             }
