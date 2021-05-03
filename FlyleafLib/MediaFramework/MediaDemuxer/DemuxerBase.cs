@@ -260,7 +260,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
 
             // Close Format / Custom Contexts
-            if (fmtCtx != null) fixed (AVFormatContext** ptr = &fmtCtx) avformat_close_input(ptr);
+            if (fmtCtx != null) fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
             CustomIOContext.Dispose();
 
             Status = Status.Stopped;
@@ -442,7 +442,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         /// Fires on partial or full download completed
         /// </summary>
         public event EventHandler<bool> DownloadCompleted;
-        protected virtual void OnDownloadCompleted(bool success) { System.Threading.Tasks.Task.Run(() => DownloadCompleted?.Invoke(this, success)); }
+        protected virtual void OnDownloadCompleted(bool success) { System.Threading.Tasks.Task.Run(() => { Stop(); DownloadCompleted?.Invoke(this, success); }); }
 
         /// <summary>
         /// Downloads the currently configured AVS streams (Experimental)
@@ -535,6 +535,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 int ret = 0;
                 int allowedErrors = cfg.demuxer.MaxErrors;
                 bool gotAVERROR_EXIT = false;
+                double downPercentageFactor = (StartTime + Duration) / (double)100;
 
                 AVStream* in_stream;
                 AVStream* out_stream;
@@ -585,8 +586,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                         if (packet->pts > 0)
                         {
-                            if (Duration > 0) DownloadPercentage = (packet->pts * mapInAVStreamsToStreams[in_stream->index].Timebase / Duration) * 100;
-                            CurTime = (long) (packet->pts * mapInAVStreamsToStreams[in_stream->index].Timebase);
+                            double curTime = packet->pts * mapInAVStreamsToStreams[in_stream->index].Timebase;
+                            if (Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
+                            CurTime = (long) curTime;
                         }
 
                         packet->pts       = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
@@ -607,9 +609,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             } // While !stopThread
 
-            CloseOutputFormat();
             if (Status != Status.Ended) Status = Status.Stopped;
             Log2($"[Thread] Stopped ({Status})");
+            CloseOutputFormat();
         }
         #endregion
 
