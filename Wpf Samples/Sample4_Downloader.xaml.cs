@@ -54,10 +54,19 @@ namespace Wpf_Samples
             Downloader.DownloadCompleted += Downloader_DownloadCompleted;
         }
 
-        private void Downloader_DownloadCompleted(object sender, bool e)
+        private void Downloader_DownloadCompleted(object sender, bool success)
         {
+            if (success)
+            {
+                if (Downloader.DownloadPercentage == 100)
+                    MessageBox.Show("Download Completed!");
+                else
+                    MessageBox.Show("Partial/Live Download Completed!");
+            }
+            else
+                MessageBox.Show("Download Failed!");
+
             Downloader.Stop();
-            MessageBox.Show("Download Completed!");
         }
 
         #region Testing Downloader
