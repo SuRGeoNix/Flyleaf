@@ -13,7 +13,7 @@ using FlyleafLib.MediaStream;
 
 namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
-    public abstract unsafe class DemuxerBase
+    public abstract unsafe class DemuxerBase : NotifyPropertyChanged
     {
         public int                      UniqueId        { get ; set; }
         public Status                   Status          { get; internal set; } = Status.Stopped;
@@ -25,7 +25,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public string                   LongName        { get; private set; }
         public string                   Extensions      { get; private set; }
         public long                     StartTime       { get; private set; }
-        public long                     Duration        { get; private set; }
+        public long                     Duration        { get => _Duration; set => Set(ref _Duration,  value); }
+        long _Duration;
 
         public AVFormatContext*         FormatContext   => fmtCtx;
         public CustomIOContext          CustomIOContext { get; private set; }
@@ -151,6 +152,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Duration    = fmtCtx->duration   * 10;
 
             bool hasVideo = false;
+            mapInAVStreamsToStreams = new Dictionary<int, StreamBase>();
 
             for (int i=0; i<fmtCtx->nb_streams; i++)
             {
@@ -160,16 +162,19 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 {
                     case AVMEDIA_TYPE_AUDIO:
                         AudioStreams.Add(new AudioStream(fmtCtx->streams[i]) { Demuxer = this });
+                        mapInAVStreamsToStreams.Add(i, AudioStreams[AudioStreams.Count-1]);
                         break;
                     case AVMEDIA_TYPE_VIDEO:
                         // Might excludes valid video streams for rtsp/web cams? Better way to ensure that they are actually image streams? (fps maybe?)
                         if (avcodec_get_name(fmtCtx->streams[i]->codecpar->codec_id) == "mjpeg") { Log($"Excluding image stream #{i}"); continue; }
 
                         VideoStreams.Add(new VideoStream(fmtCtx->streams[i]) { Demuxer = this });
+                        mapInAVStreamsToStreams.Add(i, VideoStreams[VideoStreams.Count-1]);
                         if (VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE) hasVideo = true;
                         break;
                     case AVMEDIA_TYPE_SUBTITLE:
                         SubtitlesStreams.Add(new SubtitlesStream(fmtCtx->streams[i]) { Demuxer = this, Converted = true, Downloaded = true });
+                        mapInAVStreamsToStreams.Add(i, SubtitlesStreams[SubtitlesStreams.Count-1]);
                         break;
                 }
             }
@@ -423,7 +428,21 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         #region Preparing Remuxing / Download (Should be transfered to a new MediaContext eg. DownloaderContext and include also the external demuxers - mainly for Youtube-dl)
         AVOutputFormat* oFmt;
         AVFormatContext *oFmtCtx;
-        int[] outputStreams;
+
+        Dictionary<int, int>        mapInOutStreams;
+        Dictionary<int, StreamBase> mapInAVStreamsToStreams;
+
+        public double   DownloadPercentage    { get => _DownloadPercentage;     set => Set(ref _DownloadPercentage,  value); }
+        double _DownloadPercentage;
+
+        public long   CurTime    { get => _CurTime;     set => Set(ref _CurTime,  value); }
+        long _CurTime;
+
+        /// <summary>
+        /// Fires on partial or full download completed
+        /// </summary>
+        public event EventHandler<bool> DownloadCompleted;
+        protected virtual void OnDownloadCompleted(bool success) { System.Threading.Tasks.Task.Run(() => DownloadCompleted?.Invoke(this, success)); }
 
         /// <summary>
         /// Downloads the currently configured AVS streams (Experimental)
@@ -431,7 +450,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         /// <param name="filename">The filename for the downloaded video. The file extension will let the demuxer to choose the output format (eg. mp4).</param>
         public void Download(string filename)
         {
-            OpenOutputFormat(filename);
+            int ret;
+
+            DownloadPercentage = 0;
+            Log2("Output format initializing");
+            ret = OpenOutputFormat(filename);
+            if (ret < 0) { OnDownloadCompleted(false); return; }
+            Log2("Output format initialized");
             StartDownloadThread();
             threadARE.Set();
         }
@@ -444,17 +469,17 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             thread.Name = $"[#{UniqueId}] [Remuxer: {Type}]"; thread.IsBackground= true; thread.Start();
             while (Status == Status.Opening) Thread.Sleep(5); // Wait for thread to come up
         }
-        private void OpenOutputFormat(string filename)
+        private int OpenOutputFormat(string filename)
         {
-            Log("[Remuxer] Output opening");
-
             int ret;
 
             fixed (AVFormatContext** ptr = &oFmtCtx)
-                avformat_alloc_output_context2(ptr, null, null, filename);
+                ret = avformat_alloc_output_context2(ptr, null, null, filename);
+
+            if (ret < 0) return ret;
 
             oFmt = oFmtCtx->oformat;
-            outputStreams = new int[fmtCtx->nb_streams];
+            mapInOutStreams = new Dictionary<int, int>();
             int outputStreamsCounter = 0;
 
             for (int i=0; i<EnabledStreams.Count; i++)
@@ -467,37 +492,41 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 if ((oFmt->flags & AVFMT_GLOBALHEADER) != 0)
                     out_stream->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
                 out_stream->codecpar->codec_tag = 0;
-                outputStreams[EnabledStreams[i]] = outputStreamsCounter++;
+                mapInOutStreams.Add(EnabledStreams[i], outputStreamsCounter++);
             }
 
             ret = avio_open(&oFmtCtx->pb, filename, AVIO_FLAG_WRITE);
+            if (ret < 0) return ret;
+
             ret = avformat_write_header(oFmtCtx, null);
 
-            Log("[Remuxer] Output opened");
+            return ret;
         }
         private void CloseOutputFormat()
         {
-            Log("[Remuxer] Close");
-            av_write_trailer(oFmtCtx);
+            int ret = -1;
+            ret = av_write_trailer(oFmtCtx);
             avio_closep(&oFmtCtx->pb);
             avformat_free_context(oFmtCtx);
+            Log2("Output format closed");
+            OnDownloadCompleted(ret == 0);
         }
         private void Remux()
         {
-            Log($"[Remuxer] [Thread] Started");
+            Log2($"[Thread] Started");
 
             while (Status != Status.Stopped && Status != Status.Stopping && Status != Status.Ended)
             {
                 threadARE.Reset();
                 Status = Status.Paused;
 
-                Log($"{Status}");
+                Log2($"{Status}");
                 threadARE.WaitOne();
                 if (Status == Status.Stopped || Status == Status.Stopping) break;
 
                 IsRunning = true;
                 Status = Status.Demuxing;
-                Log($"{Status}");
+                Log2($"Remuxing");
 
                 threadCounter++;
                 int ret = 0;
@@ -506,6 +535,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 AVStream* in_stream;
                 AVStream* out_stream;
+                AVPacket* packet;
 
                 while (Status == Status.Demuxing)
                 {
@@ -519,18 +549,19 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     lock (lockFmtCtx)
                     {
                         // Demux Packet
-                        ret = av_read_frame(fmtCtx, packet);
+                        packet  = av_packet_alloc();
+                        ret     = av_read_frame(fmtCtx, packet);
 
                         // Check for Errors / End
                         if (ret != 0)
                         {
-                            av_packet_unref(packet);
+                            av_packet_free(&packet);
 
                             if (ret == AVERROR_EXIT)
                             {
                                 //Log("AVERROR_EXIT");
                                 if (DemuxInterrupt != 0) allowedErrors--;
-                                if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); break; }
+                                if (allowedErrors == 0) { Log2("[ERROR-0] Too many errors!"); break; }
                                 gotAVERROR_EXIT = true;
                                 continue;
                             }
@@ -538,39 +569,44 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             if (ret == AVERROR_EOF)
                                 Status = Status.Ended;
                             else
-                                Log($"[ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                                Log2($"[ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
 
                             break;
                         }
 
                         // Skip Disabled Streams
-                        if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
+                        if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_free(&packet); continue; }
 
-                        in_stream       = fmtCtx->streams[packet->stream_index];
-                        out_stream      = oFmtCtx->streams[outputStreams[packet->stream_index]];
+                        in_stream       =  fmtCtx->streams[packet->stream_index];
+                        out_stream      = oFmtCtx->streams[mapInOutStreams[packet->stream_index]];
 
-                        var pkt2        = av_packet_clone(packet);
-                        pkt2->pts       = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                        pkt2->dts       = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                        pkt2->duration  = av_rescale_q(packet->duration,in_stream->time_base, out_stream->time_base);
-                        pkt2->stream_index = out_stream->index;
-                        pkt2->pos       = -1;
+                        if (packet->pts > 0)
+                        {
+                            if (Duration > 0) DownloadPercentage = (packet->pts * mapInAVStreamsToStreams[in_stream->index].Timebase / Duration) * 100;
+                            CurTime = (long) (packet->pts * mapInAVStreamsToStreams[in_stream->index].Timebase);
+                        }
 
-                        ret = av_interleaved_write_frame(oFmtCtx, pkt2);
-                        av_packet_free(&pkt2);
-                        av_packet_unref(packet);
+                        packet->pts       = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                        packet->dts       = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                        packet->duration  = av_rescale_q(packet->duration,in_stream->time_base, out_stream->time_base);
+                        packet->stream_index = out_stream->index;
+                        packet->pos       = -1;
+
+                        ret = av_interleaved_write_frame(oFmtCtx, packet);
+                        if (ret != 0) Log2("Writing packet failed");
+                        av_packet_free(&packet);
                     }
 
                 } // While Demuxing
 
                 IsRunning = false;
-                Log($"{Status}");
+                Log2($"{Status}");
 
             } // While !stopThread
 
             CloseOutputFormat();
             if (Status != Status.Ended) Status = Status.Stopped;
-            Log($"[Remuxer] [Thread] Stopped ({Status})");
+            Log2($"[Thread] Stopped ({Status})");
         }
         #endregion
 
@@ -584,7 +620,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 av_packet_free(&packet);
             }
         }
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Demuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
+
+        private void Log2(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Remuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
+        private void Log (string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Demuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
     }
 
     public enum Status
