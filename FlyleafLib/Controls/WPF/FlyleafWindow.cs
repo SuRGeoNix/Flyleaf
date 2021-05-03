@@ -98,6 +98,8 @@ namespace FlyleafLib.Controls.WPF
         public void Wndhost_LocationChanged(object sender, EventArgs e)
         {
             //Console.WriteLine("Wndhost_LocationChanged");
+            if (WindowBack == null) return;
+
             var locationFromScreen  = windowsFormsHost.PointToScreen(_zeroPoint);
             var source              = PresentationSource.FromVisual(WindowBack);
             var targetPoints        = source.CompositionTarget.TransformFromDevice.Transform(locationFromScreen);
