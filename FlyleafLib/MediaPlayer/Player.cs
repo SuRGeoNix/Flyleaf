@@ -373,7 +373,7 @@ namespace FlyleafLib.MediaPlayer
             else if (inputStream is AudioStream)
             {
                 Utils.EnsureThreadDone(tOpenAudio);
-                Session.CurAudioStream.InUse = false;
+                if (Session.CurAudioStream != null) Session.CurAudioStream.InUse = false;
                 if (Config.audio.Enabled == false) Config.audio.SetEnabled();
 
                 tOpenAudio = new Thread(() => { OpenAudio((AudioStream)inputStream); });
@@ -382,7 +382,7 @@ namespace FlyleafLib.MediaPlayer
             else if (inputStream is SubtitlesStream)
             {
                 Utils.EnsureThreadDone(tOpenSubs);
-                Session.CurSubtitleStream.InUse = false;
+                if (Session.CurSubtitleStream != null) Session.CurSubtitleStream.InUse = false;
                 Session.SubsText = null; sFrame = null;
                 if (Config.subs.Enabled == false) Config.subs.SetEnabled();
 
