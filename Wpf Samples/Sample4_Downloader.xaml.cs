@@ -29,14 +29,19 @@ namespace Wpf_Samples
         public void OnPropertyChanged(string propertyName) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)); }
 
         public DemuxerBase Downloader { get ; set; } = new VideoDemuxer(new Config(), 777);
+        Thread downThread;
+
         public ICommand StartDownload { get ; set; }
         public ICommand StopDownload { get ; set; }
         public void StopDownloadAction(object obj = null) { Downloader.Stop(); }
         public void StartDownloadAction(object userInput)
         {
-            Thread downThread = new Thread(() =>
+            Downloader.Stop();
+
+            while (downThread != null && downThread.IsAlive) Thread.Sleep(10);
+
+            downThread = new Thread(() =>
             {
-                Downloader.Stop();
                 StartDownloader(userInput.ToString());
             });
             downThread.IsBackground = true;
@@ -65,8 +70,6 @@ namespace Wpf_Samples
             }
             else
                 MessageBox.Show("Download Failed!");
-
-            Downloader.Stop();
         }
 
         #region Testing Downloader
