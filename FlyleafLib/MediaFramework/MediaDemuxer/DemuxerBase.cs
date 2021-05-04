@@ -583,7 +583,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         in_stream       =  fmtCtx->streams[packet->stream_index];
                         out_stream      = oFmtCtx->streams[mapInOutStreams[packet->stream_index]];
 
-                        if (packet->pts > 0 && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+                        if (packet->dts > 0 && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                         {
                             double curTime = (packet->dts * mapInAVStreamsToStreams[in_stream->index].Timebase) - StartTime;
                             if (Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
