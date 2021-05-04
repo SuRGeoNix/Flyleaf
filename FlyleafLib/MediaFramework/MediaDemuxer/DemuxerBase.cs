@@ -543,7 +543,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 while (Status == Status.Demuxing)
                 {
-                    // Wait until Queue not Full or Stopped
                     if (gotAVERROR_EXIT)
                     {
                         gotAVERROR_EXIT = false;
@@ -600,7 +599,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         ret = av_interleaved_write_frame(oFmtCtx, packet);
                         if (ret != 0) Log2("Writing packet failed");
                         av_packet_free(&packet);
-                        Thread.Sleep(20);
                     }
 
                 } // While Demuxing
