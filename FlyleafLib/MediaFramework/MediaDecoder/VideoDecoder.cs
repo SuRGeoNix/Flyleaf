@@ -118,12 +118,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public void Flush()
         {
             if (Status == Status.Stopped) return;
-            //lock (lockCodecCtx)
+
             DisposeFrames();
             avcodec_flush_buffers(codecCtx);
             if (Status == Status.Ended) Status = Status.Paused;
             keyFrameRequired = true;
-            //demuxer.DisposePackets(demuxer.VideoPackets);
         }
 
         protected override void DecodeInternal()
