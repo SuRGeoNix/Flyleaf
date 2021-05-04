@@ -69,9 +69,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             if (Status == Status.Stopped) return;
 
-            //demuxer.DisposePackets(demuxer.AudioPackets);
             Frames = new ConcurrentQueue<AudioFrame>();
-            //lock (lockCodecCtx)
             avcodec_flush_buffers(codecCtx);
             if (Status == Status.Ended) Status = Status.Paused;
         }

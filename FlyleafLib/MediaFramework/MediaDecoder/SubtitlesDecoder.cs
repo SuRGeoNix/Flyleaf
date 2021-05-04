@@ -35,9 +35,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             if (Status == Status.Stopped) return;
 
-            //demuxer.DisposePackets(demuxer.SubtitlesPackets);
             Frames = new ConcurrentQueue<SubtitlesFrame>();
-            lock (lockCodecCtx)
             avcodec_flush_buffers(codecCtx);
             if (Status == Status.Ended) Status = Status.Paused;
         }

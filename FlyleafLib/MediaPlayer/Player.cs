@@ -133,6 +133,7 @@ namespace FlyleafLib.MediaPlayer
 		public Player(Config config = null)
         {
             Config = config == null ? new Config() : config;
+            config.SetPlayer(this);
         }
 
         private void InitializeControl1(Flyleaf oldValue, Flyleaf newValue)
@@ -477,6 +478,8 @@ namespace FlyleafLib.MediaPlayer
                         SubtitleConverter.Convert(stream.Url, newUrl, subsEnc, new UTF8Encoding(false));
                         stream.Url = newUrl;
                     }
+
+                    stream.Converted = true;
                 }
 
                 if (stream.StreamIndex == -1 && string.IsNullOrEmpty(stream.Url)) continue; // Failed
@@ -512,7 +515,7 @@ namespace FlyleafLib.MediaPlayer
             if (!IsPlaying) { requiresResync = true; return; }
 
             decoder.SeekSubtitles(elapsedTicks/10000);
-            //sFrame = null; Session.SubsText = "";
+            sFrame = null; Session.SubsText = "";
         }
         internal void DisableAudio()
         {
