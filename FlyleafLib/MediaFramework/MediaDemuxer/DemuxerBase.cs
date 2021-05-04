@@ -535,7 +535,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 int ret = 0;
                 int allowedErrors = cfg.demuxer.MaxErrors;
                 bool gotAVERROR_EXIT = false;
-                double downPercentageFactor = (StartTime + Duration) / (double)100;
+                double downPercentageFactor = Duration / 100.0;
 
                 AVStream* in_stream;
                 AVStream* out_stream;
@@ -584,9 +584,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         in_stream       =  fmtCtx->streams[packet->stream_index];
                         out_stream      = oFmtCtx->streams[mapInOutStreams[packet->stream_index]];
 
-                        if (packet->pts > 0)
+                        if (packet->pts > 0 && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                         {
-                            double curTime = packet->pts * mapInAVStreamsToStreams[in_stream->index].Timebase;
+                            double curTime = (packet->dts * mapInAVStreamsToStreams[in_stream->index].Timebase) - StartTime;
                             if (Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
                             CurTime = (long) curTime;
                         }
@@ -600,6 +600,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         ret = av_interleaved_write_frame(oFmtCtx, packet);
                         if (ret != 0) Log2("Writing packet failed");
                         av_packet_free(&packet);
+                        Thread.Sleep(20);
                     }
 
                 } // While Demuxing
