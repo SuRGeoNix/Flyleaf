@@ -369,7 +369,7 @@ namespace FlyleafLib
             {
                 int position = 0;
                 int bytes = 0;
-                while (position < length)
+                while (position < length - 4)
                 {
                     if (!IsValid(buffer, position, length, ref bytes))
                     {
