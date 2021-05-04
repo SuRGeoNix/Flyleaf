@@ -260,13 +260,13 @@ namespace FlyleafLib.Plugins
                 if (Session.CurVideoStream != null && Session.CurVideoStream.Stream != null)
                 {
                     var savePos = Session.CurVideoStream.Stream.Position;
-                    hash  = Utils.ToHexadecimal(ComputeMovieHash(Session.CurVideoStream.Stream, Player.Session.Movie.FileSize));
+                    hash  = Utils.ToHexadecimal(ComputeMovieHash(Session.CurVideoStream.Stream, Session.Movie.FileSize));
                     Session.CurVideoStream.Stream.Position = savePos;
                 }
                 else
-                    hash = Utils.ToHexadecimal(ComputeMovieHash(Player.Session.Movie.Url));
+                    hash = Utils.ToHexadecimal(ComputeMovieHash(Session.Movie.Url));
 
-            Search(Player.Session.Movie.Title, hash, Player.Session.Movie.FileSize, Player.Config.subs.Languages);
+            Search(Session.Movie.Title, hash, Session.Movie.FileSize, Player.Config.subs.Languages);
         }
 
         public bool Download(SubtitlesStream stream)
