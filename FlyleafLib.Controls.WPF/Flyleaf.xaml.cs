@@ -176,6 +176,8 @@ namespace FlyleafLib.Controls.WPF
             VideoView.FontFamily  = FontFamily;
             VideoView.FontSize    = FontSize;
 
+            WindowFront.Closing  += (o, e) => { System.Threading.Tasks.Task.Run(() => Player?.Dispose()); };
+
             // Keys (WFH will work for backwindow's key events) | both WPF
             if (EnableKeyBindings)
             {
