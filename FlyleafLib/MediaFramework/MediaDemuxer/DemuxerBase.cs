@@ -314,7 +314,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     if (ret < 0) Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
                 }
             }
-
+            
             return ret;  // >= 0 for success
         }
 
@@ -367,19 +367,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         {
                             av_packet_unref(packet);
 
-                            if (ret == AVERROR_EXIT)
+                            if (ret == AVERROR_EXIT && DemuxInterrupt != 0)
                             {
-                                //Log("AVERROR_EXIT");
-                                if (DemuxInterrupt != 0) allowedErrors--;
-                                if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); break; }
                                 gotAVERROR_EXIT = true;
                                 continue;
                             }
 
-                            if (ret == AVERROR_EOF)
-                                Status = Status.Ended;
-                            else
-                                Log($"[ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                            Status = Status.Ended;
 
                             break;
                         }
@@ -533,8 +527,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 threadCounter++;
                 int ret = 0;
-                int allowedErrors = cfg.demuxer.MaxErrors;
-                bool gotAVERROR_EXIT = false;
                 double downPercentageFactor = Duration / 100.0;
 
                 AVStream* in_stream;
@@ -543,63 +535,43 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 while (Status == Status.Demuxing)
                 {
-                    if (gotAVERROR_EXIT)
+                    // Demux Packet
+                    packet  = av_packet_alloc();
+                    ret     = av_read_frame(fmtCtx, packet);
+
+                    // Check for Errors / End
+                    if (ret != 0)
                     {
-                        gotAVERROR_EXIT = false;
-                        Thread.Sleep(5); // Possible come from seek or Player's stopping...
-                    }
-
-                    lock (lockFmtCtx)
-                    {
-                        // Demux Packet
-                        packet  = av_packet_alloc();
-                        ret     = av_read_frame(fmtCtx, packet);
-
-                        // Check for Errors / End
-                        if (ret != 0)
-                        {
-                            av_packet_free(&packet);
-
-                            if (ret == AVERROR_EXIT)
-                            {
-                                //Log("AVERROR_EXIT");
-                                if (DemuxInterrupt != 0) allowedErrors--;
-                                if (allowedErrors == 0) { Log2("[ERROR-0] Too many errors!"); break; }
-                                gotAVERROR_EXIT = true;
-                                continue;
-                            }
-
-                            if (ret == AVERROR_EOF)
-                                { Status = Status.Ended; DownloadPercentage = 100; }
-                            else
-                                Log2($"[ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
-
-                            break;
-                        }
-
-                        // Skip Disabled Streams
-                        if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_free(&packet); continue; }
-
-                        in_stream       =  fmtCtx->streams[packet->stream_index];
-                        out_stream      = oFmtCtx->streams[mapInOutStreams[packet->stream_index]];
-
-                        if (packet->dts > 0 && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
-                        {
-                            double curTime = (packet->dts * mapInAVStreamsToStreams[in_stream->index].Timebase) - StartTime;
-                            if (Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
-                            CurTime = (long) curTime;
-                        }
-
-                        packet->pts       = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                        packet->dts       = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                        packet->duration  = av_rescale_q(packet->duration,in_stream->time_base, out_stream->time_base);
-                        packet->stream_index = out_stream->index;
-                        packet->pos       = -1;
-
-                        ret = av_interleaved_write_frame(oFmtCtx, packet);
-                        if (ret != 0) Log2("Writing packet failed");
                         av_packet_free(&packet);
+
+                        if (Status == Status.Demuxing)
+                            { Status = Status.Ended; DownloadPercentage = 100; }
+                        
+                        break; // Stopping | Pausing    
                     }
+
+                    // Skip Disabled Streams
+                    if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_free(&packet); continue; }
+
+                    in_stream       =  fmtCtx->streams[packet->stream_index];
+                    out_stream      = oFmtCtx->streams[mapInOutStreams[packet->stream_index]];
+
+                    if (packet->dts > 0 && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+                    {
+                        double curTime = (packet->dts * mapInAVStreamsToStreams[in_stream->index].Timebase) - StartTime;
+                        if (Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
+                        CurTime = (long) curTime;
+                    }
+
+                    packet->pts       = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                    packet->dts       = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                    packet->duration  = av_rescale_q(packet->duration,in_stream->time_base, out_stream->time_base);
+                    packet->stream_index = out_stream->index;
+                    packet->pos       = -1;
+
+                    ret = av_interleaved_write_frame(oFmtCtx, packet);
+                    if (ret != 0) Log2("Writing packet failed");
+                    av_packet_free(&packet);
 
                 } // While Demuxing
 
