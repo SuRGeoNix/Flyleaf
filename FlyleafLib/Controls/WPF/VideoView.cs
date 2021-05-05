@@ -70,6 +70,7 @@ namespace FlyleafLib.Controls.WPF
 
             WindowFront.SetContent((UIElement) curContent);
             WindowFront.DataContext = DataContext;
+            WindowFront.VideoView   = this;
 
             if (curContent != null && curContent is IVideoView) 
                 ControlRequiresPlayer = ((IVideoView)curContent);
@@ -105,6 +106,8 @@ namespace FlyleafLib.Controls.WPF
         {
             if (WindowBack == null) return false;
 
+            WindowBack.Visibility = Visibility.Hidden;
+
             PlayerGrid.Children.Remove(WinFormsHost);
 
             oldContent = WindowBack.Content;
@@ -121,6 +124,8 @@ namespace FlyleafLib.Controls.WPF
             IsFullScreen = true;
             //WindowFront.Activate(); // GPU performance issue? (renderer should be the active window on fullscreen? but only when it goes to fullscreen, after that is fine if you activate front window) TBR...
 
+            WindowBack.Visibility = Visibility.Visible;
+            
             return true;
         }
 
@@ -141,6 +146,11 @@ namespace FlyleafLib.Controls.WPF
             WindowFront.Activate();
 
             return true;
+        }
+
+        public void Dispose()
+        {
+            Player?.Dispose();
         }
     }
 }
