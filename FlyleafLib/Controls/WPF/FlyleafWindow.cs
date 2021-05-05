@@ -13,6 +13,7 @@ namespace FlyleafLib.Controls.WPF
     {
         public   Window             WindowBack { get; private set; }
         readonly WindowsFormsHost   windowsFormsHost;
+        public   VideoView          VideoView;
         readonly Point              _zeroPoint   = new Point(0, 0);
 
         private readonly Grid grid = new Grid();
@@ -44,7 +45,12 @@ namespace FlyleafLib.Controls.WPF
             this.windowsFormsHost.Unloaded              += WFH_Unloaded;            
         }
 
-        void WFH_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e) { Console.WriteLine("WFH_DataContextChanged"); DataContext = e.NewValue; }
+        void WFH_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            //Console.WriteLine("WFH_DataContextChanged"); 
+            if (e.NewValue == null) return;
+            DataContext = e.NewValue;
+        }
 
         void WFH_Unloaded(object sender, RoutedEventArgs e)
         {
@@ -98,7 +104,6 @@ namespace FlyleafLib.Controls.WPF
         public void Wndhost_LocationChanged(object sender, EventArgs e)
         {
             //Console.WriteLine("Wndhost_LocationChanged");
-            if (WindowBack == null) return;
 
             var locationFromScreen  = windowsFormsHost.PointToScreen(_zeroPoint);
             var source              = PresentationSource.FromVisual(WindowBack);
@@ -128,6 +133,7 @@ namespace FlyleafLib.Controls.WPF
         void Wndhost_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             //Console.WriteLine("Wndhost_Closing");
+            VideoView.Dispose();
             Close();
 
             windowsFormsHost.DataContextChanged  -= WFH_DataContextChanged;

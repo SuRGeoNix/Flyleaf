@@ -133,7 +133,7 @@ namespace FlyleafLib.MediaPlayer
 		public Player(Config config = null)
         {
             Config = config == null ? new Config() : config;
-            config.SetPlayer(this);
+            Config.SetPlayer(this);
         }
 
         private void InitializeControl1(Flyleaf oldValue, Flyleaf newValue)
@@ -473,7 +473,7 @@ namespace FlyleafLib.MediaPlayer
                     if (subsEnc != Encoding.UTF8)
                     {
                         FileInfo fi = new FileInfo(stream.Url);
-                        var newUrl = Path.Combine(Session.Movie.Folder, "Subs", fi.Name.Remove(fi.Name.Length - fi.Extension.Length) + ".utf8.ext.srt");
+                        var newUrl = Path.Combine(Session.Movie.Folder, "Subs", fi.Name.Remove(fi.Name.Length - fi.Extension.Length) + ".utf8.srt");
                         Directory.CreateDirectory(Path.Combine(Session.Movie.Folder, "Subs"));
                         SubtitleConverter.Convert(stream.Url, newUrl, subsEnc, new UTF8Encoding(false));
                         stream.Url = newUrl;
