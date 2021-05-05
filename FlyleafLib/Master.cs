@@ -90,7 +90,7 @@ namespace FlyleafLib
         /// Registers FFmpeg libraries (ensure you provide x86 or x64 based on your project)
         /// </summary>
         /// <param name="absolutePath">Provide your custom absolute path or :1 for current or :2 for Libs\(x86 or x64 dynamic)\FFmpeg from current to base</param>
-        /// <param name="verbosity">FFmpeg's verbosity (24: Warning, 64: Max offset ...)</param>
+        /// <param name="verbosity">FFmpeg's verbosity (24: Warning, 64: Max offset ...) (used only in DEBUG)</param>
         public static void RegisterFFmpeg(string absolutePath = ":1", int verbosity = AV_LOG_WARNING) //AV_LOG_MAX_OFFSET
         {
             if (Utils.IsDesignMode || alreadyRegister) return;
@@ -118,11 +118,13 @@ namespace FlyleafLib
 
             try
             {
-                uint ver = avformat_version();
-                Log($"[FFmpegLoader] [Version: {ver >> 16}.{ver >> 8 & 255}.{ver & 255}] [Location: {RootPath}]");
+                #if DEBUG
                 av_log_set_level(verbosity);
                 av_log_set_callback(Utils.FFmpeg.ffmpegLogCallback);
+                #endif
 
+                uint ver = avformat_version();
+                Log($"[FFmpegLoader] [Version: {ver >> 16}.{ver >> 8 & 255}.{ver & 255}] [Location: {RootPath}]");
             } catch (Exception e) { throw new Exception("Failed to register FFmpeg libraries", e); }
         }
         static bool alreadyRegister = false;
