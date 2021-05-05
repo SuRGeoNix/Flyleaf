@@ -660,7 +660,7 @@ namespace FlyleafLib.MediaPlayer
         }
 
         /// <summary>
-        /// Disposes the Player
+        /// Disposes the Player (might will cause issues if you call it from a UI thread)
         /// </summary>
         public void Dispose()
         {

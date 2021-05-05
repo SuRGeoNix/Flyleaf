@@ -150,7 +150,7 @@ namespace FlyleafLib.Controls.WPF
 
         public void Dispose()
         {
-            Player?.Dispose();
+            //Player?.Dispose(); // Causes issues with the UI thread
         }
     }
 }
