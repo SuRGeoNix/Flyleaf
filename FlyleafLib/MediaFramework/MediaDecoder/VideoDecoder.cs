@@ -218,11 +218,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         }
 
                         VideoFrame mFrame = ProcessVideoFrame(frame);
-                        if (mFrame != null)
-                        {
-                            //Log(Utils.TicksToTime((long)(mFrame.pts * VideoStream.Timebase)) + " | pts -> " + mFrame.pts);
-                            Frames.Enqueue(mFrame);
-                        }
+                        if (mFrame != null) Frames.Enqueue(mFrame);
 
                         av_frame_unref(frame);
                     }
@@ -242,6 +238,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                 if (mFrame.pts == AV_NOPTS_VALUE) return null;
                 mFrame.timestamp = ((long)(mFrame.pts * VideoStream.Timebase) - VideoStream.StartTime) + cfg.audio.LatencyTicks;
+                //Log(Utils.TicksToTime(mFrame.timestamp));
 
                 // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)
                 if (VideoAccelerated)
