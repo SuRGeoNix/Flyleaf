@@ -118,7 +118,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             Status = Status.Opening;
             thread = new Thread(() => Decode());
             thread.Name = $"[#{decCtx.player.PlayerId}] [Decoder: {Type}]"; thread.IsBackground= true; thread.Start();
-            while (Status == Status.Opening) Thread.Sleep(5); // Wait for thread to come up
+            while (Status == Status.Opening) Thread.Sleep(5);
         }
         public void Start()
         {
