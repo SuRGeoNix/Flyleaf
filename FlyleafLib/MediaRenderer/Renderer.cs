@@ -86,7 +86,7 @@ namespace FlyleafLib.MediaRenderer
 
             //device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug, ((SharpDX.Direct3D.FeatureLevel[]) Enum.GetValues(typeof(SharpDX.Direct3D.FeatureLevel))).Reverse().ToArray() );
             //deviceDbg = new DeviceDebug(device); // To Report Live Objects if required
-            device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport, !Utils.IsWin10 ? null : ((SharpDX.Direct3D.FeatureLevel[]) Enum.GetValues(typeof(SharpDX.Direct3D.FeatureLevel))).Reverse().ToArray());
+            device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport);
             using (var mthread = device.QueryInterface<Multithread>()) mthread.SetMultithreadProtected(true);
 
             using (var device2 = device.QueryInterface<SharpDX.DXGI.Device2>())
@@ -101,8 +101,8 @@ namespace FlyleafLib.MediaRenderer
                 // Swap Chain (TODO: Backwards compatibility)
                 var desc1 = new SwapChainDescription1()
                 {
-                    BufferCount = Utils.IsWin10 ? 6 : 1,  // Should be 1 for Win < 8 | HDR 60 fps requires 6 for non drops
-                    SwapEffect  = Utils.IsWin10 ? SwapEffect.FlipSequential : SwapEffect.Discard,
+                    BufferCount = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? 6 : 1,  // Should be 1 for Win < 8 | HDR 60 fps requires 6 for non drops
+                    SwapEffect  = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? SwapEffect.FlipSequential : SwapEffect.Discard,
 
                     //Format      = HDREnabled ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm, // Create always 10 bit and fallback to 8?
                     Format      = Format.B8G8R8A8_UNorm,
@@ -110,7 +110,7 @@ namespace FlyleafLib.MediaRenderer
                     Height      = player.Control.Height,
                     AlphaMode   = AlphaMode.Ignore,
                     Usage       = Usage.RenderTargetOutput,
-                    Scaling     = Utils.IsWin10 ? Scaling.None : Scaling.Stretch,
+                    Scaling     = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? Scaling.None : Scaling.Stretch,
                     //Flags = SwapChainFlags.AllowModeSwitch,
                     //Flags = 0 (or if already in fullscreen while recreating -> SwapChainFlags.AllowModeSwitch)
                     SampleDescription = new SampleDescription()
