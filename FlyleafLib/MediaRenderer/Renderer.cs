@@ -101,7 +101,7 @@ namespace FlyleafLib.MediaRenderer
                 // Swap Chain (TODO: Backwards compatibility)
                 var desc1 = new SwapChainDescription1()
                 {
-                    BufferCount = device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? 6 : 1,  // Should be 1 for Win < 8 | HDR 60 fps requires 6 for non drops
+                    BufferCount = Utils.IsWin10 ? 6 : 1,  // Should be 1 for Win < 8 | HDR 60 fps requires 6 for non drops
                     SwapEffect  = Utils.IsWin10 ? SwapEffect.FlipSequential : SwapEffect.Discard,
 
                     //Format      = HDREnabled ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm, // Create always 10 bit and fallback to 8?

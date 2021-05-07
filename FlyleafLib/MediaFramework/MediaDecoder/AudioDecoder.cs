@@ -18,10 +18,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 {
     public unsafe class AudioDecoder : DecoderBase
     {
-        public AudioStream  AudioStream     => (AudioStream) Stream;
+        public AudioStream      AudioStream         => (AudioStream) Stream;
 
         public ConcurrentQueue<AudioFrame>
-                            Frames          { get; protected set; } = new ConcurrentQueue<AudioFrame>();
+                                Frames              { get; protected set; } = new ConcurrentQueue<AudioFrame>();
 
         static AVSampleFormat   AOutSampleFormat    = AVSampleFormat.AV_SAMPLE_FMT_FLT;
         static int              AOutChannelLayout   = AV_CH_LAYOUT_STEREO;
@@ -91,7 +91,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     Status = Status.Decoding;
                 }
 
-                
                 // While Packets Queue Empty (Ended | Quit if Demuxer stopped | Wait until we get packets)
                 if (demuxer.AudioPackets.Count == 0)
                 {
@@ -137,9 +136,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         {
                             allowedErrors--;
                             Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                            //avcodec_flush_buffers(codecCtx); ??
 
                             if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); return; }
-
+                            
                             continue;
                         }
                     }
@@ -150,11 +150,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         if (ret != 0) { av_frame_unref(frame); break; }
 
                         AudioFrame mFrame = ProcessAudioFrame(frame);
-                        if (mFrame != null)
-                        {
-                            //Log(Utils.TicksToTime((long)(mFrame.pts * VideoStream.Timebase)) + " | pts -> " + mFrame.pts);
-                            Frames.Enqueue(mFrame);
-                        }
+                        if (mFrame != null) Frames.Enqueue(mFrame);
 
                         av_frame_unref(frame);
                     }
@@ -171,6 +167,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
             if (mFrame.pts == AV_NOPTS_VALUE) return null;
             mFrame.timestamp = ((long)(mFrame.pts * AudioStream.Timebase) - AudioStream.StartTime) + cfg.audio.DelayTicks + (AudioStream.StartTime - decCtx.VideoDecoder.VideoStream.StartTime);
+            //Log(Utils.TicksToTime(mFrame.timestamp));
 
             try
             {

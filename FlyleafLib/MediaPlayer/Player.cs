@@ -753,7 +753,8 @@ namespace FlyleafLib.MediaPlayer
                 else
                 {
                     if (!decoder.VideoDecoder.IsRunning && !isVideoSwitch) { Log("[SCREAMER] Video Exhausted"); shouldStop= true; }
-                    if (!decoder.AudioDecoder.IsRunning || Session.CurAudioStream.Demuxer.Status == MediaFramework.MediaDemuxer.Status.QueueFull) { Log("[SCREAMER] Audio Exhausted"); gotAudio  = true; }
+                    if (vFrame != null && !gotAudio && (!decoder.AudioDecoder.IsRunning || Session.CurAudioStream.Demuxer.Status == MediaFramework.MediaDemuxer.Status.QueueFull)) { 
+                        Log("[SCREAMER] Audio Exhausted"); gotAudio  = true; }
                 }
 
                 Thread.Sleep(10);

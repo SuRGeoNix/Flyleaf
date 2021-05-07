@@ -164,6 +164,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         AudioStreams.Add(new AudioStream(fmtCtx->streams[i]) { Demuxer = this });
                         mapInAVStreamsToStreams.Add(i, AudioStreams[AudioStreams.Count-1]);
                         break;
+
                     case AVMEDIA_TYPE_VIDEO:
                         // Might excludes valid video streams for rtsp/web cams? Better way to ensure that they are actually image streams? (fps maybe?)
                         if (avcodec_get_name(fmtCtx->streams[i]->codecpar->codec_id) == "mjpeg") { Log($"Excluding image stream #{i}"); continue; }
@@ -172,6 +173,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         mapInAVStreamsToStreams.Add(i, VideoStreams[VideoStreams.Count-1]);
                         if (VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE) hasVideo = true;
                         break;
+
                     case AVMEDIA_TYPE_SUBTITLE:
                         SubtitlesStreams.Add(new SubtitlesStream(fmtCtx->streams[i]) { Demuxer = this, Converted = true, Downloaded = true });
                         mapInAVStreamsToStreams.Add(i, SubtitlesStreams[SubtitlesStreams.Count-1]);
@@ -562,6 +564,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
                         CurTime = (long) curTime;
                     }
+
+                    // Fixes the StartTime/Duration (eg. for live streams) but changes the codec_tag / codec_id etc...
+                    //packet->pts       = av_rescale_q_rnd(((long)(packet->pts * mapInAVStreamsToStreams[in_stream->index].Timebase) - StartTime) / 10, av_get_time_base_q(), out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                    //packet->dts       = av_rescale_q_rnd(((long)(packet->dts * mapInAVStreamsToStreams[in_stream->index].Timebase) - StartTime) / 10, av_get_time_base_q(), out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
 
                     packet->pts       = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
                     packet->dts       = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
