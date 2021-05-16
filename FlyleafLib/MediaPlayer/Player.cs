@@ -662,6 +662,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Stop()
         {
+            decoder.Stop();
             lock (lockSeek)
                 lock (lockOpen)
                     Initialize();
