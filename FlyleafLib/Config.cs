@@ -154,7 +154,7 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum video frames to be decoded and processed for rendering
             /// </summary>
-            public int              MaxVideoFrames  { get; set; } = Environment.ProcessorCount;
+            public int              MaxVideoFrames  { get; set; } = Math.Max(3, Environment.ProcessorCount);
 
             /// <summary>
             /// Maximum audio frames to be decoded and processed for playback

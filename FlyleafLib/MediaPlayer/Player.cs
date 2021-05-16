@@ -585,6 +585,7 @@ namespace FlyleafLib.MediaPlayer
                     Utils.NativeMethods.TimeEndPeriod(1);
                     Utils.NativeMethods.SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
                     Status = HasEnded ? Status.Ended  : Status.Paused;
+                    if (HasEnded) OnPlaybackCompleted();
                 }
             });
             tPlay.Name = "Play"; tPlay.IsBackground = true; tPlay.Start();
@@ -952,6 +953,12 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public event EventHandler<OpenCompletedArgs> OpenCompleted;
         protected virtual void OnOpenCompleted(MediaType type, bool success) { Task.Run(() => OpenCompleted?.Invoke(this, new OpenCompletedArgs(type, success))); }
+
+        /// <summary>
+        /// Fires on Playback completed
+        /// </summary>
+        public event EventHandler PlaybackCompleted;
+        protected virtual void OnPlaybackCompleted() { Task.Run(() => PlaybackCompleted?.Invoke(this, new EventArgs())); }
         #endregion
 
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
