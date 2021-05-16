@@ -117,20 +117,32 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 // Open Format Context
                 AVFormatContext* fmtCtxPtr = fmtCtx;
-                ret = avformat_open_input(&fmtCtxPtr, stream == null ? url : null, null, &avopt);
-                if (ret < 0) { Log($"[Format] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
+                lock (lockFmtCtx)
+                    ret = avformat_open_input(&fmtCtxPtr, stream == null ? url : null, null, &avopt);
+                if (ret < 0) { Log($"[Format] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); fmtCtx = null; return ret; }
+                if (Status != Status.Opening) return -1;
 
                 // Find Streams Info
-                ret = avformat_find_stream_info(fmtCtx, null);
+                lock (lockFmtCtx)
+                {
+                    if (Status != Status.Opening) return -1;
+                    ret = avformat_find_stream_info(fmtCtx, null);
+                }
                 if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); return ret; }
-                
-                bool hasVideo = FillInfo();
-                if (Type == MediaType.Video && !hasVideo) 
-                    { Log($"[Format] [ERROR-3] No video stream found");     avformat_close_input(&fmtCtxPtr); return -3; }
-                else if (Type == MediaType.Audio && AudioStreams.Count == 0)
-                    { Log($"[Format] [ERROR-4] No audio stream found");     avformat_close_input(&fmtCtxPtr); return -4; }
-                else if (Type == MediaType.Subs && SubtitlesStreams.Count == 0)
-                    { Log($"[Format] [ERROR-5] No subtitles stream found"); avformat_close_input(&fmtCtxPtr); return -5; }
+                if (Status != Status.Opening) return -1;
+
+                lock (lockFmtCtx)
+                {
+                    if (Status != Status.Opening) return -1;
+                    bool hasVideo = FillInfo();
+
+                    if (Type == MediaType.Video && !hasVideo) 
+                        { Log($"[Format] [ERROR-3] No video stream found");     avformat_close_input(&fmtCtxPtr); return -3; }
+                    else if (Type == MediaType.Audio && AudioStreams.Count == 0)
+                        { Log($"[Format] [ERROR-4] No audio stream found");     avformat_close_input(&fmtCtxPtr); return -4; }
+                    else if (Type == MediaType.Subs && SubtitlesStreams.Count == 0)
+                        { Log($"[Format] [ERROR-5] No subtitles stream found"); avformat_close_input(&fmtCtxPtr); return -5; }
+                }
 
                 StartThread();
 
@@ -243,10 +255,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Status = Status.Pausing;
             while (Status == Status.Pausing) Thread.Sleep(5);
         }
+
+        //[System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
+        //[System.Security.SecurityCritical]
         public void Stop()
         {
             if (Status == Status.Stopped) return;
-
+           
             StopThread();
 
             // Free Streams
@@ -259,13 +274,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             DisposePackets(AudioPackets);
             DisposePackets(VideoPackets);
             DisposePackets(SubtitlesPackets);
-            if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
 
             // Close Format / Custom Contexts
-            if (fmtCtx != null) fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
-            CustomIOContext.Dispose();
+            lock (lockFmtCtx)
+            { 
+                if (fmtCtx != null)
+                    fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
 
-            Status = Status.Stopped;
+                if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
+                CustomIOContext.Dispose();
+
+                Status = Status.Stopped;
+            }
         }
         public void StopThread()
         {
