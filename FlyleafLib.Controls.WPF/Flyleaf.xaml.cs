@@ -575,6 +575,7 @@ namespace FlyleafLib.Controls.WPF
                         break;
                 }
 
+                e.Handled = true;
                 return;
             }
             
@@ -615,6 +616,8 @@ namespace FlyleafLib.Controls.WPF
                     Subs.DelayTicks += 100 * 10000;
                     break;
             }
+
+            e.Handled = true;
         }
         private void Flyleaf_KeyUp(object sender, KeyEventArgs e)
         {
@@ -629,7 +632,6 @@ namespace FlyleafLib.Controls.WPF
                     return;
 
                 case Key.F:
-                    e.Handled = true;
                     ToggleFullscreenAction();
                     break;
 
@@ -641,6 +643,8 @@ namespace FlyleafLib.Controls.WPF
                     if (IsFullscreen) ToggleFullscreenAction();
                     break;
             }
+
+            e.Handled = true;
         }
         private void Flyleaf_DragEnter(object sender, System.Windows.Forms.DragEventArgs e) { e.Effect = System.Windows.Forms.DragDropEffects.All; }
         private void Flyleaf_DragDrop(object sender, System.Windows.Forms.DragEventArgs e)
