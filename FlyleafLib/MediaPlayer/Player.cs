@@ -303,22 +303,25 @@ namespace FlyleafLib.MediaPlayer
 
             tOpenVideo = new Thread(() =>
             {
-                Status = Status.Opening;
-                Session.InitialUrl = url;
-
-                foreach(var plugin in videoPlugins)
+                lock (lockOpen)
                 {
-                    var res = ((IPluginVideo)plugin).OpenVideo();
-                    if (res == null) continue;
+                    Status = Status.Opening;
+                    Session.InitialUrl = url;
 
-                    if (res.forceFailure)   { curVideoPlugin = plugin; OpenFailed(); return; }
-                    if (res.runAsync)       { curVideoPlugin = plugin; Log($"[VideoPlugin*] {curVideoPlugin?.PluginName}"); if (!Session.IsPlaylist) Session.SingleMovie.Url = Session.InitialUrl; return; }
+                    foreach(var plugin in videoPlugins)
+                    {
+                        var res = ((IPluginVideo)plugin).OpenVideo();
+                        if (res == null) continue;
 
-                    if (res.stream == null) continue;
-                    curVideoPlugin = plugin;
-                    if (!Session.IsPlaylist) Session.SingleMovie.Url = Session.InitialUrl;
-                    OpenVideo(res.stream);
-                    break;
+                        if (res.forceFailure)   { curVideoPlugin = plugin; OpenFailed(); return; }
+                        if (res.runAsync)       { curVideoPlugin = plugin; Log($"[VideoPlugin*] {curVideoPlugin?.PluginName}"); if (!Session.IsPlaylist) Session.SingleMovie.Url = Session.InitialUrl; return; }
+
+                        if (res.stream == null) continue;
+                        curVideoPlugin = plugin;
+                        if (!Session.IsPlaylist) Session.SingleMovie.Url = Session.InitialUrl;
+                        OpenVideo(res.stream);
+                        break;
+                    }
                 }
             });
             tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
@@ -334,10 +337,12 @@ namespace FlyleafLib.MediaPlayer
 
             tOpenVideo = new Thread(() => 
             {
-                Status = Status.Opening;
-                curVideoPlugin = Plugins["DefaultExternal"];
-                Open(((IPluginExternal)Plugins["DefaultExternal"]).OpenVideo(stream));
-
+                lock (lockOpen)
+                {
+                    Status = Status.Opening;
+                    curVideoPlugin = Plugins["DefaultExternal"];
+                    Open(((IPluginExternal)Plugins["DefaultExternal"]).OpenVideo(stream));
+                }
             });
             tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
         }
@@ -657,7 +662,9 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Stop()
         {
-            Initialize();
+            lock (lockSeek)
+                lock (lockOpen)
+                    Initialize();
         }
 
         /// <summary>
