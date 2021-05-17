@@ -55,7 +55,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         AVFormatContext*fmtCtx;
         AVPacket*       packet;
-        object          lockFmtCtx = new object();
+        internal object lockFmtCtx = new object();
 
         Config          cfg;
 
@@ -142,11 +142,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         { Log($"[Format] [ERROR-4] No audio stream found");     avformat_close_input(&fmtCtxPtr); return -4; }
                     else if (Type == MediaType.Subs && SubtitlesStreams.Count == 0)
                         { Log($"[Format] [ERROR-5] No subtitles stream found"); avformat_close_input(&fmtCtxPtr); return -5; }
+
+                    StartThread();
+
+                    if (ret > 0) ret = 0;
                 }
-
-                StartThread();
-
-                if (ret > 0) ret = 0;
             }
             finally { if (Status == Status.Opening) Status = Status.Stopped; }
 
@@ -264,20 +264,20 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
            
             StopThread();
 
-            // Free Streams
-            AudioStreams.Clear();
-            VideoStreams.Clear();
-            SubtitlesStreams.Clear();
-            EnabledStreams.Clear();
-
-            // Free Packets
-            DisposePackets(AudioPackets);
-            DisposePackets(VideoPackets);
-            DisposePackets(SubtitlesPackets);
-
-            // Close Format / Custom Contexts
             lock (lockFmtCtx)
-            { 
+            {
+                // Free Streams
+                AudioStreams.Clear();
+                VideoStreams.Clear();
+                SubtitlesStreams.Clear();
+                EnabledStreams.Clear();
+
+                // Free Packets
+                DisposePackets(AudioPackets);
+                DisposePackets(VideoPackets);
+                DisposePackets(SubtitlesPackets);
+
+                // Close Format / Custom Contexts
                 if (fmtCtx != null)
                     fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
 
