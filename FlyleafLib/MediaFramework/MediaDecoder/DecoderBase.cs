@@ -50,40 +50,42 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public int Open(StreamBase stream)
         {
-            int ret;
+            lock (stream.Demuxer.lockFmtCtx)
+            {
+                int ret;
 
-            Stop();
+                Stop();
+                Status  = Status.Opening;
+                Stream  = stream;
+                demuxer = stream.Demuxer;
 
-            Status  = Status.Opening;
-            Stream  = stream;
-            demuxer = stream.Demuxer;
+                AVCodec* codec = avcodec_find_decoder(stream.AVStream->codecpar->codec_id);
+                if (codec == null)
+                    { Log($"[CodecOpen {Type}] [ERROR-1] No suitable codec found"); return -1; }
 
-            AVCodec* codec = avcodec_find_decoder(stream.AVStream->codecpar->codec_id);
-            if (codec == null)
-                { Log($"[CodecOpen {Type}] [ERROR-1] No suitable codec found"); return -1; }
+                codecCtx = avcodec_alloc_context3(null);
+                if (codecCtx == null)
+                    { Log($"[CodecOpen {Type}] [ERROR-2] Failed to allocate context3"); return -1; }
 
-            codecCtx = avcodec_alloc_context3(null);
-            if (codecCtx == null)
-                { Log($"[CodecOpen {Type}] [ERROR-2] Failed to allocate context3"); return -1; }
+                ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
+                if (ret < 0)
+                    { Log($"[CodecOpen {Type}] [ERROR-3] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
 
-            ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
-            if (ret < 0)
-                { Log($"[CodecOpen {Type}] [ERROR-3] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
+                codecCtx->pkt_timebase  = stream.AVStream->time_base;
+                codecCtx->codec_id      = codec->id;
 
-            codecCtx->pkt_timebase  = stream.AVStream->time_base;
-            codecCtx->codec_id      = codec->id;
+                ret = Setup(codec);
+                if (ret < 0) return ret;
 
-            ret = Setup(codec);
-            if (ret < 0) return ret;
+                ret = avcodec_open2(codecCtx, codec, null);
+                if (ret < 0) return ret;
 
-            ret = avcodec_open2(codecCtx, codec, null);
-            if (ret < 0) return ret;
+                frame = av_frame_alloc();
+                demuxer.EnableStream(Stream);
+                StartThread();
 
-            frame = av_frame_alloc();
-            demuxer.EnableStream(Stream);
-            StartThread();
-
-            return ret; // 0 for success
+                return ret; // 0 for success
+            }
         }
 
         public virtual void Stop()
