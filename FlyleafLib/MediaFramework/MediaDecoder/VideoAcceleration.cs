@@ -45,6 +45,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public VideoAcceleration(Device device) { Init(device); }
 
+        public void Dispose()
+        {
+            fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
+            hw_device_ctx = null;
+        }
+
         public static bool CheckCodecSupport(AVCodec* codec)
         {
             for (int i = 0; ; i++)
