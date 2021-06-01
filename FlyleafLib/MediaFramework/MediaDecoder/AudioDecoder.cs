@@ -38,7 +38,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             int ret;
 
-            if (swrCtx ==  null) swrCtx = swr_alloc();
+            if (swrCtx == null) swrCtx = swr_alloc();
             
             m_max_dst_nb_samples    = -1;
 
@@ -63,7 +63,15 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public override void Stop()
         {
             base.Stop();
+            while (Frames.Count > 0)
+            {
+                Frames.TryDequeue(out AudioFrame aFrame);
+                if (aFrame != null) aFrame.audioData = new byte[0];
+            }
             Frames = new ConcurrentQueue<AudioFrame>();
+            if (swrCtx != null) swr_close(swrCtx);
+            if (swrCtx != null) fixed(SwrContext** ptr = &swrCtx) swr_free(ptr);
+            if (m_dst_data != null) av_freep(&m_dst_data[0]);
         }
         public void Flush()
         {
