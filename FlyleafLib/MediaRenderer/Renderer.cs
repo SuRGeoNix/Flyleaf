@@ -84,7 +84,7 @@ namespace FlyleafLib.MediaRenderer
                 * For Windows 10, to create a device that supports the debug layer, enable the "Graphics Tools" optional feature. Go to the Settings panel, under System, Apps & features, Manage optional Features, Add a feature, and then look for "Graphics Tools".
                 */
 
-            //device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug, ((SharpDX.Direct3D.FeatureLevel[]) Enum.GetValues(typeof(SharpDX.Direct3D.FeatureLevel))).Reverse().ToArray() );
+            //device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug);
             //deviceDbg = new DeviceDebug(device); // To Report Live Objects if required
             device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport);
             using (var mthread = device.QueryInterface<Multithread>()) mthread.SetMultithreadProtected(true);
@@ -128,7 +128,7 @@ namespace FlyleafLib.MediaRenderer
             context         = device.ImmediateContext;
             vertexBuffer    = Buffer.Create(device, BindFlags.VertexBuffer, vertexBufferData);
 
-            SamplerState textureSampler = new SamplerState(device, new SamplerStateDescription()
+            textureSampler = new SamplerState(device, new SamplerStateDescription()
             {
                 AddressU = TextureAddressMode.Clamp,
                 AddressV = TextureAddressMode.Clamp,
@@ -167,24 +167,53 @@ namespace FlyleafLib.MediaRenderer
             else
                 SetViewport();
         }
+        SamplerState textureSampler;
+        bool disposed = false;
         public void Dispose()
         {
+            if (device == null) return;
+
             lock (device)
             {
+                if (disposed) return;
+
                 player.Control.Resize -= ResizeBuffers;
 
-                Utilities.Dispose(ref rtv);
-                Utilities.Dispose(ref backBuffer);
-                Utilities.Dispose(ref swapChain);
+                foreach (var t1 in pixelShaders)
+                t1.Value.Dispose();
+
+                vertexShader.Dispose();
+
+                Utilities.Dispose(ref textureSampler);
                 Utilities.Dispose(ref vertexLayout);
                 Utilities.Dispose(ref vertexBuffer);
+                Utilities.Dispose(ref backBuffer);
+                Utilities.Dispose(ref rtv);
+
+                context.InputAssembler.Dispose();
+                context.VertexShader.Dispose();
+                context.PixelShader.Dispose();
+                context.Rasterizer.Dispose();
+                context.OutputMerger.Dispose();
+                //curPixelShader.Dispose();
 
                 context.Flush();
                 context.ClearState();
+                context.Flush();
+                context.ClearState();
                 Utilities.Dispose(ref context);
+                Utilities.Dispose(ref swapChain);
+
+                disposed = true;
             }
 
-            Utilities.Dispose(ref device);
+            pixelShaders = null;
+            vertexShader = null;
+            vertexLayout = null;
+            player = null;
+
+            //deviceDbg.ReportLiveDeviceObjects(ReportingLevel.Detail);
+            device = null;
         }
 
         private void ResizeBuffers(object sender, EventArgs e)
@@ -282,6 +311,8 @@ namespace FlyleafLib.MediaRenderer
 
             if (gotIn)
             {
+                if (rtv == null) return;
+
                 try
                 {
                     if (frame != null)

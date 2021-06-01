@@ -129,6 +129,7 @@ namespace FlyleafLib.MediaPlayer
         public void Dispose()
         {
             player?.Dispose();
+            volumeSampleProvider = null;
             player = null;
             buffer = null;
         }
