@@ -27,19 +27,19 @@ namespace FlyleafLib.Controls.WPF
 
         public Player           Player      { get => _Player; set { _Player = value; InitializePlayer(); } }
         Player _Player;
-        public AudioPlayer      AudioPlayer => Player.audioPlayer;
+        public AudioPlayer      AudioPlayer => Player?.audioPlayer;
         public AudioMaster      AudioMaster => Master.AudioMaster;
-        public FlyleafWindow    WindowFront => VideoView.WindowFront;
-        public WindowsFormsHost WinFormsHost=> VideoView.WinFormsHost;
-        public VideoView        VideoView   => Player.VideoView;
+        public FlyleafWindow    WindowFront => VideoView?.WindowFront;
+        public WindowsFormsHost WinFormsHost=> VideoView?.WinFormsHost;
+        public VideoView        VideoView   => Player?.VideoView;
         
-        public Session          Session     => Player.Session;
-        public Config           Config      => Player.Config;
-        public Config.Audio     Audio       => Config.audio;
-        public Config.Subs      Subs        => Config.subs;
-        public Config.Video     Video       => Config.video;
-        public Config.Decoder   Decoder     => Config.decoder;
-        public Config.Demuxer   Demuxer     => Config.demuxer;
+        public Session          Session     => Player?.Session;
+        public Config           Config      => Player?.Config;
+        public Config.Audio     Audio       => Config?.audio;
+        public Config.Subs      Subs        => Config?.subs;
+        public Config.Video     Video       => Config?.video;
+        public Config.Decoder   Decoder     => Config?.decoder;
+        public Config.Demuxer   Demuxer     => Config?.demuxer;
 
         bool _IsFullscreen;
         public bool IsFullscreen
@@ -176,7 +176,7 @@ namespace FlyleafLib.Controls.WPF
             VideoView.FontFamily  = FontFamily;
             VideoView.FontSize    = FontSize;
 
-            WindowFront.Closing  += (o, e) => { System.Threading.Tasks.Task.Run(() => Player?.Dispose()); };
+            WindowFront.Closing  += (o, e) => { System.Threading.Tasks.Task.Run(() => Player?.Dispose()); Player = null; IdleTimeout = 0; VideoView?.WindowFront.Close(); };
 
             // Keys (WFH will work for backwindow's key events) | both WPF
             if (EnableKeyBindings)

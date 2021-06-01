@@ -662,6 +662,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Stop()
         {
+            if (disposed || decoder == null) return;
             decoder.Stop();
             lock (lockSeek)
                 lock (lockOpen)
@@ -677,10 +678,13 @@ namespace FlyleafLib.MediaPlayer
             Stop();
             audioPlayer.Dispose(); 
             renderer.Dispose();
+            decoder.Dispose();
 
             audioPlayer = null;
             renderer = null;
             decoder = null;
+            Session = null;
+            Config = null;
             GC.Collect();
             disposed = true;
         }

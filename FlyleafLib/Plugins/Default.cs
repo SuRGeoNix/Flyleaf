@@ -114,6 +114,8 @@ namespace FlyleafLib.Plugins
                     if (stream.Language == lang) return stream;
 
             // Fall-back to FFmpeg's default
+            if (Player.decoder.VideoDemuxer.FormatContext == null) return null; // Proper lock on format context*
+
             int ret = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, Player.decoder.VideoDecoder.Stream.StreamIndex, null, 0);
             foreach(var stream in AudioStreams) if (stream.StreamIndex == ret) return stream;
 
