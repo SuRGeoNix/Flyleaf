@@ -92,6 +92,9 @@
     <Compile Include="Sample4_Downloader.xaml.cs">
       <DependentUpon>Sample4_Downloader.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Issue40.xaml.cs">
+      <DependentUpon>Issue40.xaml</DependentUpon>
+    </Compile>
     <Page Include="Sample1_Basic.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -113,6 +116,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Sample4_Downloader.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Issue40.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
