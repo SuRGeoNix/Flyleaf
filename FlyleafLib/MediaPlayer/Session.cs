@@ -96,7 +96,7 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Player's current time or user's current seek time (if set from here seek's direction will be foreward)
         /// </summary>
-        public long             CurTime             { get => _CurTime;      set { Set(ref _CurTime, value); player?.Seek((int) ((long)((object)value)/10000)); } }
+        public long             CurTime             { get => _CurTime;      set { Set(ref _CurTime, value); player?.Seek((int) ((long)((object)value)/10000), true); } }
         long        _CurTime;
 
         internal void SetCurTime(long curTime) { Set(ref _CurTime, curTime, false, nameof(CurTime)); }

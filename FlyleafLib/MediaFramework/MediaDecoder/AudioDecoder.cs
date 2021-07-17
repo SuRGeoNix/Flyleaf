@@ -62,24 +62,29 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public override void Stop()
         {
-            base.Stop();
-            while (Frames.Count > 0)
+            lock (lockCodecCtx)
             {
-                Frames.TryDequeue(out AudioFrame aFrame);
-                if (aFrame != null) aFrame.audioData = new byte[0];
+                base.Stop();
+                while (Frames.Count > 0)
+                {
+                    Frames.TryDequeue(out AudioFrame aFrame);
+                    if (aFrame != null) aFrame.audioData = new byte[0];
+                }
+                Frames = new ConcurrentQueue<AudioFrame>();
+                if (swrCtx != null) { swr_close(swrCtx); fixed(SwrContext** ptr = &swrCtx) swr_free(ptr); swrCtx = null; }
+                if (m_dst_data != null) { av_freep(&m_dst_data[0]); fixed (byte*** ptr = &m_dst_data) av_freep(ptr); m_dst_data = null; }
             }
-            Frames = new ConcurrentQueue<AudioFrame>();
-            if (swrCtx != null) swr_close(swrCtx);
-            if (swrCtx != null) fixed(SwrContext** ptr = &swrCtx) swr_free(ptr);
-            if (m_dst_data != null) av_freep(&m_dst_data[0]);
         }
         public void Flush()
         {
-            if (Status == Status.Stopped) return;
+            lock (lockCodecCtx)
+            {
+                if (Status == Status.Stopped) return;
 
-            Frames = new ConcurrentQueue<AudioFrame>();
-            avcodec_flush_buffers(codecCtx);
-            if (Status == Status.Ended) Status = Status.Paused;
+                Frames = new ConcurrentQueue<AudioFrame>();
+                avcodec_flush_buffers(codecCtx);
+                if (Status == Status.Ended) Status = Status.Paused;
+            }
         }
         protected override void DecodeInternal()
         {
@@ -125,7 +130,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 lock (lockCodecCtx)
                 {
-                    if (demuxer.AudioPackets.Count == 0) continue;
+                    if (Status == Status.Stopped || demuxer.AudioPackets.Count == 0) continue;
                     demuxer.AudioPackets.TryDequeue(out IntPtr pktPtr);
                     packet = (AVPacket*) pktPtr;
 
@@ -184,7 +189,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 if (m_max_dst_nb_samples == -1)
                 {
-                    if (m_dst_data != null && (IntPtr)(*m_dst_data) != IntPtr.Zero) { av_freep(&m_dst_data[0]); m_dst_data = null; }
+                    if (m_dst_data != null) { av_freep(&m_dst_data[0]); fixed (byte*** ptr = &m_dst_data) av_freep(ptr); m_dst_data = null; }
 
                     m_max_dst_nb_samples = (int)av_rescale_rnd(frame->nb_samples, codecCtx->sample_rate, codecCtx->sample_rate, AVRounding.AV_ROUND_UP);
                     fixed(byte*** dst_data = &m_dst_data)
@@ -207,7 +212,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     int dst_data_len = av_samples_get_buffer_size(dst_linesize, AOutChannels, ret, AOutSampleFormat, 1);
 
-                    mFrame.audioData    = new byte[dst_data_len]; Marshal.Copy((IntPtr)(*m_dst_data), mFrame.audioData, 0, mFrame.audioData.Length); //Marshal.FreeHGlobal((IntPtr)(*m_dst_data));
+                    mFrame.audioData = new byte[dst_data_len];
+                    Marshal.Copy((IntPtr)(*m_dst_data), mFrame.audioData, 0, mFrame.audioData.Length);
                 }
 
             } catch (Exception e) {  Log("[ProcessAudioFrame] [Error] " + e.Message + " - " + e.StackTrace); return null; }

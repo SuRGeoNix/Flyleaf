@@ -101,7 +101,7 @@ namespace FlyleafLib
         {
             lock (locker)
             {
-                foreach(var player in Master.Players)
+                foreach(var player in Master.Players.Values)
                     player.audioPlayer.Initialize();
 
                 if (Device == DefaultDeviceName)
