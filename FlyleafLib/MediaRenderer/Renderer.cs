@@ -84,9 +84,9 @@ namespace FlyleafLib.MediaRenderer
                 * For Windows 10, to create a device that supports the debug layer, enable the "Graphics Tools" optional feature. Go to the Settings panel, under System, Apps & features, Manage optional Features, Add a feature, and then look for "Graphics Tools".
                 */
 
+            device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport);
             //device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug);
             //deviceDbg = new DeviceDebug(device); // To Report Live Objects if required
-            device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport);
             using (var mthread = device.QueryInterface<Multithread>()) mthread.SetMultithreadProtected(true);
 
             using (var device2 = device.QueryInterface<SharpDX.DXGI.Device2>())
@@ -180,9 +180,15 @@ namespace FlyleafLib.MediaRenderer
                 player.Control.Resize -= ResizeBuffers;
 
                 foreach (var t1 in pixelShaders)
-                t1.Value.Dispose();
+                    t1.Value.Dispose();
 
                 vertexShader.Dispose();
+
+                context.InputAssembler.Dispose();
+                context.VertexShader.Dispose();
+                context.PixelShader.Dispose();
+                context.Rasterizer.Dispose();
+                context.OutputMerger.Dispose();
 
                 Utilities.Dispose(ref textureSampler);
                 Utilities.Dispose(ref vertexLayout);
@@ -190,11 +196,6 @@ namespace FlyleafLib.MediaRenderer
                 Utilities.Dispose(ref backBuffer);
                 Utilities.Dispose(ref rtv);
 
-                context.InputAssembler.Dispose();
-                context.VertexShader.Dispose();
-                context.PixelShader.Dispose();
-                context.Rasterizer.Dispose();
-                context.OutputMerger.Dispose();
                 //curPixelShader.Dispose();
 
                 context.Flush();
@@ -204,15 +205,16 @@ namespace FlyleafLib.MediaRenderer
                 Utilities.Dispose(ref context);
                 Utilities.Dispose(ref swapChain);
 
+                //deviceDbg.ReportLiveDeviceObjects(ReportingLevel.Detail);
+                Utilities.Dispose(ref device);
+                if (curSRVs != null) { for (int i=0; i<curSRVs.Length; i++) { Utilities.Dispose(ref curSRVs[i]); } curSRVs = null; }
                 disposed = true;
             }
-
+            
             pixelShaders = null;
             vertexShader = null;
             vertexLayout = null;
             player = null;
-
-            //deviceDbg.ReportLiveDeviceObjects(ReportingLevel.Detail);
             device = null;
         }
 
@@ -416,6 +418,11 @@ namespace FlyleafLib.MediaRenderer
             snapshotBitmap.Dispose();
         }
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [Renderer] {msg}"); }
+        private void Log(string msg)
+        {
+            #if DEBUG
+                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [Renderer] {msg}");
+            #endif
+        }
     }
 }

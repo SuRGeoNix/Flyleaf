@@ -128,10 +128,13 @@ namespace FlyleafLib.MediaPlayer
         }
         public void Dispose()
         {
-            player?.Dispose();
-            volumeSampleProvider = null;
-            player = null;
-            buffer = null;
+            lock (locker)
+            {
+                player?.Dispose();
+                volumeSampleProvider = null;
+                player = null;
+                buffer = null;
+            }
         }
         #endregion
 
@@ -158,7 +161,7 @@ namespace FlyleafLib.MediaPlayer
         }
         public void ClearBuffer()
         {
-            lock (locker) buffer.ClearBuffer();
+            lock (locker) buffer?.ClearBuffer();
         }
         #endregion
 
