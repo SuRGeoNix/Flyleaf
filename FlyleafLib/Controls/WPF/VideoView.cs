@@ -56,7 +56,7 @@ namespace FlyleafLib.Controls.WPF
         {
             base.ApplyTemplate();
 
-            if (IsDesignMode) return;
+            if (IsDesignMode | disposed) return;
             
             PlayerGrid  = Template.FindName(PART_PlayerGrid, this) as Grid;
             WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
@@ -84,7 +84,7 @@ namespace FlyleafLib.Controls.WPF
         }
         protected override void OnContentChanged(object oldContent, object newContent)
         {
-            if (IsUpdatingContent | IsDesignMode) return;
+            if (IsUpdatingContent | IsDesignMode | disposed) return;
 
             if (WindowFront != null)
             {
@@ -148,9 +148,34 @@ namespace FlyleafLib.Controls.WPF
             return true;
         }
 
-        public void Dispose()
+        bool disposed = false;
+        internal void Dispose()
         {
-            //Player?.Dispose(); // Causes issues with the UI thread
+            Console.WriteLine("VideoView_Dispose");
+
+            Player?.DisposeInternal();
+            Player = null;
+
+            lock (this)
+            {
+                if (disposed) return;
+
+                FlyleafWF?.Dispose();
+                FlyleafWF = null;
+
+                Resources.MergedDictionaries.Clear();
+                Resources.Clear();
+                Template.Resources.MergedDictionaries.Clear();
+                Content = null;
+                DataContext = null;
+                PlayerGrid.Children.Clear();
+                PlayerGrid = null;
+
+                disposed = true;
+            }
+
+            WindowFront?.Dispose();
+            WindowFront = null;
         }
     }
 }

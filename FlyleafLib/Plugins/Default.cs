@@ -51,13 +51,20 @@ namespace FlyleafLib.Plugins
                 Player.decoder.VideoDecoder.Open(iresults.ToList()[0]);
             else
             {
-                // Let FFmpeg decide
-                int vstreamIndex = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
-                if (vstreamIndex < 0) return;
+                // Fall-back to FFmpeg's default
+                if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return; // Proper lock on format context*
+                lock (Player.decoder.VideoDemuxer.lockFmtCtx)
+                {
+                    if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return; // Proper lock on format context*
 
-                foreach(var vstream in VideoStreams)
-                    if (vstream.StreamIndex == vstreamIndex)
-                        { Player.decoder.VideoDecoder.Open(vstream); break; }
+                    // Let FFmpeg decide
+                    int vstreamIndex = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
+                    if (vstreamIndex < 0) return;
+
+                    foreach(var vstream in VideoStreams)
+                        if (vstream.StreamIndex == vstreamIndex)
+                            { Player.decoder.VideoDecoder.Open(vstream); break; }
+                }
             }
         }
         public OpenVideoResults OpenVideo()
@@ -107,17 +114,24 @@ namespace FlyleafLib.Plugins
         }
         public AudioStream OpenAudio()
         {
-            if (AudioStreams.Count == 0) return null;
+            try
+            {
+                if (AudioStreams.Count == 0) return null;
 
-            foreach(var lang in Player.Config.audio.Languages)
-                foreach(var stream in AudioStreams)
-                    if (stream.Language == lang) return stream;
+                foreach(var lang in Player.Config.audio.Languages)
+                    foreach(var stream in AudioStreams)
+                        if (stream.Language == lang) return stream;
 
-            // Fall-back to FFmpeg's default
-            if (Player.decoder.VideoDemuxer.FormatContext == null) return null; // Proper lock on format context*
+                // Fall-back to FFmpeg's default
+                if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return null; // Proper lock on format context*
+                lock (Player.decoder.VideoDemuxer.lockFmtCtx)
+                {
+                    if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return null; // Proper lock on format context*
 
-            int ret = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, Player.decoder.VideoDecoder.Stream.StreamIndex, null, 0);
-            foreach(var stream in AudioStreams) if (stream.StreamIndex == ret) return stream;
+                    int ret = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, Player.decoder.VideoDecoder.Stream.StreamIndex, null, 0);
+                    foreach(var stream in AudioStreams) if (stream.StreamIndex == ret) return stream;
+                }
+            } catch (Exception) { }
 
             return null;
         }

@@ -319,7 +319,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         public void Dispose()
         {
-            VideoDecoder.VideoAcceleration.Dispose();
+            VideoDecoder.VideoAcceleration?.Dispose();
         }
 
         private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [DecoderContext] {msg}"); }
