@@ -42,7 +42,9 @@ namespace FlyleafLib.Controls.WPF
             this.windowsFormsHost                       = windowsFormsHost;
             this.windowsFormsHost.DataContextChanged    += WFH_DataContextChanged;
             this.windowsFormsHost.Loaded                += WFH_Loaded;
-            this.windowsFormsHost.Unloaded              += WFH_Unloaded;            
+            this.windowsFormsHost.Unloaded              += WFH_Unloaded;
+
+            Closed += FlyleafWindow_Closed;
         }
 
         void WFH_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -133,12 +135,56 @@ namespace FlyleafLib.Controls.WPF
         void Wndhost_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             //Console.WriteLine("Wndhost_Closing");
-            VideoView.Dispose();
-            Close();
 
-            windowsFormsHost.DataContextChanged  -= WFH_DataContextChanged;
-            windowsFormsHost.Loaded              -= WFH_Loaded;
-            windowsFormsHost.Unloaded            -= WFH_Unloaded;
+            if (!Master.PreventAutoDispose) Dispose();
+        }
+
+        bool disposed = false;
+        internal void Dispose()
+        {
+            //Console.WriteLine("FlyleafWindow_Dispose");
+
+            lock (this)
+            {
+                if (disposed) return;
+
+                if (windowsFormsHost != null)
+                {
+                    windowsFormsHost.DataContextChanged -= WFH_DataContextChanged;
+                    windowsFormsHost.Loaded             -= WFH_Loaded;
+                    windowsFormsHost.Unloaded           -= WFH_Unloaded;
+                    windowsFormsHost.SizeChanged        -= Wndhost_SizeChanged;
+                }
+
+                if (WindowBack != null)
+                {
+                    WindowBack.Closing          -= Wndhost_Closing;
+                    WindowBack.LocationChanged  -= Wndhost_LocationChanged;
+                }
+
+                Resources.MergedDictionaries.Clear();
+                Resources.Clear();
+                Template.Resources.MergedDictionaries.Clear();
+                Content = null;
+                SetContent(null);
+                DataContext = null;
+                grid.Children.Clear();
+                windowsFormsHost?.Dispose();
+                WindowBack = null;
+
+                disposed = true;
+            }
+            VideoView?.Dispose();
+            VideoView = null;
+
+            Close();
+        }
+
+        private void FlyleafWindow_Closed(object sender, EventArgs e)
+        {
+            //Console.WriteLine("FlyleafWindow_Closed");
+
+            if (!Master.PreventAutoDispose) Dispose();
         }
 
         protected override void OnKeyDown(KeyEventArgs e) { if (e.Key == Key.System && e.SystemKey == Key.F4) WindowBack?.Focus(); }
