@@ -50,11 +50,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public int Open(StreamBase stream)
         {
+            lock (lockCodecCtx)
             lock (stream.Demuxer.lockFmtCtx)
             {
                 int ret;
 
                 Stop();
+                if (stream == null || stream.Demuxer.Status == MediaDemuxer.Status.Stopped) return -1;
+
                 Status  = Status.Opening;
                 Stream  = stream;
                 demuxer = stream.Demuxer;
@@ -90,6 +93,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public virtual void Stop()
         {
+            lock (lockCodecCtx)
+            {
             if (Status == Status.Stopped) return;
 
             StopThread();
@@ -109,6 +114,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             demuxer = null;
             Stream = null;
             Status = Status.Stopped;
+            }
         }
 
         protected abstract int Setup(AVCodec* codec);
@@ -176,7 +182,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         }
         protected abstract void DecodeInternal();
 
-        protected void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{decCtx.player.PlayerId}] [Decoder: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
+        protected void Log(string msg)
+        {
+            #if DEBUG
+                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{decCtx.player.PlayerId}] [Decoder: {Type.ToString().PadLeft(5, ' ')}] {msg}");
+            #endif
+        }
     }
 
     public enum Status

@@ -28,16 +28,22 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public override void Stop()
         {
-            base.Stop();
-            Frames = new ConcurrentQueue<SubtitlesFrame>();
+            lock (lockCodecCtx)
+            {
+                base.Stop();
+                Frames = new ConcurrentQueue<SubtitlesFrame>();
+            }
         }
         public void Flush()
         {
-            if (Status == Status.Stopped) return;
+            lock (lockCodecCtx)
+            {
+                if (Status == Status.Stopped) return;
 
-            Frames = new ConcurrentQueue<SubtitlesFrame>();
-            avcodec_flush_buffers(codecCtx);
-            if (Status == Status.Ended) Status = Status.Paused;
+                Frames = new ConcurrentQueue<SubtitlesFrame>();
+                avcodec_flush_buffers(codecCtx);
+                if (Status == Status.Ended) Status = Status.Paused;
+            }
         }
 
         protected override void DecodeInternal()
@@ -84,7 +90,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 
                 lock (lockCodecCtx)
                 {
-                    if (demuxer.SubtitlesPackets.Count == 0) continue;
+                    if (Status == Status.Stopped || demuxer.SubtitlesPackets.Count == 0) continue;
                     demuxer.SubtitlesPackets.TryDequeue(out IntPtr pktPtr);
                     packet = (AVPacket*) pktPtr;
                     int gotFrame = 0;

@@ -32,7 +32,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             if (buffer == null)
                 buffer  = new byte[bufferSize]; // NOTE: if we use small buffer ffmpeg might request more than we suggest
 
-            avioCtx = avio_alloc_context((byte*)av_malloc(bufferSize), bufferSize, 0, (void*) demuxer.handle, ioread, null, ioseek);
+            avioCtx = avio_alloc_context((byte*)av_malloc(bufferSize), bufferSize, 0, (void*) GCHandle.ToIntPtr(demuxer.handle), ioread, null, ioseek);
             demuxer.FormatContext->pb     = avioCtx;
             demuxer.FormatContext->flags |= AVFMT_FLAG_CUSTOM_IO;
         }

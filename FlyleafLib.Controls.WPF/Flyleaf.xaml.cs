@@ -92,6 +92,31 @@ namespace FlyleafLib.Controls.WPF
 
             Initialize();
         }
+
+        public void Dispose()
+        {
+            lock (this)
+            {
+                if (disposed) return;
+
+                //Console.WriteLine("Flyleaf_WPF_Dispose");
+                WindowFront?.Close();
+                Player?.Dispose();
+
+                _IdleTimeout = -1;
+                Resources.MergedDictionaries.Clear();
+                Resources.Clear();
+                Template.Resources.MergedDictionaries.Clear();
+                Content = null;
+                DataContext = null;
+                disposed = true;
+                //Console.WriteLine("Flyleaf_WPF_Disposed");
+
+                
+            }
+        }
+        bool disposed;
+
         private void Initialize()
         {
             popUpMenu           = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner", this))?.ContextMenu;
@@ -176,7 +201,7 @@ namespace FlyleafLib.Controls.WPF
             VideoView.FontFamily  = FontFamily;
             VideoView.FontSize    = FontSize;
 
-            WindowFront.Closing  += (o, e) => { System.Threading.Tasks.Task.Run(() => Player?.Dispose()); Player = null; IdleTimeout = 0; VideoView?.WindowFront.Close(); };
+            this.Unloaded += (o, e) => { if (!Master.PreventAutoDispose) Dispose(); };
 
             // Keys (WFH will work for backwindow's key events) | both WPF
             if (EnableKeyBindings)
@@ -534,6 +559,8 @@ namespace FlyleafLib.Controls.WPF
         #region Events
         private void Flyleaf_KeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.System && e.SystemKey == Key.F4) { return; }
+
             Thickness t;
 
             if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier)) return;
@@ -621,6 +648,8 @@ namespace FlyleafLib.Controls.WPF
         }
         private void Flyleaf_KeyUp(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.System && e.SystemKey == Key.F4) { return; }
+
             lastKeyboardActivity = DateTime.UtcNow.Ticks;
 
             if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier) && e.Key == Key.Escape) { DialogHost.Close(dialogSettingsIdentifier, "cancel"); return; }

@@ -19,6 +19,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinForms Sample (Basic)", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F3659D14-F601-4A1E-BD76-96308D50BBF8}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		README.md = README.md
 	EndProjectSection
 EndProject
@@ -73,6 +74,7 @@ Global
 		{DC0B8BD8-BC22-4B04-B0C6-0FEB83D8345F}.Release|x64.ActiveCfg = Release|x64
 		{DC0B8BD8-BC22-4B04-B0C6-0FEB83D8345F}.Release|x64.Build.0 = Release|x64
 		{03425BFB-EFCD-4F90-93B7-8A395ADADFF3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03425BFB-EFCD-4F90-93B7-8A395ADADFF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{03425BFB-EFCD-4F90-93B7-8A395ADADFF3}.Debug|x64.ActiveCfg = Debug|x64
 		{03425BFB-EFCD-4F90-93B7-8A395ADADFF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{03425BFB-EFCD-4F90-93B7-8A395ADADFF3}.Release|Any CPU.Build.0 = Release|Any CPU

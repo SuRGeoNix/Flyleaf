@@ -47,7 +47,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         public int                      DemuxInterrupt      { get; internal set; }
 
-        internal IntPtr handle;
+        internal GCHandle handle;
 
         Thread          thread;
         AutoResetEvent  threadARE = new AutoResetEvent(false);
@@ -89,9 +89,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             interruptClbk.Pointer = Marshal.GetFunctionPointerForDelegate(InterruptClbk);
             CustomIOContext = new CustomIOContext(this);
-
-            GCHandle demuxerHandle = GCHandle.Alloc(this);
-            handle = (IntPtr) demuxerHandle;
         }
 
         public int Open(string url)     { return Open(url, null,    cfg.demuxer.GetFormatOptPtr(Type)); }
@@ -103,6 +100,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             try
             {
+                if (!handle.IsAllocated) handle = GCHandle.Alloc(this);
+
                 // Parse Options to AV Dictionary Format Options
                 AVDictionary *avopt = null;
                 foreach (var optKV in opt) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
@@ -110,7 +109,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 // Allocate / Prepare Format Context
                 fmtCtx = avformat_alloc_context();
                 fmtCtx->interrupt_callback.callback = interruptClbk;
-                fmtCtx->interrupt_callback.opaque = (void*)handle;
+                fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
                 fmtCtx->flags |= AVFMT_FLAG_DISCARD_CORRUPT;
                 if (stream != null)
                     CustomIOContext.Initialize(stream);
@@ -118,8 +117,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 // Open Format Context
                 AVFormatContext* fmtCtxPtr = fmtCtx;
                 lock (lockFmtCtx)
+                { 
                     ret = avformat_open_input(&fmtCtxPtr, stream == null ? url : null, null, &avopt);
-                if (ret < 0) { Log($"[Format] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); fmtCtx = null; return ret; }
+                    if (ret < 0) { Log($"[Format] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); fmtCtx = null; return ret; }
+                }
                 if (Status != Status.Opening) return -1;
 
                 // Find Streams Info
@@ -127,8 +128,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 {
                     if (Status != Status.Opening) return -1;
                     ret = avformat_find_stream_info(fmtCtx, null);
+                    if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); fmtCtx = null; return ret; }
                 }
-                if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); return ret; }
                 if (Status != Status.Opening) return -1;
 
                 lock (lockFmtCtx)
@@ -137,11 +138,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     bool hasVideo = FillInfo();
 
                     if (Type == MediaType.Video && !hasVideo) 
-                        { Log($"[Format] [ERROR-3] No video stream found");     avformat_close_input(&fmtCtxPtr); return -3; }
+                        { Log($"[Format] [ERROR-3] No video stream found");     avformat_close_input(&fmtCtxPtr); fmtCtx = null; return -3; }
                     else if (Type == MediaType.Audio && AudioStreams.Count == 0)
-                        { Log($"[Format] [ERROR-4] No audio stream found");     avformat_close_input(&fmtCtxPtr); return -4; }
+                        { Log($"[Format] [ERROR-4] No audio stream found");     avformat_close_input(&fmtCtxPtr); fmtCtx = null; return -4; }
                     else if (Type == MediaType.Subs && SubtitlesStreams.Count == 0)
-                        { Log($"[Format] [ERROR-5] No subtitles stream found"); avformat_close_input(&fmtCtxPtr); return -5; }
+                        { Log($"[Format] [ERROR-5] No subtitles stream found"); avformat_close_input(&fmtCtxPtr); fmtCtx = null; return -5; }
 
                     StartThread();
 
@@ -284,6 +285,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
                 CustomIOContext.Dispose();
 
+                if (handle.IsAllocated) handle.Free();
+
                 Status = Status.Stopped;
             }
         }
@@ -320,8 +323,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 if (Type == MediaType.Video)
                 {
-                    ret =  av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
-                } 
+                    ret =  av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD); // AVSEEK_FLAG_BACKWARD will not work on .dav even it it returns 0
+                }
                 else
                 {
                     ret = foreward ?
@@ -623,8 +626,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
         }
 
-        private void Log2(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Remuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
-        private void Log (string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Demuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
+        private void Log2(string msg)
+        {
+            #if DEBUG
+                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Remuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}");
+            #endif
+        }
+        private void Log (string msg)
+        { 
+            #if DEBUG
+                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Demuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}");
+            #endif
+        }
     }
 
     public enum Status

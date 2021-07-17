@@ -107,22 +107,28 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public override void Stop()
         {
-            if (Status == Status.Stopped) return;
+            lock (lockCodecCtx)
+            {
+                if (Status == Status.Stopped) return;
 
-            av_buffer_unref(&codecCtx->hw_device_ctx);
-            if (swsCtx != null) { sws_freeContext(swsCtx); swsCtx = null; }
-            base.Stop();
-            DisposeFrames();
+                av_buffer_unref(&codecCtx->hw_device_ctx);
+                base.Stop();
+                DisposeFrames();
+                if (swsCtx != null) { sws_freeContext(swsCtx); swsCtx = null; }
+            }
         }
 
         public void Flush()
         {
-            if (Status == Status.Stopped) return;
+            lock (lockCodecCtx)
+            {
+                if (Status == Status.Stopped) return;
 
-            DisposeFrames();
-            avcodec_flush_buffers(codecCtx);
-            if (Status == Status.Ended) Status = Status.Paused;
-            keyFrameRequired = true;
+                DisposeFrames();
+                avcodec_flush_buffers(codecCtx);
+                if (Status == Status.Ended) Status = Status.Paused;
+                keyFrameRequired = true;
+            }
         }
 
         protected override void DecodeInternal()
@@ -174,7 +180,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 lock (lockCodecCtx)
                 {
-                    if (demuxer.VideoPackets.Count == 0) continue;
+                    if (Status == Status.Stopped || demuxer.VideoPackets.Count == 0) continue;
                     demuxer.VideoPackets.TryDequeue(out IntPtr pktPtr);
                     packet = (AVPacket*) pktPtr;
                         

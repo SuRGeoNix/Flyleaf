@@ -62,19 +62,19 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Whether the video has ended
         /// </summary>
-        public bool         HasEnded        => decoder.VideoDecoder.Status == MediaFramework.MediaDecoder.Status.Ended;
+        public bool         HasEnded        => decoder != null && decoder.VideoDecoder.Status == MediaFramework.MediaDecoder.Status.Ended;
 
-        public bool         HasVideo        => decoder.VideoDecoder.Status != MediaFramework.MediaDecoder.Status.Stopped;
+        public bool         HasVideo        => decoder != null && decoder.VideoDecoder.Status != MediaFramework.MediaDecoder.Status.Stopped;
 
         /// <summary>
         /// Whether the video has audio and it is configured
         /// </summary>
-        public bool         HasAudio        => decoder.AudioDecoder.Status != MediaFramework.MediaDecoder.Status.Stopped;// .status != Status.None;
+        public bool         HasAudio        => decoder != null && decoder.AudioDecoder.Status != MediaFramework.MediaDecoder.Status.Stopped;// .status != Status.None;
 
         /// <summary>
         /// Whether the video has subtitles and it is configured
         /// </summary>
-        public bool         HasSubs         => decoder.SubtitlesDecoder.Status != MediaFramework.MediaDecoder.Status.Stopped;// .status != Status.None;
+        public bool         HasSubs         => decoder != null && decoder.SubtitlesDecoder.Status != MediaFramework.MediaDecoder.Status.Stopped;// .status != Status.None;
         
         /// <summary>
         /// Dictionary of available Plugins and their AVS Streams
@@ -138,30 +138,38 @@ namespace FlyleafLib.MediaPlayer
 
         private void InitializeControl1(Flyleaf oldValue, Flyleaf newValue)
         {
-            Interlocked.Increment(ref curPlayerId);
-            PlayerId = curPlayerId; 
-            Log("[Starting]");
+            lock (this)
+            {
+                Interlocked.Increment(ref curPlayerId);
+                PlayerId = curPlayerId; 
+                Log("[Starting]");
 
-            Session         = new Session(this);
-            seeks           = new ConcurrentStack<SeekData>();
-            audioPlayer     = new AudioPlayer(this);
+                Session         = new Session(this);
+                seeks           = new ConcurrentStack<SeekData>();
+                audioPlayer     = new AudioPlayer(this);
 
-            Master.Players.Add(this);
+                Master.Players.Add(PlayerId, this);
 
-            if (newValue.Handle != null)
-                InitializeControl2(newValue);
-            else
-                newValue.HandleCreated += (o, e) => { InitializeControl2(newValue); };
+                if (newValue.Handle != null)
+                    InitializeControl2(newValue);
+                else
+                    newValue.HandleCreated += (o, e) => { InitializeControl2(newValue); };
+            }
+            
         }
         private void InitializeControl2(Flyleaf newValue)
         {
-            _Control = newValue;
-            _Control.Player = this;
-            renderer = new Renderer(this);
-            decoder = new DecoderContext(this);
-            renderer.PresentFrame();
-            LoadPlugins();
-            Log("[Started]");
+            lock (this)
+            {
+                _Control = newValue;
+                _Control.Player = this;
+                renderer = new Renderer(this);
+                decoder = new DecoderContext(this);
+                renderer.PresentFrame();
+                LoadPlugins();
+                Log("[Started]");
+            }
+            
         }
         private void LoadPlugins()
         {
@@ -417,6 +425,7 @@ namespace FlyleafLib.MediaPlayer
             Log($"[VideoPlugin] {curVideoPlugin?.PluginName}");
 
             foreach(var plugin in Plugins.Values) plugin.OnVideoOpened();
+            if (!HasVideo) { OpenFailed(); return; }
 
             if (!HasAudio && Config.audio.Enabled)
                 OpenAudio();
@@ -584,8 +593,8 @@ namespace FlyleafLib.MediaPlayer
 
                 finally
                 {
-                    if (Status == Status.Stopped) decoder.Stop(); else decoder.Pause();
-                    audioPlayer.ClearBuffer();
+                    if (Status == Status.Stopped) decoder?.Stop(); else decoder?.Pause();
+                    audioPlayer?.ClearBuffer();
                     VideoDecoder.DisposeFrame(vFrame); vFrame = null;
                     Utils.NativeMethods.TimeEndPeriod(1);
                     Utils.NativeMethods.SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
@@ -662,11 +671,15 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Stop()
         {
-            if (disposed || decoder == null) return;
-            decoder.Stop();
-            lock (lockSeek)
-                lock (lockOpen)
-                    Initialize();
+            lock (this)
+            {
+                Pause();
+                if (disposed || decoder == null) return;
+                decoder.Stop();
+                lock (lockSeek)
+                    lock (lockOpen)
+                        Initialize();
+            }
         }
 
         /// <summary>
@@ -674,19 +687,40 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Dispose()
         {
-            if (disposed) return;
-            Stop();
-            audioPlayer.Dispose(); 
-            renderer.Dispose();
-            decoder.Dispose();
+            Master.DisposePlayer(this);
+        }
 
-            audioPlayer = null;
-            renderer = null;
-            decoder = null;
-            Session = null;
-            Config = null;
-            GC.Collect();
-            disposed = true;
+        internal void DisposeInternal()
+        {
+            Console.WriteLine("Player_Dispose");
+
+            lock (this)
+            {
+                if (disposed) return;
+
+                Stop();
+
+                audioPlayer?.Dispose(); 
+                decoder.Dispose();
+                renderer.Dispose();
+
+                audioPlayer = null;
+                renderer = null;
+                decoder = null;
+                Session = null;
+                Config = null;
+
+                disposed = true;
+                VideoView?.Dispose();
+                VideoView = null;
+
+                _Control.Player = null;
+                _Control = null;
+
+                GC.Collect();
+            }
+
+            Console.WriteLine("Player_Disposed");
         }
         bool disposed = false;
         #endregion
@@ -694,7 +728,7 @@ namespace FlyleafLib.MediaPlayer
         #region Scream
         private bool MediaBuffer()
         {
-            audioPlayer.ClearBuffer();
+            audioPlayer?.ClearBuffer();
 
             decoder.VideoDemuxer.Start();
             decoder.VideoDecoder.Start();
@@ -900,7 +934,7 @@ namespace FlyleafLib.MediaPlayer
                     if (Math.Abs(aDistanceMs - sleepMs) <= 10)
                     {
                         //Log($"[A] Presenting {Utils.TicksToTime(aFrame.timestamp)}");
-                        audioPlayer.FrameClbk(aFrame.audioData);
+                        audioPlayer?.FrameClbk(aFrame.audioData);
                         decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
                     }
                     else if (aDistanceMs < -10) // Will be transfered back to decoder to drop invalid timestamps
@@ -973,7 +1007,12 @@ namespace FlyleafLib.MediaPlayer
         protected virtual void OnPlaybackCompleted() { Task.Run(() => PlaybackCompleted?.Invoke(this, new EventArgs())); }
         #endregion
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
+        private void Log(string msg)
+        { 
+            #if DEBUG
+                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}");
+            #endif
+        }
     }
 
     public enum Status
