@@ -364,6 +364,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 int ret = 0;
                 int allowedErrors = cfg.demuxer.MaxErrors;
                 bool gotAVERROR_EXIT = false;
+                AVStream* in_stream;
+                AVStream* out_stream;
 
                 while (Status == Status.Demuxing)
                 {
@@ -406,6 +408,29 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         // Skip Disabled Streams
                         if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
+                        if (IsRecording)
+                        {
+                            if (!recGotKeyframe && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+                                if ((packet->flags & AV_PKT_FLAG_KEY) != 0) recGotKeyframe = true;
+
+                            if (recGotKeyframe)
+                            {
+                                in_stream       =  fmtCtx->streams[packet->stream_index];
+                                out_stream      = oFmtCtx->streams[mapInOutStreams[packet->stream_index]];
+
+                                var packet2         = av_packet_clone(packet);
+                                packet2->pts        = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                                packet2->dts        = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                                packet2->duration   = av_rescale_q(packet->duration,in_stream->time_base, out_stream->time_base);
+                                packet2->stream_index= out_stream->index;
+                                packet2->pos        = -1;
+
+                                ret = av_interleaved_write_frame(oFmtCtx, packet2);
+                                if (ret != 0) Log2("Writing packet failed");
+                                av_packet_unref(packet2);
+                            }
+                        }
+
                         // Enqueue Packet
                         switch (fmtCtx->streams[packet->stream_index]->codecpar->codec_type)
                         {
@@ -441,8 +466,39 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             } // While !stopThread
 
             if (Status != Status.Ended) Status = Status.Stopped;
+            if (IsRecording) StopRecording();
             Log($"[Thread] Stopped ({Status})");
         }
+
+        #region Preparing Recording
+        public bool IsRecording { get; private set; }
+        bool recGotKeyframe;
+
+        public void StartRecording(string filename)
+        {
+            lock (lockFmtCtx)
+            {
+                if (IsRecording) StopRecording();
+
+                Log("Record Start");
+                OpenOutputFormat(filename);
+                IsRecording = true;
+                recGotKeyframe = false;
+            }
+        }
+
+        public void StopRecording()
+        {
+            lock (lockFmtCtx)
+            {
+                if (!IsRecording) return;
+
+                Log("Record Completed");
+                CloseOutputFormat(false);
+                IsRecording = false;
+            }
+        }
+        #endregion
 
         #region Preparing Remuxing / Download (Should be transfered to a new MediaContext eg. DownloaderContext and include also the external demuxers - mainly for Youtube-dl)
         AVOutputFormat* oFmt;
@@ -524,14 +580,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             return ret;
         }
-        private void CloseOutputFormat()
+        private void CloseOutputFormat(bool isDownload = true)
         {
             int ret = -1;
             ret = av_write_trailer(oFmtCtx);
             avio_closep(&oFmtCtx->pb);
             avformat_free_context(oFmtCtx);
             Log2("Output format closed");
-            OnDownloadCompleted(ret == 0);
+            if (isDownload) OnDownloadCompleted(ret == 0);
         }
         private void Remux()
         {
