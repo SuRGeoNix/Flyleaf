@@ -345,6 +345,7 @@
                 </MenuItem.ItemContainerStyle>
             </MenuItem>
             <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Decoder.HWAcceleration}"/>
+            <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding IsRecording}"/>
             <MenuItem Header="Show GPU Usage"  IsCheckable="True" IsChecked="{Binding ShowGPUUsage}"/>
             <MenuItem Header="Streams">
                 <MenuItem Header="Embedded" ItemsSource="{Binding Player.Plugins[Default].VideoStreams}">
