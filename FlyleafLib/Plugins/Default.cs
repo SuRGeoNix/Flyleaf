@@ -31,41 +31,44 @@ namespace FlyleafLib.Plugins
 
         public override void OnVideoOpened()
         {
-            // TODO add also external demuxers (add range)
-            AudioStreams = Player.decoder.VideoDemuxer.AudioStreams;
-            VideoStreams = Player.decoder.VideoDemuxer.VideoStreams;
-            SubtitlesStreams = Player.decoder.VideoDemuxer.SubtitlesStreams;
-
-            // if (!player.HasVideo) ... possible allow plugins to select embedded video?
-
-            // Try to find best video stream based on current screen resolution
-            var iresults =
-                from    vstream in VideoStreams
-                where   vstream.Type == MediaType.Video && vstream.Height <= Player.renderer.Info.ScreenBounds.Height
-                orderby vstream.Height descending
-                select  vstream;
-
-            var results = iresults.ToList();
-
-            if (results.Count != 0)
-                Player.decoder.VideoDecoder.Open(iresults.ToList()[0]);
-            else
+            try
             {
-                // Fall-back to FFmpeg's default
                 if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return; // Proper lock on format context*
                 lock (Player.decoder.VideoDemuxer.lockFmtCtx)
                 {
-                    if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return; // Proper lock on format context*
+                    // TODO add also external demuxers (add range)
+                    AudioStreams = Player.decoder.VideoDemuxer.AudioStreams;
+                    VideoStreams = Player.decoder.VideoDemuxer.VideoStreams;
+                    SubtitlesStreams = Player.decoder.VideoDemuxer.SubtitlesStreams;
 
-                    // Let FFmpeg decide
-                    int vstreamIndex = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
-                    if (vstreamIndex < 0) return;
+                    // if (!player.HasVideo) ... possible allow plugins to select embedded video?
 
-                    foreach(var vstream in VideoStreams)
-                        if (vstream.StreamIndex == vstreamIndex)
-                            { Player.decoder.VideoDecoder.Open(vstream); break; }
+                    // Try to find best video stream based on current screen resolution
+                    var iresults =
+                        from    vstream in VideoStreams
+                        where   vstream.Type == MediaType.Video && vstream.Height <= Player.renderer.Info.ScreenBounds.Height
+                        orderby vstream.Height descending
+                        select  vstream;
+
+                    var results = iresults.ToList();
+
+                    if (results.Count != 0)
+                        Player.decoder.VideoDecoder.Open(iresults.ToList()[0]);
+                    else
+                    {
+                        // Fall-back to FFmpeg's default
+                        if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return; // Proper lock on format context*
+
+                        // Let FFmpeg decide
+                        int vstreamIndex = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
+                        if (vstreamIndex < 0) return;
+
+                        foreach(var vstream in VideoStreams)
+                            if (vstream.StreamIndex == vstreamIndex)
+                                { Player.decoder.VideoDecoder.Open(vstream); break; }
+                    }
                 }
-            }
+            } catch (Exception) { }
         }
         public OpenVideoResults OpenVideo()
         {
@@ -116,16 +119,16 @@ namespace FlyleafLib.Plugins
         {
             try
             {
-                if (AudioStreams.Count == 0) return null;
-
-                foreach(var lang in Player.Config.audio.Languages)
-                    foreach(var stream in AudioStreams)
-                        if (stream.Language == lang) return stream;
-
-                // Fall-back to FFmpeg's default
                 if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return null; // Proper lock on format context*
                 lock (Player.decoder.VideoDemuxer.lockFmtCtx)
                 {
+                    if (AudioStreams.Count == 0) return null;
+
+                    foreach(var lang in Player.Config.audio.Languages)
+                        foreach(var stream in AudioStreams)
+                            if (stream.Language == lang) return stream;
+
+                    // Fall-back to FFmpeg's default
                     if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return null; // Proper lock on format context*
 
                     int ret = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, Player.decoder.VideoDecoder.Stream.StreamIndex, null, 0);
