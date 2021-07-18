@@ -41,6 +41,13 @@ namespace FlyleafLib.Controls.WPF
         public Config.Decoder   Decoder     => Config?.decoder;
         public Config.Demuxer   Demuxer     => Config?.demuxer;
 
+        bool _IsRecording;
+        public bool IsRecording
+        {
+            get => _IsRecording;
+            set => ToggleRecord();
+        }
+
         bool _IsFullscreen;
         public bool IsFullscreen
         {
@@ -71,6 +78,9 @@ namespace FlyleafLib.Controls.WPF
         MenuItem    popUpCustomAspectRatioSet;
         string      dialogSettingsIdentifier;
         bool        playerInitialized;
+
+        int snapshotCounter = 1;
+        int recordCounter = 1;
 
         public Flyleaf()
         {
@@ -270,7 +280,13 @@ namespace FlyleafLib.Controls.WPF
         public void ZoomAction(object offset) { Player.renderer.Zoom += int.Parse(offset.ToString()); }
 
         public ICommand TakeSnapshot { get; set; }
-        public void TakeSnapshotAction(object obj = null) { Player.renderer.TakeSnapshot(System.IO.Path.Combine(Environment.CurrentDirectory,"FlyleafSnapshot.bmp")); }
+        public void TakeSnapshotAction(object obj = null)
+        {
+            if (!Session.CanPlay) return;
+
+            Player.renderer.TakeSnapshot(System.IO.Path.Combine(Environment.CurrentDirectory, $"Snapshot{snapshotCounter}.bmp"));
+            snapshotCounter++;
+        }
 
         public ICommand ShowSubtitlesMenu { get; set; }
         public void ShowSubtitlesMenuAction(object obj = null) { popUpMenuSubtitles.IsOpen = true; }
@@ -469,6 +485,27 @@ namespace FlyleafLib.Controls.WPF
                     ((MenuItem)item).IsChecked = false;
             }
         }
+
+        private void ToggleRecord()
+        {
+            if (!Session.CanPlay)
+            {
+                Set(ref _IsRecording, false);
+                return;
+            }
+
+            if (Player.decoder.VideoDemuxer.IsRecording)
+            {
+                Player.decoder.VideoDemuxer.StopRecording();
+                Set(ref _IsRecording, false);
+            }
+            else
+            {
+                Player.decoder.VideoDemuxer.StartRecording($"Record{recordCounter}.mp4");
+                Set(ref _IsRecording, true);
+                recordCounter++;
+            }
+        }
         #endregion
 
         #region Activity Mode
@@ -595,6 +632,15 @@ namespace FlyleafLib.Controls.WPF
 
                     case Key.C:
                         Clipboard.SetText(Session.InitialUrl);
+                        break;
+
+                    case Key.R:
+                        ToggleRecord();
+                        
+                        break;
+
+                    case Key.S:
+                        TakeSnapshotAction();
                         break;
 
                     case Key.V:
