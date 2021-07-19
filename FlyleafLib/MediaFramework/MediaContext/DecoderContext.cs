@@ -105,6 +105,23 @@ namespace FlyleafLib.MediaFramework.MediaContext
             return ret;
         }
         
+        public void Flush()
+        {
+            Pause();
+            
+            VideoDemuxer.DisposePackets(VideoDemuxer.AudioPackets);
+            VideoDemuxer.DisposePackets(VideoDemuxer.VideoPackets);
+            VideoDemuxer.DisposePackets(VideoDemuxer.SubtitlesPackets);
+
+            AudioDemuxer.DisposePackets(AudioDemuxer.AudioPackets);
+            AudioDemuxer.DisposePackets(AudioDemuxer.VideoPackets);
+            AudioDemuxer.DisposePackets(AudioDemuxer.SubtitlesPackets);
+
+            VideoDecoder.Flush();
+            AudioDecoder.Flush();
+
+            if (player.IsPlaying) Play();
+        }
 
         public int Seek(long ms, bool foreward = false)
         {
