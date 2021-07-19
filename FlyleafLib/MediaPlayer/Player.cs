@@ -82,10 +82,49 @@ namespace FlyleafLib.MediaPlayer
         public Dictionary<string, PluginBase> Plugins {get; private set; }  = new Dictionary<string, PluginBase>();
 
         /// <summary>
+        /// Actual Frames rendered per second (FPS)
+        /// </summary>
+        public int          FPS             { get => _FPS; private set => Set(ref _FPS, value); }
+        int _FPS = 0;
+
+        /// <summary>
+        /// Total Dropped Frames
+        /// </summary>
+        public int          DroppedFrames   { get => _DroppedFrames; private set => Set(ref _DroppedFrames, value); }
+        int _DroppedFrames = 0;
+
+        /// <summary>
+        /// Total bitrate (Kbps)
+        /// </summary>
+        public double       TBR             { get => _TBR; private set => Set(ref _TBR, value); }
+        double _TBR = 0;
+
+        /// <summary>
+        /// Video bitrate (Kbps)
+        /// </summary>
+        public double       VBR             { get => _VBR; private set => Set(ref _VBR, value); }
+        double _VBR = 0;
+
+        
+        /// <summary>
+        /// Audio bitrate (Kbps)
+        /// </summary>
+        public double       ABR             { get => _ABR; private set => Set(ref _ABR, value); }
+        double _ABR = 0;
+
+        /// <summary>
         /// Player's Status
         /// </summary>
-        public Status Status { get => _Status; private set => Set(ref _Status, value); }
+        public Status       Status          { get => _Status; private set => Set(ref _Status, value); }
         Status _Status = Status.Stopped;
+
+        public List<PluginBase> audioPlugins        { get; private set; }
+        public List<PluginBase> videoPlugins        { get; private set; }
+        public List<PluginBase> subtitlePlugins     { get; private set; }
+
+        public PluginBase       curAudioPlugin      { get; private set; }
+        public PluginBase       curVideoPlugin      { get; private set; }
+        public PluginBase       curSubtitlePlugin   { get; private set; }
         #endregion
 
         #region Properties Internal
@@ -117,16 +156,9 @@ namespace FlyleafLib.MediaPlayer
         bool        isVideoSwitch;
 
         internal SubtitlesFrame sFrame, sFramePrev;
+        long        elapsedTicks;
         long        startedAtTicks;
         long        videoStartTicks;
-
-        public List<PluginBase> audioPlugins        { get; private set; }
-        public List<PluginBase> videoPlugins        { get; private set; }
-        public List<PluginBase> subtitlePlugins     { get; private set; }
-
-        public PluginBase       curAudioPlugin      { get; private set; }
-        public PluginBase       curVideoPlugin      { get; private set; }
-        public PluginBase       curSubtitlePlugin   { get; private set; }
         #endregion
 
         #region Initialize / Dispose
@@ -800,7 +832,7 @@ namespace FlyleafLib.MediaPlayer
                 else
                 {
                     if (!decoder.VideoDecoder.IsRunning && !isVideoSwitch) { Log("[SCREAMER] Video Exhausted"); shouldStop= true; }
-                    if (vFrame != null && !gotAudio && (!decoder.AudioDecoder.IsRunning || Session.CurAudioStream.Demuxer.Status == MediaFramework.MediaDemuxer.Status.QueueFull)) { 
+                    if (vFrame != null && !gotAudio && (!decoder.AudioDecoder.IsRunning || decoder.AudioDecoder.Demuxer.Status == MediaFramework.MediaDemuxer.Status.QueueFull)) { 
                         Log("[SCREAMER] Audio Exhausted"); gotAudio  = true; }
                 }
 
@@ -843,14 +875,17 @@ namespace FlyleafLib.MediaPlayer
             }
             return;
         }
-
-        long    elapsedTicks;
         private void Screamer()
         {
             int     vDistanceMs;
             int     aDistanceMs;
             int     sDistanceMs;
             int     sleepMs;
+            int     actualFps  = 0;
+            long    totalBytes = 0;
+            long    videoBytes = 0;
+            long    audioBytes = 0;
+
             bool    requiresBuffering = true;
 
             while (Status == Status.Playing)
@@ -866,6 +901,10 @@ namespace FlyleafLib.MediaPlayer
 
                 if (requiresBuffering)
                 {
+                    totalBytes = decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes;
+                    videoBytes = decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes;
+                    audioBytes = decoder.AudioDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes;
+
                     MediaBuffer();
                     requiresBuffering = false;
                     if (seeks.Count != 0) continue;
@@ -911,7 +950,23 @@ namespace FlyleafLib.MediaPlayer
 
                     // Informs the application with CurTime when the second changes
                     if ((int)(Session.CurTime / 10000000) != (int)(elapsedTicks / 10000000))
+                    {
+                        TBR = (decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes - totalBytes) * 8 / 1000.0;
+                        VBR = (decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes - videoBytes) * 8 / 1000.0;
+                        ABR = (decoder.AudioDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes - audioBytes) * 8 / 1000.0;
+                        totalBytes = decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes;
+                        videoBytes = decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes;
+                        audioBytes = decoder.AudioDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes;
+                        Log($"Total bytes: {TBR}");
+                        Log($"Video bytes: {VBR}");
+                        Log($"Audio bytes: {ABR}");
+
+                        FPS = actualFps;
+                        actualFps = 0;
+                        Log($"Current FPS: {FPS}");
+
                         Session.SetCurTime(elapsedTicks);
+                    }
 
                     Thread.Sleep(sleepMs);
                 }
@@ -919,11 +974,13 @@ namespace FlyleafLib.MediaPlayer
                 if (Math.Abs(vDistanceMs - sleepMs) <= 2)
                 {
                     //Log($"[V] Presenting {Utils.TicksToTime(vFrame.timestamp)}");
-                    renderer.PresentFrame(vFrame);
+                    
+                    if (renderer.PresentFrame(vFrame)) actualFps++; else DroppedFrames++;
                     decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
                 }
                 else if (vDistanceMs < -2)
                 {
+                    DroppedFrames++;
                     VideoDecoder.DisposeFrame(vFrame);
                     decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
                     Log($"vDistanceMs 2 |-> {vDistanceMs}");

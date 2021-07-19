@@ -18,10 +18,11 @@
 * ***Configurable***: Exposes low level parameters for customization (demuxing/buffering & decoding parameters) 
 * ***UI Controls***: Providing both "naked" and embedded functionality controls 
 * ***Multiple Instances***: Supports multiple players with different configurations (such as audio devices/video aspect ratio etc.)
+* ***Extra Features***: Record, Download/Remux, Zoom In/Out
 
 ### [Missing Features]
 * HDR support
-* Video Recording / Post Process Filters (Brightness/Sharping etc.)
+* Post Process Filters (Brightness/Sharping etc.)
 * Speed (Step/Fast Backwards/Forwards)
 * Windows OS is required
 
