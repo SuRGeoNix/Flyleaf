@@ -304,16 +304,16 @@ namespace FlyleafLib.MediaRenderer
             }
         }
 
-        public void PresentFrame(VideoFrame frame = null)
+        public bool PresentFrame(VideoFrame frame = null)
         {
-            if (device == null) return;
+            if (device == null) return false;
 
             // Drop Frames | Priority on video frames
             bool gotIn = frame == null ? Monitor.TryEnter(device, 1) : Monitor.TryEnter(device, 5);
 
             if (gotIn)
             {
-                if (rtv == null) return;
+                if (rtv == null) return false;
 
                 try
                 {
@@ -356,7 +356,11 @@ namespace FlyleafLib.MediaRenderer
 
                 } finally { Monitor.Exit(device); }
 
+                return true;
+
             } else { Log("Dropped Frame - Lock timeout " + ( frame != null ? Utils.TicksToTime(frame.timestamp) : "")); VideoDecoder.DisposeFrame(frame); }
+
+            return false;
         }
 
         public void TakeSnapshot(string fileName)
