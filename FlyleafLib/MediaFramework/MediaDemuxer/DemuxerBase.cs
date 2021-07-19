@@ -95,9 +95,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             CustomIOContext = new CustomIOContext(this);
         }
 
-        public int Open(string url)     { return Open(url, null,    cfg.demuxer.GetFormatOptPtr(Type)); }
-        public int Open(Stream stream)  { return Open(null, stream, cfg.demuxer.GetFormatOptPtr(Type)); }
-        public int Open(string url, Stream stream, Dictionary<string, string> opt)
+        public int Open(string url)     { return Open(url, null,    cfg.demuxer.GetFormatOptPtr(Type), cfg.demuxer.GetFormatFlags(Type)); }
+        public int Open(Stream stream)  { return Open(null, stream, cfg.demuxer.GetFormatOptPtr(Type), cfg.demuxer.GetFormatFlags(Type)); }
+        public int Open(string url, Stream stream, Dictionary<string, string> opt, int flags)
         {
             int ret = -1;
             Status = Status.Opening;
@@ -108,17 +108,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 // Parse Options to AV Dictionary Format Options
                 AVDictionary *avopt = null;
-                foreach (var optKV in opt) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                foreach (var optKV in opt)
+                    av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
 
                 // Allocate / Prepare Format Context
                 fmtCtx = avformat_alloc_context();
                 fmtCtx->interrupt_callback.callback = interruptClbk;
                 fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
-                fmtCtx->flags |= AVFMT_FLAG_DISCARD_CORRUPT;
-
-                // Possible expose to config
-                //fmtCtx->flags |= AVFMT_FLAG_NOBUFFER;
-                //fmtCtx->max_delay = 0;
+                fmtCtx->flags = flags;
 
                 if (stream != null)
                     CustomIOContext.Initialize(stream);
