@@ -20,6 +20,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public Status               Status          { get; internal set; } = Status.Stopped;
         public bool                 IsRunning       { get; protected set; }
         public bool                 OnVideoDemuxer  => demuxer?.Type == MediaType.Video;
+        public DemuxerBase          Demuxer         => demuxer;
         public MediaType            Type            { get; protected set; }
         public StreamBase           Stream          { get; protected set; }
         public AVCodecContext*      CodecCtx        => codecCtx;

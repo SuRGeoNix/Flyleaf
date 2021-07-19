@@ -45,7 +45,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public ConcurrentQueue<IntPtr>  GetPacketsPtr(MediaType type) 
             { return type == MediaType.Audio ? AudioPackets : (type == MediaType.Video ? VideoPackets : SubtitlesPackets); }
 
-        public int                      DemuxInterrupt      { get; internal set; }
+        public int                      DemuxInterrupt  { get; internal set; }
+
+        public long                     TotalBytes      { get; private set; } = 0;
+        public long                     VideoBytes      { get; private set; } = 0;
+        public long                     AudioBytes      { get; private set; } = 0;
 
         internal GCHandle handle;
 
@@ -292,6 +296,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 if (handle.IsAllocated) handle.Free();
 
+                TotalBytes = 0; VideoBytes = 0; AudioBytes = 0;
                 Status = Status.Stopped;
             }
         }
@@ -410,6 +415,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             break;
                         }
 
+                        TotalBytes += packet->size;
+
                         // Skip Disabled Streams
                         if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
@@ -440,12 +447,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         switch (fmtCtx->streams[packet->stream_index]->codecpar->codec_type)
                         {
                             case AVMEDIA_TYPE_AUDIO:
+                                AudioBytes += packet->size;
                                 AudioPackets.Enqueue((IntPtr)packet);
                                 packet = av_packet_alloc();
 
                                 break;
 
                             case AVMEDIA_TYPE_VIDEO:
+                                VideoBytes += packet->size;
                                 VideoPackets.Enqueue((IntPtr)packet);
                                 packet = av_packet_alloc();
                             
