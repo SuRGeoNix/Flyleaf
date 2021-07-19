@@ -646,6 +646,10 @@ namespace FlyleafLib.Controls.WPF
                     case Key.V:
                         Open(Clipboard.GetText());
                         break;
+
+                    case Key.X:
+                        Player.decoder.Flush();
+                        break;
                 }
 
                 e.Handled = true;
