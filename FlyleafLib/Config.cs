@@ -6,6 +6,8 @@ using System.Xml.Serialization;
 using SharpDX;
 using FlyleafLib.MediaPlayer;
 
+using static FFmpeg.AutoGen.ffmpeg;
+
 namespace FlyleafLib
 {
     /// <summary>
@@ -123,6 +125,24 @@ namespace FlyleafLib
 
                 return defaults;
             }
+
+            /// <summary>
+            /// FFmpeg's format flags for audio demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
+            /// </summary>
+            public int              AudioFormatFlags{ get; set; } = AVFMT_FLAG_AUTO_BSF | AVFMT_FLAG_DISCARD_CORRUPT;
+
+            /// <summary>
+            /// FFmpeg's format flags for video demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
+            /// eg. config.demuxer.VideoFormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
+            /// </summary>
+            public int              VideoFormatFlags{ get; set; } = AVFMT_FLAG_AUTO_BSF | AVFMT_FLAG_DISCARD_CORRUPT;
+            
+            /// <summary>
+            /// FFmpeg's format flags for subtitles demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
+            /// </summary>
+            public int              SubsFormatFlags { get; set; } = AVFMT_FLAG_AUTO_BSF | AVFMT_FLAG_DISCARD_CORRUPT;
+
+            public int GetFormatFlags(MediaType type) { return type == MediaType.Video ? VideoFormatFlags : (type == MediaType.Audio ? AudioFormatFlags : SubsFormatFlags); }
         }
 
         public class Decoder : NotifyPropertyChanged
