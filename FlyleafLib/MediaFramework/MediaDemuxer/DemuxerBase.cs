@@ -111,6 +111,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 fmtCtx->interrupt_callback.callback = interruptClbk;
                 fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
                 fmtCtx->flags |= AVFMT_FLAG_DISCARD_CORRUPT;
+
+                // Possible expose to config
+                //fmtCtx->flags |= AVFMT_FLAG_NOBUFFER;
+                //fmtCtx->max_delay = 0;
+
                 if (stream != null)
                     CustomIOContext.Initialize(stream);
 
