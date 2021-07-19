@@ -78,13 +78,20 @@ namespace FlyleafLib
                         try { Assembly.LoadFrom(Path.GetFullPath(file));}
                         catch (Exception e) { Log($"[Plugins] [Error] Failed to load assembly ({e.Message} {Utils.GetRecInnerException(e)})"); }
             }
+            
 
             // Find PluginBase Types | Try Catch in for can crash if older version exists
-            var interfaceType = typeof(PluginBase);
-            Type[] types = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(a => a.GetTypes())
-            .Where(p => interfaceType.IsAssignableFrom(p) && p.IsClass && p.Name != nameof(PluginBase))
-            .ToArray();
+            List<Type> types        = new List<Type>();
+            Type pluginBaseType     = typeof(PluginBase);
+            Assembly[] assemblies   = AppDomain.CurrentDomain.GetAssemblies();
+
+            foreach (var assembly in assemblies)
+                try
+                {
+                    foreach (var type in assembly.GetTypes())
+                        if (pluginBaseType.IsAssignableFrom(type) && type.IsClass && type.Name != nameof(PluginBase))
+                            types.Add(type);
+                } catch (Exception) { }
 
             // Load Plugins
             foreach (var type in types)
@@ -94,15 +101,17 @@ namespace FlyleafLib
         private static Assembly AssemblyResolve(object sender, ResolveEventArgs args)
         {
             // Fix Assemblies redirect bindings and binaryFormater (currently just for BitSwarm plugin)
-
-            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            try
+            {
+                foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
                 if (assembly.GetName().Name == (new AssemblyName(args.Name)).Name && (assembly.GetName().Name == "BitSwarmLib" || assembly.GetName().Name == "System.Buffers"))
                 {
                     Log($"[AssemblyResolver] Found {assembly.FullName}");
                     return assembly;
                 }
 
-            Log($"[AssemblyResolver] for {args.Name} not found");
+                Log($"[AssemblyResolver] for {args.Name} not found");
+            } catch (Exception) { }
 
             return null;
         }
