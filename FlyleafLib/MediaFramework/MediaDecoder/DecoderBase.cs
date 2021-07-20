@@ -94,12 +94,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public virtual void Stop()
         {
+            if (Status == Status.Stopped) return;
+            StopThread();
+
             lock (lockCodecCtx)
             {
-                if (Status == Status.Stopped) return;
-
-                StopThread();
-
                 if (Stream != null)
                 {
                     if (Stream.Demuxer.Type == MediaType.Video)
@@ -107,7 +106,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     else
                         Stream.Demuxer.Stop();
                 }
-            
+
                 avcodec_flush_buffers(codecCtx); // ??
                 avcodec_close(codecCtx);
                 if (frame != null) fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
@@ -178,7 +177,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             } // While !stopThread
 
-            if (Status != Status.Ended) Status = Status.Stopped;
+            //if (Status == Status.Stopping2) Stop();
+            if (Status != Status.Ended && Status != Status.Stopping2) Status = Status.Stopped;
             Log($"[Thread] Stopped ({Status})");
         }
         protected abstract void DecodeInternal();
@@ -194,6 +194,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
     public enum Status
     {
         Stopping,
+        Stopping2,
         Stopped,
 
         Opening,

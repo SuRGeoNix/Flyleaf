@@ -51,6 +51,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public long                     VideoBytes      { get; private set; } = 0;
         public long                     AudioBytes      { get; private set; } = 0;
 
+        internal bool allowProperClose;
+
         internal GCHandle handle;
 
         Thread          thread;
@@ -59,7 +61,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         AVFormatContext*fmtCtx;
         AVPacket*       packet;
-        internal object lockFmtCtx = new object();
+        internal object lockFmtCtx      = new object();
 
         Config          cfg;
 
@@ -68,6 +70,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         {
             GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
             DemuxerBase demuxer = (DemuxerBase)demuxerHandle.Target;
+
+            if (demuxer.allowProperClose) return 0;
 
             int interrupt = demuxer.DemuxInterrupt != 0 || demuxer.Status == Status.Stopping || demuxer.Status == Status.Stopped ? 1 : 0;
             
@@ -267,12 +271,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         //[System.Security.SecurityCritical]
         public void Stop()
         {
+            if (Status == Status.Stopped) return;
+            StopThread();
+
             lock (lockFmtCtx)
             {
-                if (Status == Status.Stopped) return;
-           
-                StopThread();
-
                 // Free Streams
                 AudioStreams.Clear();
                 VideoStreams.Clear();
@@ -286,7 +289,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 // Close Format / Custom Contexts
                 if (fmtCtx != null)
+                {
+                    allowProperClose = true;
                     fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
+                    allowProperClose = false;
+                }
 
                 if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
                 CustomIOContext.Dispose();
@@ -422,7 +429,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             if (!recGotKeyframe && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                                 if ((packet->flags & AV_PKT_FLAG_KEY) != 0) recGotKeyframe = true;
 
-                            if (recGotKeyframe)
+                            if (recGotKeyframe && (fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO || fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO))
                             {
                                 in_stream       =  fmtCtx->streams[packet->stream_index];
                                 out_stream      = oFmtCtx->streams[mapInOutStreams[packet->stream_index]];
@@ -482,8 +489,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         }
 
         #region Preparing Recording
-        public bool IsRecording { get; private set; }
+
         bool recGotKeyframe;
+        bool _IsRecording;
+        public bool IsRecording
+        {
+            get => _IsRecording;
+            set => Set(ref _IsRecording, value);
+        }
 
         public void StartRecording(string filename)
         {
@@ -493,8 +506,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 Log("Record Start");
                 OpenOutputFormat(filename);
-                IsRecording = true;
                 recGotKeyframe = false;
+                IsRecording = true;
             }
         }
 
@@ -572,6 +585,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             {
                 AVStream *out_stream;
                 AVStream *in_stream = fmtCtx->streams[EnabledStreams[i]];
+#pragma warning disable CS0618 // Type or member is obsolete
+                if (in_stream->codec->codec_type != AVMEDIA_TYPE_VIDEO && in_stream->codec->codec_type != AVMEDIA_TYPE_AUDIO) continue;
+#pragma warning restore CS0618 // Type or member is obsolete
                 AVCodecParameters *in_codecpar = in_stream->codecpar;
                 out_stream = avformat_new_stream(oFmtCtx, null);
                 ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);

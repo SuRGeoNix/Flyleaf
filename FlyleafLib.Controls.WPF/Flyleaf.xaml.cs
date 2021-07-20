@@ -17,6 +17,8 @@ using MaterialDesignColors;
 
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaDecoder;
+using FlyleafLib.MediaFramework.MediaDemuxer;
 
 namespace FlyleafLib.Controls.WPF
 {
@@ -27,6 +29,11 @@ namespace FlyleafLib.Controls.WPF
 
         public Player           Player      { get => _Player; set { _Player = value; InitializePlayer(); } }
         Player _Player;
+
+        public VideoDemuxer     VideoDemuxer => Player?.decoder?.VideoDemuxer;
+        public VideoDecoder     VideoDecoder => Player?.decoder?.VideoDecoder;
+        public AudioDecoder     AudioDecoder => Player?.decoder?.AudioDecoder;
+
         public AudioPlayer      AudioPlayer => Player?.audioPlayer;
         public AudioMaster      AudioMaster => Master.AudioMaster;
         public FlyleafWindow    WindowFront => VideoView?.WindowFront;
@@ -40,6 +47,13 @@ namespace FlyleafLib.Controls.WPF
         public Config.Video     Video       => Config?.video;
         public Config.Decoder   Decoder     => Config?.decoder;
         public Config.Demuxer   Demuxer     => Config?.demuxer;
+
+        bool _ShowDebug;
+        public bool ShowDebug
+        {
+            get => _ShowDebug;
+            set => Set(ref _ShowDebug, value);
+        }
 
         bool _IsRecording;
         public bool IsRecording
