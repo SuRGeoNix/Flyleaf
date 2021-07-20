@@ -330,7 +330,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 if (Type == MediaType.Video)
                 {
-                    ret =  av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD); // AVSEEK_FLAG_BACKWARD will not work on .dav even it it returns 0
+                    ret =  av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD); // AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
                 }
                 else
                 {

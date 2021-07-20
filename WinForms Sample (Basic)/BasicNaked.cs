@@ -14,10 +14,10 @@ using System.Windows.Forms;
 
 namespace WinForms_Sample__Basic_
 {
-    public partial class Form1 : Form
+    public partial class BasicNaked : Form
     {
         Player player = new Player();
-        public Form1()
+        public BasicNaked()
         {
             InitializeComponent();
         }
