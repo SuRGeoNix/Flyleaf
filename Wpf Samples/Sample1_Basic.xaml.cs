@@ -25,5 +25,10 @@ namespace Wpf_Samples
             InitializeComponent();
             DataContext = this;
         }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            flyleafControl.VideoView.WinFormsHost.Focus();
+        }
     }
 }

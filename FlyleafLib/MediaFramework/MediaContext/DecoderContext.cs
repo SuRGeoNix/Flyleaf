@@ -114,11 +114,11 @@ namespace FlyleafLib.MediaFramework.MediaContext
             VideoDemuxer.DisposePackets(VideoDemuxer.SubtitlesPackets);
 
             AudioDemuxer.DisposePackets(AudioDemuxer.AudioPackets);
-            AudioDemuxer.DisposePackets(AudioDemuxer.VideoPackets);
-            AudioDemuxer.DisposePackets(AudioDemuxer.SubtitlesPackets);
+            SubtitlesDemuxer.DisposePackets(SubtitlesDemuxer.SubtitlesPackets);
 
             VideoDecoder.Flush();
             AudioDecoder.Flush();
+            SubtitlesDecoder.Flush();
 
             if (player.IsPlaying) Play();
         }

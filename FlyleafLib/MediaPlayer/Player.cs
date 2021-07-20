@@ -957,13 +957,14 @@ namespace FlyleafLib.MediaPlayer
                         totalBytes = decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes;
                         videoBytes = decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes;
                         audioBytes = decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes;
-                        Log($"Total bytes: {TBR}");
-                        Log($"Video bytes: {VBR}");
-                        Log($"Audio bytes: {ABR}");
 
                         FPS = actualFps;
                         actualFps = 0;
-                        Log($"Current FPS: {FPS}");
+
+                        //Log($"Total bytes: {TBR}");
+                        //Log($"Video bytes: {VBR}");
+                        //Log($"Audio bytes: {ABR}");
+                        //Log($"Current FPS: {FPS}");
 
                         Session.SetCurTime(elapsedTicks);
                     }
