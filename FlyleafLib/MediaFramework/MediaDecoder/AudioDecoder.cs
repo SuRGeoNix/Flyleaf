@@ -36,6 +36,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected override unsafe int Setup(AVCodec* codec)
         {
+            lock (lockCodecCtx)
+            {
             int ret;
 
             if (swrCtx == null) swrCtx = swr_alloc();
@@ -58,6 +60,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             decCtx.player.audioPlayer.Initialize(codecCtx->sample_rate);
 
             return ret;
+            }
         }
 
         public override void Stop()
@@ -113,13 +116,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         if (demuxer.Status == MediaDemuxer.Status.Ended)
                         {
                             Status = Status.Ended;
-                            return;
+                            break;
                         }
                         else if (demuxer.Status != MediaDemuxer.Status.Demuxing && demuxer.Status != MediaDemuxer.Status.QueueFull)
                         {
                             Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
-                            Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopped : Status.Pausing;
-                            return;
+                            Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopping2 : Status.Paused;
+                            break;
                         }
                         
                         Thread.Sleep(20);

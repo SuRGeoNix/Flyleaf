@@ -436,12 +436,12 @@
                 <MenuItem Header="Zoom In"   Command="{Binding Zoom}" CommandParameter="50"   Icon="{materialDesign:PackIcon Kind=ZoomIn}"/>
                 <MenuItem Header="Zoom out"  Command="{Binding Zoom}" CommandParameter="-50"  Icon="{materialDesign:PackIcon Kind=ZoomOut}"/>
             </MenuItem>
-            
-        </MenuItem>
 
-        <!--<Separator />
-        <MenuItem Header="Media Info" Icon="{materialDesign:PackIcon InfoOutline}"/>-->
+        </MenuItem>
         
+        <Separator />
+        <MenuItem Header="Show Debug" IsCheckable="True" IsChecked="{Binding ShowDebug}"/>
+
         <Separator />
         <MenuItem Header="Exit" Icon="{materialDesign:PackIcon ExitToApp}" Command="{Binding ExitApplication}"/>
     </ContextMenu>
