@@ -96,25 +96,25 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             lock (lockCodecCtx)
             {
-            if (Status == Status.Stopped) return;
+                if (Status == Status.Stopped) return;
 
-            StopThread();
+                StopThread();
 
-            if (Stream != null)
-            {
-                if (Stream.Demuxer.Type == MediaType.Video)
-                    Stream.Demuxer.DisableStream(Stream);
-                else
-                    Stream.Demuxer.Stop();
-            }
+                if (Stream != null)
+                {
+                    if (Stream.Demuxer.Type == MediaType.Video)
+                        Stream.Demuxer.DisableStream(Stream);
+                    else
+                        Stream.Demuxer.Stop();
+                }
             
-            avcodec_flush_buffers(codecCtx); // ??
-            avcodec_close(codecCtx);
-            if (frame != null) fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
-            if (codecCtx != null) fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
-            demuxer = null;
-            Stream = null;
-            Status = Status.Stopped;
+                avcodec_flush_buffers(codecCtx); // ??
+                avcodec_close(codecCtx);
+                if (frame != null) fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
+                if (codecCtx != null) fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
+                demuxer = null;
+                Stream = null;
+                Status = Status.Stopped;
             }
         }
 
