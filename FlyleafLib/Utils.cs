@@ -82,7 +82,7 @@ namespace FlyleafLib
             return Languages;
         }
 
-        public static void EnsureThreadDone(Thread t, long maxMS = 30000, int minMS = 10)
+        public static void EnsureThreadDone(Thread t, long maxMS = 2000, int minMS = 10)
         {
             if (t == null || !t.IsAlive) return;
 
@@ -101,14 +101,7 @@ namespace FlyleafLib
             if (t != null && t.IsAlive)
             {
                 Log($"Thread {t.Name} did not finished properly!");
-
-                t.Abort();
-                escapeInfinity = maxMS / minMS;
-                while (t != null && t.IsAlive && escapeInfinity > 0)
-                {
-                    Thread.Sleep(minMS);
-                    escapeInfinity--;
-                }
+                throw new Exception($"Thread {t.Name} did not complete in time");
             }
         }
 
