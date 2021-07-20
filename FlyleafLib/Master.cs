@@ -37,11 +37,6 @@ namespace FlyleafLib
         public static Dictionary<int, Player>  Players  { get; }
 
         /// <summary>
-        /// Disables aborts (mainly required during seek) (Testing support for .NET 5)
-        /// </summary>
-        public static bool          PreventAborts       { get;  set; }
-
-        /// <summary>
         /// Prevent auto dispose of the player during window close/unload
         /// </summary>
         public static bool          PreventAutoDispose  { get;  set; }
