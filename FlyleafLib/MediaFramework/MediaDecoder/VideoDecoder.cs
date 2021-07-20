@@ -48,6 +48,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected override unsafe int Setup(AVCodec* codec)
         {
+            lock (lockCodecCtx)
+            {
             VideoAccelerated = false;
 
             if (cfg.decoder.HWAcceleration)
@@ -103,6 +105,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             decCtx.player.renderer.FrameResized();
 
             return 0;
+            }
         }
 
         public override void Stop()
@@ -168,8 +171,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         else if (demuxer.Status != MediaDemuxer.Status.Demuxing && demuxer.Status != MediaDemuxer.Status.QueueFull)
                         {
                             Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
-                            Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopped : Status.Pausing;
-                            return;
+                            Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopping2 : Status.Paused;
+                            break;
                         }
                         
                         Thread.Sleep(20);

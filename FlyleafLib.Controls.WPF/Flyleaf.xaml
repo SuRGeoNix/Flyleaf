@@ -37,12 +37,39 @@
                                 <!--Pop Up Dialog (Settings/Set Values)-->
                                 <materialDesign:DialogHost x:Name="PART_DialogSettings"/>
                                 
-                                <!--GPU Usage-->
-                                <TextBlock Margin="0 0 0 50" VerticalAlignment="top" HorizontalAlignment="Right" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding GPUUsage}"/>
+                                <!--Media Info-->
+                                <TextBlock Margin="0 20 20 0" VerticalAlignment="top" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap" FontSize="16" Background="Black" Foreground="DarkOrange" FontWeight="Bold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ShowDebug}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                    <TextBlock.Text>
+                                        <MultiBinding StringFormat=" {0}p @{1} {2}/{3} [hw: {4}|{5}] &#x0d;&#x0a; [tbr: {6:#,#.00}] [vbr: {7:#,#.00}] [abr: {8:#,#.00}] &#x0d;&#x0a; [rec: {9}] [drops: {10}] [gpu: {11}]">
+                                            <Binding Path="VideoDecoder.VideoStream.Height"/>
+                                            <Binding Path="Player.FPS"/>
+                                            <Binding Path="VideoDecoder.VideoStream.CodecName"/>
+                                            <Binding Path="VideoDecoder.VideoStream.PixelFormatStr"/>
+                                            <Binding Path="Decoder.HWAcceleration"/>
+                                            <Binding Path="VideoDecoder.VideoAccelerated"/>
+                                            <Binding Path="Player.TBR"/>
+                                            <Binding Path="Player.VBR"/>
+                                            <Binding Path="Player.ABR"/>
+                                            <Binding Path="VideoDemuxer.IsRecording"/>
+                                            <Binding Path="Player.DroppedFrames"/>
+                                            <Binding Path="GPUUsage"/>
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
 
                                 <!--Subtitles-->
                                 <TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding Session.SubsText}"/>
-
+                                
                                 <!--Flyleaf Bar-->
                                 <materialDesign:Card TextElement.FontSize="14" TextElement.FontWeight="Medium" TextElement.Foreground="{DynamicResource MaterialDesignBody}" FontFamily="{materialDesign:MaterialDesignFont}" VerticalAlignment="Bottom" Focusable="False" Background="{StaticResource RadialBrush}">
                                     <materialDesign:Card.Style>

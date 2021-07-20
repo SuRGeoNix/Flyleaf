@@ -302,7 +302,13 @@ namespace FlyleafLib.MediaPlayer
 
             Status = Status.Paused;
             Session.CanPlay = true;
-            Session.Movie.Duration = decoder.VideoDemuxer.Duration;
+
+            // Should review this for the right duration
+            long duration2 = 0;
+            foreach (var vstream in decoder.VideoDemuxer.VideoStreams)
+                if (vstream.InUse) duration2 = vstream.Duration;
+
+            Session.Movie.Duration =  duration2 > 0 ? duration2 : decoder.VideoDemuxer.Duration;
 
             OnOpenCompleted(MediaType.Video, true);
             Log($"[Initialized  Env]");
@@ -611,7 +617,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockPlayPause)
             {
-                if (Session == null || !Session.CanPlay || Status == Status.Playing || Status == Status.Ended) return;
+                if (Session == null || !Session.CanPlay || Status == Status.Playing) return;
 
                 Status = Status.Playing;
                 EnsureThreadDone(tSeek);
@@ -711,7 +717,8 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (this)
             {
-                Pause();
+                Status = Status.Stopped;
+                EnsureThreadDone(tPlay);
                 if (disposed || decoder == null) return;
                 decoder.Stop();
                 lock (lockSeek)
