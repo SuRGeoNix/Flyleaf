@@ -16,7 +16,8 @@ namespace WinForms_Sample__Basic_
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            //Application.Run(new BasicNaked());
+            Application.Run(new TestingWPFwithinWinForms());
         }
     }
 }

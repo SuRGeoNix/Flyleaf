@@ -1,7 +1,7 @@
 ﻿
 namespace WinForms_Sample__Basic_
 {
-    partial class Form1
+    partial class BasicNaked
     {
         /// <summary>
         /// Required designer variable.
