@@ -135,8 +135,9 @@ namespace FlyleafLib.MediaPlayer
         public DecoderContext   decoder;
 
         Thread tOpenVideo, tOpenAudio, tOpenSubs, tSeek, tPlay;
-        object lockOpen = new object();
-        object lockSeek = new object();
+        object lockOpen         = new object();
+        object lockSeek         = new object();
+        object lockPlayPause    = new object();
 
         ConcurrentStack<SeekData> seeks;
 
@@ -239,11 +240,11 @@ namespace FlyleafLib.MediaPlayer
             // Prevent Seek Process
             Session.CanPlay = false;
             seeks.Clear();
-            EnsureThreadDone(tSeek, 30000, 2);
+            EnsureThreadDone(tSeek, 2000, 2);
 
             // Stop Screamer / MediaBuffer
             Status = Status.Stopped;
-            EnsureThreadDone(tPlay, 30000, 2);
+            EnsureThreadDone(tPlay, 2000, 2);
 
             // Inform Plugins (OnInitializing)
             foreach(var plugin in Plugins.Values) plugin.OnInitializing();
@@ -270,11 +271,11 @@ namespace FlyleafLib.MediaPlayer
             // Prevent Seek Process
             Session.CanPlay = false;
             seeks.Clear();
-            EnsureThreadDone(tSeek, 30000, 2);
+            EnsureThreadDone(tSeek, 2000, 2);
 
             // Stop Screamer / MediaBuffer
             Status = Status.Stopped;
-            EnsureThreadDone(tPlay, 30000, 2);
+            EnsureThreadDone(tPlay, 2000, 2);
 
             // Inform Plugins (OnInitializing)
             foreach(var plugin in Plugins.Values) plugin.OnInitializingSwitch();
@@ -418,7 +419,7 @@ namespace FlyleafLib.MediaPlayer
             }
             else if (inputStream is AudioStream)
             {
-                Utils.EnsureThreadDone(tOpenAudio);
+                EnsureThreadDone(tOpenAudio, 30000);
                 if (Session.CurAudioStream != null) Session.CurAudioStream.InUse = false;
                 if (Config.audio.Enabled == false) Config.audio.SetEnabled();
 
@@ -427,7 +428,7 @@ namespace FlyleafLib.MediaPlayer
             }
             else if (inputStream is SubtitlesStream)
             {
-                Utils.EnsureThreadDone(tOpenSubs);
+                EnsureThreadDone(tOpenSubs, 30000);
                 if (Session.CurSubtitleStream != null) Session.CurSubtitleStream.InUse = false;
                 Session.SubsText = null; sFrame = null;
                 if (Config.subs.Enabled == false) Config.subs.SetEnabled();
@@ -608,33 +609,36 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Play()
         {
-            if (!Session.CanPlay || Status == Status.Playing) return;
-
-            Status = Status.Playing;
-            Utils.EnsureThreadDone(tSeek);
-            Utils.EnsureThreadDone(tPlay);
-            tPlay = new Thread(() =>
+            lock (lockPlayPause)
             {
-                try
-                {
-                    Utils.NativeMethods.TimeBeginPeriod(1);
-                    SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
-                    Screamer();
+                if (Session == null || !Session.CanPlay || Status == Status.Playing || Status == Status.Ended) return;
 
-                } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
-
-                finally
+                Status = Status.Playing;
+                EnsureThreadDone(tSeek);
+                EnsureThreadDone(tPlay);
+                tPlay = new Thread(() =>
                 {
-                    if (Status == Status.Stopped) decoder?.Stop(); else decoder?.Pause();
-                    audioPlayer?.ClearBuffer();
-                    VideoDecoder.DisposeFrame(vFrame); vFrame = null;
-                    Utils.NativeMethods.TimeEndPeriod(1);
-                    Utils.NativeMethods.SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
-                    Status = HasEnded ? Status.Ended  : Status.Paused;
-                    if (HasEnded) OnPlaybackCompleted();
-                }
-            });
-            tPlay.Name = "Play"; tPlay.IsBackground = true; tPlay.Start();
+                    try
+                    {
+                        Utils.NativeMethods.TimeBeginPeriod(1);
+                        SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
+                        Screamer();
+
+                    } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
+
+                    finally
+                    {
+                        if (Status == Status.Stopped) decoder?.Stop(); else decoder?.Pause();
+                        audioPlayer?.ClearBuffer();
+                        VideoDecoder.DisposeFrame(vFrame); vFrame = null;
+                        Utils.NativeMethods.TimeEndPeriod(1);
+                        Utils.NativeMethods.SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
+                        Status = HasEnded ? Status.Ended  : Status.Paused;
+                        if (HasEnded) OnPlaybackCompleted();
+                    }
+                });
+                tPlay.Name = "Play"; tPlay.IsBackground = true; tPlay.Start();
+            }
         }
 
         /// <summary>
@@ -642,11 +646,13 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Pause()
         {
-            if (!Session.CanPlay) return;
+            lock (lockPlayPause)
+            {
+                if (Session == null || !Session.CanPlay || Status == Status.Ended) return;
 
-            Status = Status.Paused;
-            Utils.EnsureThreadDone(tPlay);
-            //decoder.Pause();
+                Status = Status.Paused;
+                EnsureThreadDone(tPlay);
+            }
         }
 
         /// <summary>

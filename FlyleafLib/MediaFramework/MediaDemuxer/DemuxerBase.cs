@@ -267,12 +267,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         //[System.Security.SecurityCritical]
         public void Stop()
         {
-            if (Status == Status.Stopped) return;
-           
-            StopThread();
-
             lock (lockFmtCtx)
             {
+                if (Status == Status.Stopped) return;
+           
+                StopThread();
+
                 // Free Streams
                 AudioStreams.Clear();
                 VideoStreams.Clear();
