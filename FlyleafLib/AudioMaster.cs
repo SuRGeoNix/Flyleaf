@@ -8,7 +8,7 @@ using NAudio.CoreAudioApi.Interfaces;
 
 namespace FlyleafLib
 {
-    public class AudioMaster : NotifyPropertyChanged, IMMNotificationClient, IAudioSessionEventsHandler, IDisposable
+    public class AudioMaster : NotifyPropertyChanged, IMMNotificationClient, IAudioSessionEventsHandler
     {
         #region Properties (Public)
         /// <summary>
@@ -101,6 +101,8 @@ namespace FlyleafLib
         {
             lock (locker)
             {
+                if (device != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
+
                 foreach(var player in Master.Players.Values)
                     player.audioPlayer.Initialize();
 
@@ -112,7 +114,7 @@ namespace FlyleafLib
                 device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
                 device.AudioSessionManager.OnSessionCreated += (o, newSession) =>
                 {
-                    if (session != null) { session.UnRegisterEventClient(this); }
+                    if (session != null) { session.UnRegisterEventClient(this); session.Dispose(); }
                     session = new AudioSessionControl(newSession);
                     session.RegisterEventClient(this);
                     session.SimpleAudioVolume.Volume = 1;
@@ -123,16 +125,6 @@ namespace FlyleafLib
                 Raise(nameof(VolumeMaster));
                 Raise(nameof(MuteMaster));
             }
-        }
-        public void Dispose()
-        {
-            lock (locker)
-            {
-                if (device  != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
-                if (session != null) session.UnRegisterEventClient(this);
-                device = null;
-                session = null;
-            } 
         }
         #endregion
 
@@ -234,6 +226,6 @@ namespace FlyleafLib
         public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason) { /*Log("OnSessionDisconnected");*/ }
         #endregion
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] [AudioMaster] {msg}"); }
+        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] [AudioMaster] {msg}"); }
     }
 }

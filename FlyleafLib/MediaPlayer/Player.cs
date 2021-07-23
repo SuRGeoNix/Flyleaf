@@ -183,7 +183,7 @@ namespace FlyleafLib.MediaPlayer
 
                 Master.Players.Add(PlayerId, this);
 
-                if (newValue.Handle != null)
+                if (newValue.Handle != IntPtr.Zero)
                     InitializeControl2(newValue);
                 else
                     newValue.HandleCreated += (o, e) => { InitializeControl2(newValue); };
@@ -728,16 +728,14 @@ namespace FlyleafLib.MediaPlayer
         }
 
         /// <summary>
-        /// Disposes the Player (might will cause issues if you call it from a UI thread)
+        /// Disposes the Player
+        /// (If you call this manually call it from UI-thread eg. Application.Current.Dispatcher.Invoke(() => Player.Dispose()); )
         /// </summary>
-        public void Dispose()
-        {
-            Master.DisposePlayer(this);
-        }
+        public void Dispose() { Master.DisposePlayer(this); }
 
         internal void DisposeInternal()
         {
-            Console.WriteLine("Player_Dispose");
+            Log("Player_Disposing");
 
             lock (this)
             {
@@ -765,7 +763,7 @@ namespace FlyleafLib.MediaPlayer
                 GC.Collect();
             }
 
-            Console.WriteLine("Player_Disposed");
+            Log("Player_Disposed");
         }
         bool disposed = false;
         #endregion
@@ -948,7 +946,7 @@ namespace FlyleafLib.MediaPlayer
                 aDistanceMs     = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
                 sDistanceMs     = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
                 sleepMs         = Math.Min(vDistanceMs, aDistanceMs) - 1;
-
+                
                 if (sleepMs < 0) sleepMs = 0;
                 if (sleepMs > 2)
                 {
@@ -1078,12 +1076,7 @@ namespace FlyleafLib.MediaPlayer
         protected virtual void OnPlaybackCompleted() { Task.Run(() => PlaybackCompleted?.Invoke(this, new EventArgs())); }
         #endregion
 
-        private void Log(string msg)
-        { 
-            #if DEBUG
-                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}");
-            #endif
-        }
+        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
     }
 
     public enum Status

@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Wpf_Samples"
+        mc:Ignorable="d"
+        
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
-        mc:Ignorable="d"
         Title="Sample3_MultiPlayer" Height="450" Width="800" Background="Black" Loaded="Window_Loaded">
     <Grid x:Name="grid1">
         <Grid.ColumnDefinitions>

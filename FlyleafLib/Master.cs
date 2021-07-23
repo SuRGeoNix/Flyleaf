@@ -18,7 +18,7 @@ namespace FlyleafLib
     {
         static Master()
         {
-            AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve;
+            //AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve;
             
             Plugins     = new List<Type>();
             Players     = new Dictionary<int, Player>();
@@ -637,6 +637,6 @@ namespace FlyleafLib
             new Language("spn","sp","Spanish (EU)","1","0")
         };
 
-        private static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] {msg}"); }
+        private static void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] {msg}"); }
     }
 }

@@ -339,6 +339,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
             VideoDecoder.VideoAcceleration?.Dispose();
         }
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [DecoderContext] {msg}"); }
+        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [DecoderContext] {msg}"); }
     }
 }
