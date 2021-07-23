@@ -1,197 +1,36 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{DC0B8BD8-BC22-4B04-B0C6-0FEB83D8345F}</ProjectGuid>
     <OutputType>WinExe</OutputType>
+    <TargetFramework>net5.0-windows</TargetFramework>
     <RootNamespace>Wpf_Samples</RootNamespace>
-    <AssemblyName>Flyleaf</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <WarningLevel>4</WarningLevel>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Deterministic>true</Deterministic>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\x64\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <DebugType>full</DebugType>
-    <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
-    <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-    <OutputPath>bin\x64\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
-    <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>FlyleafPlayer</AssemblyName>
     <ApplicationIcon>Flyleaf.ico</ApplicationIcon>
+    <Platforms>AnyCPU;x64</Platforms>
+    <Authors>SuRGeoNix</Authors>
+    <Company>SuRGeoNix</Company>
+    <Copyright>SuRGeoNix © 2021</Copyright>
   </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="System.Xaml">
-      <RequiredTargetFramework>4.0</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="WindowsBase" />
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
-    <Reference Include="WindowsFormsIntegration" />
+    <None Remove="Flyleaf.ico" />
   </ItemGroup>
+
   <ItemGroup>
-    <ApplicationDefinition Include="App.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </ApplicationDefinition>
-    <Compile Include="Sample2_Custom.xaml.cs">
-      <DependentUpon>Sample2_Custom.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Sample2_ViewModel.cs" />
-    <Compile Include="Sample3_MultiPlayer.xaml.cs">
-      <DependentUpon>Sample3_MultiPlayer.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Sample4_Downloader.xaml.cs">
-      <DependentUpon>Sample4_Downloader.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Issue40.xaml.cs">
-      <DependentUpon>Issue40.xaml</DependentUpon>
-    </Compile>
-    <Page Include="Sample1_Basic.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Compile Include="App.xaml.cs">
-      <DependentUpon>App.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Sample1_Basic.xaml.cs">
-      <DependentUpon>Sample1_Basic.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Page Include="Sample2_Custom.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Sample3_MultiPlayer.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Sample4_Downloader.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Issue40.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
+    <ProjectReference Include="..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Properties\AssemblyInfo.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <Resource Include="Flyleaf.png" />
-  </ItemGroup>
+
   <ItemGroup>
     <Resource Include="Flyleaf.ico" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj">
-      <Project>{6fd09ec0-aece-4534-911b-8457633a9ceb}</Project>
-      <Name>FlyleafLib.Controls.WPF</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\FlyleafLib\FlyleafLib.csproj">
-      <Project>{31c6cbf5-1e30-475d-bc57-028eff3f0c91}</Project>
-      <Name>FlyleafLib</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>mkdir "$(SolutionDir)"Plugins
-xcopy "$(SolutionDir)"Plugins Plugins\ /E /Y
 
-if $(ConfigurationName) == Release (
-
-mkdir Libs\
-del /S /F /Q Libs\
-
-if $(PlatformName) == AnyCPU (
-  xcopy "$(SolutionDir)"Libs\* Libs\  /E /Y
-)
-if $(PlatformName) == x64 (
-  xcopy "$(SolutionDir)"Libs\x64\* Libs\x64\  /E /Y
-)
-
-move *.dll Libs\
-
-del *.xml
-del *.pdb
-del FlyleafLib*.config
-
-)</PostBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PreBuildEvent>del /S /F /Q "$(TargetDir)"</PreBuildEvent>
-  </PropertyGroup>
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if not exist &quot;$(SolutionDir)Plugins&quot; mkdir &quot;$(SolutionDir)Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins&quot; &quot;$(TargetDir)Plugins\&quot; /E /Y&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(TargetDir)Libs&quot; mkdir &quot;$(TargetDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;if $(PlatformName) == AnyCPU (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\*&quot; &quot;$(TargetDir)Libs&quot; /E /Y&#xD;&#xA;)&#xD;&#xA;if $(PlatformName) == x64 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x64\*&quot; &quot;$(TargetDir)Libs\x64\&quot; /E /Y&#xD;&#xA;)" />
+  </Target>
+  
+  <Target Name="PostPublish" AfterTargets="Publish">
+	<Exec Command="del /S /F /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;del /S /F /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;del &quot;$(PublishDir)*.pdb&quot;&#xD;&#xA;del &quot;$(PublishDir)*.xml&quot;&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(PublishDir)Plugins&quot; mkdir &quot;$(PublishDir)Plugins&quot;&#xD;&#xA;if not exist &quot;$(PublishDir)Libs&quot; mkdir &quot;$(PublishDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;xcopy &quot;$(TargetDir)Libs\*&quot; &quot;$(PublishDir)Libs&quot; /E /Y&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\*&quot; &quot;$(PublishDir)Plugins&quot; /E /Y" />
+  </Target>
+  
 </Project>

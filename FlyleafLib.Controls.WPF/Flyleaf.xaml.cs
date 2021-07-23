@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -123,7 +123,7 @@ namespace FlyleafLib.Controls.WPF
             {
                 if (disposed) return;
 
-                //Console.WriteLine("Flyleaf_WPF_Dispose");
+                //System.Diagnostics.Debug.WriteLine("Flyleaf_WPF_Dispose");
                 WindowFront?.Close();
                 Player?.Dispose();
 
@@ -134,7 +134,7 @@ namespace FlyleafLib.Controls.WPF
                 Content = null;
                 DataContext = null;
                 disposed = true;
-                //Console.WriteLine("Flyleaf_WPF_Disposed");
+                //System.Diagnostics.Debug.WriteLine("Flyleaf_WPF_Disposed");
 
                 
             }
@@ -673,11 +673,15 @@ namespace FlyleafLib.Controls.WPF
             switch (e.Key)
             {
                 case Key.Up:
-                    AudioPlayer.Volume += 5;
+                    if (AudioPlayer.Volume == 150) return;
+                    AudioPlayer.Volume += AudioPlayer.Volume + 5 > 150 ? 0 : 5;
+
                     break;
 
                 case Key.Down:
-                    AudioPlayer.Volume -= 5;
+                    if (AudioPlayer.Volume == 0) return;
+                    AudioPlayer.Volume -= AudioPlayer.Volume - 5 < 0 ? 0 : 5;
+                    
                     break;
 
                 case Key.Right:

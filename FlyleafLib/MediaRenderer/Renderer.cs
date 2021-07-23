@@ -205,11 +205,12 @@ namespace FlyleafLib.MediaRenderer
                 Utilities.Dispose(ref context);
                 Utilities.Dispose(ref swapChain);
 
-                //deviceDbg.ReportLiveDeviceObjects(ReportingLevel.Detail);
-                Utilities.Dispose(ref device);
                 if (curSRVs != null) { for (int i=0; i<curSRVs.Length; i++) { Utilities.Dispose(ref curSRVs[i]); } curSRVs = null; }
                 disposed = true;
             }
+
+            //deviceDbg.ReportLiveDeviceObjects(ReportingLevel.Detail);
+            //Utilities.Dispose(ref device); // This will cause stack overflow sometimes
             
             pixelShaders = null;
             vertexShader = null;
@@ -422,11 +423,6 @@ namespace FlyleafLib.MediaRenderer
             snapshotBitmap.Dispose();
         }
 
-        private void Log(string msg)
-        {
-            #if DEBUG
-                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [Renderer] {msg}");
-            #endif
-        }
+        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [Renderer] {msg}"); }
     }
 }
