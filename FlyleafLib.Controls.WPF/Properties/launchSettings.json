@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FlyleafLib.Controls.WPF": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

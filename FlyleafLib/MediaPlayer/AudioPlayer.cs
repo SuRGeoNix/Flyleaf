@@ -17,7 +17,7 @@ namespace FlyleafLib.MediaPlayer
             get => volumeSampleProvider == null ? 50 : (int) (volumeSampleProvider.Volume * 100);
             set
             {
-                volumeSampleProvider.Volume = value / 100.0f;
+                volumeSampleProvider.Volume = Math.Max(0, value / 100.0f);
                 Raise(nameof(Volume));
 
                 if (value == 0)
@@ -165,6 +165,6 @@ namespace FlyleafLib.MediaPlayer
         }
         #endregion
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [AudioPlayer] {msg}"); }
+        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [AudioPlayer] {msg}"); }
     }
 }
