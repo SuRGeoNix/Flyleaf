@@ -62,11 +62,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             if (ret < 0)
             {
                 if (ret == -1)
-                    Console.WriteLine("[Stream] Cancel");
+                    System.Diagnostics.Debug.WriteLine("[Stream] Cancel");
                 else if (ret == -2)
-                    Console.WriteLine("[Stream] Error");
+                    System.Diagnostics.Debug.WriteLine("[Stream] Error");
                 else
-                    Console.WriteLine("[Stream] Interrupt 2");
+                    System.Diagnostics.Debug.WriteLine("[Stream] Interrupt 2");
 
                 return AVERROR_EXIT;
             }
@@ -81,7 +81,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
             DemuxerBase demuxer = (DemuxerBase)demuxerHandle.Target;
 
-            //Console.WriteLine($"** S | {decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position}");
+            //System.Diagnostics.Debug.WriteLine($"** S | {decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position}");
 
             if (wehnce == AVSEEK_SIZE) return demuxer.CustomIOContext.stream.Length;
 
