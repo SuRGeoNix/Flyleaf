@@ -76,6 +76,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             return hwDevices;
         }
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [HWAcceleration] {msg}"); }
+        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [HWAcceleration] {msg}"); }
     }
 }

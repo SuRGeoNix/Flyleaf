@@ -1,152 +1,66 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{31C6CBF5-1E30-475D-BC57-028EFF3F0C91}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>FlyleafLib</RootNamespace>
-    <AssemblyName>FlyleafLib</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
+    <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
+	<UseWindowsForms>true</UseWindowsForms>
+	<UseWPF>true</UseWPF>
+	<PackageIcon>Flyleaf.png</PackageIcon>
+	<PackageIconUrl />
+	<RepositoryUrl></RepositoryUrl>
+	<Description>Video Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
+	<Version>3.1.11</Version>
+	<Authors>SuRGeoNix</Authors>
+	<Copyright>SuRGeoNix © 2021</Copyright>
+	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
+	<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
+	<PackageTags>flyleaf flyleaflib video media player engine framework ffmpeg sharpdx directx</PackageTags>
+	<IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageReleaseNotes>Adding .NET 5 support
+Fixes .NET 5 hanging issues</PackageReleaseNotes>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <NoWarn>1591</NoWarn>
+    <DocumentationFile>C:\root\dev\projects\_todo\FlyleafLib\FlyleafLib\FlyleafLib.xml</DocumentationFile>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DocumentationFile>bin\Release\FlyleafLib.xml</DocumentationFile>
-    <NoWarn>1591</NoWarn>
   </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="FFmpeg.AutoGen, Version=4.4.0.0, Culture=neutral, PublicKeyToken=9b7632533a381715, processorArchitecture=MSIL">
-      <HintPath>..\packages\FFmpeg.AutoGen.4.4.0\lib\net472\FFmpeg.AutoGen.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Core, Version=2.0.0.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
-      <HintPath>..\packages\NAudio.Core.2.0.0\lib\netstandard2.0\NAudio.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Wasapi, Version=2.0.0.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
-      <HintPath>..\packages\NAudio.Wasapi.2.0.0\lib\netstandard2.0\NAudio.Wasapi.dll</HintPath>
-    </Reference>
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
-    <Reference Include="SharpDX, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <HintPath>..\packages\SharpDX.4.2.0\lib\net45\SharpDX.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpDX.Direct2D1, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <HintPath>..\packages\SharpDX.Direct2D1.4.2.0\lib\net45\SharpDX.Direct2D1.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpDX.Direct3D11, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <HintPath>..\packages\SharpDX.Direct3D11.4.2.0\lib\net45\SharpDX.Direct3D11.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpDX.DXGI, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <HintPath>..\packages\SharpDX.DXGI.4.2.0\lib\net45\SharpDX.DXGI.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpDX.Mathematics, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
-      <HintPath>..\packages\SharpDX.Mathematics.4.2.0\lib\net45\SharpDX.Mathematics.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Windows" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xaml" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Xml" />
-    <Reference Include="WindowsBase" />
-    <Reference Include="WindowsFormsIntegration" />
+    <PackageReference Include="FFmpeg.AutoGen" Version="4.4.0" />
+    <PackageReference Include="NAudio.Core" Version="2.0.0" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.0.0" />
+    <PackageReference Include="SharpDX" Version="4.2.0" />
+    <PackageReference Include="SharpDX.Direct2D1" Version="4.2.0" />
+    <PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />
+    <PackageReference Include="SharpDX.DXGI" Version="4.2.0" />
+    <PackageReference Include="SharpDX.Mathematics" Version="4.2.0" />
   </ItemGroup>
+  
   <ItemGroup>
-    <Compile Include="AudioMaster.cs" />
-    <Compile Include="Config.cs" />
-    <Compile Include="Controls\WPF\Converters.cs" />
-    <Compile Include="Controls\WPF\FlyleafWindow.cs" />
-    <Compile Include="Controls\WPF\IVideoView.cs" />
-    <Compile Include="Controls\WPF\VideoView.cs" />
-    <Compile Include="Globals.cs" />
-    <Compile Include="Language.cs" />
-    <Compile Include="Master.cs" />
-    <Compile Include="MediaFramework\MediaContext\DecoderContext.cs" />
-    <Compile Include="MediaFramework\MediaDecoder\AudioDecoder.cs" />
-    <Compile Include="MediaFramework\MediaDecoder\DecoderBase.cs" />
-    <Compile Include="MediaFramework\MediaDecoder\SubtitlesDecoder.cs" />
-    <Compile Include="MediaFramework\MediaDecoder\VideoDecoder.cs" />
-    <Compile Include="MediaFramework\MediaDemuxer\CustomIOContext.cs" />
-    <Compile Include="MediaFramework\MediaDemuxer\AudioDemuxer.cs" />
-    <Compile Include="MediaFramework\MediaDemuxer\DemuxerBase.cs" />
-    <Compile Include="MediaStream\AudioStream.cs" />
-    <Compile Include="MediaStream\StreamBase.cs" />
-    <Compile Include="MediaStream\SubtitlesStream.cs" />
-    <Compile Include="MediaStream\VideoStream.cs" />
-    <Compile Include="MediaFramework\MediaDemuxer\SubtitlesDemuxer.cs" />
-    <Compile Include="MediaFramework\MediaDemuxer\VideoDemuxer.cs" />
-    <Compile Include="MediaFramework\MediaFrame\AudioFrame.cs" />
-    <Compile Include="MediaFramework\MediaFrame\FrameBase.cs" />
-    <Compile Include="MediaFramework\MediaFrame\SubtitlesFrame.cs" />
-    <Compile Include="MediaFramework\MediaFrame\VideoFrame.cs" />
-    <Compile Include="MediaFramework\MediaDecoder\VideoAcceleration.cs" />
-    <Compile Include="MediaPlayer\AudioPlayer.cs" />
-    <Compile Include="Controls\Flyleaf.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\Flyleaf.Designer.cs">
-      <DependentUpon>Flyleaf.cs</DependentUpon>
-    </Compile>
-    <Compile Include="MediaPlayer\Player.cs" />
-    <Compile Include="MediaRenderer\Shaders_v4.cs" />
-    <Compile Include="MediaRenderer\Shaders_v5.cs" />
-    <Compile Include="Plugins\Default.cs" />
-    <Compile Include="Plugins\DefaultExternal.cs" />
-    <Compile Include="Plugins\PluginBase.cs" />
-    <Compile Include="MediaPlayer\Session.cs" />
-    <Compile Include="MediaRenderer\Renderer.cs" />
-    <Compile Include="MediaRenderer\RendererInfo.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <Compile Include="Utils.cs" />
+	<Import Include="System" />
+    <Import Include="System.Drawing" />
+    <Import Include="System.Net.Http" />
+    <Import Include="System.Numerics" />
+    <Import Include="System.Windows" />
+    <Import Include="System.Windows.Forms" />
+    <Import Include="System.Xaml" />
+    <Import Include="System.Xml.Linq" />
+    <Import Include="Microsoft.CSharp" />
+    <Import Include="System.Xml" />
+    <Import Include="WindowsBase" />
+    <Import Include="WindowsFormsIntegration" />
   </ItemGroup>
+  
   <ItemGroup>
-    <None Include="..\.editorconfig">
-      <Link>.editorconfig</Link>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+    <None Include="..\Images\Flyleaf.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
     </None>
-    <None Include="app.config" />
-    <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Include="Themes\Generic.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-  </ItemGroup>
-  <ItemGroup />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
 </Project>

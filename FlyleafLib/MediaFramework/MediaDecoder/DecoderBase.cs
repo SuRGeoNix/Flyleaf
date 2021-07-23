@@ -10,6 +10,7 @@ using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.AVMediaType;
 using static FFmpeg.AutoGen.ffmpeg;
 
+using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaStream;
 
@@ -34,7 +35,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         protected long              threadCounter;
 
         protected DemuxerBase       demuxer;
-        protected MediaContext.DecoderContext  decCtx;
+        protected DecoderContext    decCtx;
         protected Config            cfg => decCtx.cfg;
 
         public DecoderBase(MediaContext.DecoderContext decCtx)
@@ -185,9 +186,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected void Log(string msg)
         {
-            #if DEBUG
-                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{decCtx.player.PlayerId}] [Decoder: {Type.ToString().PadLeft(5, ' ')}] {msg}");
-            #endif
+            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{decCtx.player.PlayerId}] [Decoder: {Type.ToString().PadLeft(5, ' ')}] {msg}");
         }
     }
 

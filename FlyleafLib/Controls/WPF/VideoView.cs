@@ -151,7 +151,7 @@ namespace FlyleafLib.Controls.WPF
         bool disposed = false;
         internal void Dispose()
         {
-            Console.WriteLine("VideoView_Dispose");
+            //System.Diagnostics.Debug.WriteLine("VideoView_Dispose");
 
             Player?.DisposeInternal();
             Player = null;

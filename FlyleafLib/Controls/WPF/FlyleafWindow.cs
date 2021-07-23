@@ -27,7 +27,7 @@ namespace FlyleafLib.Controls.WPF
 
         public FlyleafWindow(WindowsFormsHost windowsFormsHost)
         {
-            //Console.WriteLine("FlyleafWindow");
+            //System.Diagnostics.Debug.WriteLine("FlyleafWindow");
 
             Title               = "FlyleafWindow";
             Height              = 300;
@@ -49,14 +49,14 @@ namespace FlyleafLib.Controls.WPF
 
         void WFH_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            //Console.WriteLine("WFH_DataContextChanged"); 
+            //System.Diagnostics.Debug.WriteLine("WFH_DataContextChanged"); 
             if (e.NewValue == null) return;
             DataContext = e.NewValue;
         }
 
         void WFH_Unloaded(object sender, RoutedEventArgs e)
         {
-            //Console.WriteLine("WFH_Unloaded");
+            //System.Diagnostics.Debug.WriteLine("WFH_Unloaded");
             
             windowsFormsHost.SizeChanged    -= Wndhost_SizeChanged;
 
@@ -71,7 +71,7 @@ namespace FlyleafLib.Controls.WPF
 
         void WFH_Loaded(object sender, RoutedEventArgs e)
         {
-            //Console.WriteLine("WFH_Loaded");
+            //System.Diagnostics.Debug.WriteLine("WFH_Loaded");
 
             if (WindowBack != null)
             {
@@ -105,7 +105,7 @@ namespace FlyleafLib.Controls.WPF
 
         public void Wndhost_LocationChanged(object sender, EventArgs e)
         {
-            //Console.WriteLine("Wndhost_LocationChanged");
+            //System.Diagnostics.Debug.WriteLine("Wndhost_LocationChanged");
 
             var locationFromScreen  = windowsFormsHost.PointToScreen(_zeroPoint);
             var source              = PresentationSource.FromVisual(WindowBack);
@@ -116,7 +116,7 @@ namespace FlyleafLib.Controls.WPF
 
         public void Wndhost_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            //Console.WriteLine("Wndhost_SizeChanged");
+            //System.Diagnostics.Debug.WriteLine("Wndhost_SizeChanged");
             var source = PresentationSource.FromVisual(WindowBack);
             if (source == null)
             {
@@ -134,7 +134,7 @@ namespace FlyleafLib.Controls.WPF
 
         void Wndhost_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            //Console.WriteLine("Wndhost_Closing");
+            //System.Diagnostics.Debug.WriteLine("Wndhost_Closing");
 
             if (!Master.PreventAutoDispose) Dispose();
         }
@@ -142,7 +142,7 @@ namespace FlyleafLib.Controls.WPF
         bool disposed = false;
         internal void Dispose()
         {
-            //Console.WriteLine("FlyleafWindow_Dispose");
+            //System.Diagnostics.Debug.WriteLine("FlyleafWindow_Dispose");
 
             lock (this)
             {
@@ -182,7 +182,7 @@ namespace FlyleafLib.Controls.WPF
 
         private void FlyleafWindow_Closed(object sender, EventArgs e)
         {
-            //Console.WriteLine("FlyleafWindow_Closed");
+            //System.Diagnostics.Debug.WriteLine("FlyleafWindow_Closed");
 
             if (!Master.PreventAutoDispose) Dispose();
         }

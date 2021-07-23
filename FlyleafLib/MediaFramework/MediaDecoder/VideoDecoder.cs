@@ -50,61 +50,61 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             lock (lockCodecCtx)
             {
-            VideoAccelerated = false;
+                VideoAccelerated = false;
 
-            if (cfg.decoder.HWAcceleration)
-            {
-                if (VideoAcceleration.CheckCodecSupport(codec))
+                if (cfg.decoder.HWAcceleration)
                 {
-                    if (VideoAcceleration.hw_device_ctx != null)
+                    if (VideoAcceleration.CheckCodecSupport(codec))
                     {
-                        codecCtx->hw_device_ctx = av_buffer_ref(VideoAcceleration.hw_device_ctx);
-                        VideoAccelerated = true;
-                        Log("[VA] Success");
+                        if (VideoAcceleration.hw_device_ctx != null)
+                        {
+                            codecCtx->hw_device_ctx = av_buffer_ref(VideoAcceleration.hw_device_ctx);
+                            VideoAccelerated = true;
+                            Log("[VA] Success");
+                        }
                     }
+                    else
+                        Log("[VA] Failed");
                 }
                 else
-                    Log("[VA] Failed");
-            }
-            else
-                Log("[VA] Disabled");
+                    Log("[VA] Disabled");
 
-            codecCtx->thread_count = Math.Min(decCtx.cfg.decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
-            codecCtx->thread_type  = 0;
+                codecCtx->thread_count = Math.Min(decCtx.cfg.decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
+                codecCtx->thread_type  = 0;
 
-            int bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
+                int bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
 
-            textDesc = new Texture2DDescription()
-            {
-                Usage               = ResourceUsage.Default,
-                BindFlags           = BindFlags.ShaderResource,
+                textDesc = new Texture2DDescription()
+                {
+                    Usage               = ResourceUsage.Default,
+                    BindFlags           = BindFlags.ShaderResource,
 
-                Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
-                Width               = codecCtx->width,
-                Height              = codecCtx->height,
+                    Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
+                    Width               = codecCtx->width,
+                    Height              = codecCtx->height,
 
-                SampleDescription   = new SampleDescription(1, 0),
-                ArraySize           = 1,
-                MipLevels           = 1
-            };
+                    SampleDescription   = new SampleDescription(1, 0),
+                    ArraySize           = 1,
+                    MipLevels           = 1
+                };
 
-            textDescUV = new Texture2DDescription()
-            {
-                Usage               = ResourceUsage.Default,
-                BindFlags           = BindFlags.ShaderResource,
+                textDescUV = new Texture2DDescription()
+                {
+                    Usage               = ResourceUsage.Default,
+                    BindFlags           = BindFlags.ShaderResource,
 
-                Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
-                Width               = codecCtx->width  >> VideoStream.PixelFormatDesc->log2_chroma_w,
-                Height              = codecCtx->height >> VideoStream.PixelFormatDesc->log2_chroma_h,
+                    Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
+                    Width               = codecCtx->width  >> VideoStream.PixelFormatDesc->log2_chroma_w,
+                    Height              = codecCtx->height >> VideoStream.PixelFormatDesc->log2_chroma_h,
 
-                SampleDescription   = new SampleDescription(1, 0),
-                ArraySize           = 1,
-                MipLevels           = 1
-            };
+                    SampleDescription   = new SampleDescription(1, 0),
+                    ArraySize           = 1,
+                    MipLevels           = 1
+                };
 
-            decCtx.player.renderer.FrameResized();
+                decCtx.player.renderer.FrameResized();
 
-            return 0;
+                return 0;
             }
         }
 
@@ -171,7 +171,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         else if (demuxer.Status != MediaDemuxer.Status.Demuxing && demuxer.Status != MediaDemuxer.Status.QueueFull)
                         {
                             Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
-                            Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopping2 : Status.Paused;
+                            Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopping2 : Status.Pausing;
                             break;
                         }
                         
@@ -369,16 +369,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public void DisposeFrames()
         {
-
             while (!Frames.IsEmpty)
             {
                 Frames.TryDequeue(out VideoFrame frame);
                 DisposeFrame(frame);
             }
-
-
-            //foreach (VideoFrame frame in Frames) DisposeFrame(frame);
-            //Frames = new ConcurrentQueue<VideoFrame>();
         }
         public static void DisposeFrame(VideoFrame frame) { if (frame != null && frame.textures != null) for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]); }
     }

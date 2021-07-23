@@ -51,19 +51,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public long                     VideoBytes      { get; private set; } = 0;
         public long                     AudioBytes      { get; private set; } = 0;
 
-        internal bool allowProperClose;
+        internal bool       allowProperClose;
+        internal object     lockFmtCtx      = new object();
+        internal GCHandle   handle;
 
-        internal GCHandle handle;
+        Thread              thread;
+        AutoResetEvent      threadARE = new AutoResetEvent(false);
+        long                threadCounter;
 
-        Thread          thread;
-        AutoResetEvent  threadARE = new AutoResetEvent(false);
-        long            threadCounter;
-
-        AVFormatContext*fmtCtx;
-        AVPacket*       packet;
-        internal object lockFmtCtx      = new object();
-
-        Config          cfg;
+        AVFormatContext*    fmtCtx;
+        AVPacket*           packet;
+        Config              cfg;
+        
 
         AVIOInterruptCB_callback_func   interruptClbk = new AVIOInterruptCB_callback_func();     
         AVIOInterruptCB_callback        InterruptClbk = (opaque) =>
@@ -74,9 +73,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             if (demuxer.allowProperClose) return 0;
 
             int interrupt = demuxer.DemuxInterrupt != 0 || demuxer.Status == Status.Stopping || demuxer.Status == Status.Stopped ? 1 : 0;
-            
-            //if (demuxer.DemuxInterrupt == 1) demuxer.Log($"Interrupt 1 | {demuxer.Status}");
-            //if (interrupt == 1) demuxer.Log("Interrupt");
 
             return interrupt;
         };
@@ -138,7 +134,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 {
                     if (Status != Status.Opening) return -1;
                     ret = avformat_find_stream_info(fmtCtx, null);
-                    if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); avformat_close_input(&fmtCtxPtr); fmtCtx = null; return ret; }
+                    if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); allowProperClose = true; avformat_close_input(&fmtCtxPtr); allowProperClose = false; fmtCtx = null; return ret; }
                 }
                 if (Status != Status.Opening) return -1;
 
@@ -148,11 +144,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     bool hasVideo = FillInfo();
 
                     if (Type == MediaType.Video && !hasVideo) 
-                        { Log($"[Format] [ERROR-3] No video stream found");     avformat_close_input(&fmtCtxPtr); fmtCtx = null; return -3; }
+                        { Log($"[Format] [ERROR-3] No video stream found");     allowProperClose = true; avformat_close_input(&fmtCtxPtr); allowProperClose = false; fmtCtx = null; return -3; }
                     else if (Type == MediaType.Audio && AudioStreams.Count == 0)
-                        { Log($"[Format] [ERROR-4] No audio stream found");     avformat_close_input(&fmtCtxPtr); fmtCtx = null; return -4; }
+                        { Log($"[Format] [ERROR-4] No audio stream found");     allowProperClose = true; avformat_close_input(&fmtCtxPtr); allowProperClose = false; fmtCtx = null; return -4; }
                     else if (Type == MediaType.Subs && SubtitlesStreams.Count == 0)
-                        { Log($"[Format] [ERROR-5] No subtitles stream found"); avformat_close_input(&fmtCtxPtr); fmtCtx = null; return -5; }
+                        { Log($"[Format] [ERROR-5] No subtitles stream found"); allowProperClose = true; avformat_close_input(&fmtCtxPtr); allowProperClose = false; fmtCtx = null; return -5; }
 
                     StartThread();
 
@@ -402,7 +398,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     {
                         // Demux Packet
                         ret = av_read_frame(fmtCtx, packet);
-
                         // Check for Errors / End
                         if (ret != 0)
                         {
@@ -709,18 +704,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
         }
 
-        private void Log2(string msg)
-        {
-            #if DEBUG
-                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Remuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}");
-            #endif
-        }
-        private void Log (string msg)
-        { 
-            #if DEBUG
-                Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Demuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}");
-            #endif
-        }
+        private void Log2(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Remuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
+        private void Log (string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Demuxer: {Type.ToString().PadLeft(5, ' ')}] {msg}"); }
     }
 
     public enum Status
