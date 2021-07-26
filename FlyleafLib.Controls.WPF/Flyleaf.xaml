@@ -13,6 +13,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="MainDictionary.xaml"/>
                 <ResourceDictionary Source="PopUpMenu.xaml"/>
+                <ResourceDictionary Source="Sliders.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
             <Style TargetType="local:Flyleaf">
@@ -106,7 +107,7 @@
 
                                             <!--Current Time | Slider | Duration-->
                                             <TextBlock Grid.Column="0" HorizontalAlignment="Left"   VerticalAlignment="Center" Text="{Binding Session.CurTime, Converter={StaticResource TicksToTime}}"/>
-                                            <Slider    Grid.Column="1" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Session.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Session.Movie.Duration, Converter={StaticResource TicksToSeconds}}" IsMoveToPointEnabled="True"/>
+                                            <Slider    Grid.Column="1" Style="{DynamicResource FlyleafSlider}" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Session.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Session.Movie.Duration, Converter={StaticResource TicksToSeconds}}"/>
                                             <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding Session.Movie.Duration, Converter={StaticResource TicksToTime}}"/>
                                         </Grid>
 
@@ -387,7 +388,7 @@
                                             </Button>
 
                                             <!--Volume Slider (Decibel)-->
-                                            <Slider Grid.Column="4" Style="{StaticResource MaterialDesignDiscreteSlider}" Foreground="{DynamicResource MaterialDesignBody}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" IsMoveToPointEnabled="True" Minimum="0" Maximum="150" Value="{Binding AudioPlayer.Volume}"/>
+                                            <Slider Grid.Column="4" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource MaterialDesignBody}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="150" Value="{Binding AudioPlayer.Volume}"/>
 
                                             <!--Open Settings Button-->
                                             <Button Grid.Column="5" Style="{StaticResource IconButton}" Content="{materialDesign:PackIcon Kind=SettingsOutline}" Command="{Binding OpenSettings}"/>
