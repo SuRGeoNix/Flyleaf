@@ -85,8 +85,6 @@ namespace FlyleafLib.Plugins
                     if (ytdl.formats[i].vcodec == null) ytdl.formats[i].vcodec = "";
                     if (ytdl.formats[i].acodec == null) ytdl.formats[i].acodec = "";
 
-                    //Dump(ytdl.formats[i]);
-
                     if (HasVideo(fmt))
                     {
                         VideoStreams.Add(new VideoStream()
@@ -122,10 +120,9 @@ namespace FlyleafLib.Plugins
                     if (fmt.url == t1.Url) return new OpenVideoResults(t1);
 
             }
-            catch (Exception e) { Console.WriteLine($"[Youtube-DL] Error ... {e.Message}"); }
+            catch (Exception e) { Debug.WriteLine($"[Youtube-DL] Error ... {e.Message}"); }
 
             return new OpenVideoResults();
-            //return formats[formats.Count - 1];
         }
         public AudioStream OpenAudio()
         {
@@ -155,47 +152,6 @@ namespace FlyleafLib.Plugins
             return null;
         }
 
-        private int Open(Format fmt, MediaType type = MediaType.Video)
-        {
-            int ret = -1;
-
-            if (fmt == null) return ret;
-            var opt = Player.Config.demuxer.GetFormatOptPtr(type);
-            //if (!opt.ContainsKey("headers")) 
-                opt["headers"] = "";
-
-            foreach (var hdr in fmt.http_headers)
-            {
-                if (hdr.Key.ToLower() == "user-agent")
-                    opt["user_agent"] = hdr.Value;
-                else if (hdr.Key.ToLower() == "referer")
-                    opt["referer"] = hdr.Value;
-                else
-                    opt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
-            }
-
-            //if (type == MediaType.Video)
-            //{
-            //    //CurVideoFormat = fmt;
-            //    ret = Player.decoder.Open(fmt.url, true);
-            //    foreach(var t1 in VideoStreams)
-            //        if (fmt.url == t1.Url) t1.InUse = true; else t1.InUse = false;
-            //}
-            //else
-            //{
-            //    //CurAudioFormat = fmt;
-            //    ret = Player.decoder.OpenAudio(fmt.url);
-            //    foreach(var t1 in AudioStreams)
-            //        if (fmt.url == t1.Url) t1.InUse = true; else t1.InUse = false;
-            //}
-
-            if (ret != 0) return ret;
-
-            if (type == MediaType.Video && !Player.HasAudio)
-                Open(GetAudioOnly(), MediaType.Audio);
-
-            return ret;
-        }
         private Format GetAudioOnly()
         {
             // Prefer best with no video (dont waste bandwidth)

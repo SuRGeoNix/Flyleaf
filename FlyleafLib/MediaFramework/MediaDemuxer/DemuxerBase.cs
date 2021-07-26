@@ -19,6 +19,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public Status                   Status          { get; internal set; } = Status.Stopped;
         public bool                     IsRunning       { get; private set; }
         public MediaType                Type            { get; private set; }
+        public string                   Url             { get; private set; }
 
         // Format Info
         public string                   Name            { get; private set; }
@@ -30,6 +31,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         public AVFormatContext*         FormatContext   => fmtCtx;
         public CustomIOContext          CustomIOContext { get; private set; }
+
+        // Programs
+        public int[][]                  Programs        { get; private set; } = new int[0][];
 
         // Media Streams
         public List<AudioStream>        AudioStreams    { get; private set; } = new List<AudioStream>();
@@ -100,6 +104,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public int Open(string url, Stream stream, Dictionary<string, string> opt, int flags)
         {
             int ret = -1;
+            Url = url;
             Status = Status.Opening;
 
             try
@@ -200,6 +205,21 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 }
             }
 
+            Programs = new int[0][];
+            if (fmtCtx->nb_programs > 0)
+            {
+                Programs = new int[fmtCtx->nb_programs][];
+                for (int i=0; i<fmtCtx->nb_programs; i++)
+                {
+                    if (fmtCtx->programs[i]->nb_stream_indexes > 0)
+                    {
+                        Programs[i] = new int[fmtCtx->programs[i]->nb_stream_indexes];
+                        for (int l=0; l<fmtCtx->programs[i]->nb_stream_indexes; l++)
+                            Programs[i][l] = (int) fmtCtx->programs[i]->stream_index[l];
+                    }
+                }
+            }
+
             PrintDump();
             return hasVideo;
         }
@@ -210,6 +230,24 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             foreach(var stream in VideoStreams)     dump += "\r\n" + stream.GetDump();
             foreach(var stream in AudioStreams)     dump += "\r\n" + stream.GetDump();
             foreach(var stream in SubtitlesStreams) dump += "\r\n" + stream.GetDump();
+
+            if (fmtCtx->nb_programs > 0)
+                dump += $"\r\n[Programs] {fmtCtx->nb_programs}";
+
+            for (int i=0; i<fmtCtx->nb_programs; i++)
+            {
+                dump += $"\r\n\tProgram #{i}";
+
+                if (fmtCtx->programs[i]->nb_stream_indexes > 0)
+                    dump += $"\r\n\t\tStreams [{fmtCtx->programs[i]->nb_stream_indexes}]: ";
+
+                for (int l=0; l<fmtCtx->programs[i]->nb_stream_indexes; l++)
+                    dump += $"{fmtCtx->programs[i]->stream_index[l]},";
+
+                if (fmtCtx->programs[i]->nb_stream_indexes > 0)
+                    dump = dump.Substring(0, dump.Length - 1);
+            }
+
             Log(dump);
         }
 
@@ -272,6 +310,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             lock (lockFmtCtx)
             {
+                Url = null;
+                Programs = new int[0][];
+
                 // Free Streams
                 AudioStreams.Clear();
                 VideoStreams.Clear();

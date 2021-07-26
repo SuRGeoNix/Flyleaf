@@ -450,10 +450,11 @@ namespace FlyleafLib.Controls.WPF
         }
         public void Player_OpenCompleted(object sender, Player.OpenCompletedArgs e)
         {
+            Raise(null);
+
             switch (e.type)
             {
                 case MediaType.Video:
-                    Raise(null);
                     if (!e.success) return;
 
                     Player.Play();
@@ -645,6 +646,8 @@ namespace FlyleafLib.Controls.WPF
                         break;
 
                     case Key.C:
+                        if (Session == null | Session.InitialUrl == null) break;
+
                         Clipboard.SetText(Session.InitialUrl);
                         break;
 
