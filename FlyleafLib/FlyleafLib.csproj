@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Video Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
-	<Version>3.1.11</Version>
+	<Version>3.1.12</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,8 +16,14 @@
 	<PackageTags>flyleaf flyleaflib video media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Adding .NET 5 support
-Fixes .NET 5 hanging issues</PackageReleaseNotes>
+    <PackageReleaseNotes>Adds FFmpeg's Programs which include streams relationships (reduces bandwidth)
+Changes default demuxer's MaxQueueSize from 200 to 25 as it seems that it causes delay issues to av_read_frame
+Changes default video decoder's MinVideoFrames from 3 to 10
+Fixes dead lock during video stream switch
+Fixes rare decoder's race condition (was stoping even the demuxer was actually running)
+Fixes .NET 5 subtitles convert issue to default system encoding</PackageReleaseNotes>
+    <AssemblyVersion>3.1.12.0</AssemblyVersion>
+    <FileVersion>3.1.12.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

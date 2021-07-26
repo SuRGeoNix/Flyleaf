@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 
 using FlyleafLib.MediaPlayer;
@@ -66,7 +67,7 @@ namespace FlyleafLib.Plugins
             if (cfg != null) cfg.EnableBuffering = false;
         }
 
-        private void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [BitSwarm] {msg}"); }
+        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [BitSwarm] {msg}"); }
         private void OnFinishing(object source, SuRGeoNix.BitSwarmLib.BitSwarm.FinishingArgs e)
         {
             Log("Download of " + Torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log("Stopped");

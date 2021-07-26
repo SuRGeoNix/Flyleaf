@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
@@ -33,15 +34,13 @@ namespace FlyleafLib.Plugins
         {
             try
             {
-                if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return; // Proper lock on format context*
+                if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return;
                 lock (Player.decoder.VideoDemuxer.lockFmtCtx)
                 {
                     // TODO add also external demuxers (add range)
                     AudioStreams = Player.decoder.VideoDemuxer.AudioStreams;
                     VideoStreams = Player.decoder.VideoDemuxer.VideoStreams;
                     SubtitlesStreams = Player.decoder.VideoDemuxer.SubtitlesStreams;
-
-                    // if (!player.HasVideo) ... possible allow plugins to select embedded video?
 
                     // Try to find best video stream based on current screen resolution
                     var iresults =
@@ -57,9 +56,8 @@ namespace FlyleafLib.Plugins
                     else
                     {
                         // Fall-back to FFmpeg's default
-                        if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return; // Proper lock on format context*
+                        if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return;
 
-                        // Let FFmpeg decide
                         int vstreamIndex = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
                         if (vstreamIndex < 0) return;
 
@@ -73,11 +71,9 @@ namespace FlyleafLib.Plugins
         public OpenVideoResults OpenVideo()
         {
             // Fill Basic Info & Return the provided url
-
             try
             {
                 Uri uri = new Uri(Session.InitialUrl);
-                //Session.UrlScheme = uri.Scheme.ToLower();
                 Session.SingleMovie.Url = Session.InitialUrl;
 
                 if (File.Exists(Session.InitialUrl))
@@ -119,20 +115,48 @@ namespace FlyleafLib.Plugins
         {
             try
             {
-                if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return null; // Proper lock on format context*
+                if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return null;
                 lock (Player.decoder.VideoDemuxer.lockFmtCtx)
                 {
-                    if (AudioStreams.Count == 0) return null;
+                    if (AudioStreams.Count == 0 || !Player.HasVideo) return null;
 
                     foreach(var lang in Player.Config.audio.Languages)
                         foreach(var stream in AudioStreams)
-                            if (stream.Language == lang) return stream;
+                            if (stream.Language == lang)
+                            {
+                                if (Player.decoder.VideoDemuxer.Programs.Length < 2)
+                                {
+                                    Log($"[Audio] based on language");
+                                    return stream;
+                                }
+
+                                for (int i=0; i<Player.decoder.VideoDemuxer.Programs.Length; i++)
+                                {
+                                    bool aExists = false, vExists = false;
+                                    foreach(int pstream in Player.decoder.VideoDemuxer.Programs[i])
+                                    {
+                                        if (pstream == stream.StreamIndex) aExists = true;
+                                        else if (pstream == Player.decoder.VideoDecoder.Stream.StreamIndex) vExists = true;
+                                    }
+
+                                    if (aExists && vExists)
+                                    {
+                                        Log($"[Audio] based on language and same program #{i}");
+                                        return stream;
+                                    }
+                                }
+                            }
 
                     // Fall-back to FFmpeg's default
-                    if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return null; // Proper lock on format context*
+                    if (Player == null || Player.decoder == null || Player.decoder.VideoDemuxer.FormatContext == null) return null;
 
                     int ret = av_find_best_stream(Player.decoder.VideoDemuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, Player.decoder.VideoDecoder.Stream.StreamIndex, null, 0);
-                    foreach(var stream in AudioStreams) if (stream.StreamIndex == ret) return stream;
+                    foreach(var stream in AudioStreams)
+                        if (stream.StreamIndex == ret)
+                        {
+                            Log($"[Audio] based on av_find_best_stream");
+                            return stream;
+                        }   
                 }
             } catch (Exception) { }
 
@@ -157,5 +181,7 @@ namespace FlyleafLib.Plugins
 
             return null;
         }
+
+        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [DefaultPlugin] {msg}"); }
     }    
 }
