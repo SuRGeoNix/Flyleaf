@@ -300,18 +300,54 @@ namespace FlyleafLib
 
                 return true;
             }
+
+            public static Encoding GetSystemEncoding()
+            {
+                //#if !NET5_0_OR_GREATER
+                #if NETFRAMEWORK
+                    return Encoding.Default;
+                #else
+
+                // The OEM code page for use by legacy console applications
+                // int oem = System.Globalization.CultureInfo.CurrentCulture.TextInfo.OEMCodePage;
+
+                // The ANSI code page for use by legacy GUI applications
+                // int ansi = System.Globalization.CultureInfo.InstalledUICulture.TextInfo.ANSICodePage; // Machine 
+
+                int ansi = CultureInfo.CurrentCulture.TextInfo.ANSICodePage; // User 
+
+                try
+                {
+                    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                    Encoding enc = Encoding.GetEncoding(ansi);
+                    return enc;
+                } catch (Exception) { }
+
+
+                try
+                {
+                    foreach (EncodingInfo ei in Encoding.GetEncodings())
+                    {
+                        Encoding e = ei.GetEncoding();
+                        // 20'127: US-ASCII 
+                        if (e.WindowsCodePage == ansi && e.CodePage != 20127) return e;
+                    }
+                } catch (Exception) { }
+
+                return Encoding.UTF8;
+                #endif
+            }
+
             public static Encoding Detect(string fileName)
             {
-                Encoding ret = Encoding.Default;
+                Encoding ret = GetSystemEncoding();
 
                 // Check if BOM
-                if ((ret = CheckByBOM(fileName)) != Encoding.Default) return ret;
+                if ((ret = CheckByBOM(fileName)) != GetSystemEncoding()) return ret;
 
                 // Check if UTF-8
                 using (BufferedStream fstream = new BufferedStream(File.OpenRead(fileName)))
-                {
                     if (IsUtf8(fstream)) ret = Encoding.UTF8;
-                }
 
                 return ret;
             }
@@ -336,7 +372,7 @@ namespace FlyleafLib
                 return encodings
                     .Where(enc => enc.Preamble.SequenceEqual(buffer.Take(enc.Preamble.Length)))
                     .Select(enc => enc.Encoding)
-                    .FirstOrDefault() ?? Encoding.Default;
+                    .FirstOrDefault() ?? GetSystemEncoding();
             }
             public static bool IsUtf8(Stream stream)
             {

@@ -85,7 +85,7 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum allowed packets for buffering
             /// </summary>
-            public int              MaxQueueSize    { get; set; } = 200;
+            public int              MaxQueueSize    { get; set; } = 25;
 
             /// <summary>
             /// Maximum allowed errors before stopping
@@ -117,12 +117,12 @@ namespace FlyleafLib
 
                 //defaults.Add("probesize",           (116 * (long)1024 * 1024).ToString());      // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
                 //defaults.Add("analyzeduration",     (333 * (long)1000 * 1000).ToString());      // (Microseconds) Default 5 seconds | Higher for network streams
+                //defaults.Add("live_start_index",   "-1");
                 defaults.Add("reconnect",           "1");                                       // auto reconnect after disconnect before EOF
                 defaults.Add("reconnect_streamed",  "1");                                       // auto reconnect streamed / non seekable streams
                 defaults.Add("reconnect_delay_max", "5");                                       // max reconnect delay in seconds after which to give up
                 defaults.Add("rtsp_transport",      "tcp");                                     // Seems UDP causing issues (use this by default?)
                 defaults.Add("stimeout",            (20 * 1000 * 1000).ToString());             // RTSP microseconds timeout
-
                 return defaults;
             }
 
@@ -164,7 +164,7 @@ namespace FlyleafLib
             /// <summary>
             /// Minimum required video frames before playing
             /// </summary>
-            public int              MinVideoFrames  { get; set; } = 3;
+            public int              MinVideoFrames  { get; set; } = 10;
 
             /// <summary>
             /// Minimum required audio frames before playing
@@ -174,7 +174,7 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum video frames to be decoded and processed for rendering
             /// </summary>
-            public int              MaxVideoFrames  { get; set; } = Math.Max(3, Environment.ProcessorCount);
+            public int              MaxVideoFrames  { get; set; } = Math.Max(10, Environment.ProcessorCount);
 
             /// <summary>
             /// Maximum audio frames to be decoded and processed for playback

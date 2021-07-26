@@ -335,7 +335,8 @@ namespace FlyleafLib.MediaPlayer
         /// Opens a new external Video or Subtitle url
         /// </summary>
         /// <param name="url"></param>
-        public void Open(string url)
+        /// <param name="openDefault">Will open the best match for audio/subtitles</param>
+        public void Open(string url, bool openDefault = true)
         {
             Log($"Opening {url}");
 
@@ -366,7 +367,7 @@ namespace FlyleafLib.MediaPlayer
                         if (res.stream == null) continue;
                         curVideoPlugin = plugin;
                         if (!Session.IsPlaylist) Session.SingleMovie.Url = Session.InitialUrl;
-                        OpenVideo(res.stream);
+                        OpenVideo(res.stream, openDefault);
                         break;
                     }
                 }
@@ -397,8 +398,9 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Opens an existing AVS stream from Plugins[_PLUGIN_NAME_].[AVS]Stream
         /// </summary>
-        /// <param name="inputStream"></param>
-        public void Open(StreamBase inputStream)
+        /// <param name="inputStream">Stream to be opened</param>
+        /// <param name="openDefault">In case of video stream will open the best match audio</param>
+        public void Open(StreamBase inputStream, bool openDefault = true)
         {
             if (inputStream is VideoStream)
             {
@@ -409,6 +411,48 @@ namespace FlyleafLib.MediaPlayer
                         isVideoSwitch = true;
                         if (decoder.Open(inputStream) != 0) { isVideoSwitch = false; OpenFailed(); return; }
                         isVideoSwitch = false;
+                        if (Config.audio.Enabled && openDefault) OpenAudio();
+
+                        #region TBR - Safe re-opening input more stable but slower
+                        //bool isPlaying = IsPlaying;
+
+                        //int streamIndex = inputStream.StreamIndex;
+                        //string url = decoder.VideoDemuxer.Url;
+                        //Stream iostream = decoder.VideoDemuxer.CustomIOContext.stream;
+                        //if (String.IsNullOrEmpty(url) && iostream == null) return;
+
+                        ////List<int> streams = new List<int>();
+                        ////for (int i=0; i<decoder.VideoDemuxer.EnabledStreams.Count; i++)
+                        ////    streams.Add(decoder.VideoDemuxer.EnabledStreams[i]);
+
+                        ////streams.Remove(decoder.VideoDecoder.VideoStream.StreamIndex);
+
+                        //Pause();
+                        //decoder.Stop();
+
+                        // if (!String.IsNullOrEmpty(url))
+                        //    decoder.VideoDemuxer.Open(url);
+                        //else
+                        //    decoder.VideoDemuxer.Open(iostream);
+
+                        // foreach (var stream in decoder.VideoDemuxer.VideoStreams)
+                        //    if (stream.StreamIndex == streamIndex)
+                        //    {
+                        //        decoder.VideoDemuxer.EnableStream(stream);
+                        //        decoder.VideoDecoder.Open(stream);
+                        //        break;
+                        //    }
+
+                        // if (!HasAudio && Config.audio.Enabled)
+                        //    OpenAudio();
+
+                        //if (!HasSubs && Config.subs.Enabled)
+                        //    foreach(var lang in Config.subs.Languages) if (OpenSubs(lang)) break;
+
+                        //if (Session.CurTime != 0 && Session.Movie.Duration != 0) { decoder.Seek(Session.CurTime/10000, true); requiresResync = true; }
+
+                        //if (isPlaying) Play();
+                        #endregion
                     });
                     tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
                 }
@@ -444,7 +488,7 @@ namespace FlyleafLib.MediaPlayer
             }
         }
 
-        private void OpenVideo(VideoStream vStream)
+        private void OpenVideo(VideoStream vStream, bool openDefault = true)
         {
             var stream = ((IPluginVideo)curVideoPlugin).OpenVideo(vStream);            
             if (stream == null) { OpenFailed(); return; }
@@ -466,10 +510,10 @@ namespace FlyleafLib.MediaPlayer
             foreach(var plugin in Plugins.Values) plugin.OnVideoOpened();
             if (!HasVideo) { OpenFailed(); return; }
 
-            if (!HasAudio && Config.audio.Enabled)
+            if (!HasAudio && Config.audio.Enabled && openDefault)
                 OpenAudio();
 
-            if (!HasSubs && Config.subs.Enabled)
+            if (!HasSubs && Config.subs.Enabled && openDefault)
                 foreach(var lang in Config.subs.Languages) if (OpenSubs(lang)) break; // Probably in tOpenThread (check torrent stream for messing with position)
 
             if (Session.CurTime != 0 && Session.Movie.Duration != 0) { decoder.Seek(Session.CurTime/10000, true); requiresResync = true; }
@@ -639,7 +683,7 @@ namespace FlyleafLib.MediaPlayer
                         VideoDecoder.DisposeFrame(vFrame); vFrame = null;
                         Utils.NativeMethods.TimeEndPeriod(1);
                         Utils.NativeMethods.SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
-                        Status = HasEnded ? Status.Ended  : Status.Paused;
+                        Status = HasEnded ? Status.Ended : Status.Paused;
                         if (HasEnded) OnPlaybackCompleted();
                     }
                 });
@@ -942,7 +986,7 @@ namespace FlyleafLib.MediaPlayer
                 if (sFrame == null) decoder.SubtitlesDecoder.Frames.TryDequeue(out sFrame);
 
                 elapsedTicks    = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
-                vDistanceMs     = (int) (((vFrame.timestamp) - elapsedTicks) / 10000);
+                vDistanceMs     = (int) ((vFrame.timestamp - elapsedTicks) / 10000);
                 aDistanceMs     = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
                 sDistanceMs     = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
                 sleepMs         = Math.Min(vDistanceMs, aDistanceMs) - 1;
@@ -986,7 +1030,6 @@ namespace FlyleafLib.MediaPlayer
                 if (Math.Abs(vDistanceMs - sleepMs) <= 2)
                 {
                     //Log($"[V] Presenting {Utils.TicksToTime(vFrame.timestamp)}");
-                    
                     if (renderer.PresentFrame(vFrame)) actualFps++; else DroppedFrames++;
                     decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
                 }
@@ -1008,8 +1051,9 @@ namespace FlyleafLib.MediaPlayer
                     }
                     else if (aDistanceMs < -10) // Will be transfered back to decoder to drop invalid timestamps
                     {
-                        Log("-=-=-=-=-=-=");
-                        for (int i=0; i<25; i++)
+                        int maxdrop = Math.Max(Math.Min((vDistanceMs - sleepMs) - 1, 20), 3);
+                        Log($"-=-=-= {maxdrop} -=-=-=");
+                        for (int i=0; i<maxdrop; i++)
                         {
                             Log($"aDistanceMs 2 |-> {aDistanceMs}");
                             decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
