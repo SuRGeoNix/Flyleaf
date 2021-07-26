@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -55,10 +56,10 @@ namespace Wpf_Samples
 
             // Sample using different (random) audio device on Player 2
             foreach(var device in Master.AudioMaster.Devices)
-                Console.WriteLine($"Available device: {device}");
+                Debug.WriteLine($"Available device: {device}");
 
             string selectedDevice = Master.AudioMaster.Devices[(new Random()).Next(0, Master.AudioMaster.Devices.Count)];
-            Console.WriteLine($"Selected device: {selectedDevice}");
+            Debug.WriteLine($"Selected device: {selectedDevice}");
             Player2.audioPlayer.Device = selectedDevice;
 
             // Sample performing Seek on Player1 (after 10 seconds -to ensure open completed- in the middle of the movie)

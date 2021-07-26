@@ -355,6 +355,7 @@ namespace FlyleafLib.MediaRenderer
                         if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { Utilities.Dispose(ref curSRVs[i]); } curSRVs = null; }
                     }
 
+                } catch (Exception e) { Log($"Error {e.Message}"); // Currently seen on video switch when vframe (last frame of previous session) has different config from the new codec (eg. HW accel.)
                 } finally { Monitor.Exit(device); }
 
                 return true;

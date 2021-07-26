@@ -296,6 +296,6 @@ namespace FlyleafLib.Plugins
             return stream;
         }
 
-        internal static void Log(string msg) { Console.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [OpenSubtitles] {msg}"); }
+        internal static void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [OpenSubtitles] {msg}"); }
     }
 }

@@ -118,7 +118,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             Status = Status.Ended;
                             break;
                         }
-                        else if (demuxer.Status != MediaDemuxer.Status.Demuxing && demuxer.Status != MediaDemuxer.Status.QueueFull)
+                        else if (!demuxer.IsRunning)
                         {
                             Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
                             Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopping2 : Status.Pausing;

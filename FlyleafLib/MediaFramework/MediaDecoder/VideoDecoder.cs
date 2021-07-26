@@ -168,7 +168,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             demuxer.VideoPackets.Enqueue((IntPtr)drainPacket);
                             break;
                         }
-                        else if (demuxer.Status != MediaDemuxer.Status.Demuxing && demuxer.Status != MediaDemuxer.Status.QueueFull)
+                        else if (!demuxer.IsRunning)
                         {
                             Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
                             Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopping2 : Status.Pausing;
@@ -246,7 +246,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 VideoFrame mFrame = new VideoFrame();
                 mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                 if (mFrame.pts == AV_NOPTS_VALUE) return null;
-                mFrame.timestamp = ((long)(mFrame.pts * VideoStream.Timebase) - VideoStream.StartTime) + cfg.audio.LatencyTicks;
+                mFrame.timestamp = (long)(mFrame.pts * VideoStream.Timebase) - VideoStream.StartTime + cfg.audio.LatencyTicks;
                 //Log(Utils.TicksToTime(mFrame.timestamp));
 
                 // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)
