@@ -28,7 +28,7 @@ namespace Wpf_Samples
         public event PropertyChangedEventHandler PropertyChanged;
         public void OnPropertyChanged(string propertyName) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)); }
 
-        public DemuxerBase Downloader { get ; set; } = new VideoDemuxer(new Config(), 777);
+        public DemuxerBase Downloader { get ; set; }
         Thread downThread;
 
         public ICommand StartDownload { get ; set; }
@@ -50,6 +50,13 @@ namespace Wpf_Samples
         public Sample4_Downloader()
         {
             Master.RegisterFFmpeg(":2");
+
+            Config config = new Config();
+            //config.demuxer.VideoFormatOpt.Add("reconnect_at_eof", "1");
+            config.demuxer.VideoFormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
+            config.demuxer.VideoFormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
+            Downloader = new VideoDemuxer(config, 777);
+
             InitializeComponent();
             DataContext = this;
             UserInput.Text = @"https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8";
