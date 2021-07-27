@@ -240,20 +240,20 @@ namespace FlyleafLib.MediaPlayer
             // Prevent Seek Process
             Session.CanPlay = false;
             seeks.Clear();
-            EnsureThreadDone(tSeek, 2000, 2);
+            EnsureThreadDone(tSeek);
 
             // Stop Screamer / MediaBuffer
             Status = Status.Stopped;
-            EnsureThreadDone(tPlay, 2000, 2);
+            EnsureThreadDone(tPlay);
 
             // Inform Plugins (OnInitializing)
             foreach(var plugin in Plugins.Values) plugin.OnInitializing();
             
             // Reset Rest
             decoder.Stop();
-            EnsureThreadDone(tOpenVideo, 30000, 2);
-            EnsureThreadDone(tOpenAudio, 30000, 2);
-            EnsureThreadDone(tOpenSubs, 30000, 2);
+            EnsureThreadDone(tOpenVideo);
+            EnsureThreadDone(tOpenAudio);
+            EnsureThreadDone(tOpenSubs);
             Session.Reset();
             curVideoPlugin = null;
             curAudioPlugin = null;
@@ -271,20 +271,20 @@ namespace FlyleafLib.MediaPlayer
             // Prevent Seek Process
             Session.CanPlay = false;
             seeks.Clear();
-            EnsureThreadDone(tSeek, 2000, 2);
+            EnsureThreadDone(tSeek);
 
             // Stop Screamer / MediaBuffer
             Status = Status.Stopped;
-            EnsureThreadDone(tPlay, 2000, 2);
+            EnsureThreadDone(tPlay);
 
             // Inform Plugins (OnInitializing)
             foreach(var plugin in Plugins.Values) plugin.OnInitializingSwitch();
 
             // Reset Rest
             decoder.Stop();
-            EnsureThreadDone(tOpenVideo, 30000, 2);
-            EnsureThreadDone(tOpenAudio, 30000, 2);
-            EnsureThreadDone(tOpenSubs, 30000, 2);
+            EnsureThreadDone(tOpenVideo);
+            EnsureThreadDone(tOpenAudio);
+            EnsureThreadDone(tOpenSubs);
 
             // Inform Plugins (OnInitialized)
             foreach(var plugin in Plugins.Values) plugin.OnInitializedSwitch();
@@ -470,7 +470,7 @@ namespace FlyleafLib.MediaPlayer
             }
             else if (inputStream is AudioStream)
             {
-                EnsureThreadDone(tOpenAudio, 30000);
+                EnsureThreadDone(tOpenAudio);
                 if (Session.CurAudioStream != null) Session.CurAudioStream.InUse = false;
                 if (Config.audio.Enabled == false) Config.audio.SetEnabled();
 
@@ -479,7 +479,7 @@ namespace FlyleafLib.MediaPlayer
             }
             else if (inputStream is SubtitlesStream)
             {
-                EnsureThreadDone(tOpenSubs, 30000);
+                EnsureThreadDone(tOpenSubs);
                 if (Session.CurSubtitleStream != null) Session.CurSubtitleStream.InUse = false;
                 Session.SubsText = null; sFrame = null;
                 if (Config.subs.Enabled == false) Config.subs.SetEnabled();
