@@ -195,6 +195,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     {
                         if (ret == AVERROR_EOF)
                         {
+                            if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); continue; } // TBR: Happens on HLS while switching video streams
                             Status = Status.Ended;
                             return;
                         }
