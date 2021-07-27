@@ -607,6 +607,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         #region Preparing Remuxing / Download (Should be transfered to a new MediaContext eg. DownloaderContext and include also the external demuxers - mainly for Youtube-dl)
         AVOutputFormat* oFmt;
         AVFormatContext *oFmtCtx;
+        bool downloadSuccess;
 
         Dictionary<int, int>        mapInOutStreams;
         Dictionary<int, StreamBase> mapInAVStreamsToStreams;
@@ -694,7 +695,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             avio_closep(&oFmtCtx->pb);
             avformat_free_context(oFmtCtx);
             Log2("Output format closed");
-            if (isDownload) OnDownloadCompleted(ret == 0);
+            if (isDownload) OnDownloadCompleted(ret == 0 && downloadSuccess);
         }
         private void Remux()
         {
@@ -715,7 +716,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 threadCounter++;
                 int ret = 0;
+                int allowedErrors = cfg.demuxer.MaxErrors;
                 double downPercentageFactor = Duration / 100.0;
+                downloadSuccess = true;
 
                 AVStream* in_stream;
                 AVStream* out_stream;
@@ -724,6 +727,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 while (Status == Status.Demuxing)
                 {
                     // Demux Packet
+                    interruptRequestedAt = DateTime.UtcNow.Ticks;
+                    interruptRequester = InterruptRequester.Read;
                     packet  = av_packet_alloc();
                     ret     = av_read_frame(fmtCtx, packet);
 
@@ -732,10 +737,28 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     {
                         av_packet_free(&packet);
 
-                        if (Status == Status.Demuxing)
-                            { Status = Status.Ended; DownloadPercentage = 100; }
-                        
-                        break; // Stopping | Pausing    
+                        if (ret == AVERROR_EOF)
+                        {
+                            if (Status == Status.Demuxing)
+                            {
+                                Status = Status.Ended;
+                                DownloadPercentage = 100;
+                            }
+
+                            break;
+                        }
+
+                        allowedErrors--;
+                        Log2($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+
+                        if (allowedErrors == 0)
+                        {
+                            Log("[ERROR-0] Too many errors!");
+                            downloadSuccess = false;
+                            break;
+                        }
+
+                        continue;
                     }
 
                     // Skip Disabled Streams
@@ -762,7 +785,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     packet->pos       = -1;
 
                     ret = av_interleaved_write_frame(oFmtCtx, packet);
-                    if (ret != 0) Log2("Writing packet failed");
+                    if (ret != 0) Log2("Writing packet failed"); // TBR: if we should allow it or return with error
                     av_packet_free(&packet);
 
                 } // While Demuxing

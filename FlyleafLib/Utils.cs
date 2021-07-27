@@ -82,7 +82,7 @@ namespace FlyleafLib
             return Languages;
         }
 
-        public static void EnsureThreadDone(Thread t, long maxMS = 10000, int minMS = 10)
+        public static void EnsureThreadDone(Thread t, long maxMS = 10000, int minMS = 4)
         {
             if (t == null || !t.IsAlive) return;
 
