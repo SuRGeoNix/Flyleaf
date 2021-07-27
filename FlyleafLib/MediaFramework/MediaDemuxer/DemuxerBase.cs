@@ -55,7 +55,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public long                     VideoBytes      { get; private set; } = 0;
         public long                     AudioBytes      { get; private set; } = 0;
 
-        internal bool       allowProperClose;
         internal object     lockFmtCtx      = new object();
         internal GCHandle   handle;
 
@@ -66,7 +65,16 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         AVFormatContext*    fmtCtx;
         AVPacket*           packet;
         Config              cfg;
-        
+        long                interruptRequestedAt;
+        InterruptRequester  interruptRequester;
+
+        enum InterruptRequester
+        {
+            Close,
+            Open,
+            Read,
+            Seek
+        }
 
         AVIOInterruptCB_callback_func   interruptClbk = new AVIOInterruptCB_callback_func();     
         AVIOInterruptCB_callback        InterruptClbk = (opaque) =>
@@ -74,11 +82,33 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
             DemuxerBase demuxer = (DemuxerBase)demuxerHandle.Target;
 
-            if (demuxer.allowProperClose) return 0;
+            long curTimeout = 0;
+            switch (demuxer.interruptRequester)
+            {
+                case InterruptRequester.Close:
+                    curTimeout = demuxer.cfg.demuxer.CloseTimeout;
+                    break;
 
-            int interrupt = demuxer.DemuxInterrupt != 0 || demuxer.Status == Status.Stopping || demuxer.Status == Status.Stopped ? 1 : 0;
+                case InterruptRequester.Open:
+                    curTimeout = demuxer.cfg.demuxer.OpenTimeout;
+                    break;
 
-            return interrupt;
+                case InterruptRequester.Read:
+                    curTimeout = demuxer.cfg.demuxer.ReadTimeout;
+                    break;
+
+                case InterruptRequester.Seek:
+                    curTimeout = demuxer.cfg.demuxer.SeekTimeout;
+                    break;
+            }
+
+            if (DateTime.UtcNow.Ticks - demuxer.interruptRequestedAt > curTimeout)
+            {
+                //demuxer.Log($"{demuxer.interruptRequester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.interruptRequestedAt) / 10000} ms");
+                return 1;
+            }
+
+            return demuxer.interruptRequester != InterruptRequester.Close && (demuxer.DemuxInterrupt != 0 || demuxer.Status == Status.Stopping || demuxer.Status == Status.Stopped) ? 1 : 0;
         };
         
         public DemuxerBase(Config config, int uniqueId)
@@ -105,66 +135,77 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         {
             int ret = -1;
             Url = url;
-            Status = Status.Opening;
 
-            try
+            lock (lockFmtCtx)
             {
-                if (!handle.IsAllocated) handle = GCHandle.Alloc(this);
+                try
+                {
+                    Status = Status.Opening;
+                    if (!handle.IsAllocated) handle = GCHandle.Alloc(this);
 
-                // Parse Options to AV Dictionary Format Options
-                AVDictionary *avopt = null;
-                foreach (var optKV in opt)
-                    av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                    // Parse Options to AV Dictionary Format Options
+                    AVDictionary *avopt = null;
+                    foreach (var optKV in opt)
+                        av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
 
-                // Allocate / Prepare Format Context
-                fmtCtx = avformat_alloc_context();
-                fmtCtx->interrupt_callback.callback = interruptClbk;
-                fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
-                fmtCtx->flags = flags;
+                    // Allocate / Prepare Format Context
+                    fmtCtx = avformat_alloc_context();
+                    fmtCtx->interrupt_callback.callback = interruptClbk;
+                    fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
+                    fmtCtx->flags = flags;
+                
+                    if (stream != null)
+                        CustomIOContext.Initialize(stream);
 
-                if (stream != null)
-                    CustomIOContext.Initialize(stream);
-
-                // Open Format Context
-                AVFormatContext* fmtCtxPtr = fmtCtx;
-                lock (lockFmtCtx)
-                { 
+                    // Open Format Context
+                    AVFormatContext* fmtCtxPtr = fmtCtx;
+                    interruptRequestedAt = DateTime.UtcNow.Ticks;
+                    interruptRequester = InterruptRequester.Open;
                     ret = avformat_open_input(&fmtCtxPtr, stream == null ? url : null, null, &avopt);
+                    if (ret == AVERROR_EXIT || Status != Status.Opening || DemuxInterrupt == 1) { Log("[Format] [ERROR-10] Cancelled"); fmtCtx = null; return ret = -10; }
                     if (ret < 0) { Log($"[Format] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); fmtCtx = null; return ret; }
-                }
-                if (Status != Status.Opening) return -1;
 
-                // Find Streams Info
-                lock (lockFmtCtx)
-                {
-                    if (Status != Status.Opening) return -1;
+                    // Find Streams Info
                     ret = avformat_find_stream_info(fmtCtx, null);
-                    if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); allowProperClose = true; avformat_close_input(&fmtCtxPtr); allowProperClose = false; fmtCtx = null; return ret; }
-                }
-                if (Status != Status.Opening) return -1;
+                    if (ret == AVERROR_EXIT || Status != Status.Opening || DemuxInterrupt == 1) { Log("[Format] [ERROR-10] Cancelled"); return ret = -10; }
+                    if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
 
-                lock (lockFmtCtx)
-                {
-                    if (Status != Status.Opening) return -1;
                     bool hasVideo = FillInfo();
 
                     if (Type == MediaType.Video && !hasVideo) 
-                        { Log($"[Format] [ERROR-3] No video stream found");     allowProperClose = true; avformat_close_input(&fmtCtxPtr); allowProperClose = false; fmtCtx = null; return -3; }
+                        { Log($"[Format] [ERROR-3] No video stream found");     return ret = -3; }
                     else if (Type == MediaType.Audio && AudioStreams.Count == 0)
-                        { Log($"[Format] [ERROR-4] No audio stream found");     allowProperClose = true; avformat_close_input(&fmtCtxPtr); allowProperClose = false; fmtCtx = null; return -4; }
+                        { Log($"[Format] [ERROR-4] No audio stream found");     return ret = -4; }
                     else if (Type == MediaType.Subs && SubtitlesStreams.Count == 0)
-                        { Log($"[Format] [ERROR-5] No subtitles stream found"); allowProperClose = true; avformat_close_input(&fmtCtxPtr); allowProperClose = false; fmtCtx = null; return -5; }
+                        { Log($"[Format] [ERROR-5] No subtitles stream found"); return ret = -5; }
 
+                    StopThread();
                     StartThread();
 
-                    if (ret > 0) ret = 0;
+                    packet = av_packet_alloc();
+                    return ret = 0; // 0 for success
+                }
+                finally
+                {
+                    if (ret != 0)
+                    {
+                        Url = null;
+
+                        if (fmtCtx != null)
+                        {
+                            interruptRequestedAt = DateTime.UtcNow.Ticks;
+                            interruptRequester = InterruptRequester.Close;
+                            fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
+                        }
+
+                        if (stream != null)
+                            CustomIOContext.Dispose();
+
+                        if (Status == Status.Opening)
+                            Status = Status.Stopped;
+                    }    
                 }
             }
-            finally { if (Status == Status.Opening) Status = Status.Stopped; }
-
-            packet = av_packet_alloc();
-
-            return ret; // 0 for success
         }
 
         public bool FillInfo()
@@ -327,9 +368,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 // Close Format / Custom Contexts
                 if (fmtCtx != null)
                 {
-                    allowProperClose = true;
+                    interruptRequestedAt = DateTime.UtcNow.Ticks;
+                    interruptRequester = InterruptRequester.Close;
                     fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
-                    allowProperClose = false;
                 }
 
                 if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
@@ -356,22 +397,24 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             if (Status == Status.Stopped) return -1;
 
-            // TBR...
+            // TBR... (that was happening with the previous interrupt login, might still required tho, related to reconnect_at_eof)
             //if (status == Status.Ended) { if (fmtCtx->pb == null) Open(url, decCtx.cfg.audio.Enabled, false); else status = Status.Paused; } //Open(url, ...); // Usefull for HTTP
 
             int ret;
 
-            // Interrupt av_read_frame (will cause AVERROR_EXITs)
-            DemuxInterrupt = 1;
+            // Interrupt av_read_frame (will cause AVERROR_EXITs, will also cause av_read_frame/av_seek_frame to hang with not reason)
+            //DemuxInterrupt = 1;
             lock (lockFmtCtx)
             {
-                DemuxInterrupt = 0;
+                //DemuxInterrupt = 0;
 
                 // Free Packets
                 DisposePackets(AudioPackets);
                 DisposePackets(VideoPackets);
                 DisposePackets(SubtitlesPackets);
 
+                interruptRequestedAt = DateTime.UtcNow.Ticks;
+                interruptRequester = InterruptRequester.Seek;
                 if (Type == MediaType.Video)
                 {
                     ret =  av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD); // AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
@@ -434,25 +477,26 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         gotAVERROR_EXIT = false;
                         Thread.Sleep(5); // Possible come from seek or Player's stopping...
                     }
-
+                    
                     lock (lockFmtCtx)
                     {
                         // Demux Packet
+                        interruptRequestedAt = DateTime.UtcNow.Ticks;
+                        interruptRequester = InterruptRequester.Read;
                         ret = av_read_frame(fmtCtx, packet);
                         // Check for Errors / End
                         if (ret != 0)
                         {
                             av_packet_unref(packet);
+                            if (ret == AVERROR_EOF) { Status = Status.Ended; break; }
 
-                            if (ret == AVERROR_EXIT && DemuxInterrupt != 0)
-                            {
-                                gotAVERROR_EXIT = true;
-                                continue;
-                            }
+                            allowedErrors--;
+                            Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
 
-                            Status = Status.Ended;
+                            if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); break; }
 
-                            break;
+                            gotAVERROR_EXIT = true;
+                            continue;
                         }
 
                         TotalBytes += packet->size;

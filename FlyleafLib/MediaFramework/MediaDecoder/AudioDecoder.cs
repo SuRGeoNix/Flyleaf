@@ -68,12 +68,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             lock (lockCodecCtx)
             {
                 base.Stop();
-                while (Frames.Count > 0)
-                {
-                    Frames.TryDequeue(out AudioFrame aFrame);
-                    if (aFrame != null) aFrame.audioData = new byte[0];
-                }
-                Frames = new ConcurrentQueue<AudioFrame>();
+                DisposeFrames();
                 if (swrCtx != null) { swr_close(swrCtx); fixed(SwrContext** ptr = &swrCtx) swr_free(ptr); swrCtx = null; }
                 if (m_dst_data != null) { av_freep(&m_dst_data[0]); fixed (byte*** ptr = &m_dst_data) av_freep(ptr); m_dst_data = null; }
             }
@@ -224,5 +219,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             return mFrame;
         }
 
+        public void DisposeFrames()
+        {
+            while (Frames.Count > 0)
+            {
+                Frames.TryDequeue(out AudioFrame aFrame);
+                if (aFrame != null) aFrame.audioData = new byte[0];
+            }
+            Frames = new ConcurrentQueue<AudioFrame>();
+        }
     }
 }
