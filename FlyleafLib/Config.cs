@@ -85,12 +85,33 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum allowed packets for buffering
             /// </summary>
-            public int              MaxQueueSize    { get; set; } = 25;
+            public int              MaxQueueSize    { get; set; } = 100;
 
             /// <summary>
             /// Maximum allowed errors before stopping
             /// </summary>
             public int              MaxErrors       { get; set; } = 30;
+
+
+            /// <summary>
+            /// av_read_frame timeout (ticks) for protocols that support interrupts
+            /// </summary>
+            public long             CloseTimeout    { get; set; } =  1 * 1000 * 10000;
+
+            /// <summary>
+            /// av_read_frame timeout (ticks) for protocols that support interrupts
+            /// </summary>
+            public long             OpenTimeout     { get; set; } = 30 * 1000 * 10000;
+
+            /// <summary>
+            /// av_read_frame timeout (ticks) for protocols that support interrupts
+            /// </summary>
+            public long             ReadTimeout     { get; set; } =  2 * 1000 * 10000;
+
+            /// <summary>
+            /// av_read_frame timeout (ticks) for protocols that support interrupts
+            /// </summary>
+            public long             SeekTimeout     { get; set; } =  8 * 1000 * 10000;
 
             /// <summary>
             /// FFmpeg's format options for audio demuxer
@@ -122,7 +143,6 @@ namespace FlyleafLib
                 defaults.Add("reconnect_streamed",  "1");                                       // auto reconnect streamed / non seekable streams
                 defaults.Add("reconnect_delay_max", "5");                                       // max reconnect delay in seconds after which to give up
                 defaults.Add("rtsp_transport",      "tcp");                                     // Seems UDP causing issues (use this by default?)
-                defaults.Add("stimeout",            (20 * 1000 * 1000).ToString());             // RTSP microseconds timeout
                 return defaults;
             }
 

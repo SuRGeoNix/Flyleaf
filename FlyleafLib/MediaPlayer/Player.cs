@@ -342,6 +342,7 @@ namespace FlyleafLib.MediaPlayer
 
             if (Utils.SubsExts.Contains(Utils.GetUrlExtention(url)))
             {
+                if (!Session.CanPlay) return;
                 if (Config.subs.Enabled == false) Config.subs.SetEnabled();
                 Open(((IPluginExternal)Plugins["DefaultExternal"]).OpenSubtitles(url));
                 return;
@@ -876,7 +877,12 @@ namespace FlyleafLib.MediaPlayer
                     if (!gotAudio && aFrame != null)
                     {
                         if (vFrame.timestamp - aFrame.timestamp > Config.audio.LatencyTicks)
-                            { aFrame.audioData = new byte[0]; decoder.AudioDecoder.Frames.TryDequeue(out aFrame); }
+                        {
+                            if (vFrame.timestamp - aFrame.timestamp > (long)600 * 10000)
+                                { decoder.AudioDecoder.DisposeFrames(); aFrame = null; }
+                            else
+                                decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
+                        }
                         else if (decoder.AudioDecoder.Frames.Count >= Config.decoder.MinAudioFrames)
                             gotAudio = true;
                     }
@@ -1051,14 +1057,22 @@ namespace FlyleafLib.MediaPlayer
                     }
                     else if (aDistanceMs < -10) // Will be transfered back to decoder to drop invalid timestamps
                     {
-                        int maxdrop = Math.Max(Math.Min((vDistanceMs - sleepMs) - 1, 20), 3);
-                        Log($"-=-=-= {maxdrop} -=-=-=");
-                        for (int i=0; i<maxdrop; i++)
+                        if (aDistanceMs < -600)
                         {
-                            Log($"aDistanceMs 2 |-> {aDistanceMs}");
-                            decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
-                            aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
-                            if (aDistanceMs > -7) break;
+                            decoder.AudioDecoder.DisposeFrames();
+                            aFrame = null;
+                        }
+                        else
+                        {
+                            int maxdrop = Math.Max(Math.Min((vDistanceMs - sleepMs) - 1, 20), 3);
+                            Log($"-=-=-= {maxdrop} -=-=-=");
+                            for (int i=0; i<maxdrop; i++)
+                            {
+                                Log($"aDistanceMs 2 |-> {aDistanceMs}");
+                                decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
+                                aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
+                                if (aDistanceMs > -7) break;
+                            }
                         }
                     }
                 }
