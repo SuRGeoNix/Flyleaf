@@ -36,7 +36,13 @@
 * Creating library's and WPF control's NuGet packages
 
 ### [Build Requirements]
-* .NET 5 / .NET Framework 4.7.2
+* .NET 5 (windows) / .NET Framework 4.7.2
+
+For .net 5 you will need to ensure that you use *__net5.0-windows__* as target framework (change your .csproj )
+```
+<TargetFramework>net5.0-windows</TargetFramework>
+```
+
 * FFmpeg shared libraries (compatible with FFmpeg.Autogen)
 * Use Master.RegisterFFmpeg(*ffmpeg_path*) to register them
 * To use plugins requires at least one time to build the solution in *Release* configuration
