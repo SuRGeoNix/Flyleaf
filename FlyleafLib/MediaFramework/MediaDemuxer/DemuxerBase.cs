@@ -94,7 +94,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     break;
 
                 case InterruptRequester.Read:
-                    curTimeout = demuxer.cfg.demuxer.ReadTimeout;
+                    curTimeout = demuxer.Duration == 0 ? demuxer.cfg.demuxer.ReadLiveTimeout : demuxer.cfg.demuxer.ReadTimeout;
                     break;
 
                 case InterruptRequester.Seek:
@@ -108,7 +108,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 return 1;
             }
 
-            return demuxer.interruptRequester != InterruptRequester.Close && (demuxer.DemuxInterrupt != 0 || demuxer.Status == Status.Stopping || demuxer.Status == Status.Stopped) ? 1 : 0;
+            if (demuxer.interruptRequester != InterruptRequester.Close && (demuxer.DemuxInterrupt != 0 || demuxer.Status == Status.Stopping || demuxer.Status == Status.Stopped))
+            {
+                //demuxer.Log($"{demuxer.interruptRequester} Interrupt !!! {demuxer.DemuxInterrupt} | {demuxer.Status}");
+                return 1;
+            }
+
+            return 0;
         };
         
         public DemuxerBase(Config config, int uniqueId)
@@ -214,7 +220,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             LongName    = Utils.BytePtrToStringUTF8(fmtCtx->iformat->long_name);
             Extensions  = Utils.BytePtrToStringUTF8(fmtCtx->iformat->extensions);
             StartTime   = fmtCtx->start_time * 10;
-            Duration    = fmtCtx->duration   * 10;
+            Duration    = fmtCtx->duration > 0 ? fmtCtx->duration * 10 : 0;
 
             bool hasVideo = false;
             mapInAVStreamsToStreams = new Dictionary<int, StreamBase>();
@@ -243,6 +249,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         SubtitlesStreams.Add(new SubtitlesStream(fmtCtx->streams[i]) { Demuxer = this, Converted = true, Downloaded = true });
                         mapInAVStreamsToStreams.Add(i, SubtitlesStreams[SubtitlesStreams.Count-1]);
                         break;
+
+                    default:
+                        Log($"#[Unknown #{i}] {fmtCtx->streams[i]->codecpar->codec_type}");
+                        break;
                 }
             }
 
@@ -252,6 +262,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 Programs = new int[fmtCtx->nb_programs][];
                 for (int i=0; i<fmtCtx->nb_programs; i++)
                 {
+                    //fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_ALL;
+
                     if (fmtCtx->programs[i]->nb_stream_indexes > 0)
                     {
                         Programs[i] = new int[fmtCtx->programs[i]->nb_stream_indexes];
@@ -380,6 +392,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 TotalBytes = 0; VideoBytes = 0; AudioBytes = 0;
                 Status = Status.Stopped;
+                Log("Disposed");
             }
         }
         public void StopThread()
@@ -484,6 +497,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         interruptRequestedAt = DateTime.UtcNow.Ticks;
                         interruptRequester = InterruptRequester.Read;
                         ret = av_read_frame(fmtCtx, packet);
+                        //long t1 = (DateTime.UtcNow.Ticks - interruptRequestedAt)/10000;
+                        //if (t1 > 100) Log($"Took {t1}ms");
+
                         // Check for Errors / End
                         if (ret != 0)
                         {
@@ -622,7 +638,16 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         /// Fires on partial or full download completed
         /// </summary>
         public event EventHandler<bool> DownloadCompleted;
-        protected virtual void OnDownloadCompleted(bool success) { System.Threading.Tasks.Task.Run(() => { Stop(); DownloadCompleted?.Invoke(this, success); }); }
+        protected virtual void OnDownloadCompleted(bool success)
+        {
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                while (thread != null && thread.IsAlive) Thread.Sleep(5);
+
+                Stop();
+                DownloadCompleted?.Invoke(this, success); 
+            });
+        }
 
         /// <summary>
         /// Downloads the currently configured AVS streams (Experimental)
@@ -701,7 +726,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         {
             Log2($"[Thread] Started");
 
-            while (Status != Status.Stopped && Status != Status.Stopping && Status != Status.Ended)
+            while (Status != Status.Stopped && Status != Status.Stopping && Status != Status.Stopping2 && Status != Status.Ended)
             {
                 threadARE.Reset();
                 Status = Status.Paused;
@@ -739,6 +764,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                         if (ret == AVERROR_EOF)
                         {
+                            // We get proper eof even when we interrupt (no AVERROR_EXIT) should be marked as downloadSuccess = false
+                            // We could force for live streams if (Duration == 0) continue; but possible we get the same eof in case of disconnect or another actual error
+                            // Consider also having a different interrupt callback for the remuxer with different config.remuxer?
                             if (Status == Status.Demuxing)
                             {
                                 Status = Status.Ended;
@@ -790,12 +818,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 } // While Demuxing
 
+                if (Status == Status.Demuxing) Status = Status.Stopping2;
                 IsRunning = false;
                 Log2($"{Status}");
 
             } // While !stopThread
 
-            if (Status != Status.Ended) Status = Status.Stopped;
+            if (Status != Status.Ended) Status = Status.Stopping2;
             Log2($"[Thread] Stopped ({Status})");
             CloseOutputFormat();
         }
@@ -819,6 +848,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
     public enum Status
     {
         Stopping,
+        Stopping2, // Only for remux
         Stopped,
 
         Opening,

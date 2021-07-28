@@ -94,22 +94,27 @@ namespace FlyleafLib
 
 
             /// <summary>
-            /// av_read_frame timeout (ticks) for protocols that support interrupts
+            /// avformat_close_input timeout (ticks) for protocols that support interrupts
             /// </summary>
             public long             CloseTimeout    { get; set; } =  1 * 1000 * 10000;
 
             /// <summary>
-            /// av_read_frame timeout (ticks) for protocols that support interrupts
+            /// avformat_open_input + avformat_find_stream_info timeout (ticks) for protocols that support interrupts (should be related to probesize/analyzeduration)
             /// </summary>
-            public long             OpenTimeout     { get; set; } = 30 * 1000 * 10000;
+            public long             OpenTimeout     { get; set; } = 5 * 60 * (long)1000 * 10000;
 
             /// <summary>
             /// av_read_frame timeout (ticks) for protocols that support interrupts
             /// </summary>
-            public long             ReadTimeout     { get; set; } =  2 * 1000 * 10000;
+            public long             ReadTimeout     { get; set; } = 5 * 1000 * 10000;
 
             /// <summary>
             /// av_read_frame timeout (ticks) for protocols that support interrupts
+            /// </summary>
+            public long             ReadLiveTimeout { get; set; } = 6 * 1000 * 10000;
+
+            /// <summary>
+            /// av_seek_frame timeout (ticks) for protocols that support interrupts
             /// </summary>
             public long             SeekTimeout     { get; set; } =  8 * 1000 * 10000;
 
@@ -143,6 +148,9 @@ namespace FlyleafLib
                 defaults.Add("reconnect_streamed",  "1");                                       // auto reconnect streamed / non seekable streams
                 defaults.Add("reconnect_delay_max", "5");                                       // max reconnect delay in seconds after which to give up
                 defaults.Add("rtsp_transport",      "tcp");                                     // Seems UDP causing issues (use this by default?)
+
+                //defaults.Add("timeout",           (2 * (long)1000 * 1000).ToString());      // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
+                //defaults.Add("rw_timeout",     (2 * (long)1000 * 1000).ToString());      // (Microseconds) Default 5 seconds | Higher for network streams
                 return defaults;
             }
 
