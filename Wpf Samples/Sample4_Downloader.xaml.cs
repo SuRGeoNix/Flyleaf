@@ -52,7 +52,14 @@ namespace Wpf_Samples
             Master.RegisterFFmpeg(":2");
 
             Config config = new Config();
+
+            // For live stream might required
             //config.demuxer.VideoFormatOpt.Add("reconnect_at_eof", "1");
+
+            // Especially for live streams but generally large read timeouts
+            config.demuxer.ReadTimeout = 40 * 1000 * 10000;
+            config.demuxer.ReadLiveTimeout = 40 * 1000 * 10000;
+
             config.demuxer.VideoFormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
             config.demuxer.VideoFormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
             Downloader = new VideoDemuxer(config, 777);

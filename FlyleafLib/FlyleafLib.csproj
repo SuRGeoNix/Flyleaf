@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Video Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
-	<Version>3.1.13</Version>
+	<Version>3.1.14</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,12 +16,12 @@
 	<PackageTags>flyleaf flyleaflib video media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Adds demuxer timeouts (open/read/seek/close) to the configuration
+    <PackageReleaseNotes>Adds demuxer timeouts (open/read/readlive/seek/close) to the configuration
 Resets MaxQueueSize to 100
 Fixes network stream issues
 Fixes hanging issues on av_read_frame/av_seek_frame by changing the interrupt implementation</PackageReleaseNotes>
-    <AssemblyVersion>3.1.13.0</AssemblyVersion>
-    <FileVersion>3.1.13.0</FileVersion>
+    <AssemblyVersion>3.1.14.0</AssemblyVersion>
+    <FileVersion>3.1.14.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
