@@ -82,7 +82,7 @@ namespace FlyleafLib
             return Languages;
         }
 
-        public static void EnsureThreadDone(Thread t, long maxMS = 10000, int minMS = 4)
+        public static void EnsureThreadDone(Thread t, long maxMS = 15000, int minMS = 4) // Until Pause on live streams can be aborted must be > ReadLiveTimeout
         {
             if (t == null || !t.IsAlive) return;
 
