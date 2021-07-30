@@ -673,7 +673,11 @@ namespace FlyleafLib.MediaPlayer
                     {
                         Utils.NativeMethods.TimeBeginPeriod(1);
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
-                        Screamer();
+
+                        if (!Config.player.LowLatency)
+                            Screamer();
+                        else
+                            ScreamerLowLatency();
 
                     } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
 
@@ -904,8 +908,10 @@ namespace FlyleafLib.MediaPlayer
             if (shouldStop && !(HasEnded && IsPlaying && vFrame != null)) { Log("[SCREAMER] Stopped"); return false; }
             if (vFrame == null) { Log("[SCREAMER] [ERROR] No Frames!"); return false; }
 
+            // Removing this one as decoder will take packets from demuxer so MinQueueSize is not acurate (can cause delays)
             // Wait 1: Ensure we have enough buffering packets to play (mainly for network streams)
-            while (decoder.VideoDemuxer.VideoPackets.Count < Config.demuxer.MinQueueSize && IsPlaying && !HasEnded) Thread.Sleep(15);
+            //while (decoder.VideoDemuxer.VideoPackets.Count < Config.demuxer.MinQueueSize && IsPlaying && !HasEnded) Thread.Sleep(15);
+
             Log("[SCREAMER] Buffering Done");
 
             if (sFrame == null) decoder.SubtitlesDecoder.Frames.TryDequeue(out sFrame);
@@ -1106,6 +1112,72 @@ namespace FlyleafLib.MediaPlayer
             }
             
             Log($"[SCREAMER] Finished -> {Utils.TicksToTime(Session.CurTime)}");
+        }
+        private void ScreamerLowLatency()
+        {
+            int     actualFps  = 0;
+            long    totalBytes = 0;
+            long    videoBytes = 0;
+            long    audioBytes = 0;
+
+            long    secondTime = DateTime.UtcNow.Ticks;
+            long    avgFrameDuration = (int) (10000000.0 / 25.0);
+            long    lastPresentTime = 0;
+
+            decoder.Seek(0);
+            decoder.Flush();
+            decoder.VideoDemuxer.Start();
+            decoder.VideoDecoder.Start();
+
+            if (FFmpeg.AutoGen.ffmpeg.av_q2d(decoder.VideoDemuxer.FormatContext->streams[decoder.VideoDecoder.VideoStream.StreamIndex]->avg_frame_rate) > 0)
+                avgFrameDuration = (long) (10000000 / FFmpeg.AutoGen.ffmpeg.av_q2d(decoder.VideoDemuxer.FormatContext->streams[decoder.VideoDecoder.VideoStream.StreamIndex]->avg_frame_rate));
+            else if (decoder.VideoDecoder.VideoStream.FPS > 0)
+                avgFrameDuration = (int) (10000000 / decoder.VideoDecoder.VideoStream.FPS);
+
+            while (Status == Status.Playing)
+            {
+                if (vFrame == null)
+                {
+                    while (decoder.VideoDecoder.Frames.Count == 0 && Status == Status.Playing) Thread.Sleep(20);
+                    if (Status != Status.Playing) break;
+
+                    while (decoder.VideoDecoder.Frames.Count > 3 && decoder.VideoDemuxer.VideoPackets.Count > 1)
+                    {
+                        DroppedFrames++;
+                        VideoDecoder.DisposeFrame(vFrame);
+                        decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
+                    }
+
+                    if (vFrame == null) decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
+                }
+                else
+                {
+                    long curTime = DateTime.UtcNow.Ticks;
+
+                    if (curTime - secondTime > 10000000 - avgFrameDuration)
+                    {
+                        secondTime = curTime;
+
+                        TBR = (decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes - totalBytes) * 8 / 1000.0;
+                        VBR = (decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes - videoBytes) * 8 / 1000.0;
+                        ABR = (decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes - audioBytes) * 8 / 1000.0;
+                        totalBytes = decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes;
+                        videoBytes = decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes;
+                        audioBytes = decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes;
+
+                        FPS = actualFps;
+                        actualFps = 0;
+
+                        Session.SetCurTime(vFrame.timestamp);
+                    }
+
+                    int sleepMs = (int) ((avgFrameDuration - (curTime - lastPresentTime)) / 10000);
+                    if (sleepMs < 11000 && sleepMs > 2) Thread.Sleep(sleepMs);
+                    if (renderer.PresentFrame(vFrame)) actualFps++; else DroppedFrames++;
+                    lastPresentTime = DateTime.UtcNow.Ticks;
+                    vFrame = null;
+                }
+            }
         }
         #endregion
 
