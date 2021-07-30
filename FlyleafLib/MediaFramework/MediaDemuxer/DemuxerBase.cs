@@ -104,13 +104,17 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             if (DateTime.UtcNow.Ticks - demuxer.interruptRequestedAt > curTimeout)
             {
-                //demuxer.Log($"{demuxer.interruptRequester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.interruptRequestedAt) / 10000} ms");
+                #if DEBUG
+                demuxer.Log($"{demuxer.interruptRequester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.interruptRequestedAt) / 10000} ms");
+                #endif
                 return 1;
             }
 
             if (demuxer.interruptRequester != InterruptRequester.Close && (demuxer.DemuxInterrupt != 0 || demuxer.Status == Status.Stopping || demuxer.Status == Status.Stopped))
             {
-                //demuxer.Log($"{demuxer.interruptRequester} Interrupt !!! {demuxer.DemuxInterrupt} | {demuxer.Status}");
+                #if DEBUG
+                demuxer.Log($"{demuxer.interruptRequester} Interrupt !!! {demuxer.DemuxInterrupt} | {demuxer.Status}");
+                #endif
                 return 1;
             }
 
