@@ -4,7 +4,6 @@ using System.IO;
 using System.Xml.Serialization;
 
 using SharpDX;
-using FlyleafLib.MediaPlayer;
 
 using static FFmpeg.AutoGen.ffmpeg;
 
@@ -32,7 +31,7 @@ namespace FlyleafLib
             }
         }
         public Config() { }
-        internal void SetPlayer(Player player)
+        internal void SetPlayer(MediaPlayer.Player player)
         {
             decoder.player  = player;
             audio.player    = player;
@@ -53,11 +52,20 @@ namespace FlyleafLib
             return config;
         }
 
+        public Player   player  = new Player();
         public Demuxer  demuxer = new Demuxer();
         public Decoder  decoder = new Decoder();
         public Video    video   = new Video();
         public Audio    audio   = new Audio();
         public Subs     subs    = new Subs();
+
+        public class Player : NotifyPropertyChanged
+        {
+            /// <summary>
+            /// Sets playback mode to low latency (video only)
+            /// </summary>
+            public bool         LowLatency      { get; set; } = false;
+        }
 
         public class Demuxer : NotifyPropertyChanged
         {
@@ -175,7 +183,7 @@ namespace FlyleafLib
 
         public class Decoder : NotifyPropertyChanged
         {
-            internal Player player;
+            internal MediaPlayer.Player player;
 
             public Decoder Clone() { return (Decoder) MemberwiseClone(); }
 
@@ -222,7 +230,7 @@ namespace FlyleafLib
 
         public class Video : NotifyPropertyChanged
         {
-            internal Player player;
+            internal MediaPlayer.Player player;
 
             public Video Clone() { return (Video) MemberwiseClone(); }
 
@@ -251,7 +259,7 @@ namespace FlyleafLib
 
         public class Audio : NotifyPropertyChanged
         {
-            internal Player player;
+            internal MediaPlayer.Player player;
 
             public Audio Clone() { return (Audio) MemberwiseClone(); }
 
@@ -283,7 +291,7 @@ namespace FlyleafLib
 
         public class Subs : NotifyPropertyChanged
         {
-            internal Player player;
+            internal MediaPlayer.Player player;
 
             public Subs Clone()
             {
