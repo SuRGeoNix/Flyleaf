@@ -1118,12 +1118,12 @@ namespace FlyleafLib.MediaPlayer
             int     actualFps  = 0;
             long    totalBytes = 0;
             long    videoBytes = 0;
-            long    audioBytes = 0;
 
             long    secondTime = DateTime.UtcNow.Ticks;
             long    avgFrameDuration = (int) (10000000.0 / 25.0);
             long    lastPresentTime = 0;
 
+            VideoDecoder.DisposeFrame(vFrame);
             decoder.Seek(0);
             decoder.Flush();
             decoder.VideoDemuxer.Start();
@@ -1134,6 +1134,8 @@ namespace FlyleafLib.MediaPlayer
             else if (decoder.VideoDecoder.VideoStream.FPS > 0)
                 avgFrameDuration = (int) (10000000 / decoder.VideoDecoder.VideoStream.FPS);
 
+            if (Config.player.LowLatencyMaxVideoFrames < 1) Config.player.LowLatencyMaxVideoFrames = 1;
+
             while (Status == Status.Playing)
             {
                 if (vFrame == null)
@@ -1141,7 +1143,7 @@ namespace FlyleafLib.MediaPlayer
                     while (decoder.VideoDecoder.Frames.Count == 0 && Status == Status.Playing) Thread.Sleep(20);
                     if (Status != Status.Playing) break;
 
-                    while (decoder.VideoDecoder.Frames.Count > 3 && decoder.VideoDemuxer.VideoPackets.Count > 1)
+                    while (decoder.VideoDecoder.Frames.Count >= Config.player.LowLatencyMaxVideoFrames && decoder.VideoDemuxer.VideoPackets.Count >= Config.player.LowLatencyMaxVideoPackets)
                     {
                         DroppedFrames++;
                         VideoDecoder.DisposeFrame(vFrame);
@@ -1160,10 +1162,8 @@ namespace FlyleafLib.MediaPlayer
 
                         TBR = (decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes - totalBytes) * 8 / 1000.0;
                         VBR = (decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes - videoBytes) * 8 / 1000.0;
-                        ABR = (decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes - audioBytes) * 8 / 1000.0;
                         totalBytes = decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes;
                         videoBytes = decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes;
-                        audioBytes = decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes;
 
                         FPS = actualFps;
                         actualFps = 0;
