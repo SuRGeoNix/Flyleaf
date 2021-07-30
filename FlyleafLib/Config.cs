@@ -64,7 +64,17 @@ namespace FlyleafLib
             /// <summary>
             /// Sets playback mode to low latency (video only)
             /// </summary>
-            public bool         LowLatency      { get; set; } = false;
+            public bool     LowLatency                  { get; set; } = false;
+
+            /// <summary>
+            /// Limit before dropping frames. Lower value means lower latency (>=1)
+            /// </summary>
+            public int      LowLatencyMaxVideoFrames    { get; set; } = 4;
+
+            /// <summary>
+            /// Limit before dropping frames. Lower value means lower latency (>=0)
+            /// </summary>
+            public int      LowLatencyMaxVideoPackets   { get; set; } = 2;
         }
 
         public class Demuxer : NotifyPropertyChanged
