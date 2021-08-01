@@ -116,8 +116,7 @@ namespace FlyleafLib
                 {
                     if (session != null) { session.UnRegisterEventClient(this); session.Dispose(); }
                     session = new AudioSessionControl(newSession);
-                    session.RegisterEventClient(this);
-                    session.SimpleAudioVolume.Volume = 1;
+                    session.RegisterEventClient(this);                    
                     Raise(nameof(VolumeSession));
                     Raise(nameof(MuteSession));
                 };
