@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using NAudio.Wave;
@@ -114,10 +115,16 @@ namespace FlyleafLib
                 device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
                 device.AudioSessionManager.OnSessionCreated += (o, newSession) =>
                 {
-                    if (session != null) { session.UnRegisterEventClient(this); session.Dispose(); }
-                    session = new AudioSessionControl(newSession);
-                    session.RegisterEventClient(this);
-                    session.SimpleAudioVolume.Volume = 1;
+                    try
+                    {
+                        var tmpSession = new AudioSessionControl(newSession);
+                        if (tmpSession == null || tmpSession.GetProcessID != Process.GetCurrentProcess().Id) return;
+                        if (session != null) { session.UnRegisterEventClient(this); session.Dispose(); }
+                        session = tmpSession;
+                        session.RegisterEventClient(this);
+                        session.SimpleAudioVolume.Volume = 1;
+                    } catch (Exception) { }
+                    
                     Raise(nameof(VolumeSession));
                     Raise(nameof(MuteSession));
                 };
