@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Windows.Forms;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.AVMediaType;
@@ -11,39 +8,45 @@ using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
-using FlyleafLib.MediaPlayer;
-using FlyleafLib.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
+using FlyleafLib.MediaFramework.MediaRenderer;
+using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.MediaFramework.MediaContext
 {
     public unsafe class DecoderContext
     {
-        public AudioDemuxer         AudioDemuxer        { get; private set; }
-        public VideoDemuxer         VideoDemuxer        { get; private set; }
-        public SubtitlesDemuxer     SubtitlesDemuxer    { get; private set; }
+        public int                  UniqueId            { get; set; }
+        public Config               Config              { get; private set; }
 
+        // Demuxers
+        public Demuxer              AudioDemuxer        { get; private set; }
+        public Demuxer              VideoDemuxer        { get; private set; }
+        public Demuxer              SubtitlesDemuxer    { get; private set; }
+
+        // Decoders
         public VideoDecoder         VideoDecoder        { get; private set; }
+        public Renderer             Renderer            { get; private set; }
         public AudioDecoder         AudioDecoder        { get; private set; }
         public SubtitlesDecoder     SubtitlesDecoder    { get; private set; }
-        public DecoderBase GetDecoderPtr(MediaType type) { return type == MediaType.Audio ? (DecoderBase)AudioDecoder : (type == MediaType.Video ? (DecoderBase)VideoDecoder : (DecoderBase)SubtitlesDecoder); }
+        public DecoderBase GetDecoderPtr(MediaType type){ return type == MediaType.Audio ? (DecoderBase)AudioDecoder : (type == MediaType.Video ? (DecoderBase)VideoDecoder : (DecoderBase)SubtitlesDecoder); }
 
-
-        internal Player player;
-        internal Config cfg => player.Config;
-
-        public DecoderContext(Player player)
+        public DecoderContext(Control control = null, Config config = null, int uniqueId = -1)
         {
             Master.RegisterFFmpeg();
-            this.player = player;
+            Config  = config == null ? new Config() : config;
+            UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
 
-            AudioDemuxer        = new AudioDemuxer(cfg, player.PlayerId);
-            VideoDemuxer        = new VideoDemuxer(cfg, player.PlayerId);
-            SubtitlesDemuxer    = new SubtitlesDemuxer(cfg, player.PlayerId);
+            if (control != null)
+                Renderer        = new Renderer(control, Config, uniqueId);
 
-            VideoDecoder        = new VideoDecoder(this);
-            AudioDecoder        = new AudioDecoder(this);
-            SubtitlesDecoder    = new SubtitlesDecoder(this);
+            AudioDemuxer        = new Demuxer(Config.demuxer, MediaType.Audio, uniqueId);
+            VideoDemuxer        = new Demuxer(Config.demuxer, MediaType.Video, uniqueId);
+            SubtitlesDemuxer    = new Demuxer(Config.demuxer, MediaType.Subs,  uniqueId);
+
+            VideoDecoder        = new VideoDecoder(Renderer, Config, uniqueId);
+            AudioDecoder        = new AudioDecoder(Config, VideoDecoder, uniqueId);
+            SubtitlesDecoder    = new SubtitlesDecoder(Config, VideoDecoder, uniqueId);
         }
 
         public int Open(string url)
@@ -58,9 +61,16 @@ namespace FlyleafLib.MediaFramework.MediaContext
         {
             Log($"[{stream.Type} #{stream.StreamIndex}] Opening on {stream.Demuxer.Type}");
 
+            bool wasRunning = VideoDecoder.IsRunning;
+
             var decoderPtr = GetDecoderPtr(stream.Type);
             int ret = decoderPtr.Open(stream);
-            if (ret == 0 && player.IsPlaying) decoderPtr.Start();
+
+            if (wasRunning)
+            {
+                //decoderPtr.Demuxer.Start();
+                decoderPtr.Start();
+            }
 
             return ret;
         }
@@ -68,7 +78,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         {
             int ret = -1;
 
-            if (VideoDemuxer.Status == MediaDemuxer.Status.Stopped) return ret;
+            if (VideoDemuxer.Disposed) return ret;
 
             long openElapsedTicks = DateTime.UtcNow.Ticks;
             AudioDecoder.Stop();
@@ -80,7 +90,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             ret = AudioDecoder.Open(AudioDemuxer.AudioStreams[0]);
             if (ret != 0) return ret;
 
-            if (ms != -1) SeekAudio(player.IsPlaying ? ms + ((DateTime.UtcNow.Ticks - openElapsedTicks)/10000) : ms);
+            if (ms != -1) SeekAudio(VideoDecoder.IsRunning ? ms + ((DateTime.UtcNow.Ticks - openElapsedTicks)/10000) : ms);
 
             return ret;
         }
@@ -88,7 +98,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         {
             int ret = -1;
 
-            if (VideoDemuxer.Status == MediaDemuxer.Status.Stopped) return ret;
+            if (VideoDemuxer.Disposed) return ret;
 
             long openElapsedTicks = DateTime.UtcNow.Ticks;
             SubtitlesDecoder.Stop();
@@ -100,27 +110,25 @@ namespace FlyleafLib.MediaFramework.MediaContext
             ret = SubtitlesDecoder.Open(SubtitlesDemuxer.SubtitlesStreams[0]);
             if (ret != 0) return ret;
 
-            if (ms != -1) SeekSubtitles(player.IsPlaying ? ms + ((DateTime.UtcNow.Ticks - openElapsedTicks)/10000) : ms);
+            if (ms != -1) SeekSubtitles(VideoDecoder.IsRunning ? ms + ((DateTime.UtcNow.Ticks - openElapsedTicks)/10000) : ms);
 
             return ret;
         }
         
         public void Flush()
         {
+            bool wasRunning = VideoDecoder.IsRunning;
             Pause();
             
-            VideoDemuxer.DisposePackets(VideoDemuxer.AudioPackets);
-            VideoDemuxer.DisposePackets(VideoDemuxer.VideoPackets);
-            VideoDemuxer.DisposePackets(VideoDemuxer.SubtitlesPackets);
-
-            AudioDemuxer.DisposePackets(AudioDemuxer.AudioPackets);
-            SubtitlesDemuxer.DisposePackets(SubtitlesDemuxer.SubtitlesPackets);
+            VideoDemuxer.DisposePackets();
+            AudioDemuxer.DisposePackets();
+            SubtitlesDemuxer.DisposePackets();
 
             VideoDecoder.Flush();
             AudioDecoder.Flush();
             SubtitlesDecoder.Flush();
 
-            if (player.IsPlaying) Play();
+            if (wasRunning) Play();
         }
 
         public int Seek(long ms, bool foreward = false)
@@ -145,7 +153,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         {
             int ret = -1;
 
-            if (AudioDemuxer.Status == MediaDemuxer.Status.Stopped || AudioDecoder.Status == MediaDecoder.Status.Stopped || AudioDecoder.OnVideoDemuxer) return ret;
+            if (AudioDemuxer.Disposed || AudioDecoder.OnVideoDemuxer) return ret;
 
             lock (AudioDecoder.lockCodecCtx)
             {
@@ -153,7 +161,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 AudioDecoder.Flush();
             }
 
-            if (player.IsPlaying)
+            if (VideoDecoder.IsRunning)
             {
                 AudioDemuxer.Start();
                 AudioDecoder.Start();
@@ -165,7 +173,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         {
             int ret = -1;
 
-            if (SubtitlesDemuxer.Status == MediaDemuxer.Status.Stopped || SubtitlesDecoder.Status == MediaDecoder.Status.Stopped || SubtitlesDecoder.OnVideoDemuxer) return ret;
+            if (SubtitlesDemuxer.Disposed || SubtitlesDecoder.OnVideoDemuxer) return ret;
 
             lock (SubtitlesDecoder.lockCodecCtx)
             {
@@ -173,7 +181,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 SubtitlesDecoder.Flush();
             }
 
-            if (player.IsPlaying)
+            if (VideoDecoder.IsRunning)
             {
                 SubtitlesDemuxer.Start();
                 SubtitlesDecoder.Start();
@@ -184,14 +192,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         public void Pause()
         {
-            // Start pausing all
-            if (VideoDecoder.IsRunning) VideoDecoder.Status = MediaDecoder.Status.Pausing;
-            if (AudioDecoder.IsRunning) AudioDecoder.Status = MediaDecoder.Status.Pausing;
-            if (SubtitlesDecoder.IsRunning) SubtitlesDecoder.Status = MediaDecoder.Status.Pausing;
-            if (VideoDemuxer.IsRunning) VideoDemuxer.Status = MediaDemuxer.Status.Pausing;
-            if (AudioDemuxer.IsRunning) AudioDemuxer.Status = MediaDemuxer.Status.Pausing;
-            if (SubtitlesDemuxer.IsRunning) SubtitlesDemuxer.Status = MediaDemuxer.Status.Pausing;
-
             VideoDecoder.Pause();
             AudioDecoder.Pause();
             SubtitlesDecoder.Pause();
@@ -212,37 +212,38 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         public void Stop()
         {
-            VideoDemuxer.DemuxInterrupt = 1;
-            AudioDemuxer.DemuxInterrupt = 1;
-            SubtitlesDemuxer.DemuxInterrupt = 1;
+            VideoDemuxer.Interrupter.ForceInterrupt = 1;
+            AudioDemuxer.Interrupter.ForceInterrupt = 1;
+            SubtitlesDemuxer.Interrupter.ForceInterrupt = 1;
 
-            VideoDemuxer.Stop();
-            AudioDemuxer.Stop();
-            SubtitlesDemuxer.Stop();
-            VideoDecoder.Stop();
-            AudioDecoder.Stop();
-            SubtitlesDecoder.Stop();
+            VideoDecoder.Dispose();
+            AudioDecoder.Dispose();
+            SubtitlesDecoder.Dispose();
+            AudioDemuxer.Dispose();
+            SubtitlesDemuxer.Dispose();
+            VideoDemuxer.Dispose();
 
-            VideoDemuxer.DemuxInterrupt = 0;
-            AudioDemuxer.DemuxInterrupt = 0;
-            SubtitlesDemuxer.DemuxInterrupt = 0;
+            VideoDemuxer.Interrupter.ForceInterrupt = 0;
+            AudioDemuxer.Interrupter.ForceInterrupt = 0;
+            SubtitlesDemuxer.Interrupter.ForceInterrupt = 0;
         }
 
-        public long CalcSeekTimestamp(DemuxerBase demuxer, long ms, ref bool foreward)
+        public long CalcSeekTimestamp(Demuxer demuxer, long ms, ref bool foreward)
         {
-            long ticks = ((ms * 10000) + demuxer.StartTime);
+            long startTime = demuxer.hlsCtx == null ? demuxer.StartTime : demuxer.hlsCtx->first_timestamp * 10;
+            long ticks = (ms * 10000) + startTime;
 
-            if (demuxer.Type == MediaType.Audio) ticks -= (cfg.audio.DelayTicks + cfg.audio.LatencyTicks);
-            if (demuxer.Type == MediaType.Subs ) ticks -=  cfg.subs. DelayTicks;
+            if (demuxer.Type == MediaType.Audio) ticks -= Config.audio.DelayTicks + Config.audio.LatencyTicks;
+            if (demuxer.Type == MediaType.Subs ) ticks -= Config.subs. DelayTicks;
 
-            if (ticks < demuxer.StartTime) 
+            if (ticks < startTime) 
             {
-                ticks = demuxer.StartTime;
+                ticks = startTime;
                 foreward = true;
             }
-            else if (ticks >= demuxer.StartTime + VideoDemuxer.Duration) 
+            else if (ticks >= startTime + VideoDemuxer.Duration) 
             {
-                ticks = demuxer.StartTime + VideoDemuxer.Duration;
+                ticks = startTime + demuxer.Duration - 100;
                 foreward = false;
             }
 
@@ -254,8 +255,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
             AVPacket* packet = av_packet_alloc();
             AVFrame* frame = av_frame_alloc();
 
-            while (VideoDemuxer.Status != MediaDemuxer.Status.Stopped)
+            while (!VideoDemuxer.Disposed)
             {
+                VideoDemuxer.Interrupter.Request(Requester.Read);
                 ret = av_read_frame(VideoDemuxer.FormatContext, packet);
                 if (ret != 0) return -1;
 
@@ -282,7 +284,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                         if (ret != 0) return -1;
                         
-                        while (VideoDecoder.Status != MediaDecoder.Status.Stopped)
+                        while (!VideoDemuxer.Disposed)
                         {
                             ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                             if (ret != 0) { av_frame_unref(frame); break; }
@@ -336,9 +338,16 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         public void Dispose()
         {
-            VideoDecoder.VideoAcceleration?.Dispose();
+            VideoDecoder.Dispose();
+            VideoDecoder.DisposeVA();
+            AudioDecoder.Dispose();
+            SubtitlesDecoder.Dispose();
+            AudioDemuxer.Dispose();
+            SubtitlesDemuxer.Dispose();
+            VideoDemuxer.Dispose();
+            Renderer.Dispose();
         }
 
-        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [DecoderContext] {msg}"); }
+        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [DecoderContext] {msg}"); }
     }
 }

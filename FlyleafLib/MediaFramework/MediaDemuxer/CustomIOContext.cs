@@ -14,9 +14,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public Stream   stream;
         const int       bufferSize = 0x200000; // Should be exposed to config as well
         byte[]          buffer;
-        DemuxerBase     demuxer;
+        Demuxer         demuxer;
 
-        public CustomIOContext(DemuxerBase demuxer)
+        public CustomIOContext(Demuxer demuxer)
         {
             this.demuxer = demuxer;
 
@@ -54,7 +54,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         avio_alloc_context_read_packet IORead = (opaque, buffer, bufferSize) =>
         {
             GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
-            DemuxerBase demuxer = (DemuxerBase)demuxerHandle.Target;
+            Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
             int ret = demuxer.CustomIOContext.stream.Read(demuxer.CustomIOContext.buffer, 0, bufferSize);
             //if (demuxer.Status != Status.Demuxing && demuxer.Status != Status.QueueFull) return AVERROR_EXIT;
@@ -79,7 +79,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         avio_alloc_context_seek IOSeek = (opaque, offset, wehnce) =>
         {
             GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
-            DemuxerBase demuxer = (DemuxerBase)demuxerHandle.Target;
+            Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
             //System.Diagnostics.Debug.WriteLine($"** S | {decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position}");
 

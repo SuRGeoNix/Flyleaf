@@ -18,7 +18,7 @@ namespace Wpf_Samples
         public Player       Player1      { get ; set; }
         public Player       Player2      { get ; set; }
 
-        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../Sample.mp4";
+        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../../Sample.mp4";
 
         public Sample3_MultiPlayer()
         {

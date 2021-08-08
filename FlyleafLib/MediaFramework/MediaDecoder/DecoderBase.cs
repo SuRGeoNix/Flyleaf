@@ -1,46 +1,33 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.AVMediaType;
 using static FFmpeg.AutoGen.ffmpeg;
 
-using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaDemuxer;
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
-    public abstract unsafe class DecoderBase
+    public abstract unsafe class DecoderBase : RunThreadBase
     {
-        public Status               Status          { get; internal set; } = Status.Stopped;
-        public bool                 IsRunning       { get; protected set; }
-        public bool                 OnVideoDemuxer  => demuxer?.Type == MediaType.Video;
-        public DemuxerBase          Demuxer         => demuxer;
-        public MediaType            Type            { get; protected set; }
-        public StreamBase           Stream          { get; protected set; }
-        public AVCodecContext*      CodecCtx        => codecCtx;
+        public MediaType                Type            { get; protected set; }
+
+        public bool                     OnVideoDemuxer  => demuxer?.Type == MediaType.Video;
+        public Demuxer                  Demuxer         => demuxer;
+        public StreamBase               Stream          { get; protected set; }
+        public AVCodecContext*          CodecCtx        => codecCtx;
+        public Action<DecoderBase>      CodecChanged    { get; set; }
 
         protected AVFrame*          frame;
         protected AVCodecContext*   codecCtx;
         internal  object            lockCodecCtx    = new object();
 
-        protected Thread            thread;
-        protected AutoResetEvent    threadARE       = new AutoResetEvent(false);
-        protected long              threadCounter;
+        protected Demuxer           demuxer;
+        protected Config            cfg;
 
-        protected DemuxerBase       demuxer;
-        protected DecoderContext    decCtx;
-        protected Config            cfg => decCtx.cfg;
-
-        public DecoderBase(DecoderContext decCtx)
+        public DecoderBase(Config config, int uniqueId = -1) : base(uniqueId)
         {
-            this.decCtx = decCtx;
+            cfg     = config;
 
             if (this is VideoDecoder)
                 Type = MediaType.Video;
@@ -48,166 +35,101 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 Type = MediaType.Audio;
             else if (this is SubtitlesDecoder)
                 Type = MediaType.Subs;
+
+            threadName = $"Decoder: {Type.ToString().PadLeft(5, ' ')}";
         }
 
         public int Open(StreamBase stream)
         {
-            lock (stream.Demuxer.lockFmtCtx)
+            lock (lockActions)
             {
-                Stop();
+                Dispose();
+                int ret = -1;
 
-                lock (lockCodecCtx)
+                try
                 {
-                    int ret;
+                    
+                    if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return -1;
+                    lock (stream.Demuxer.lockActions)
+                    {
+                        if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return -1;
+                    
+                        Status  = Status.Opening;
+                        Stream  = stream;
+                        demuxer = stream.Demuxer;
 
-                    if (stream == null || stream.Demuxer.Status == MediaDemuxer.Status.Stopped) return -1;
+                        AVCodec* codec = avcodec_find_decoder(stream.AVStream->codecpar->codec_id);
+                        if (codec == null)
+                            { Log($"[CodecOpen {Type}] [ERROR-1] No suitable codec found"); return -1; }
 
-                    Status  = Status.Opening;
-                    Stream  = stream;
-                    demuxer = stream.Demuxer;
+                        codecCtx = avcodec_alloc_context3(null);
+                        if (codecCtx == null)
+                            { Log($"[CodecOpen {Type}] [ERROR-2] Failed to allocate context3"); return -1; }
 
-                    AVCodec* codec = avcodec_find_decoder(stream.AVStream->codecpar->codec_id);
-                    if (codec == null)
-                        { Log($"[CodecOpen {Type}] [ERROR-1] No suitable codec found"); return -1; }
+                        ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
+                        if (ret < 0)
+                            { Log($"[CodecOpen {Type}] [ERROR-3] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
 
-                    codecCtx = avcodec_alloc_context3(null);
-                    if (codecCtx == null)
-                        { Log($"[CodecOpen {Type}] [ERROR-2] Failed to allocate context3"); return -1; }
+                        codecCtx->pkt_timebase  = stream.AVStream->time_base;
+                        codecCtx->codec_id      = codec->id;
 
-                    ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
-                    if (ret < 0)
-                        { Log($"[CodecOpen {Type}] [ERROR-3] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
+                        ret = Setup(codec);
+                        if (ret < 0) return ret;
 
-                    codecCtx->pkt_timebase  = stream.AVStream->time_base;
-                    codecCtx->codec_id      = codec->id;
+                        ret = avcodec_open2(codecCtx, codec, null);
+                        if (ret < 0) return ret;
 
-                    ret = Setup(codec);
-                    if (ret < 0) return ret;
+                        frame = av_frame_alloc();
+                        demuxer.EnableStream(Stream);
 
-                    ret = avcodec_open2(codecCtx, codec, null);
-                    if (ret < 0) return ret;
+                        CodecChanged?.Invoke(this);
 
-                    frame = av_frame_alloc();
-                    demuxer.EnableStream(Stream);
-                    StartThread();
+                        Disposed = false;
+                        Status = Status.Stopped;
 
-                    return ret; // 0 for success
+                        return ret; // 0 for success
+                    }
+                }
+                finally
+                {
+                    if (ret !=0 )
+                        Dispose();
                 }
             }
         }
+        protected abstract int Setup(AVCodec* codec);
 
-        public virtual void Stop()
+        public void Dispose()
         {
-            if (Status == Status.Stopped) return;
-            StopThread();
+            if (Disposed) return;
 
-            lock (lockCodecCtx)
+            lock (lockActions)
             {
-                if (Stream != null)
+                if (Disposed) return;
+
+                Stop();
+                DisposeInternal();
+
+                if (Stream != null && !Stream.Demuxer.Disposed)
                 {
                     if (Stream.Demuxer.Type == MediaType.Video)
                         Stream.Demuxer.DisableStream(Stream);
                     else
-                        Stream.Demuxer.Stop();
+                        Stream.Demuxer.Dispose();
                 }
 
-                avcodec_flush_buffers(codecCtx); // ??
+                avcodec_flush_buffers(codecCtx);
                 avcodec_close(codecCtx);
                 if (frame != null) fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
                 if (codecCtx != null) fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
                 demuxer = null;
                 Stream = null;
                 Status = Status.Stopped;
+
+                Disposed = true;
+                Log("Disposed");
             }
         }
-
-        protected abstract int Setup(AVCodec* codec);
-
-        public void StartThread()
-        {
-            if ((thread != null && thread.IsAlive) || Status == Status.Stopped) return;
-
-            Status = Status.Opening;
-            thread = new Thread(() => Decode());
-            thread.Name = $"[#{decCtx.player.PlayerId}] [Decoder: {Type}]"; thread.IsBackground= true; thread.Start();
-            while (Status == Status.Opening) Thread.Sleep(5);
-        }
-        public void Start()
-        {
-            StartThread();
-            if (Status != Status.Paused) return;
-
-            long prev =threadCounter;
-            threadARE.Set();
-            while (prev == threadCounter) Thread.Sleep(5);
-        }
-        public void Pause()
-        {
-            if (!IsRunning) return;
-
-            Status = Status.Pausing;
-            while (Status == Status.Pausing) Thread.Sleep(5);
-        }
-
-        public void StopThread()
-        {
-            if (thread == null || !thread.IsAlive) return;
-
-            Status = Status.Stopping;
-            threadARE.Set();
-            while (Status == Status.Stopping) Thread.Sleep(5);
-        }
-
-        protected void Decode()
-        {
-            Log($"[Thread] Started");
-
-            while (Status != Status.Stopped && Status != Status.Stopping && Status != Status.Ended)
-            {
-                threadARE.Reset();
-
-                Status = Status.Paused;
-                Log($"{Status}");
-                threadARE.WaitOne();
-                if (Status == Status.Stopped || Status == Status.Stopping) break;
-
-                IsRunning = true;
-                Status = Status.Decoding;
-                Log($"{Status}");
-                threadCounter++;
-                DecodeInternal();
-                IsRunning = false;
-                Log($"{Status}");
-
-            } // While !stopThread
-
-            //if (Status == Status.Stopping2) Stop();
-            if (Status != Status.Ended && Status != Status.Stopping2) Status = Status.Stopped;
-            Log($"[Thread] Stopped ({Status})");
-        }
-        protected abstract void DecodeInternal();
-
-        protected void Log(string msg)
-        {
-            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{decCtx.player.PlayerId}] [Decoder: {Type.ToString().PadLeft(5, ' ')}] {msg}");
-        }
-    }
-
-    public enum Status
-    {
-        Stopping,
-        Stopping2,
-        Stopped,
-
-        Opening,
-        Pausing,
-        Paused,
-
-        Decoding,
-        QueueFull,
-        PacketsEmpty,
-        Draining,
-
-        Ended
+        protected abstract void DisposeInternal();
     }
 }

@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using FFmpeg.AutoGen;
-using FlyleafLib.MediaFramework.MediaDemuxer;
-using static FFmpeg.AutoGen.ffmpeg;
 
-namespace FlyleafLib.MediaStream
+using FFmpeg.AutoGen;
+using static FFmpeg.AutoGen.ffmpeg;
+using static FFmpeg.AutoGen.ffmpegEx;
+
+using FlyleafLib.MediaFramework.MediaDemuxer;
+
+namespace FlyleafLib.MediaFramework.MediaStream
 {
     public abstract unsafe class StreamBase
     {
@@ -29,9 +33,11 @@ namespace FlyleafLib.MediaStream
 
         public Stream       Stream      { get; set; }
 
-        public DemuxerBase  Demuxer     { get; set; }
+        public Demuxer      Demuxer     { get; private set; }
 
         public AVStream*                    AVStream            { get; set; }
+        public HLSPlaylist*                 HLSPlaylist         { get; set; }
+
         public long                         BitRate             { get; set; }
         public AVCodecID                    CodecID             { get; set; }
         public string                       CodecName           { get; set; }
@@ -45,16 +51,28 @@ namespace FlyleafLib.MediaStream
 
         public abstract string GetDump();
         public StreamBase() { }
-        public StreamBase(AVStream* st)
+        public StreamBase(Demuxer demuxer, AVStream* st)
         {
+            Demuxer     = demuxer;
             AVStream    = st;
             BitRate     = st->codecpar->bit_rate;
             CodecID     = st->codecpar->codec_id;
             CodecName   = avcodec_get_name(st->codecpar->codec_id);
             StreamIndex = st->index;
             Timebase    = av_q2d(st->time_base) * 10000.0 * 1000.0;
-            StartTime   = (st->start_time != AV_NOPTS_VALUE) ? (long)(st->start_time * Timebase) : 0;
+            StartTime   = st->start_time != AV_NOPTS_VALUE && Demuxer.hlsCtx == null ? (long)(st->start_time * Timebase) : 0;
             Duration    = (long)(st->duration * Timebase);
+            
+            if (demuxer.hlsCtx != null)
+                for (int i=0; i<demuxer.hlsCtx->n_playlists; i++)
+                    for (int l=0; l<demuxer.hlsCtx->playlists[i]->n_main_streams; l++)
+                        if (demuxer.hlsCtx->playlists[i]->main_streams[l]->index == StreamIndex)
+                        {
+                            Debug.WriteLine($"Stream #{StreamIndex} Found in playlist {i}");
+                            HLSPlaylist = demuxer.hlsCtx->playlists[i];
+                            break;
+                        }
+
             Metadata    = new Dictionary<string, string>();
 
             AVDictionaryEntry* b = null;

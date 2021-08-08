@@ -1,9 +1,10 @@
 ﻿using System;
 
 using FFmpeg.AutoGen;
+using FlyleafLib.MediaFramework.MediaDemuxer;
 using static FFmpeg.AutoGen.ffmpeg;
 
-namespace FlyleafLib.MediaStream
+namespace FlyleafLib.MediaFramework.MediaStream
 {
     public unsafe class VideoStream : StreamBase
     {
@@ -30,9 +31,9 @@ namespace FlyleafLib.MediaStream
         public PixelFormatType              PixelFormatType     { get; set; }
         public int                          Width               { get; set; }
 
-        public override string GetDump() { return $"[{Type} #{StreamIndex}] {CodecName} {PixelFormatStr} {Width}x{Height} @ {FPS.ToString("#.###")} | {BitRate}"; }
+        public override string GetDump() { return $"[{Type} #{StreamIndex}] {CodecName} {PixelFormatStr} {Width}x{Height} @ {FPS.ToString("#.###")} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
         public VideoStream() { }
-        public VideoStream(AVStream* st) : base(st)
+        public VideoStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         {
             Type            = MediaType.Video;
             PixelFormat     = (AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), st->codecpar->format);

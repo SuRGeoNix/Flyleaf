@@ -1,6 +1,6 @@
 ﻿using FlyleafLib.MediaFramework;
 using FlyleafLib.Plugins;
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -53,7 +53,7 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Holds the current Subtitle stream
         /// </summary>
-        public SubtitlesStream   CurSubtitleStream   { get; internal set; }
+        public SubtitlesStream  CurSubtitleStream   { get; internal set; }
 
         /// <summary>
         /// Holds the last enabled Audio stream in case of disabling
@@ -78,8 +78,8 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Holds Movie's info
         /// </summary>
-        public  Movie           Movie               { get => IsPlaylist ? CurVideoStream.Movie : SingleMovie; }
-        public Movie          SingleMovie = new Movie();
+        public Movie            Movie               { get => IsPlaylist ? CurVideoStream.Movie : SingleMovie; }
+        public Movie            SingleMovie = new Movie();
       
         /// <summary>
         /// Whether the player's status is capable of accepting playback commands
@@ -96,7 +96,7 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Player's current time or user's current seek time (if set from here seek's direction will be foreward)
         /// </summary>
-        public long             CurTime             { get => _CurTime;      set { Set(ref _CurTime, value); player?.Seek((int) ((long)((object)value)/10000), true); } }
+        public long             CurTime             { get => _CurTime;      set { Set(ref _CurTime, value); player?.Seek((int) (value/10000), true); } }
         long        _CurTime;
 
         internal void SetCurTime(long curTime) { Set(ref _CurTime, curTime, false, nameof(CurTime)); }

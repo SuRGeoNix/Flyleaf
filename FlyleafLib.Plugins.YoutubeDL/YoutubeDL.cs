@@ -9,7 +9,7 @@ using System.Threading;
 using System.Web;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 
 using static FlyleafLib.Plugins.YoutubeDLJson;
 
