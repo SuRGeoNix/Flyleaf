@@ -16,8 +16,8 @@ namespace Wpf_Samples
         public Sample1()
         {
             Config config = new Config();
-            config.demuxer.VideoFormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            config.demuxer.VideoFormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
+            config.demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
+            config.demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
             Player = new Player(config);
 
             Master.RegisterFFmpeg(":2");

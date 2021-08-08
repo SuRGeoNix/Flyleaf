@@ -27,7 +27,7 @@ namespace FlyleafLib
         Other
     }
 
-    public class Movie
+    public class Movie : NotifyPropertyChanged
     {
         public string   Url         { get; set; }
         public UrlType  UrlType     { get; set; }
@@ -35,7 +35,9 @@ namespace FlyleafLib
         public long     FileSize    { get; set; }
 
         public string   Title       { get; set; }
-        public long     Duration    { get; set; }
+        public long     Duration    { get => _Duration; set => Set(ref _Duration, value); }
+        long _Duration;
+
         public int      Season      { get; set; }
         public int      Episode     { get; set; }
     }

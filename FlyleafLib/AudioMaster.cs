@@ -124,7 +124,7 @@ namespace FlyleafLib
                         session.RegisterEventClient(this);
                         session.SimpleAudioVolume.Volume = 1;
                     } catch (Exception) { }
-                    
+
                     Raise(nameof(VolumeSession));
                     Raise(nameof(MuteSession));
                 };
@@ -233,6 +233,6 @@ namespace FlyleafLib
         public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason) { /*Log("OnSessionDisconnected");*/ }
         #endregion
 
-        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] [AudioMaster] {msg}"); }
+        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] [AudioMaster] {msg}"); }
     }
 }
