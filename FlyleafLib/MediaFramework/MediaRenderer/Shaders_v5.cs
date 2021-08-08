@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace FlyleafLib.MediaRenderer
+namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public static class Shaders_v5
     {

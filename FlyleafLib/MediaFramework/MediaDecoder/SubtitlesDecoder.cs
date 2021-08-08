@@ -9,7 +9,7 @@ using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 using static FFmpeg.AutoGen.AVCodecID;
 
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 using System.Collections.Concurrent;
 
@@ -18,59 +18,69 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
     public unsafe class SubtitlesDecoder : DecoderBase
     {
         public SubtitlesStream  SubtitlesStream     => (SubtitlesStream) Stream;
+        public VideoDecoder     RelatedVideoDecoder { get ; private set; }
 
         public ConcurrentQueue<SubtitlesFrame>
                                 Frames              { get; protected set; } = new ConcurrentQueue<SubtitlesFrame>();
 
-        public SubtitlesDecoder(MediaContext.DecoderContext decCtx) : base(decCtx) { }
+        public SubtitlesDecoder(Config config, VideoDecoder rVideoDecoder = null, int uniqueId = -1) : base(config, uniqueId)
+        {
+            RelatedVideoDecoder = rVideoDecoder;
+        }
 
         protected override unsafe int Setup(AVCodec* codec) { return 0; }
 
-        public override void Stop()
+
+        protected override void DisposeInternal()
         {
-            lock (lockCodecCtx)
-            {
-                base.Stop();
-                Frames = new ConcurrentQueue<SubtitlesFrame>();
-            }
+            Frames = new ConcurrentQueue<SubtitlesFrame>();
         }
+
         public void Flush()
         {
+            lock (lockActions)
             lock (lockCodecCtx)
             {
-                if (Status == Status.Stopped) return;
+                if (Disposed) return;
 
                 Frames = new ConcurrentQueue<SubtitlesFrame>();
                 avcodec_flush_buffers(codecCtx);
-                if (Status == Status.Ended) Status = Status.Paused;
+                if (Status == Status.Ended) Status = Status.Stopped;
             }
         }
 
-        protected override void DecodeInternal()
+        protected override void RunInternal()
         {
             int ret = 0;
             int allowedErrors = cfg.decoder.MaxErrors;
             AVPacket *packet;
 
-            while (Status == Status.Decoding)
+            do
             {
-                // While Frames Queue Full
+                // Wait until Queue not Full or Stopped
                 if (Frames.Count >= cfg.decoder.MaxSubsFrames)
                 {
-                    Status = Status.QueueFull;
+                    lock (lockStatus)
+                        if (Status == Status.Running) Status = Status.QueueFull;
 
                     while (Frames.Count >= cfg.decoder.MaxSubsFrames && Status == Status.QueueFull) Thread.Sleep(20);
-                    if (Status != Status.QueueFull) break;
-                    Status = Status.Decoding;
+
+                    lock (lockStatus)
+                    {
+                        if (Status != Status.QueueFull) break;
+                        Status = Status.Running;
+                    }       
                 }
 
                 // While Packets Queue Empty (Ended | Quit if Demuxer stopped | Wait until we get packets)
                 if (demuxer.SubtitlesPackets.Count == 0)
                 {
-                    Status = Status.PacketsEmpty;
-                    while (demuxer.SubtitlesPackets.Count == 0 && Status == Status.PacketsEmpty)
+                    lock (lockStatus)
+                        if (Status == Status.Running) Status = Status.QueueEmpty;
+
+                    while (demuxer.SubtitlesPackets.Count == 0 && Status == Status.QueueEmpty)
                     {
-                        if (demuxer.Status == MediaDemuxer.Status.Ended)
+                        if (demuxer.Status == Status.Ended)
                         {
                             Status = Status.Ended;
                             break;
@@ -78,14 +88,29 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         else if (!demuxer.IsRunning)
                         {
                             Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
-                            Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopping2 : Status.Pausing;
+
+                            lock (demuxer.lockStatus)
+                            lock (lockStatus)
+                            {
+                                if (demuxer.Status == Status.Pausing || demuxer.Status == Status.Paused)
+                                    Status = Status.Pausing;
+                                else if (demuxer.Status != Status.Ended)
+                                    Status = Status.Stopping;
+                                else
+                                    continue;
+                            }
+
                             break;
                         }
                         
                         Thread.Sleep(20);
                     }
-                    if (Status != Status.PacketsEmpty) break;
-                    Status = Status.Decoding;
+
+                    lock (lockStatus)
+                    {
+                        if (Status != Status.QueueEmpty) break;
+                        Status = Status.Running;
+                    }
                 }
                 
                 lock (lockCodecCtx)
@@ -101,11 +126,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         allowedErrors--;
                         Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
 
-                        if (allowedErrors == 0)
-                        {
-                            Log("[ERROR-0] Too many errors!");
-                            break;
-                        }
+                        if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
 
                         continue;
                     }
@@ -121,7 +142,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     avsubtitle_free(&sub);
                     av_packet_free(&packet);
                 }
-            } // While Decoding
+            } while (Status == Status.Running);
         }
 
         private SubtitlesFrame ProcessSubtitlesFrame(AVPacket* packet, AVSubtitle* sub)
@@ -129,7 +150,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             SubtitlesFrame mFrame = new SubtitlesFrame();
             mFrame.pts = packet->pts;
             if (mFrame.pts == AV_NOPTS_VALUE) return null;
-            mFrame.timestamp = ((long)(mFrame.pts * SubtitlesStream.Timebase) - SubtitlesStream.StartTime) + cfg.audio.LatencyTicks + cfg.subs.DelayTicks + (SubtitlesStream.StartTime - decCtx.VideoDecoder.VideoStream.StartTime);
+            //long svDiff = RelatedVideoDecoder != null &&  RelatedVideoDecoder.VideoStream != null ? SubtitlesStream.StartTime - RelatedVideoDecoder.VideoStream.StartTime : 0;
+            mFrame.timestamp = ((long)(mFrame.pts * SubtitlesStream.Timebase) - demuxer.StartTime) + cfg.audio.LatencyTicks + cfg.subs.DelayTicks;
 
             try
             {

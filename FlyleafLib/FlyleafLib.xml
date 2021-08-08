@@ -359,7 +359,7 @@
             </summary>
             <param name="stream"></param>
         </member>
-        <member name="M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaStream.StreamBase)">
+        <member name="M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaFramework.MediaStream.StreamBase)">
             <summary>
             Opens an existing AVS stream from Plugins[_PLUGIN_NAME_].[AVS]Stream
             </summary>
@@ -478,22 +478,22 @@
             Player's current time or user's current seek time (if set from here seek's direction will be foreward)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaStream.StreamBase.InUse">
+        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.InUse">
             <summary>
             Whether the current stream is enabled
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaStream.StreamBase.Used">
+        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.Used">
             <summary>
             How many times has been used
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaStream.StreamBase.Tag">
+        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.Tag">
             <summary>
             Tag/Opaque for plugins (mainly to match streams with their own streams)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaStream.VideoStream.Movie">
+        <member name="P:FlyleafLib.MediaFramework.MediaStream.VideoStream.Movie">
             <summary>
             Stream's Movie info from the current plugin's Playlist
             </summary>

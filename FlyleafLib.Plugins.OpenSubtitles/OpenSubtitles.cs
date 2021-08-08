@@ -8,7 +8,7 @@ using System.Web;
 using Newtonsoft.Json;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.Plugins
 {

@@ -4,20 +4,20 @@ using System.IO;
 using System.Reflection;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
     public abstract class PluginBase : IDisposable
     {
-        public string   PluginName   => GetType().Name;
-        public Version  PluginVersion => Assembly.GetExecutingAssembly().GetName().Version;
+        public string   PluginName      => GetType().Name;
+        public Version  PluginVersion   => Assembly.GetExecutingAssembly().GetName().Version;
 
         public Player   Player;
 
         public List<AudioStream>        AudioStreams        { get; set; } = new List<AudioStream>();
         public List<VideoStream>        VideoStreams        { get; set; } = new List<VideoStream>();
-        public List<SubtitlesStream>    SubtitlesStreams     { get; set; } = new List<SubtitlesStream>();
+        public List<SubtitlesStream>    SubtitlesStreams    { get; set; } = new List<SubtitlesStream>();
 
         public virtual void OnLoad() { }
 

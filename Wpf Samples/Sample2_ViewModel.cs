@@ -81,7 +81,7 @@ namespace Wpf_Samples
         #endregion
 
         #region Initialize
-        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../Sample.mp4";
+        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../../Sample.mp4";
 
         /// <summary>
         /// ViewMode's Constructor

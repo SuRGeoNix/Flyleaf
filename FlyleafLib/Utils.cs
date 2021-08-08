@@ -28,6 +28,9 @@ namespace FlyleafLib
     public unsafe static class Utils
     {
         #region MediaEngine
+        private static int uniqueId;
+        public static int GetUniqueId() { Interlocked.Increment(ref uniqueId); return uniqueId; }
+
         //public static private bool            IsDesignMode=> (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
         public static bool          IsDesignMode    = LicenseManager.UsageMode == LicenseUsageMode.Designtime; // Will not work properly (need to be called from non-static class constructor)
         //public static bool          IsWin10         = Regex.IsMatch(Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ProductName", "").ToString(), "Windows 10");
@@ -191,8 +194,8 @@ namespace FlyleafLib
             return hexBuilder.ToString();
         }
         public static int GCD(int a, int b) { return b == 0 ? a : GCD(b, a % b); }
-        public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(@"hh\:mm\:ss\:fff"); }
-        private static void Log(string msg) { try { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [MediaEngine] {msg}"); } catch (Exception) { System.Diagnostics.Debug.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
+        public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(); }
+        private static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [MediaEngine] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
         #endregion
 
         public unsafe static class FFmpeg
@@ -213,7 +216,7 @@ namespace FlyleafLib
                 var line = Marshal.PtrToStringAnsi((IntPtr)buffer);
                 Log(line.Trim());
             };
-            private static void Log(string msg) { try { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [FFmpeg] {msg}"); } catch (Exception) { System.Diagnostics.Debug.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
+            private static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [FFmpeg] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
         }
 
         public static class NativeMethods
@@ -296,7 +299,7 @@ namespace FlyleafLib
                     sw.Close();
 
                 }
-                catch (Exception e) { System.Diagnostics.Debug.WriteLine($"[Subs Convert] {e.Message}"); return false; }
+                catch (Exception e) { Debug.WriteLine($"[Subs Convert] {e.Message}"); return false; }
 
                 return true;
             }
