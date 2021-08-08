@@ -7,10 +7,14 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>FlyleafPlayer</AssemblyName>
     <ApplicationIcon>Flyleaf.ico</ApplicationIcon>
-    <Platforms>AnyCPU;x64</Platforms>
+    <Platforms>x64;x86</Platforms>
     <Authors>SuRGeoNix</Authors>
     <Company>SuRGeoNix</Company>
     <Copyright>SuRGeoNix © 2021</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
+    <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,7 +30,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if not exist &quot;$(SolutionDir)Plugins&quot; mkdir &quot;$(SolutionDir)Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins&quot; &quot;$(TargetDir)Plugins\&quot; /E /Y&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(TargetDir)Libs&quot; mkdir &quot;$(TargetDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;if $(PlatformName) == AnyCPU (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\*&quot; &quot;$(TargetDir)Libs&quot; /E /Y&#xD;&#xA;)&#xD;&#xA;if $(PlatformName) == x64 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x64\*&quot; &quot;$(TargetDir)Libs\x64\&quot; /E /Y&#xD;&#xA;)" />
+    <Exec Command="if not exist &quot;$(SolutionDir)Plugins&quot; mkdir &quot;$(SolutionDir)Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins&quot; &quot;$(TargetDir)Plugins\&quot; /E /Y&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(TargetDir)Libs&quot; mkdir &quot;$(TargetDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;if $(PlatformName) == x86 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x86\*&quot; &quot;$(TargetDir)Libs\x86\&quot; /E /Y&#xD;&#xA;)&#xD;&#xA;if $(PlatformName) == x64 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x64\*&quot; &quot;$(TargetDir)Libs\x64\&quot; /E /Y&#xD;&#xA;)" />
   </Target>
   
   <Target Name="PostPublish" AfterTargets="Publish">

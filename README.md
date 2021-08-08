@@ -18,7 +18,7 @@
 * ***Configurable***: Exposes low level parameters for customization (demuxing/buffering & decoding parameters) 
 * ***UI Controls***: Providing both "naked" and embedded functionality controls 
 * ***Multiple Instances***: Supports multiple players with different configurations (such as audio devices/video aspect ratio etc.)
-* ***Extra Features***: Record, Download/Remux, Zoom In/Out
+* ***Extra Features***: Record, Download/Remux, Zoom In/Out, HLS Live Seeking (might the **1st** FFmpeg player that does it!)
 
 ### [Missing Features]
 * HDR support
@@ -38,13 +38,14 @@
 ### [Build Requirements]
 * .NET 5 (windows) / .NET Framework 4.7.2
 
-For .net 5 you will need to ensure that you use *__net5.0-windows__* as target framework (change your .csproj )
+For .net 5 you will need to ensure that you use *__net5.0-windows__* as target framework (change your .csproj file)
 ```
 <TargetFramework>net5.0-windows</TargetFramework>
 ```
 
 * FFmpeg shared libraries (compatible with FFmpeg.Autogen)
-* Use Master.RegisterFFmpeg(*ffmpeg_path*) to register them
+  * By the time of writing (v4.4.79) has a critical issue with HLS protocol, this [patch](https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=1018) has been applied to the repository's libraries to fix it. That means that you will need at least the **avformat-58.dll** (x64) from here.
+* Use Master.RegisterFFmpeg(*ffmpeg_path*) to register them (Ensure you use x86 or x64 libraries)
 * To use plugins requires at least one time to build the solution in *Release* configuration
 * Generaly plugins should exist in *Plugins* output/target directory
 * Debugging with BitSwarm plugin should disable NullReference exceptions

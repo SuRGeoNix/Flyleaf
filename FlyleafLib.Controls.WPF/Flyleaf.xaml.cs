@@ -16,7 +16,7 @@ using MaterialDesignThemes.Wpf;
 using MaterialDesignColors;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
@@ -30,7 +30,7 @@ namespace FlyleafLib.Controls.WPF
         public Player           Player      { get => _Player; set { _Player = value; InitializePlayer(); } }
         Player _Player;
 
-        public VideoDemuxer     VideoDemuxer => Player?.decoder?.VideoDemuxer;
+        public Demuxer          VideoDemuxer => Player?.decoder?.VideoDemuxer;
         public VideoDecoder     VideoDecoder => Player?.decoder?.VideoDecoder;
         public AudioDecoder     AudioDecoder => Player?.decoder?.AudioDecoder;
 

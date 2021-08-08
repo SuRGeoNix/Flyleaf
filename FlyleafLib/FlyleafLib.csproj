@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Video Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
-	<Version>3.1.14</Version>
+	<Version>3.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,12 +16,17 @@
 	<PackageTags>flyleaf flyleaflib video media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Adds demuxer timeouts (open/read/readlive/seek/close) to the configuration
-Resets MaxQueueSize to 100
-Fixes network stream issues
-Fixes hanging issues on av_read_frame/av_seek_frame by changing the interrupt implementation</PackageReleaseNotes>
-    <AssemblyVersion>3.1.14.0</AssemblyVersion>
-    <FileVersion>3.1.14.0</FileVersion>
+    <PackageReleaseNotes>Code clean-up and preparing mediaframework for more general purposes (such as using seperately just the demuxers/decoders)
+Finishing up with Recorder/Downloader/Remuxer
+Restores Interrupts and exposes them to the configuration in case of specific protocol issues (faster start/stop/pause/seek)
+Adds HLS live seek support (even if it is not supported from FFmpeg yet)
+Adds Low Latency support (video only) e.g. in case of RTSP cameras
+
+Fixes a critical HLS seek issue that it was crashing/hanging the session by applying a patch to libavformat (must use repo's avformat dll)
+Fixes proper locking and thread safe meachnisms with the new RunThreadBase class
+Fixes an Audio issue that it was affecting other applications volume</PackageReleaseNotes>
+    <AssemblyVersion>3.2.0.0</AssemblyVersion>
+    <FileVersion>3.2.0.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

@@ -1,9 +1,10 @@
 ﻿using System;
 
 using FFmpeg.AutoGen;
+using FlyleafLib.MediaFramework.MediaDemuxer;
 using static FFmpeg.AutoGen.ffmpeg;
 
-namespace FlyleafLib.MediaStream
+namespace FlyleafLib.MediaFramework.MediaStream
 {    
     public unsafe class AudioStream : StreamBase
     {
@@ -17,10 +18,10 @@ namespace FlyleafLib.MediaStream
         public string                       SampleFormatStr     { get; set; }
         public int                          SampleRate          { get; set; }
 
-        public override string GetDump() { return $"[{Type} #{StreamIndex}{(Language == null || Language == Language.Get("und") ? "" : "-" + Language.IdSubLanguage)}] {CodecName} {SampleFormatStr}@{Bits} {SampleRate/1000}KHz {ChannelLayoutStr} | {BitRate}"; }
+        public override string GetDump() { return $"[{Type} #{StreamIndex}{(Language == null || Language == Language.Get("und") ? "" : "-" + Language.IdSubLanguage)}] {CodecName} {SampleFormatStr}@{Bits} {SampleRate/1000}KHz {ChannelLayoutStr} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
 
         public AudioStream() { }
-        public AudioStream(AVStream* st) : base(st)
+        public AudioStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         {
             Type            = MediaType.Audio;
             SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), st->codecpar->format);

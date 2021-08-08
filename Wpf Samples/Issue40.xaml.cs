@@ -30,8 +30,8 @@ namespace Wpf_Samples
             _config = new Config();
             //_config.audio.Enabled = false;
             //_config.decoder.HWAcceleration = false;
-            _config.demuxer.VideoFormatOpt.Add("probesize",       (50 * (long) 1024 * 1024).ToString());
-            _config.demuxer.VideoFormatOpt.Add("analyzeduration", (10 * (long) 1000 * 1000).ToString());
+            _config.demuxer.FormatOpt.Add("probesize",       (50 * (long) 1024 * 1024).ToString());
+            _config.demuxer.FormatOpt.Add("analyzeduration", (10 * (long) 1000 * 1000).ToString());
         }
 
         VideoView _videoView;
@@ -40,8 +40,7 @@ namespace Wpf_Samples
         Flyleaf _flyleaf;
         Config _config;
 
-        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../Sample.mp4";
-        //static string sampleVideo = @"c:\root\down\samples\hd\Snow Monkeys in Japan 5K Retina 60p (Ultra HD).mp4";
+        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../../Sample.mp4";
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {

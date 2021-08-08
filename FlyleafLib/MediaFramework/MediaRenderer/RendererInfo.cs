@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace FlyleafLib.MediaRenderer
+namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public unsafe class RendererInfo
     {

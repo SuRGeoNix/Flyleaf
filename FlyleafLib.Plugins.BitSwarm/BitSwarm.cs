@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO;
 
 using FlyleafLib.MediaPlayer;
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 using SuRGeoNix.BitSwarmLib;
 using SuRGeoNix.BitSwarmLib.BEP;
 
@@ -105,8 +105,8 @@ namespace FlyleafLib.Plugins
 
         public override void Dispose()
         {
-            base.Dispose();
             OnInitialized();
+            base.Dispose();
         }
 
         private bool DownloadNext()

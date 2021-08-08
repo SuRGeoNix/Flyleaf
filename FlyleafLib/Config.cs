@@ -5,8 +5,6 @@ using System.Xml.Serialization;
 
 using SharpDX;
 
-using static FFmpeg.AutoGen.ffmpeg;
-
 namespace FlyleafLib
 {
     /// <summary>
@@ -77,28 +75,32 @@ namespace FlyleafLib
             public int      LowLatencyMaxVideoPackets   { get; set; } = 2;
         }
 
-        public class Demuxer : NotifyPropertyChanged
+        public class Demuxer
         {
             public Demuxer Clone()
             {
-                Demuxer demuxer         = (Demuxer) MemberwiseClone();
+                Demuxer demuxer = (Demuxer) MemberwiseClone();
 
-                demuxer.AudioFormatOpt = new SerializableDictionary<string, string>();
-                foreach (var kv in AudioFormatOpt) demuxer.AudioFormatOpt.Add(kv.Key, kv.Value);
-
-                demuxer.VideoFormatOpt = new SerializableDictionary<string, string>();
-                foreach (var kv in VideoFormatOpt) demuxer.VideoFormatOpt.Add(kv.Key, kv.Value);
-
-                demuxer.SubsFormatOpt = new SerializableDictionary<string, string>();
-                foreach (var kv in SubsFormatOpt) demuxer.SubsFormatOpt.Add(kv.Key, kv.Value);
+                demuxer.FormatOpt = new SerializableDictionary<string, string>();
+                foreach (var kv in FormatOpt) demuxer.FormatOpt.Add(kv.Key, kv.Value);
 
                 return demuxer;
             }
 
             /// <summary>
+            /// Start/Seek/Pause/Stop will be faster but might not work properly with some protocols
+            /// </summary>
+            public bool             AllowInterrupts { get; set; } = true;
+
+            /// <summary>
+            /// List of FFmpeg formats to be excluded from interrupts (if AllowInterrupts = true)
+            /// </summary>
+            public List<string>     ExcludeInterruptFmts { get; set; } = new List<string>() { "rtsp" };
+
+            /// <summary>
             /// Minimum required demuxed packets before playing
             /// </summary>
-            public int              MinQueueSize    { get; set; } = 1;
+            public int              MinQueueSize    { get; set; } = 0;
 
             /// <summary>
             /// Maximum allowed packets for buffering
@@ -124,12 +126,7 @@ namespace FlyleafLib
             /// <summary>
             /// av_read_frame timeout (ticks) for protocols that support interrupts
             /// </summary>
-            public long             ReadTimeout     { get; set; } = 5 * 1000 * 10000;
-
-            /// <summary>
-            /// av_read_frame timeout (ticks) for protocols that support interrupts
-            /// </summary>
-            public long             ReadLiveTimeout { get; set; } = 6 * 1000 * 10000;
+            public long             ReadTimeout     { get; set; } = 10 * 1000 * 10000;
 
             /// <summary>
             /// av_seek_frame timeout (ticks) for protocols that support interrupts
@@ -137,24 +134,17 @@ namespace FlyleafLib
             public long             SeekTimeout     { get; set; } =  8 * 1000 * 10000;
 
             /// <summary>
-            /// FFmpeg's format options for audio demuxer
+            /// FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
+            /// eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
             /// </summary>
-            public SerializableDictionary<string, string>
-                                    AudioFormatOpt  { get; set; } = DefaultVideoFormatOpt();
+            public int              FormatFlags{ get; set; } = FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
 
             /// <summary>
-            /// FFmpeg's format options for main (video) demuxer
+            /// FFmpeg's format options for demuxer
             /// </summary>
             public SerializableDictionary<string, string>
-                                    VideoFormatOpt  { get; set; } = DefaultVideoFormatOpt();
+                                    FormatOpt  { get; set; } = DefaultVideoFormatOpt();
 
-            /// <summary>
-            /// FFmpeg's format options for subtitles demuxer
-            /// </summary>
-            public SerializableDictionary<string, string>
-                                    SubsFormatOpt   { get; set; } = DefaultVideoFormatOpt();
-
-            public SerializableDictionary<string, string> GetFormatOptPtr(MediaType type) { return type == MediaType.Video ? VideoFormatOpt : (type == MediaType.Audio ? AudioFormatOpt : SubsFormatOpt); }
             public static SerializableDictionary<string, string> DefaultVideoFormatOpt()
             {
                 SerializableDictionary<string, string> defaults = new SerializableDictionary<string, string>();
@@ -171,25 +161,8 @@ namespace FlyleafLib
                 //defaults.Add("rw_timeout",     (2 * (long)1000 * 1000).ToString());      // (Microseconds) Default 5 seconds | Higher for network streams
                 return defaults;
             }
-
-            /// <summary>
-            /// FFmpeg's format flags for audio demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
-            /// </summary>
-            public int              AudioFormatFlags{ get; set; } = AVFMT_FLAG_AUTO_BSF | AVFMT_FLAG_DISCARD_CORRUPT;
-
-            /// <summary>
-            /// FFmpeg's format flags for video demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
-            /// eg. config.demuxer.VideoFormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
-            /// </summary>
-            public int              VideoFormatFlags{ get; set; } = AVFMT_FLAG_AUTO_BSF | AVFMT_FLAG_DISCARD_CORRUPT;
-            
-            /// <summary>
-            /// FFmpeg's format flags for subtitles demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
-            /// </summary>
-            public int              SubsFormatFlags { get; set; } = AVFMT_FLAG_AUTO_BSF | AVFMT_FLAG_DISCARD_CORRUPT;
-
-            public int GetFormatFlags(MediaType type) { return type == MediaType.Video ? VideoFormatFlags : (type == MediaType.Audio ? AudioFormatFlags : SubsFormatFlags); }
         }
+
 
         public class Decoder : NotifyPropertyChanged
         {

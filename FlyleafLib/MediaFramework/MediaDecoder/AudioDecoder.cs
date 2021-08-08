@@ -1,14 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 using static FFmpeg.AutoGen.AVCodecID;
 
-using FlyleafLib.MediaStream;
+using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 using System.Threading;
 using System.Runtime.InteropServices;
@@ -19,6 +15,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
     public unsafe class AudioDecoder : DecoderBase
     {
         public AudioStream      AudioStream         => (AudioStream) Stream;
+        public VideoDecoder     RelatedVideoDecoder { get ; private set; }
 
         public ConcurrentQueue<AudioFrame>
                                 Frames              { get; protected set; } = new ConcurrentQueue<AudioFrame>();
@@ -32,12 +29,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public int              m_max_dst_nb_samples;
         public int              m_dst_linesize;
 
-        public AudioDecoder(MediaContext.DecoderContext decCtx) : base(decCtx) { }
+        public AudioDecoder(Config config, VideoDecoder rVideoDecoder = null, int uniqueId = -1) : base(config, uniqueId)
+        {
+            RelatedVideoDecoder = rVideoDecoder;
+        }
 
         protected override unsafe int Setup(AVCodec* codec)
         {
-            lock (lockCodecCtx)
-            {
             int ret;
 
             if (swrCtx == null) swrCtx = swr_alloc();
@@ -57,58 +55,60 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             ret = swr_init(swrCtx);
             if (ret < 0) Log($"[AudioSetup] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); 
 
-            decCtx.player.audioPlayer.Initialize(codecCtx->sample_rate);
-
             return ret;
-            }
         }
 
-        public override void Stop()
+        protected override void DisposeInternal()
         {
-            lock (lockCodecCtx)
-            {
-                base.Stop();
-                DisposeFrames();
-                if (swrCtx != null) { swr_close(swrCtx); fixed(SwrContext** ptr = &swrCtx) swr_free(ptr); swrCtx = null; }
-                if (m_dst_data != null) { av_freep(&m_dst_data[0]); fixed (byte*** ptr = &m_dst_data) av_freep(ptr); m_dst_data = null; }
-            }
+            if (swrCtx != null) { swr_close(swrCtx); fixed(SwrContext** ptr = &swrCtx) swr_free(ptr); swrCtx = null; }
+            if (m_dst_data != null) { av_freep(&m_dst_data[0]); fixed (byte*** ptr = &m_dst_data) av_freep(ptr); m_dst_data = null; }
+            DisposeFrames();
         }
+
         public void Flush()
         {
+            lock (lockActions)
             lock (lockCodecCtx)
             {
-                if (Status == Status.Stopped) return;
+                if (Disposed) return;
 
                 Frames = new ConcurrentQueue<AudioFrame>();
                 avcodec_flush_buffers(codecCtx);
-                if (Status == Status.Ended) Status = Status.Paused;
+                if (Status == Status.Ended) Status = Status.Stopped;
             }
         }
-        protected override void DecodeInternal()
+        protected override void RunInternal()
         {
             int ret = 0;
             int allowedErrors = cfg.decoder.MaxErrors;
             AVPacket *packet;
 
-            while (Status == Status.Decoding)
+            do
             {
-                // While Frames Queue Full
+                // Wait until Queue not Full or Stopped
                 if (Frames.Count >= cfg.decoder.MaxAudioFrames)
                 {
-                    Status = Status.QueueFull;
+                    lock (lockStatus)
+                        if (Status == Status.Running) Status = Status.QueueFull;
 
                     while (Frames.Count >= cfg.decoder.MaxAudioFrames && Status == Status.QueueFull) Thread.Sleep(20);
-                    if (Status != Status.QueueFull) break;
-                    Status = Status.Decoding;
+
+                    lock (lockStatus)
+                    {
+                        if (Status != Status.QueueFull) break;
+                        Status = Status.Running;
+                    }       
                 }
 
                 // While Packets Queue Empty (Ended | Quit if Demuxer stopped | Wait until we get packets)
                 if (demuxer.AudioPackets.Count == 0)
                 {
-                    Status = Status.PacketsEmpty;
-                    while (demuxer.AudioPackets.Count == 0 && Status == Status.PacketsEmpty)
+                    lock (lockStatus)
+                        if (Status == Status.Running) Status = Status.QueueEmpty;
+
+                    while (demuxer.AudioPackets.Count == 0 && Status == Status.QueueEmpty)
                     {
-                        if (demuxer.Status == MediaDemuxer.Status.Ended)
+                        if (demuxer.Status == Status.Ended)
                         {
                             Status = Status.Ended;
                             break;
@@ -116,14 +116,29 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         else if (!demuxer.IsRunning)
                         {
                             Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
-                            Status = demuxer.Status == MediaDemuxer.Status.Stopping || demuxer.Status == MediaDemuxer.Status.Stopped ? Status.Stopping2 : Status.Pausing;
+
+                            lock (demuxer.lockStatus)
+                            lock (lockStatus)
+                            {
+                                if (demuxer.Status == Status.Pausing || demuxer.Status == Status.Paused)
+                                    Status = Status.Pausing;
+                                else if (demuxer.Status != Status.Ended)
+                                    Status = Status.Stopping;
+                                else
+                                    continue;
+                            }
+
                             break;
                         }
                         
                         Thread.Sleep(20);
                     }
-                    if (Status != Status.PacketsEmpty) break;
-                    Status = Status.Decoding;
+
+                    lock (lockStatus)
+                    {
+                        if (Status != Status.QueueEmpty) break;
+                        Status = Status.Running;
+                    }
                 }
 
                 lock (lockCodecCtx)
@@ -140,16 +155,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         if (ret == AVERROR_EOF)
                         {
                             Status = Status.Ended;
-                            Log("EOF");
-                            return;
+                            break;
                         }
                         else
                         {
                             allowedErrors--;
                             Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
-                            //avcodec_flush_buffers(codecCtx); ??
 
-                            if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); return; }
+                            if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
                             
                             continue;
                         }
@@ -167,9 +180,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     }
                 }
                 
-            } // While Decoding
-
-            if (Status == Status.Draining) Status = Status.Ended;
+            } while (Status == Status.Running);
         }
 
         private AudioFrame ProcessAudioFrame(AVFrame* frame)
@@ -177,8 +188,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             AudioFrame mFrame = new AudioFrame();
             mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
             if (mFrame.pts == AV_NOPTS_VALUE) return null;
-            mFrame.timestamp = ((long)(mFrame.pts * AudioStream.Timebase) - AudioStream.StartTime) + cfg.audio.DelayTicks + (AudioStream.StartTime - decCtx.VideoDecoder.VideoStream.StartTime);
-            //Log(Utils.TicksToTime(mFrame.timestamp));
+            //long avDiff = RelatedVideoDecoder != null &&  RelatedVideoDecoder.VideoStream != null ? AudioStream.StartTime - RelatedVideoDecoder.VideoStream.StartTime : 0;
+            mFrame.timestamp = ((long)(mFrame.pts * AudioStream.Timebase) - demuxer.StartTime) + cfg.audio.DelayTicks;
+            //Log(Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase)));
 
             try
             {
