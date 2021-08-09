@@ -4,7 +4,7 @@
     <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.5</Version>
+    <Version>1.1.6</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2021</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -13,9 +13,11 @@
     <PackageIconUrl />
     <PackageTags>flyleaf flyleaflib video media player element control</PackageTags>
     <Description>WPF Video Player Control/Element (based on FlyleafLib)</Description>
-    <PackageReleaseNotes>Required changes for FlyleafLib v3.2</PackageReleaseNotes>
-    <AssemblyVersion>1.1.5.0</AssemblyVersion>
-    <FileVersion>1.1.5.0</FileVersion>
+    <PackageReleaseNotes>Adds new speed playback feature
+Adds Live icon notification
+Fixes null bindind errors for plugins if they don't exist</PackageReleaseNotes>
+    <AssemblyVersion>1.1.6.0</AssemblyVersion>
+    <FileVersion>1.1.6.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

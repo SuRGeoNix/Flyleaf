@@ -18,15 +18,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
     public unsafe class SubtitlesDecoder : DecoderBase
     {
         public SubtitlesStream  SubtitlesStream     => (SubtitlesStream) Stream;
-        public VideoDecoder     RelatedVideoDecoder { get ; private set; }
 
         public ConcurrentQueue<SubtitlesFrame>
                                 Frames              { get; protected set; } = new ConcurrentQueue<SubtitlesFrame>();
 
-        public SubtitlesDecoder(Config config, VideoDecoder rVideoDecoder = null, int uniqueId = -1) : base(config, uniqueId)
-        {
-            RelatedVideoDecoder = rVideoDecoder;
-        }
+        public SubtitlesDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
 
         protected override unsafe int Setup(AVCodec* codec) { return 0; }
 
@@ -43,7 +39,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 if (Disposed) return;
 
-                Frames = new ConcurrentQueue<SubtitlesFrame>();
+                DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
                 if (Status == Status.Ended) Status = Status.Stopped;
             }
@@ -54,6 +50,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int ret = 0;
             int allowedErrors = cfg.decoder.MaxErrors;
             AVPacket *packet;
+            int curFrame = 0;
 
             do
             {
@@ -132,12 +129,33 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     }
                             
                     if (gotFrame < 1 || sub.num_rects < 1 ) continue;
-                    SubtitlesFrame mFrame = ProcessSubtitlesFrame(packet, &sub);
-                    if (mFrame != null)
+
+
+                    if (Speed == 1)
                     {
-                        //Log(Utils.TicksToTime((long)(mFrame.pts * SubtitlesStream.Timebase)) + " | pts -> " + mFrame.pts);
-                        Frames.Enqueue(mFrame);
+                        SubtitlesFrame mFrame = ProcessSubtitlesFrame(packet, &sub);
+                        if (mFrame != null)
+                        {
+                            //Log(Utils.TicksToTime((long)(mFrame.pts * SubtitlesStream.Timebase)) + " | pts -> " + mFrame.pts);
+                            Frames.Enqueue(mFrame);
+                        }
                     }
+                    else
+                    {
+                        curFrame++;
+                        if (curFrame >= Speed)
+                        {
+                            curFrame = 0;
+                            packet->pts /= Speed;
+                            sub.start_display_time /= (uint) Speed;
+                            sub.end_display_time /= (uint) Speed;
+
+                            SubtitlesFrame mFrame = ProcessSubtitlesFrame(packet, &sub);
+                            if (mFrame != null) Frames.Enqueue(mFrame);
+                        }
+                    }
+
+                    
 
                     avsubtitle_free(&sub);
                     av_packet_free(&packet);
@@ -340,5 +358,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             return sout;
         }
 
+        public void DisposeFrames()
+        {
+            Frames = new ConcurrentQueue<SubtitlesFrame>();
+        }
     }
 }

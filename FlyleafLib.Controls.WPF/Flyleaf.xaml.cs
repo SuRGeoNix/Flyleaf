@@ -161,8 +161,8 @@ namespace FlyleafLib.Controls.WPF
 
             if (popUpMenu != null)
             {
-                var videoItem = from object item in popUpMenu.Items where item is MenuItem && ((MenuItem)item).Header.ToString() == "Video" select item;
-                var aspectRatioItem = from object item in ((MenuItem)videoItem.ToArray()[0]).Items where ((MenuItem)item).Header.ToString() == "Aspect Ratio" select item;
+                var videoItem = from object item in popUpMenu.Items where item is MenuItem && ((MenuItem)item).Header != null && ((MenuItem)item).Header.ToString() == "Video" select item;
+                var aspectRatioItem = from object item in ((MenuItem)videoItem.ToArray()[0]).Items where ((MenuItem)item).Header != null && ((MenuItem)item).Header.ToString() == "Aspect Ratio" select item;
                 popUpAspectRatio = (MenuItem)aspectRatioItem.ToArray()[0];
                 popUpMenu.MouseMove += (o, e) => { lastMouseActivity = DateTime.UtcNow.Ticks; };
             }
@@ -274,6 +274,7 @@ namespace FlyleafLib.Controls.WPF
             SetSubsDelayMs      = new RelayCommand(SetSubsDelayMsAction);
             SetAudioDelayMs     = new RelayCommand(SetAudioDelayMsAction);
             SetSubsPositionY    = new RelayCommand(SetSubsPositionYAction);
+            SetPlaybackSpeed    = new RelayCommand(SetPlaybackSpeedAction);
 
             ResetSubsPositionY  = new RelayCommand(ResetSubsPositionYAction);
             ResetSubsDelayMs    = new RelayCommand(ResetSubsDelayMsAction);
@@ -286,6 +287,9 @@ namespace FlyleafLib.Controls.WPF
             ZoomReset           = new RelayCommand(ZoomResetAction);
             Zoom                = new RelayCommand(ZoomAction);
         }
+
+        public ICommand SetPlaybackSpeed { get; set; }
+        public void SetPlaybackSpeedAction(object speed) { Player.Speed = int.Parse(speed.ToString()); }
 
         public ICommand ZoomReset { get; set; }
         public void ZoomResetAction(object obj = null) { Player.renderer.Zoom = 0;  }
@@ -592,7 +596,7 @@ namespace FlyleafLib.Controls.WPF
                 if (newMode != CurrentMode)
                 {
                     if (newMode == ActivityMode.Idle && IsFullscreen)
-                        Dispatcher.Invoke(() => { while (ShowCursor(false) >= 0) { } isCursorHidden = true;});
+                        Dispatcher.Invoke(() => { if (popUpMenu.IsOpen || popUpMenuVideo.IsOpen || popUpMenuSubtitles.IsOpen) return; while (ShowCursor(false) >= 0) { } isCursorHidden = true;});
 
                     if (isCursorHidden && newMode == ActivityMode.FullActive)
                         Dispatcher.Invoke(() => { while (ShowCursor(true)   < 0) { } });
@@ -697,6 +701,9 @@ namespace FlyleafLib.Controls.WPF
                     Player.Seek(ms);
                     break;
 
+                case Key.OemPlus:
+                    Player.Speed = Player.Speed == 4 ? 1 : Player.Speed + 1;
+                    break;
 
                 case Key.OemOpenBrackets:
                     Audio.DelayTicks -= 100 * 10000;

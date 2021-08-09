@@ -120,6 +120,30 @@ namespace FlyleafLib.MediaPlayer
         public Status       Status          { get => _Status; private set => Set(ref _Status, value); }
         Status _Status = Status.Stopped;
 
+        public int          Speed           {
+            get => _Speed; 
+            set
+            {
+                int newValue = value;
+                if (value <= 0 ) newValue = 1;
+                if (value > 4) newValue = 4;
+                if (newValue == _Speed) return;
+
+                _Speed = newValue;
+                decoder.VideoDecoder.Speed = _Speed;
+                decoder.AudioDecoder.Speed = _Speed;
+                decoder.SubtitlesDecoder.Speed = _Speed;
+
+                decoder.VideoDecoder.DisposeFrames();
+                decoder.AudioDecoder.DisposeFrames();
+                decoder.SubtitlesDecoder.DisposeFrames();
+                vFrame = null; sFrame = null; aFrame=null;
+
+                audioPlayer?.ClearBuffer();
+            }
+        }
+        int _Speed = 1;
+
         public List<PluginBase> audioPlugins        { get; private set; }
         public List<PluginBase> videoPlugins        { get; private set; }
         public List<PluginBase> subtitlePlugins     { get; private set; }
@@ -896,7 +920,7 @@ namespace FlyleafLib.MediaPlayer
             if (decoder.VideoDecoder.VideoStream.HLSPlaylist != null)
                 SetCurTimeHLS();
             else
-                Session.SetCurTime(videoStartTicks);
+                Session.SetCurTime(videoStartTicks * Speed);
 
             Log($"[SCREAMER] Started -> {TicksToTime(videoStartTicks)} | [V: {TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {TicksToTime(aFrame.timestamp)}]"));
 
@@ -916,7 +940,7 @@ namespace FlyleafLib.MediaPlayer
                     if (decoder.VideoDecoder.VideoStream.HLSPlaylist != null)
                         SetCurTimeHLS();
                     else
-                        Session.SetCurTime(vFrame.timestamp);
+                        Session.SetCurTime(vFrame.timestamp * Speed);
                 }
                 renderer.PresentFrame(vFrame);
             }
@@ -966,7 +990,7 @@ namespace FlyleafLib.MediaPlayer
                     {
                         Status = Status.Ended;
                         if (decoder.VideoDecoder.VideoStream.HLSPlaylist == null)
-                            Session.SetCurTime(videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks));
+                            Session.SetCurTime((videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks)) * Speed);
                     }
                     if (Status != Status.Playing) break;
 
@@ -1022,7 +1046,7 @@ namespace FlyleafLib.MediaPlayer
                         if (decoder.VideoDecoder.VideoStream.HLSPlaylist != null)
                             SetCurTimeHLS();
                         else
-                            Session.SetCurTime(elapsedTicks);
+                            Session.SetCurTime(elapsedTicks * Speed);
                     }
 
                     Thread.Sleep(sleepMs);
@@ -1177,7 +1201,7 @@ namespace FlyleafLib.MediaPlayer
             if (vFrame != null)
             {
                 Log("$[VFrame: {TicksToTime(vFrame.timestamp)}]");
-                bufferedTicks = (decoder.VideoDemuxer.hlsCtx->cur_timestamp * 10) - vFrame.timestamp;
+                bufferedTicks = (decoder.VideoDemuxer.hlsCtx->cur_timestamp * 10) - (vFrame.timestamp * Speed);
             }
 
             Log($"Time [FLCur: {TicksToTime(decoder.VideoDemuxer.CurTimeLive)}] [First: {TicksToTime(decoder.VideoDemuxer.hlsCtx->first_timestamp * 10)}] [Cur: {TicksToTime(decoder.VideoDemuxer.hlsCtx->cur_timestamp * 10)}] [Start: {TicksToTime(decoder.VideoDemuxer.FormatContext->start_time * 10)}]");

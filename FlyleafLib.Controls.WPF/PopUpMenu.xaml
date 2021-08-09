@@ -1,5 +1,6 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib"
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
 
     <ResourceDictionary.MergedDictionaries>
@@ -298,13 +299,24 @@
                         </DataTemplate>
                     </MenuItem.ItemTemplate>
                 </MenuItem>
-                <MenuItem Header="OpenSubtitles" ItemsSource="{Binding Player.Plugins[OpenSubtitles].SubtitlesStreams}">
+                <MenuItem Header="OpenSubtitles">
                     <MenuItem.Style>
                         <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                            <Setter Property="Visibility" Value="Visible"/>
+                            <Setter Property="Visibility" Value="Collapsed"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding Player.Plugins[OpenSubtitles].SubtitlesStreams}" Value="{x:Null}">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                <DataTrigger Value="False">
+                                    <DataTrigger.Binding>
+                                        <MultiBinding Converter="{StaticResource CheckNull}">
+                                            <Binding Path="Player.Plugins"/>
+                                            <Binding>
+                                                <Binding.Source>
+                                                    <sys:String>OpenSubtitles</sys:String>
+                                                </Binding.Source>
+                                            </Binding>
+                                        </MultiBinding>
+                                    </DataTrigger.Binding>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Setter Property="ItemsSource" Value="{Binding Player.Plugins[OpenSubtitles].SubtitlesStreams}"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -346,7 +358,12 @@
             </MenuItem>
             <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Decoder.HWAcceleration}"/>
             <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding IsRecording}"/>
-            <MenuItem Header="Show GPU Usage"  IsCheckable="True" IsChecked="{Binding ShowGPUUsage}"/>
+            <MenuItem Header="{Binding Player.Speed}" HeaderStringFormat="Speed ({0})">
+                <MenuItem Header=" x 1"   CommandParameter="1" Command="{Binding SetPlaybackSpeed}"/>
+                <MenuItem Header=" x 2"   CommandParameter="2" Command="{Binding SetPlaybackSpeed}"/>
+                <MenuItem Header=" x 3"   CommandParameter="3" Command="{Binding SetPlaybackSpeed}"/>
+                <MenuItem Header=" x 4"   CommandParameter="4" Command="{Binding SetPlaybackSpeed}"/>
+            </MenuItem>
             <MenuItem Header="Streams">
                 <MenuItem Header="Embedded" ItemsSource="{Binding Player.Plugins[Default].VideoStreams}">
                     <MenuItem.ItemContainerStyle>
@@ -373,13 +390,24 @@
                         </DataTemplate>
                     </MenuItem.ItemTemplate>
                 </MenuItem>
-                <MenuItem Header="BitSwarm" ItemsSource="{Binding Player.Plugins[BitSwarm].VideoStreams}">
+                <MenuItem Header="BitSwarm">
                     <MenuItem.Style>
                         <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                            <Setter Property="Visibility" Value="Visible"/>
+                            <Setter Property="Visibility" Value="Collapsed"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding Player.Plugins[BitSwarm].VideoStreams}" Value="{x:Null}">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                <DataTrigger Value="False">
+                                    <DataTrigger.Binding>
+                                        <MultiBinding Converter="{StaticResource CheckNull}">
+                                            <Binding Path="Player.Plugins"/>
+                                            <Binding>
+                                                <Binding.Source>
+                                                    <sys:String>BitSwarm</sys:String>
+                                                </Binding.Source>
+                                            </Binding>
+                                        </MultiBinding>
+                                    </DataTrigger.Binding>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Setter Property="ItemsSource" Value="{Binding Player.Plugins[BitSwarm].VideoStreams}"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -394,13 +422,24 @@
                         </Style>
                     </MenuItem.ItemContainerStyle>
                 </MenuItem>
-                <MenuItem Header="YoutubeDL" ItemsSource="{Binding Player.Plugins[YoutubeDL].VideoStreams}">
+                <MenuItem Header="YoutubeDL">
                     <MenuItem.Style>
                         <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                            <Setter Property="Visibility" Value="Visible"/>
+                            <Setter Property="Visibility" Value="Collapsed"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding Player.Plugins[YoutubeDL].VideoStreams}" Value="{x:Null}">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                <DataTrigger Value="False">
+                                    <DataTrigger.Binding>
+                                        <MultiBinding Converter="{StaticResource CheckNull}">
+                                            <Binding Path="Player.Plugins"/>
+                                            <Binding>
+                                                <Binding.Source>
+                                                    <sys:String>YoutubeDL</sys:String>
+                                                </Binding.Source>
+                                            </Binding>
+                                        </MultiBinding>
+                                    </DataTrigger.Binding>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Setter Property="ItemsSource" Value="{Binding Player.Plugins[YoutubeDL].VideoStreams}"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -440,8 +479,11 @@
         </MenuItem>
         
         <Separator />
-        <MenuItem Header="Show Debug" IsCheckable="True" IsChecked="{Binding ShowDebug}"/>
-
+        <MenuItem Header="Misc" Icon="{materialDesign:PackIcon Kind=SettingsOutline}">
+            <MenuItem Header="Show Debug" IsCheckable="True" IsChecked="{Binding ShowDebug}"/>
+            <MenuItem Header="Show GPU Usage"  IsCheckable="True" IsChecked="{Binding ShowGPUUsage}"/>
+        </MenuItem>
+        
         <Separator />
         <MenuItem Header="Exit" Icon="{materialDesign:PackIcon ExitToApp}" Command="{Binding ExitApplication}"/>
     </ContextMenu>
