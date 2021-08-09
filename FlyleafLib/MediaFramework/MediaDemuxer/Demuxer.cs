@@ -429,8 +429,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
                         if (ret < 0) Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
                     }
-
+                    
                     DisposePackets();
+                    hlsPrevFirstTimestamp = -1;
+                    UpdateHLSTime();
                     //if (hlsCtx != null && VideoStream != null) { Log($"2 Seq. [Cur: {VideoStream.HLSPlaylist->cur_seq_no}]"); hlsPrevFirstTimestamp = -1; }
                 }
 
@@ -480,8 +482,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 }
 
                 // Check for Errors / End
-                if (Interrupter.ForceInterrupt != 0) { av_packet_unref(packet); gotAVERROR_EXIT = true; continue; }
-                //if (Interrupter.ForceInterrupt == 1) { av_packet_unref(packet); gotAVERROR_EXIT = true; continue; }
+                if (Interrupter.ForceInterrupt != 0 && Config.AllowInterrupts) { av_packet_unref(packet); gotAVERROR_EXIT = true; continue; }
 
                 // Possible check if interrupt/timeout and we dont seek to reset the backend pb->pos = 0?
 
