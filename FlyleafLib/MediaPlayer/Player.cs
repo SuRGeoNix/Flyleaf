@@ -246,6 +246,7 @@ namespace FlyleafLib.MediaPlayer
 
             // Stop Screamer / MediaBuffer
             Status = Status.Stopped;
+            if (curVideoPlugin != null && curVideoPlugin.PluginName == "BitSwarm") curVideoPlugin.OnInitializingSwitch(); 
             EnsureThreadDone(tPlay);
 
             // Inform Plugins (OnInitializing)
@@ -277,6 +278,7 @@ namespace FlyleafLib.MediaPlayer
 
             // Stop Screamer / MediaBuffer
             Status = Status.Stopped;
+            if (curVideoPlugin != null && curVideoPlugin.PluginName == "BitSwarm") curVideoPlugin.OnInitializingSwitch(); 
             EnsureThreadDone(tPlay);
 
             // Inform Plugins (OnInitializing)
@@ -647,7 +649,7 @@ namespace FlyleafLib.MediaPlayer
 
                     finally
                     {
-                        if (Status == Status.Stopped) decoder?.Stop(); else decoder?.Pause();
+                        if (Status == Status.Stopped) { if (curVideoPlugin != null && curVideoPlugin.PluginName == "BitSwarm") curVideoPlugin.OnInitializingSwitch(); decoder?.Stop(); } else decoder?.Pause();
                         audioPlayer?.ClearBuffer();
                         VideoDecoder.DisposeFrame(vFrame); vFrame = null;
                         TimeEndPeriod(1);
@@ -983,7 +985,7 @@ namespace FlyleafLib.MediaPlayer
                 aDistanceMs     = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
                 sDistanceMs     = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
                 sleepMs         = Math.Min(vDistanceMs, aDistanceMs) - 1;
-                
+
                 if (sleepMs < 0) sleepMs = 0;
                 if (sleepMs > 2)
                 {
