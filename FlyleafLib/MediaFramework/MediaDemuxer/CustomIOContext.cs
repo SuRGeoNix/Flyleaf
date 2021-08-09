@@ -56,8 +56,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
             Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
+            if (demuxer.Status == Status.Stopping) return AVERROR_EXIT;
             int ret = demuxer.CustomIOContext.stream.Read(demuxer.CustomIOContext.buffer, 0, bufferSize);
-            //if (demuxer.Status != Status.Demuxing && demuxer.Status != Status.QueueFull) return AVERROR_EXIT;
+            if (demuxer.Status == Status.Stopping) return AVERROR_EXIT;
 
             if (ret < 0)
             {
