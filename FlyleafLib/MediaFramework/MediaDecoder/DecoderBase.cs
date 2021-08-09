@@ -17,6 +17,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public StreamBase               Stream          { get; protected set; }
         public AVCodecContext*          CodecCtx        => codecCtx;
         public Action<DecoderBase>      CodecChanged    { get; set; }
+        public int                      Speed           { get; set; } = 1;
 
         protected AVFrame*          frame;
         protected AVCodecContext*   codecCtx;

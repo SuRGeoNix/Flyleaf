@@ -74,5 +74,6 @@
     <fl:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
     <flwpf:VolumeToLevelsConverter x:Key="VolumeToLevels"/>
     <flwpf:QualityToLevelsConverter x:Key="QualityToLevels"/>
-    
+    <flwpf:CheckNullConverter x:Key="CheckNull"/>
+
 </ResourceDictionary>
