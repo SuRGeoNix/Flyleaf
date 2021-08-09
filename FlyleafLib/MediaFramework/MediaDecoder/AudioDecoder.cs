@@ -15,7 +15,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
     public unsafe class AudioDecoder : DecoderBase
     {
         public AudioStream      AudioStream         => (AudioStream) Stream;
-        public VideoDecoder     RelatedVideoDecoder { get ; private set; }
 
         public ConcurrentQueue<AudioFrame>
                                 Frames              { get; protected set; } = new ConcurrentQueue<AudioFrame>();
@@ -29,10 +28,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public int              m_max_dst_nb_samples;
         public int              m_dst_linesize;
 
-        public AudioDecoder(Config config, VideoDecoder rVideoDecoder = null, int uniqueId = -1) : base(config, uniqueId)
-        {
-            RelatedVideoDecoder = rVideoDecoder;
-        }
+        public AudioDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
 
         protected override unsafe int Setup(AVCodec* codec)
         {
@@ -83,6 +79,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int allowedErrors = cfg.decoder.MaxErrors;
             AVPacket *packet;
 
+            int curFrame = 0;
             do
             {
                 // Wait until Queue not Full or Stopped
@@ -173,8 +170,25 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         ret = avcodec_receive_frame(codecCtx, frame);
                         if (ret != 0) { av_frame_unref(frame); break; }
 
-                        AudioFrame mFrame = ProcessAudioFrame(frame);
-                        if (mFrame != null) Frames.Enqueue(mFrame);
+                        if (Speed == 1)
+                        {
+                            AudioFrame mFrame = ProcessAudioFrame(frame);
+                            if (mFrame != null) Frames.Enqueue(mFrame);
+                        }
+                        else
+                        {
+                            curFrame++;
+                            if (curFrame >= Speed)
+                            {
+                                curFrame = 0;
+                                if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
+                                    frame->pts /= Speed;
+                                else
+                                    frame->best_effort_timestamp /= Speed;
+                                AudioFrame mFrame = ProcessAudioFrame(frame);
+                                if (mFrame != null) Frames.Enqueue(mFrame);
+                            }
+                        }
 
                         av_frame_unref(frame);
                     }
@@ -188,7 +202,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             AudioFrame mFrame = new AudioFrame();
             mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
             if (mFrame.pts == AV_NOPTS_VALUE) return null;
-            //long avDiff = RelatedVideoDecoder != null &&  RelatedVideoDecoder.VideoStream != null ? AudioStream.StartTime - RelatedVideoDecoder.VideoStream.StartTime : 0;
             mFrame.timestamp = ((long)(mFrame.pts * AudioStream.Timebase) - demuxer.StartTime) + cfg.audio.DelayTicks;
             //Log(Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase)));
 

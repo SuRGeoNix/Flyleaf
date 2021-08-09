@@ -45,8 +45,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
             SubtitlesDemuxer    = new Demuxer(Config.demuxer, MediaType.Subs,  uniqueId);
 
             VideoDecoder        = new VideoDecoder(Renderer, Config, uniqueId);
-            AudioDecoder        = new AudioDecoder(Config, VideoDecoder, uniqueId);
-            SubtitlesDecoder    = new SubtitlesDecoder(Config, VideoDecoder, uniqueId);
+            AudioDecoder        = new AudioDecoder(Config, uniqueId);
+            SubtitlesDecoder    = new SubtitlesDecoder(Config, uniqueId);
         }
 
         public int Open(string url)
