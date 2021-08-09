@@ -188,6 +188,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int allowedErrors = cfg.decoder.MaxErrors;
             AVPacket *packet;
 
+            int curFrame = 0;
+
             do
             {
                 // Wait until Queue not Full or Stopped
@@ -297,8 +299,25 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 keyFrameRequired = false;
                         }
 
-                        VideoFrame mFrame = ProcessVideoFrame(frame);
-                        if (mFrame != null) Frames.Enqueue(mFrame);
+                        if (Speed == 1)
+                        {
+                            VideoFrame mFrame = ProcessVideoFrame(frame);
+                            if (mFrame != null) Frames.Enqueue(mFrame);
+                        }
+                        else
+                        {
+                            curFrame++;
+                            if (curFrame >= Speed)
+                            {
+                                curFrame = 0;
+                                if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
+                                    frame->pts /= Speed;
+                                else
+                                    frame->best_effort_timestamp /= Speed;
+                                VideoFrame mFrame = ProcessVideoFrame(frame);
+                                if (mFrame != null) Frames.Enqueue(mFrame);
+                            }
+                        }
 
                         av_frame_unref(frame);
                     }
