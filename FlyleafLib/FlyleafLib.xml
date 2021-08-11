@@ -44,6 +44,31 @@
             Player's main configuration
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.Player.LowLatency">
+            <summary>
+            Sets playback mode to low latency (video only)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.Player.LowLatencyMaxVideoFrames">
+            <summary>
+            Limit before dropping frames. Lower value means lower latency (>=1)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.Player.LowLatencyMaxVideoPackets">
+            <summary>
+            Limit before dropping frames. Lower value means lower latency (>=0)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.Demuxer.AllowInterrupts">
+            <summary>
+            Start/Seek/Pause/Stop will be faster but might not work properly with some protocols
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.Demuxer.ExcludeInterruptFmts">
+            <summary>
+            List of FFmpeg formats to be excluded from interrupts (if AllowInterrupts = true)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.Demuxer.MinQueueSize">
             <summary>
             Minimum required demuxed packets before playing
@@ -59,35 +84,35 @@
             Maximum allowed errors before stopping
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.AudioFormatOpt">
+        <member name="P:FlyleafLib.Config.Demuxer.CloseTimeout">
             <summary>
-            FFmpeg's format options for audio demuxer
+            avformat_close_input timeout (ticks) for protocols that support interrupts
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.VideoFormatOpt">
+        <member name="P:FlyleafLib.Config.Demuxer.OpenTimeout">
             <summary>
-            FFmpeg's format options for main (video) demuxer
+            avformat_open_input + avformat_find_stream_info timeout (ticks) for protocols that support interrupts (should be related to probesize/analyzeduration)
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.SubsFormatOpt">
+        <member name="P:FlyleafLib.Config.Demuxer.ReadTimeout">
             <summary>
-            FFmpeg's format options for subtitles demuxer
+            av_read_frame timeout (ticks) for protocols that support interrupts
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.AudioFormatFlags">
+        <member name="P:FlyleafLib.Config.Demuxer.SeekTimeout">
             <summary>
-            FFmpeg's format flags for audio demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
+            av_seek_frame timeout (ticks) for protocols that support interrupts
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.VideoFormatFlags">
+        <member name="P:FlyleafLib.Config.Demuxer.FormatFlags">
             <summary>
-            FFmpeg's format flags for video demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
-            eg. config.demuxer.VideoFormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
+            FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
+            eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.SubsFormatFlags">
+        <member name="P:FlyleafLib.Config.Demuxer.FormatOpt">
             <summary>
-            FFmpeg's format flags for subtitles demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
+            FFmpeg's format options for demuxer
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.Decoder.HWAcceleration">
@@ -234,16 +259,78 @@
             <param name="absolutePath">Provide your custom absolute path or :1 for current or :2 for Libs\(x86 or x64 dynamic)\FFmpeg from current to base</param>
             <param name="verbosity">FFmpeg's verbosity (24: Warning, 64: Max offset ...) (used only in DEBUG)</param>
         </member>
-        <member name="E:FlyleafLib.MediaFramework.MediaDemuxer.DemuxerBase.DownloadCompleted">
+        <member name="T:FlyleafLib.MediaFramework.MediaContext.Downloader">
             <summary>
-            Fires on partial or full download completed
+            Downloads or remuxes to different format any ffmpeg valid input url
             </summary>
         </member>
-        <member name="M:FlyleafLib.MediaFramework.MediaDemuxer.DemuxerBase.Download(System.String)">
+        <member name="P:FlyleafLib.MediaFramework.MediaContext.Downloader.Demuxer">
             <summary>
-            Downloads the currently configured AVS streams (Experimental)
+            The backend demuxer. Access this to enable the required streams for downloading
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaContext.Downloader.Remuxer">
+            <summary>
+            The backend remuxer. Normally you shouldn't access this
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaContext.Downloader.CurTime">
+            <summary>
+            The current timestamp of the frame starting from 0 (Ticks)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaContext.Downloader.Duration">
+            <summary>
+            The total duration of the input (Ticks)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaContext.Downloader.DownloadPercentage">
+            <summary>
+            The percentage of the current download process (0 for live streams)
+            </summary>
+        </member>
+        <member name="E:FlyleafLib.MediaFramework.MediaContext.Downloader.DownloadCompleted">
+            <summary>
+            Fires on download completed or failed
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Open(System.String)">
+            <summary>
+            Opens the demuxer and fills streams info
+            </summary>
+            <param name="url">The filename or url to open</param>
+            <returns></returns>
+        </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Download(System.String)">
+            <summary>
+            Downloads the currently configured AVS streams
             </summary>
             <param name="filename">The filename for the downloaded video. The file extension will let the demuxer to choose the output format (eg. mp4).</param>
+        </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Dispose">
+            <summary>
+            Stops and disposes the downloader
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.InUse">
+            <summary>
+            Whether the current stream is enabled
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.Used">
+            <summary>
+            How many times has been used
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.Tag">
+            <summary>
+            Tag/Opaque for plugins (mainly to match streams with their own streams)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaStream.VideoStream.Movie">
+            <summary>
+            Stream's Movie info from the current plugin's Playlist
+            </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Volume">
             <summary>
@@ -347,11 +434,12 @@
             Access this only from Plugins
             </summary>
         </member>
-        <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.String)">
+        <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.String,System.Boolean)">
             <summary>
             Opens a new external Video or Subtitle url
             </summary>
             <param name="url"></param>
+            <param name="openDefault">Will open the best match for audio/subtitles</param>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.IO.Stream)">
             <summary>
@@ -359,11 +447,12 @@
             </summary>
             <param name="stream"></param>
         </member>
-        <member name="M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaFramework.MediaStream.StreamBase)">
+        <member name="M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaFramework.MediaStream.StreamBase,System.Boolean)">
             <summary>
             Opens an existing AVS stream from Plugins[_PLUGIN_NAME_].[AVS]Stream
             </summary>
-            <param name="inputStream"></param>
+            <param name="inputStream">Stream to be opened</param>
+            <param name="openDefault">In case of video stream will open the best match audio</param>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Play">
             <summary>
@@ -478,24 +567,61 @@
             Player's current time or user's current seek time (if set from here seek's direction will be foreward)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.InUse">
+        <member name="T:FFmpeg.AutoGen.ffmpegEx">
             <summary>
-            Whether the current stream is enabled
+            Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.Used">
+        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.raw_packet_size">
+            raw packet size, including FEC if present 
+        </member>
+        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.auto_guess">
+            if true, all pids are analyzed to find streams 
+        </member>
+        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.mpeg2ts_compute_pcr">
+            compute exact PCR for each transport stream packet 
+        </member>
+        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.fix_teletext_pts">
+            fix dvb teletext pts                                 
+        </member>
+        <!-- Badly formed XML comment ignored for member "F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.pcr_incr" -->
+        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.stop_parse">
+            stop parsing loop 
+        </member>
+        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.pkt">
+            packet containing Audio/Video data 
+        </member>
+        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.last_pos">
+            to detect seek 
+        </member>
+        <member name="T:XamlGeneratedNamespace.GeneratedInternalTypeHelper">
             <summary>
-            How many times has been used
+            GeneratedInternalTypeHelper
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.Tag">
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateInstance(System.Type,System.Globalization.CultureInfo)">
             <summary>
-            Tag/Opaque for plugins (mainly to match streams with their own streams)
+            CreateInstance
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaStream.VideoStream.Movie">
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.GetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Globalization.CultureInfo)">
             <summary>
-            Stream's Movie info from the current plugin's Playlist
+            GetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.SetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            SetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateDelegate(System.Type,System.Object,System.String)">
+            <summary>
+            CreateDelegate
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.AddEventHandler(System.Reflection.EventInfo,System.Object,System.Delegate)">
+            <summary>
+            AddEventHandler
             </summary>
         </member>
     </members>

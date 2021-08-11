@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Windows.Forms;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -34,7 +35,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         const int               SCALING_LQ = SWS_BICUBIC;
 
         SwsContext*             swsCtx;
-        IntPtr                  outBufferPtr; 
+        IntPtr                  outBufferPtr;
         int                     outBufferSize;
         byte_ptrArray4          outData;
         int_array4              outLineSize;
@@ -60,17 +61,19 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             return false;
         }
-        internal int InitVA(SharpDX.Direct3D11.Device device)
+        internal int InitVA(Control control = null)
         {
             int ret;
 
-            if (device == null || hw_device_ctx != null) return -1;
+            Renderer = new Renderer(this, Config, control, UniqueId);
+
+            if (Renderer.Device == null || hw_device_ctx != null) return -1;
 
             hw_device_ctx  = av_hwdevice_ctx_alloc(HW_DEVICE);
 
             AVHWDeviceContext* device_ctx = (AVHWDeviceContext*) hw_device_ctx->data;
             AVD3D11VADeviceContext* d3d11va_device_ctx = (AVD3D11VADeviceContext*) device_ctx->hwctx;
-            d3d11va_device_ctx->device = (ID3D11Device*) device.NativePointer;
+            d3d11va_device_ctx->device = (ID3D11Device*) Renderer.Device.NativePointer;
 
             ret = av_hwdevice_ctx_init(hw_device_ctx);
             if (ret != 0)
@@ -88,31 +91,20 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
             hw_device_ctx = null;
+            Renderer.Dispose();
         }
         #endregion
 
-        public VideoDecoder(Renderer renderer, Config config, int uniqueId = -1) : base(config, uniqueId)
+        public VideoDecoder(Config config, Control control = null, int uniqueId = -1) : base(config, uniqueId)
         {
-            Renderer = renderer;
-
-            if (renderer == null)
-            {
-                // TODO to apply pixel shaders and convert to bitmap
-                SharpDX.Direct3D11.Device device = new SharpDX.Direct3D11.Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport);
-                InitVA(device);
-            }
-            else
-            {
-                renderer.VideoDecoder = this;
-                InitVA(renderer.Device);
-            }
+            InitVA(control);
         }
 
         protected override int Setup(AVCodec* codec)
         {
             VideoAccelerated = false;
 
-            if (cfg.decoder.HWAcceleration)
+            if (Config.decoder.HWAcceleration)
             {
                 if (CheckCodecSupport(codec))
                 {
@@ -131,7 +123,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             else
                 Log("[VA] Disabled");
 
-            codecCtx->thread_count = Math.Min(cfg.decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
+            codecCtx->thread_count = Math.Min(Config.decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
             codecCtx->thread_type  = 0;
 
             int bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
@@ -185,7 +177,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         protected override void RunInternal()
         {
             int ret = 0;
-            int allowedErrors = cfg.decoder.MaxErrors;
+            int allowedErrors = Config.decoder.MaxErrors;
             AVPacket *packet;
 
             int curFrame = 0;
@@ -193,12 +185,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             do
             {
                 // Wait until Queue not Full or Stopped
-                if (Frames.Count >= cfg.decoder.MaxVideoFrames)
+                if (Frames.Count >= Config.decoder.MaxVideoFrames)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (Frames.Count >= cfg.decoder.MaxVideoFrames && Status == Status.QueueFull) Thread.Sleep(20);
+                    while (Frames.Count >= Config.decoder.MaxVideoFrames && Status == Status.QueueFull) Thread.Sleep(20);
 
                     lock (lockStatus)
                     {
@@ -318,8 +310,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 if (mFrame != null) Frames.Enqueue(mFrame);
                             }
                         }
-
-                        av_frame_unref(frame);
                     }
 
                 } // Lock CodecCtx
@@ -336,7 +326,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 VideoFrame mFrame = new VideoFrame();
                 mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                 if (mFrame.pts == AV_NOPTS_VALUE) return null;
-                mFrame.timestamp = (long)(mFrame.pts * VideoStream.Timebase) - demuxer.StartTime + cfg.audio.LatencyTicks;
+                mFrame.timestamp = (long)(mFrame.pts * VideoStream.Timebase) - demuxer.StartTime + Config.audio.LatencyTicks;
                 //Log(Utils.TicksToTime(mFrame.timestamp));
 
                 // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)
@@ -434,7 +424,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         outBufferPtr    = Marshal.AllocHGlobal(outBufferSize);
                         av_image_fill_arrays(ref outData, ref outLineSize, (byte*) outBufferPtr, VOutPixelFormat, codecCtx->width, codecCtx->height, 1);
                         
-                        int vSwsOptFlags= cfg.video.SwsHighQuality ? SCALING_HQ : SCALING_LQ;
+                        int vSwsOptFlags= Config.video.SwsHighQuality ? SCALING_HQ : SCALING_LQ;
                         swsCtx          = sws_getContext(codecCtx->coded_width, codecCtx->coded_height, codecCtx->pix_fmt, codecCtx->width, codecCtx->height, VOutPixelFormat, vSwsOptFlags, null, null, null);
                         if (swsCtx == null) { Log($"[ProcessVideoFrame] [Error] Failed to allocate SwsContext"); return null; }
                     }
@@ -448,12 +438,88 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     mFrame.textures[0]  = new Texture2D(Renderer.Device, textDesc, new DataBox[] { db });
                 }
 
+                av_frame_unref(frame);
                 return mFrame;
 
             } catch (Exception e)
             {
                 Log("[ProcessVideoFrame] [Error] " + e.Message + " - " + e.StackTrace);
+                av_frame_unref(frame);
                 return null; 
+            }
+        }
+
+        /// <summary>
+        /// Seeks and demuxes until the requested frame
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns>The requested VideoFrame or null on failure</returns>
+        public VideoFrame GetFrame(int index) // Zero-based frame index
+        {
+            int ret;
+            long frameTimestamp = (long) (index * (10000000 / av_q2d(VideoStream.AVStream->avg_frame_rate))); // Calculation of FrameX timestamp (based on fps/avgFrameDuration)
+            //System.Diagnostics.Debug.WriteLine($"Searching for {Utils.TicksToTime(frameTimestamp)}");
+
+            // Seeking at frameTimestamp or previous I/Key frame and flushing codec
+            ret = av_seek_frame(demuxer.FormatContext, -1, (VideoStream.StartTime + frameTimestamp) / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
+            avcodec_flush_buffers(codecCtx);
+            if (ret < 0) return null; // handle seek error
+
+            while (GetNextFrame() == 0)
+            {
+                // Skip frames before our actual requested frame
+                if ((long)(frame->best_effort_timestamp * VideoStream.Timebase) / 10000 < frameTimestamp / 10000)
+                {
+                    //System.Diagnostics.Debug.WriteLine($"[Skip] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}]");
+                    av_frame_unref(frame);
+                    continue; 
+                }
+
+                //System.Diagnostics.Debug.WriteLine($"[Found] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}]");
+                return ProcessVideoFrame(frame);
+            }
+
+            return null;
+        }
+
+
+        /// <summary>
+        /// Demuxes until the next valid video frame (will be stored in AVFrame* frame)
+        /// </summary>
+        /// <returns>0 on success</returns>
+        public int GetNextFrame()
+        {
+
+            /* TODO
+             * 1. Draining
+             * 2. What about packets with more than one frames?!
+             */
+
+            int ret;
+
+            while (true)
+            {
+                ret = demuxer.GetNextPacket(VideoStream.StreamIndex);
+                if (ret != 0) return ret; // handle EOF/error
+
+                // Send Packet for decoding
+                ret = avcodec_send_packet(codecCtx, demuxer.packet);
+                av_packet_unref(demuxer.packet);
+                if (ret != 0) return ret; // handle EOF/error
+
+                while (true)
+                {
+                    // Receive all available frames for the decoder
+                    ret = avcodec_receive_frame(codecCtx, frame);
+                    if (ret != 0) { av_frame_unref(frame); return ret; }
+
+                    // Get frame pts (prefer best_effort_timestamp)
+                    if (frame->best_effort_timestamp == AV_NOPTS_VALUE) frame->best_effort_timestamp = frame->pts;
+                    if (frame->best_effort_timestamp == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
+
+                    av_packet_unref(demuxer.packet);
+                    return 0;
+                }
             }
         }
 
