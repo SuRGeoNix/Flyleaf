@@ -17,6 +17,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public StreamBase               Stream          { get; protected set; }
         public AVCodecContext*          CodecCtx        => codecCtx;
         public Action<DecoderBase>      CodecChanged    { get; set; }
+        public Config                   Config          { get; protected set; }
         public int                      Speed           { get; set; } = 1;
 
         protected AVFrame*          frame;
@@ -24,11 +25,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         internal  object            lockCodecCtx    = new object();
 
         protected Demuxer           demuxer;
-        protected Config            cfg;
 
         public DecoderBase(Config config, int uniqueId = -1) : base(uniqueId)
         {
-            cfg     = config;
+            Config = config;
 
             if (this is VideoDecoder)
                 Type = MediaType.Video;
@@ -49,7 +49,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 try
                 {
-                    
+
                     if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return -1;
                     lock (stream.Demuxer.lockActions)
                     {

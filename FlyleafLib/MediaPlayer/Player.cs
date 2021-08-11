@@ -155,7 +155,7 @@ namespace FlyleafLib.MediaPlayer
 
         #region Properties Internal
         public AudioPlayer      audioPlayer;
-        public Renderer         renderer => decoder?.Renderer;
+        public Renderer         renderer => decoder?.VideoDecoder?.Renderer;
         public DecoderContext   decoder;
 
         Thread tOpenVideo, tOpenAudio, tOpenSubs, tSeek, tPlay;
@@ -220,7 +220,7 @@ namespace FlyleafLib.MediaPlayer
                 _Control = newValue;
                 _Control.Player = this;
                 
-                decoder = new DecoderContext(Control, Config, PlayerId);
+                decoder = new DecoderContext(Config, Control, PlayerId);
                 decoder.AudioDecoder.CodecChanged = (a) => { audioPlayer.Initialize(decoder.AudioDecoder.CodecCtx->sample_rate); };
 
                 renderer.PresentFrame();
