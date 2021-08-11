@@ -76,7 +76,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         long                        hlsPrevFirstTimestamp = -1;
         internal GCHandle           handle;
         internal object             lockFmtCtx  = new object();
-        object                      lockHLSTime = new object();
+        public AVPacket*            packet;
 
         public Demuxer(Config.Demuxer config, MediaType type = MediaType.Video, int uniqueId = -1, bool useAVSPackets = true) : base(uniqueId)
         {
@@ -87,7 +87,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             CurPackets      = GetPacketsPtr(Type);
 
             Recorder        = new Remuxer(UniqueId);
-            Interrupter     = new Interrupter();
+            Interrupter     = new Interrupter(this);
             CustomIOContext = new CustomIOContext(this);
 
             threadName = $"Demuxer: {Type.ToString().PadLeft(5, ' ')}";
@@ -101,6 +101,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             lock (lockActions) 
             {
                 Dispose();
+
+                if (String.IsNullOrEmpty(url) && stream == null) return -1;
 
                 int ret = -1;
                 Url = url;
@@ -117,8 +119,17 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     // Allocate / Prepare Format Context
                     fmtCtx = avformat_alloc_context();
-                    fmtCtx->interrupt_callback.callback = Interrupter.GetCallBackFunc();
-                    fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
+                    if (Config.AllowInterrupts)
+                    {
+                        fmtCtx->interrupt_callback.callback = Interrupter.GetCallBackFunc();
+                        fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
+                    }
+                    else
+                    {
+                        Config.AllowReadInterrupts = false;
+                        Config.AllowTimeouts = false;
+                    }
+
                     fmtCtx->flags |= flags;
 
                     if (stream != null)
@@ -145,7 +156,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     else if (Type == MediaType.Subs && SubtitlesStreams.Count == 0)
                         { Log($"[Format] [ERROR-5] No subtitles stream found"); return ret = -5; }
 
-                    Interrupter.AllowInterrupts = Config.AllowInterrupts && !Config.ExcludeInterruptFmts.Contains(Name);
+                    packet = av_packet_alloc();
                     Disposed = false;
                     Status = Status.Stopped;
 
@@ -403,7 +414,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 int ret;
 
-                Interrupter.ForceInterrupt = 1;
+                if (Config.AllowReadInterrupts) Interrupter.ForceInterrupt = 1;
                 lock (lockFmtCtx)
                 {
                     Interrupter.ForceInterrupt = 0;
@@ -446,7 +457,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             int allowedErrors = Config.MaxErrors;
             bool gotAVERROR_EXIT = false;
 
-            AVPacket* packet = av_packet_alloc();
             do
             {
                 // Wait until Queue not Full or Stopped
@@ -482,7 +492,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 }
 
                 // Check for Errors / End
-                if (Interrupter.ForceInterrupt != 0 && Config.AllowInterrupts) { av_packet_unref(packet); gotAVERROR_EXIT = true; continue; }
+                if (Interrupter.ForceInterrupt != 0) { av_packet_unref(packet); gotAVERROR_EXIT = true; continue; }
 
                 // Possible check if interrupt/timeout and we dont seek to reset the backend pb->pos = 0?
 
@@ -558,6 +568,28 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             if (IsRecording) StopRecording();
         }
 
+        /// <summary>
+        /// Demuxes until the a valid packet within EnabledStreams or the specified stream (Will be stored in AVPacket* packet)
+        /// </summary>
+        /// <param name="streamIndex">Find packets only for the specified stream index</param>
+        /// <returns></returns>
+        public int GetNextPacket(int streamIndex = -1)
+        {
+            int ret;
+
+            while (true)
+            {
+                ret = av_read_frame(fmtCtx, packet);
+                if (ret != 0) { av_packet_unref(packet); return ret; }
+
+                if ((streamIndex == -1 && !EnabledStreams.Contains(packet->stream_index)) || 
+                    (streamIndex != -1 && packet->stream_index != streamIndex))
+                { av_packet_unref(packet); continue; }
+
+                return 0;
+            }
+        }
+
         public void DisposePackets()
         {
             if (UseAVSPackets)
@@ -610,6 +642,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     Interrupter.Request(Requester.Close);
                     fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
                 }
+
+                if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
 
                 CustomIOContext.Dispose();
 

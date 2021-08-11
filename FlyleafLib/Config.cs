@@ -88,12 +88,23 @@ namespace FlyleafLib
             }
 
             /// <summary>
-            /// Start/Seek/Pause/Stop will be faster but might not work properly with some protocols
+            /// Whether to enable demuxer's custom interrupt callback (for timeouts and interrupts)
             /// </summary>
-            public bool             AllowInterrupts { get; set; } = true;
+            public bool             AllowInterrupts     { get; set; } = true;
 
             /// <summary>
-            /// List of FFmpeg formats to be excluded from interrupts (if AllowInterrupts = true)
+            /// Whether to allow interrupts during av_read_frame
+            /// </summary>
+            public bool             AllowReadInterrupts { get; set; } = true;
+
+            /// <summary>
+            /// Whether to allow timeouts checks within the interrupts callback
+            /// </summary>
+            public bool             AllowTimeouts       { get; set; } = true;
+
+
+            /// <summary>
+            /// List of FFmpeg formats to be excluded from interrupts
             /// </summary>
             public List<string>     ExcludeInterruptFmts { get; set; } = new List<string>() { "rtsp" };
 

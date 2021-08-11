@@ -26,25 +26,21 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         // Decoders
         public VideoDecoder         VideoDecoder        { get; private set; }
-        public Renderer             Renderer            { get; private set; }
         public AudioDecoder         AudioDecoder        { get; private set; }
         public SubtitlesDecoder     SubtitlesDecoder    { get; private set; }
         public DecoderBase GetDecoderPtr(MediaType type){ return type == MediaType.Audio ? (DecoderBase)AudioDecoder : (type == MediaType.Video ? (DecoderBase)VideoDecoder : (DecoderBase)SubtitlesDecoder); }
 
-        public DecoderContext(Control control = null, Config config = null, int uniqueId = -1)
+        public DecoderContext(Config config = null, Control control = null, int uniqueId = -1)
         {
             Master.RegisterFFmpeg();
             Config  = config == null ? new Config() : config;
             UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
 
-            if (control != null)
-                Renderer        = new Renderer(control, Config, uniqueId);
-
             AudioDemuxer        = new Demuxer(Config.demuxer, MediaType.Audio, uniqueId);
             VideoDemuxer        = new Demuxer(Config.demuxer, MediaType.Video, uniqueId);
             SubtitlesDemuxer    = new Demuxer(Config.demuxer, MediaType.Subs,  uniqueId);
 
-            VideoDecoder        = new VideoDecoder(Renderer, Config, uniqueId);
+            VideoDecoder        = new VideoDecoder(Config, control, uniqueId);
             AudioDecoder        = new AudioDecoder(Config, uniqueId);
             SubtitlesDecoder    = new SubtitlesDecoder(Config, uniqueId);
         }
@@ -292,22 +288,19 @@ namespace FlyleafLib.MediaFramework.MediaContext
                             if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
                             {
                                 Log($"Invalid Seek to Keyframe, skip... {frame->pict_type} | {frame->key_frame}");
+                                av_frame_unref(frame);
+                                continue;
                             }
-                            else
+                            VideoFrame mFrame = VideoDecoder.ProcessVideoFrame(frame);
+                            if (mFrame != null)
                             {
-                                VideoFrame mFrame = VideoDecoder.ProcessVideoFrame(frame);
-                                if (mFrame != null)
-                                {
-                                    Log(Utils.TicksToTime((long)(mFrame.pts * VideoDecoder.VideoStream.Timebase)) + " | pts -> " + mFrame.pts);
-                                    VideoDecoder.Frames.Enqueue(mFrame);
-                                    av_frame_unref(frame);
-                                    VideoDecoder.keyFrameRequired = false;
+                                Log(Utils.TicksToTime((long)(mFrame.pts * VideoDecoder.VideoStream.Timebase)) + " | pts -> " + mFrame.pts);
+                                VideoDecoder.Frames.Enqueue(mFrame);
+                                VideoDecoder.keyFrameRequired = false;
 
-                                    return mFrame.timestamp;
-                                }
+                                av_frame_free(&frame);
+                                return mFrame.timestamp;
                             }
-
-                            av_frame_unref(frame);
                         }
 
                         break; // Switch break
@@ -317,6 +310,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             } // While
 
             av_packet_free(&packet);
+            av_frame_free(&frame);
             return -1;
         }
 
@@ -345,7 +339,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
             AudioDemuxer.Dispose();
             SubtitlesDemuxer.Dispose();
             VideoDemuxer.Dispose();
-            Renderer.Dispose();
         }
 
         private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [DecoderContext] {msg}"); }
