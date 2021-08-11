@@ -76,19 +76,19 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         protected override void RunInternal()
         {
             int ret = 0;
-            int allowedErrors = cfg.decoder.MaxErrors;
+            int allowedErrors = Config.decoder.MaxErrors;
             AVPacket *packet;
 
             int curFrame = 0;
             do
             {
                 // Wait until Queue not Full or Stopped
-                if (Frames.Count >= cfg.decoder.MaxAudioFrames)
+                if (Frames.Count >= Config.decoder.MaxAudioFrames)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (Frames.Count >= cfg.decoder.MaxAudioFrames && Status == Status.QueueFull) Thread.Sleep(20);
+                    while (Frames.Count >= Config.decoder.MaxAudioFrames && Status == Status.QueueFull) Thread.Sleep(20);
 
                     lock (lockStatus)
                     {
@@ -202,7 +202,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             AudioFrame mFrame = new AudioFrame();
             mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
             if (mFrame.pts == AV_NOPTS_VALUE) return null;
-            mFrame.timestamp = ((long)(mFrame.pts * AudioStream.Timebase) - demuxer.StartTime) + cfg.audio.DelayTicks;
+            mFrame.timestamp = ((long)(mFrame.pts * AudioStream.Timebase) - demuxer.StartTime) + Config.audio.DelayTicks;
             //Log(Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase)));
 
             try

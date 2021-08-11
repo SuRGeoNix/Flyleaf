@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Video Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
-	<Version>3.2.1</Version>
+	<Version>3.2.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,14 +16,18 @@
 	<PackageTags>flyleaf flyleaflib video media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Adds playback speed x1 - x4 feature</PackageReleaseNotes>
-    <AssemblyVersion>3.2.1.0</AssemblyVersion>
-    <FileVersion>3.2.1.0</FileVersion>
+    <PackageReleaseNotes>Adds off screen rendering support (GetBitmap)
+Adds GetFrame(X) / GetNextFrame on VideoDecoder for more general use
+Adds GetNextPacket on Demuxer for more general use
+Adds Sample5 - ExportVideoFrames with three demos for Case1_ExportAll / Case2_ExportWithStep / Case3_ExportCustom
+Adds AllowReadInterrupts and AllowTimeouts for demuxer's config</PackageReleaseNotes>
+    <AssemblyVersion>3.2.2.0</AssemblyVersion>
+    <FileVersion>3.2.2.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DocumentationFile>C:\root\dev\projects\_todo\FlyleafLib\FlyleafLib\FlyleafLib.xml</DocumentationFile>
+    <DocumentationFile>FlyleafLib.xml</DocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

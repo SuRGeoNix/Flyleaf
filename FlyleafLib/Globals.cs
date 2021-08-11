@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace FlyleafLib
@@ -139,6 +138,5 @@ namespace FlyleafLib
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-        //public void RaiseReset() { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null)); }
     }
 }
