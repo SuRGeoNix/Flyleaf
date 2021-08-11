@@ -61,12 +61,22 @@
         </member>
         <member name="P:FlyleafLib.Config.Demuxer.AllowInterrupts">
             <summary>
-            Start/Seek/Pause/Stop will be faster but might not work properly with some protocols
+            Whether to enable demuxer's custom interrupt callback (for timeouts and interrupts)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.Demuxer.AllowReadInterrupts">
+            <summary>
+            Whether to allow interrupts during av_read_frame
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.Demuxer.AllowTimeouts">
+            <summary>
+            Whether to allow timeouts checks within the interrupts callback
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.Demuxer.ExcludeInterruptFmts">
             <summary>
-            List of FFmpeg formats to be excluded from interrupts (if AllowInterrupts = true)
+            List of FFmpeg formats to be excluded from interrupts
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.Demuxer.MinQueueSize">
@@ -311,6 +321,26 @@
             <summary>
             Stops and disposes the downloader
             </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder.GetFrame(System.Int32)">
+            <summary>
+            Seeks and demuxes until the requested frame
+            </summary>
+            <param name="index"></param>
+            <returns>The requested VideoFrame or null on failure</returns>
+        </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder.GetNextFrame">
+            <summary>
+            Demuxes until the next valid video frame (will be stored in AVFrame* frame)
+            </summary>
+            <returns>0 on success</returns>
+        </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.GetNextPacket(System.Int32)">
+            <summary>
+            Demuxes until the a valid packet within EnabledStreams or the specified stream (Will be stored in AVPacket* packet)
+            </summary>
+            <param name="streamIndex">Find packets only for the specified stream index</param>
+            <returns></returns>
         </member>
         <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.InUse">
             <summary>

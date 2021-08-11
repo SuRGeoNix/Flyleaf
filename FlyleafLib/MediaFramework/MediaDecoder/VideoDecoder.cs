@@ -87,7 +87,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             return ret;
         }
-        internal void DisposeVA()
+        public void DisposeVA()
         {
             fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
             hw_device_ctx = null;
