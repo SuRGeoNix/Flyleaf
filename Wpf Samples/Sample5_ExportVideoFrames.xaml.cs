@@ -1,6 +1,9 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -44,7 +47,7 @@ namespace Wpf_Samples
             
             config = new Config();
             config.demuxer.AllowInterrupts = false; // Enable it only for network protocols?
-            config.decoder.MaxVideoFrames = 100;    // How much does your CPU/GPU/RAM handles?
+            config.decoder.MaxVideoFrames = 10;    // How much does your CPU/GPU/RAM handles?
 
             demuxer = new Demuxer(config.demuxer);
             vDecoder = new VideoDecoder(config);
@@ -58,30 +61,48 @@ namespace Wpf_Samples
             if (demuxer.Open(UserInput) != 0) { MessageBox.Show($"Cannot open input {UserInput}"); return; }
             if (vDecoder.Open(demuxer.VideoStreams[0]) != 0) { MessageBox.Show($"Cannot open the decoder"); return; }
 
-
             // TEST CASES HERE
-
-            Case1_ExportAll();
+            Case1_ExportAll(1);
             //Case2_ExportWithStep(10);
             //Case3_ExportCustom();
 
             // CLOSE
             vDecoder.Dispose();
             demuxer.Dispose();
+            //vDecoder.DisposeVA(); // When you are done with vDecoder overall
         }
 
-        public void Case1_ExportAll()
+        public void Case1_ExportAll(int threads = 10)
         {
             demuxer.Start();
             vDecoder.Start();
 
             int curFrame = 0;
-            while (vDecoder.IsRunning || vDecoder.Frames.Count != 0)
+            int runningThreads = 0;
+
+            demuxer.Config.MaxQueueSize = threads;
+            vDecoder.Config.decoder.MaxVideoFrames = threads;
+            vDecoder.Renderer.MaxOffScreenTextures = threads;
+
+            while (vDecoder.IsRunning || vDecoder.Frames.Count != 0 || runningThreads != 0)
             {
                 if (vDecoder.Frames.Count == 0) { continue; }
 
-                vDecoder.Frames.TryDequeue(out VideoFrame frame);
-                SaveFrame(frame, (++curFrame).ToString());
+                if (runningThreads > threads) Thread.Sleep(10);
+                Interlocked.Increment(ref runningThreads);
+
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        vDecoder.Frames.TryDequeue(out VideoFrame frame);
+                        if (frame == null) return;
+                        SaveFrame(frame, (++curFrame).ToString());
+                    } finally
+                    {
+                        Interlocked.Decrement(ref runningThreads);
+                    }
+                });
             }
         }
 
@@ -112,7 +133,7 @@ namespace Wpf_Samples
         public void SaveFrame(VideoFrame frame, string filename)
         {
             Bitmap bmp = vDecoder.Renderer.GetBitmap(frame);
-            bmp.Save($"{filename}.bmp");
+            bmp.Save($"{filename}.bmp", ImageFormat.Bmp);
             bmp.Dispose();
             VideoDecoder.DisposeFrame(frame);
         }

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -27,9 +29,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public Control          Control         { get; private set; }
         public Device           Device          { get; private set; }
-        public bool             Disposed        { get; private set; }
+        public bool             Disposed        { get; private set; } = true;
         public Viewport         GetViewport     { get; private set; }
         public RendererInfo     Info            { get; internal set; }
+        public int              MaxOffScreenTextures
+                                                { get; set; } = 20;
         public VideoDecoder     VideoDecoder    { get; internal set; }
         public int              Zoom            { get => zoom; set { zoom = value; SetViewport(); if (!VideoDecoder.IsRunning) PresentFrame(); } }
         int zoom;
@@ -43,8 +47,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         Texture2D                           backBuffer;
         
         // Used for off screen rendering
-        RenderTargetView                    rtv2;
-        Texture2D                           backBuffer2;
+        RenderTargetView[]                  rtv2;
+        Texture2D[]                         backBuffer2;
+        bool[]                              backBuffer2busy;
 
         Buffer                              vertexBuffer;
         InputLayout                         vertexLayout;
@@ -155,7 +160,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 AddressW = TextureAddressMode.Clamp,
                 ComparisonFunction = Comparison.Never,
                 Filter = Filter.MinMagMipLinear,
-                MaximumLod = float.MaxValue
+                MinimumLod = 0,
+                MaximumLod = float.MaxValue,
+                MaximumAnisotropy = 1
             });
 
             // Load Shaders Byte Code
@@ -178,6 +185,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             context.VertexShader.Set(vertexShader);
             context.PixelShader. SetSampler(0, textureSampler);
+
+            Disposed = false;
         }
 
         public void Dispose()
@@ -188,10 +197,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 if (Disposed) return;
 
-                Control.Resize -= ResizeBuffers;
+                if (Control != null) Control.Resize -= ResizeBuffers;
 
-                foreach (var t1 in pixelShaders)
-                    t1.Value.Dispose();
+                foreach (var pixelShader in pixelShaders)
+                    pixelShader.Value.Dispose();
 
                 vertexShader.Dispose();
 
@@ -206,8 +215,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 Utilities.Dispose(ref vertexBuffer);
                 Utilities.Dispose(ref backBuffer);
                 Utilities.Dispose(ref rtv);
-                Utilities.Dispose(ref backBuffer2);
-                Utilities.Dispose(ref rtv2);
+
+                if (rtv2 != null)
+                    for(int i=0; i<rtv2.Length-1; i++)
+                        Utilities.Dispose(ref rtv2[i]);
+
+                if (backBuffer2 != null)
+                    for(int i=0; i<backBuffer2.Length-1; i++)
+                        Utilities.Dispose(ref backBuffer2[i]);
 
                 //curPixelShader.Dispose();
 
@@ -283,7 +298,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     yuvtype = "Y_U_V";
                 else
                     curPixelShaderStr = "PixelShader";
-
+                
                 if (yuvtype != "") curPixelShaderStr = $"{VideoDecoder.VideoStream.ColorSpace}_{yuvtype}_{VideoDecoder.VideoStream.ColorRange}";
                 
                 Log($"Selected PixelShader: {curPixelShaderStr}");
@@ -293,23 +308,38 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     SetViewport();
                 else
                 {
-                    Utilities.Dispose(ref rtv2);
-                    Utilities.Dispose(ref backBuffer2);
-                    backBuffer2 = new Texture2D(Device, new Texture2DDescription()
+                    if (rtv2 != null)
+                        for(int i=0; i<rtv2.Length-1; i++)
+                            Utilities.Dispose(ref rtv2[i]);
+
+                    if (backBuffer2 != null)
+                        for(int i=0; i<backBuffer2.Length-1; i++)
+                            Utilities.Dispose(ref backBuffer2[i]);
+
+                    backBuffer2busy = new bool[MaxOffScreenTextures];
+                    rtv2 = new RenderTargetView[MaxOffScreenTextures];
+                    backBuffer2 = new Texture2D[MaxOffScreenTextures];
+
+                    for(int i=0; i<MaxOffScreenTextures; i++)
                     {
-                        Usage = ResourceUsage.Default,
-                        BindFlags = BindFlags.RenderTarget,
-                        Format = Format.B8G8R8A8_UNorm,
-                        Width               = VideoDecoder.VideoStream.Width,
-                        Height              = VideoDecoder.VideoStream.Height,
+                        backBuffer2[i] = new Texture2D(Device, new Texture2DDescription()
+                        {
+                            Usage               = ResourceUsage.Default,
+                            BindFlags           = BindFlags.RenderTarget,
+                            Format              = Format.B8G8R8A8_UNorm,
+                            Width               = VideoDecoder.VideoStream.Width,
+                            Height              = VideoDecoder.VideoStream.Height,
 
-                        SampleDescription   = new SampleDescription(1, 0),
-                        ArraySize           = 1,
-                        MipLevels           = 1
-                    });
+                            SampleDescription   = new SampleDescription(1, 0),
+                            ArraySize           = 1,
+                            MipLevels           = 1
+                        });
 
-                    rtv2 = new RenderTargetView(Device, backBuffer2);
+                        rtv2[i] = new RenderTargetView(Device, backBuffer2[i]);
+                    }
+
                     context.Rasterizer.SetViewport(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height);
+                    context.PixelShader.Set(curPixelShader);
                 }
             }
         }
@@ -398,12 +428,41 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             return false;
         }
 
-        public System.Drawing.Bitmap GetBitmap(VideoFrame frame)
+        public Bitmap GetBitmap(VideoFrame frame)
         {
             if (Device == null || frame == null) return null;
 
+            int subresource = -1;
+
+            Texture2D stageTexture = new Texture2D(Device, new Texture2DDescription()
+            {
+	            Usage           = ResourceUsage.Staging,
+	            ArraySize       = 1,
+	            MipLevels       = 1,
+	            Width           = backBuffer2[0].Description.Width,
+	            Height          = backBuffer2[0].Description.Height,
+	            Format          = Format.B8G8R8A8_UNorm,
+	            BindFlags       = BindFlags.None,
+	            CpuAccessFlags  = CpuAccessFlags.Read,
+	            OptionFlags     = ResourceOptionFlags.None,
+	            SampleDescription = new SampleDescription(1, 0)
+            });
+
             lock (Device)
             {
+                while (true)
+                {
+                    for (int i=0; i<MaxOffScreenTextures; i++)
+                        if (!backBuffer2busy[i]) { subresource = i; break;}
+
+                    if (subresource != -1)
+                        break;
+                    else
+                        Thread.Sleep(5);
+                }
+
+                backBuffer2busy[subresource] = true;
+
                 if (VideoDecoder.VideoAccelerated)
                 {
                     curSRVs     = new ShaderResourceView[2];
@@ -423,51 +482,46 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     curSRVs[0]  = new ShaderResourceView(Device, frame.textures[0]);
                 }
 
-                context.PixelShader.Set(curPixelShader);
                 context.PixelShader.SetShaderResources(0, curSRVs);
-                context.OutputMerger.SetRenderTargets(rtv2);
-                context.ClearRenderTargetView(rtv2, Config.video._ClearColor);
+                context.OutputMerger.SetRenderTargets(rtv2[subresource]);
+                //context.ClearRenderTargetView(rtv2[subresource], Config.video._ClearColor);
                 context.Draw(6, 0);
 
-                if (frame.textures  != null)   for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]);
-                if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { Utilities.Dispose(ref curSRVs[i]); } curSRVs = null; }
+                for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]);
+                for (int i=0; i<curSRVs.Length; i++)      { Utilities.Dispose(ref curSRVs[i]); }
 
-                return GetBitmap(backBuffer2);
-            }   
-        }
-        public System.Drawing.Bitmap GetBitmap(Texture2D texture)
-        {
-            Texture2D stageTexture = new Texture2D(Device, new Texture2DDescription()
-            {
-	            Usage           = ResourceUsage.Staging,
-	            ArraySize       = 1,
-	            MipLevels       = 1,
-	            Width           = texture.Description.Width,
-	            Height          = texture.Description.Height,
-	            Format          = Format.B8G8R8A8_UNorm,
-	            BindFlags       = BindFlags.None,
-	            CpuAccessFlags  = CpuAccessFlags.Read,
-	            OptionFlags     = ResourceOptionFlags.None,
-	            SampleDescription = new SampleDescription(1, 0)         
-            });
-            context.CopyResource(texture, stageTexture);
-            
-            System.Drawing.Bitmap bitmap = new System.Drawing.Bitmap(stageTexture.Description.Width, stageTexture.Description.Height);
-            DataBox db      = context.MapSubresource(stageTexture, 0, MapMode.Read, SharpDX.Direct3D11.MapFlags.None);
-            var bitmapData  = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            var sourcePtr   = db.DataPointer;
-            var destPtr     = bitmapData.Scan0;
-            for (int y = 0; y < bitmap.Height; y++)
-            {
-                Utilities.CopyMemory(destPtr, sourcePtr, bitmap.Width * 4);
-
-                sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
-                destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
+                context.CopyResource(backBuffer2[subresource], stageTexture);
+                backBuffer2busy[subresource] = false;
             }
+
+            return GetBitmap(stageTexture);
+        }
+        public Bitmap GetBitmap(Texture2D stageTexture)
+        {
+            Bitmap bitmap = new Bitmap(stageTexture.Description.Width, stageTexture.Description.Height);
+            DataBox db      = context.MapSubresource(stageTexture, 0, MapMode.Read, SharpDX.Direct3D11.MapFlags.None);
+            var bitmapData  = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
+            if (db.RowPitch == bitmapData.Stride)
+                Utilities.CopyMemory(bitmapData.Scan0,  db.DataPointer, bitmap.Width * bitmap.Height * 4);
+            else
+            {
+                var sourcePtr   = db.DataPointer;
+                var destPtr     = bitmapData.Scan0;
+
+                for (int y = 0; y < bitmap.Height; y++)
+                {
+                    Utilities.CopyMemory(destPtr, sourcePtr, bitmap.Width * 4);
+
+                    sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
+                    destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
+                }
+            }
+
             bitmap.UnlockBits(bitmapData);
             context.UnmapSubresource(stageTexture, 0);
             stageTexture.Dispose();
-
+            
             return bitmap;
         }
 
@@ -492,7 +546,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 	                context.Draw(6, 0);
 	                swapChain.Present(Config.video.VSync, PresentFlags.None);
                 }
-		
+
                 snapshotTexture = new Texture2D(Device, new Texture2DDescription()
                 {
 	                Usage           = ResourceUsage.Staging,
@@ -510,8 +564,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 ResizeBuffers(null, null);
             }
 
-            System.Drawing.Bitmap snapshotBitmap = GetBitmap(backBuffer);
-            try { snapshotBitmap.Save(fileName); } catch (Exception) { }
+            Bitmap snapshotBitmap = GetBitmap(snapshotTexture);
+            try { snapshotBitmap.Save(fileName, ImageFormat.Bmp); } catch (Exception) { }
             snapshotBitmap.Dispose();
         }
 
