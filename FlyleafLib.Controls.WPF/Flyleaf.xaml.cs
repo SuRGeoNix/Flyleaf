@@ -520,7 +520,8 @@ namespace FlyleafLib.Controls.WPF
             }
             else
             {
-                Player.decoder.VideoDemuxer.StartRecording($"Record{recordCounter}.mp4");
+                string filename = $"Record{recordCounter}";
+                Player.decoder.VideoDemuxer.StartRecording(ref filename);
                 Set(ref _IsRecording, true);
                 recordCounter++;
             }
