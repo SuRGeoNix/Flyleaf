@@ -5,3 +5,6 @@ dotnet_diagnostic.CS1591.severity = none
 
 # IDE0055: Fix formatting
 dotnet_diagnostic.IDE0055.severity = none
+
+# CA1416: Validate platform compatibility
+dotnet_diagnostic.CA1416.severity = suggestion

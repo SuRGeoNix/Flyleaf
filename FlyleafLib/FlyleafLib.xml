@@ -311,11 +311,12 @@
             <param name="url">The filename or url to open</param>
             <returns></returns>
         </member>
-        <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Download(System.String)">
+        <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Download(System.String@,System.Boolean)">
             <summary>
             Downloads the currently configured AVS streams
             </summary>
-            <param name="filename">The filename for the downloaded video. The file extension will let the demuxer to choose the output format (eg. mp4).</param>
+            <param name="filename">The filename for the downloaded video. The file extension will let the demuxer to choose the output format (eg. mp4). If you useRecommendedExtension will be updated with the extension.</param>
+            <param name="useRecommendedExtension">Will try to match the output container with the input container</param>
         </member>
         <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Dispose">
             <summary>
@@ -341,6 +342,13 @@
             </summary>
             <param name="streamIndex">Find packets only for the specified stream index</param>
             <returns></returns>
+        </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.StartRecording(System.String@,System.Boolean)">
+            <summary>
+            Records the currently enabled AVS streams
+            </summary>
+            <param name="filename">The filename to save the recorded video. The file extension will let the demuxer to choose the output format (eg. mp4). If you useRecommendedExtension will be updated with the extension.</param>
+            <param name="useRecommendedExtension">Will try to match the output container with the input container</param>
         </member>
         <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.InUse">
             <summary>

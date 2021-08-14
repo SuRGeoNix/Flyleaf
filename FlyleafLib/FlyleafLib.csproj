@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Video Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
-	<Version>3.2.3</Version>
+	<Version>3.2.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,10 +16,12 @@
 	<PackageTags>flyleaf flyleaflib video media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Performance improvements for the new ExportFrames feature
-Fixes and improves TakeSnapshot</PackageReleaseNotes>
-    <AssemblyVersion>3.2.3.0</AssemblyVersion>
-    <FileVersion>3.2.3.0</FileVersion>
+    <PackageReleaseNotes>Fixes compatibility issues between input and output containers for Remuxer (Downloader/Recorder)
+Fixes StartTime / Duration for Remuxer's (Downloader/Recorder) output containers
+
+(Breaking changes: Filenames will pass to downloader/recorder as references, the extenstion will be ignored by default)</PackageReleaseNotes>
+    <AssemblyVersion>3.2.4.0</AssemblyVersion>
+    <FileVersion>3.2.4.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
