@@ -25,6 +25,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public string                   Name            { get; private set; }
         public string                   LongName        { get; private set; }
         public string                   Extensions      { get; private set; }
+        public string                   Extension       { get; private set; }
         public long                     StartTime       { get; private set; }
         public long                     CurTimeLive     { get; private set; }
         public long                     Duration        { get; private set; }
@@ -193,6 +194,45 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 if (VideoStream.HLSPlaylist->finished == 1) IsLive = false;
             }
         }
+        private string GetValidExtension()
+        {
+            // TODO
+            // Should check for all supported output formats (there is no list in ffmpeg.autogen ?)
+            // Should check for inner input format (not outer protocol eg. hls/rtsp)
+            // Should check for raw codecs it can be mp4/mov but it will not work in mp4 only in mov (or avi for raw)
+
+            List<string> supportedOutput = new List<string>() { "mp4", "avi", "flv", "flac", "mpeg", "mpegts", "mkv", "ogg", "ts"};
+            string defaultExtenstion = "mp4";
+            bool hasPcm = false;
+            bool isRaw = false;
+
+            foreach (AudioStream stream in AudioStreams)
+                if (stream.CodecName.Contains("pcm")) hasPcm = true;
+
+            foreach (VideoStream stream in VideoStreams)
+                if (stream.CodecName.Contains("raw")) isRaw = true;
+
+            if (isRaw) defaultExtenstion = "avi";
+
+            // MP4 container doesn't support PCM
+            if (hasPcm) defaultExtenstion = "mkv";
+
+            // TODO
+            // Check also shortnames
+            //if (Name == "mpegts") return "ts";
+            //if ((fmtCtx->iformat->flags & AVFMT_TS_DISCONT) != 0) should be mp4 or container that supports segments
+
+            if (string.IsNullOrEmpty(Extensions)) return defaultExtenstion;
+            string[] extensions = Extensions.Split(',');
+            if (extensions == null || extensions.Length < 1) return defaultExtenstion;
+
+            // Try to set the output container same as input
+            for (int i=0; i<extensions.Length; i++)
+                if (supportedOutput.Contains(extensions[i]))
+                    return extensions[i] == "mp4" && isRaw ? "mov" : extensions[i];
+
+            return defaultExtenstion;
+        }
         private bool FillInfo()
         {
             Name        = Utils.BytePtrToStringUTF8(fmtCtx->iformat->name);
@@ -258,6 +298,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 }
             }
 
+            Extension = GetValidExtension();
             PrintDump();
             return hasVideo;
         }
@@ -667,17 +708,26 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             set => Set(ref _IsRecording, value);
         }
         
-        public void StartRecording(string filename)
+        /// <summary>
+        /// Records the currently enabled AVS streams
+        /// </summary>
+        /// <param name="filename">The filename to save the recorded video. The file extension will let the demuxer to choose the output format (eg. mp4). If you useRecommendedExtension will be updated with the extension.</param>
+        /// <param name="useRecommendedExtension">Will try to match the output container with the input container</param>
+        public void StartRecording(ref string filename, bool useRecommendedExtension = true)
         {
             lock (lockFmtCtx)
             {
                 if (IsRecording) StopRecording();
 
                 Log("Record Start");
+
+                if (useRecommendedExtension)
+                    filename = $"{filename}.{Extension}";
+
                 Recorder.Open(filename);
                 for(int i=0; i<EnabledStreams.Count; i++)
                     Log(Recorder.AddStream(fmtCtx->streams[EnabledStreams[i]]).ToString());
-                Log("Record ok? " + Recorder.WriteHeader());
+                if (!Recorder.HasStreams || Recorder.WriteHeader() != 0) return; //throw new Exception("Invalid remuxer configuration");
                 recGotKeyframe = false;
                 IsRecording = true;
             }

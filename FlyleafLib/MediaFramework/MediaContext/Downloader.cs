@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FFmpeg.AutoGen;
@@ -93,13 +89,17 @@ namespace FlyleafLib.MediaFramework.MediaContext
         /// <summary>
         /// Downloads the currently configured AVS streams
         /// </summary>
-        /// <param name="filename">The filename for the downloaded video. The file extension will let the demuxer to choose the output format (eg. mp4).</param>
-        public void Download(string filename)
+        /// <param name="filename">The filename for the downloaded video. The file extension will let the demuxer to choose the output format (eg. mp4). If you useRecommendedExtension will be updated with the extension.</param>
+        /// <param name="useRecommendedExtension">Will try to match the output container with the input container</param>
+        public void Download(ref string filename, bool useRecommendedExtension = true)
         {
             lock (lockActions)
             {
                 if (Status != Status.Opening || Disposed)
                     { OnDownloadCompleted(false); return; }
+
+                if (useRecommendedExtension)
+                    filename = $"{filename}.{Demuxer.Extension}";
 
                 int ret = Remuxer.Open(filename);
                 if (ret != 0)
@@ -142,6 +142,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
             if (!Remuxer.HasStreams) { OnDownloadCompleted(false); return; }
 
             Demuxer.Start();
+
+            long startTime = Demuxer.hlsCtx == null ? Demuxer.StartTime : Demuxer.hlsCtx->first_timestamp * 10;
 
             do
             {
@@ -192,7 +194,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 if (packet->dts > 0)
                 {
-                    double curTime = (packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - Demuxer.StartTime;
+                    double curTime = (packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - startTime;
                     if (_Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
                     CurTime = (long) curTime;
                 }
