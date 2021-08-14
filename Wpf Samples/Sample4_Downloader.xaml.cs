@@ -90,7 +90,8 @@ namespace Wpf_Samples
             if (Downloader.Demuxer.AudioStreams.Count != 0)
                 Downloader.Demuxer.EnableStream(Downloader.Demuxer.AudioStreams[0]);
 
-            Downloader.Download(Path.Combine(Path.GetTempPath(), $"SampleVideo{downloadCounter++}.mp4"));
+            string filename = $"SampleVideo{downloadCounter++}";
+            Downloader.Download(ref filename);
         }
     }
 }
