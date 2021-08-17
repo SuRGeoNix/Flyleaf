@@ -956,7 +956,7 @@ namespace FlyleafLib.MediaPlayer
             long    totalBytes = 0;
             long    videoBytes = 0;
             long    audioBytes = 0;
-            long    elapsedSec = Int64.MinValue;
+            long    elapsedSec = startedAtTicks;
 
             bool    requiresBuffering = true;
 
@@ -978,7 +978,7 @@ namespace FlyleafLib.MediaPlayer
                     audioBytes = decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes;
 
                     MediaBuffer();
-                    elapsedSec = Int64.MinValue;
+                    elapsedSec = startedAtTicks;
                     requiresBuffering = false;
                     if (seeks.Count != 0) continue;
                     if (vFrame == null) { Log("MediaBuffer() no video frame"); break; }
@@ -1019,7 +1019,7 @@ namespace FlyleafLib.MediaPlayer
                         VideoDecoder.DisposeFrame(vFrame); vFrame = null; aFrame = null;
                         Thread.Sleep(10);
                         MediaBuffer();
-                        elapsedSec = Int64.MinValue;
+                        elapsedSec = startedAtTicks;
                         continue; 
                     }
 
