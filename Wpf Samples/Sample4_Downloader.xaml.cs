@@ -48,11 +48,11 @@ namespace Wpf_Samples
             //config.demuxer.FormatOpt.Add("live_start_index", "0"); // Download from the beggining of the stream (as back as available)
 
             // Especially for live streams but generally large read timeouts
-            config.demuxer.ReadTimeout = 40 * 1000 * 10000;
-            config.demuxer.MaxQueueSize = 1000;
-            config.demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            config.demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
-            Downloader = new Downloader(config.demuxer);
+            config.Demuxer.ReadTimeout = 40 * 1000 * 10000;
+            config.Demuxer.BufferDuration = 40 * 1000 * 10000;
+            config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
+            config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
+            Downloader = new Downloader(config);
 
             InitializeComponent();
             DataContext = this;
@@ -79,16 +79,20 @@ namespace Wpf_Samples
         int downloadCounter = 0;
         public void StartDownloader(string url)
         {
-            if (Downloader.Open(url) != 0) { MessageBox.Show("Could not open url input"); return; }
+            string error = null;
+            if ((error = Downloader.Open(url)) != null) { MessageBox.Show(error); return; }
+
+            //Downloader.DecCtx.OpenVideoInput(Downloader.DecCtx.PluginHandler.PluginsInput["YoutubeDL"].VideoInputs[0]);
+            //Downloader.DecCtx.OpenAudioInput(Downloader.DecCtx.PluginHandler.PluginsInput["YoutubeDL"].AudioInputs[2]);
 
             // Example adding all Audio/Video streams
-            //for (int i=0; i<Downloader.Demuxer.AVStreamToStreamMap.Count; i++)
-            //Downloader.Demuxer.EnableStream(Downloader.Demuxer.AVStreamToStreamMap[i]);
+            //for (int i=0; i<Downloader.DecCtx.VideoDemuxer.AVStreamToStream.Count; i++)
+            //Downloader.DecCtx.VideoDemuxer.EnableStream(Downloader.DecCtx.VideoDemuxer.AVStreamToStream[i]);
 
             // Example adding first video stream and first audio (if exists)
-            Downloader.Demuxer.EnableStream(Downloader.Demuxer.VideoStreams[0]);
-            if (Downloader.Demuxer.AudioStreams.Count != 0)
-                Downloader.Demuxer.EnableStream(Downloader.Demuxer.AudioStreams[0]);
+            //Downloader.DecCtx.VideoDemuxer.EnableStream(Downloader.DecCtx.VideoDemuxer.VideoStreams[0]);
+            //if (Downloader.DecCtx.VideoDemuxer.AudioStreams.Count != 0)
+            //    Downloader.DecCtx.VideoDemuxer.EnableStream(Downloader.DecCtx.VideoDemuxer.AudioStreams[0]);
 
             string filename = $"SampleVideo{downloadCounter++}";
             Downloader.Download(ref filename);

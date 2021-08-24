@@ -26,7 +26,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected override unsafe int Setup(AVCodec* codec) { return 0; }
 
-
         protected override void DisposeInternal()
         {
             Frames = new ConcurrentQueue<SubtitlesFrame>();
@@ -48,19 +47,19 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         protected override void RunInternal()
         {
             int ret = 0;
-            int allowedErrors = Config.decoder.MaxErrors;
+            int allowedErrors = Config.Decoder.MaxErrors;
             AVPacket *packet;
             int curFrame = 0;
 
             do
             {
                 // Wait until Queue not Full or Stopped
-                if (Frames.Count >= Config.decoder.MaxSubsFrames)
+                if (Frames.Count >= Config.Decoder.MaxSubsFrames)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (Frames.Count >= Config.decoder.MaxSubsFrames && Status == Status.QueueFull) Thread.Sleep(20);
+                    while (Frames.Count >= Config.Decoder.MaxSubsFrames && Status == Status.QueueFull) Thread.Sleep(20);
 
                     lock (lockStatus)
                     {
@@ -169,7 +168,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             mFrame.pts = packet->pts;
             if (mFrame.pts == AV_NOPTS_VALUE) return null;
             //long svDiff = RelatedVideoDecoder != null &&  RelatedVideoDecoder.VideoStream != null ? SubtitlesStream.StartTime - RelatedVideoDecoder.VideoStream.StartTime : 0;
-            mFrame.timestamp = ((long)(mFrame.pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.audio.LatencyTicks + Config.subs.DelayTicks;
+            mFrame.timestamp = ((long)(mFrame.pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
 
             try
             {

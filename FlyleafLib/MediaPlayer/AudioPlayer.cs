@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 
 using NAudio.Wave;
@@ -6,11 +7,31 @@ using NAudio.Wave.SampleProviders;
 
 namespace FlyleafLib.MediaPlayer
 {
-    public class AudioPlayer : NotifyPropertyChanged, IDisposable
+    public class AudioPlayer : NotifyPropertyChanged
     {
         #region Properties
         /// <summary>
-        /// Current audio player's volume / amplifier (valid values 0 - no upper limit)
+        /// Player's incremental unique id
+        /// </summary>
+        public int          PlayerId        { get; private set; }
+
+        /// <summary>
+        /// Player's configuration (set once in the constructor)
+        /// </summary>
+        public Config       Config          { get; protected set; }
+
+        /// <summary>
+        /// Audio player's channels (currently 2 channels supported only)
+        /// </summary>
+        public int          Channels        { get; } = 2;
+
+        /// <summary>
+        /// Audio player's sample rate (ffmpeg will set this)
+        /// </summary>
+        public int          SampleRate      { get; private set; } = -1;
+
+        /// <summary>
+        /// Audio player's volume / amplifier (valid values 0 - no upper limit)
         /// </summary>
         public int Volume
         {
@@ -35,7 +56,7 @@ namespace FlyleafLib.MediaPlayer
         private float prevVolume = 0.5f;
 
         /// <summary>
-        /// Current audio player's mute
+        /// Audio player's mute
         /// </summary>
         public bool Mute
         {
@@ -57,17 +78,17 @@ namespace FlyleafLib.MediaPlayer
             }
         }
         private bool mute = false;
-        
+
         /// <summary>
-        /// Current audio player's device name (see Master.AudioMaster.Devices for valid input names)
+        /// Audio player's current device (see Master.AudioMaster.Devices for valid input names)
         /// Set to null to use AudioMaster's Device which handles all instances (Default)
         /// </summary>
-        public string Device
+        public string AudioDevice
         {
             get => _Device == null ? Master.AudioMaster.Device : _Device;
             set
             {
-                if (value == null) { _Device = null; Initialize(); return; } // Let the user to change back to AudioMaster's Device
+                if (value == null) { _Device = null; InitializeAudio(); return; } // Let the user to change back to AudioMaster's Device
 
                 bool found = false;
                 foreach (var device in DirectSoundOut.Devices.ToList())
@@ -78,7 +99,7 @@ namespace FlyleafLib.MediaPlayer
                         //DeviceId = device.ModuleName;
                         found = true;
 
-                        Initialize();
+                        InitializeAudio();
                     }
 
                 if (!found) throw new Exception("The specified audio device doesn't exist");
@@ -89,69 +110,72 @@ namespace FlyleafLib.MediaPlayer
         #endregion
 
         #region Declaration
-        Player                  videoPlayer;
-        Config                  cfg => videoPlayer.Config;
-
-        int                     CHANNELS        = 2;        // Currently fixed
-        int                     Rate            = 48000;    // Will be set from Input Format
-        DirectSoundOut          player;
-        WaveFormat              format;
-        BufferedWaveProvider    buffer;
+        DirectSoundOut          directSoundOut;
+        WaveFormat              audioWaveFormat;
+        BufferedWaveProvider    audioBuffer;
         VolumeSampleProvider    volumeSampleProvider;
 
-        readonly object         locker       = new object();
+        readonly object         lockerAudioPlayer = new object();
         #endregion
 
-        #region Initialize / Dispose
-        public AudioPlayer(Player player) { videoPlayer = player; Initialize(); }
-        public void Initialize(int rate = -1) // Rate should be saved in case of internal Initialize during device reset etc.
+        public AudioPlayer(Config config)
         {
-            prevVolume = volumeSampleProvider == null ? 0.5f : volumeSampleProvider.Volume;
-
-            lock (locker)
+            Config = config == null ? new Config() : config;
+            PlayerId = Utils.GetUniqueId();
+            Log("Created");
+        }
+        internal void InitializeAudio(int sampleRate = -1)
+        {
+            lock (lockerAudioPlayer)
             {
-                if (rate != -1) Rate = rate;
+                if (sampleRate != -1)
+                {
+                    if (SampleRate == sampleRate) { ClearAudioBuffer(); return; }
+                    SampleRate = sampleRate;
+                }
 
-                Dispose();
+                Log("Initializing");
 
-                format = WaveFormatExtensible.CreateIeeeFloatWaveFormat(Rate, CHANNELS);
-                buffer = new BufferedWaveProvider(format);
-                buffer.BufferLength = 1000 * 1024;
-                volumeSampleProvider= new VolumeSampleProvider(buffer.ToSampleProvider());
+                prevVolume = volumeSampleProvider == null ? 0.5f : volumeSampleProvider.Volume;
+                DisposeAudio();
 
-                player = new DirectSoundOut(_Device == null ? Master.AudioMaster.DeviceIdNaudio : DeviceIdNaudio, -30 + (int)(cfg.audio.LatencyTicks / 10000));
+                audioWaveFormat = WaveFormatExtensible.CreateIeeeFloatWaveFormat(SampleRate, Channels);
+                audioBuffer = new BufferedWaveProvider(audioWaveFormat);
+                audioBuffer.BufferLength = 1000 * 1024;
+                volumeSampleProvider= new VolumeSampleProvider(audioBuffer.ToSampleProvider());
 
-                player.Init(volumeSampleProvider);
-                player.Play();
+                directSoundOut = new DirectSoundOut(_Device == null ? Master.AudioMaster.DeviceIdNaudio : DeviceIdNaudio, -30 + (int)(Config.Audio.Latency / 10000));
+
+                directSoundOut.Init(volumeSampleProvider);
+                directSoundOut.Play();
                 volumeSampleProvider.Volume = prevVolume;
             }
         }
-        public void Dispose()
+        internal void DisposeAudio()
         {
-            lock (locker)
+            lock (lockerAudioPlayer)
             {
-                player?.Dispose();
+                directSoundOut?.Dispose();
                 volumeSampleProvider = null;
-                player = null;
-                buffer = null;
+                directSoundOut = null;
+                audioBuffer = null;
+                Log("Disposed");
             }
         }
-        #endregion
 
-        #region Buffer Fill Callback
-        internal void FrameClbk(byte[] data)//, int offset, int count)
+        internal void AddAudioSamples(byte[] data, bool checkSync = true)
         {
-            lock (locker)
+            lock (lockerAudioPlayer)
             {
                 try
                 {
-                    if (buffer.BufferedDuration.Milliseconds > (cfg.audio.LatencyTicks / 10000) + 150) // We will see this happen on HLS streams that change source (eg. ads - like two streams playing audio in parallel)
+                    if (checkSync && audioBuffer.BufferedDuration.Milliseconds > (Config.Audio.Latency / 10000) + 150) // We will see this happen on HLS streams that change source (eg. ads - like two streams playing audio in parallel)
                     {
-                        Log("Resynch !!! | " + buffer.BufferedBytes + " | " + buffer.BufferedDuration);
-                        buffer.ClearBuffer();
+                        Log("Resynch !!! | " + audioBuffer.BufferedBytes + " | " + audioBuffer.BufferedDuration);
+                        audioBuffer.ClearBuffer();
                     }
 
-                    buffer.AddSamples(data, 0, data.Length);
+                    audioBuffer.AddSamples(data, 0, data.Length);
                 }
                 catch (Exception e)
                 {
@@ -159,12 +183,11 @@ namespace FlyleafLib.MediaPlayer
                 }
             }
         }
-        public void ClearBuffer()
+        internal void ClearAudioBuffer()
         {
-            lock (locker) buffer?.ClearBuffer();
+            lock (lockerAudioPlayer) audioBuffer?.ClearBuffer();
         }
-        #endregion
 
-        private void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [AudioPlayer] {msg}"); }
+        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [AudioPlayer] {msg}"); }
     }
 }

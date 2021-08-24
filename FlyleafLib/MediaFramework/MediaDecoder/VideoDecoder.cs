@@ -104,7 +104,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             VideoAccelerated = false;
 
-            if (Config.decoder.HWAcceleration)
+            if (Config.Video.VideoAcceleration)
             {
                 if (CheckCodecSupport(codec))
                 {
@@ -123,7 +123,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             else
                 Log("[VA] Disabled");
 
-            codecCtx->thread_count = Math.Min(Config.decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
+            codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
             codecCtx->thread_type  = 0;
 
             int bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
@@ -177,7 +177,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         protected override void RunInternal()
         {
             int ret = 0;
-            int allowedErrors = Config.decoder.MaxErrors;
+            int allowedErrors = Config.Decoder.MaxErrors;
             AVPacket *packet;
 
             int curFrame = 0;
@@ -185,12 +185,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             do
             {
                 // Wait until Queue not Full or Stopped
-                if (Frames.Count >= Config.decoder.MaxVideoFrames)
+                if (Frames.Count >= Config.Decoder.MaxVideoFrames)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (Frames.Count >= Config.decoder.MaxVideoFrames && Status == Status.QueueFull) Thread.Sleep(20);
+                    while (Frames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull) Thread.Sleep(20);
 
                     lock (lockStatus)
                     {
@@ -250,7 +250,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     if (Status == Status.Stopped || demuxer.VideoPackets.Count == 0) continue;
                     demuxer.VideoPackets.TryDequeue(out IntPtr pktPtr);
                     packet = (AVPacket*) pktPtr;
-                        
 
                     ret = avcodec_send_packet(codecCtx, packet);
                     av_packet_free(&packet);
@@ -273,7 +272,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             continue;
                         }
                     }
-
+                    
                     while (true)
                     {
                         ret = avcodec_receive_frame(codecCtx, frame);
@@ -326,8 +325,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 VideoFrame mFrame = new VideoFrame();
                 mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                 if (mFrame.pts == AV_NOPTS_VALUE) return null;
-                mFrame.timestamp = (long)(mFrame.pts * VideoStream.Timebase) - demuxer.StartTime + Config.audio.LatencyTicks;
-                //Log(Utils.TicksToTime(mFrame.timestamp));
+                mFrame.timestamp = (long)(mFrame.pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
 
                 // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)
                 if (VideoAccelerated)
@@ -337,6 +335,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         Log("[VA] Failed 2");
                         VideoAccelerated = false;
                         Renderer?.FrameResized();
+                        CodecChanged?.Invoke(this);
                         return ProcessVideoFrame(frame);
                     }
 
@@ -424,7 +423,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         outBufferPtr    = Marshal.AllocHGlobal(outBufferSize);
                         av_image_fill_arrays(ref outData, ref outLineSize, (byte*) outBufferPtr, VOutPixelFormat, codecCtx->width, codecCtx->height, 1);
                         
-                        int vSwsOptFlags= Config.video.SwsHighQuality ? SCALING_HQ : SCALING_LQ;
+                        int vSwsOptFlags= Config.Video.SwsHighQuality ? SCALING_HQ : SCALING_LQ;
                         swsCtx          = sws_getContext(codecCtx->coded_width, codecCtx->coded_height, codecCtx->pix_fmt, codecCtx->width, codecCtx->height, VOutPixelFormat, vSwsOptFlags, null, null, null);
                         if (swsCtx == null) { Log($"[ProcessVideoFrame] [Error] Failed to allocate SwsContext"); return null; }
                     }

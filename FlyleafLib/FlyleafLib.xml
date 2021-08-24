@@ -44,180 +44,205 @@
             Player's main configuration
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Player.LowLatency">
+        <member name="P:FlyleafLib.Config.PlayerConfig.MinBufferDuration">
             <summary>
-            Sets playback mode to low latency (video only)
+            Required buffered duration ticks before playing
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Player.LowLatencyMaxVideoFrames">
+        <member name="P:FlyleafLib.Config.PlayerConfig.LowLatencyMaxVideoFrames">
             <summary>
             Limit before dropping frames. Lower value means lower latency (>=1)
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Player.LowLatencyMaxVideoPackets">
+        <member name="P:FlyleafLib.Config.PlayerConfig.LowLatencyMaxVideoPackets">
             <summary>
             Limit before dropping frames. Lower value means lower latency (>=0)
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.AllowInterrupts">
+        <member name="P:FlyleafLib.Config.PlayerConfig.Stats">
+            <summary>
+            Whether to refresh statistics about bitrates/fps/drops etc.
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.Speed">
+            <summary>
+            Playback's speed (x1 - x4)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.DemuxerConfig.AllowInterrupts">
             <summary>
             Whether to enable demuxer's custom interrupt callback (for timeouts and interrupts)
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.AllowReadInterrupts">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.AllowReadInterrupts">
             <summary>
             Whether to allow interrupts during av_read_frame
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.AllowTimeouts">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.AllowTimeouts">
             <summary>
             Whether to allow timeouts checks within the interrupts callback
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.ExcludeInterruptFmts">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.ExcludeInterruptFmts">
             <summary>
             List of FFmpeg formats to be excluded from interrupts
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.MinQueueSize">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.BufferDuration">
             <summary>
-            Minimum required demuxed packets before playing
+            Maximum allowed duration ticks for buffering
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.MaxQueueSize">
-            <summary>
-            Maximum allowed packets for buffering
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.Demuxer.MaxErrors">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.MaxErrors">
             <summary>
             Maximum allowed errors before stopping
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.CloseTimeout">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.CloseTimeout">
             <summary>
             avformat_close_input timeout (ticks) for protocols that support interrupts
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.OpenTimeout">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.OpenTimeout">
             <summary>
             avformat_open_input + avformat_find_stream_info timeout (ticks) for protocols that support interrupts (should be related to probesize/analyzeduration)
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.ReadTimeout">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.ReadTimeout">
             <summary>
             av_read_frame timeout (ticks) for protocols that support interrupts
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.SeekTimeout">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.SeekTimeout">
             <summary>
             av_seek_frame timeout (ticks) for protocols that support interrupts
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.FormatFlags">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.FormatFlags">
             <summary>
             FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
             eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Demuxer.FormatOpt">
+        <member name="P:FlyleafLib.Config.DemuxerConfig.FormatOpt">
             <summary>
             FFmpeg's format options for demuxer
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Decoder.HWAcceleration">
-            <summary>
-            Activates Direct3D video acceleration (decoding)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.Decoder.VideoThreads">
+        <member name="P:FlyleafLib.Config.DecoderConfig.VideoThreads">
             <summary>
             Threads that will be used from the decoder
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Decoder.MinVideoFrames">
-            <summary>
-            Minimum required video frames before playing
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.Decoder.MinAudioFrames">
-            <summary>
-            Minimum required audio frames before playing
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.Decoder.MaxVideoFrames">
+        <member name="P:FlyleafLib.Config.DecoderConfig.MaxVideoFrames">
             <summary>
             Maximum video frames to be decoded and processed for rendering
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Decoder.MaxAudioFrames">
+        <member name="P:FlyleafLib.Config.DecoderConfig.MaxAudioFrames">
             <summary>
             Maximum audio frames to be decoded and processed for playback
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Decoder.MaxSubsFrames">
+        <member name="P:FlyleafLib.Config.DecoderConfig.MaxSubsFrames">
             <summary>
             Maximum subtitle frames to be decoded
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Decoder.MaxErrors">
+        <member name="P:FlyleafLib.Config.DecoderConfig.MaxErrors">
             <summary>
             Maximum allowed errors before stopping
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Video.CustomAspectRatio">
-            <summary>
-            Custom aspect ratio (AspectRatio must be set to Custom to have an effect)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.Video.AspectRatio">
+        <member name="P:FlyleafLib.Config.VideoConfig.AspectRatio">
             <summary>
             Video aspect ratio
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Video.ClearColor">
+        <member name="P:FlyleafLib.Config.VideoConfig.CustomAspectRatio">
             <summary>
-            Backcolor of the player's surface
+            Custom aspect ratio (AspectRatio must be set to Custom to have an effect)
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Audio.Enabled">
+        <member name="P:FlyleafLib.Config.VideoConfig.BackgroundColor">
+            <summary>
+            Background color of the player's control
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.Enabled">
+            <summary>
+            Whether video should be enabled or not
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.MaxVerticalResolutionAuto">
+            <summary>
+            The max resolution that the current system can achieve and will be used from the input/stream suggester plugins
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.MaxVerticalResolutionCustom">
+            <summary>
+            Custom max vertical resolution that will be used from the input/stream suggester plugins
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.MaxVerticalResolution">
+            <summary>
+            The max resolution that is currently used (based on Auto/Custom)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.SwsHighQuality">
+            <summary>
+            In case of no hardware accelerated or post process accelerated pixel formats will use FFmpeg's SwsScale
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.VideoAcceleration">
+            <summary>
+            Activates Direct3D video acceleration (decoding)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.VSync">
+            <summary>
+            Whether Vsync should be enabled or not (0: Disabled, 1: Enabled)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.AudioConfig.Delay">
+            <summary>
+            Audio delay ticks (will be reseted to 0 for every new audio stream)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.AudioConfig.Enabled">
             <summary>
             Whether audio should be enabled or not
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Audio.LatencyTicks">
-            <summary>
-            NAudio's latency (required buffered duration before playing)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.Audio.Languages">
+        <member name="P:FlyleafLib.Config.AudioConfig.Languages">
             <summary>
             Audio languages preference by priority
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Audio.DelayTicks">
+        <member name="P:FlyleafLib.Config.AudioConfig.Latency">
             <summary>
-            Audio delay ticks (will be parsed in current active stream and will be resetted on each new input)
+            NAudio's latency ticks (required buffered duration before playing)
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Subs.Languages">
+        <member name="P:FlyleafLib.Config.SubtitlesConfig.Delay">
             <summary>
-            Subtitle languages preference by priority
+            Subtitle delay ticks (will be reseted to 0 for every new subtitle stream)
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Subs.Enabled">
+        <member name="P:FlyleafLib.Config.SubtitlesConfig.Enabled">
             <summary>
             Whether subtitles should be enabled or not
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Subs.UseOnlineDatabases">
+        <member name="P:FlyleafLib.Config.SubtitlesConfig.Languages">
             <summary>
-            Whether to use online search plugins or not
+            Subtitle languages preference by priority
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.Subs.DelayTicks">
+        <member name="P:FlyleafLib.Config.SubtitlesConfig.UseOnlineDatabases">
             <summary>
-            Subtitle delay ticks (will be parsed in current active stream and will be resetted on each new input)
+            Whether to use online search plugins or not
             </summary>
         </member>
         <member name="F:FlyleafLib.Controls.Flyleaf.components">
@@ -257,11 +282,6 @@
             Prevent auto dispose of the player during window close/unload
             </summary>
         </member>
-        <member name="P:FlyleafLib.Master.Plugins">
-            <summary>
-            Holds loaded plugin types
-            </summary>
-        </member>
         <member name="M:FlyleafLib.Master.RegisterFFmpeg(System.String,System.Int32)">
             <summary>
             Registers FFmpeg libraries (ensure you provide x86 or x64 based on your project)
@@ -269,12 +289,17 @@
             <param name="absolutePath">Provide your custom absolute path or :1 for current or :2 for Libs\(x86 or x64 dynamic)\FFmpeg from current to base</param>
             <param name="verbosity">FFmpeg's verbosity (24: Warning, 64: Max offset ...) (used only in DEBUG)</param>
         </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaContext.DecoderContext.RequiresResync">
+            <summary>
+            It will not resync by itself. Requires manual call to ReSync()
+            </summary>
+        </member>
         <member name="T:FlyleafLib.MediaFramework.MediaContext.Downloader">
             <summary>
             Downloads or remuxes to different format any ffmpeg valid input url
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaContext.Downloader.Demuxer">
+        <member name="P:FlyleafLib.MediaFramework.MediaContext.Downloader.DecCtx">
             <summary>
             The backend demuxer. Access this to enable the required streams for downloading
             </summary>
@@ -304,12 +329,12 @@
             Fires on download completed or failed
             </summary>
         </member>
-        <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Open(System.String)">
+        <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Open(System.String,System.Boolean,System.Boolean,System.Boolean)">
             <summary>
-            Opens the demuxer and fills streams info
+            Opens the demuxer(s) and fills streams info
             </summary>
             <param name="url">The filename or url to open</param>
-            <returns></returns>
+            <returns>Null on success or error message on failure</returns>
         </member>
         <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Download(System.String@,System.Boolean)">
             <summary>
@@ -336,6 +361,16 @@
             </summary>
             <returns>0 on success</returns>
         </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.CurTime">
+            <summary>
+            The time of first packet in the queue
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.BufferedDuration">
+            <summary>
+            The buffered time in the queue (last packet time - first packet time)
+            </summary>
+        </member>
         <member name="M:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.GetNextPacket(System.Int32)">
             <summary>
             Demuxes until the a valid packet within EnabledStreams or the specified stream (Will be stored in AVPacket* packet)
@@ -350,39 +385,44 @@
             <param name="filename">The filename to save the recorded video. The file extension will let the demuxer to choose the output format (eg. mp4). If you useRecommendedExtension will be updated with the extension.</param>
             <param name="useRecommendedExtension">Will try to match the output container with the input container</param>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.InUse">
+        <member name="P:FlyleafLib.MediaPlayer.AudioInfo.IsOpened">
             <summary>
-            Whether the current stream is enabled
+            Whether the input has audio and it is configured
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.Used">
+        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.PlayerId">
             <summary>
-            How many times has been used
+            Player's incremental unique id
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaStream.StreamBase.Tag">
+        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Config">
             <summary>
-            Tag/Opaque for plugins (mainly to match streams with their own streams)
+            Player's configuration (set once in the constructor)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaFramework.MediaStream.VideoStream.Movie">
+        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Channels">
             <summary>
-            Stream's Movie info from the current plugin's Playlist
+            Audio player's channels (currently 2 channels supported only)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.SampleRate">
+            <summary>
+            Audio player's sample rate (ffmpeg will set this)
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Volume">
             <summary>
-            Current audio player's volume / amplifier (valid values 0 - no upper limit)
+            Audio player's volume / amplifier (valid values 0 - no upper limit)
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Mute">
             <summary>
-            Current audio player's mute
+            Audio player's mute
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Device">
+        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.AudioDevice">
             <summary>
-            Current audio player's device name (see Master.AudioMaster.Devices for valid input names)
+            Audio player's current device (see Master.AudioMaster.Devices for valid input names)
             Set to null to use AudioMaster's Device which handles all instances (Default)
             </summary>
         </member>
@@ -397,69 +437,24 @@
             Flyleaf Control (WinForms)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.Config">
+        <member name="P:FlyleafLib.MediaPlayer.Player.Audio">
             <summary>
-            Player's Configuration (set once in the constructor)
+            Information about the current opened audio
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.Session">
+        <member name="P:FlyleafLib.MediaPlayer.Player.Video">
             <summary>
-            Player's Session
+            Information about the current opened video
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.PlayerId">
+        <member name="P:FlyleafLib.MediaPlayer.Player.Subtitles">
             <summary>
-            Player's Incremental Unique Id
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.PlayerName">
-            <summary>
-            Player's Name
+            Information about the current opened subtitles
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.HasEnded">
             <summary>
-            Whether the video has ended
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.HasAudio">
-            <summary>
-            Whether the video has audio and it is configured
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.HasSubs">
-            <summary>
-            Whether the video has subtitles and it is configured
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.Plugins">
-            <summary>
-            Dictionary of available Plugins and their AVS Streams
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.FPS">
-            <summary>
-            Actual Frames rendered per second (FPS)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.DroppedFrames">
-            <summary>
-            Total Dropped Frames
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.TBR">
-            <summary>
-            Total bitrate (Kbps)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.VBR">
-            <summary>
-            Video bitrate (Kbps)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.ABR">
-            <summary>
-            Audio bitrate (Kbps)
+            Whether the input has ended
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Status">
@@ -467,31 +462,162 @@
             Player's Status
             </summary>
         </member>
-        <member name="M:FlyleafLib.MediaPlayer.Player.OpenFailed">
+        <member name="P:FlyleafLib.MediaPlayer.Player.CanPlay">
             <summary>
-            Access this only from Plugins
+            Whether the player's status is capable of accepting playback commands
             </summary>
         </member>
-        <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.String,System.Boolean)">
+        <member name="P:FlyleafLib.MediaPlayer.Player.CurTime">
             <summary>
-            Opens a new external Video or Subtitle url
+            Player's current time or user's current seek time (uses forward direction)
             </summary>
-            <param name="url"></param>
-            <param name="openDefault">Will open the best match for audio/subtitles</param>
         </member>
-        <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.IO.Stream)">
+        <member name="P:FlyleafLib.MediaPlayer.Player.Duration">
             <summary>
-            Opens a new external Video from a custom System.IO.Stream
+            Input's duration
             </summary>
-            <param name="stream"></param>
         </member>
-        <member name="M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaFramework.MediaStream.StreamBase,System.Boolean)">
+        <member name="P:FlyleafLib.MediaPlayer.Player.BufferedDuration">
             <summary>
-            Opens an existing AVS stream from Plugins[_PLUGIN_NAME_].[AVS]Stream
+            The current buffered duration in the demuxer
             </summary>
-            <param name="inputStream">Stream to be opened</param>
-            <param name="openDefault">In case of video stream will open the best match audio</param>
         </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.IsLive">
+            <summary>
+            Whether the input is live or not (duration might not be 0 on live sessions to allow live seek, eg. hls)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Folder">
+            <summary>
+            Input's folder which might be used from plugins (eg. load / save subtitles)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.FileSize">
+            <summary>
+            Input's size which might be used from plugins (eg. calculate movie hash for subtitles)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Title">
+            <summary>
+            Input's title
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.IsRecording">
+            <summary>
+            Whether is recording or not
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.StartRecording(System.String@,System.Boolean)">
+            <summary>
+            Starts recording
+            </summary>
+            <param name="filename">Path of the new recording file</param>
+            <param name="useRecommendedExtension">You can force the output container's format or use the recommended one to avoid incompatibility</param>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.StopRecording">
+            <summary>
+            Stops recording
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.ScreenWidth">
+            <summary>
+            Renderer's adapter attached screen width
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.ScreenHeight">
+            <summary>
+            Renderer's adapter attached screen height
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.TakeSnapshot(System.String)">
+            <summary>
+            Saves the current video frame to bitmap file
+            </summary>
+            <param name="filename"></param>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Zoom">
+            <summary>
+            Pan zoom in/out per pixel of each side (should be based on Control's width/height)
+            </summary>
+        </member>
+        <member name="F:FlyleafLib.MediaPlayer.Player.decoder">
+            <summary>
+            Player's Decoder Context. Normally you should not access this directly.
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.renderer">
+            <summary>
+            Player's Renderer. Normally you should not access this directly.
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>
+            Opens a new media file (audio/subtitles/video)
+            </summary>
+            <param name="url">Media file's url</param>
+            <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+            <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+            <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+            <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+            <returns></returns>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.IO.Stream,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>
+            Opens a new media stream (audio/video)
+            </summary>
+            <param name="iostream">Media stream</param>
+            <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+            <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+            <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+            <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+            <returns></returns>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.OpenAsync(System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>
+            Opens a new media file (audio/subtitles/video) without blocking
+            You can get the results from <see cref="E:FlyleafLib.MediaPlayer.Player.OpenCompleted"/>
+            </summary>
+            <param name="url">Media file's url</param>
+            <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+            <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+            <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+            <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.OpenAsync(System.IO.Stream,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>
+            Opens a new media I/O stream (audio/video) without blocking
+            You can get the results from <see cref="E:FlyleafLib.MediaPlayer.Player.OpenCompleted"/>
+            </summary>
+            <param name="iostream">Media stream</param>
+            <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+            <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+            <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+            <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaFramework.MediaInput.InputBase,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>
+            Opens an existing media input (audio/subtitles/video)
+            </summary>
+            <param name="input">An existing Player's media input</param>
+            <param name="resync">Whether to force resync with other streams</param>
+            <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+            <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+            <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+            <returns></returns>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.OpenAsync(FlyleafLib.MediaFramework.MediaInput.InputBase,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>
+            Opens an existing media input (audio/subtitles/video) without blocking
+            You can get the results from <see cref="E:FlyleafLib.MediaPlayer.Player.OpenInputCompleted"/>
+            </summary>
+            <param name="input">An existing Player's media input</param>
+            <param name="resync">Whether to force resync with other streams</param>
+            <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+            <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+            <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        </member>
+        <!-- Badly formed XML comment ignored for member "M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaFramework.MediaStream.StreamBase,System.Boolean,System.Boolean)" -->
+        <!-- Badly formed XML comment ignored for member "M:FlyleafLib.MediaPlayer.Player.OpenAsync(FlyleafLib.MediaFramework.MediaStream.StreamBase,System.Boolean,System.Boolean)" -->
         <member name="M:FlyleafLib.MediaPlayer.Player.Play">
             <summary>
             Plays AVS streams
@@ -522,87 +648,37 @@
         </member>
         <member name="E:FlyleafLib.MediaPlayer.Player.OpenCompleted">
             <summary>
-            Fires on Audio / Video open success or failure
+            Fires on open completed of new media input (success or failure)
+            </summary>
+        </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.OpenInputCompleted">
+            <summary>
+            Fires on open completed of an existing media input (success or failure)
+            </summary>
+        </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.OpenStreamCompleted">
+            <summary>
+            Fires on open completed of an existing media stream (success or failure)
             </summary>
         </member>
         <member name="E:FlyleafLib.MediaPlayer.Player.PlaybackCompleted">
             <summary>
-            Fires on Playback completed
+            Fires on playback ended successfully
             </summary>
         </member>
-        <member name="T:FlyleafLib.MediaPlayer.Session">
+        <member name="P:FlyleafLib.MediaPlayer.SubtitlesInfo.IsOpened">
             <summary>
-            Player's active Session (partially notifies, should re-request attributes on OpenCompleted - raise null property)
+            Whether the input has subtitles and it is configured
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.VideoInfo">
+        <member name="P:FlyleafLib.MediaPlayer.VideoInfo.IsOpened">
             <summary>
-            Holds the decocer's current Video stream
+            Whether the input has video and it is configured
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.AudioInfo">
+        <member name="P:FlyleafLib.MediaPlayer.VideoInfo.CurrentFps">
             <summary>
-            Holds the decoder's current Audio stream
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.SubsInfo">
-            <summary>
-            Holds the decoder's current Subtitle stream
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.CurVideoStream">
-            <summary>
-            Holds the current Video stream
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.CurAudioStream">
-            <summary>
-            Holds the current Audio stream
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.CurSubtitleStream">
-            <summary>
-            Holds the current Subtitle stream
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.LastAudioStream">
-            <summary>
-            Holds the last enabled Audio stream in case of disabling
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.LastSubtitleStream">
-            <summary>
-            Holds the last enabled Subtitle stream in case of disabling
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.InitialUrl">
-            <summary>
-            Holds the initial user's video input
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.IsPlaylist">
-            <summary>
-            Whether the input is Single Movie or Multiple (eg. in case of torrent with multiple video files)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.Movie">
-            <summary>
-            Holds Movie's info
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.CanPlay">
-            <summary>
-            Whether the player's status is capable of accepting playback commands
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.SubsText">
-            <summary>
-            Subtitles text auto set for the actual displaying duration
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Session.CurTime">
-            <summary>
-            Player's current time or user's current seek time (if set from here seek's direction will be foreward)
+            Actual Frames rendered per second (FPS)
             </summary>
         </member>
         <member name="T:FFmpeg.AutoGen.ffmpegEx">

@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if not exist &quot;$(SolutionDir)Plugins&quot; mkdir &quot;$(SolutionDir)Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins&quot; &quot;$(TargetDir)Plugins\&quot; /E /Y&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(TargetDir)Libs&quot; mkdir &quot;$(TargetDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;if $(PlatformName) == x86 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x86\*&quot; &quot;$(TargetDir)Libs\x86\&quot; /E /Y&#xD;&#xA;)&#xD;&#xA;if $(PlatformName) == x64 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x64\*&quot; &quot;$(TargetDir)Libs\x64\&quot; /E /Y&#xD;&#xA;)" />
+    <Exec Command="xcopy &quot;$(SolutionDir)Plugins&quot; &quot;$(TargetDir)Plugins\&quot; /E /Y&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(TargetDir)Libs&quot; mkdir &quot;$(TargetDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;if $(PlatformName) == x86 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x86\*&quot; &quot;$(TargetDir)Libs\x86\&quot; /E /Y&#xD;&#xA;)&#xD;&#xA;if $(PlatformName) == x64 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x64\*&quot; &quot;$(TargetDir)Libs\x64\&quot; /E /Y&#xD;&#xA;)" />
   </Target>
   
   <Target Name="PostPublish" AfterTargets="Publish">

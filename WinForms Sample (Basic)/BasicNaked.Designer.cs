@@ -37,17 +37,19 @@ namespace WinForms_Sample__Basic_
             this.flyleaf1.BackColor = System.Drawing.Color.Black;
             this.flyleaf1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flyleaf1.Location = new System.Drawing.Point(0, 0);
+            this.flyleaf1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.flyleaf1.Name = "flyleaf1";
-            this.flyleaf1.Size = new System.Drawing.Size(800, 450);
+            this.flyleaf1.Size = new System.Drawing.Size(724, 446);
             this.flyleaf1.TabIndex = 0;
             // 
-            // Form1
+            // BasicNaked
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
+            this.ClientSize = new System.Drawing.Size(724, 446);
             this.Controls.Add(this.flyleaf1);
-            this.Name = "Form1";
+            this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            this.Name = "BasicNaked";
             this.Text = "Form1";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.ResumeLayout(false);
