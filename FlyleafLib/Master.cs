@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 
 using static FFmpeg.AutoGen.ffmpeg;
 
@@ -18,34 +17,26 @@ namespace FlyleafLib
     {
         static Master()
         {
-            //AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve;
-            
-            Plugins     = new List<Type>();
             Players     = new Dictionary<int, Player>();
             AudioMaster = new AudioMaster();
-            LoadPlugins();
+            PluginHandler.LoadAssemblies();
         }
 
         /// <summary>
         /// Manages audio devices, volume &amp; mute
         /// </summary>
-        public static AudioMaster   AudioMaster         { get; }
+        public static AudioMaster               AudioMaster         { get; }
 
         /// <summary>
         /// Holds player instances
         /// </summary>
-        public static Dictionary<int, Player>  Players  { get; }
+        public static Dictionary<int, Player>   Players             { get; }
 
         /// <summary>
         /// Prevent auto dispose of the player during window close/unload
         /// </summary>
-        public static bool          PreventAutoDispose  { get;  set; }
+        public static bool                      PreventAutoDispose  { get; set; }
 
-        /// <summary>
-        /// Holds loaded plugin types
-        /// </summary>
-        public static List<Type>    Plugins             { get; }
-        
         internal static void DisposePlayer(Player player)
         {
             if (player == null) return;
@@ -53,7 +44,6 @@ namespace FlyleafLib
             DisposePlayer(player.PlayerId);
             player = null;
         }
-
         internal static void DisposePlayer(int playerId)
         {
             if (!Players.ContainsKey(playerId)) return;
@@ -61,54 +51,6 @@ namespace FlyleafLib
             Player player = Players[playerId];
             player.DisposeInternal();
             Players.Remove(playerId);
-        }
-        private static void LoadPlugins()
-        {
-            // Load .dll Assemblies
-            if (Directory.Exists("Plugins"))
-            {
-                string[] dirs = Directory.GetDirectories("Plugins");
-                foreach(string dir in dirs)
-                    foreach(string file in Directory.GetFiles(dir, "*.dll"))
-                        try { Assembly.LoadFrom(Path.GetFullPath(file));}
-                        catch (Exception e) { Log($"[Plugins] [Error] Failed to load assembly ({e.Message} {Utils.GetRecInnerException(e)})"); }
-            }
-            
-
-            // Find PluginBase Types | Try Catch in for can crash if older version exists
-            List<Type> types        = new List<Type>();
-            Type pluginBaseType     = typeof(PluginBase);
-            Assembly[] assemblies   = AppDomain.CurrentDomain.GetAssemblies();
-
-            foreach (var assembly in assemblies)
-                try
-                {
-                    foreach (var type in assembly.GetTypes())
-                        if (pluginBaseType.IsAssignableFrom(type) && type.IsClass && type.Name != nameof(PluginBase))
-                            types.Add(type);
-                } catch (Exception) { }
-
-            // Load Plugins
-            foreach (var type in types)
-                { Log($"[PluginLoader] {type.FullName}"); Plugins.Add(type); }
-        }
-
-        private static Assembly AssemblyResolve(object sender, ResolveEventArgs args)
-        {
-            // Fix Assemblies redirect bindings and binaryFormater (currently just for BitSwarm plugin)
-            try
-            {
-                foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                if (assembly.GetName().Name == (new AssemblyName(args.Name)).Name && (assembly.GetName().Name == "BitSwarmLib" || assembly.GetName().Name == "System.Buffers"))
-                {
-                    Log($"[AssemblyResolver] Found {assembly.FullName}");
-                    return assembly;
-                }
-
-                Log($"[AssemblyResolver] for {args.Name} not found");
-            } catch (Exception) { }
-
-            return null;
         }
 
         /// <summary>
@@ -118,7 +60,7 @@ namespace FlyleafLib
         /// <param name="verbosity">FFmpeg's verbosity (24: Warning, 64: Max offset ...) (used only in DEBUG)</param>
         public static void RegisterFFmpeg(string absolutePath = ":1", int verbosity = AV_LOG_WARNING) //AV_LOG_MAX_OFFSET
         {
-            if (Utils.IsDesignMode || alreadyRegister) return;
+            if (alreadyRegister) return;
             alreadyRegister = true;
             RootPath        = null;
 
@@ -637,6 +579,6 @@ namespace FlyleafLib
             new Language("spn","sp","Spanish (EU)","1","0")
         };
 
-        private static void Log(string msg) { System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] {msg}"); }
+        private static void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] {msg}"); }
     }
 }

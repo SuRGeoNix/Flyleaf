@@ -15,7 +15,7 @@ namespace FlyleafLib
         /// <summary>
         /// Default audio device name
         /// </summary>
-        public string   DefaultDeviceName   { get; private set; } = DirectSoundOut.Devices.ToList()[0].Description;
+        public string       DefaultDeviceName   { get; private set; }
 
         /// <summary>
         /// List with the names of the available audio devices (use these names to change current Device for all the players or for each player seperately)
@@ -33,7 +33,7 @@ namespace FlyleafLib
         /// <summary>
         /// Audio device name which will be used for all the audio players (see Devices for valid input names)
         /// </summary>
-        public string Device
+        public string       Device
         {
             get => _Device;
             set
@@ -57,26 +57,26 @@ namespace FlyleafLib
         /// <summary>
         /// Gets or sets the master's volume (valid values 0 - 100)
         /// </summary>
-        public int      VolumeMaster    { get { return GetVolumeMaster(); } set { SetVolumeMaster(value); } }
+        public int          VolumeMaster        { get { return GetVolumeMaster();   }   set { SetVolumeMaster(value);   } }
 
         /// <summary>
         /// Gets or sets the master's volume mute
         /// </summary>
-        public bool     MuteMaster      { get { return GetMuteMaster();   } set { SetMuteMaster  (value); } }
+        public bool         MuteMaster          { get { return GetMuteMaster();     }   set { SetMuteMaster(value);     } }
 
         /// <summary>
         /// Gets or sets the session's volume (valid values 0 - 100)
         /// </summary>
-        public int      VolumeSession   { get { return GetVolumeSession(); } set { SetVolumeSession(value); } }
+        public int          VolumeSession       { get { return GetVolumeSession();  }   set { SetVolumeSession(value);  } }
 
         /// <summary>
         /// Gets or sets the session's volume mute
         /// </summary>
-        public bool     MuteSession     { get { return GetMuteSession();   } set { SetMuteSession  (value); } }
+        public bool         MuteSession         { get { return GetMuteSession();    }   set { SetMuteSession(value);    } }
         #endregion
 
         #region Declaration
-        string _Device = DirectSoundOut.Devices.ToList()[0].Description;
+        string _Device;
         string  DeviceId;
         internal Guid       DeviceIdNaudio;
         MMDeviceEnumerator  deviceEnum;
@@ -88,14 +88,20 @@ namespace FlyleafLib
         #region Initialize / Dispose
         public AudioMaster()
         {
+            DefaultDeviceName = DirectSoundOut.Devices.ToList()[0].Description;
+            _Device = DefaultDeviceName;
+
             deviceEnum = new MMDeviceEnumerator();
             deviceEnum.RegisterEndpointNotificationCallback(this);
             
+            #if DEBUG
             string dump = "Audio devices ...\r\n";
             foreach(var device in deviceEnum.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
                 dump += $"{device.ID} | {device.FriendlyName}\r\n";
 
             Log(dump);
+            #endif
+
             Initialize();
         }
         public void Initialize()
@@ -105,7 +111,7 @@ namespace FlyleafLib
                 if (device != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
 
                 foreach(var player in Master.Players.Values)
-                    player.audioPlayer.Initialize();
+                    player.InitializeAudio();
 
                 if (Device == DefaultDeviceName)
                     device = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);

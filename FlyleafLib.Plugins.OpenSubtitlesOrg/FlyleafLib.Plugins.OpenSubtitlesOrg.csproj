@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0-windows</TargetFramework>
+	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	<AssemblyVersion>1.1.0.0</AssemblyVersion>
+	<FileVersion>1.1.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FlyleafLib\FlyleafLib.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>All</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if not exist &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot; mkdir &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot;&#xD;&#xA;if not exist &quot;$(SolutionDir)Plugins\SharedLibs&quot; mkdir &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)Newtonsoft.Json.dll&quot; &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot;" />
+  </Target>
+
+</Project>

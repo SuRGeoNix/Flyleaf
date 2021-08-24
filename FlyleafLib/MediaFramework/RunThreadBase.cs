@@ -69,15 +69,20 @@ namespace FlyleafLib.MediaFramework
                     if (Disposed || Status == Status.Ended) return;
 
                     if (Status == Status.Pausing) while (Status != Status.Pausing) Thread.Sleep(3);
-                    if (Status == Status.Paused) { threadARE.Set(); return; }
+                    if (Status == Status.Paused)
+                    {
+                        threadARE.Set();
+                        while (Status == Status.Paused) Thread.Sleep(3);
+                        return; 
+                    }
 
                     if (thread != null && thread.IsAlive) return;
                     thread = new Thread(() => Run());
                     Status = Status.Running;
-                }
 
-                thread.Name = $"[#{UniqueId}] [{threadName}]"; thread.IsBackground= true; thread.Start();
-                while (!thread.IsAlive) { Log("Waiting thread to come up"); Thread.Sleep(3); }
+                    thread.Name = $"[#{UniqueId}] [{threadName}]"; thread.IsBackground= true; thread.Start();
+                    while (!thread.IsAlive) { Log("Waiting thread to come up"); Thread.Sleep(3); }
+                }
             }
         }
         public void Stop()
@@ -109,7 +114,7 @@ namespace FlyleafLib.MediaFramework
                     threadARE.Reset();
                     Status = Status.Paused;
                     threadARE.WaitOne();
-                    if (Status == Status.Paused) Status = Status.Running;
+                    if (Status == Status.Paused) _Status = Status.Running;
                 }
 
             } while (Status == Status.Running);

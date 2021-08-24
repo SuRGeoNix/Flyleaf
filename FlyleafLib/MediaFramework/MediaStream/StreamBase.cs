@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -13,41 +12,23 @@ namespace FlyleafLib.MediaFramework.MediaStream
 {
     public abstract unsafe class StreamBase
     {
-        /// <summary>
-        /// Whether the current stream is enabled
-        /// </summary>
-        public bool         InUse       { get => _InUse; set { _InUse = value; if (value) Used++; } }
-        bool _InUse;
+        public Demuxer                      Demuxer             { get; internal set; }
+        public AVStream*                    AVStream            { get; internal set; }
+        public HLSPlaylist*                 HLSPlaylist         { get; internal set; }
+        public int                          StreamIndex         { get; internal set; } = -1;
+        public double                       Timebase            { get; internal set; }
 
-        /// <summary>
-        /// How many times has been used
-        /// </summary>
-        public int          Used        { get; set; }
+        public bool                         Enabled             { get; internal set; }
+        public long                         BitRate             { get; internal set; }
+        public Language                     Language            { get; internal set; }
+        public string                       Codec               { get; internal set; }
+        
 
-        /// <summary>
-        /// Tag/Opaque for plugins (mainly to match streams with their own streams)
-        /// </summary>
-        public object       Tag         { get; set; }
-
-        public string       Url         { get; set; }
-
-        public Stream       Stream      { get; set; }
-
-        public Demuxer      Demuxer     { get; private set; }
-
-        public AVStream*                    AVStream            { get; set; }
-        public HLSPlaylist*                 HLSPlaylist         { get; set; }
-
-        public long                         BitRate             { get; set; }
-        public AVCodecID                    CodecID             { get; set; }
-        public string                       CodecName           { get; set; }
-        public long                         Duration            { get; set; }
-        public Language                     Language            { get; set; }
-        public Dictionary<string, string>   Metadata            { get; set; }
-        public long                         StartTime           { get; set; }
-        public int                          StreamIndex         { get; set; } = -1;
-        public double                       Timebase            { get; set; }
-        public MediaType                    Type                { get; set; }
+        public AVCodecID                    CodecID             { get; internal set; }
+        public long                         StartTime           { get; internal set; }
+        public long                         Duration            { get; internal set; }
+        public Dictionary<string, string>   Metadata            { get; internal set; }
+        public MediaType                    Type                { get; internal set; }
 
         public abstract string GetDump();
         public StreamBase() { }
@@ -57,7 +38,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
             AVStream    = st;
             BitRate     = st->codecpar->bit_rate;
             CodecID     = st->codecpar->codec_id;
-            CodecName   = avcodec_get_name(st->codecpar->codec_id);
+            Codec       = avcodec_get_name(st->codecpar->codec_id);
             StreamIndex = st->index;
             Timebase    = av_q2d(st->time_base) * 10000.0 * 1000.0;
             StartTime   = st->start_time != AV_NOPTS_VALUE && Demuxer.hlsCtx == null ? (long)(st->start_time * Timebase) : 0;
@@ -85,6 +66,9 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
             foreach (var kv in Metadata)
                 if (kv.Key.ToLower() == "language" || kv.Key.ToLower() == "lang") { Language = Language.Get(kv.Value); break; }
+
+            // We consider default language english?
+            if (Language == null || Language == Language.Get("und")) Language = Language.Get("eng");
         }
     }
 }

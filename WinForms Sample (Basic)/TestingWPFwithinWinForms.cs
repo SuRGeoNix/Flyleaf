@@ -33,8 +33,8 @@ namespace WinForms_Sample__Basic_
             _config = new Config();
             //_config.audio.Enabled = false;
             //_config.decoder.HWAcceleration = false;
-            _config.demuxer.FormatOpt.Add("probesize",       (50 * (long) 1024 * 1024).ToString());
-            _config.demuxer.FormatOpt.Add("analyzeduration", (10 * (long) 1000 * 1000).ToString());
+            _config.Demuxer.FormatOpt.Add("probesize",       (50 * (long) 1024 * 1024).ToString());
+            _config.Demuxer.FormatOpt.Add("analyzeduration", (10 * (long) 1000 * 1000).ToString());
         }
 
         private void Form2_Load(object sender, EventArgs e)
@@ -77,7 +77,7 @@ namespace WinForms_Sample__Basic_
 
             ContentControl1.Content = _videoView;
 
-            _player.Open(sampleVideo);
+            _player.OpenAsync(sampleVideo);
 
             // Add to test naked control
             //_player.OpenCompleted += (o, e2) => { _player.Play(); };

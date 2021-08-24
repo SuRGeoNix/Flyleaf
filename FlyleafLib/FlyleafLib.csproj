@@ -7,18 +7,26 @@
 	<PackageIcon>Flyleaf.png</PackageIcon>
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
-	<Description>Video Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
-	<Version>3.2.5</Version>
+	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
+	<Version>3.3.0-pre</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
 	<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
-	<PackageTags>flyleaf flyleaflib video media player engine framework ffmpeg sharpdx directx</PackageTags>
+	<PackageTags>flyleaf flyleaflib video audio media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Fixes a critical integer overflow on Screamer with Math.Abs (It would cause the Player to stop)</PackageReleaseNotes>
-    <AssemblyVersion>3.2.5.0</AssemblyVersion>
-    <FileVersion>3.2.5.0</FileVersion>
+    <PackageReleaseNotes>Introduces Audio Player only (without the need of control) with the new Config.Player.Usage (AVS: All, Audio, LowLatencyVideo)
+Introduces Buffering Duration (Config.Player.MinBufferDuration &amp; Config.Demuxer.BufferDuration) which replaces Config.Demuxer (MinQueueSize/MaxQueueSize) Config.Decoder (MinAudioFrames/MinVideoFrames)
+Focuses on Performance and Stability especially for opening and stream switching
+Introduces the new pluggable DecoderContext (PluginHandler) which allows download/record also for the external demuxers (mainly AudioDemuxer for youtube-dl) and to use plugins for more general purposes (such exporting frames)
+Clean-up and renamings for Player and Config and collection of all the info under the Player (Player.Audio / Player.Video / Player.Subtitles)
+
+Breaking Changes
+1) Player.Open now is blocking so you probably need to change to Player.OpenAsync to manage the responses from the new events OpenCompleted/OpenInputCompleted/OpenStreamCompleted
+2) Renames to Config and moving info variables all of them under Player.(Audio/Video/Subtitles) which replaces the old Session</PackageReleaseNotes>
+    <AssemblyVersion>3.3.0.0</AssemblyVersion>
+    <FileVersion>3.3.0.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -63,5 +71,9 @@
       <PackagePath></PackagePath>
     </None>
   </ItemGroup>
+  
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+    <Exec Command="if not exist &quot;$(SolutionDir)Plugins&quot; mkdir &quot;$(SolutionDir)Plugins&quot;" />
+  </Target>
 
 </Project>
