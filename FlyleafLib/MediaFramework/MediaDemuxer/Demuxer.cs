@@ -13,12 +13,15 @@ using static FFmpeg.AutoGen.ffmpegEx;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaRemuxer;
 
+using static FlyleafLib.Config;
+
 namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
     public unsafe class Demuxer : RunThreadBase
-    { 
+    {
+        #region Properties
         public MediaType                Type            { get; private set; }
-        public Config.Demuxer           Config          { get; set; }
+        public DemuxerConfig            Config          { get; set; }
 
         // Format Info
         public string                   Url             { get; private set; }
@@ -27,13 +30,20 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public string                   Extensions      { get; private set; }
         public string                   Extension       { get; private set; }
         public long                     StartTime       { get; private set; }
-        public long                     CurTimeLive     { get; private set; }
         public long                     Duration        { get; private set; }
-        public bool                     IsLive          {
-            get => _IsLive;
-            set => Set(ref _IsLive, value);
-        }
-        bool _IsLive;
+        public long                     EndTimeLive     { get; private set; }
+
+        /// <summary>
+        /// The time of first packet in the queue
+        /// </summary>
+        public long                     CurTime         { get; private set; }
+
+        /// <summary>
+        /// The buffered time in the queue (last packet time - first packet time)
+        /// </summary>
+        public long                     BufferedDuration{ get; private set; }
+
+        public bool                     IsLive          { get; private set; }
 
         public AVFormatContext*         FormatContext   => fmtCtx;
         public CustomIOContext          CustomIOContext { get; private set; }
@@ -52,8 +62,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public AudioStream              AudioStream     { get; private set; }
         public VideoStream              VideoStream     { get; private set; }
         public SubtitlesStream          SubtitlesStream { get; private set; }
-        
 
+        // Audio/Video Stream's HLSPlaylist
+        public HLSPlaylist*             HLSPlaylist     { get; private set; }
+        
         // Media Packets
         public ConcurrentQueue<IntPtr>  Packets         { get; private set; } = new ConcurrentQueue<IntPtr>();
         public ConcurrentQueue<IntPtr>  AudioPackets    { get; private set; } = new ConcurrentQueue<IntPtr>();
@@ -71,21 +83,24 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         // Interrupt
         public Interrupter              Interrupter     { get; private set; }
+        #endregion
 
-        AVFormatContext*            fmtCtx;
-        public HLSContext*          hlsCtx;
-        long                        hlsPrevFirstTimestamp = -1;
-        internal GCHandle           handle;
-        internal object             lockFmtCtx  = new object();
-        public AVPacket*            packet;
+        #region Constructor / Declaration
+        public AVPacket*        packet;
+        AVFormatContext*        fmtCtx;
+        public HLSContext*      hlsCtx;
+        long                    hlsPrevFirstTimestamp = -1;
+        long                    lastKnownPtsTimestamp = AV_NOPTS_VALUE;
 
-        public Demuxer(Config.Demuxer config, MediaType type = MediaType.Video, int uniqueId = -1, bool useAVSPackets = true) : base(uniqueId)
+        internal GCHandle       handle;
+        public object           lockFmtCtx  = new object();
+
+        public Demuxer(DemuxerConfig config, MediaType type = MediaType.Video, int uniqueId = -1, bool useAVSPackets = true) : base(uniqueId)
         {
             Config          = config;
             Type            = type;
             UseAVSPackets   = useAVSPackets;
-
-            CurPackets      = GetPacketsPtr(Type);
+            CurPackets      = Packets; // Will be updated on stream switch in case of AVS
 
             Recorder        = new Remuxer(UniqueId);
             Interrupter     = new Interrupter(this);
@@ -93,29 +108,109 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             threadName = $"Demuxer: {Type.ToString().PadLeft(5, ' ')}";
         }
+        #endregion
 
-        public int Open(string url)     { return Open(url, null,    Config.FormatOpt, Config.FormatFlags); }
-        public int Open(Stream stream)  { return Open(null, stream, Config.FormatOpt, Config.FormatFlags); }
-        public int Open(string url, Stream stream, Dictionary<string, string> opt, int flags)
+        #region Dispose / Dispose Packets
+        public void DisposePackets()
         {
-            //lock (lockFmtCtx)
+            if (UseAVSPackets)
+            {
+                DisposePackets(AudioPackets);
+                DisposePackets(VideoPackets);
+                DisposePackets(SubtitlesPackets);
+            }
+            else
+                DisposePackets(Packets);
+
+            BufferedDuration = 0;
+            lastKnownPtsTimestamp = AV_NOPTS_VALUE;
+            hlsPrevFirstTimestamp = -1;
+        }
+        public void DisposePackets(ConcurrentQueue<IntPtr> packets)
+        {
+            while (!packets.IsEmpty)
+            {
+                packets.TryDequeue(out IntPtr packetPtr);
+                if (packetPtr == IntPtr.Zero) continue;
+                AVPacket* packet = (AVPacket*)packetPtr;
+                av_packet_free(&packet);
+            }
+        }
+        public void Dispose()
+        {
+            if (Disposed) return;
+
+            lock (lockActions)
+            {
+                if (Disposed) return;
+
+                Stop();
+
+                Url = null;
+                hlsCtx = null;
+                Programs = new int[0][];
+
+                CurTime = 0;
+                EndTimeLive = 0;
+
+                // Free Streams
+                AudioStreams.Clear();
+                VideoStreams.Clear();
+                SubtitlesStreams.Clear();
+                EnabledStreams.Clear();
+                AudioStream = null;
+                VideoStream = null;
+                SubtitlesStream = null;
+
+                DisposePackets();
+
+                if (fmtCtx != null)
+                {
+                    Interrupter.Request(Requester.Close);
+                    fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
+                }
+
+                if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
+
+                CustomIOContext.Dispose();
+
+                if (handle.IsAllocated) handle.Free();
+
+                TotalBytes = 0; VideoBytes = 0; AudioBytes = 0;
+                Status = Status.Stopped;
+                Disposed = true;
+
+                Log("Disposed");
+            }
+        }
+        #endregion
+
+        #region Open / Seek / Run
+        public string Open(string url)     { return Open(url, null); }
+        public string Open(Stream stream)  { return Open(null, stream); }
+        public string Open(string url, Stream stream)
+        {
             lock (lockActions) 
             {
                 Dispose();
 
-                if (String.IsNullOrEmpty(url) && stream == null) return -1;
+                if (String.IsNullOrEmpty(url) && stream == null) return "Invalid empty/null input";
 
                 int ret = -1;
+                string error = null;
                 Url = url;
 
                 try
                 {
+                    Disposed = false;
                     Status = Status.Opening;
                     if (!handle.IsAllocated) handle = GCHandle.Alloc(this);
 
                     // Parse Options to AV Dictionary Format Options
                     AVDictionary *avopt = null;
-                    foreach (var optKV in opt)
+
+                    var curFormats = Type == MediaType.Audio ? Config.AudioFormatOpt : Config.FormatOpt;
+                    foreach (var optKV in curFormats)
                         av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
 
                     // Allocate / Prepare Format Context
@@ -131,107 +226,50 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         Config.AllowTimeouts = false;
                     }
 
-                    fmtCtx->flags |= flags;
+                    fmtCtx->flags |= Config.FormatFlags;
 
                     if (stream != null)
                         CustomIOContext.Initialize(stream);
-                    
-                    // Open Format Context
-                    AVFormatContext* fmtCtxPtr = fmtCtx;
-                    Interrupter.Request(Requester.Open);
-                    ret = avformat_open_input(&fmtCtxPtr, stream == null ? url : null, null, &avopt);
-                    if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { Log("[Format] [ERROR-10] Cancelled"); fmtCtx = null; return ret = -10; }
-                    if (ret < 0) { Log($"[Format] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); fmtCtx = null; return ret; }
 
-                    // Find Streams Info
-                    ret = avformat_find_stream_info(fmtCtx, null);
-                    if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { Log("[Format] [ERROR-10] Cancelled"); return ret = -10; }
-                    if (ret < 0) { Log($"[Format] [ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
+                    lock (lockFmtCtx)
+                    {
+                        if (stream != null)
+                            stream.Seek(0, SeekOrigin.Begin);
+
+                        // Open Format Context
+                        AVFormatContext* fmtCtxPtr = fmtCtx;
+                        Interrupter.Request(Requester.Open);
+                        ret = avformat_open_input(&fmtCtxPtr, stream == null ? url : null, null, &avopt);
+
+                        if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { fmtCtx = null; return error = "Cancelled"; }
+                        if (ret < 0) { fmtCtx = null; return error = $"[avformat_open_input] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"; }
+
+                        // Find Streams Info
+                        ret = avformat_find_stream_info(fmtCtx, null);
+                        if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) return error = "Cancelled";
+                        if (ret < 0) return error = $"[avformat_find_stream_info] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})";
+                    }
 
                     bool hasVideo = FillInfo();
 
-                    if (Type == MediaType.Video && !hasVideo) 
-                        { Log($"[Format] [ERROR-3] No video stream found");     return ret = -3; }
+                    if (Type == MediaType.Video && !hasVideo && AudioStreams.Count == 0) 
+                        return error = $"No audio / video stream found";
                     else if (Type == MediaType.Audio && AudioStreams.Count == 0)
-                        { Log($"[Format] [ERROR-4] No audio stream found");     return ret = -4; }
+                        return error = $"No audio stream found";
                     else if (Type == MediaType.Subs && SubtitlesStreams.Count == 0)
-                        { Log($"[Format] [ERROR-5] No subtitles stream found"); return ret = -5; }
+                        return error = $"No subtitles stream found";
 
                     packet = av_packet_alloc();
-                    Disposed = false;
                     Status = Status.Stopped;
 
-                    return ret = 0;
+                    return null;
                 }
                 finally
                 {
-                    if (ret != 0)
+                    if (error != null)
                         Dispose();
                 }
             }
-        }
-
-        private void UpdateHLSTime()
-        {
-            if (Type == MediaType.Video && VideoStream != null && VideoStream.HLSPlaylist != null && hlsPrevFirstTimestamp != hlsCtx->first_timestamp)
-            {
-                // TBR: lockFmtCtx is required (for dynamic segments[])
-
-                hlsPrevFirstTimestamp = hlsCtx->first_timestamp;
-
-                long curTimeLive= 0;
-                long duration   = 0;
-                for (int i=0; i<VideoStream.HLSPlaylist->n_segments; i++)
-                {
-                    if (i<=VideoStream.HLSPlaylist->cur_seq_no - VideoStream.HLSPlaylist->start_seq_no )
-                        curTimeLive += VideoStream.HLSPlaylist->segments[i]->duration;
-                    duration += VideoStream.HLSPlaylist->segments[i]->duration;
-                }
-
-                CurTimeLive = curTimeLive * 10;
-                Duration    = duration * 10;
-
-                if (VideoStream.HLSPlaylist->finished == 1) IsLive = false;
-            }
-        }
-        private string GetValidExtension()
-        {
-            // TODO
-            // Should check for all supported output formats (there is no list in ffmpeg.autogen ?)
-            // Should check for inner input format (not outer protocol eg. hls/rtsp)
-            // Should check for raw codecs it can be mp4/mov but it will not work in mp4 only in mov (or avi for raw)
-
-            List<string> supportedOutput = new List<string>() { "mp4", "avi", "flv", "flac", "mpeg", "mpegts", "mkv", "ogg", "ts"};
-            string defaultExtenstion = "mp4";
-            bool hasPcm = false;
-            bool isRaw = false;
-
-            foreach (AudioStream stream in AudioStreams)
-                if (stream.CodecName.Contains("pcm")) hasPcm = true;
-
-            foreach (VideoStream stream in VideoStreams)
-                if (stream.CodecName.Contains("raw")) isRaw = true;
-
-            if (isRaw) defaultExtenstion = "avi";
-
-            // MP4 container doesn't support PCM
-            if (hasPcm) defaultExtenstion = "mkv";
-
-            // TODO
-            // Check also shortnames
-            //if (Name == "mpegts") return "ts";
-            //if ((fmtCtx->iformat->flags & AVFMT_TS_DISCONT) != 0) should be mp4 or container that supports segments
-
-            if (string.IsNullOrEmpty(Extensions)) return defaultExtenstion;
-            string[] extensions = Extensions.Split(',');
-            if (extensions == null || extensions.Length < 1) return defaultExtenstion;
-
-            // Try to set the output container same as input
-            for (int i=0; i<extensions.Length; i++)
-                if (supportedOutput.Contains(extensions[i]))
-                    return extensions[i] == "mp4" && isRaw ? "mov" : extensions[i];
-
-            return defaultExtenstion;
         }
         private bool FillInfo()
         {
@@ -274,7 +312,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         break;
 
                     case AVMEDIA_TYPE_SUBTITLE:
-                        SubtitlesStreams.Add(new SubtitlesStream(this, fmtCtx->streams[i]) { Converted = true, Downloaded = true });
+                        SubtitlesStreams.Add(new SubtitlesStream(this, fmtCtx->streams[i]));
                         AVStreamToStream.Add(i, SubtitlesStreams[SubtitlesStreams.Count-1]);
                         break;
 
@@ -301,6 +339,426 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Extension = GetValidExtension();
             PrintDump();
             return hasVideo;
+        }
+
+        public int Seek(long ticks, bool foreward = false)
+        {
+            lock (lockActions)
+            {
+                if (Disposed) return -1;
+                if (Status == Status.Ended) Status = Status.Stopped;
+
+                int ret;
+
+                if (Config.AllowReadInterrupts) Interrupter.ForceInterrupt = 1;
+                lock (lockFmtCtx)
+                {
+                    Interrupter.ForceInterrupt = 0;
+
+                    if (hlsCtx != null) fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
+                    Interrupter.Request(Requester.Seek);
+                    if (VideoStream != null)
+                    {
+                        Log($"[SEEK({(foreward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
+                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD); // AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
+                    }
+                    else
+                    {
+                        Log($"[SEEK({(foreward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)} | ANY");
+                        ret = foreward ?
+                            avformat_seek_file(fmtCtx, -1, ticks / 10,     ticks / 10, Int64.MaxValue, AVSEEK_FLAG_ANY):
+                            avformat_seek_file(fmtCtx, -1, Int64.MinValue, ticks / 10, ticks / 10,    AVSEEK_FLAG_ANY);
+                    }
+
+                    if (ret < 0)
+                    {
+                        if (hlsCtx != null) fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
+                        Log($"[SEEK] Failed 1/2 (retrying) {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
+                        if (ret < 0) Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                    }
+
+                    DisposePackets();
+                    UpdateCurTime();
+                }
+
+                return ret;  // >= 0 for success
+            }
+        }
+
+        protected override void RunInternal()
+        {
+            int ret = 0;
+            int allowedErrors = Config.MaxErrors;
+            bool gotAVERROR_EXIT = false;
+
+            do
+            {
+                // Wait until not QueueFull
+                if (BufferedDuration > Config.BufferDuration)
+                {
+                    lock (lockStatus)
+                        if (Status == Status.Running) Status = Status.QueueFull;
+
+                    while (BufferedDuration > Config.BufferDuration && Status == Status.QueueFull) { Thread.Sleep(20); UpdateCurTime(true); }
+
+                    lock (lockStatus)
+                    {
+                        if (Status != Status.QueueFull) break;
+                        Status = Status.Running;
+                    }
+                }
+
+                // Wait possible someone asks for lockFmtCtx
+                else if (gotAVERROR_EXIT)
+                {
+                    gotAVERROR_EXIT = false;
+                    Thread.Sleep(5);
+                }
+
+                // Demux Packet
+                lock (lockFmtCtx)
+                {
+                    Interrupter.Request(Requester.Read);
+                    ret = av_read_frame(fmtCtx, packet);
+                    if (Interrupter.ForceInterrupt != 0) { av_packet_unref(packet); gotAVERROR_EXIT = true; continue; }
+
+                    // Possible check if interrupt/timeout and we dont seek to reset the backend pb->pos = 0?
+                    if (ret != 0)
+                    {
+                        av_packet_unref(packet);
+
+                        if ((ret == AVERROR_EXIT && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF) { Status = Status.Ended; break; }
+
+                        allowedErrors--;
+                        Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+
+                        if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
+
+                        gotAVERROR_EXIT = true;
+                        continue;
+                    }
+
+                    TotalBytes += packet->size;
+
+                    // Skip Disabled Streams
+                    if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
+
+                    if (IsRecording)
+                    {
+                        if (StartRecordingAt == -1)
+                        {
+                            if (!recGotKeyframe && VideoStream == null)
+                                recGotKeyframe = true;
+                            else if (!recGotKeyframe && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && (packet->flags & AV_PKT_FLAG_KEY) != 0)
+                                recGotKeyframe = true;
+                        }
+                        else
+                        {
+                            if (!recGotKeyframe && (long)(packet->pts * AVStreamToStream[packet->stream_index].Timebase) >= StartRecordingAt)
+                            {
+                                recGotKeyframe = true;
+                                Log($"Starts recording at {Utils.TicksToTime((long)(packet->pts * AVStreamToStream[packet->stream_index].Timebase))}");
+                            }
+                            
+                        }
+
+                        if (recGotKeyframe && (fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO || fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO))
+                            CurRecorder.Write(av_packet_clone(packet), Type == MediaType.Audio);
+                    }
+
+                    // Enqueue Packet (AVS Queue or Single Queue)
+                    if (UseAVSPackets)
+                    {
+                        switch (fmtCtx->streams[packet->stream_index]->codecpar->codec_type)
+                        {
+                            case AVMEDIA_TYPE_AUDIO:
+                                UpdateCurTime();
+                                //Log($"Audio => {Utils.TicksToTime((long)(packet->pts * AudioStream.Timebase))} | {Utils.TicksToTime(CurTime)}");
+
+                                AudioBytes += packet->size;
+                                AudioPackets.Enqueue((IntPtr)packet);
+                                packet = av_packet_alloc();
+
+                                break;
+
+                            case AVMEDIA_TYPE_VIDEO:
+                                UpdateCurTime();
+                                //Log($"Video => {Utils.TicksToTime((long)(packet->pts * VideoStream.Timebase))} | {Utils.TicksToTime(CurTime)}");
+
+                                VideoBytes += packet->size;
+                                VideoPackets.Enqueue((IntPtr)packet);
+                                packet = av_packet_alloc();
+
+                                break;
+
+                            case AVMEDIA_TYPE_SUBTITLE:
+                                SubtitlesPackets.Enqueue((IntPtr)packet);
+                                packet = av_packet_alloc();
+                            
+                                break;
+
+                            default:
+                                av_packet_unref(packet);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        UpdateCurTime();
+
+                        Packets.Enqueue((IntPtr)packet);
+                        packet = av_packet_alloc();
+                    }
+                }
+            } while (Status == Status.Running);
+
+            if (IsRecording) { StopRecording(); OnRecordingCompleted(); }
+        }
+        #endregion
+
+        #region Switch Programs / Streams
+        public bool IsProgramEnabled(StreamBase stream)
+        {
+            for (int i=0; i<Programs.Length; i++)
+                for (int l=0; l<Programs[i].Length; l++)
+                    if (Programs[i][l] == stream.StreamIndex && fmtCtx->programs[i]->discard != AVDiscard.AVDISCARD_ALL)
+                        return true;
+
+            return false;
+        }
+        public void EnableProgram(StreamBase stream)
+        {
+            if (IsProgramEnabled(stream))
+            {
+                Log($"[Stream #{stream.StreamIndex}] Program already enabled");
+                return;
+            }
+
+            for (int i=0; i<Programs.Length; i++)
+                for (int l=0; l<Programs[i].Length; l++)
+                    if (Programs[i][l] == stream.StreamIndex)
+                    {
+                        Log($"[Stream #{stream.StreamIndex}] Enables program #{i}");
+                        fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_DEFAULT;
+                        return;
+                    }
+        }
+        public void DisableProgram(StreamBase stream)
+        {
+            for (int i=0; i<Programs.Length; i++)
+                for (int l=0; l<Programs[i].Length; l++)
+                    if (Programs[i][l] == stream.StreamIndex && fmtCtx->programs[i]->discard != AVDiscard.AVDISCARD_ALL)
+                    {
+                        bool isNeeded = false;
+                        for (int l2=0; l2<Programs[i].Length; l2++)
+                        {
+                            if (Programs[i][l2] != stream.StreamIndex && EnabledStreams.Contains(Programs[i][l2]))
+                                {isNeeded = true; break; }
+                        }
+
+                        if (!isNeeded)
+                        {
+                            Log($"[Stream #{stream.StreamIndex}] Disables program #{i}");
+                            fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_ALL;
+                        }
+                        else
+                            Log($"[Stream #{stream.StreamIndex}] Program #{i} is needed");
+                    }
+        }
+
+        public void EnableStream(StreamBase stream)
+        {
+            lock (lockFmtCtx)
+            {
+                if (Disposed || stream == null || EnabledStreams.Contains(stream.StreamIndex)) return;
+
+                EnabledStreams.Add(stream.StreamIndex);
+                fmtCtx->streams[stream.StreamIndex]->discard = AVDiscard.AVDISCARD_DEFAULT;
+                stream.Enabled = true;
+                EnableProgram(stream);
+
+                switch (stream.Type)
+                {
+                    case MediaType.Audio:
+                        AudioStream = (AudioStream) stream;
+                        if (VideoStream == null) HLSPlaylist = AudioStream.HLSPlaylist;
+                        UpdateCurTime();
+                        break;
+
+                    case MediaType.Video:
+                        VideoStream = (VideoStream) stream;
+                        HLSPlaylist = VideoStream.HLSPlaylist;
+                        UpdateCurTime();
+                        break;
+
+                    case MediaType.Subs:
+                        SubtitlesStream = (SubtitlesStream) stream;
+                        break;
+                }
+
+                if (UseAVSPackets)
+                    CurPackets = VideoStream != null ? VideoPackets : (AudioStream != null ? AudioPackets : SubtitlesPackets);
+
+                Log($"[{stream.Type} #{stream.StreamIndex}] Enabled");
+            }
+        }
+        public void DisableStream(StreamBase stream)
+        {
+            lock (lockFmtCtx)
+            {
+                if (Disposed || stream == null || !EnabledStreams.Contains(stream.StreamIndex)) return;
+
+                fmtCtx->streams[stream.StreamIndex]->discard = AVDiscard.AVDISCARD_ALL;
+                EnabledStreams.Remove(stream.StreamIndex);
+                stream.Enabled = false;
+                DisableProgram(stream);
+
+                switch (stream.Type)
+                {
+                    case MediaType.Audio:
+                        AudioStream = null;
+                        if (VideoStream != null) HLSPlaylist = VideoStream.HLSPlaylist;
+                        break;
+
+                    case MediaType.Video:
+                        VideoStream = null;
+                        if (AudioStream != null) HLSPlaylist = AudioStream.HLSPlaylist;
+                        break;
+
+                    case MediaType.Subs:
+                        SubtitlesStream = null;
+                        break;
+                }
+
+                DisposePackets(GetPacketsPtr(stream.Type));
+
+                if (UseAVSPackets)
+                    CurPackets = VideoStream != null ? VideoPackets : (AudioStream != null ? AudioPackets : SubtitlesPackets);
+
+                Log($"[{stream.Type} #{stream.StreamIndex}] Disabled");
+            }
+        }
+        public void SwitchStream(StreamBase stream)
+        {
+            lock (lockFmtCtx)
+            {
+                if (stream.Type == MediaType.Audio)
+                    DisableStream(AudioStream);
+                else if (stream.Type == MediaType.Video)
+                    DisableStream(VideoStream);
+                else
+                    DisableStream(SubtitlesStream);
+
+                EnableStream(stream);
+            }
+        }
+        #endregion
+
+        #region Misc
+        internal bool UpdateCurTime(bool useLastPts = false)
+        {
+            if (HLSPlaylist != null && hlsPrevFirstTimestamp != hlsCtx->first_timestamp)
+            {
+                hlsPrevFirstTimestamp = hlsCtx->first_timestamp;
+
+                long curTimeLive= 0;
+                long duration   = 0;
+
+                for (int i=0; i<HLSPlaylist->n_segments; i++)
+                {
+                    if (i<=HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no )
+                        curTimeLive += HLSPlaylist->segments[i]->duration;
+                    duration += HLSPlaylist->segments[i]->duration;
+                }
+
+                EndTimeLive = curTimeLive * 10;
+                Duration    = duration * 10;
+
+                if (HLSPlaylist->finished == 1) IsLive = false;
+            }
+            
+            long curTimestamp = -1;
+
+            try
+            {
+                if (!CurPackets.TryPeek(out IntPtr firstPacketPtr)) { BufferedDuration = 0; return true; }
+
+                AVPacket* firstPacket = (AVPacket*) firstPacketPtr;
+                if (firstPacket->pts == AV_NOPTS_VALUE) return false;
+                curTimestamp = (long)(firstPacket->pts * AVStreamToStream[firstPacket->stream_index].Timebase);
+
+                long bufferedDuration;
+
+                if (useLastPts)
+                {
+                    if (lastKnownPtsTimestamp == AV_NOPTS_VALUE) return false;
+                    bufferedDuration = lastKnownPtsTimestamp - curTimestamp;
+                }
+                else
+                {
+                    if (packet->pts != AV_NOPTS_VALUE)
+                        lastKnownPtsTimestamp = (long)(packet->pts * AVStreamToStream[packet->stream_index].Timebase);
+                    else if (lastKnownPtsTimestamp == AV_NOPTS_VALUE)
+                        return false;
+
+                    bufferedDuration = lastKnownPtsTimestamp - curTimestamp;
+                }
+
+                if (bufferedDuration < 0) return false;
+                BufferedDuration = bufferedDuration;
+
+                return true;
+
+            } finally
+            {
+                if (HLSPlaylist != null)
+                {
+                    CurTime = EndTimeLive - BufferedDuration > Duration - (HLSPlaylist->target_duration * 10) ? Duration : (EndTimeLive - BufferedDuration < HLSPlaylist->target_duration * 10 ? 0 : EndTimeLive - BufferedDuration);
+                }
+                else if (curTimestamp != -1)
+                    CurTime = curTimestamp - StartTime;
+            }
+        }
+        
+        private string GetValidExtension()
+        {
+            // TODO
+            // Should check for all supported output formats (there is no list in ffmpeg.autogen ?)
+            // Should check for inner input format (not outer protocol eg. hls/rtsp)
+            // Should check for raw codecs it can be mp4/mov but it will not work in mp4 only in mov (or avi for raw)
+
+            List<string> supportedOutput = new List<string>() { "mp4", "avi", "flv", "flac", "mpeg", "mpegts", "mkv", "ogg", "ts"};
+            string defaultExtenstion = "mp4";
+            bool hasPcm = false;
+            bool isRaw = false;
+
+            foreach (AudioStream stream in AudioStreams)
+                if (stream.Codec.Contains("pcm")) hasPcm = true;
+
+            foreach (VideoStream stream in VideoStreams)
+                if (stream.Codec.Contains("raw")) isRaw = true;
+
+            if (isRaw) defaultExtenstion = "avi";
+
+            // MP4 container doesn't support PCM
+            if (hasPcm) defaultExtenstion = "mkv";
+
+            // TODO
+            // Check also shortnames
+            //if (Name == "mpegts") return "ts";
+            //if ((fmtCtx->iformat->flags & AVFMT_TS_DISCONT) != 0) should be mp4 or container that supports segments
+
+            if (string.IsNullOrEmpty(Extensions)) return defaultExtenstion;
+            string[] extensions = Extensions.Split(',');
+            if (extensions == null || extensions.Length < 1) return defaultExtenstion;
+
+            // Try to set the output container same as input
+            for (int i=0; i<extensions.Length; i++)
+                if (supportedOutput.Contains(extensions[i]))
+                    return extensions[i] == "mp4" && isRaw ? "mov" : extensions[i];
+
+            return defaultExtenstion;
         }
         private void PrintDump()
         {
@@ -330,285 +788,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Log(dump);
         }
 
-        public bool IsProgramEnabled(StreamBase stream)
-        {
-            for (int i=0; i<Programs.Length; i++)
-                for (int l=0; l<Programs[i].Length; l++)
-                    if (Programs[i][l] == stream.StreamIndex && fmtCtx->programs[i]->discard != AVDiscard.AVDISCARD_ALL)
-                        return true;
-
-            return false;
-        }
-        public void EnableProgram(StreamBase stream)
-        {
-            if (IsProgramEnabled(stream))
-            {
-                Log($"[Stream #{stream.StreamIndex}] Program already enabled");
-                return;
-            }
-
-            for (int i=0; i<Programs.Length; i++)
-                for (int l=0; l<Programs[i].Length; l++)
-                    if (Programs[i][l] == stream.StreamIndex)
-                    {
-                        Log($"[Stream #{stream.StreamIndex}] Enables program #{i}");
-                        fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_DEFAULT;
-                        return;
-                    }
-
-        }
-        public void DisableProgram(StreamBase stream)
-        {
-            for (int i=0; i<Programs.Length; i++)
-                for (int l=0; l<Programs[i].Length; l++)
-                    if (Programs[i][l] == stream.StreamIndex && fmtCtx->programs[i]->discard != AVDiscard.AVDISCARD_ALL)
-                    {
-                        bool isNeeded = false;
-                        for (int l2=0; l2<Programs[i].Length; l2++)
-                        {
-                            if (Programs[i][l2] != stream.StreamIndex && EnabledStreams.Contains(Programs[i][l2]))
-                                {isNeeded = true; break; }
-                        }
-
-                        if (!isNeeded)
-                        {
-                            Log($"[Stream #{stream.StreamIndex}] Disables program #{i}");
-                            fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_ALL;
-                        }
-                        else
-                            Log($"[Stream #{stream.StreamIndex}] Program #{i} is needed");
-                    }
-                        
-        }
-
-        public void EnableStream(StreamBase stream)
-        {
-            //lock (lockFmtCtx)
-            lock (lockActions)
-            {
-                if (Disposed || stream == null || EnabledStreams.Contains(stream.StreamIndex)) return;
-
-                EnabledStreams.Add(stream.StreamIndex);
-                fmtCtx->streams[stream.StreamIndex]->discard = AVDiscard.AVDISCARD_DEFAULT;
-                stream.InUse = true;
-                EnableProgram(stream);
-
-                switch (stream.Type)
-                {
-                    case MediaType.Audio:
-                        AudioStream = (AudioStream) stream;
-                        break;
-
-                    case MediaType.Video:
-                        VideoStream = (VideoStream) stream;
-                        UpdateHLSTime();
-                        break;
-
-                    case MediaType.Subs:
-                        SubtitlesStream = (SubtitlesStream) stream;
-                        break;
-                }
-
-                Log($"[{stream.Type} #{stream.StreamIndex}] Enabled");
-            }
-        }
-        public void DisableStream(StreamBase stream)
-        {
-            //lock (lockFmtCtx)
-            lock (lockActions)
-            {
-                if (Disposed || stream == null || !EnabledStreams.Contains(stream.StreamIndex)) return;
-
-                fmtCtx->streams[stream.StreamIndex]->discard = AVDiscard.AVDISCARD_ALL;
-                EnabledStreams.Remove(stream.StreamIndex);
-                stream.InUse = false;
-                DisableProgram(stream);
-
-                switch (stream.Type)
-                {
-                    case MediaType.Audio:
-                        AudioStream = null;
-                        break;
-
-                    case MediaType.Video:
-                        VideoStream = null;
-                        break;
-
-                    case MediaType.Subs:
-                        SubtitlesStream = null;
-                        break;
-                }
-
-                DisposePackets(GetPacketsPtr(stream.Type)); // That causes 1-2 seconds delay in av_read_frame ?? (should be fixed with hls patch)
-                Log($"[{stream.Type} #{stream.StreamIndex}] Disabled");
-            }
-        }
-
-        public int Seek(long ticks, bool foreward = false)
-        {
-            lock (lockActions)
-            {
-                Log($"[SEEK({(foreward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
-
-                if (Disposed) return -1;
-                if (Status == Status.Ended) Status = Status.Stopped;
-
-                int ret;
-
-                if (Config.AllowReadInterrupts) Interrupter.ForceInterrupt = 1;
-                lock (lockFmtCtx)
-                {
-                    Interrupter.ForceInterrupt = 0;
-
-                    //if (hlsCtx != null && VideoStream != null) Log($"1 Seq. [Cur: {VideoStream.HLSPlaylist->cur_seq_no}]");
-                    if (hlsCtx != null) fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
-                    Interrupter.Request(Requester.Seek);
-                    if (Type == MediaType.Video)
-                    {
-                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD); // AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
-                    }
-                    else
-                    {
-                        ret = foreward ?
-                            avformat_seek_file(fmtCtx, -1, ticks / 10,     ticks / 10, Int64.MaxValue, AVSEEK_FLAG_ANY):
-                            avformat_seek_file(fmtCtx, -1, Int64.MinValue, ticks / 10, ticks / 10,    AVSEEK_FLAG_ANY);
-                    }
-
-                    if (ret < 0)
-                    {
-                        if (hlsCtx != null) fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
-                        Log($"[SEEK] Failed 1/2 (retrying) {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
-                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
-                        if (ret < 0) Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
-                    }
-                    
-                    DisposePackets();
-                    hlsPrevFirstTimestamp = -1;
-                    UpdateHLSTime();
-                    //if (hlsCtx != null && VideoStream != null) { Log($"2 Seq. [Cur: {VideoStream.HLSPlaylist->cur_seq_no}]"); hlsPrevFirstTimestamp = -1; }
-                }
-
-                return ret;  // >= 0 for success
-            }
-        }
-
-        protected override void RunInternal()
-        {
-            int ret = 0;
-            int allowedErrors = Config.MaxErrors;
-            bool gotAVERROR_EXIT = false;
-
-            do
-            {
-                // Wait until Queue not Full or Stopped
-                if (CurPackets.Count >= Config.MaxQueueSize)
-                {
-                    lock (lockStatus)
-                        if (Status == Status.Running) Status = Status.QueueFull;
-
-                    while (CurPackets.Count >= Config.MaxQueueSize && Status == Status.QueueFull) Thread.Sleep(10);
-
-                    lock (lockStatus)
-                    {
-                        if (Status != Status.QueueFull) break;
-                        Status = Status.Running;
-                    }
-                        
-                }
-
-                // Wait possible someone asks for lockFmtCtx
-                else if (gotAVERROR_EXIT)
-                {
-                    gotAVERROR_EXIT = false;
-                    Thread.Sleep(5); // Possible come from seek or Player's stopping...
-                }
-                    
-                lock (lockFmtCtx)
-                {
-                    // Demux Packet
-                    Interrupter.Request(Requester.Read);
-                    ret = av_read_frame(fmtCtx, packet);
-                    //long t1 = (DateTime.UtcNow.Ticks - interruptRequestedAt)/10000;
-                    //if (t1 > 100) Log($"Took {t1}ms");
-                }
-
-                // Check for Errors / End
-                if (Interrupter.ForceInterrupt != 0) { av_packet_unref(packet); gotAVERROR_EXIT = true; continue; }
-
-                // Possible check if interrupt/timeout and we dont seek to reset the backend pb->pos = 0?
-
-                if (ret != 0)
-                {
-                    av_packet_unref(packet);
-
-                    if ((ret == AVERROR_EXIT && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF) { Status = Status.Ended; break; }
-
-                    allowedErrors--;
-                    Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
-
-                    if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
-
-                    gotAVERROR_EXIT = true;
-                    continue;
-                }
-                    
-                TotalBytes += packet->size;
-
-                // Skip Disabled Streams
-                if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
-
-                if (IsRecording)
-                {
-                    if (!recGotKeyframe && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && (packet->flags & AV_PKT_FLAG_KEY) != 0)
-                        recGotKeyframe = true;
-
-                    if (recGotKeyframe && (fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO || fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO))
-                        Recorder.Write(av_packet_clone(packet));
-                }
-
-                // Enqueue Packet (AVS Queue or Single Queue)
-                if (UseAVSPackets)
-                {
-                    switch (fmtCtx->streams[packet->stream_index]->codecpar->codec_type)
-                    {
-                        case AVMEDIA_TYPE_AUDIO:
-                            AudioBytes += packet->size;
-                            AudioPackets.Enqueue((IntPtr)packet);
-                            packet = av_packet_alloc();
-
-                            break;
-
-                        case AVMEDIA_TYPE_VIDEO:
-                            VideoBytes += packet->size;
-                            VideoPackets.Enqueue((IntPtr)packet);
-                            packet = av_packet_alloc();
-
-                            UpdateHLSTime();
-
-                            break;
-
-                        case AVMEDIA_TYPE_SUBTITLE:
-                            SubtitlesPackets.Enqueue((IntPtr)packet);
-                            packet = av_packet_alloc();
-                            
-                            break;
-
-                        default:
-                            av_packet_unref(packet);
-                            break;
-                    }
-                }
-                else
-                {
-                    Packets.Enqueue((IntPtr)packet);
-                    packet = av_packet_alloc();
-                }
-
-            } while (Status == Status.Running);
-
-            if (IsRecording) StopRecording();
-        }
-
         /// <summary>
         /// Demuxes until the a valid packet within EnabledStreams or the specified stream (Will be stored in AVPacket* packet)
         /// </summary>
@@ -631,83 +810,27 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
         }
 
-        public void DisposePackets()
-        {
-            if (UseAVSPackets)
-            {
-                DisposePackets(AudioPackets);
-                DisposePackets(VideoPackets);
-                DisposePackets(SubtitlesPackets);
-            }
-            else
-                DisposePackets(Packets);
-        }
-        public void DisposePackets(ConcurrentQueue<IntPtr> packets)
-        {
-            while (!packets.IsEmpty)
-            {
-                packets.TryDequeue(out IntPtr packetPtr);
-                if (packetPtr == IntPtr.Zero) continue;
-                AVPacket* packet = (AVPacket*)packetPtr;
-                av_packet_free(&packet);
-            }
-        }
-        public void Dispose()
+        #region Recording
+        Remuxer Recorder, CurRecorder;
+        bool        recGotKeyframe;
+        bool        isExternalRecorder;
+        
+        public long StartRecordingAt { get; private set; } = -1;
+        public bool IsRecording { get; private set; }
+        public event EventHandler RecordingCompleted;
+        public void OnRecordingCompleted() { RecordingCompleted.Invoke(this, new EventArgs()); }
+        public void StartRecording(Remuxer remuxer, long startAt = -1)
         {
             if (Disposed) return;
 
-            lock (lockActions)
-            {
-                if (Disposed) return;
+            StartRecordingAt    = startAt;
+            CurRecorder         = remuxer;
+            isExternalRecorder  = true;
+            recGotKeyframe      = false;
+            IsRecording         = true;
 
-                Stop();
-
-                Url = null;
-                hlsCtx = null;
-                Programs = new int[0][];
-
-                // Free Streams
-                AudioStreams.Clear();
-                VideoStreams.Clear();
-                SubtitlesStreams.Clear();
-                EnabledStreams.Clear();
-                AudioStream = null;
-                VideoStream = null;
-                SubtitlesStream = null;
-
-                DisposePackets();
-
-                // Close Format / Custom Contexts
-                if (fmtCtx != null)
-                {
-                    Interrupter.Request(Requester.Close);
-                    fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
-                }
-
-                if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
-
-                CustomIOContext.Dispose();
-
-                if (handle.IsAllocated) handle.Free();
-
-                TotalBytes = 0; VideoBytes = 0; AudioBytes = 0;
-                Status = Status.Stopped;
-                Disposed = true;
-                Log("Disposed");
-            }
         }
 
-        #region Recording
-        Remuxer     Recorder;
-        bool        recGotKeyframe;
-        bool        _IsRecording;
-        
-        public bool IsRecording
-        {
-            get => _IsRecording;
-            set => Set(ref _IsRecording, value);
-        }
-        
         /// <summary>
         /// Records the currently enabled AVS streams
         /// </summary>
@@ -715,11 +838,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         /// <param name="useRecommendedExtension">Will try to match the output container with the input container</param>
         public void StartRecording(ref string filename, bool useRecommendedExtension = true)
         {
+            if (Disposed) return;
+
             lock (lockFmtCtx)
             {
                 if (IsRecording) StopRecording();
 
                 Log("Record Start");
+                CurRecorder = Recorder;
+                isExternalRecorder = false;
 
                 if (useRecommendedExtension)
                     filename = $"{filename}.{Extension}";
@@ -739,10 +866,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 if (!IsRecording) return;
 
                 Log("Record Completed");
-                Recorder.Dispose();
                 IsRecording = false;
+                if (isExternalRecorder) return;
+                Recorder.Dispose();
             }
         }
+        #endregion
+
         #endregion
     }
 }

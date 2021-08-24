@@ -4,16 +4,16 @@
     <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.7</Version>
+    <Version>1.1.7-pre</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2021</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
     <PackageIcon>Flyleaf.png</PackageIcon>
     <PackageIconUrl />
-    <PackageTags>flyleaf flyleaflib video media player element control</PackageTags>
-    <Description>WPF Video Player Control/Element (based on FlyleafLib)</Description>
-    <PackageReleaseNotes>Changes the default recording format from .mp4 to match with the demuxer's format to ensure audio/video codecs compatibility</PackageReleaseNotes>
+    <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
+    <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
+    <PackageReleaseNotes>Required changes for the new FlyleafLib v3.3 which supports also audio only now</PackageReleaseNotes>
     <AssemblyVersion>1.1.7.0</AssemblyVersion>
     <FileVersion>1.1.7.0</FileVersion>
   </PropertyGroup>

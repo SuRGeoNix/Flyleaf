@@ -27,7 +27,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public void Initialize(Stream stream)
         {
             this.stream = stream;
-            this.stream.Seek(0, SeekOrigin.Begin);
+            //this.stream.Seek(0, SeekOrigin.Begin);
 
             if (buffer == null)
                 buffer  = new byte[bufferSize]; // NOTE: if we use small buffer ffmpeg might request more than we suggest

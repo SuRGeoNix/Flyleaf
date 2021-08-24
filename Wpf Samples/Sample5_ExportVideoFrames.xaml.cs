@@ -46,10 +46,10 @@ namespace Wpf_Samples
             UserInput   = sampleVideo;
             
             config = new Config();
-            config.demuxer.AllowInterrupts = false; // Enable it only for network protocols?
-            config.decoder.MaxVideoFrames = 10;    // How much does your CPU/GPU/RAM handles?
+            config.Demuxer.AllowInterrupts = false; // Enable it only for network protocols?
+            config.Decoder.MaxVideoFrames = 10;    // How much does your CPU/GPU/RAM handles?
 
-            demuxer = new Demuxer(config.demuxer);
+            demuxer = new Demuxer(config.Demuxer);
             vDecoder = new VideoDecoder(config);
         }
         public ICommand     OpenVideo   { get ; set; }
@@ -58,8 +58,8 @@ namespace Wpf_Samples
             if (string.IsNullOrEmpty(UserInput)) UserInput = sampleVideo;
 
             // OPEN
-            if (demuxer.Open(UserInput) != 0) { MessageBox.Show($"Cannot open input {UserInput}"); return; }
-            if (vDecoder.Open(demuxer.VideoStreams[0]) != 0) { MessageBox.Show($"Cannot open the decoder"); return; }
+            if (demuxer.Open(UserInput) != null) { MessageBox.Show($"Cannot open input {UserInput}"); return; }
+            if (vDecoder.Open(demuxer.VideoStreams[0]) != null) { MessageBox.Show($"Cannot open the decoder"); return; }
 
             // TEST CASES HERE
             Case1_ExportAll(1);
@@ -80,8 +80,8 @@ namespace Wpf_Samples
             int curFrame = 0;
             int runningThreads = 0;
 
-            demuxer.Config.MaxQueueSize = threads;
-            vDecoder.Config.decoder.MaxVideoFrames = threads;
+            //demuxer.Config.MaxQueueSize = threads;
+            vDecoder.Config.Decoder.MaxVideoFrames = threads;
             vDecoder.Renderer.MaxOffScreenTextures = threads;
 
             while (vDecoder.IsRunning || vDecoder.Frames.Count != 0 || runningThreads != 0)

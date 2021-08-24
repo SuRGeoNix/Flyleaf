@@ -40,67 +40,86 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             threadName = $"Decoder: {Type.ToString().PadLeft(5, ' ')}";
         }
 
-        public int Open(StreamBase stream)
+        public string Open(StreamBase stream)
         {
             lock (lockActions)
             {
+                StreamBase prevStream = Stream;
                 Dispose();
                 int ret = -1;
+                string error = null;
 
                 try
                 {
-
-                    if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return -1;
+                    if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return "Cancelled";
                     lock (stream.Demuxer.lockActions)
                     {
-                        if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return -1;
-                    
+                        if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return "Cancelled";
+
+                        Disposed= false;
                         Status  = Status.Opening;
                         Stream  = stream;
                         demuxer = stream.Demuxer;
 
                         AVCodec* codec = avcodec_find_decoder(stream.AVStream->codecpar->codec_id);
                         if (codec == null)
-                            { Log($"[CodecOpen {Type}] [ERROR-1] No suitable codec found"); return -1; }
+                            return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
 
                         codecCtx = avcodec_alloc_context3(null);
                         if (codecCtx == null)
-                            { Log($"[CodecOpen {Type}] [ERROR-2] Failed to allocate context3"); return -1; }
+                            return error = $"[{Type} avcodec_alloc_context3] Failed to allocate context3";
 
                         ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
                         if (ret < 0)
-                            { Log($"[CodecOpen {Type}] [ERROR-3] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); return ret; }
+                            return error = $"[{Type} avcodec_parameters_to_context] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})";
 
                         codecCtx->pkt_timebase  = stream.AVStream->time_base;
                         codecCtx->codec_id      = codec->id;
 
                         ret = Setup(codec);
-                        if (ret < 0) return ret;
+                        if (ret < 0)
+                            return error = $"[{Type} Setup] {ret}";
 
                         ret = avcodec_open2(codecCtx, codec, null);
-                        if (ret < 0) return ret;
+                        if (ret < 0)
+                            return error = $"[{Type} avcodec_open2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})";
 
                         frame = av_frame_alloc();
-                        demuxer.EnableStream(Stream);
+
+                        if (prevStream != null)
+                        {
+                            if (prevStream.Demuxer.Type == stream.Demuxer.Type)
+                                stream.Demuxer.SwitchStream(stream);
+                            else if (!prevStream.Demuxer.Disposed)
+                            {
+                                if (prevStream.Demuxer.Type == MediaType.Video)
+                                    prevStream.Demuxer.DisableStream(prevStream);
+                                else if (prevStream.Demuxer.Type == MediaType.Audio || prevStream.Demuxer.Type == MediaType.Subs)
+                                    prevStream.Demuxer.Dispose();
+
+                                stream.Demuxer.EnableStream(stream);
+                            }
+                        }
+                        else
+                            stream.Demuxer.EnableStream(stream);
+
+                        Status = Status.Stopped;
 
                         CodecChanged?.Invoke(this);
 
-                        Disposed = false;
-                        Status = Status.Stopped;
-
-                        return ret; // 0 for success
+                        return null;
                     }
                 }
                 finally
                 {
-                    if (ret !=0 )
-                        Dispose();
+                    if (error != null)
+                        Dispose(true);
                 }
             }
         }
         protected abstract int Setup(AVCodec* codec);
 
-        public void Dispose()
+        public void Dispose(bool closeStream = false)
         {
             if (Disposed) return;
 
@@ -111,7 +130,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 Stop();
                 DisposeInternal();
 
-                if (Stream != null && !Stream.Demuxer.Disposed)
+                if (closeStream && Stream != null && !Stream.Demuxer.Disposed)
                 {
                     if (Stream.Demuxer.Type == MediaType.Video)
                         Stream.Demuxer.DisableStream(Stream);
@@ -119,10 +138,15 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         Stream.Demuxer.Dispose();
                 }
 
-                avcodec_flush_buffers(codecCtx);
-                avcodec_close(codecCtx);
                 if (frame != null) fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
-                if (codecCtx != null) fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
+
+                if (codecCtx != null)
+                {
+                    avcodec_flush_buffers(codecCtx);
+                    avcodec_close(codecCtx);
+                    fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
+                }
+                
                 demuxer = null;
                 Stream = null;
                 Status = Status.Stopped;

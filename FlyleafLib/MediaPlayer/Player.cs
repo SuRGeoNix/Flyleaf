@@ -1,14 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text;
-
-using static FlyleafLib.Utils;
-using static FlyleafLib.Utils.NativeMethods;
 
 using FlyleafLib.Controls;
 using FlyleafLib.Controls.WPF;
@@ -17,201 +12,290 @@ using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaFramework.MediaStream;
+using FlyleafLib.MediaFramework.MediaInput;
+using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.Plugins;
 
+using static FlyleafLib.MediaFramework.MediaContext.DecoderContext;
+using static FlyleafLib.Utils;
+using static FlyleafLib.Utils.NativeMethods;
 
 namespace FlyleafLib.MediaPlayer
 {
-    public unsafe class Player : NotifyPropertyChanged, IDisposable
+    public unsafe class Player : AudioPlayer, IDisposable
     {
         #region Properties
-
         /// <summary>
         /// The Content Control which hosts WindowsFormsHost (useful for airspace issues &amp; change to fullscreen mode)
         /// (WinForms: not set)
         /// </summary>
-        public VideoView    VideoView       { get ; set; }
+        public VideoView        VideoView       { get ; set; }
 
         /// <summary>
         /// Flyleaf Control (WinForms)
         /// </summary>
-        public Flyleaf      Control         { get => _Control; set { if (value.Handle == _Control?.Handle) return; InitializeControl1(_Control, value); } }
+        public Flyleaf          Control         { get => _Control; set { InitializeControl1(_Control, value); } }
         Flyleaf _Control;
 
         /// <summary>
-        /// Player's Configuration (set once in the constructor)
+        /// Information about the current opened audio
         /// </summary>
-        public Config       Config          { get; private set; }
+        public AudioInfo        Audio           { get; private set; }
 
         /// <summary>
-        /// Player's Session
+        /// Information about the current opened video
         /// </summary>
-        public Session      Session         { get; private set; }
+        public VideoInfo        Video           { get; private set; }
 
         /// <summary>
-        /// Player's Incremental Unique Id
+        /// Information about the current opened subtitles
         /// </summary>
-        public int          PlayerId        { get; private set; }
+        public SubtitlesInfo    Subtitles       { get; private set; }
 
         /// <summary>
-        /// Player's Name
+        /// Whether the input has ended
         /// </summary>
-        public string       PlayerName      { get; private set; } = "";
-
-        public bool         IsSeeking       { get; private set; }
-        public bool         IsPlaying       => Status == Status.Playing;
-
-        /// <summary>
-        /// Whether the video has ended
-        /// </summary>
-        public bool         HasEnded        => decoder != null && decoder.VideoDecoder.Status == MediaFramework.Status.Ended;
-
-        public bool         HasVideo        => decoder != null && !decoder.VideoDecoder.Disposed;
-
-        /// <summary>
-        /// Whether the video has audio and it is configured
-        /// </summary>
-        public bool         HasAudio        => decoder != null && !decoder.AudioDecoder.Disposed;
-
-        /// <summary>
-        /// Whether the video has subtitles and it is configured
-        /// </summary>
-        public bool         HasSubs         => decoder != null && !decoder.SubtitlesDecoder.Disposed;
-        
-        /// <summary>
-        /// Dictionary of available Plugins and their AVS Streams
-        /// </summary>
-        public Dictionary<string, PluginBase> Plugins {get; private set; }  = new Dictionary<string, PluginBase>();
-
-        /// <summary>
-        /// Actual Frames rendered per second (FPS)
-        /// </summary>
-        public int          FPS             { get => _FPS; private set => Set(ref _FPS, value); }
-        int _FPS = 0;
-
-        /// <summary>
-        /// Total Dropped Frames
-        /// </summary>
-        public int          DroppedFrames   { get => _DroppedFrames; private set => Set(ref _DroppedFrames, value); }
-        int _DroppedFrames = 0;
-
-        /// <summary>
-        /// Total bitrate (Kbps)
-        /// </summary>
-        public double       TBR             { get => _TBR; private set => Set(ref _TBR, value); }
-        double _TBR = 0;
-
-        /// <summary>
-        /// Video bitrate (Kbps)
-        /// </summary>
-        public double       VBR             { get => _VBR; private set => Set(ref _VBR, value); }
-        double _VBR = 0;
-
-        
-        /// <summary>
-        /// Audio bitrate (Kbps)
-        /// </summary>
-        public double       ABR             { get => _ABR; private set => Set(ref _ABR, value); }
-        double _ABR = 0;
+        public bool         HasEnded            => decoder != null && VideoDecoder.Status == MediaFramework.Status.Ended;
+        public bool         IsBuffering         { get; private set; }
+        public bool         IsSeeking           { get; private set; }
+        public bool         IsOpening           { get; private set; }
+        public bool         IsPlaying           => Status == Status.Playing;
+        public bool         IsPlaylist          =>  decoder != null && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist;
 
         /// <summary>
         /// Player's Status
         /// </summary>
-        public Status       Status          { get => _Status; private set => Set(ref _Status, value); }
+        public Status       Status              { get => _Status;           private set => Set(ref _Status, value); }
         Status _Status = Status.Stopped;
 
-        public int          Speed           {
-            get => _Speed; 
-            set
-            {
-                int newValue = value;
-                if (value <= 0 ) newValue = 1;
-                if (value > 4) newValue = 4;
-                if (newValue == _Speed) return;
+        /// <summary>
+        /// Whether the player's status is capable of accepting playback commands
+        /// </summary>
+        public bool         CanPlay             { get => _CanPlay;          private set => Set(ref _CanPlay, value); }
+        bool _CanPlay;
 
-                _Speed = newValue;
-                decoder.VideoDecoder.Speed = _Speed;
-                decoder.AudioDecoder.Speed = _Speed;
-                decoder.SubtitlesDecoder.Speed = _Speed;
+        /// <summary>
+        /// Player's current time or user's current seek time (uses forward direction)
+        /// </summary>
+        public long         CurTime             { get => _CurTime;          set { Set(ref _CurTime, value); Seek((int) (value/10000), true); } }
+        long _CurTime;
+        internal void SetCurTime(long curTime) { Set(ref _CurTime, curTime, false, nameof(CurTime)); }
 
-                decoder.VideoDecoder.DisposeFrames();
-                decoder.AudioDecoder.DisposeFrames();
-                decoder.SubtitlesDecoder.DisposeFrames();
-                vFrame = null; sFrame = null; aFrame=null;
+        /// <summary>
+        /// Input's duration
+        /// </summary>
+        public long         Duration            { get => _Duration;         private set => Set(ref _Duration, value); }
+        long _Duration;
 
-                audioPlayer?.ClearBuffer();
-            }
+        /// <summary>
+        /// The current buffered duration in the demuxer
+        /// </summary>
+        public long         BufferedDuration    { get => _BufferedDuration; private set => Set(ref _BufferedDuration, value); }
+        long _BufferedDuration;
+
+        /// <summary>
+        /// Whether the input is live or not (duration might not be 0 on live sessions to allow live seek, eg. hls)
+        /// </summary>
+        public bool         IsLive              { get => _IsLive;           private set => Set(ref _IsLive, value); }
+        bool _IsLive;
+
+        ///// <summary>
+        ///// Total bitrate (Kbps)
+        ///// </summary>
+        public double       BitRate             { get => _BitRate;          private set => Set(ref _BitRate, value); }
+        double _BitRate;
+
+        /// <summary>
+        /// Input's folder which might be used from plugins (eg. load / save subtitles)
+        /// </summary>
+        public string       Folder              { get => _Folder;           private set => Set(ref _Folder, value); }
+        string _Folder;
+
+        /// <summary>
+        /// Input's size which might be used from plugins (eg. calculate movie hash for subtitles)
+        /// </summary>
+        public long         FileSize            { get => _FileSize;         private set => Set(ref _FileSize, value); }
+        long _FileSize;
+
+        /// <summary>
+        /// Input's title
+        /// </summary>
+        public string       Title               { get => _Title;            private set => Set(ref _Title, value); }
+        string _Title;
+
+        /// <summary>
+        /// Whether is recording or not
+        /// </summary>
+        public bool         IsRecording
+        {
+            get => VideoDemuxer.IsRecording;
+            set => Set(ref _IsRecording, value);
         }
-        int _Speed = 1;
+        bool _IsRecording;
 
-        public List<PluginBase> audioPlugins        { get; private set; }
-        public List<PluginBase> videoPlugins        { get; private set; }
-        public List<PluginBase> subtitlePlugins     { get; private set; }
+        /// <summary>
+        /// Starts recording
+        /// </summary>
+        /// <param name="filename">Path of the new recording file</param>
+        /// <param name="useRecommendedExtension">You can force the output container's format or use the recommended one to avoid incompatibility</param>
+        public void StartRecording(ref string filename, bool useRecommendedExtension = true)
+        {
+            decoder.StartRecording(ref filename, useRecommendedExtension);
+            IsRecording = VideoDemuxer.IsRecording;
+        }
 
-        public PluginBase       curAudioPlugin      { get; private set; }
-        public PluginBase       curVideoPlugin      { get; private set; }
-        public PluginBase       curSubtitlePlugin   { get; private set; }
+        /// <summary>
+        /// Stops recording
+        /// </summary>
+        public void StopRecording()
+        {
+            decoder.StopRecording();
+            IsRecording = VideoDemuxer.IsRecording;
+        }
+
+        /// <summary>
+        /// Renderer's adapter attached screen width
+        /// </summary>
+        public int          ScreenWidth         { get => _ScreenWidth;      private set => Set(ref _ScreenWidth, value); }
+        int _ScreenWidth;
+
+        /// <summary>
+        /// Renderer's adapter attached screen height
+        /// </summary>
+        public int          ScreenHeight        { get => _ScreenHeight;     private set => Set(ref _ScreenHeight, value); }
+        int _ScreenHeight;
+
+
+        /// <summary>
+        /// Saves the current video frame to bitmap file
+        /// </summary>
+        /// <param name="filename"></param>
+        public void TakeSnapshot(string filename)
+        {
+            renderer?.TakeSnapshot(filename);
+        }
+
+        /// <summary>
+        /// Pan zoom in/out per pixel of each side (should be based on Control's width/height)
+        /// </summary>
+        public int Zoom
+        {
+            get => renderer.Zoom;
+            set {  renderer.Zoom = value; Set(ref _Zoom, renderer.Zoom); }
+        }
+        int _Zoom;
+        #endregion
+
+        #region DecoderContext Properties / Events Exposure
+        /// <summary>
+        /// Player's Decoder Context. Normally you should not access this directly.
+        /// </summary>
+        public DecoderContext       decoder;
+        /// <summary>
+        /// Player's Renderer. Normally you should not access this directly.
+        /// </summary>
+        public Renderer             renderer => decoder?.VideoDecoder?.Renderer;
+
+        public Demuxer              AudioDemuxer        => decoder.AudioDemuxer;
+        public Demuxer              VideoDemuxer        => decoder.VideoDemuxer;
+        public Demuxer              SubtitlesDemuxer    => decoder.SubtitlesDemuxer;
+
+        public VideoDecoder         VideoDecoder        => decoder.VideoDecoder;
+        public AudioDecoder         AudioDecoder        => decoder.AudioDecoder;
+        public SubtitlesDecoder     SubtitlesDecoder    => decoder.SubtitlesDecoder;
         #endregion
 
         #region Properties Internal
-        public AudioPlayer      audioPlayer;
-        public Renderer         renderer => decoder?.VideoDecoder?.Renderer;
-        public DecoderContext   decoder;
-
-        Thread tOpenVideo, tOpenAudio, tOpenSubs, tSeek, tPlay;
+        Thread tSeek, tPlay;
         object lockOpen         = new object();
         object lockSeek         = new object();
         object lockPlayPause    = new object();
 
-        ConcurrentStack<SeekData> seeks;
+        ConcurrentStack<SeekData> seeks = new ConcurrentStack<SeekData>();
+        ConcurrentStack<OpenData> opens = new ConcurrentStack<OpenData>();
+        ConcurrentStack<OpenInputData> inputopens = new ConcurrentStack<OpenInputData>();
+
+        class OpenData
+        {
+            public object url_iostream;
+            public bool defaultInput;
+            public bool defaultAudio;
+            public bool defaultVideo;
+            public bool defaultSubtitles;
+            public OpenData(object url_iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+                { this.url_iostream = url_iostream; this.defaultInput = defaultInput; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
+        }
+
+        class OpenInputData
+        {
+            public InputBase input;
+            public bool resync;
+            public bool defaultAudio;
+            public bool defaultVideo;
+            public bool defaultSubtitles;
+            public OpenInputData(InputBase input, bool resync = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+                { this.input = input; this.resync = resync; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
+        }
 
         class SeekData
         {
             public int  ms;
             public bool foreward;
-
-            public SeekData(int ms, bool foreward) { this.ms = ms; this.foreward = foreward; }
+            public SeekData(int ms, bool foreward)
+                { this.ms = ms; this.foreward = foreward; }
         }
 
-        VideoFrame vFrame;
-        AudioFrame aFrame;
-        long        resyncFrameTs;
-        bool        requiresResync;
+        VideoFrame      vFrame;
+        AudioFrame      aFrame;
+        SubtitlesFrame  sFrame, sFramePrev;
+        AudioStream     lastAudioStream;
+        SubtitlesStream lastSubtitlesStream;
 
-        bool        isVideoSwitch;
+        bool requiresBuffering;
+        int  droppedFrames;
 
-        internal SubtitlesFrame sFrame, sFramePrev;
-        long        elapsedTicks;
-        long        startedAtTicks;
-        long        videoStartTicks;
+        bool isVideoSwitch;
+        bool isAudioSwitch;
+        bool isSubsSwitch;
+
+        long elapsedTicks;
+        long startedAtTicks;
+        long videoStartTicks;
         #endregion
 
-        #region Initialize / Dispose
-		public Player(Config config = null)
+        #region  Constructor / Initialize Control/Decoder
+		public Player(Config config = null) : base(config)
         {
-            Config = config == null ? new Config() : config;
             Config.SetPlayer(this);
-        }
 
+            Audio       = new AudioInfo(this);
+            Video       = new VideoInfo(this);
+            Subtitles   = new SubtitlesInfo(this);
+
+            if (Config.Player.Usage == Usage.Audio)
+            {
+                Config.Video.Enabled = false;
+                Config.Subtitles.Enabled = false;
+                Log($"Creating (Usage = {Config.Player.Usage}) ... (initializing the decoder)");
+                InitializeDecoder();
+            }
+            else
+                Log($"Creating (Usage = {Config.Player.Usage}) ... (1/3 waiting for control to set)");
+        }
         private void InitializeControl1(Flyleaf oldValue, Flyleaf newValue)
         {
             lock (this)
             {
-                PlayerId = GetUniqueId(); 
-                Log("[Starting]");
+                if (newValue == null) return;
+                if (oldValue != null && newValue != null && oldValue.Handle == newValue?.Handle) return;
 
-                Session         = new Session(this);
-                seeks           = new ConcurrentStack<SeekData>();
-                audioPlayer     = new AudioPlayer(this);
-
-                Master.Players.Add(PlayerId, this);
+                Log($"Creating (Usage = {Config.Player.Usage}) ... (2/3 waiting for handle to be created)");
 
                 if (newValue.Handle != IntPtr.Zero)
                     InitializeControl2(newValue);
                 else
                     newValue.HandleCreated += (o, e) => { InitializeControl2(newValue); };
-            }
-            
+            }   
         }
         private void InitializeControl2(Flyleaf newValue)
         {
@@ -220,425 +304,697 @@ namespace FlyleafLib.MediaPlayer
                 _Control = newValue;
                 _Control.Player = this;
                 
-                decoder = new DecoderContext(Config, Control, PlayerId);
-                decoder.AudioDecoder.CodecChanged = (a) => { audioPlayer.Initialize(decoder.AudioDecoder.CodecCtx->sample_rate); };
+                Log($"Creating (Usage = {Config.Player.Usage}) ... (3/3 initializing the decoder)");
+                InitializeDecoder();
+            }
+            
+        }
+        private void InitializeDecoder()
+        {
+            if (Master.Players.ContainsKey(PlayerId))
+            {
+                if (Control == null || decoder == null || Config.Player.Usage != Usage.Audio)
+                    throw new Exception("PlayerId already exists");
+                else
+                {
+                    VideoDecoder.Dispose();
+                    VideoDecoder.DisposeVA();
+                    decoder.VideoDecoder = new VideoDecoder(decoder.Config, Control, decoder.UniqueId);
+                    VideoDecoder.CodecChanged = Decoder_VideoCodecChanged;
+                    Log("Created");
+                    return;
+                }
+            }
 
+            Master.Players.Add(PlayerId, this);
+            decoder = new DecoderContext(Config, Control, PlayerId);
+
+            decoder.VideoInputOpened        += Decoder_VideoInputOpened;
+            decoder.AudioInputOpened        += Decoder_AudioInputOpened;
+            decoder.SubtitlesInputOpened    += Decoder_SubtitlesInputOpened;
+            decoder.VideoStreamOpened       += Decoder_VideoStreamOpened;
+            decoder.AudioStreamOpened       += Decoder_AudioStreamOpened;
+            decoder.SubtitlesStreamOpened   += Decoder_SubtitlesStreamOpened;
+
+            AudioDecoder.CodecChanged        = Decoder_AudioCodecChanged;
+            VideoDecoder.CodecChanged        = Decoder_VideoCodecChanged;
+            VideoDemuxer.RecordingCompleted += (o, e) => { IsRecording = false; };
+
+            if (Config.Player.Usage != Usage.Audio)
                 renderer.PresentFrame();
 
-                LoadPlugins();
-                Log("[Started]");
-            }
-            
-        }
-        private void LoadPlugins()
-        {
-            // Load Plugins
-            foreach (var type in Master.Plugins)
-                try
-                {
-                    var plugin = (PluginBase) Activator.CreateInstance(type);
-                    plugin.Player = this;
-                    plugin.OnLoad();
-                    Plugins.Add(plugin.PluginName, plugin);
-                } catch (Exception e) { Log($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {GetRecInnerException(e)}"); }
-
-            // Fix Priorities etc
-            videoPlugins    = new List<PluginBase>();
-            audioPlugins    = new List<PluginBase>();
-            subtitlePlugins = new List<PluginBase>();
-
-            audioPlugins.Add(Plugins["Default"]);
-            subtitlePlugins.Add(Plugins["Default"]);
-            foreach(var plugin in Plugins)
-            {
-                if (plugin.Key != "Default" && plugin.Value is IPluginVideo)      videoPlugins.Add(plugin.Value);
-                if (plugin.Key != "Default" && plugin.Value is IPluginAudio)      audioPlugins.Add(plugin.Value);
-                if (plugin.Key != "Default" && plugin.Value is IPluginSubtitles)  subtitlePlugins.Add(plugin.Value);
-            }
-            videoPlugins.Add(Plugins["Default"]);
-        }
-
-        private void Initialize()
-        {
-            TimeBeginPeriod(1);
-            Log($"[Initializing]");
-
-            // Prevent Seek Process
-            Session.CanPlay = false;
-            seeks.Clear();
-            EnsureThreadDone(tSeek);
-
-            // Stop Screamer / MediaBuffer
-            Status = Status.Stopped;
-            if (curVideoPlugin != null && curVideoPlugin.PluginName == "BitSwarm") curVideoPlugin.OnInitializingSwitch(); 
-            EnsureThreadDone(tPlay);
-
-            // Inform Plugins (OnInitializing)
-            foreach(var plugin in Plugins.Values) plugin.OnInitializing();
-            
-            // Reset Rest
-            decoder.Stop();
-            EnsureThreadDone(tOpenVideo);
-            EnsureThreadDone(tOpenAudio);
-            EnsureThreadDone(tOpenSubs);
-            Session.Reset();
-            curVideoPlugin = null;
-            curAudioPlugin = null;
-
-            // Inform Plugins (OnInitialized)
-            foreach(var plugin in Plugins.Values) plugin.OnInitialized();
-
-            Log($"[Initialized]");
-            TimeEndPeriod(1);
-        }
-        private void InitializeSwitch()
-        {
-            TimeBeginPeriod(1);
-            Log($"[Initializing Switch]");
-            // Prevent Seek Process
-            Session.CanPlay = false;
-            seeks.Clear();
-            EnsureThreadDone(tSeek);
-
-            // Stop Screamer / MediaBuffer
-            Status = Status.Stopped;
-            if (curVideoPlugin != null && curVideoPlugin.PluginName == "BitSwarm") curVideoPlugin.OnInitializingSwitch(); 
-            EnsureThreadDone(tPlay);
-
-            // Inform Plugins (OnInitializing)
-            foreach(var plugin in Plugins.Values) plugin.OnInitializingSwitch();
-
-            // Reset Rest
-            decoder.Stop();
-            EnsureThreadDone(tOpenVideo);
-            EnsureThreadDone(tOpenAudio);
-            EnsureThreadDone(tOpenSubs);
-
-            // Inform Plugins (OnInitialized)
-            foreach(var plugin in Plugins.Values) plugin.OnInitializedSwitch();
-            Session.Reset(true);
-
-            if (Session.CurAudioStream != null) Session.CurAudioStream.InUse = false;
-            if (Session.CurVideoStream != null) Session.CurVideoStream.InUse = false;
-
-            Log($"[Initialized Switch]");
-            TimeEndPeriod(1);
-        }
-        private void InitializeEnv()
-        {
-            if (Status != Status.Opening) return;
-
-            Log($"[Initializing Env]");
-
-            if (decoder.VideoDemuxer.VideoStream != null)
-                Session.Movie.Duration = !decoder.VideoDemuxer.IsLive && decoder.VideoDemuxer.VideoStream.Duration > 0 ? decoder.VideoDemuxer.VideoStream.Duration : decoder.VideoDemuxer.Duration; // In case Format's duration is invalid we take video stream's duration
-
-            Status = Status.Paused;
-            Session.CanPlay = true;
-            
-            OnOpenCompleted(MediaType.Video, true);
-            Log($"[Initialized  Env]");
-        }
-
-        /// <summary>
-        /// Access this only from Plugins
-        /// </summary>
-        public void OpenFailed()
-        {
-            if (Status == Status.Stopped) return;
-            if (curVideoPlugin != null) Log($"[VideoPlugin] {curVideoPlugin} Failed");
-
-            Initialize();
-            Status = Status.Failed;
-            OnOpenCompleted(MediaType.Video, false);
-
-            return;
+            Log("Created");
         }
         #endregion
 
-        #region Open / Close
-        /// <summary>
-        /// Opens a new external Video or Subtitle url
-        /// </summary>
-        /// <param name="url"></param>
-        /// <param name="openDefault">Will open the best match for audio/subtitles</param>
-        public void Open(string url, bool openDefault = true)
+        #region Events
+        public class OpenCompletedArgs : EventArgs
         {
-            Log($"Opening {url}");
-
-            if (SubsExts.Contains(GetUrlExtention(url)))
+            public MediaType    Type            { get; }
+            public InputBase    Input           { get; }
+            public string       Error           { get; }
+            public bool         Success         { get; }
+            
+            public OpenCompletedArgs(MediaType type, InputBase input, string error)
             {
-                if (!Session.CanPlay) return;
-                if (Config.subs.Enabled == false) Config.subs.SetEnabled();
-                Open(((IPluginExternal)Plugins["DefaultExternal"]).OpenSubtitles(url));
-                return;
+                Type    = type;
+                Input   = input;
+                Error   = error;
+                Success = Error == null;
             }
-
-            Initialize();
-
-            tOpenVideo = new Thread(() =>
-            {
-                lock (lockOpen)
-                {
-                    Status = Status.Opening;
-                    Session.InitialUrl = url;
-
-                    foreach(var plugin in videoPlugins)
-                    {
-                        var res = ((IPluginVideo)plugin).OpenVideo();
-                        if (res == null) continue;
-
-                        if (res.forceFailure)   { curVideoPlugin = plugin; OpenFailed(); return; }
-                        if (res.runAsync)       { curVideoPlugin = plugin; Log($"[VideoPlugin*] {curVideoPlugin?.PluginName}"); if (!Session.IsPlaylist) Session.SingleMovie.Url = Session.InitialUrl; return; }
-
-                        if (res.stream == null) continue;
-                        curVideoPlugin = plugin;
-                        if (!Session.IsPlaylist) Session.SingleMovie.Url = Session.InitialUrl;
-                        OpenVideo(res.stream, openDefault);
-                        break;
-                    }
-                }
-            });
-            tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
         }
-        
-        /// <summary>
-        /// Opens a new external Video from a custom System.IO.Stream
-        /// </summary>
-        /// <param name="stream"></param>
-        public void Open(Stream stream)
+        public class OpenInputCompletedArgs : OpenCompletedArgs
         {
-            Initialize();
-
-            tOpenVideo = new Thread(() => 
+            public InputBase    OldInput        { get; }
+            public bool         IsUserInput     { get; }
+            
+            public OpenInputCompletedArgs(MediaType type, InputBase input, InputBase oldInput, string error, bool isUserInput) : base(type, input, error)
             {
-                lock (lockOpen)
-                {
-                    Status = Status.Opening;
-                    curVideoPlugin = Plugins["DefaultExternal"];
-                    Open(((IPluginExternal)Plugins["DefaultExternal"]).OpenVideo(stream));
-                }
-            });
-            tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
+                OldInput    = oldInput;
+                IsUserInput = isUserInput;
+            }
+        }
+        public class OpenStreamCompletedArgs : EventArgs
+        {
+            public MediaType    Type            { get; }
+            public StreamBase   Stream          { get; }
+            public StreamBase   OldStream       { get; }
+            public string       Error           { get; }
+            public bool         Success         { get; }
+
+            public OpenStreamCompletedArgs(MediaType type, StreamBase stream, StreamBase oldStream, string error)
+            {
+                Type        = type;
+                Stream      = stream;
+                OldStream   = oldStream;
+                Error       = error;
+                Success     = Error == null;
+            }
         }
 
         /// <summary>
-        /// Opens an existing AVS stream from Plugins[_PLUGIN_NAME_].[AVS]Stream
+        /// Fires on open completed of new media input (success or failure)
         /// </summary>
-        /// <param name="inputStream">Stream to be opened</param>
-        /// <param name="openDefault">In case of video stream will open the best match audio</param>
-        public void Open(StreamBase inputStream, bool openDefault = true)
+        public event EventHandler<OpenCompletedArgs> OpenCompleted;
+
+        /// <summary>
+        /// Fires on open completed of an existing media input (success or failure)
+        /// </summary>
+        public event EventHandler<OpenInputCompletedArgs> OpenInputCompleted;
+
+        /// <summary>
+        /// Fires on open completed of an existing media stream (success or failure)
+        /// </summary>
+        public event EventHandler<OpenStreamCompletedArgs> OpenStreamCompleted;
+
+        /// <summary>
+        /// Fires on playback ended successfully
+        /// </summary>
+        public event EventHandler PlaybackCompleted;
+
+        protected virtual void OnOpenCompleted(OpenCompletedArgs e) { OnOpenCompleted(e.Type, e.Input, e.Error); }
+        protected virtual void OnOpenCompleted(MediaType type, InputBase input, string error) { OpenCompleted?.Invoke(this, new OpenCompletedArgs(type, input, error)); }
+
+        protected virtual void OnOpenInputCompleted(OpenInputCompletedArgs e) { OnOpenInputCompleted(e.Type, e.Input, e.OldInput, e.Error, e.IsUserInput); }
+        protected virtual void OnOpenInputCompleted(MediaType type, InputBase input, InputBase oldInput, string error, bool isUserInput) { OpenInputCompleted?.Invoke(this, new OpenInputCompletedArgs(type, input, oldInput, error, isUserInput)); }
+
+        protected virtual void OnOpenStreamCompleted(OpenStreamCompletedArgs e) { OnOpenStreamCompleted(e.Type, e.Stream, e.OldStream, e.Error); }
+        protected virtual void OnOpenStreamCompleted(MediaType type, StreamBase stream, StreamBase oldStream, string error) { OpenStreamCompleted?.Invoke(this, new OpenStreamCompletedArgs(type, stream, oldStream, error)); }
+
+        protected virtual void OnPlaybackCompleted() { Task.Run(() => PlaybackCompleted?.Invoke(this, new EventArgs())); }
+        #endregion
+
+        #region Decoder Events
+        private void Decoder_AudioCodecChanged(DecoderBase x)
         {
-            if (inputStream is VideoStream)
+            InitializeAudio(AudioDecoder.CodecCtx->sample_rate);
+        }
+        private void Decoder_VideoCodecChanged(DecoderBase x)
+        {
+            Video.VideoAcceleration = VideoDecoder.VideoAccelerated;
+        }
+
+        private void Decoder_AudioStreamOpened(object sender, AudioStreamOpenedArgs e)
+        {
+            Config.Audio.SetDelay(0);
+            Audio.Refresh();
+            lastAudioStream = e.Stream;
+            CanPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+
+            OnOpenStreamCompleted(MediaType.Audio, e.Stream, e.OldStream, e.Error);
+        }
+        private void Decoder_VideoStreamOpened(object sender, VideoStreamOpenedArgs e)
+        {
+            Video.Refresh();
+            CanPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+
+            OnOpenStreamCompleted(MediaType.Video, e.Stream, e.OldStream, e.Error);
+        }
+        private void Decoder_SubtitlesStreamOpened(object sender, SubtitlesStreamOpenedArgs e)
+        {
+            Config.Subtitles.SetDelay(0);
+            Subtitles.Refresh();
+            lastSubtitlesStream = e.Stream;
+
+            OnOpenStreamCompleted(MediaType.Subs, e.Stream, e.OldStream, e.Error);
+        }
+
+        private void Decoder_AudioInputOpened(object sender, AudioInputOpenedArgs e)
+        {
+            if (decoder.VideoStream == null)
             {
-                if (inputStream.StreamIndex != -1)
+                if (e.Input != null && e.Input.InputData != null)
+                    Title = e.Input.InputData.Title;
+
+                if (e.Success)
                 {
-                    tOpenVideo = new Thread(() =>
-                    {
-                        Pause();
-                        isVideoSwitch = true;
-                        if (decoder.Open(inputStream) != 0) { isVideoSwitch = false; OpenFailed(); return; }
-                        isVideoSwitch = false;
-                        if (Config.audio.Enabled && openDefault) OpenAudio();
-                        if (Session.Movie.Duration != 0) { decoder.Seek(Session.CurTime/10000, true); requiresResync = true; }
-                        aFrame = null; Session.SubsText = null; sFrame = null;
-                        Play();
-                    });
-                    tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
+                    var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : VideoDemuxer;
+                    Duration= curDemuxer.Duration;
+                    IsLive  = curDemuxer.IsLive;
                 }
                 else
                 {
-                    InitializeSwitch();
-                    tOpenVideo = new Thread(() =>
-                    {
-                        Status = Status.Opening;
-                        OpenVideo((VideoStream)inputStream); 
-                    });
-                    tOpenVideo.Name = "OpenVideo"; tOpenVideo.IsBackground = true; tOpenVideo.Start();
+                    if (!CanPlay) Status = Status.Failed;
+                    ResetMe();
                 }
             }
-            else if (inputStream is AudioStream)
-            {
-                EnsureThreadDone(tOpenAudio);
-                if (Session.CurAudioStream != null) Session.CurAudioStream.InUse = false;
-                if (Config.audio.Enabled == false) Config.audio.SetEnabled();
 
-                tOpenAudio = new Thread(() => { OpenAudio((AudioStream)inputStream); });
-                tOpenAudio.Name = "OpenAudio"; tOpenAudio.IsBackground = true; tOpenAudio.Start();
-            }
-            else if (inputStream is SubtitlesStream)
-            {
-                EnsureThreadDone(tOpenSubs);
-                if (Session.CurSubtitleStream != null) Session.CurSubtitleStream.InUse = false;
-                Session.SubsText = null; sFrame = null;
-                if (Config.subs.Enabled == false) Config.subs.SetEnabled();
-
-                tOpenSubs = new Thread(() => { OpenSubs(null, (SubtitlesStream)inputStream); });
-                tOpenSubs.Name = "OpenSubtitles"; tOpenSubs.IsBackground = true; tOpenSubs.Start();
-            }
-        }
-
-        private void OpenVideo(VideoStream vStream, bool openDefault = true)
-        {
-            var stream = ((IPluginVideo)curVideoPlugin).OpenVideo(vStream);            
-            if (stream == null) { OpenFailed(); return; }
-
-            int ret = -1;
-
-            if (stream.Stream != null)
-                ret = decoder.Open(stream.Stream);
-
-            else if (!string.IsNullOrEmpty(stream.Url))
-                ret = decoder.Open(stream.Url);
-
-            if (ret != 0) { OpenFailed(); return; }
-
-            Session.CurVideoStream      = stream;
-            Session.CurVideoStream.InUse= true;
-            Log($"[VideoPlugin] {curVideoPlugin?.PluginName}");
-
-            foreach(var plugin in Plugins.Values) plugin.OnVideoOpened();
-            if (!HasVideo) { OpenFailed(); return; }
-
-            if (!HasAudio && Config.audio.Enabled && openDefault)
-                OpenAudio();
-
-            if (!HasSubs && Config.subs.Enabled && openDefault)
-                foreach(var lang in Config.subs.Languages) if (OpenSubs(lang)) break; // Probably in tOpenThread (check torrent stream for messing with position)
-
-            if (Session.CurTime != 0 && Session.Movie.Duration != 0) { decoder.Seek(Session.CurTime/10000, true); requiresResync = true; }
-
-            InitializeEnv();
-        }
-        private void OpenAudio(AudioStream aStream = null)
-        {
-            bool failed = false;
-            foreach(var plugin in audioPlugins)
-            {
-                if (plugin.AudioStreams.Count == 0) continue;
-
-                var stream = aStream == null ? ((IPluginAudio)plugin).OpenAudio() : ((IPluginAudio)plugin).OpenAudio(aStream);
-                if (stream == null) continue;
-                if (stream.StreamIndex == -1 && string.IsNullOrEmpty(stream.Url)) continue;
-
-                if (stream.StreamIndex != -1)
-                    { if (decoder.Open(stream) != 0) { failed = true; continue; } }
-                else if (!string.IsNullOrEmpty(stream.Url) && decoder.OpenAudio(stream.Url, aStream == null ? -1 : elapsedTicks / 10000) != 0)
-                    { failed = true; continue; }
-
-                curAudioPlugin              = plugin;
-                Session.CurAudioStream      = stream;
-                Session.CurAudioStream.InUse= true;
-                break;
-            }
-
-            if (failed)
-                OnOpenCompleted(MediaType.Audio, false);
+            if (e.IsUserInput)
+                OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Audio, e.Input, e.OldInput, e.Error, e.IsUserInput));
             else
-                OnOpenCompleted(MediaType.Audio, true);
-
-            Log($"[AudioPlugin] {curAudioPlugin?.PluginName}");
+                OnOpenInputCompleted(MediaType.Audio, e.Input, e.OldInput, e.Error, e.IsUserInput);
         }
-        private bool OpenSubs(Language lang, SubtitlesStream sStream = null)
+        private void Decoder_VideoInputOpened(object sender, VideoInputOpenedArgs e)
         {
-            foreach(var plugin in subtitlePlugins)
+            if (e.Input != null && e.Input.InputData != null)
+                Title = e.Input.InputData.Title;
+
+            if (e.Success)
             {
-                if (lang != null) ((IPluginSubtitles)plugin).Search(lang);
-
-                if (plugin.SubtitlesStreams.Count == 0) continue;
-
-                var stream = sStream == null && lang != null ? ((IPluginSubtitles)plugin).OpenSubtitles(lang) : ((IPluginSubtitles)plugin).OpenSubtitles(sStream);
-                if (stream == null) continue;
-
-                if (!stream.Downloaded)
-                    if (((IPluginSubtitles)plugin).Download(stream)) stream.Downloaded = true; else continue;
-
-                if (!stream.Converted)
-                {
-                    Encoding subsEnc = SubtitleConverter.Detect(stream.Url);
-
-                    if (subsEnc != Encoding.UTF8)
-                    {
-                        FileInfo fi = new FileInfo(stream.Url);
-                        var newUrl = Path.Combine(Session.Movie.Folder, "Subs", fi.Name.Remove(fi.Name.Length - fi.Extension.Length) + ".utf8.srt");
-                        Directory.CreateDirectory(Path.Combine(Session.Movie.Folder, "Subs"));
-                        SubtitleConverter.Convert(stream.Url, newUrl, subsEnc, new UTF8Encoding(false));
-                        stream.Url = newUrl;
-                    }
-
-                    stream.Converted = true;
-                }
-
-                if (stream.StreamIndex == -1 && string.IsNullOrEmpty(stream.Url)) continue; // Failed
-
-                if (stream.StreamIndex != -1)
-                    { if (decoder.Open(stream) != 0) continue; } // Failed
-                else if (!string.IsNullOrEmpty(stream.Url) && decoder.OpenSubs(stream.Url, elapsedTicks / 10000) != 0) continue; // Failed
-
-                Session.SubsText = null; sFrame = null;
-                curSubtitlePlugin               = plugin;
-                Session.CurSubtitleStream       = stream;
-                Session.CurSubtitleStream.InUse = true;
-
-                Log($"[SubtitlePlugin] {curSubtitlePlugin?.PluginName}");
-                return true;
+                Duration= VideoDemuxer.Duration;
+                IsLive  = VideoDemuxer.IsLive;
+            }
+            else
+            {
+                if (!CanPlay) Status = Status.Failed;
+                ResetMe();
             }
 
-            return false;
+            if (e.IsUserInput)
+                OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Video, e.Input, e.OldInput, e.Error, e.IsUserInput));
+            else
+                OnOpenInputCompleted(MediaType.Video, e.Input, e.OldInput, e.Error, e.IsUserInput);
+        }
+        private void Decoder_SubtitlesInputOpened(object sender, SubtitlesInputOpenedArgs e)
+        {
+            if (e.IsUserInput)
+                OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Subs, e.Input, e.OldInput, e.Error, e.IsUserInput));
+            else
+                OnOpenInputCompleted(MediaType.Subs, e.Input, e.OldInput, e.Error, e.IsUserInput);
+        }
+        #endregion
+
+        #region Initialize Open/Switch
+        private void ResetMe()
+        {
+            ClearAudioBuffer();
+            if (renderer != null)
+            {
+                renderer.DisableRendering = true;
+                renderer.PresentFrame();
+            }
+
+            CurTime     = 0;
+            Duration    = 0;
+            IsLive      = false;
+            BitRate     = 0;
+            BufferedDuration = 0;
+            Folder      = "";
+            FileSize    = 0;
+        }
+        private void Reset()
+        {
+            ResetMe();
+            Video.Reset();
+            Audio.Reset();
+            Subtitles.Reset();
+
+            lastAudioStream = null;
+            lastSubtitlesStream = null;
+        }
+        private void Initialize()
+        {
+            Log($"[Initializing]");
+
+            TimeBeginPeriod(1);
+
+            Status      = Status.Stopped;
+            CanPlay     = false;
+            seeks.Clear();
+            EnsureThreadDone(tSeek);
+            EnsureThreadDone(tPlay);
+            decoder.Initialize();
+            Title = "";
+            Reset();
+            
+            TimeEndPeriod(1);
+            Log($"[Initialized]");
+        }
+        #endregion
+
+        #region Open
+        private OpenCompletedArgs OpenInternal(object url_iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            InputOpenedArgs args = null;
+
+            try
+            {
+                Log($"Opening {url_iostream.ToString()}");
+
+                if ((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString())))
+                {
+                    //if (!Video.IsOpened) return "Cannot open subtitles without having video";
+                    Config.Subtitles.SetEnabled(true);
+                    args = decoder.OpenSubtitles(url_iostream.ToString(), defaultSubtitles);
+                    ReSync(decoder.SubtitlesStream);
+                    return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, args.Error, args.IsUserInput);
+                }
+
+                Initialize();
+                Status = Status.Opening;
+
+                if (Config.Player.Usage == Usage.Audio)
+                {
+                    if (url_iostream is Stream)
+                        args = (InputOpenedArgs) decoder.OpenAudio((Stream)url_iostream, defaultInput, defaultAudio);
+                    else
+                        args = (InputOpenedArgs) decoder.OpenAudio(url_iostream.ToString(), defaultInput, defaultAudio);
+                }
+                else
+                {
+                    if (url_iostream is Stream)
+                        args = decoder.OpenVideo((Stream)url_iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+                    else
+                        args = decoder.OpenVideo(url_iostream.ToString(), defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+                }
+
+                //InitializeEnv(args);
+
+            } catch (Exception e)
+            {
+                Log($"[OPEN] Error {e.Message}");
+                return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, e.Message + "\r\n" + args.Error, args.IsUserInput);
+            }
+
+            return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, args.Error, args.IsUserInput);
+        }
+        private void OpenAsync(object url_iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            Task.Run(() =>
+            {
+                lock(lockOpen) 
+                { 
+                    opens.Push(new OpenData(url_iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles));
+                    if (IsOpening)
+                    {
+                        // Interrupt only subs?
+                        if (!((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString()))))
+                            decoder.Interrupt = true;
+                        return;
+                    }
+                    IsOpening = true; 
+                }
+
+                while (opens.TryPop(out OpenData openData))
+                {
+                    lock (lockPlayPause)
+                    {
+                        opens.Clear();
+                        OpenInternal(openData.url_iostream, openData.defaultInput, openData.defaultVideo, openData.defaultAudio, openData.defaultSubtitles);
+                    }
+                }
+
+                lock(lockOpen) IsOpening = false;
+            });
+        }
+        
+        /// <summary>
+        /// Opens a new media file (audio/subtitles/video)
+        /// </summary>
+        /// <param name="url">Media file's url</param>
+        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        /// <returns></returns>
+        public OpenCompletedArgs Open(string url, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            return OpenInternal(url, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+        }
+
+        /// <summary>
+        /// Opens a new media stream (audio/video)
+        /// </summary>
+        /// <param name="iostream">Media stream</param>
+        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        /// <returns></returns>
+        public OpenCompletedArgs Open(Stream iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            return OpenInternal(iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+        }
+        
+        /// <summary>
+        /// Opens a new media file (audio/subtitles/video) without blocking
+        /// You can get the results from <see cref="OpenCompleted"/>
+        /// </summary>
+        /// <param name="url">Media file's url</param>
+        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        public void OpenAsync(string url, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            OpenAsync((object)url, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+        }
+
+        /// <summary>
+        /// Opens a new media I/O stream (audio/video) without blocking
+        /// You can get the results from <see cref="OpenCompleted"/>
+        /// </summary>
+        /// <param name="iostream">Media stream</param>
+        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        public void OpenAsync(Stream iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            OpenAsync((object)iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+        }
+
+        /// <summary>
+        /// Opens an existing media input (audio/subtitles/video)
+        /// </summary>
+        /// <param name="input">An existing Player's media input</param>
+        /// <param name="resync">Whether to force resync with other streams</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        /// <returns></returns>
+        public OpenInputCompletedArgs Open(InputBase input, bool resync = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            InputOpenedArgs args;
+            long syncMs = decoder.GetCurTimeMs();
+
+            if (input is VideoInput) { isVideoSwitch = true; requiresBuffering = true; }
+
+            if (input is AudioInput)
+            {
+                isAudioSwitch = true;
+                Config.Audio.SetEnabled(true);
+                args = decoder.OpenAudioInput((AudioInput)input, defaultAudio);
+                if (resync) ReSync(decoder.AudioStream, syncMs);
+                isAudioSwitch = false;
+            }
+            else if (input is VideoInput)
+            {
+                decoder.Stop();
+                args = decoder.OpenVideoInput((VideoInput)input, defaultVideo, defaultAudio, defaultSubtitles);
+
+                if (!((IOpen)input.Plugin).IsPlaylist)
+                {
+                    if (resync) ReSync(decoder.VideoStream, syncMs); else isVideoSwitch = false;
+                }
+                else
+                {
+                    isVideoSwitch = false;
+
+                    if (!IsPlaying && resync)
+                    {
+                        decoder.GetVideoFrame();
+                        ShowOneFrame();
+                    }
+                }
+            }
+            else
+            {
+                if (!Video.IsOpened) return new OpenInputCompletedArgs(MediaType.Subs, input, null, "Subtitles require opened video stream", false); // Could be closed?
+                Config.Subtitles.SetEnabled(true);
+                isSubsSwitch = true;
+                args = decoder.OpenSubtitlesInput((SubtitlesInput)input, defaultSubtitles);
+                if (resync) ReSync(decoder.SubtitlesStream, syncMs);
+                isSubsSwitch = false;
+            }
+
+            return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, args.Error, args.IsUserInput);
+        }
+
+        /// <summary>
+        /// Opens an existing media input (audio/subtitles/video) without blocking
+        /// You can get the results from <see cref="OpenInputCompleted"/>
+        /// </summary>
+        /// <param name="input">An existing Player's media input</param>
+        /// <param name="resync">Whether to force resync with other streams</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        public void OpenAsync(InputBase input, bool resync = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            Task.Run(() =>
+            {
+                lock(lockOpen) 
+                { 
+                    inputopens.Push(new OpenInputData(input, resync, defaultVideo, defaultAudio, defaultSubtitles));
+                    if (IsOpening)
+                    {
+                        // Interrupt only subs?
+                        if (!(input is SubtitlesInput))
+                            decoder.Interrupt = true;
+                        return;
+                    }
+                    IsOpening = true; 
+                }
+
+                while (inputopens.TryPop(out OpenInputData openData))
+                {
+                    lock (lockPlayPause)
+                    {
+                        inputopens.Clear();
+                        Open(openData.input, openData.resync, openData.defaultVideo, openData.defaultAudio, openData.defaultSubtitles);
+                    }
+                }
+
+                lock(lockOpen) IsOpening = false;
+            });
+        }
+
+        /// <summary>
+        /// Opens an existing media stream (audio/subtitles/video)
+        /// </summary>
+        /// <param name="stream">An existing Player's media stream</param>
+        /// <param name="resync">Whether to force resync with other streams/param>
+        /// <param name="audioFollowVideo"></param>
+        /// <returns></returns>
+        public OpenStreamCompletedArgs Open(StreamBase stream, bool resync = true, bool audioFollowVideo = true)
+        {
+            StreamOpenedArgs args = new StreamOpenedArgs();
+            long syncMs = decoder.GetCurTimeMs();
+
+            if (stream.Demuxer.Type == MediaType.Video) { isVideoSwitch = true; requiresBuffering = true; }
+
+            if (stream is AudioStream)
+            {
+                Config.Audio.SetEnabled(true);
+                args = decoder.OpenAudioStream((AudioStream)stream);
+            }
+            else if (stream is VideoStream)
+                args = decoder.OpenVideoStream((VideoStream)stream, audioFollowVideo);
+            else if (stream is SubtitlesStream)
+            {
+                Config.Subtitles.SetEnabled(true);
+                args = decoder.OpenSubtitlesStream((SubtitlesStream)stream);
+            }
+
+            if (resync) ReSync(stream, syncMs); else isVideoSwitch = false;
+
+            return new OpenStreamCompletedArgs(stream.Type, args.Stream, args.OldStream, args.Error);
+        }
+
+        /// <summary>
+        /// Opens an existing media stream (audio/subtitles/video) without blocking
+        /// You can get the results from <see cref="OpenStreamCompleted"/>
+        /// </summary>
+        /// <param name="stream">An existing Player's media stream</param>
+        /// <param name="resync">Whether to force resync with other streams/param>
+        /// <param name="audioFollowVideo"></param>
+        public void OpenAsync(StreamBase stream, bool resync = true, bool audioFollowVideo = true)
+        {
+            Task.Run(() =>
+            {
+                Open(stream, resync, audioFollowVideo);
+            });
         }
         #endregion
 
         #region Dynamic Config Commands
         internal void SetAudioDelay()
         {
-            if (!Session.CanPlay) return;
-            if (!IsPlaying) { requiresResync = true; return; }
-
-            decoder.SeekAudio(elapsedTicks/10000);
+            ReSync(decoder.AudioStream);
         }
         internal void SetSubsDelay()
         {
-            if (!Session.CanPlay) return;
-            if (!IsPlaying) { requiresResync = true; return; }
-
-            decoder.SeekSubtitles(elapsedTicks/10000);
-            sFrame = null; Session.SubsText = "";
+            ReSync(decoder.SubtitlesStream);
         }
+
         internal void DisableAudio()
         {
-            if (!Session.CanPlay) return;
+            if (!Audio.IsOpened) return;
 
-            decoder.AudioDecoder.Stop();
-            if (Session.CurAudioStream == null) return;
+            lastAudioStream = decoder.AudioStream;
+            AudioDecoder.Dispose(true);
 
-            Session.CurAudioStream.InUse = false;
-            Session.LastAudioStream = Session.CurAudioStream;
+            aFrame = null;
+            ClearAudioBuffer();
+            Audio.Reset();
+        }
+        internal void DisableVideo()
+        {
+            if (!Video.IsOpened || Config.Player.Usage == Usage.Audio) return;
+
+            bool wasPlaying = IsPlaying;
+            Pause();
+            VideoDecoder.Dispose(true);
+            if (!AudioDecoder.OnVideoDemuxer) VideoDemuxer.Dispose();
+            Video.Refresh();
+            if (wasPlaying) Play();
         }
         internal void DisableSubs()
         {
-            if (!Session.CanPlay) return;
+            if (!Subtitles.IsOpened || Config.Player.Usage != Usage.AVS) return;
 
-            decoder.SubtitlesDecoder.Stop();
-            sFrame = null; Session.SubsText = "";
-            if (Session.CurSubtitleStream == null) return;
+            lastSubtitlesStream = decoder.SubtitlesStream;
+            SubtitlesDecoder.Dispose(true);
 
-            Session.CurSubtitleStream.InUse = false;
-            Session.LastSubtitleStream = Session.CurSubtitleStream;
+            sFrame = null;
+            Subtitles.Reset();
         }
         internal void EnableAudio()
         {
-            if (!Session.CanPlay) return;
+            if (!CanPlay) return;
 
-            OpenAudio(Session.LastAudioStream);
+            AudioInput suggestedInput = null;
+
+            if (lastAudioStream == null)
+                decoder.SuggestAudio(out lastAudioStream, out suggestedInput, VideoDemuxer.AudioStreams);
+
+            if (lastAudioStream != null)
+            {
+                if (lastAudioStream.AudioInput != null)
+                    Open(lastAudioStream.AudioInput);
+                else
+                    Open(lastAudioStream);
+            }
+            else if (suggestedInput != null)
+                Open(suggestedInput);
+        }
+        internal void EnableVideo()
+        {
+            if (!CanPlay || Config.Player.Usage == Usage.Audio) return;
+
+            bool wasPlaying = IsPlaying;
+            int curTime = decoder.GetCurTimeMs();
+            Pause();
+            decoder.OpenSuggestedVideo();
+            Video.Refresh();
+            decoder.Seek(curTime);
+            if (wasPlaying) Play();
+
         }
         internal void EnableSubs()
         {
-            if (!Session.CanPlay) return;
+            if (!CanPlay || Config.Player.Usage != Usage.AVS) return;
 
-            if (Session.LastSubtitleStream == null)
-                { foreach(var lang in Config.subs.Languages) if (OpenSubs(lang)) break; }
+            SubtitlesInput suggestedInput = null;
+
+            if (lastSubtitlesStream == null)
+                decoder.SuggestSubtitles(out lastSubtitlesStream, out suggestedInput, VideoDemuxer.SubtitlesStreams);
+
+            if (lastSubtitlesStream != null)
+            {
+                if (lastSubtitlesStream.SubtitlesInput != null)
+                    Open(lastSubtitlesStream.SubtitlesInput);
+                else
+                    Open(lastSubtitlesStream);
+            }
+            else if (suggestedInput != null)
+                Open(suggestedInput);
+        }
+
+        private void ReSync(StreamBase stream, long syncMs = -1)
+        {
+            if (stream == null) return;
+            //if (stream == null || (syncMs == 0 || (syncMs == -1 && decoder.GetCurTimeMs() == 0))) return; // Avoid initial open resync?
+
+            if (stream.Demuxer.Type == MediaType.Video)
+            {
+                isVideoSwitch = true;
+                isAudioSwitch = true;
+                isSubsSwitch = true;
+                requiresBuffering = true;
+
+                decoder.Seek(syncMs);
+
+                aFrame = null;
+                isAudioSwitch = false;
+                isVideoSwitch = false;
+                sFrame = null;
+                Subtitles.SubsText = "";
+                isSubsSwitch = false;
+
+                if (!IsPlaying)
+                {
+                    decoder.GetVideoFrame();
+                    ShowOneFrame();
+                }
+            }
             else
-                OpenSubs(null, Session.LastSubtitleStream);
+            {
+                if (stream.Demuxer.Type == MediaType.Audio)
+                {
+                    isAudioSwitch = true;
+                    decoder.SeekAudio();
+                    aFrame = null;
+                    isAudioSwitch = false;
+                }
+                else
+                {
+                    isSubsSwitch = true;
+                    decoder.SeekSubtitles();
+                    sFrame = null;
+                    Subtitles.SubsText = "";
+                    isSubsSwitch = false;
+                }
+
+                if (IsPlaying)
+                {
+                    stream.Demuxer.Start();
+                    decoder.GetDecoderPtr(stream.Type).Start();
+                }
+            }    
+        }
+
+        internal void SetSpeed()
+        {
+            isVideoSwitch = true;
+            requiresBuffering = true;
+            VideoDecoder.Speed      = Config.Player.Speed;
+            AudioDecoder.Speed      = Config.Player.Speed;
+            SubtitlesDecoder.Speed  = Config.Player.Speed;
+
+            decoder.Flush();
+            isVideoSwitch = false;
         }
         #endregion
 
@@ -651,7 +1007,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockPlayPause)
             {
-                if (Session == null || !Session.CanPlay || Status == Status.Playing) return;
+                if (!CanPlay || Status == Status.Playing) return;
 
                 Status = Status.Playing;
                 EnsureThreadDone(tSeek);
@@ -664,17 +1020,19 @@ namespace FlyleafLib.MediaPlayer
                         TimeBeginPeriod(1);
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
 
-                        if (!Config.player.LowLatency)
-                            Screamer();
-                        else
+                        if (Config.Player.Usage == Usage.LowLatencyVideo)
                             ScreamerLowLatency();
+                        else if (Config.Player.Usage == Usage.Audio || !Video.IsOpened)
+                            ScreamerAudioOnly();
+                        else
+                            Screamer();
 
                     } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
 
                     finally
                     {
-                        if (Status == Status.Stopped) { if (curVideoPlugin != null && curVideoPlugin.PluginName == "BitSwarm") curVideoPlugin.OnInitializingSwitch(); decoder?.Stop(); } else decoder?.Pause();
-                        audioPlayer?.ClearBuffer();
+                        if (Status == Status.Stopped) decoder?.Stop(); else decoder?.Pause();
+                        ClearAudioBuffer();
                         VideoDecoder.DisposeFrame(vFrame); vFrame = null;
                         TimeEndPeriod(1);
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
@@ -682,7 +1040,11 @@ namespace FlyleafLib.MediaPlayer
                         if (HasEnded) OnPlaybackCompleted();
                     }
                 });
-                tPlay.Name = "Play"; tPlay.IsBackground = true; tPlay.Start();
+                tPlay.Name = "Play";
+                tPlay.IsBackground = true;
+                //tPlay.SetApartmentState(ApartmentState.STA);
+                //tPlay.Priority = ThreadPriority.Highest;
+                tPlay.Start();
             }
         }
 
@@ -693,7 +1055,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockPlayPause)
             {
-                if (Session == null || !Session.CanPlay || Status == Status.Ended) return;
+                if (!CanPlay || Status == Status.Ended) return;
 
                 Status = Status.Paused;
                 EnsureThreadDone(tPlay);
@@ -707,9 +1069,9 @@ namespace FlyleafLib.MediaPlayer
         /// <param name="foreward"></param>
         public void Seek(int ms, bool foreward = false)
         {
-            if (!Session.CanPlay) return;
+            if (!CanPlay) return;
 
-            Session.SetCurTime(ms * (long)10000);
+            SetCurTime(ms * (long)10000);
             seeks.Push(new SeekData(ms, foreward));
 
             if (Status == Status.Playing) return;
@@ -721,32 +1083,48 @@ namespace FlyleafLib.MediaPlayer
                 try
                 {
                     TimeBeginPeriod(1);
-                    while (seeks.TryPop(out SeekData seekData) && Session.CanPlay && Status != Status.Playing)
+                    while (seeks.TryPop(out SeekData seekData) && CanPlay && !IsPlaying)
                     {
                         seeks.Clear();
 
-                        if (decoder.Seek(seekData.ms, seekData.foreward) >= 0)
+                        if (!Video.IsOpened)
                         {
-                            decoder.GetVideoFrame();
-                            ShowOneFrame();
+                            if (AudioDecoder.OnVideoDemuxer)
+                            {
+                                if (decoder.Seek(seekData.ms, seekData.foreward) < 0)
+                                    Log("[SEEK] Failed 2");
+                            }
+                            else
+                            {
+                                if (decoder.SeekAudio(seekData.ms, seekData.foreward) < 0)
+                                    Log("[SEEK] Failed 3");
+                            }
+                        }
+                        else if (decoder.Seek(seekData.ms, seekData.foreward) >= 0)
+                        {
+                            if (CanPlay)
+                                decoder.GetVideoFrame();
+                            if (CanPlay)
+                                ShowOneFrame();
                         }
                         else
                             Log("[SEEK] Failed");
 
                         Thread.Sleep(20);
                     }
-
                 } catch (Exception e)
                 {
                     Log($"[SEEK] Error {e.Message}");
                 } finally
                 {
-                    requiresResync = true;
                     TimeEndPeriod(1);
                     lock (lockSeek) IsSeeking = false;
                 }
             });
-            tSeek.Name = "Seek"; tSeek.IsBackground = true; tSeek.Start();
+
+            tSeek.Name = "Seek";
+            tSeek.IsBackground = true;
+            tSeek.Start();
         }
 
         /// <summary>
@@ -782,16 +1160,10 @@ namespace FlyleafLib.MediaPlayer
 
                 Stop();
 
-                foreach(var plugin in Plugins.Values)
-                    plugin.Dispose();
-                Plugins = null;
-
-                audioPlayer?.Dispose(); 
+                DisposeAudio(); 
                 decoder.Dispose();
 
-                audioPlayer = null;
                 decoder = null;
-                Session = null;
                 Config = null;
 
                 disposed = true;
@@ -810,79 +1182,105 @@ namespace FlyleafLib.MediaPlayer
         #endregion
 
         #region Scream
+        private void ShowOneFrame()
+        {
+            Subtitles.SubsText = ""; sFrame = null;
+
+            if (VideoDecoder.Frames.Count > 0)
+            {
+                VideoFrame vFrame = null;
+                VideoDecoder.Frames.TryDequeue(out vFrame);
+                if (seeks.Count == 0)
+                {
+                    if (VideoDemuxer.HLSPlaylist != null)
+                        SetCurTimeHLS();
+                    else
+                        SetCurTime(vFrame.timestamp * Config.Player.Speed);
+                }
+                renderer.PresentFrame(vFrame);
+            }
+            return;
+        }
+
         private bool MediaBuffer()
         {
             Log("[SCREAMER] Buffering ...");
+            IsBuffering = true;
+
             while (isVideoSwitch && IsPlaying) Thread.Sleep(10);
 
-            audioPlayer?.ClearBuffer();
+            ClearAudioBuffer();
 
-            decoder.VideoDemuxer.Start();
-            decoder.VideoDecoder.Start();
-            if (decoder.AudioDecoder.OnVideoDemuxer)
-                decoder.AudioDecoder.Start();
-            else if (!requiresResync)
+            VideoDemuxer.Start();
+            VideoDecoder.Start();
+             
+            if (Config.Audio.Enabled)
             {
-                decoder.AudioDemuxer.Start();
-                decoder.AudioDecoder.Start();
+                if (AudioDecoder.OnVideoDemuxer)
+                    AudioDecoder.Start();
+                else if (!decoder.RequiresResync)
+                {
+                    AudioDemuxer.Start();
+                    AudioDecoder.Start();
+                }
             }
-            if (decoder.SubtitlesDecoder.OnVideoDemuxer)
-                decoder.SubtitlesDecoder.Start();
-            else if (!requiresResync)
+
+            if (Config.Subtitles.Enabled)
             {
-                decoder.SubtitlesDemuxer.Start();
-                decoder.SubtitlesDecoder.Start();
+                if (SubtitlesDecoder.OnVideoDemuxer)
+                    SubtitlesDecoder.Start();
+                else if (!decoder.RequiresResync)
+                {
+                    SubtitlesDemuxer.Start();
+                    SubtitlesDecoder.Start();
+                }
             }
 
             VideoDecoder.DisposeFrame(vFrame);
-            if (aFrame != null) aFrame.audioData = new byte[0];
             vFrame = null;
             aFrame = null;
             sFrame = null;
-            Session.SubsText = "";
+            Subtitles.SubsText = "";
 
-            bool gotAudio       = !HasAudio;
+            bool gotAudio       = !Audio.IsOpened;
             bool gotVideo       = false;
             bool shouldStop     = false;
             bool showOneFrame   = true;
+            int  audioRetries   = 3;
 
-            // Wait 1: Ensure we have enough video/audio frames
+            // Wait 1: Ensure we have video/audio frame
             do
             {
-                if (showOneFrame && decoder.VideoDecoder.Frames.Count != 0)
+                if (showOneFrame && VideoDecoder.Frames.Count != 0)
                 {
-                    showOneFrame = false; ShowOneFrame();
+                    ShowOneFrame();
                     if (seeks.Count != 0) return false; 
 
-                    if (requiresResync)
-                    {
-                        requiresResync = false;
-                        decoder.SeekAudio(resyncFrameTs/10000);
-                        decoder.SeekSubtitles(resyncFrameTs/10000);
-                    }
+                    gotVideo = true;
+                    showOneFrame = false; 
                 }
 
-                if (!showOneFrame && vFrame == null && decoder.VideoDecoder.Frames.Count != 0)
-                    decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
+                if (!showOneFrame && vFrame == null && VideoDecoder.Frames.Count != 0)
+                    VideoDecoder.Frames.TryDequeue(out vFrame);
 
-                if (!gotAudio && aFrame == null && !requiresResync && decoder.AudioDecoder.Frames.Count != 0)
-                    decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
+                if (!gotAudio && aFrame == null && AudioDecoder.Frames.Count != 0)
+                    AudioDecoder.Frames.TryDequeue(out aFrame);
 
                 if (vFrame != null)
                 {
-                    if (!gotVideo && decoder.VideoDecoder.Frames.Count >= Config.decoder.MinVideoFrames) gotVideo = true;
+                    if (decoder.RequiresResync)
+                        decoder.Resync();
 
                     if (!gotAudio && aFrame != null)
                     {
-                        if (vFrame.timestamp - aFrame.timestamp > Config.audio.LatencyTicks)
+                        for (int i=0; i<Math.Min(20, AudioDecoder.Frames.Count); i++)
                         {
-                            if (vFrame.timestamp - aFrame.timestamp > (long)600 * 10000)
-                                { Log("Drop AFrames " + TicksToTime(aFrame.timestamp)); decoder.AudioDecoder.DisposeFrames(); aFrame = null; }
-                            else
-                                { Log("Drop AFrame  " + TicksToTime(aFrame.timestamp)); decoder.AudioDecoder.Frames.TryDequeue(out aFrame); }
+                            if (aFrame == null || vFrame.timestamp - aFrame.timestamp < Config.Audio.Latency) { gotAudio = true; break; }
+
+                            Log("Drop AFrame  " + TicksToTime(aFrame.timestamp));
+                            AudioDecoder.Frames.TryDequeue(out aFrame);
                         }
-                        else if (decoder.AudioDecoder.Frames.Count >= Config.decoder.MinAudioFrames)
-                            gotAudio = true;
+                        Log(" ====== Drop AFrame End ====== ");
                     }
                 }
 
@@ -890,9 +1288,11 @@ namespace FlyleafLib.MediaPlayer
                     shouldStop = true;
                 else
                 {
-                    if (!decoder.VideoDecoder.IsRunning && !isVideoSwitch) { Log("[SCREAMER] Video Exhausted"); shouldStop= true; }
-                    if (vFrame != null && !gotAudio && (!decoder.AudioDecoder.IsRunning || decoder.AudioDecoder.Demuxer.Status == MediaFramework.Status.QueueFull)) { 
-                        Log("[SCREAMER] Audio Exhausted"); gotAudio  = true; }
+                    if (!VideoDecoder.IsRunning && !isVideoSwitch) { Log("[SCREAMER] Video Exhausted"); shouldStop= true; }
+                    if (vFrame != null && !gotAudio && audioRetries > 0 && (!AudioDecoder.IsRunning || AudioDecoder.Demuxer.Status == MediaFramework.Status.QueueFull)) { 
+                        Log($"[SCREAMER] Audio Exhausted {audioRetries}"); audioRetries--; if (audioRetries < 1) 
+                            gotAudio  = true; 
+                    }
                 }
 
                 Thread.Sleep(10);
@@ -902,50 +1302,28 @@ namespace FlyleafLib.MediaPlayer
             if (shouldStop && !(HasEnded && IsPlaying && vFrame != null)) { Log("[SCREAMER] Stopped"); return false; }
             if (vFrame == null) { Log("[SCREAMER] [ERROR] No Frames!"); return false; }
 
-            // Removing this one as decoder will take packets from demuxer so MinQueueSize is not acurate (can cause delays)
-            // Wait 1: Ensure we have enough buffering packets to play (mainly for network streams)
-            while (decoder.VideoDemuxer.VideoPackets.Count < Config.demuxer.MinQueueSize && IsPlaying && !HasEnded) Thread.Sleep(15);
+            while(VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
 
             Log("[SCREAMER] Buffering Done");
 
-            if (sFrame == null) decoder.SubtitlesDecoder.Frames.TryDequeue(out sFrame);
+            if (sFrame == null) SubtitlesDecoder.Frames.TryDequeue(out sFrame);
 
             if (aFrame != null && aFrame.timestamp < vFrame.timestamp) 
-                videoStartTicks = Math.Max(aFrame.timestamp, vFrame.timestamp - Config.audio.LatencyTicks);
+                videoStartTicks = Math.Max(aFrame.timestamp, vFrame.timestamp - Config.Audio.Latency);
             else
-                videoStartTicks = vFrame.timestamp - Config.audio.LatencyTicks;
+                videoStartTicks = vFrame.timestamp - Config.Audio.Latency;
 
             startedAtTicks  = DateTime.UtcNow.Ticks;
 
-            if (decoder.VideoDecoder.VideoStream.HLSPlaylist != null)
+            if (VideoDemuxer.HLSPlaylist != null)
                 SetCurTimeHLS();
             else
-                Session.SetCurTime(videoStartTicks * Speed);
+                SetCurTime(videoStartTicks * Config.Player.Speed);
 
             Log($"[SCREAMER] Started -> {TicksToTime(videoStartTicks)} | [V: {TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {TicksToTime(aFrame.timestamp)}]"));
 
             return true;
         }    
-        private void ShowOneFrame()
-        {
-            Session.SubsText = null; sFrame = null;
-
-            if (decoder.VideoDecoder.Frames.Count > 0)
-            {
-                VideoFrame vFrame = null;
-                decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
-                resyncFrameTs = vFrame.timestamp;
-                if (seeks.Count == 0)
-                {
-                    if (decoder.VideoDecoder.VideoStream.HLSPlaylist != null)
-                        SetCurTimeHLS();
-                    else
-                        Session.SetCurTime(vFrame.timestamp * Speed);
-                }
-                renderer.PresentFrame(vFrame);
-            }
-            return;
-        }
         private void Screamer()
         {
             int     vDistanceMs;
@@ -958,7 +1336,7 @@ namespace FlyleafLib.MediaPlayer
             long    audioBytes = 0;
             long    elapsedSec = startedAtTicks;
 
-            bool    requiresBuffering = true;
+            requiresBuffering = true;
 
             while (Status == Status.Playing)
             {
@@ -966,31 +1344,31 @@ namespace FlyleafLib.MediaPlayer
                 {
                     seeks.Clear();
                     requiresBuffering = true;
-                    requiresResync = true;
                     if (decoder.Seek(seekData.ms, seekData.foreward) < 0)
                         Log("[SCREAMER] Seek failed");
                 }
 
                 if (requiresBuffering)
                 {
-                    totalBytes = decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes;
-                    videoBytes = decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes;
-                    audioBytes = decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes;
+                    totalBytes = VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
+                    videoBytes = VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
+                    audioBytes = VideoDemuxer.AudioBytes + AudioDemuxer.AudioBytes + SubtitlesDemuxer.AudioBytes;
 
                     MediaBuffer();
                     elapsedSec = startedAtTicks;
                     requiresBuffering = false;
+                    IsBuffering = false;
                     if (seeks.Count != 0) continue;
                     if (vFrame == null) { Log("MediaBuffer() no video frame"); break; }
                 }
 
                 if (vFrame == null)
                 {
-                    if (decoder.VideoDecoder.Status == MediaFramework.Status.Ended)
+                    if (VideoDecoder.Status == MediaFramework.Status.Ended)
                     {
                         Status = Status.Ended;
-                        if (decoder.VideoDecoder.VideoStream.HLSPlaylist == null)
-                            Session.SetCurTime((videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks)) * Speed);
+                        if (VideoDemuxer.HLSPlaylist == null)
+                            SetCurTime((videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks)) * Config.Player.Speed);
                     }
                     if (Status != Status.Playing) break;
 
@@ -1001,8 +1379,8 @@ namespace FlyleafLib.MediaPlayer
 
                 if (Status != Status.Playing) break;
 
-                if (aFrame == null) decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
-                if (sFrame == null) decoder.SubtitlesDecoder.Frames.TryDequeue(out sFrame);
+                if (aFrame == null && !isAudioSwitch) AudioDecoder.Frames.TryDequeue(out aFrame);
+                if (sFrame == null && !isSubsSwitch ) SubtitlesDecoder.Frames.TryDequeue(out sFrame);
 
                 elapsedTicks    = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
                 vDistanceMs     = (int) ((vFrame.timestamp - elapsedTicks) / 10000);
@@ -1014,39 +1392,45 @@ namespace FlyleafLib.MediaPlayer
                 if (sleepMs > 2)
                 {
                     if (sleepMs > 1000)
-                    {   // It will not allowed uncommon formats with slow frame rates to play (maybe check if fps = 1? means dynamic fps?)
-                        Log("[SCREAMER] Restarting ... (HLS?) 1 | + " + TicksToTime(sleepMs * (long)10000));
-                        VideoDecoder.DisposeFrame(vFrame); vFrame = null; aFrame = null;
-                        Thread.Sleep(10);
-                        MediaBuffer();
-                        elapsedSec = startedAtTicks;
+                    {   // Probably happens only on hls when it refreshes the m3u8 playlist / segments (and we are before the allowed cache)
+                        Log($"[SCREAMER] Restarting ... (HLS?) | Distance: {TicksToTime(sleepMs * (long)10000)}");
+                        requiresBuffering = true;
                         continue; 
                     }
 
                     // Informs the application with CurTime / Bitrates when the second changes
                     if (Math.Abs(elapsedTicks - elapsedSec) > 10000000 - 20000)
                     {
-                        elapsedSec = elapsedTicks;
-                        
-                        TBR = (decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes - totalBytes) * 8 / 1000.0;
-                        VBR = (decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes - videoBytes) * 8 / 1000.0;
-                        ABR = (decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes - audioBytes) * 8 / 1000.0;
-                        totalBytes = decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes;
-                        videoBytes = decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes;
-                        audioBytes = decoder.VideoDemuxer.AudioBytes + decoder.AudioDemuxer.AudioBytes + decoder.SubtitlesDemuxer.AudioBytes;
+                        Task.Run(() =>
+                        {
+                            elapsedSec  = elapsedTicks;
 
-                        FPS = actualFps;
-                        actualFps = 0;
+                            //Log($"BD: {TicksToTime(VideoDemuxer.BufferedDuration)} | VP: {VideoDemuxer.VideoPackets.Count} | AP: {VideoDemuxer.AudioPackets.Count + AudioDemuxer.AudioPackets.Count}");
 
-                        //Log($"Total bytes: {TBR}");
-                        //Log($"Video bytes: {VBR}");
-                        //Log($"Audio bytes: {ABR}");
-                        //Log($"Current FPS: {FPS}");
+                            if (Config.Player.Stats)
+                            {
+                                long curTotalBytes  =  VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
+                                long curVideoBytes  =  VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
+                                long curAudioBytes  =  VideoDemuxer.AudioBytes + AudioDemuxer.AudioBytes + SubtitlesDemuxer.AudioBytes;
 
-                        if (decoder.VideoDecoder.VideoStream.HLSPlaylist != null)
-                            SetCurTimeHLS();
-                        else
-                            Session.SetCurTime(elapsedTicks * Speed);
+                                BitRate             = (curTotalBytes - totalBytes) * 8 / 1000.0;
+                                Video.BitRate       = (curVideoBytes - videoBytes) * 8 / 1000.0;
+                                Audio.BitRate       = (curAudioBytes - audioBytes) * 8 / 1000.0;
+                                totalBytes          =  curTotalBytes;
+                                videoBytes          =  curVideoBytes;
+                                audioBytes          =  curAudioBytes;
+
+                                Video.DroppedFrames = droppedFrames;
+                                Video.CurrentFps    = actualFps;
+                                actualFps   = 0;
+                            }
+
+                            BufferedDuration = VideoDemuxer.BufferedDuration;
+                            if (VideoDemuxer.HLSPlaylist != null)
+                                SetCurTimeHLS();
+                            else
+                                SetCurTime(elapsedTicks * Config.Player.Speed);
+                        });
                     }
 
                     Thread.Sleep(sleepMs);
@@ -1055,14 +1439,14 @@ namespace FlyleafLib.MediaPlayer
                 if (Math.Abs(vDistanceMs - sleepMs) <= 2)
                 {
                     //Log($"[V] Presenting {TicksToTime(vFrame.timestamp)}");
-                    if (renderer.PresentFrame(vFrame)) actualFps++; else DroppedFrames++;
-                    decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
+                    if (decoder.VideoDecoder.Renderer.PresentFrame(vFrame)) actualFps++; else droppedFrames++;
+                    VideoDecoder.Frames.TryDequeue(out vFrame);
                 }
                 else if (vDistanceMs < -2)
                 {
-                    DroppedFrames++;
+                    droppedFrames++;
                     VideoDecoder.DisposeFrame(vFrame);
-                    decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
+                    VideoDecoder.Frames.TryDequeue(out vFrame);
                     Log($"vDistanceMs 2 |-> {vDistanceMs}");
                 }
 
@@ -1071,14 +1455,15 @@ namespace FlyleafLib.MediaPlayer
                     if (Math.Abs(aDistanceMs - sleepMs) <= 10)
                     {
                         //Log($"[A] Presenting {TicksToTime(aFrame.timestamp)}");
-                        audioPlayer?.FrameClbk(aFrame.audioData);
-                        decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
+                        AddAudioSamples(aFrame.audioData);
+                        AudioDecoder.Frames.TryDequeue(out aFrame);
                     }
                     else if (aDistanceMs < -10) // Will be transfered back to decoder to drop invalid timestamps
                     {
                         if (aDistanceMs < -600)
                         {
-                            decoder.AudioDecoder.DisposeFrames();
+                            Log($"aDistanceMs 2 |-> {aDistanceMs} | All audio frames disposed");
+                            AudioDecoder.DisposeFrames();
                             aFrame = null;
                         }
                         else
@@ -1088,7 +1473,7 @@ namespace FlyleafLib.MediaPlayer
                             for (int i=0; i<maxdrop; i++)
                             {
                                 Log($"aDistanceMs 2 |-> {aDistanceMs}");
-                                decoder.AudioDecoder.Frames.TryDequeue(out aFrame);
+                                AudioDecoder.Frames.TryDequeue(out aFrame);
                                 aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
                                 if (aDistanceMs > -7) break;
                             }
@@ -1097,35 +1482,36 @@ namespace FlyleafLib.MediaPlayer
                 }
 
                 if (sFramePrev != null)
-                    if (elapsedTicks - sFramePrev.timestamp > (long)sFramePrev.duration * 10000) { Session.SubsText = null; sFramePrev = null; }
+                    if (elapsedTicks - sFramePrev.timestamp > (long)sFramePrev.duration * 10000) { Subtitles.SubsText = ""; sFramePrev = null; }
 
                 if (sFrame != null)
                 {
                     if (Math.Abs(sDistanceMs - sleepMs) < 30)
                     {
-                        Session.SubsText = sFrame.text;
+                        Subtitles.SubsText = sFrame.text;
                         sFramePrev = sFrame;
-                        decoder.SubtitlesDecoder.Frames.TryDequeue(out sFrame);
+                        SubtitlesDecoder.Frames.TryDequeue(out sFrame);
                     }
                     else if (sDistanceMs < -30)
                     {
                         if (sFrame.duration + sDistanceMs > 0)
                         {
-                            Session.SubsText = sFrame.text;
+                            Subtitles.SubsText = sFrame.text;
                             sFramePrev = sFrame;
-                            decoder.SubtitlesDecoder.Frames.TryDequeue(out sFrame);
+                            SubtitlesDecoder.Frames.TryDequeue(out sFrame);
                         }
                         else
                         {
                             Log($"sDistanceMs 2 |-> {sDistanceMs}");
-                            decoder.SubtitlesDecoder.Frames.TryDequeue(out sFrame);
+                            SubtitlesDecoder.Frames.TryDequeue(out sFrame);
                         }
                     }
                 }
             }
             
-            Log($"[SCREAMER] Finished -> {TicksToTime(Session.CurTime)}");
+            Log($"[SCREAMER] Finished -> {TicksToTime(CurTime)}");
         }
+
         private void ScreamerLowLatency()
         {
             int     actualFps  = 0;
@@ -1137,33 +1523,35 @@ namespace FlyleafLib.MediaPlayer
             long    lastPresentTime = 0;
 
             VideoDecoder.DisposeFrame(vFrame);
-            decoder.Seek(0);
+            //decoder.Seek(0);
             decoder.Flush();
-            decoder.VideoDemuxer.Start();
-            decoder.VideoDecoder.Start();
+            VideoDemuxer.Start();
+            VideoDecoder.Start();
 
-            if (FFmpeg.AutoGen.ffmpeg.av_q2d(decoder.VideoDemuxer.FormatContext->streams[decoder.VideoDecoder.VideoStream.StreamIndex]->avg_frame_rate) > 0)
-                avgFrameDuration = (long) (10000000 / FFmpeg.AutoGen.ffmpeg.av_q2d(decoder.VideoDemuxer.FormatContext->streams[decoder.VideoDecoder.VideoStream.StreamIndex]->avg_frame_rate));
-            else if (decoder.VideoDecoder.VideoStream.FPS > 0)
-                avgFrameDuration = (int) (10000000 / decoder.VideoDecoder.VideoStream.FPS);
+            if (FFmpeg.AutoGen.ffmpeg.av_q2d(VideoDemuxer.FormatContext->streams[VideoDecoder.VideoStream.StreamIndex]->avg_frame_rate) > 0)
+                avgFrameDuration = (long) (10000000 / FFmpeg.AutoGen.ffmpeg.av_q2d(VideoDemuxer.FormatContext->streams[VideoDecoder.VideoStream.StreamIndex]->avg_frame_rate));
+            else if (VideoDecoder.VideoStream.Fps > 0)
+                avgFrameDuration = (int) (10000000 / VideoDecoder.VideoStream.Fps);
 
-            if (Config.player.LowLatencyMaxVideoFrames < 1) Config.player.LowLatencyMaxVideoFrames = 1;
+            if (Config.Player.LowLatencyMaxVideoFrames < 1) Config.Player.LowLatencyMaxVideoFrames = 1;
 
             while (Status == Status.Playing)
             {
                 if (vFrame == null)
                 {
-                    while (decoder.VideoDecoder.Frames.Count == 0 && Status == Status.Playing) Thread.Sleep(20);
+                    IsBuffering = true;
+                    while (VideoDecoder.Frames.Count == 0 && Status == Status.Playing) Thread.Sleep(20);
+                    IsBuffering = false;
                     if (Status != Status.Playing) break;
 
-                    while (decoder.VideoDecoder.Frames.Count >= Config.player.LowLatencyMaxVideoFrames && decoder.VideoDemuxer.VideoPackets.Count >= Config.player.LowLatencyMaxVideoPackets)
+                    while (VideoDecoder.Frames.Count >= Config.Player.LowLatencyMaxVideoFrames && VideoDemuxer.VideoPackets.Count >= Config.Player.LowLatencyMaxVideoPackets)
                     {
-                        DroppedFrames++;
+                        droppedFrames++;
                         VideoDecoder.DisposeFrame(vFrame);
-                        decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
+                        VideoDecoder.Frames.TryDequeue(out vFrame);
                     }
 
-                    if (vFrame == null) decoder.VideoDecoder.Frames.TryDequeue(out vFrame);
+                    if (vFrame == null) VideoDecoder.Frames.TryDequeue(out vFrame);
                 }
                 else
                 {
@@ -1173,76 +1561,164 @@ namespace FlyleafLib.MediaPlayer
                     {
                         secondTime = curTime;
 
-                        TBR = (decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes - totalBytes) * 8 / 1000.0;
-                        VBR = (decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes - videoBytes) * 8 / 1000.0;
-                        totalBytes = decoder.VideoDemuxer.TotalBytes + decoder.AudioDemuxer.TotalBytes + decoder.SubtitlesDemuxer.TotalBytes;
-                        videoBytes = decoder.VideoDemuxer.VideoBytes + decoder.AudioDemuxer.VideoBytes + decoder.SubtitlesDemuxer.VideoBytes;
+                        Video.DroppedFrames = droppedFrames;
+                        
+                        BitRate = (VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes - totalBytes) * 8 / 1000.0;
+                        Video.BitRate = (VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes - videoBytes) * 8 / 1000.0;
+                        totalBytes = VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
+                        videoBytes = VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
 
-                        FPS = actualFps;
+                        Video.CurrentFps = actualFps;
                         actualFps = 0;
 
-                        Session.SetCurTime(vFrame.timestamp);
+                        SetCurTime(vFrame.timestamp);
                     }
 
                     int sleepMs = (int) ((avgFrameDuration - (curTime - lastPresentTime)) / 10000);
                     if (sleepMs < 11000 && sleepMs > 2) Thread.Sleep(sleepMs);
-                    if (renderer.PresentFrame(vFrame)) actualFps++; else DroppedFrames++;
+                    if (renderer.PresentFrame(vFrame)) actualFps++; else droppedFrames++;
                     lastPresentTime = DateTime.UtcNow.Ticks;
                     vFrame = null;
                 }
             }
         }
-        
-        long bufferedTicks = 0;
+
+        private bool AudioBuffer()
+        {
+            IsBuffering = true;
+            while ((isVideoSwitch || isAudioSwitch) && IsPlaying) Thread.Sleep(10);
+            if (!IsPlaying) return false;
+
+            aFrame = null;
+            ClearAudioBuffer();
+            decoder.AudioStream.Demuxer.Start();
+            AudioDecoder.Start();
+
+            while(AudioDecoder.Frames.Count == 0 && IsPlaying && AudioDecoder.IsRunning) Thread.Sleep(10);
+            AudioDecoder.Frames.TryDequeue(out aFrame);
+            if (aFrame == null) 
+                return false;
+
+            while(decoder.AudioStream.Demuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
+
+            if (!IsPlaying || AudioDecoder.Frames.Count == 0)
+                return false;
+
+            startedAtTicks  = DateTime.UtcNow.Ticks;
+            videoStartTicks = aFrame.timestamp;
+
+            return true;
+        }
+        private void ScreamerAudioOnly()
+        {
+            int aDistanceMs;
+            long elapsedSec = startedAtTicks;
+
+            long totalBytes = VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
+            long videoBytes = VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
+            long audioBytes = VideoDemuxer.AudioBytes + AudioDemuxer.AudioBytes + SubtitlesDemuxer.AudioBytes;
+
+            requiresBuffering = true;
+
+            while (IsPlaying)
+            {
+                if (seeks.TryPop(out SeekData seekData))
+                {
+                    seeks.Clear();
+                    requiresBuffering = true;
+                    //AudioDecoder.Pause(); // If we don't.. Start will be during stopping because of no demuxer is running
+
+                    if (AudioDecoder.OnVideoDemuxer)
+                    {
+                        if (decoder.Seek(seekData.ms, seekData.foreward) < 0)
+                            Log("[SCREAMER] Seek failed 1");
+                    }
+                    else
+                    {
+                        if (decoder.SeekAudio(seekData.ms, seekData.foreward) < 0)
+                            Log("[SCREAMER] Seek failed 2");
+                    }
+                }
+
+                if (requiresBuffering)
+                {
+                    AudioBuffer();
+                    elapsedSec = startedAtTicks;
+                    requiresBuffering = false;
+                    IsBuffering = false;
+                    if (seeks.Count != 0) continue;
+                    if (aFrame == null) { Log("MediaBuffer() no audio frame"); break; }
+                }
+
+                if (aFrame == null)
+                {
+                    if (AudioDecoder.Status == MediaFramework.Status.Ended)
+                    {
+                        Status = Status.Ended;
+                        if (decoder.AudioStream != null && decoder.AudioStream.Demuxer.HLSPlaylist == null)
+                            SetCurTime((videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks)) * Config.Player.Speed);
+                    }
+
+                    if (Status != Status.Playing) break;
+
+                    Log("[SCREAMER] No audio frames");
+                    requiresBuffering = true;
+                    continue;
+                }
+
+                if (Status != Status.Playing) break;
+
+                elapsedTicks    = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
+                aDistanceMs     = (int) ((aFrame.timestamp - elapsedTicks) / 10000);
+
+                if (aDistanceMs > 1000 || aDistanceMs < -100)
+                {
+                    requiresBuffering = true;
+                    continue;
+                }
+
+                if (aDistanceMs > 100)
+                {
+                    if (Math.Abs(elapsedTicks - elapsedSec) > 10000000 - 20000)
+                    {
+                        elapsedSec = elapsedTicks;
+
+                        long curTotalBytes  =  VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
+                        long curVideoBytes  =  VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
+                        long curAudioBytes  =  VideoDemuxer.AudioBytes + AudioDemuxer.AudioBytes + SubtitlesDemuxer.AudioBytes;
+
+                        BitRate             = (curTotalBytes - totalBytes) * 8 / 1000.0;
+                        Video.BitRate       = (curVideoBytes - videoBytes) * 8 / 1000.0;
+                        Audio.BitRate       = (curAudioBytes - audioBytes) * 8 / 1000.0;
+                        totalBytes          =  curTotalBytes;
+                        videoBytes          =  curVideoBytes;
+                        audioBytes          =  curAudioBytes;
+
+                        if (decoder.AudioStream != null && decoder.AudioStream.Demuxer.HLSPlaylist != null)
+                            SetCurTimeHLS();
+                        else
+                            SetCurTime(elapsedTicks * Config.Player.Speed);
+                    }
+
+                    Thread.Sleep(aDistanceMs-15);
+                }
+
+                AddAudioSamples(aFrame.audioData, false);
+                AudioDecoder.Frames.TryDequeue(out aFrame);
+            }
+        }
+
         private void SetCurTimeHLS()
         {
-            Session.Movie.Duration = decoder.VideoDemuxer.Duration;
+            var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : VideoDemuxer;
+            Duration = curDemuxer.Duration;
+            SetCurTime(curDemuxer.CurTime);
 
-            if (vFrame != null)
-            {
-                Log("$[VFrame: {TicksToTime(vFrame.timestamp)}]");
-                bufferedTicks = (decoder.VideoDemuxer.hlsCtx->cur_timestamp * 10) - (vFrame.timestamp * Speed);
-            }
-
-            Log($"Time [FLCur: {TicksToTime(decoder.VideoDemuxer.CurTimeLive)}] [First: {TicksToTime(decoder.VideoDemuxer.hlsCtx->first_timestamp * 10)}] [Cur: {TicksToTime(decoder.VideoDemuxer.hlsCtx->cur_timestamp * 10)}] [Start: {TicksToTime(decoder.VideoDemuxer.FormatContext->start_time * 10)}]");
-            Log($"Seq. [Cur/Total: {decoder.VideoDemuxer.VideoStream.HLSPlaylist->cur_seq_no - decoder.VideoDemuxer.VideoStream.HLSPlaylist->start_seq_no + 1}/{decoder.VideoDemuxer.VideoStream.HLSPlaylist->n_segments}] [Start: {decoder.VideoDemuxer.VideoStream.HLSPlaylist->start_seq_no}] [Cur: {decoder.VideoDemuxer.VideoStream.HLSPlaylist->cur_seq_no}] [Last: {decoder.VideoDemuxer.VideoStream.HLSPlaylist->last_seq_no}]");
-            Log($"Dur. [Total: {TicksToTime(Session.Movie.Duration)}] [Target: {TicksToTime(decoder.VideoDemuxer.VideoStream.HLSPlaylist->target_duration*10)}]");
-
-            long hlsSegmentTime = decoder.VideoDemuxer.CurTimeLive - bufferedTicks;
-
-            if (hlsSegmentTime > Session.Movie.Duration - (decoder.VideoDemuxer.VideoStream.HLSPlaylist->target_duration * 10))
-                hlsSegmentTime = Session.Movie.Duration;
-            else if (hlsSegmentTime < decoder.VideoDemuxer.VideoStream.HLSPlaylist->target_duration * 10)
-                hlsSegmentTime = 0;
-
-            if (hlsSegmentTime >=0 && hlsSegmentTime <= Session.Movie.Duration)
-                Session.SetCurTime(hlsSegmentTime);
+            #if DEBUG
+            Log($"[First: {TicksToTime(curDemuxer.hlsCtx->first_timestamp * 10)}] [Cur: {TicksToTime(curDemuxer.CurTime)} / {TicksToTime(curDemuxer.CurTime - curDemuxer.StartTime)}] [BD: {TicksToTime(curDemuxer.BufferedDuration)}] [D: {curDemuxer.Duration}] | DT: {curDemuxer.Type}");
+            #endif
+            
         }
-        #endregion
-
-        #region Events
-        public class OpenCompletedArgs : EventArgs
-        {
-            public MediaType type;
-            public bool success;
-            public OpenCompletedArgs(MediaType type, bool success)
-            {
-                this.type = type;
-                this.success = success;
-            }
-        }
-
-        /// <summary>
-        /// Fires on Audio / Video open success or failure
-        /// </summary>
-        public event EventHandler<OpenCompletedArgs> OpenCompleted;
-        protected virtual void OnOpenCompleted(MediaType type, bool success) { Task.Run(() => OpenCompleted?.Invoke(this, new OpenCompletedArgs(type, success))); }
-
-        /// <summary>
-        /// Fires on Playback completed
-        /// </summary>
-        public event EventHandler PlaybackCompleted;
-        protected virtual void OnPlaybackCompleted() { Task.Run(() => PlaybackCompleted?.Invoke(this, new EventArgs())); }
         #endregion
 
         private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
@@ -1250,18 +1726,17 @@ namespace FlyleafLib.MediaPlayer
 
     public enum Status
     {
-        None,
-
-        Opening,    // Opening Video (from Initialized state - not embedded/switch)
-        OpenFailed,
-        Opened,
-
-        Playing,
-        Stopping,
-
-        Paused,
+        Opening,
+        Failed,
         Stopped,
-        Ended,
-        Failed
+        Paused,
+        Playing,
+        Ended
+    }
+    public enum Usage
+    {
+        AVS,
+        Audio,
+        LowLatencyVideo
     }
 }

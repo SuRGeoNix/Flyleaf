@@ -27,6 +27,14 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
                                 mapInInStream   = new Dictionary<int, IntPtr>();
 
         Dictionary<int, long>   mapInStreamToDts= new Dictionary<int, long>();
+
+        Dictionary<IntPtr, IntPtr>
+                                mapInOutStreams2 = new Dictionary<IntPtr, IntPtr>();
+
+        Dictionary<int, IntPtr>
+                                mapInInStream2   = new Dictionary<int, IntPtr>();
+
+        Dictionary<int, long>   mapInStreamToDts2= new Dictionary<int, long>();
         
         public Remuxer(int uniqueId = -1)
         {
@@ -50,7 +58,7 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
             return 0;
         }
 
-        public int AddStream(AVStream* in_stream)
+        public int AddStream(AVStream* in_stream, bool isAudioDemuxer = false)
         {
 #pragma warning disable CS0618 // Type or member is obsolete
             int ret = -1;
@@ -80,8 +88,17 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
             //else
             //    Log("Found");
 
-            mapInOutStreams.Add((IntPtr)in_stream, (IntPtr)out_stream);
-            mapInInStream.Add(in_stream->index, (IntPtr)in_stream);
+            if (isAudioDemuxer)
+            {
+                mapInOutStreams2.Add((IntPtr)in_stream, (IntPtr)out_stream);
+                mapInInStream2.Add(in_stream->index, (IntPtr)in_stream);
+            }
+            else
+            {
+                mapInOutStreams.Add((IntPtr)in_stream, (IntPtr)out_stream);
+                mapInInStream.Add(in_stream->index, (IntPtr)in_stream);
+            }
+            
 
             return 0;
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -104,32 +121,44 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
             return 0;
         }
 
-        public int Write(AVPacket* packet)
+        public int Write(AVPacket* packet, bool isAudioDemuxer = false)
         {
-            AVStream* in_stream     =  (AVStream*) mapInInStream[packet->stream_index];
-            AVStream* out_stream    =  (AVStream*) mapInOutStreams[(IntPtr)in_stream];
-
-            if (packet->dts != AV_NOPTS_VALUE)
+            lock (this)
             {
-                if (!mapInStreamToDts.ContainsKey(in_stream->index))
-                    mapInStreamToDts.Add(in_stream->index, packet->dts);
+                Dictionary<int, IntPtr>     mapInInStream       = !isAudioDemuxer? this.mapInInStream   : mapInInStream2;
+                Dictionary<IntPtr, IntPtr>  mapInOutStreams     = !isAudioDemuxer? this.mapInOutStreams : mapInOutStreams2;
+                Dictionary<int, long>       mapInStreamToDts    = !isAudioDemuxer? this.mapInStreamToDts: mapInStreamToDts2;
 
-                packet->pts         = av_rescale_q_rnd(packet->pts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                packet->dts         = av_rescale_q_rnd(packet->dts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                AVStream* in_stream     =  (AVStream*) mapInInStream[packet->stream_index];
+                AVStream* out_stream    =  (AVStream*) mapInOutStreams[(IntPtr)in_stream];
+                av_rescale_q(packet->dts,in_stream->time_base, av_get_time_base_q());
+                if (packet->dts != AV_NOPTS_VALUE)
+                {
+
+                    if (!mapInStreamToDts.ContainsKey(in_stream->index))
+                    {
+                        // TODO: In case of AudioDemuxer calculate the diff with the VideoDemuxer and add it in one of them - all stream - (in a way to have positive)
+                        mapInStreamToDts.Add(in_stream->index, packet->dts);
+                    }
+
+                    packet->pts         = av_rescale_q_rnd(packet->pts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                    packet->dts         = av_rescale_q_rnd(packet->dts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                }
+                else
+                {
+                    packet->pts         = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                    packet->dts         = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                }
+
+                packet->duration        = av_rescale_q(packet->duration,in_stream->time_base, out_stream->time_base);
+                packet->stream_index    = out_stream->index;
+                packet->pos             = -1;
+
+                int ret = av_interleaved_write_frame(fmtCtx, packet);
+                av_packet_free(&packet);
+
+                return ret;
             }
-            else
-            {
-                packet->pts         = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                packet->dts         = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-            }
-
-            packet->duration        = av_rescale_q(packet->duration,in_stream->time_base, out_stream->time_base);
-            packet->stream_index    = out_stream->index;
-            packet->pos             = -1;
-
-            int ret = av_interleaved_write_frame(fmtCtx, packet);
-            av_packet_free(&packet);
-            return ret;
         }
 
         public int WriteTrailer() { return Dispose(); }
@@ -156,6 +185,8 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
             HeaderWritten = false;
             mapInOutStreams.Clear();
             mapInInStream.Clear();
+            mapInOutStreams2.Clear();
+            mapInInStream2.Clear();
 
             return ret;
         }

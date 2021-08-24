@@ -1,90 +1,141 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 
-using FlyleafLib.MediaPlayer;
 using FlyleafLib.MediaFramework.MediaStream;
+using FlyleafLib.MediaFramework.MediaInput;
+using FlyleafLib.MediaFramework.MediaContext;
 
 namespace FlyleafLib.Plugins
 {
-    public abstract class PluginBase : IDisposable
+    public abstract class PluginBase : PluginType, IPlugin
     {
-        public string   PluginName      => GetType().Name;
-        public Version  PluginVersion   => Assembly.GetExecutingAssembly().GetName().Version;
+        public DecoderContext           decoder         => (DecoderContext) Handler;
 
-        public Player   Player;
-
-        public List<AudioStream>        AudioStreams        { get; set; } = new List<AudioStream>();
-        public List<VideoStream>        VideoStreams        { get; set; } = new List<VideoStream>();
-        public List<SubtitlesStream>    SubtitlesStreams    { get; set; } = new List<SubtitlesStream>();
-
-        public virtual void OnLoad() { }
-
-        bool disposed = false;
-        public virtual void Dispose()
-        {
-            if (disposed) return;
-
-            Player = null;
-            AudioStreams = null;
-            VideoStreams = null;
-            SubtitlesStreams = null;
-
-            disposed = true;
-        }
+        public Config                   Config          => Handler.Config;
+        public PluginHandler            Handler         { get; internal set; }
+        public bool                     Disposed        { get; protected set; }
 
         public virtual void OnInitializing() { }
-        public virtual void OnInitialized()
-        {
-            AudioStreams.Clear();
-            VideoStreams.Clear();
-            SubtitlesStreams.Clear();
-        }
+        public virtual void OnInitialized() { }
 
         public virtual void OnInitializingSwitch() { }
         public virtual void OnInitializedSwitch() { }
 
-        //public virtual void OnSwitch() { }
+        public virtual OpenResults OnOpenAudio(AudioInput input) { return null; }
+        public virtual OpenResults OnOpenVideo(VideoInput input) { return null; }
+        public virtual OpenResults OnOpenSubtitles(SubtitlesInput input) { return null; }
 
-        public virtual void OnVideoOpened() { }
-        
+        public virtual void Dispose()
+        {
+            // Let it to the plugin
+
+            //if (Disposed) return;
+
+            //if (this is IProvideAudio)
+            //    ((IProvideAudio)this).AudioInputs.Clear();
+
+            //if (this is IProvideVideo)
+            //    ((IProvideVideo)this).VideoInputs.Clear();
+
+            //if (this is IProvideSubtitles)
+            //    ((IProvideSubtitles)this).SubtitlesInputs.Clear();
+
+            //Disposed = true;
+        }
+
+        public void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{Handler.UniqueId}] [Plugin: {Name}] {msg}"); }
     }
-
-    public class OpenVideoResults
+    public class PluginType
     {
-        public VideoStream stream;
-        public bool forceFailure;
-        public bool runAsync;
+        public Type                     Type            { get; internal set; }
+        public string                   Name            { get; internal set; }
+        public Version                  Version         { get; internal set; }
+    }
+    public class OpenResults
+    {
+        public string Error { get; private set; }
 
-        public OpenVideoResults() { }
-        public OpenVideoResults(VideoStream stream) { this.stream = stream; }
+        public OpenResults() { }
+        public OpenResults(string error) { Error = error; }
     }
 
-    public interface IPluginVideo
+    public interface IPlugin : IDisposable
+    {
+        string          Name      { get; }
+        Version         Version   { get; }
+        PluginHandler   Handler   { get; }
+
+        void OnInitializing();
+        void OnInitialized();
+        void OnInitializingSwitch();
+        void OnInitializedSwitch();
+
+        OpenResults OnOpenAudio(AudioInput input);
+        OpenResults OnOpenVideo(VideoInput input);
+        OpenResults OnOpenSubtitles(SubtitlesInput input);
+    }
+
+    public interface IOpen : IPlugin
     {
         bool IsPlaylist { get; }
-        OpenVideoResults OpenVideo();
-        VideoStream OpenVideo(VideoStream stream);
-    }
 
-    public interface IPluginAudio
+        bool IsValidInput(string url);
+        OpenResults     Open(string url);
+        OpenResults     Open(Stream iostream);
+    }
+    public interface IOpenSubtitles : IPlugin
     {
-        AudioStream OpenAudio();
-        AudioStream OpenAudio(AudioStream stream);
+        OpenResults     Open(string url);
+        OpenResults     Open(Stream iostream);
     }
 
-    public interface IPluginSubtitles
+    public interface IProvideAudio : IPlugin
+    {
+        List<AudioInput>    AudioInputs     { get; set; }
+    }
+    public interface IProvideVideo : IPlugin
+    {
+        List<VideoInput>    VideoInputs     { get; set; }
+    }
+    public interface IProvideSubtitles : IPlugin
+    {
+        List<SubtitlesInput>SubtitlesInputs { get; set; }
+    }
+
+    public interface ISuggestAudioInput : IPlugin
+    {
+        AudioInput SuggestAudio();
+    }
+    public interface ISuggestVideoInput : IPlugin
+    {
+        VideoInput SuggestVideo();
+    }
+    public interface ISuggestSubtitlesInput : IPlugin
+    {
+        SubtitlesInput SuggestSubtitles(Language lang);
+    }
+
+    public interface ISuggestAudioStream : IPlugin
+    {
+        AudioStream SuggestAudio(List<AudioStream> streams);
+    }
+    public interface ISuggestVideoStream : IPlugin
+    {
+        VideoStream SuggestVideo(List<VideoStream> streams);
+    }
+    public interface ISuggestSubtitlesStream : IPlugin
+    {
+        SubtitlesStream SuggestSubtitles(List<SubtitlesStream> streams, Language lang);
+    }
+
+    public interface ISearchSubtitles : IPlugin
     {
         void Search(Language lang);
-        bool Download(SubtitlesStream stream);
-        SubtitlesStream OpenSubtitles(Language lang);
-        SubtitlesStream OpenSubtitles(SubtitlesStream stream);
     }
-
-    public interface IPluginExternal : IPluginSubtitles, IPluginVideo
+    public interface IDownloadSubtitles : IPlugin
     {
-        VideoStream OpenVideo(Stream stream);
-        SubtitlesStream OpenSubtitles(string url);
+        bool Download(SubtitlesInput input);
     }
 }

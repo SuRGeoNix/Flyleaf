@@ -29,6 +29,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public Control          Control         { get; private set; }
         public Device           Device          { get; private set; }
+        public bool             DisableRendering{ get; set; }
         public bool             Disposed        { get; private set; } = true;
         public Viewport         GetViewport     { get; private set; }
         public RendererInfo     Info            { get; internal set; }
@@ -38,7 +39,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public int              Zoom            { get => zoom; set { zoom = value; SetViewport(); if (!VideoDecoder.IsRunning) PresentFrame(); } }
         int zoom;
 
-        //DeviceDebug                         deviceDbg;
+        //DeviceDebug                       deviceDbg;
         
         DeviceContext                       context;
         SwapChain1                          swapChain;
@@ -101,7 +102,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             
             //Device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug);
             //deviceDbg = new DeviceDebug(device); // To Report Live Objects if required
-
             Device  = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport);
             context = Device.ImmediateContext;
 
@@ -345,14 +345,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         public void SetViewport()
         {
-            if (Config.video.AspectRatio == AspectRatio.Fill || (Config.video.AspectRatio == AspectRatio.Keep && VideoDecoder.VideoStream == null))// || !player.Session.CanPlay)
+            if (Config.Video.AspectRatio == AspectRatio.Fill || (Config.Video.AspectRatio == AspectRatio.Keep && VideoDecoder.VideoStream == null))// || !player.Session.CanPlay)
             {
                 GetViewport     = new Viewport(0, 0, Control.Width, Control.Height);
                 context.Rasterizer.SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
             }
             else
             {
-                float ratio = Config.video.AspectRatio == AspectRatio.Keep ? VideoDecoder.VideoStream.AspectRatio.Value : (Config.video.AspectRatio == AspectRatio.Custom ? Config.video.CustomAspectRatio.Value : Config.video.AspectRatio.Value);
+                float ratio = Config.Video.AspectRatio == AspectRatio.Keep ? VideoDecoder.VideoStream.AspectRatio.Value : (Config.Video.AspectRatio == AspectRatio.Custom ? Config.Video.CustomAspectRatio.Value : Config.Video.AspectRatio.Value);
                 if (ratio <= 0) ratio = 1;
 
                 if (Control.Width / ratio > Control.Height)
@@ -407,10 +407,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     context.OutputMerger.SetRenderTargets(rtv);
-                    context.ClearRenderTargetView(rtv, Config.video._ClearColor);
-                    context.Draw(6, 0);
-
-                    swapChain.Present(Config.video.VSync, PresentFlags.None);
+                    context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
+                    if (!DisableRendering) context.Draw(6, 0);
+                    swapChain.Present(Config.Video.VSync, PresentFlags.None);
                     
                     if (frame != null)
                     {
@@ -542,9 +541,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 for (int i=0; i<swapChain.Description.BufferCount; i++)
                 { 
 	                context.OutputMerger.SetRenderTargets(rtv);
-	                context.ClearRenderTargetView(rtv, Config.video._ClearColor);
+	                context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
 	                context.Draw(6, 0);
-	                swapChain.Present(Config.video.VSync, PresentFlags.None);
+	                swapChain.Present(Config.Video.VSync, PresentFlags.None);
                 }
 
                 snapshotTexture = new Texture2D(Device, new Texture2DDescription()

@@ -40,12 +40,12 @@
                     <Button Margin="10,0,0,0" Content="Play"    Command="{Binding PlayVideo}"/>
                     <Button Margin="10,0,0,0" Content="Pause"   Command="{Binding PauseVideo}"/>
                 </StackPanel>
-                
-                <Slider Grid.Row="2" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Session.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Session.Movie.Duration, Converter={StaticResource TicksToSeconds}}" IsMoveToPointEnabled="True"/>
+
+                <Slider Grid.Row="2" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Player.Duration, Converter={StaticResource TicksToSeconds}}" IsMoveToPointEnabled="True"/>
                 
                 <StackPanel Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
-                    <TextBlock Margin="10" TextAlignment="Right" Text="{Binding Session.CurTime, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Green"/>
-                    <TextBlock Margin="10" TextAlignment="Right" Text="{Binding Session.Movie.Duration, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Orange"/>
+                    <TextBlock Margin="10" TextAlignment="Right" Text="{Binding Player.CurTime, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Green"/>
+                    <TextBlock Margin="10" TextAlignment="Right" Text="{Binding Player.Duration, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Orange"/>
                 </StackPanel>
             </Grid>
         </fl:VideoView>

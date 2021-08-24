@@ -24,6 +24,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             ri.SharedMemory = (UInt64)((IntPtr)adapter.Description.SharedSystemMemory).ToPointer();
             ri.Outputs      = adapter.Outputs.Length;
 
+            int maxVerticalResolution = 0;
+            foreach(var outputv in adapter.Outputs)
+                if (maxVerticalResolution < outputv.Description.DesktopBounds.Bottom - outputv.Description.DesktopBounds.Top) maxVerticalResolution = outputv.Description.DesktopBounds.Bottom - outputv.Description.DesktopBounds.Top;
+            renderer.Config.Video.MaxVerticalResolutionAuto = maxVerticalResolution;
+
             SharpDX.DXGI.Output output = adapter.Outputs[0];
             var bounds = output.Description.DesktopBounds;
 

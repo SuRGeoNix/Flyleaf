@@ -10,15 +10,15 @@ namespace FlyleafLib.Controls
     {
         public Player Player { get; internal set; }
 
-        bool isDesignMode;
+        //bool isDesignMode;
 
         public Flyleaf()
         {
             BackColor   = System.Drawing.Color.Black;
-            isDesignMode= LicenseManager.UsageMode == LicenseUsageMode.Designtime;
+            //isDesignMode= LicenseManager.UsageMode == LicenseUsageMode.Designtime;
         }
 
-        protected override void OnPaintBackground(PaintEventArgs pe) { if (isDesignMode) base.OnPaintBackground(pe); else Player?.renderer?.PresentFrame(); }
+        protected override void OnPaintBackground(PaintEventArgs pe) { if (Player != null && Player.renderer != null) Player?.renderer?.PresentFrame(); else base.OnPaintBackground(pe); }
         protected override void OnPaint(PaintEventArgs pe) { Player?.renderer?.PresentFrame(); }
     }
 }

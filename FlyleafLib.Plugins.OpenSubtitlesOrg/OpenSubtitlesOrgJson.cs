@@ -1,46 +1,14 @@
-﻿using System;
-using System.IO;
-using System.Net;
-
-namespace FlyleafLib.Plugins
+﻿namespace FlyleafLib.Plugins
 {
-    public class OpenSubtitlesJson
+    public class OpenSubtitlesOrgJson
     {
-        public int Download(string encoding = "utf8") // Download -> Unzip -> ConvertToUtf8
-        {
-            try
-            {
-                using (var client = new WebClient())
-                {
-                    string subDownloadLinkEnc = SubDownloadLink;
-
-                    string zipPath = Path.GetTempPath() + SubFileName + "." + SubLanguageID + ".srt.gz";
-
-                    File.Delete(zipPath);
-                    File.Delete(zipPath.Substring(0, zipPath.Length - 3));
-
-                    OpenSubtitles.Log($"Downloading {zipPath}");
-                    client.DownloadFile(new Uri(subDownloadLinkEnc), zipPath);
-
-                    OpenSubtitles.Log($"Unzipping {zipPath}");
-                    string unzipPath = Utils.GZipDecompress(zipPath);
-                    OpenSubtitles.Log($"Unzipped at {unzipPath}");
-
-                    AvailableAt = unzipPath;
-
-                    return 0;
-                }
-            }
-            catch (Exception e) { AvailableAt = null; OpenSubtitles.Log($"Failed to download subtitle {SubFileName} - {e.Message}"); return -1; }
-        }
-        public bool Equals(OpenSubtitlesJson other)
+        public bool Equals(OpenSubtitlesOrgJson other)
         {
             if (SubHash == other.SubHash)
                 return true;
 
             return false;
         }
-
 
         public string AvailableAt { get; set; }
 

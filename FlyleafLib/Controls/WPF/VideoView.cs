@@ -73,7 +73,7 @@ namespace FlyleafLib.Controls.WPF
             WindowFront.VideoView   = this;
 
             if (curContent != null && curContent is IVideoView) 
-                ControlRequiresPlayer = ((IVideoView)curContent);
+                ControlRequiresPlayer = (IVideoView)curContent;
 
             if (Player != null && Player.VideoView == null)
             {

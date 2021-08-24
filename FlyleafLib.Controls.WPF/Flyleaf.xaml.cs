@@ -19,6 +19,9 @@ using FlyleafLib.MediaPlayer;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
+using FlyleafLib.MediaFramework.MediaContext;
+using FlyleafLib.MediaFramework.MediaInput;
+using static FlyleafLib.Config;
 
 namespace FlyleafLib.Controls.WPF
 {
@@ -30,36 +33,36 @@ namespace FlyleafLib.Controls.WPF
         public Player           Player      { get => _Player; set { _Player = value; InitializePlayer(); } }
         Player _Player;
 
-        public Demuxer          VideoDemuxer => Player?.decoder?.VideoDemuxer;
-        public VideoDecoder     VideoDecoder => Player?.decoder?.VideoDecoder;
-        public AudioDecoder     AudioDecoder => Player?.decoder?.AudioDecoder;
-
-        public AudioPlayer      AudioPlayer => Player?.audioPlayer;
-        public AudioMaster      AudioMaster => Master.AudioMaster;
-        public FlyleafWindow    WindowFront => VideoView?.WindowFront;
-        public WindowsFormsHost WinFormsHost=> VideoView?.WinFormsHost;
-        public VideoView        VideoView   => Player?.VideoView;
         
-        public Session          Session     => Player?.Session;
-        public Config           Config      => Player?.Config;
-        public Config.Audio     Audio       => Config?.audio;
-        public Config.Subs      Subs        => Config?.subs;
-        public Config.Video     Video       => Config?.video;
-        public Config.Decoder   Decoder     => Config?.decoder;
-        public Config.Demuxer   Demuxer     => Config?.demuxer;
+        public AudioInfo        AudioInfo       => Player?.Audio;
+        public VideoInfo        VideoInfo       => Player?.Video;
+        public SubtitlesInfo    SubtitlesInfo   => Player?.Subtitles;
+        public Demuxer          VideoDemuxer    => Player?.VideoDemuxer;
+        public VideoDecoder     VideoDecoder    => Player?.VideoDecoder;
+        public AudioDecoder     AudioDecoder    => Player?.AudioDecoder;
+
+        public AudioMaster      AudioMaster     => Master.AudioMaster;
+        public FlyleafWindow    WindowFront     => VideoView?.WindowFront;
+        public WindowsFormsHost WinFormsHost    => VideoView?.WinFormsHost;
+        public VideoView        VideoView       => Player?.VideoView;
+        
+        public DecoderContext   DecCtx          => Player?.decoder;
+        public Config           Config          => Player?.Config;
+        public PlayerConfig     PlayerConfig    => Config.Player;
+        public AudioConfig      AudioConfig     => Config?.Audio;
+        public SubtitlesConfig  SubtitlesConfig => Config?.Subtitles;
+        public VideoConfig      VideoConfig     => Config?.Video;
+        public DecoderConfig    DecoderConfig   => Config?.Decoder;
+        public DemuxerConfig    DemuxerConfig   => Config?.Demuxer;
+
+        string _ErrorMsg;
+        public string ErrorMsg { get => _ErrorMsg; set => Set(ref _ErrorMsg, value); }
 
         bool _ShowDebug;
         public bool ShowDebug
         {
             get => _ShowDebug;
             set => Set(ref _ShowDebug, value);
-        }
-
-        bool _IsRecording;
-        public bool IsRecording
-        {
-            get => _IsRecording;
-            set => ToggleRecord();
         }
 
         bool _IsFullscreen;
@@ -186,13 +189,13 @@ namespace FlyleafLib.Controls.WPF
                 popUpMenu.Opened += (o, e) =>
                 {
                     CanPaste = String.IsNullOrEmpty(Clipboard.GetText()) ? false : true;
-                    popUpCustomAspectRatio.Header = $"Custom ({Video.CustomAspectRatio})";
+                    popUpCustomAspectRatio.Header = $"Custom ({VideoConfig.CustomAspectRatio})";
                     //popUpKeepAspectRatio.Header = $"Keep ({Player.VideoInfo.AspectRatio})";
 
-                    FixMenuSingleCheck(popUpAspectRatio, Video.AspectRatio.ToString());
-                    if (Video.AspectRatio == AspectRatio.Custom)
+                    FixMenuSingleCheck(popUpAspectRatio, VideoConfig.AspectRatio.ToString());
+                    if (VideoConfig.AspectRatio == AspectRatio.Custom)
                         popUpCustomAspectRatio.IsChecked = true;
-                    else if (Video.AspectRatio == AspectRatio.Keep)
+                    else if (VideoConfig.AspectRatio == AspectRatio.Keep)
                         popUpKeepAspectRatio.IsChecked = true;
                 };
             }
@@ -225,7 +228,7 @@ namespace FlyleafLib.Controls.WPF
             VideoView.FontFamily  = FontFamily;
             VideoView.FontSize    = FontSize;
 
-            this.Unloaded += (o, e) => { if (!Master.PreventAutoDispose) Dispose(); };
+            Unloaded += (o, e) => { if (!Master.PreventAutoDispose) Dispose(); };
 
             // Keys (WFH will work for backwindow's key events) | both WPF
             if (EnableKeyBindings)
@@ -255,6 +258,7 @@ namespace FlyleafLib.Controls.WPF
             Player.Control.DragDrop     += Flyleaf_DragDrop;
 
             Player.OpenCompleted        += Player_OpenCompleted;
+            Player.OpenInputCompleted   += Player_OpenInputCompleted;
         }
         #endregion
 
@@ -280,29 +284,31 @@ namespace FlyleafLib.Controls.WPF
             ResetSubsDelayMs    = new RelayCommand(ResetSubsDelayMsAction);
             ResetAudioDelayMs   = new RelayCommand(ResetAudioDelayMsAction);
             OpenStream          = new RelayCommand(OpenStreamAction);
+            OpenInput           = new RelayCommand(OpenInputAction);
 
             ShowSubtitlesMenu   = new RelayCommand(ShowSubtitlesMenuAction);
             ShowVideoMenu       = new RelayCommand(ShowVideoMenuAction);
+            ToggleRecord        = new RelayCommand(ToggleRecordAction);
             TakeSnapshot        = new RelayCommand(TakeSnapshotAction);
             ZoomReset           = new RelayCommand(ZoomResetAction);
             Zoom                = new RelayCommand(ZoomAction);
         }
 
         public ICommand SetPlaybackSpeed { get; set; }
-        public void SetPlaybackSpeedAction(object speed) { Player.Speed = int.Parse(speed.ToString()); }
+        public void SetPlaybackSpeedAction(object speed) { Config.Player.Speed = int.Parse(speed.ToString()); }
 
         public ICommand ZoomReset { get; set; }
-        public void ZoomResetAction(object obj = null) { Player.renderer.Zoom = 0;  }
+        public void ZoomResetAction(object obj = null) { Player.Zoom = 0;  }
 
         public ICommand Zoom { get; set; }
-        public void ZoomAction(object offset) { Player.renderer.Zoom += int.Parse(offset.ToString()); }
+        public void ZoomAction(object offset) { Player.Zoom += int.Parse(offset.ToString()); }
 
         public ICommand TakeSnapshot { get; set; }
         public void TakeSnapshotAction(object obj = null)
         {
-            if (!Session.CanPlay) return;
+            if (!Player.CanPlay) return;
 
-            Player.renderer.TakeSnapshot(System.IO.Path.Combine(Environment.CurrentDirectory, $"Snapshot{snapshotCounter}.bmp"));
+            Player.TakeSnapshot(System.IO.Path.Combine(Environment.CurrentDirectory, $"Snapshot{snapshotCounter}.bmp"));
             snapshotCounter++;
         }
 
@@ -313,25 +319,28 @@ namespace FlyleafLib.Controls.WPF
         public void ShowVideoMenuAction(object obj = null) { popUpMenuVideo.IsOpen = true; }
 
         public ICommand OpenStream { get; set; }
-        public void OpenStreamAction(object stream) { Player.Open((StreamBase)stream); }
+        public void OpenStreamAction(object stream) { Player.OpenAsync((StreamBase)stream); }
+
+        public ICommand OpenInput { get; set; }
+        public void OpenInputAction(object input) { Player.OpenAsync((InputBase)input); }
 
         public ICommand ResetSubsPositionY { get; set; }
         public void ResetSubsPositionYAction(object obj = null) { Subtitles.Margin = subsInitialMargin; }
 
         public ICommand ResetSubsDelayMs { get; set; }
-        public void ResetSubsDelayMsAction(object obj = null) { Subs.DelayTicks = 0; }
+        public void ResetSubsDelayMsAction(object obj = null) { SubtitlesConfig.Delay = 0; }
 
         public ICommand ResetAudioDelayMs { get; set; }
-        public void ResetAudioDelayMsAction(object obj = null) { Audio.DelayTicks = 0; }
+        public void ResetAudioDelayMsAction(object obj = null) { AudioConfig.Delay = 0; }
 
         public ICommand SetSubsPositionY { get; set; }
         public void SetSubsPositionYAction(object y) { Thickness t = Subtitles.Margin; t.Bottom += int.Parse(y.ToString()); Subtitles.Margin = t; Raise("Subtitles"); }
 
         public ICommand SetAudioDelayMs { get; set; }
-        public void SetAudioDelayMsAction(object delay) { Audio.DelayTicks += (int.Parse(delay.ToString())) * (long)10000; }
+        public void SetAudioDelayMsAction(object delay) { AudioConfig.Delay += (int.Parse(delay.ToString())) * (long)10000; }
 
         public ICommand SetSubsDelayMs { get; set; }
-        public void SetSubsDelayMsAction(object delay) { Subs.DelayTicks += (int.Parse(delay.ToString())) * (long)10000; }
+        public void SetSubsDelayMsAction(object delay) { SubtitlesConfig.Delay += (int.Parse(delay.ToString())) * (long)10000; }
 
         public ICommand OpenFromFileDialog  { get; set; }
         public void OpenFromFileDialogAction(object obj = null)
@@ -360,13 +369,13 @@ namespace FlyleafLib.Controls.WPF
             if (Regex.IsMatch(mi.Header.ToString(), "Custom"))
             {
                 if (Regex.IsMatch(mi.Header.ToString(), "Set")) return;
-                Video.AspectRatio = AspectRatio.Custom;
+                VideoConfig.AspectRatio = AspectRatio.Custom;
                 return;
             }
             else if (Regex.IsMatch(mi.Header.ToString(), "Keep"))
-                Video.AspectRatio = AspectRatio.Keep;
+                VideoConfig.AspectRatio = AspectRatio.Keep;
             else
-                Video.AspectRatio = mi.Header.ToString();
+                VideoConfig.AspectRatio = mi.Header.ToString();
         }
 
         string _SubtitlesFontDesc;
@@ -421,7 +430,7 @@ namespace FlyleafLib.Controls.WPF
         public ICommand ToggleMute          { get; set; }
         public void ToggleMuteAction(object obj = null)
         {
-            AudioPlayer.Mute = !AudioPlayer.Mute;
+            Player.Mute = !Player.Mute;
         }
 
         public ICommand TogglePlayPause     { get; set; }
@@ -443,6 +452,20 @@ namespace FlyleafLib.Controls.WPF
 
             IsFullscreen = VideoView.IsFullScreen;
         }
+
+        public ICommand ToggleRecord { get; set; }
+        private void ToggleRecordAction(object obj = null)
+        {
+            if (!Player.CanPlay) return;
+
+            if (Player.decoder.VideoDemuxer.IsRecording)
+                Player.StopRecording();
+            else
+            {
+                string filename = $"Record{recordCounter++}";
+                Player.StartRecording(ref filename);
+            }
+        }
         #endregion
 
         #region TODO
@@ -450,21 +473,48 @@ namespace FlyleafLib.Controls.WPF
         {
             if (String.IsNullOrEmpty(url)) return;
 
-            Player.Open(url);
+            Player.OpenAsync(url);
         }
         public void Player_OpenCompleted(object sender, Player.OpenCompletedArgs e)
         {
-            Raise(null);
+            //Raise(null);
 
-            switch (e.type)
+            //System.Diagnostics.Debug.WriteLine($"[Player_OpenCompleted] Type: {e.Type} Error: {e.Error} Input: {(e.Input != null ? e.Input.Url : "")}");
+
+            if (e.Success)
+                ErrorMsg = "";
+            else if (e.Type != MediaType.Subs)
+                ErrorMsg = e.Error;
+
+            switch (e.Type)
             {
+                case MediaType.Audio:
                 case MediaType.Video:
-                    if (!e.success) return;
-
                     Player.Play();
                     break;
             }
         }
+        private void Player_OpenInputCompleted(object sender, Player.OpenInputCompletedArgs e)
+        {
+            if (e.Success)
+                ErrorMsg = "";
+            else if (e.Type != MediaType.Subs)
+                ErrorMsg = e.Error;
+
+            //System.Diagnostics.Debug.WriteLine($"[Player_OpenInputCompleted] Type: {e.Type} Error: {e.Error} Input: {(e.Input != null ? e.Input.Url : "")} User: {e.IsUserInput} | {(e.OldInput != null ? e.OldInput.Url : "")}");
+
+            if (Player.IsPlaylist)
+            {
+                switch (e.Type)
+                {
+                    case MediaType.Audio:
+                    case MediaType.Video:
+                        Player.Play();
+                        break;
+                }
+            }
+        }
+
         private async void DialogAspectRatio()
         {
             if (dialogSettingsIdentifier == null) return;
@@ -473,13 +523,13 @@ namespace FlyleafLib.Controls.WPF
             var stackHorizontal1 = new StackPanel() { Margin = new Thickness(10), Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Center};
             var stackHorizontal2 = new StackPanel() { Margin = new Thickness(10), Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center };
 
-            var textBox = new TextBox() { VerticalAlignment = VerticalAlignment.Center, Width = 70, Margin = new Thickness(10, 0, 0, 0), Text=Video.CustomAspectRatio.ToString()};
+            var textBox = new TextBox() { VerticalAlignment = VerticalAlignment.Center, Width = 70, Margin = new Thickness(10, 0, 0, 0), Text=VideoConfig.CustomAspectRatio.ToString()};
             textBox.PreviewTextInput += (n1, n2) => { n2.Handled = !Regex.IsMatch(n2.Text, @"^[0-9\.\,\/\:]+$"); };
 
             var buttonOK = new Button() { Content = "OK" };
             var buttonCancel = new Button() { Margin = new Thickness(10, 0, 0, 0), Content = "Cancel" };
 
-            buttonOK.Click +=       (n1, n2) => { if (textBox.Text != AspectRatio.Invalid) Video.CustomAspectRatio = textBox.Text; DialogHost.Close(dialogSettingsIdentifier); };
+            buttonOK.Click +=       (n1, n2) => { if (textBox.Text != AspectRatio.Invalid) VideoConfig.CustomAspectRatio = textBox.Text; DialogHost.Close(dialogSettingsIdentifier); };
             buttonCancel.Click +=   (n1, n2) => { DialogHost.Close(dialogSettingsIdentifier); };
 
             stackHorizontal1.Children.Add(new TextBlock() { VerticalAlignment = VerticalAlignment.Center, Text="Set Custom Ratio: "});
@@ -502,28 +552,6 @@ namespace FlyleafLib.Controls.WPF
                     ((MenuItem)item).IsChecked = true;
                 else
                     ((MenuItem)item).IsChecked = false;
-            }
-        }
-
-        private void ToggleRecord()
-        {
-            if (!Session.CanPlay)
-            {
-                Set(ref _IsRecording, false);
-                return;
-            }
-
-            if (Player.decoder.VideoDemuxer.IsRecording)
-            {
-                Player.decoder.VideoDemuxer.StopRecording();
-                Set(ref _IsRecording, false);
-            }
-            else
-            {
-                string filename = $"Record{recordCounter}";
-                Player.decoder.VideoDemuxer.StartRecording(ref filename);
-                Set(ref _IsRecording, true);
-                recordCounter++;
             }
         }
         #endregion
@@ -627,19 +655,19 @@ namespace FlyleafLib.Controls.WPF
                 switch (e.Key)
                 {
                     case Key.OemOpenBrackets:
-                        Audio.DelayTicks -= 1000 * 10000;
+                        AudioConfig.Delay -= 1000 * 10000;
                         break;
 
                     case Key.OemCloseBrackets:
-                        Audio.DelayTicks += 1000 * 10000;
+                        AudioConfig.Delay += 1000 * 10000;
                         break;
 
                     case Key.OemSemicolon:
-                        Subs.DelayTicks -= 1000 * 10000;
+                        SubtitlesConfig.Delay -= 1000 * 10000;
                         break;
 
                     case Key.OemQuotes:
-                        Subs.DelayTicks += 1000 * 10000;
+                        SubtitlesConfig.Delay += 1000 * 10000;
                         break;
 
                     case Key.Up:
@@ -651,13 +679,13 @@ namespace FlyleafLib.Controls.WPF
                         break;
 
                     case Key.C:
-                        if (Session == null | Session.InitialUrl == null) break;
+                        if (DecCtx == null | DecCtx.UserInputUrl == null) break;
 
-                        Clipboard.SetText(Session.InitialUrl);
+                        Clipboard.SetText(DecCtx.UserInputUrl);
                         break;
 
                     case Key.R:
-                        ToggleRecord();
+                        ToggleRecordAction();
                         
                         break;
 
@@ -681,45 +709,49 @@ namespace FlyleafLib.Controls.WPF
             switch (e.Key)
             {
                 case Key.Up:
-                    if (AudioPlayer.Volume == 150) return;
-                    AudioPlayer.Volume += AudioPlayer.Volume + 5 > 150 ? 0 : 5;
+                    if (Player.Volume == 150) return;
+                    Player.Volume += Player.Volume + 5 > 150 ? 0 : 5;
 
                     break;
 
                 case Key.Down:
-                    if (AudioPlayer.Volume == 0) return;
-                    AudioPlayer.Volume -= AudioPlayer.Volume - 5 < 0 ? 0 : 5;
+                    if (Player.Volume == 0) return;
+                    Player.Volume -= Player.Volume - 5 < 0 ? 0 : 5;
                     
                     break;
 
                 case Key.Right:
-                    int ms = (int) ((Session.CurTime + (5 * 1000 * (long)10000)) / 10000);
-                    Player.Seek(ms, true);
+                    int ms = (int) ((Player.CurTime + (5 * 1000 * (long)10000)) / 10000);
+                    if (ms <= Player.Duration/10000) Player.Seek(ms, true);
                     break;
 
                 case Key.Left:
-                    ms = (int) ((Session.CurTime - (5 * 1000 * (long)10000)) / 10000);
-                    Player.Seek(ms);
+                    ms = (int) ((Player.CurTime - (5 * 1000 * (long)10000)) / 10000);
+                    Player.Seek(ms > 0 ? ms : 0);
                     break;
 
                 case Key.OemPlus:
-                    Player.Speed = Player.Speed == 4 ? 1 : Player.Speed + 1;
+                    Config.Player.Speed = Config.Player.Speed == 4 ? 1 : Config.Player.Speed + 1;
+                    break;
+
+                case Key.OemMinus:
+                    Config.Player.Speed = Config.Player.Speed == 1 ? 4 : Config.Player.Speed - 1;
                     break;
 
                 case Key.OemOpenBrackets:
-                    Audio.DelayTicks -= 100 * 10000;
+                    AudioConfig.Delay -= 100 * 10000;
                     break;
 
                 case Key.OemCloseBrackets:
-                    Audio.DelayTicks += 100 * 10000;
+                    AudioConfig.Delay += 100 * 10000;
                     break;
 
                 case Key.OemSemicolon:
-                    Subs.DelayTicks -= 100 * 10000;
+                    SubtitlesConfig.Delay -= 100 * 10000;
                     break;
 
                 case Key.OemQuotes:
-                    Subs.DelayTicks += 100 * 10000;
+                    SubtitlesConfig.Delay += 100 * 10000;
                     break;
             }
 
@@ -772,7 +804,7 @@ namespace FlyleafLib.Controls.WPF
         {
             if (delta == 0) return;
 
-            Player.renderer.Zoom += delta > 0 ? 50 : -50;
+            Player.Zoom += delta > 0 ? 50 : -50;
         }
         #endregion
 
