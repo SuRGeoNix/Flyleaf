@@ -55,29 +55,19 @@ namespace Wpf_Samples
         public Player       Player          { get ; set; }
 
         /// <summary>
-        /// Audio Player's Volume/Mute and can set different Device for each player [see AudioPlayer.cs]
-        /// </summary>
-        public AudioPlayer  AudioPlayer     => Player.audioPlayer;
-
-        /// <summary>
         /// Global audio configuration (common Device, Session &amp; Master Volume/Mute) [see AudioMaster.cs]
         /// </summary>
         public AudioMaster  AudioMaster     => Master.AudioMaster;
 
         /// <summary>
-        /// Player's Current Session (CurTime/CanPlay/SubText/InitialUrl + [Media]Info/Cur[Media]Stream/ [see Session.cs for details]
-        /// </summary>
-        public Session      Session     => Player?.Session;
-
-        /// <summary>
         /// Player's Configuration ([media].[config_attribute]) [see Config.cs for details]
         /// </summary>
         public Config       Config      => Player?.Config;
-        public Config.Audio     Audio       => Config.audio;    // Enabled, DelayTicks, Languages (by priority)
-        public Config.Subs      Subs        => Config.subs;     // Enabled, DelayTicks, Languages (by priority), UseOnlineDatabases
-        public Config.Video     Video       => Config.video;    // AspectRatio, ClearColor, VSync
-        public Config.Decoder   Decoder     => Config.decoder;  // HWAcceleration, VideoThreads + Buffering Configuration
-        public Config.Demuxer   Demuxer     => Config.demuxer;  // [Media]FormatOpt + Buffering Configuration
+        public Config.AudioConfig     Audio       => Config.Audio;    // Enabled, DelayTicks, Languages (by priority)
+        public Config.SubtitlesConfig Subs        => Config.Subtitles;// Enabled, DelayTicks, Languages (by priority), UseOnlineDatabases
+        public Config.VideoConfig     Video       => Config.Video;    // AspectRatio, ClearColor, VSync
+        public Config.DecoderConfig   Decoder     => Config.Decoder;  // HWAcceleration, VideoThreads + Buffering Configuration
+        public Config.DemuxerConfig   Demuxer     => Config.Demuxer;  // [Media]FormatOpt + Buffering Configuration
         #endregion
 
         #region Initialize
@@ -101,7 +91,7 @@ namespace Wpf_Samples
         public ICommand     OpenVideo   { get ; set; }
         public ICommand     PauseVideo  { get ; set; }
         public ICommand     PlayVideo   { get ; set; }
-        public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = sampleVideo; Player.Open(UserInput); }
+        public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = sampleVideo; Player.OpenAsync(UserInput); }
         public void PauseVideoAction(object param)  { Player.Pause(); }
         public void PlayVideoAction(object param)   { Player.Play(); }
         #endregion
@@ -109,7 +99,7 @@ namespace Wpf_Samples
         #region Events
         private void Player_OpenCompleted(object sender, Player.OpenCompletedArgs e)
         {
-            if (e.success && e.type == MediaType.Video)
+            if (e.Success && e.Type == MediaType.Video)
                 Player.Play();
 
             // Raise null is required for Player/Session/Config properties without property change updates (Normally, this should be called only once at the end of every OpenCompleted -mainly for video-)

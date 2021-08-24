@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -8,46 +7,98 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
 
-using FlyleafLib.MediaPlayer;
-using FlyleafLib.MediaFramework.MediaStream;
+using Newtonsoft.Json;
 
+using FlyleafLib.MediaFramework.MediaInput;
 using static FlyleafLib.Plugins.YoutubeDLJson;
 
 namespace FlyleafLib.Plugins
 {
-    public class YoutubeDL : PluginBase, IPluginVideo, IPluginAudio
+    public class YoutubeDL : PluginBase, IOpen, IProvideAudio, IProvideVideo, ISuggestAudioInput, ISuggestVideoInput
     {
-        public bool IsPlaylist => false;
-        Session Session => Player.Session;
-
         YoutubeDLJson ytdl;
 
         public static string plugin_path = "Plugins\\YoutubeDL\\youtube-dl.exe";
 
         static JsonSerializerSettings settings = new JsonSerializerSettings();
-        static YoutubeDL() { settings.NullValueHandling = NullValueHandling.Ignore; }
 
-        public override void OnLoad() { }
+        public List<AudioInput> AudioInputs { get; set; } = new List<AudioInput>();
+        public List<VideoInput> VideoInputs { get; set; } = new List<VideoInput>();
+
+        public bool IsPlaylist => false;
+
+        static YoutubeDL() { settings.NullValueHandling = NullValueHandling.Ignore; }
 
         public override void OnInitialized()
         {
-            base.OnInitialized();
+            AudioInputs.Clear();
+            VideoInputs.Clear();
             ytdl = null;
         }
 
-        public OpenVideoResults OpenVideo()
+        public override OpenResults OnOpenVideo(VideoInput input)
         {
-            Uri uri;
-            try
-            {
-                uri = new Uri(Session.InitialUrl);
-                if ((uri.Scheme.ToLower() != "http" && uri.Scheme.ToLower() != "https") || Utils.GetUrlExtention(uri.AbsolutePath).ToLower() == "m3u8") return null;
-            } catch (Exception) { return null; }
+            if (input.Plugin == null || input.Plugin.Name != Name) return null;
 
+            Format fmt = (Format) input.Tag;
+
+            Config.Demuxer.FormatOpt["headers"] = "";
+            foreach (var hdr in fmt.http_headers)
+            {
+                if (hdr.Key.ToLower() == "user-agent")
+                    Config.Demuxer.FormatOpt["user_agent"] = hdr.Value;
+                else if (hdr.Key.ToLower() == "referer")
+                    Config.Demuxer.FormatOpt["referer"] = hdr.Value;
+                else
+                    Config.Demuxer.FormatOpt["headers"] += hdr.Key + ":" + hdr.Value + "\r\n";
+            }
+
+            return new OpenResults();
+        }
+        public override OpenResults OnOpenAudio(AudioInput input)
+        {
+            if (input.Plugin == null || input.Plugin.Name != Name) return null;
+
+            Format fmt = (Format) input.Tag;
+
+            var curFormatOpt = decoder.VideoStream == null ? Config.Demuxer.FormatOpt : Config.Demuxer.AudioFormatOpt;
+
+            curFormatOpt["headers"] = "";
+            foreach (var hdr in fmt.http_headers)
+            {
+                if (hdr.Key.ToLower() == "user-agent")
+                    curFormatOpt["user_agent"] = hdr.Value;
+                else if (hdr.Key.ToLower() == "referer")
+                    curFormatOpt["referer"] = hdr.Value;
+                else
+                    curFormatOpt["headers"] += hdr.Key + ":" + hdr.Value + "\r\n";
+            }
+
+            return new OpenResults();
+        }
+
+        public bool IsValidInput(string url)
+        {
             try
             {
-                string url = Session.InitialUrl;
-                Session.SingleMovie.UrlType = UrlType.Web;
+                Uri uri = new Uri(url);
+                if ((uri.Scheme.ToLower() != "http" && uri.Scheme.ToLower() != "https") || Utils.GetUrlExtention(uri.AbsolutePath).ToLower() == "m3u8") return false;
+            } catch (Exception) { return false; }
+
+            return true;
+        }
+
+        public OpenResults Open(Stream iostream)
+        {
+            return null;
+        }
+
+        public OpenResults Open(string url)
+        {
+            try
+            {
+                Uri uri = new Uri(url);
+
                 if (Regex.IsMatch(uri.DnsSafeHost, @"\.youtube\.", RegexOptions.IgnoreCase))
                 {
                     var query = HttpUtility.ParseQueryString(uri.Query);
@@ -60,16 +111,17 @@ namespace FlyleafLib.Plugins
                 {
                     StartInfo = new ProcessStartInfo
                     {
-                        FileName = plugin_path,
-                        Arguments = $"--no-check-certificate --skip-download --write-info-json -o \"{tmpFile}\" \"{url}\"",
-                        CreateNoWindow = true,
+                        FileName        = plugin_path,
+                        Arguments       = $"--no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -o \"{tmpFile}\" \"{url}\"",
+                        CreateNoWindow  = true,
                         UseShellExecute = false,
-                        WindowStyle = ProcessWindowStyle.Hidden
+                        WindowStyle     = ProcessWindowStyle.Hidden
                     }
                 };
                 proc.Start();
-                while (!proc.HasExited && Player.Status == Status.Opening) { Thread.Sleep(35); }
-                if (Player.Status != Status.Opening) { if (!proc.HasExited) proc.Kill(); return null; }
+                while (!proc.HasExited && !Handler.Interrupt) { Thread.Sleep(35); }
+                if (Handler.Interrupt) { if (!proc.HasExited) proc.Kill(); 
+                    return null; }
                 if (!File.Exists($"{tmpFile}.info.json")) return null;
 
                 // Parse Json Object
@@ -78,6 +130,11 @@ namespace FlyleafLib.Plugins
                 if (ytdl == null || ytdl.formats == null || ytdl.formats.Count == 0) return null;
 
                 Format fmt;
+                InputData inputData = new InputData()
+                {
+                    Title = ytdl.title
+                };
+
                 // Fix Nulls (we are not sure if they have audio/video)
                 for (int i = 0; i < ytdl.formats.Count; i++)
                 {
@@ -87,67 +144,61 @@ namespace FlyleafLib.Plugins
 
                     if (HasVideo(fmt))
                     {
-                        VideoStreams.Add(new VideoStream()
+                        VideoInputs.Add(new VideoInput()
                         {
-                            Url = fmt.url,
-                            BitRate = (long) fmt.vbr,
-                            CodecName = fmt.vcodec,
-                            Language = Language.Get(fmt.language),
-                            Width = (int) fmt.width,
-                            Height = (int) fmt.height,
-                            FPS = fmt.fps
+                            InputData   = inputData,
+                            Tag         = fmt,
+                            Url         = fmt.url,
+                            BitRate     = (long) fmt.vbr,
+                            Codec       = fmt.vcodec,
+                            Language    = Language.Get(fmt.language),
+                            Width       = (int) fmt.width,
+                            Height      = (int) fmt.height,
+                            Fps         = fmt.fps
                         });
                     }
 
                     if (HasAudio(fmt))
                     {
-                        AudioStreams.Add(new AudioStream()
+                        AudioInputs.Add(new AudioInput()
                         {
-                            Url = fmt.url,
-                            BitRate = (long) fmt.abr,
-                            CodecName = fmt.acodec,
-                            Language = Language.Get(fmt.language)
+                            InputData   = inputData,
+                            Tag         = fmt,
+                            Url         = fmt.url,
+                            BitRate     = (long) fmt.abr,
+                            Codec       = fmt.acodec,
+                            Language    = Language.Get(fmt.language)
                         });
                     }
-                    
                 }
 
-                fmt = GetBestMatch();
-
-                Player.Session.SingleMovie.Title = ytdl.title;
-
-                foreach(var t1 in VideoStreams)
-                    if (fmt.url == t1.Url) return new OpenVideoResults(t1);
-
+                if (GetBestMatch() == null && GetAudioOnly() == null) return null;
             }
-            catch (Exception e) { Debug.WriteLine($"[Youtube-DL] Error ... {e.Message}"); }
+            catch (Exception e) { Debug.WriteLine($"[Youtube-DL] Error ... {e.Message}"); return new OpenResults(e.Message); }
 
-            return new OpenVideoResults();
+            return new OpenResults();
         }
-        public AudioStream OpenAudio()
+        public VideoInput SuggestVideo()
         {
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
+
+            Format fmt = GetBestMatch();
+            if (fmt == null) return null;
+
+            foreach(var input in VideoInputs)
+                if (fmt.url == input.Url) return input;
+
+            return null;
+        }
+        public AudioInput SuggestAudio()
+        {
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
+
             var fmt = GetAudioOnly();
-            foreach(var t1 in AudioStreams)
-                if (fmt.url == t1.Url) return t1;
+            if (fmt == null) return null;
 
-            return null;
-        }
-
-        public VideoStream OpenVideo(VideoStream stream)
-        {
-            if (string.IsNullOrEmpty(stream.Url)) return null;
-
-            foreach(var vstream in VideoStreams)
-                if (vstream.Url == stream.Url) return vstream;
-
-            return null;
-        }
-        public AudioStream OpenAudio(AudioStream stream)
-        {
-            if (string.IsNullOrEmpty(stream.Url)) return null;
-
-            foreach(var astream in AudioStreams)
-                if (astream.Url == stream.Url) return astream;
+            foreach(var input in AudioInputs)
+                if (fmt.url == input.Url) return input;
 
             return null;
         }
@@ -171,13 +222,10 @@ namespace FlyleafLib.Plugins
             // TODO: Expose in settings (vCodecs Blacklist) || Create a HW decoding failed list dynamic (check also for whitelist)
             List<string> vCodecsBlacklist = new List<string>() { "vp9" };
 
-            // Current Screen Resolution | TODO: Check when the control changes screens and get also refresh rate (back to renderer)
-            var bounds = Player.renderer.Info.ScreenBounds;
-
             // Video Streams Order based on Screen Resolution
             var iresults =
                 from    format in ytdl.formats
-                where   format.height <= bounds.Height && format.vcodec != "none" && (format.protocol == null || !Regex.IsMatch(format.protocol, "dash", RegexOptions.IgnoreCase))
+                where   format.height <= Config.Video.MaxVerticalResolution && format.vcodec != "none" && (format.protocol == null || !Regex.IsMatch(format.protocol, "dash", RegexOptions.IgnoreCase))
                 orderby format.tbr      descending
                 orderby format.fps      descending
                 orderby format.height   descending

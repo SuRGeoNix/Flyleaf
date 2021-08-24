@@ -5,6 +5,11 @@ using FFmpeg.AutoGen;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaRemuxer;
 
+/* TODO
+ * Don't let audio go further than video (because of large duration without video)?
+ * 
+ */
+
 namespace FlyleafLib.MediaFramework.MediaContext
 {
     /// <summary>
@@ -15,7 +20,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
         /// <summary>
         /// The backend demuxer. Access this to enable the required streams for downloading
         /// </summary>
-        public Demuxer      Demuxer             { get; private set; }
+        //public Demuxer      Demuxer             { get; private set; }
+
+        public DecoderContext DecCtx { get; private set; }
 
         /// <summary>
         /// The backend remuxer. Normally you shouldn't access this
@@ -41,9 +48,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
         double _DownloadPercentage;
         double downPercentageFactor;
 
-        public Downloader(Config.Demuxer config, int uniqueId = -1) : base(uniqueId)
+        public Downloader(Config config, int uniqueId = -1) : base(uniqueId)
         {
-            Demuxer = new Demuxer(config, MediaType.Video, UniqueId, false);
+            DecCtx = new DecoderContext(config, null, UniqueId, false);
+            //DecCtx.VideoInputOpened += (o, e) => { if (!e.Success) OnDownloadCompleted(false); };
             Remuxer = new Remuxer(UniqueId);
             threadName = "Downloader";
         }
@@ -62,27 +70,27 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
 
         /// <summary>
-        /// Opens the demuxer and fills streams info
+        /// Opens the demuxer(s) and fills streams info
         /// </summary>
         /// <param name="url">The filename or url to open</param>
-        /// <returns></returns>
-        public int Open(string url)
+        /// <returns>Null on success or error message on failure</returns>
+        public string Open(string url, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true)
         {
             lock (lockActions)
             {
                 Dispose();
 
-                Status = Status.Opening;
-                int ret = Demuxer.Open(url);
-                if (ret != 0) return ret;
+                Disposed= false;
+                Status  = Status.Opening;
+                var ret =  DecCtx.OpenVideo(url, defaultInput, defaultVideo, defaultAudio, false);
+                if (ret != null && ret.Error != null) return ret.Error;
 
                 CurTime = 0;
                 DownloadPercentage = 0;
-                Duration = Demuxer.IsLive ? 0 : Demuxer.Duration;
+                Duration = DecCtx.VideoDemuxer.IsLive ? 0 : DecCtx.VideoDemuxer.Duration;
                 downPercentageFactor = Duration / 100.0;
-                Disposed = false;
 
-                return 0;
+                return null;
             }
         }
 
@@ -99,21 +107,27 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     { OnDownloadCompleted(false); return; }
 
                 if (useRecommendedExtension)
-                    filename = $"{filename}.{Demuxer.Extension}";
+                    filename = $"{filename}.{DecCtx.VideoDemuxer.Extension}";
 
                 int ret = Remuxer.Open(filename);
                 if (ret != 0)
                     { OnDownloadCompleted(false); return; }
 
-                for(int i=0; i<Demuxer.EnabledStreams.Count; i++)
-                    if (Remuxer.AddStream(Demuxer.AVStreamToStream[Demuxer.EnabledStreams[i]].AVStream) != 0)
-                        Log($"Failed to add stream {Demuxer.AVStreamToStream[Demuxer.EnabledStreams[i]].Type} {Demuxer.AVStreamToStream[Demuxer.EnabledStreams[i]].StreamIndex}");
+                AddStreams(DecCtx.VideoDemuxer);
+                AddStreams(DecCtx.AudioDemuxer);
 
                 if (!Remuxer.HasStreams || Remuxer.WriteHeader() != 0)
                     { OnDownloadCompleted(false); return; }
 
                 Start();
             }
+        }
+
+        private void AddStreams(Demuxer demuxer)
+        {
+            for(int i=0; i<demuxer.EnabledStreams.Count; i++)
+                if (Remuxer.AddStream(demuxer.AVStreamToStream[demuxer.EnabledStreams[i]].AVStream, demuxer.Type == MediaType.Audio) != 0)
+                    Log($"Failed to add stream {demuxer.AVStreamToStream[demuxer.EnabledStreams[i]].Type} {demuxer.AVStreamToStream[demuxer.EnabledStreams[i]].StreamIndex}");
         }
 
         /// <summary>
@@ -128,8 +142,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (Disposed) return;
 
                 Stop();
-            
-                Demuxer.Dispose();
+
+                DecCtx.Dispose();
                 Remuxer.Dispose();
                 
                 Status = Status.Stopped;
@@ -141,14 +155,15 @@ namespace FlyleafLib.MediaFramework.MediaContext
         {
             if (!Remuxer.HasStreams) { OnDownloadCompleted(false); return; }
 
-            Demuxer.Start();
+            DecCtx.Start();
 
-            long startTime = Demuxer.hlsCtx == null ? Demuxer.StartTime : Demuxer.hlsCtx->first_timestamp * 10;
+            long startTime = DecCtx.VideoDemuxer.hlsCtx == null ? DecCtx.VideoDemuxer.StartTime : DecCtx.VideoDemuxer.hlsCtx->first_timestamp * 10;
+
+            Demuxer Demuxer = DecCtx.VideoDemuxer;
 
             do
             {
-                // While Packets Queue Empty (Ended | Quit if Demuxer stopped | Wait until we get packets)
-                if (Demuxer.Packets.Count == 0)
+                if (Demuxer.Packets.Count == 0 && DecCtx.AudioDemuxer.Packets.Count == 0)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueEmpty;
@@ -189,17 +204,24 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     }
                 }
 
+                bool isAudio = false;
                 Demuxer.Packets.TryDequeue(out IntPtr pktPtr);
+                if (pktPtr == IntPtr.Zero)
+                {
+                    DecCtx.AudioDemuxer.Packets.TryDequeue(out pktPtr);
+                    isAudio = true;
+                }
+
                 AVPacket* packet = (AVPacket*) pktPtr;
 
-                if (packet->dts > 0)
+                if (packet->dts > 0 && !isAudio)
                 {
                     double curTime = (packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - startTime;
                     if (_Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
                     CurTime = (long) curTime;
                 }
 
-                Remuxer.Write(packet);
+                Remuxer.Write(packet, isAudio);
 
             } while (Status == Status.Running);
 

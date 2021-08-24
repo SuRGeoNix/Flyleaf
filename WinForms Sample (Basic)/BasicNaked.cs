@@ -26,8 +26,8 @@ namespace WinForms_Sample__Basic_
         {
             FlyleafLib.Master.RegisterFFmpeg(":2");
             player.Control = flyleaf1;
-            player.Open(@"../../../../Sample.mp4");
-            player.OpenCompleted += (o, x) => { if (x.success && x.type == FlyleafLib.MediaType.Video) player.Play(); };
+            player.OpenAsync(@"../../../../Sample.mp4");
+            player.OpenCompleted += (o, x) => { if (x.Success && x.Type == FlyleafLib.MediaType.Video) player.Play(); };
         }
     }
 }

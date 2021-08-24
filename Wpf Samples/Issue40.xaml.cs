@@ -30,8 +30,8 @@ namespace Wpf_Samples
             _config = new Config();
             //_config.audio.Enabled = false;
             //_config.decoder.HWAcceleration = false;
-            _config.demuxer.FormatOpt.Add("probesize",       (50 * (long) 1024 * 1024).ToString());
-            _config.demuxer.FormatOpt.Add("analyzeduration", (10 * (long) 1000 * 1000).ToString());
+            _config.Demuxer.FormatOpt.Add("probesize",       (50 * (long) 1024 * 1024).ToString());
+            _config.Demuxer.FormatOpt.Add("analyzeduration", (10 * (long) 1000 * 1000).ToString());
         }
 
         VideoView _videoView;
@@ -49,7 +49,6 @@ namespace Wpf_Samples
                 _player?.Dispose();
 
                 // Remove to test naked control
-                _flyleaf?.Dispose();
                 _flyleaf = new Flyleaf();
 
                 _videoView = new VideoView();
@@ -70,7 +69,7 @@ namespace Wpf_Samples
 
                 ContentControl.Content = _videoView;
 
-                _player.Open(sampleVideo);
+                _player.OpenAsync(sampleVideo);
 
                 // Add to test naked control
                 //_player.OpenCompleted += (o, e2) => { _player.Play(); };
@@ -83,7 +82,7 @@ namespace Wpf_Samples
             {
                 Sample1 sample1 = new Sample1();
                 sample1.Show();
-                sample1.Player.Open(sampleVideo);
+                sample1.Player.OpenAsync(sampleVideo);
                 System.Threading.Thread.Sleep(300);
 
                 // Test Stop/Start within the same instance

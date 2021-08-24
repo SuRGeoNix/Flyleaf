@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wpf Samples", "Wpf Samples\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafLib.Plugins.BitSwarm", "FlyleafLib.Plugins.BitSwarm\FlyleafLib.Plugins.BitSwarm.csproj", "{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafLib.Plugins.OpenSubtitles", "FlyleafLib.Plugins.OpenSubtitles\FlyleafLib.Plugins.OpenSubtitles.csproj", "{02230750-8033-4A82-AD07-2588264F5A52}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafLib.Plugins.OpenSubtitlesOrg", "FlyleafLib.Plugins.OpenSubtitlesOrg\FlyleafLib.Plugins.OpenSubtitlesOrg.csproj", "{02230750-8033-4A82-AD07-2588264F5A52}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafLib.Plugins.YoutubeDL", "FlyleafLib.Plugins.YoutubeDL\FlyleafLib.Plugins.YoutubeDL.csproj", "{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}"
 EndProject
@@ -57,24 +57,28 @@ Global
 		{077262AB-BBF7-4914-B464-0E2D3BA1C921}.Release|x64.Build.0 = Release|x64
 		{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}.Debug|x64.Build.0 = Debug|Any CPU
 		{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}.Release|Any CPU.Build.0 = Release|Any CPU
 		{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}.Release|x64.ActiveCfg = Release|Any CPU
 		{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}.Release|x64.Build.0 = Release|Any CPU
 		{02230750-8033-4A82-AD07-2588264F5A52}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{02230750-8033-4A82-AD07-2588264F5A52}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{02230750-8033-4A82-AD07-2588264F5A52}.Debug|x64.Build.0 = Debug|Any CPU
 		{02230750-8033-4A82-AD07-2588264F5A52}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{02230750-8033-4A82-AD07-2588264F5A52}.Release|Any CPU.Build.0 = Release|Any CPU
 		{02230750-8033-4A82-AD07-2588264F5A52}.Release|x64.ActiveCfg = Release|Any CPU
 		{02230750-8033-4A82-AD07-2588264F5A52}.Release|x64.Build.0 = Release|Any CPU
 		{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}.Debug|x64.Build.0 = Debug|Any CPU
 		{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}.Release|Any CPU.Build.0 = Release|Any CPU
 		{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}.Release|x64.ActiveCfg = Release|Any CPU
 		{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}.Release|x64.Build.0 = Release|Any CPU
 		{66BD691C-5084-4B8A-B28B-06ADC198F63B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{66BD691C-5084-4B8A-B28B-06ADC198F63B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{66BD691C-5084-4B8A-B28B-06ADC198F63B}.Debug|x64.Build.0 = Debug|Any CPU
 		{66BD691C-5084-4B8A-B28B-06ADC198F63B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{66BD691C-5084-4B8A-B28B-06ADC198F63B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{66BD691C-5084-4B8A-B28B-06ADC198F63B}.Release|x64.ActiveCfg = Release|Any CPU

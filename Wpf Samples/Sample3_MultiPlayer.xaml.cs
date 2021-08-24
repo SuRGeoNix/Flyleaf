@@ -30,7 +30,7 @@ namespace Wpf_Samples
 
             // Samples using custom configurations
             Config playerConfig1 = new Config();
-            playerConfig1.video.AspectRatio = AspectRatio.Fill;
+            playerConfig1.Video.AspectRatio = AspectRatio.Fill;
 
             // Even more advanced AVFormatOptions for main/Video demuxer (When streams are not fully identified and ffmpeg requires more analyzation)
             //playerConfig1.demuxer.VideoFormatOpt.Add("probesize",(116 * (long)1024 * 1024).ToString());
@@ -38,7 +38,7 @@ namespace Wpf_Samples
             Player1 = new Player(playerConfig1);
 
             Config playerConfig2 = new Config();
-            playerConfig2.video.ClearColor = Colors.Orange;
+            playerConfig2.Video.BackgroundColor = Colors.Orange;
             Player2 = new Player(playerConfig2);
         }
 
@@ -48,11 +48,11 @@ namespace Wpf_Samples
             //Player1.Open("rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov");
 
             // Sample HLS videos https://ottverse.com/free-hls-m3u8-test-urls/
-            Player1.Open("https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8");
+            Player1.OpenAsync("https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8");
 
             // Sample using a 'custom' IO stream
             Stream customInput = new FileStream(sampleVideo, FileMode.Open);
-            Player2.Open(customInput);
+            Player2.OpenAsync(customInput);
 
             // Sample using different (random) audio device on Player 2
             foreach(var device in Master.AudioMaster.Devices)
@@ -60,13 +60,13 @@ namespace Wpf_Samples
 
             string selectedDevice = Master.AudioMaster.Devices[(new Random()).Next(0, Master.AudioMaster.Devices.Count)];
             Debug.WriteLine($"Selected device: {selectedDevice}");
-            Player2.audioPlayer.Device = selectedDevice;
+            Player2.AudioDevice = selectedDevice;
 
             // Sample performing Seek on Player1 (after 10 seconds -to ensure open completed- in the middle of the movie)
             Thread seekThread = new Thread(() =>
             {
                 Thread.Sleep(10000);
-                Player1.Seek((int) ((Player1.Session.Movie.Duration/10000) / 2));
+                Player1.Seek((int) ((Player1.Duration/10000) / 2));
             });
             seekThread.IsBackground = true;
             seekThread.Start();

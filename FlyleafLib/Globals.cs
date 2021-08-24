@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace FlyleafLib
 {
@@ -10,36 +12,13 @@ namespace FlyleafLib
         Software_Handled,
         Software_Sws
     }
-
     public enum MediaType
     {
         Audio,
         Video,
         Subs
     }
-    public enum UrlType
-    {
-        File,
-        Torrent,
-        Stream,
-        Web,
-        Other
-    }
 
-    public class Movie : NotifyPropertyChanged
-    {
-        public string   Url         { get; set; }
-        public UrlType  UrlType     { get; set; }
-        public string   Folder      { get; set; }
-        public long     FileSize    { get; set; }
-
-        public string   Title       { get; set; }
-        public long     Duration    { get => _Duration; set => Set(ref _Duration, value); }
-        long _Duration;
-
-        public int      Season      { get; set; }
-        public int      Episode     { get; set; }
-    }
     public struct AspectRatio
     {
         public static readonly AspectRatio Keep     = new AspectRatio(-1, 1);
@@ -105,17 +84,17 @@ namespace FlyleafLib
 
             string newvalue = value.ToString().Replace(',', '.');
 
-            if (System.Text.RegularExpressions.Regex.IsMatch(newvalue.ToString(), @"^\s*[0-9\.]+\s*[:/]\s*[0-9\.]+\s*$"))
+            if (Regex.IsMatch(newvalue.ToString(), @"^\s*[0-9\.]+\s*[:/]\s*[0-9\.]+\s*$"))
             {
                 string[] values = newvalue.ToString().Split(':');
                 if (values.Length < 2)
                             values = newvalue.ToString().Split('/');
 
-                Num = float.Parse(values[0], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture);
-                Den = float.Parse(values[1], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture);
+                Num = float.Parse(values[0], NumberStyles.Any, CultureInfo.InvariantCulture);
+                Den = float.Parse(values[1], NumberStyles.Any, CultureInfo.InvariantCulture);
             }
 
-            else if (float.TryParse(newvalue.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out float result))
+            else if (float.TryParse(newvalue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out float result))
                 { Num = result; Den = 1; }
 
             else
@@ -123,16 +102,25 @@ namespace FlyleafLib
         }
         public override string ToString() { return this == Keep ? "Keep" : (this == Fill ? "Fill" : (this == Custom ? "Custom" : (this == Invalid ? "Invalid" : $"{Num}:{Den}"))); }
     }
+
     public class NotifyPropertyChanged : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
+        protected bool Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
         {
+            //System.Diagnostics.Debug.WriteLine($"[===| {propertyName} |===]");
+
             if (!check || (field == null && value != null) || (field != null && !field.Equals(value)))
             {
+                //System.Diagnostics.Debug.WriteLine($"\t[===| {propertyName} |===]");
+
                 field = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+                return true;
             }
+
+            return false;
         }
         protected void Raise([CallerMemberName] string propertyName = "")
         {

@@ -1,18 +1,16 @@
 ﻿using System;
 
 using FFmpeg.AutoGen;
-using FlyleafLib.MediaFramework.MediaDemuxer;
 using static FFmpeg.AutoGen.ffmpeg;
+
+using FlyleafLib.MediaFramework.MediaDemuxer;
+using FlyleafLib.MediaFramework.MediaInput;
 
 namespace FlyleafLib.MediaFramework.MediaStream
 {
     public unsafe class VideoStream : StreamBase
     {
-
-        /// <summary>
-        /// Stream's Movie info from the current plugin's Playlist
-        /// </summary>
-        public Movie    Movie       { get; set; } = new Movie();
+        public VideoInput                   VideoInput          { get; set; }
 
         public AspectRatio                  AspectRatio         { get; set; }
         public string                       ColorRange          { get; set; }
@@ -20,7 +18,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public int                          Comp0Step           { get; set; }
         public int                          Comp1Step           { get; set; }
         public int                          Comp2Step           { get; set; }
-        public double                       FPS                 { get; set; }
+        public double                       Fps                 { get; set; }
         public int                          Height              { get; set; }
         public bool                         IsPlanar            { get; set; }
         public bool                         IsRGB               { get; set; }
@@ -31,7 +29,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public PixelFormatType              PixelFormatType     { get; set; }
         public int                          Width               { get; set; }
 
-        public override string GetDump() { return $"[{Type} #{StreamIndex}] {CodecName} {PixelFormatStr} {Width}x{Height} @ {FPS.ToString("#.###")} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
+        public override string GetDump() { return $"[{Type} #{StreamIndex}] {Codec} {PixelFormatStr} {Width}x{Height} @ {Fps.ToString("#.###")} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
         public VideoStream() { }
         public VideoStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         {
@@ -42,7 +40,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
             Width           = st->codecpar->width;
             Height          = st->codecpar->height;
-            FPS             = av_q2d(st->r_frame_rate);
+            Fps             = av_q2d(st->r_frame_rate);
 
             var gcd = Utils.GCD(Width, Height);
             if (gcd != 0)
