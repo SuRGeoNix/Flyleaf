@@ -26,6 +26,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public bool             VideoAccelerated    { get; internal set; }
         public VideoStream      VideoStream         => (VideoStream) Stream;
 
+        public long             StartTime             { get; internal set; }
+
         // Hardware & Software_Handled (Y_UV | Y_U_V)
         Texture2DDescription    textDesc, textDescUV;
 
@@ -171,6 +173,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 avcodec_flush_buffers(codecCtx);
                 if (Status == Status.Ended) Status = Status.Stopped;
                 keyFrameRequired = true;
+                StartTime = AV_NOPTS_VALUE;
             }
         }
 
@@ -287,7 +290,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 continue;
                             }
                             else
+                            {
+                                long curPts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                                StartTime = (long)(curPts * VideoStream.Timebase) - demuxer.StartTime;
                                 keyFrameRequired = false;
+                            }
                         }
 
                         if (Speed == 1)
@@ -326,6 +333,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                 if (mFrame.pts == AV_NOPTS_VALUE) return null;
                 mFrame.timestamp = (long)(mFrame.pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
+                //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)}");
 
                 // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)
                 if (VideoAccelerated)

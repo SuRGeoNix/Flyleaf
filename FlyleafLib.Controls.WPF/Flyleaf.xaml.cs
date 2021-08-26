@@ -62,7 +62,7 @@ namespace FlyleafLib.Controls.WPF
         public bool ShowDebug
         {
             get => _ShowDebug;
-            set => Set(ref _ShowDebug, value);
+            set { Set(ref _ShowDebug, value); Config.Player.Stats = value; }
         }
 
         bool _IsFullscreen;

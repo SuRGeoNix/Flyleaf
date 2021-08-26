@@ -1,4 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Security;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -6,15 +11,14 @@ using static FFmpeg.AutoGen.AVCodecID;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
-using System.Threading;
-using System.Runtime.InteropServices;
-using System.Collections.Concurrent;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
     public unsafe class AudioDecoder : DecoderBase
     {
         public AudioStream      AudioStream         => (AudioStream) Stream;
+
+        public VideoDecoder     VideoDecoder        { get; internal set; } // For Resync
 
         public ConcurrentQueue<AudioFrame>
                                 Frames              { get; protected set; } = new ConcurrentQueue<AudioFrame>();
@@ -28,7 +32,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public int              m_max_dst_nb_samples;
         public int              m_dst_linesize;
 
-        public AudioDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
+        internal bool           keyFrameRequired;
+
+        public AudioDecoder(Config config, int uniqueId = -1, VideoDecoder syncDecoder = null) : base(config, uniqueId) { VideoDecoder = syncDecoder; }
 
         protected override unsafe int Setup(AVCodec* codec)
         {
@@ -71,6 +77,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 Frames = new ConcurrentQueue<AudioFrame>();
                 avcodec_flush_buffers(codecCtx);
                 if (Status == Status.Ended) Status = Status.Stopped;
+
+                keyFrameRequired = true && !VideoDecoder.Disposed;
             }
         }
         protected override void RunInternal()
@@ -197,14 +205,28 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             } while (Status == Status.Running);
         }
 
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         private AudioFrame ProcessAudioFrame(AVFrame* frame)
         {
             AudioFrame mFrame = new AudioFrame();
             mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
             if (mFrame.pts == AV_NOPTS_VALUE) return null;
             mFrame.timestamp = ((long)(mFrame.pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+            //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)} | {Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase))}");
 
-            //Log($"{Utils.TicksToTime(mFrame.timestamp)} | {Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase))}");
+            // Resync with VideoDecoder if required (drop early timestamps)
+            if (keyFrameRequired)
+            {
+                while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning) Thread.Sleep(10);
+                if (mFrame.timestamp < VideoDecoder.StartTime)
+                {
+                    //Log($"Droping {Utils.TicksToTime(mFrame.timestamp)} < {Utils.TicksToTime(VideoDecoder.StartTime)}");
+                    return null;
+                }
+                else
+                    keyFrameRequired = false;
+            }
 
             try
             {

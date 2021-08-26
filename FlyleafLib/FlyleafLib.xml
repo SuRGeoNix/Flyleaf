@@ -550,6 +550,26 @@
             Player's Renderer. Normally you should not access this directly.
             </summary>
         </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.OpenCompleted">
+            <summary>
+            Fires on open completed of new media input (success or failure)
+            </summary>
+        </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.OpenInputCompleted">
+            <summary>
+            Fires on open completed of an existing media input (success or failure)
+            </summary>
+        </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.OpenStreamCompleted">
+            <summary>
+            Fires on open completed of an existing media stream (success or failure)
+            </summary>
+        </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.PlaybackCompleted">
+            <summary>
+            Fires on playback ended successfully
+            </summary>
+        </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
             <summary>
             Opens a new media file (audio/subtitles/video)
@@ -646,26 +666,6 @@
             (If you call this manually call it from UI-thread eg. Application.Current.Dispatcher.Invoke(() => Player.Dispose()); )
             </summary>
         </member>
-        <member name="E:FlyleafLib.MediaPlayer.Player.OpenCompleted">
-            <summary>
-            Fires on open completed of new media input (success or failure)
-            </summary>
-        </member>
-        <member name="E:FlyleafLib.MediaPlayer.Player.OpenInputCompleted">
-            <summary>
-            Fires on open completed of an existing media input (success or failure)
-            </summary>
-        </member>
-        <member name="E:FlyleafLib.MediaPlayer.Player.OpenStreamCompleted">
-            <summary>
-            Fires on open completed of an existing media stream (success or failure)
-            </summary>
-        </member>
-        <member name="E:FlyleafLib.MediaPlayer.Player.PlaybackCompleted">
-            <summary>
-            Fires on playback ended successfully
-            </summary>
-        </member>
         <member name="P:FlyleafLib.MediaPlayer.SubtitlesInfo.IsOpened">
             <summary>
             Whether the input has subtitles and it is configured
@@ -707,6 +707,36 @@
         </member>
         <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.last_pos">
             to detect seek 
+        </member>
+        <member name="T:XamlGeneratedNamespace.GeneratedInternalTypeHelper">
+            <summary>
+            GeneratedInternalTypeHelper
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateInstance(System.Type,System.Globalization.CultureInfo)">
+            <summary>
+            CreateInstance
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.GetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            GetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.SetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            SetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateDelegate(System.Type,System.Object,System.String)">
+            <summary>
+            CreateDelegate
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.AddEventHandler(System.Reflection.EventInfo,System.Object,System.Delegate)">
+            <summary>
+            AddEventHandler
+            </summary>
         </member>
     </members>
 </doc>
