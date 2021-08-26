@@ -343,6 +343,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         public int Seek(long ticks, bool foreward = false)
         {
+            /* Current Issues
+             * 
+             * HEVC/MPEG-TS: Fails to seek to keyframe https://blog.csdn.net/Annie_heyeqq/article/details/113649501
+             * AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
+             * Strange delay (could be 200ms!) after seek on HEVC/yuv420p10le (10-bits) while trying to Present on swapchain (possible recreates texturearray?)
+             * 
+             */
+
             lock (lockActions)
             {
                 if (Disposed) return -1;
@@ -360,7 +368,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     if (VideoStream != null)
                     {
                         Log($"[SEEK({(foreward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
-                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD); // AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
+                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
                     }
                     else
                     {

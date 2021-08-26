@@ -1,7 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace WinForms_Sample__Basic_
@@ -18,8 +15,8 @@ namespace WinForms_Sample__Basic_
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            //Application.Run(new BasicNaked());
-            Application.Run(new TestingWPFwithinWinForms());
+            Application.Run(new BasicNaked());
+            //Application.Run(new TestingWPFwithinWinForms());
         }
     }
 }

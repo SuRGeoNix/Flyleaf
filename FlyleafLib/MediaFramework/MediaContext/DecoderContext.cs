@@ -82,7 +82,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             SubtitlesDemuxer    = new Demuxer(Config.Demuxer, MediaType.Subs,  UniqueId, EnableDecoding);
 
             VideoDecoder        = new VideoDecoder(Config, control, UniqueId);
-            AudioDecoder        = new AudioDecoder(Config, UniqueId);
+            AudioDecoder        = new AudioDecoder(Config, UniqueId, VideoDecoder);
             SubtitlesDecoder    = new SubtitlesDecoder(Config, UniqueId);
         }
         public void Initialize()
@@ -891,6 +891,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                                 Log(TicksToTime((long)(mFrame.pts * VideoDecoder.VideoStream.Timebase)) + " | pts -> " + mFrame.pts);
                                 VideoDecoder.Frames.Enqueue(mFrame);
                                 VideoDecoder.keyFrameRequired = false;
+                                VideoDecoder.StartTime = mFrame.timestamp - Config.Audio.Latency;
 
                                 av_frame_free(&frame);
                                 return mFrame.timestamp;

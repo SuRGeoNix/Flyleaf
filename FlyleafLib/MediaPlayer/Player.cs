@@ -598,8 +598,6 @@ namespace FlyleafLib.MediaPlayer
                         args = decoder.OpenVideo(url_iostream.ToString(), defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
                 }
 
-                //InitializeEnv(args);
-
             } catch (Exception e)
             {
                 Log($"[OPEN] Error {e.Message}");
@@ -795,9 +793,9 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         /// <param name="stream">An existing Player's media stream</param>
         /// <param name="resync">Whether to force resync with other streams/param>
-        /// <param name="audioFollowVideo"></param>
+        /// <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
         /// <returns></returns>
-        public OpenStreamCompletedArgs Open(StreamBase stream, bool resync = true, bool audioFollowVideo = true)
+        public OpenStreamCompletedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
         {
             StreamOpenedArgs args = new StreamOpenedArgs();
             long syncMs = decoder.GetCurTimeMs();
@@ -810,7 +808,7 @@ namespace FlyleafLib.MediaPlayer
                 args = decoder.OpenAudioStream((AudioStream)stream);
             }
             else if (stream is VideoStream)
-                args = decoder.OpenVideoStream((VideoStream)stream, audioFollowVideo);
+                args = decoder.OpenVideoStream((VideoStream)stream, defaultAudio);
             else if (stream is SubtitlesStream)
             {
                 Config.Subtitles.SetEnabled(true);
@@ -828,12 +826,12 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         /// <param name="stream">An existing Player's media stream</param>
         /// <param name="resync">Whether to force resync with other streams/param>
-        /// <param name="audioFollowVideo"></param>
-        public void OpenAsync(StreamBase stream, bool resync = true, bool audioFollowVideo = true)
+        /// <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
+        public void OpenAsync(StreamBase stream, bool resync = true, bool defaultAudio = true)
         {
             Task.Run(() =>
             {
-                Open(stream, resync, audioFollowVideo);
+                Open(stream, resync, defaultAudio);
             });
         }
         #endregion
@@ -1280,7 +1278,6 @@ namespace FlyleafLib.MediaPlayer
                             Log("Drop AFrame  " + TicksToTime(aFrame.timestamp));
                             AudioDecoder.Frames.TryDequeue(out aFrame);
                         }
-                        Log(" ====== Drop AFrame End ====== ");
                     }
                 }
 
@@ -1448,6 +1445,10 @@ namespace FlyleafLib.MediaPlayer
                     VideoDecoder.DisposeFrame(vFrame);
                     VideoDecoder.Frames.TryDequeue(out vFrame);
                     Log($"vDistanceMs 2 |-> {vDistanceMs}");
+
+                    if (vDistanceMs < -10)
+                        requiresBuffering = true;
+                    continue;
                 }
 
                 if (aFrame != null) // Should use different thread for better accurancy (renderer might delay it on high fps) | also on high offset we will have silence between samples

@@ -1,16 +1,8 @@
 ﻿
-using FlyleafLib.MediaPlayer;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
-//using FlyleafLib.Controls;
+using FlyleafLib.MediaPlayer;
 
 namespace WinForms_Sample__Basic_
 {
