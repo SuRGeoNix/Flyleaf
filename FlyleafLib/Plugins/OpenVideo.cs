@@ -10,11 +10,7 @@ namespace FlyleafLib.Plugins
         public List<VideoInput> VideoInputs { get; set; } = new List<VideoInput>();
 
         public bool IsPlaylist => true;
-
-        public override void OnInitialized()
-        {
-            //VideoInputs.Clear();
-        }
+        public VideoInput curSuggestInput; // Pointer to the latest opened input
 
         public bool IsValidInput(string url)
         {
@@ -24,7 +20,7 @@ namespace FlyleafLib.Plugins
         public OpenResults Open(string url)
         {
             foreach(var input in VideoInputs)
-                if (input.Url.ToLower() == url.ToLower()) return new OpenResults();
+                if (input.Url.ToLower() == url.ToLower()) { curSuggestInput = input; return new OpenResults(); }
 
             VideoInput videoInput = new VideoInput();
             InputData inputData = new InputData();
@@ -46,6 +42,7 @@ namespace FlyleafLib.Plugins
             videoInput.InputData = inputData;
 
             VideoInputs.Add(videoInput);
+            curSuggestInput = videoInput;
 
             return new OpenResults();
         }
@@ -70,7 +67,7 @@ namespace FlyleafLib.Plugins
         {
             if (Handler.OpenedPlugin.Name != Name) return null;
 
-            return VideoInputs[VideoInputs.Count -1];
+            return curSuggestInput;
         }
     }
 }

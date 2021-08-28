@@ -223,9 +223,12 @@ namespace FlyleafLib
                 defaults.Add("reconnect_streamed",  "1");                                       // auto reconnect streamed / non seekable streams
                 defaults.Add("reconnect_delay_max", "5");                                       // max reconnect delay in seconds after which to give up
                 defaults.Add("rtsp_transport",      "tcp");                                     // Seems UDP causing issues (use this by default?)
+                defaults.Add("user_agent",          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36");
 
                 //defaults.Add("timeout",           (2 * (long)1000 * 1000).ToString());      // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
                 //defaults.Add("rw_timeout",     (2 * (long)1000 * 1000).ToString());      // (Microseconds) Default 5 seconds | Higher for network streams
+
+                
                 return defaults;
             }
         }

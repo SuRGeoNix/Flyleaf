@@ -23,6 +23,9 @@ namespace FlyleafLib.Plugins
         public virtual void OnInitializingSwitch() { }
         public virtual void OnInitializedSwitch() { }
 
+        public virtual void OnBuffering() { }
+        public virtual void OnBufferingCompleted() { }
+
         public virtual OpenResults OnOpenAudio(AudioInput input) { return null; }
         public virtual OpenResults OnOpenVideo(VideoInput input) { return null; }
         public virtual OpenResults OnOpenSubtitles(SubtitlesInput input) { return null; }
@@ -71,6 +74,9 @@ namespace FlyleafLib.Plugins
         void OnInitialized();
         void OnInitializingSwitch();
         void OnInitializedSwitch();
+
+        void OnBuffering();
+        void OnBufferingCompleted();
 
         OpenResults OnOpenAudio(AudioInput input);
         OpenResults OnOpenVideo(VideoInput input);

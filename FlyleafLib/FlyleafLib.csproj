@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/SharpDX)</Description>
-	<Version>3.3.0-pre</Version>
+	<Version>3.3.0</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,13 +16,31 @@
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Introduces Audio Player only (without the need of control) with the new Config.Player.Usage (AVS: All, Audio, LowLatencyVideo)
-Introduces Buffering Duration (Config.Player.MinBufferDuration &amp; Config.Demuxer.BufferDuration) which replaces Config.Demuxer (MinQueueSize/MaxQueueSize) Config.Decoder (MinAudioFrames/MinVideoFrames)
-Focuses on Performance and Stability especially for opening and stream switching
-Introduces the new pluggable DecoderContext (PluginHandler) which allows download/record also for the external demuxers (mainly AudioDemuxer for youtube-dl) and to use plugins for more general purposes (such exporting frames)
-Clean-up and renamings for Player and Config and collection of all the info under the Player (Player.Audio / Player.Video / Player.Subtitles)
+    <PackageReleaseNotes>Updating to v3.3
 
-Breaking Changes
+-= Audio Only Player / Performance / Stability / Plugins / Clean up =-
+
+- Introduces Audio Player only (without the need of control) with the new Config.Player.Usage (AVS: All, Audio, LowLatencyVideo)
+
+- Introduces Buffering Duration (Config.Player.MinBufferDuration &amp; Config.Demuxer.BufferDuration) which replaces Config.Demuxer (MinQueueSize/MaxQueueSize) Config.Decoder (MinAudioFrames/MinVideoFrames)
+
+- Focuses on Performance and Stability especially for opening and stream switching
+
+- Introduces the new pluggable DecoderContext (PluginHandler) which allows download/record also for the external demuxers (mainly AudioDemuxer for youtube-dl) and to use plugins for more general purposes (such exporting frames)
+
+- Adds Interrupt support also to Custom AVIO Context
+
+- Brings back the good old BitSwarm with the new v2.4.0 which does not freezes the UI anymore and adding also fast abort on open/seek/switch
+
+- Clean-up and renamings for Player and Config and collection of all the info under the Player (Player.Audio / Player.Video / Player.Subtitles)
+  More events for opening (main input, inputs created by plugins, and embedded streams)
+  All the extra features will be also in the Player now (such as Player.Zoom / Player.TakeSnapshot / Player.StartRecording etc.)
+
+- Improves audio sync with video after seeking
+
+- Fixes disposing which requires UI invoke
+
+-= Breaking Changes =-
 1) Player.Open now is blocking so you probably need to change to Player.OpenAsync to manage the responses from the new events OpenCompleted/OpenInputCompleted/OpenStreamCompleted
 2) Renames to Config and moving info variables all of them under Player.(Audio/Video/Subtitles) which replaces the old Session</PackageReleaseNotes>
     <AssemblyVersion>3.3.0.0</AssemblyVersion>

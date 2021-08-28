@@ -23,6 +23,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
             Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
+            return demuxer.Interrupter.ShouldInterrupt(demuxer);
+        };
+
+        public int ShouldInterrupt(Demuxer demuxer)
+        {
             if (demuxer.Status == Status.Stopping)
             {
                 #if DEBUG
@@ -85,7 +90,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
 
             return demuxer.Interrupter.Interrupted = 0;
-        };
+        }
 
         public Interrupter(Demuxer demuxer)
         {

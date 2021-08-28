@@ -334,7 +334,7 @@ namespace FlyleafLib.Controls.WPF
         public void ResetAudioDelayMsAction(object obj = null) { AudioConfig.Delay = 0; }
 
         public ICommand SetSubsPositionY { get; set; }
-        public void SetSubsPositionYAction(object y) { Thickness t = Subtitles.Margin; t.Bottom += int.Parse(y.ToString()); Subtitles.Margin = t; Raise("Subtitles"); }
+        public void SetSubsPositionYAction(object y) { Thickness t = Subtitles.Margin; t.Bottom += int.Parse(y.ToString()); Subtitles.Margin = t; Raise(nameof(Subtitles)); }
 
         public ICommand SetAudioDelayMs { get; set; }
         public void SetAudioDelayMsAction(object delay) { AudioConfig.Delay += (int.Parse(delay.ToString())) * (long)10000; }
@@ -625,10 +625,10 @@ namespace FlyleafLib.Controls.WPF
                 if (newMode != CurrentMode)
                 {
                     if (newMode == ActivityMode.Idle && IsFullscreen)
-                        Dispatcher.Invoke(() => { if (popUpMenu.IsOpen || popUpMenuVideo.IsOpen || popUpMenuSubtitles.IsOpen) return; while (ShowCursor(false) >= 0) { } isCursorHidden = true;});
+                        Dispatcher.BeginInvoke(new Action(() => { if (popUpMenu.IsOpen || popUpMenuVideo.IsOpen || popUpMenuSubtitles.IsOpen) return; while (ShowCursor(false) >= 0) { } isCursorHidden = true;}));
 
                     if (isCursorHidden && newMode == ActivityMode.FullActive)
-                        Dispatcher.Invoke(() => { while (ShowCursor(true)   < 0) { } });
+                        Dispatcher.BeginInvoke(new Action(() => { while (ShowCursor(true)   < 0) { } }));
 
                     CurrentMode = newMode;
                 }
@@ -671,11 +671,11 @@ namespace FlyleafLib.Controls.WPF
                         break;
 
                     case Key.Up:
-                        t = Subtitles.Margin; t.Bottom += 2; Subtitles.Margin = t; Raise("Subtitles");
+                        t = Subtitles.Margin; t.Bottom += 2; Subtitles.Margin = t; Raise(nameof(Subtitles));
                         break;
 
                     case Key.Down:
-                        t = Subtitles.Margin; t.Bottom -= 2; Subtitles.Margin = t; Raise("Subtitles");
+                        t = Subtitles.Margin; t.Bottom -= 2; Subtitles.Margin = t; Raise(nameof(Subtitles));
                         break;
 
                     case Key.C:

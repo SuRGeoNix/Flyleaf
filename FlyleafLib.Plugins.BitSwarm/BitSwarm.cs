@@ -53,6 +53,21 @@ namespace FlyleafLib.Plugins
             if (cfg != null) cfg.EnableBuffering = false;
             TorrentStream?.Cancel();
         }
+
+        public override void OnBuffering()
+        {
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return;
+
+            TorrentStream?.Cancel();
+            if (cfg != null) cfg.EnableBuffering = true;
+        }
+        public override void OnBufferingCompleted()
+        {
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return;
+
+            if (cfg != null) cfg.EnableBuffering = false;
+        }
+
         public override void Dispose()
         {
             if (Disposed) return;
@@ -100,9 +115,9 @@ namespace FlyleafLib.Plugins
                 bitSwarm.Start();
 
                 while (!torrentReceived && !Handler.Interrupt) { Thread.Sleep(35); }
-                if (Handler.Interrupt) { OnInitialized(); return null; }
+                if (Handler.Interrupt) { Dispose(); return null; }
 
-                if (sortedPaths == null || sortedPaths.Count == 0) return new OpenResults("No video files found in torrent");
+                if (sortedPaths == null || sortedPaths.Count == 0) { Dispose(); return new OpenResults("No video files found in torrent"); }
 
                 return new OpenResults();
             }
@@ -132,9 +147,9 @@ namespace FlyleafLib.Plugins
         {
             if (input.Plugin == null || input.Plugin.Name != Name) return null;
 
-            FileName        = input.InputData.Title;
-            fileIndex       = Torrent.file.paths.IndexOf(FileName);
-            FileSize        = Torrent.file.lengths[fileIndex];
+            FileName    = input.InputData.Title;
+            fileIndex   = Torrent.file.paths.IndexOf(FileName);
+            FileSize    = Torrent.file.lengths[fileIndex];
 
             downloadNextStarted     = false;
             bitSwarm.FocusAreInUse  = false;
@@ -148,11 +163,27 @@ namespace FlyleafLib.Plugins
                 if (!bitSwarm.isRunning) { Log("Starting"); bitSwarm.Start(); }
 
                 // Prepare for subs (add interrupt!)
-                byte[] tmp = new byte[65536];
-                TorrentStream.Position = 0;
-                TorrentStream.Read(tmp, 0, 65536);
-                TorrentStream.Position = TorrentStream.Length - 65536;
-                TorrentStream.Read(tmp, 0, 65536);
+                bool threadDone = false;
+
+                Thread prepSubs = new Thread(() =>
+                {
+                    byte[] tmp = new byte[65536];
+                    TorrentStream.Position = 0;
+                    TorrentStream.Read(tmp, 0, 65536);
+                    if (Handler.Interrupt) { threadDone = true; return; }
+                    TorrentStream.Position = TorrentStream.Length - 65536;
+                    TorrentStream.Read(tmp, 0, 65536);
+                    threadDone = true;
+                });
+                prepSubs.IsBackground = true;
+                prepSubs.Start();
+
+                while (!threadDone)
+                {
+                    if (Handler.Interrupt) TorrentStream?.Cancel();
+                    Thread.Sleep(30);
+                }
+
                 TorrentStream.Position = 0;
             }
             else if (File.Exists(Path.Combine(FolderComplete, FileName)))
@@ -165,8 +196,8 @@ namespace FlyleafLib.Plugins
             else
                 return null;
 
-            input.InputData.Folder         = FolderComplete;
-            input.InputData.FileSize       = FileSize;
+            input.InputData.Folder  = FolderComplete;
+            input.InputData.FileSize= FileSize;
 
             return new OpenResults();
         }
@@ -234,15 +265,16 @@ namespace FlyleafLib.Plugins
 
             public TorrentOptions()
             {
-                FolderComplete  = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents") : Path.Combine(Path.GetTempPath(), "Torrents");
-                FolderIncomplete= Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents", "_incomplete") : Path.Combine(Path.GetTempPath(), "Torrents", "_incomplete");
-                FolderTorrents  = FolderIncomplete;
-                FolderSessions  = FolderIncomplete;               
-                BlockRequests   =  3;
-                BoostThreads    = 25;
-                MinThreads      = 10;
-                MaxThreads      = 60;
-                SleepModeLimit  = -1;
+                FolderComplete      = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents") : Path.Combine(Path.GetTempPath(), "Torrents");
+                FolderIncomplete    = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents", "_incomplete") : Path.Combine(Path.GetTempPath(), "Torrents", "_incomplete");
+                FolderTorrents      = FolderIncomplete;
+                FolderSessions      = FolderIncomplete;               
+
+                MaxTotalConnections = 80;
+                MaxNewConnections   = 15;
+                BlockRequests       = 4;
+
+                //Verbosity = 2;
             }
         }
     }
