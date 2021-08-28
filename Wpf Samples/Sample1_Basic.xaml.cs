@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Windows;
 
 using FlyleafLib;
@@ -15,6 +16,10 @@ namespace Wpf_Samples
 
         public Sample1()
         {
+            // Might not required, but it could cause UI issues if we have very few workers
+            ThreadPool.GetMinThreads(out int workers, out int ports);
+            ThreadPool.SetMinThreads(workers + 6, ports + 6);
+
             Master.RegisterFFmpeg(":2");
 
             Config config = new Config();

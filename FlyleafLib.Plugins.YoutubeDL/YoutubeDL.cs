@@ -45,11 +45,9 @@ namespace FlyleafLib.Plugins
             Config.Demuxer.FormatOpt["headers"] = "";
             foreach (var hdr in fmt.http_headers)
             {
-                if (hdr.Key.ToLower() == "user-agent")
-                    Config.Demuxer.FormatOpt["user_agent"] = hdr.Value;
-                else if (hdr.Key.ToLower() == "referer")
+                if (hdr.Key.ToLower() == "referer")
                     Config.Demuxer.FormatOpt["referer"] = hdr.Value;
-                else
+                else if (hdr.Key.ToLower() != "user-agent")
                     Config.Demuxer.FormatOpt["headers"] += hdr.Key + ":" + hdr.Value + "\r\n";
             }
 
@@ -66,11 +64,9 @@ namespace FlyleafLib.Plugins
             curFormatOpt["headers"] = "";
             foreach (var hdr in fmt.http_headers)
             {
-                if (hdr.Key.ToLower() == "user-agent")
-                    curFormatOpt["user_agent"] = hdr.Value;
-                else if (hdr.Key.ToLower() == "referer")
+                if (hdr.Key.ToLower() == "referer")
                     curFormatOpt["referer"] = hdr.Value;
-                else
+                else if (hdr.Key.ToLower() != "user-agent")
                     curFormatOpt["headers"] += hdr.Key + ":" + hdr.Value + "\r\n";
             }
 

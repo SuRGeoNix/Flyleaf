@@ -106,6 +106,8 @@ namespace FlyleafLib
     public class NotifyPropertyChanged : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public bool DisableNotifications { get; set; }
         protected bool Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
         {
             //System.Diagnostics.Debug.WriteLine($"[===| {propertyName} |===]");
@@ -115,7 +117,9 @@ namespace FlyleafLib
                 //System.Diagnostics.Debug.WriteLine($"\t[===| {propertyName} |===]");
 
                 field = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+                if (!DisableNotifications)
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
                 return true;
             }
@@ -124,7 +128,8 @@ namespace FlyleafLib
         }
         protected void Raise([CallerMemberName] string propertyName = "")
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            if (!DisableNotifications)
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

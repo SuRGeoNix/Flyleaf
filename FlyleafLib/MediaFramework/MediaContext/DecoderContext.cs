@@ -327,7 +327,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (res != null && res.Error != null)
                     return result = new VideoInputOpenedArgs(input, oldInput, res.Error, isUserInput);
 
+                OpenedPlugin?.OnBuffering();
                 string ret = Open(input);
+                OpenedPlugin?.OnBufferingCompleted();
+
                 if (ret != null)
                     return result = new VideoInputOpenedArgs(input, oldInput, $"Failed to open video input {(input.Url != null ? input.Url : "(custom)")}\r\n{ret}", isUserInput);
 

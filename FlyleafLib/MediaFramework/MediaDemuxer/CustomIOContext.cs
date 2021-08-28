@@ -20,8 +20,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         {
             this.demuxer = demuxer;
 
-            ioread.Pointer          = Marshal.GetFunctionPointerForDelegate(IORead);
-            ioseek.Pointer          = Marshal.GetFunctionPointerForDelegate(IOSeek);
+            ioread.Pointer  = Marshal.GetFunctionPointerForDelegate(IORead);
+            ioseek.Pointer  = Marshal.GetFunctionPointerForDelegate(IOSeek);
         }
 
         public void Initialize(Stream stream)
@@ -48,29 +48,17 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             stream = null;
         }
 
-        avio_alloc_context_read_packet_func ioread          = new avio_alloc_context_read_packet_func();    
-        avio_alloc_context_seek_func        ioseek          = new avio_alloc_context_seek_func();
+        avio_alloc_context_read_packet_func ioread  = new avio_alloc_context_read_packet_func();    
+        avio_alloc_context_seek_func        ioseek  = new avio_alloc_context_seek_func();
 
         avio_alloc_context_read_packet IORead = (opaque, buffer, bufferSize) =>
         {
             GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
             Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
-            if (demuxer.Status == Status.Stopping) return AVERROR_EXIT;
+            if (demuxer.Interrupter.ShouldInterrupt(demuxer) != 0) return AVERROR_EXIT;
             int ret = demuxer.CustomIOContext.stream.Read(demuxer.CustomIOContext.buffer, 0, bufferSize);
-            if (demuxer.Status == Status.Stopping) return AVERROR_EXIT;
-
-            if (ret < 0)
-            {
-                if (ret == -1)
-                    System.Diagnostics.Debug.WriteLine("[Stream] Cancel");
-                else if (ret == -2)
-                    System.Diagnostics.Debug.WriteLine("[Stream] Error");
-                else
-                    System.Diagnostics.Debug.WriteLine("[Stream] Interrupt 2");
-
-                return AVERROR_EXIT;
-            }
+            if (ret < 0) { demuxer.Log("CustomIOContext Interrupted"); return AVERROR_EXIT; }
 
             Marshal.Copy(demuxer.CustomIOContext.buffer, 0, (IntPtr) buffer, ret);
 

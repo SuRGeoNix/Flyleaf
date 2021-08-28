@@ -59,6 +59,7 @@ namespace FlyleafLib.MediaPlayer
         public bool         IsBuffering         { get; private set; }
         public bool         IsSeeking           { get; private set; }
         public bool         IsOpening           { get; private set; }
+        public bool         IsOpeningInput      { get; private set; }
         public bool         IsPlaying           => Status == Status.Playing;
         public bool         IsPlaylist          =>  decoder != null && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist;
 
@@ -611,14 +612,15 @@ namespace FlyleafLib.MediaPlayer
             Task.Run(() =>
             {
                 lock(lockOpen) 
-                { 
+                {
                     opens.Push(new OpenData(url_iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles));
-                    if (IsOpening)
+                    if (IsOpening || IsOpeningInput)
                     {
                         // Interrupt only subs?
                         if (!((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString()))))
                             decoder.Interrupt = true;
-                        return;
+
+                        if (IsOpening) return;
                     }
                     IsOpening = true; 
                 }
@@ -765,14 +767,15 @@ namespace FlyleafLib.MediaPlayer
                 lock(lockOpen) 
                 { 
                     inputopens.Push(new OpenInputData(input, resync, defaultVideo, defaultAudio, defaultSubtitles));
-                    if (IsOpening)
+                    if (IsOpening || IsOpeningInput)
                     {
                         // Interrupt only subs?
                         if (!(input is SubtitlesInput))
                             decoder.Interrupt = true;
-                        return;
+
+                        if (IsOpeningInput) return;
                     }
-                    IsOpening = true; 
+                    IsOpeningInput = true; 
                 }
 
                 while (inputopens.TryPop(out OpenInputData openData))
@@ -784,7 +787,7 @@ namespace FlyleafLib.MediaPlayer
                     }
                 }
 
-                lock(lockOpen) IsOpening = false;
+                lock(lockOpen) IsOpeningInput = false;
             });
         }
 
@@ -1072,6 +1075,7 @@ namespace FlyleafLib.MediaPlayer
             SetCurTime(ms * (long)10000);
             seeks.Push(new SeekData(ms, foreward));
 
+            decoder.OpenedPlugin?.OnBuffering();
             if (Status == Status.Playing) return;
 
             lock (lockSeek) { if (IsSeeking) return; IsSeeking = true; }
@@ -1081,6 +1085,8 @@ namespace FlyleafLib.MediaPlayer
                 try
                 {
                     TimeBeginPeriod(1);
+                    decoder.OpenedPlugin?.OnBuffering();
+
                     while (seeks.TryPop(out SeekData seekData) && CanPlay && !IsPlaying)
                     {
                         seeks.Clear();
@@ -1115,6 +1121,7 @@ namespace FlyleafLib.MediaPlayer
                     Log($"[SEEK] Error {e.Message}");
                 } finally
                 {
+                    decoder.OpenedPlugin?.OnBufferingCompleted();
                     TimeEndPeriod(1);
                     lock (lockSeek) IsSeeking = false;
                 }
@@ -1156,6 +1163,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 if (disposed) return;
 
+                DisableNotifications = true;
                 Stop();
 
                 DisposeAudio(); 
@@ -1165,16 +1173,27 @@ namespace FlyleafLib.MediaPlayer
                 Config = null;
 
                 disposed = true;
-                VideoView?.Dispose();
-                VideoView = null;
 
-                _Control.Player = null;
-                _Control = null;
+                if (_Control != null || VideoView != null)
+                {
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        VideoView?.Dispose();
+                        VideoView = null;
 
-                GC.Collect();
+                        _Control.Player = null;
+                        _Control = null;
+
+                        GC.Collect();
+                        Log("Player_Disposed");
+                    }));
+                }
+                else
+                {
+                    GC.Collect();
+                    Log("Player_Disposed");
+                }
             }
-
-            Log("Player_Disposed");
         }
         bool disposed = false;
         #endregion
@@ -1317,6 +1336,7 @@ namespace FlyleafLib.MediaPlayer
             else
                 SetCurTime(videoStartTicks * Config.Player.Speed);
 
+            decoder.OpenedPlugin.OnBufferingCompleted();
             Log($"[SCREAMER] Started -> {TicksToTime(videoStartTicks)} | [V: {TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {TicksToTime(aFrame.timestamp)}]"));
 
             return true;
@@ -1341,6 +1361,7 @@ namespace FlyleafLib.MediaPlayer
                 {
                     seeks.Clear();
                     requiresBuffering = true;
+                    decoder.OpenedPlugin.OnBuffering();
                     if (decoder.Seek(seekData.ms, seekData.foreward) < 0)
                         Log("[SCREAMER] Seek failed");
                 }
@@ -1398,36 +1419,39 @@ namespace FlyleafLib.MediaPlayer
                     // Informs the application with CurTime / Bitrates when the second changes
                     if (Math.Abs(elapsedTicks - elapsedSec) > 10000000 - 20000)
                     {
-                        Task.Run(() =>
+                        elapsedSec  = elapsedTicks;
+
+                        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                         {
-                            elapsedSec  = elapsedTicks;
-
-                            //Log($"BD: {TicksToTime(VideoDemuxer.BufferedDuration)} | VP: {VideoDemuxer.VideoPackets.Count} | AP: {VideoDemuxer.AudioPackets.Count + AudioDemuxer.AudioPackets.Count}");
-
-                            if (Config.Player.Stats)
+                            try
                             {
-                                long curTotalBytes  =  VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
-                                long curVideoBytes  =  VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
-                                long curAudioBytes  =  VideoDemuxer.AudioBytes + AudioDemuxer.AudioBytes + SubtitlesDemuxer.AudioBytes;
+                                if (Config == null) return;
 
-                                BitRate             = (curTotalBytes - totalBytes) * 8 / 1000.0;
-                                Video.BitRate       = (curVideoBytes - videoBytes) * 8 / 1000.0;
-                                Audio.BitRate       = (curAudioBytes - audioBytes) * 8 / 1000.0;
-                                totalBytes          =  curTotalBytes;
-                                videoBytes          =  curVideoBytes;
-                                audioBytes          =  curAudioBytes;
+                                if (Config.Player.Stats)
+                                {
+                                    long curTotalBytes  =  VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
+                                    long curVideoBytes  =  VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
+                                    long curAudioBytes  =  VideoDemuxer.AudioBytes + AudioDemuxer.AudioBytes + SubtitlesDemuxer.AudioBytes;
 
-                                Video.DroppedFrames = droppedFrames;
-                                Video.CurrentFps    = actualFps;
-                                actualFps   = 0;
-                            }
+                                    BitRate             = (curTotalBytes - totalBytes) * 8 / 1000.0;
+                                    Video.BitRate       = (curVideoBytes - videoBytes) * 8 / 1000.0;
+                                    Audio.BitRate       = (curAudioBytes - audioBytes) * 8 / 1000.0;
+                                    totalBytes          =  curTotalBytes;
+                                    videoBytes          =  curVideoBytes;
+                                    audioBytes          =  curAudioBytes;
 
-                            BufferedDuration = VideoDemuxer.BufferedDuration;
-                            if (VideoDemuxer.HLSPlaylist != null)
-                                SetCurTimeHLS();
-                            else
-                                SetCurTime(elapsedTicks * Config.Player.Speed);
-                        });
+                                    Video.DroppedFrames = droppedFrames;
+                                    Video.CurrentFps    = actualFps;
+                                    actualFps   = 0;
+                                }
+
+                                BufferedDuration = VideoDemuxer.BufferedDuration;
+                                if (VideoDemuxer.HLSPlaylist != null)
+                                    SetCurTimeHLS();
+                                else
+                                    SetCurTime(elapsedTicks * Config.Player.Speed);
+                            } catch (Exception) { }
+                        }));
                     }
 
                     Thread.Sleep(sleepMs);
