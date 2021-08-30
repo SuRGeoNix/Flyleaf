@@ -34,7 +34,10 @@ namespace FlyleafLib.Plugins
             }
             else
             {
-                inputData.Title = url;
+                Uri uri;
+                try { uri = new Uri(url); inputData.Title = Path.GetFileName(uri.LocalPath); } catch (Exception) { }
+
+                //inputData.Title = url;
                 inputData.Folder = Path.GetTempPath();
             }
 

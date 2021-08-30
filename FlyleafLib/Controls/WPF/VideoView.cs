@@ -151,31 +151,37 @@ namespace FlyleafLib.Controls.WPF
         bool disposed = false;
         internal void Dispose()
         {
-            //System.Diagnostics.Debug.WriteLine("VideoView_Dispose");
-
-            Player?.DisposeInternal();
-            Player = null;
-
             lock (this)
             {
                 if (disposed) return;
 
-                FlyleafWF?.Dispose();
-                FlyleafWF = null;
+                try
+                {
+                    if (FlyleafWF != null)
+                    {
+                        FlyleafWF.Dispose();
+                        FlyleafWF.Player = null;
+                        FlyleafWF = null;
+                    }
+                
+                    if (Player != null)
+                    {
+                        Player.VideoView = null;
+                        Player._Control = null;
+                        Player.Dispose();
+                    }
 
-                Resources.MergedDictionaries.Clear();
-                Resources.Clear();
-                Template.Resources.MergedDictionaries.Clear();
-                Content = null;
-                DataContext = null;
-                PlayerGrid.Children.Clear();
-                PlayerGrid = null;
+                    Resources.MergedDictionaries.Clear();
+                    Resources.Clear();
+                    Template.Resources.MergedDictionaries.Clear();
+                    Content = null;
+                    DataContext = null;
+                    PlayerGrid.Children.Clear();
+                    PlayerGrid = null;
+                } catch (Exception) { }
 
                 disposed = true;
             }
-
-            WindowFront?.Dispose();
-            WindowFront = null;
         }
     }
 }

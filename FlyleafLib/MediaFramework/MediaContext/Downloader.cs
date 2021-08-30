@@ -87,7 +87,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 CurTime = 0;
                 DownloadPercentage = 0;
-                Duration = DecCtx.VideoDemuxer.IsLive ? 0 : DecCtx.VideoDemuxer.Duration;
+
+                Demuxer Demuxer = !DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer : DecCtx.AudioDemuxer;
+                Duration = Demuxer.IsLive ? 0 : Demuxer.Duration;
                 downPercentageFactor = Duration / 100.0;
 
                 return null;
@@ -107,7 +109,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     { OnDownloadCompleted(false); return; }
 
                 if (useRecommendedExtension)
-                    filename = $"{filename}.{DecCtx.VideoDemuxer.Extension}";
+                    filename = $"{filename}.{(!DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer.Extension : DecCtx.AudioDemuxer.Extension)}";
 
                 int ret = Remuxer.Open(filename);
                 if (ret != 0)
@@ -155,11 +157,19 @@ namespace FlyleafLib.MediaFramework.MediaContext
         {
             if (!Remuxer.HasStreams) { OnDownloadCompleted(false); return; }
 
+            // Don't allow audio to change our duration without video (TBR: requires timestamp of videodemuxer to wait)
+            if (!DecCtx.VideoDemuxer.Disposed && !DecCtx.AudioDemuxer.Disposed)
+                DecCtx.AudioDemuxer.Config.BufferDuration = 100 * 10000;
+
             DecCtx.Start();
 
-            long startTime = DecCtx.VideoDemuxer.hlsCtx == null ? DecCtx.VideoDemuxer.StartTime : DecCtx.VideoDemuxer.hlsCtx->first_timestamp * 10;
+            Demuxer Demuxer = !DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer : DecCtx.AudioDemuxer;
+            long startTime = Demuxer.hlsCtx == null ? Demuxer.StartTime : Demuxer.hlsCtx->first_timestamp * 10;
+            Duration = Demuxer.IsLive ? 0 : Demuxer.Duration;
+            downPercentageFactor = Duration / 100.0;
 
-            Demuxer Demuxer = DecCtx.VideoDemuxer;
+            long startedAt = DateTime.UtcNow.Ticks;
+            long secondTicks = startedAt;
 
             do
             {
@@ -173,7 +183,11 @@ namespace FlyleafLib.MediaFramework.MediaContext
                         if (Demuxer.Status == Status.Ended)
                         {
                             Status = Status.Ended;
-                            if (Demuxer.Interrupter.Interrupted == 0) DownloadPercentage = 100;
+                            if (Demuxer.Interrupter.Interrupted == 0)
+                            { 
+                                CurTime = _Duration;
+                                DownloadPercentage = 100;
+                            }
                             break;
                         }
                         else if (!Demuxer.IsRunning)
@@ -205,20 +219,36 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 }
 
                 bool isAudio = false;
-                Demuxer.Packets.TryDequeue(out IntPtr pktPtr);
-                if (pktPtr == IntPtr.Zero)
+                IntPtr pktPtr;
+
+                if (Demuxer.Type == MediaType.Video)
                 {
-                    DecCtx.AudioDemuxer.Packets.TryDequeue(out pktPtr);
+                    Demuxer.Packets.TryDequeue(out pktPtr);
+                    if (pktPtr == IntPtr.Zero)
+                    {
+                        DecCtx.AudioDemuxer.Packets.TryDequeue(out pktPtr);
+                        isAudio = true;
+                    }
+                }
+                else
+                {
+                    Demuxer.Packets.TryDequeue(out pktPtr);
                     isAudio = true;
                 }
 
                 AVPacket* packet = (AVPacket*) pktPtr;
 
-                if (packet->dts > 0 && !isAudio)
+                long curDT = DateTime.UtcNow.Ticks;
+                if (curDT - secondTicks > 1000 * 10000 && (!isAudio || DecCtx.VideoDemuxer.Disposed))
                 {
-                    double curTime = (packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - startTime;
-                    if (_Duration > 0) DownloadPercentage = curTime / downPercentageFactor;
-                    CurTime = (long) curTime;
+                    secondTicks = curDT;
+
+                    if (Demuxer.hlsCtx != null)
+                        CurTime = (long) ((packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - startTime);
+                    else
+                        CurTime = Demuxer.CurTime + Demuxer.BufferedDuration;
+
+                    if (_Duration > 0) DownloadPercentage = CurTime / downPercentageFactor;
                 }
 
                 Remuxer.Write(packet, isAudio);

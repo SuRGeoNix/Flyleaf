@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -9,6 +8,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml;
 using System.Xml.Schema;
@@ -106,6 +106,35 @@ namespace FlyleafLib
             }
         }
 
+        public static string FindNextAvailableFile(string fileName)
+        {
+            if (!File.Exists(fileName)) return fileName;
+
+            string tmp = Path.Combine(Path.GetDirectoryName(fileName),Regex.Replace(Path.GetFileNameWithoutExtension(fileName), @"(.*) (\([0-9]+)\)$", "$1"));
+            string newName;
+
+            for (int i=1; i<101; i++)
+            {
+                newName = tmp  + " (" + i + ")" + Path.GetExtension(fileName);
+                if (!File.Exists(newName)) return newName;
+            }
+
+            return null;
+        }
+        public static string GetValidFileName(string name)  { return string.Join("_", name.Split(Path.GetInvalidFileNameChars())); }
+
+        public static string FileExistsBelow(string filename)
+        {
+            string current = Environment.CurrentDirectory;
+
+            while (current != null)
+            {
+                if (File.Exists(Path.Combine(current, filename))) return Path.Combine(current, filename);
+                current = Directory.GetParent(current)?.FullName;
+            }
+
+            return null;
+        }
         public static string GetUserDownloadPath() { try { return Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\").GetValue("{374DE290-123F-4565-9164-39C4925E467B}").ToString(); } catch (Exception) { return null; } }
 
         static List<PerformanceCounter> gpuCounters;

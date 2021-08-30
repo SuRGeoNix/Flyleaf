@@ -1,8 +1,8 @@
-﻿<Application x:Class="Wpf_Samples.App"
+﻿<Application x:Class="FlyleafPlayer.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:Wpf_Samples"
-             StartupUri="Sample5_ExportVideoFrames.xaml">
+             xmlns:local="clr-namespace:FlyleafPlayer"
+             StartupUri="MainWindow.xaml">
     <Application.Resources>
          
     </Application.Resources>

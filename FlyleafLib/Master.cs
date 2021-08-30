@@ -32,11 +32,6 @@ namespace FlyleafLib
         /// </summary>
         public static Dictionary<int, Player>   Players             { get; }
 
-        /// <summary>
-        /// Prevent auto dispose of the player during window close/unload
-        /// </summary>
-        public static bool                      PreventAutoDispose  { get; set; }
-
         internal static void DisposePlayer(Player player)
         {
             if (player == null) return;

@@ -126,7 +126,6 @@ namespace FlyleafLib.Controls.WPF
             {
                 if (disposed) return;
 
-                //System.Diagnostics.Debug.WriteLine("Flyleaf_WPF_Dispose");
                 WindowFront?.Close();
                 Player?.Dispose();
 
@@ -137,9 +136,6 @@ namespace FlyleafLib.Controls.WPF
                 Content = null;
                 DataContext = null;
                 disposed = true;
-                //System.Diagnostics.Debug.WriteLine("Flyleaf_WPF_Disposed");
-
-                
             }
         }
         bool disposed;
@@ -228,7 +224,7 @@ namespace FlyleafLib.Controls.WPF
             VideoView.FontFamily  = FontFamily;
             VideoView.FontSize    = FontSize;
 
-            Unloaded += (o, e) => { if (!Master.PreventAutoDispose) Dispose(); };
+            Unloaded += (o, e) => { Dispose(); };
 
             // Keys (WFH will work for backwindow's key events) | both WPF
             if (EnableKeyBindings)

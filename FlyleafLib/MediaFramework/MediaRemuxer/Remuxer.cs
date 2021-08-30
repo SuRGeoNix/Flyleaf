@@ -13,7 +13,7 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
         public int          UniqueId        { get; set; }
         public bool         Disposed        { get; private set; } = true;
         public string       Filename        { get; private set; }
-        public bool         HasStreams      => mapInOutStreams.Count > 0;
+        public bool         HasStreams      => mapInOutStreams2.Count > 0 || mapInOutStreams.Count > 0;
         public bool         HeaderWritten   { get; private set; }
 
 
@@ -106,7 +106,7 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
 
         public int WriteHeader()
         {
-            if (mapInOutStreams.Count == 0) throw new Exception("No streams have been configured for the remuxer");
+            if (!HasStreams) throw new Exception("No streams have been configured for the remuxer");
 
             int ret;
 

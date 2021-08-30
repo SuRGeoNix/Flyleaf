@@ -35,7 +35,7 @@ namespace FlyleafLib.MediaPlayer
         /// Flyleaf Control (WinForms)
         /// </summary>
         public Flyleaf          Control         { get => _Control; set { InitializeControl1(_Control, value); } }
-        Flyleaf _Control;
+        internal Flyleaf _Control;
 
         /// <summary>
         /// Information about the current opened audio
@@ -469,7 +469,7 @@ namespace FlyleafLib.MediaPlayer
 
                 if (e.Success)
                 {
-                    var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : VideoDemuxer;
+                    var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
                     Duration= curDemuxer.Duration;
                     IsLive  = curDemuxer.IsLive;
                 }
@@ -708,10 +708,9 @@ namespace FlyleafLib.MediaPlayer
             InputOpenedArgs args;
             long syncMs = decoder.GetCurTimeMs();
 
-            if (input is VideoInput) { isVideoSwitch = true; requiresBuffering = true; }
-
             if (input is AudioInput)
             {
+                if (decoder.VideoStream == null) requiresBuffering = true;
                 isAudioSwitch = true;
                 Config.Audio.SetEnabled(true);
                 args = decoder.OpenAudioInput((AudioInput)input, defaultAudio);
@@ -720,6 +719,9 @@ namespace FlyleafLib.MediaPlayer
             }
             else if (input is VideoInput)
             {
+                isVideoSwitch = true;
+                requiresBuffering = true;
+
                 decoder.Stop();
                 args = decoder.OpenVideoInput((VideoInput)input, defaultVideo, defaultAudio, defaultSubtitles);
 
@@ -1157,42 +1159,33 @@ namespace FlyleafLib.MediaPlayer
 
         internal void DisposeInternal()
         {
-            Log("Player_Disposing");
-
             lock (this)
             {
                 if (disposed) return;
 
-                DisableNotifications = true;
-                Stop();
-
-                DisposeAudio(); 
-                decoder.Dispose();
-
-                decoder = null;
-                Config = null;
-
-                disposed = true;
-
-                if (_Control != null || VideoView != null)
+                try
                 {
-                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    DisableNotifications = true;
+                    Stop();
+
+                    DisposeAudio(); 
+                    decoder.Dispose();
+
+                    decoder = null;
+                    Config = null;
+
+                    disposed = true;
+
+                    if (_Control != null && VideoView != null && VideoView.WindowFront != null && !VideoView.WindowFront.Disposing)
                     {
-                        VideoView?.Dispose();
-                        VideoView = null;
+                        if (VideoView.WindowFront.Disposed) return;
 
-                        _Control.Player = null;
-                        _Control = null;
-
+                        _Control.BeginInvoke(new Action(() => { VideoView?.WindowFront?.Close(); GC.Collect(); } ));
+                        return;
+                    }
+                    else
                         GC.Collect();
-                        Log("Player_Disposed");
-                    }));
-                }
-                else
-                {
-                    GC.Collect();
-                    Log("Player_Disposed");
-                }
+                } catch (Exception) { }
             }
         }
         bool disposed = false;
@@ -1416,12 +1409,12 @@ namespace FlyleafLib.MediaPlayer
                         continue; 
                     }
 
-                    // Informs the application with CurTime / Bitrates when the second changes
-                    if (Math.Abs(elapsedTicks - elapsedSec) > 10000000 - 20000)
+                    // Every seconds informs the application with CurTime / Bitrates (invokes UI thread to ensure the updates will actually happen)
+                    if (Math.Abs(elapsedTicks - elapsedSec) > 10000000)
                     {
                         elapsedSec  = elapsedTicks;
 
-                        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                        Action refresh = new Action(() =>
                         {
                             try
                             {
@@ -1451,7 +1444,8 @@ namespace FlyleafLib.MediaPlayer
                                 else
                                     SetCurTime(elapsedTicks * Config.Player.Speed);
                             } catch (Exception) { }
-                        }));
+                        });
+                        _Control?.BeginInvoke(refresh);
                     }
 
                     Thread.Sleep(sleepMs);
@@ -1651,7 +1645,6 @@ namespace FlyleafLib.MediaPlayer
                 {
                     seeks.Clear();
                     requiresBuffering = true;
-                    //AudioDecoder.Pause(); // If we don't.. Start will be during stopping because of no demuxer is running
 
                     if (AudioDecoder.OnVideoDemuxer)
                     {
@@ -1704,25 +1697,43 @@ namespace FlyleafLib.MediaPlayer
 
                 if (aDistanceMs > 100)
                 {
-                    if (Math.Abs(elapsedTicks - elapsedSec) > 10000000 - 20000)
+                    if (Math.Abs(elapsedTicks - elapsedSec) > 10000000)
                     {
                         elapsedSec = elapsedTicks;
 
-                        long curTotalBytes  =  VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
-                        long curVideoBytes  =  VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
-                        long curAudioBytes  =  VideoDemuxer.AudioBytes + AudioDemuxer.AudioBytes + SubtitlesDemuxer.AudioBytes;
+                        Action refresh = new Action(() =>
+                        {
+                            try
+                            {
+                                if (Config == null) return;
 
-                        BitRate             = (curTotalBytes - totalBytes) * 8 / 1000.0;
-                        Video.BitRate       = (curVideoBytes - videoBytes) * 8 / 1000.0;
-                        Audio.BitRate       = (curAudioBytes - audioBytes) * 8 / 1000.0;
-                        totalBytes          =  curTotalBytes;
-                        videoBytes          =  curVideoBytes;
-                        audioBytes          =  curAudioBytes;
+                                if (Config.Player.Stats)
+                                {
+                                    long curTotalBytes  =  VideoDemuxer.TotalBytes + AudioDemuxer.TotalBytes + SubtitlesDemuxer.TotalBytes;
+                                    long curVideoBytes  =  VideoDemuxer.VideoBytes + AudioDemuxer.VideoBytes + SubtitlesDemuxer.VideoBytes;
+                                    long curAudioBytes  =  VideoDemuxer.AudioBytes + AudioDemuxer.AudioBytes + SubtitlesDemuxer.AudioBytes;
 
-                        if (decoder.AudioStream != null && decoder.AudioStream.Demuxer.HLSPlaylist != null)
-                            SetCurTimeHLS();
+                                    BitRate             = (curTotalBytes - totalBytes) * 8 / 1000.0;
+                                    Video.BitRate       = (curVideoBytes - videoBytes) * 8 / 1000.0;
+                                    Audio.BitRate       = (curAudioBytes - audioBytes) * 8 / 1000.0;
+                                    totalBytes          =  curTotalBytes;
+                                    videoBytes          =  curVideoBytes;
+                                    audioBytes          =  curAudioBytes;
+                                }
+
+                                BufferedDuration = decoder.AudioStream.Demuxer.BufferedDuration;
+                                if (decoder.AudioStream.Demuxer.HLSPlaylist != null)
+                                    SetCurTimeHLS();
+                                else
+                                    SetCurTime(elapsedTicks * Config.Player.Speed);
+
+                            } catch (Exception) { }
+                        });
+
+                        if (_Control != null)
+                            _Control?.BeginInvoke(refresh);
                         else
-                            SetCurTime(elapsedTicks * Config.Player.Speed);
+                            refresh();
                     }
 
                     Thread.Sleep(aDistanceMs-15);
@@ -1735,7 +1746,7 @@ namespace FlyleafLib.MediaPlayer
 
         private void SetCurTimeHLS()
         {
-            var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : VideoDemuxer;
+            var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
             Duration = curDemuxer.Duration;
             SetCurTime(curDemuxer.CurTime);
 
