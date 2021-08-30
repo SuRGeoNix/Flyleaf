@@ -18,15 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Flyleaf.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Resource Include="Flyleaf.ico" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

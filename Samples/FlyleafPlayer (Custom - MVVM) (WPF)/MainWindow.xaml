@@ -1,22 +1,20 @@
-﻿<Window x:Class="Wpf_Samples.Sample2_Custom"
+﻿<Window x:Class="FlyleafPlayer__Custom___MVVM_.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d"
+        xmlns:local="clr-namespace:FlyleafPlayer__Custom___MVVM_"
         
-        xmlns:local="clr-namespace:Wpf_Samples"
-        xmlns:flconv="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         
-        Title="Flyleaf Sample 2 (Custom)" Height="450" Width="800">
-    
+        mc:Ignorable="d"
+        Title="Flyleaf Player (Custom - MVVM)" Height="450" Width="800">
+
     <Window.Resources>
         <!-- Using main converters from the flyleaf's library -->
-        <flconv:StringToRationalConverter x:Key="StringToRational"/>
-        <flconv:TicksToTimeConverter x:Key="TicksToTime"/>
-        <flconv:TicksToSecondsConverter x:Key="TicksToSeconds" />
-        <flconv:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
+        <fl:TicksToTimeConverter x:Key="TicksToTime"/>
+        <fl:TicksToSecondsConverter x:Key="TicksToSeconds" />
+        <fl:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
     </Window.Resources>
     
     <Grid>
@@ -42,7 +40,7 @@
                 </StackPanel>
 
                 <Slider Grid.Row="2" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Player.Duration, Converter={StaticResource TicksToSeconds}}" IsMoveToPointEnabled="True"/>
-                
+
                 <StackPanel Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
                     <TextBlock Margin="10" TextAlignment="Right" Text="{Binding Player.CurTime, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Green"/>
                     <TextBlock Margin="10" TextAlignment="Right" Text="{Binding Player.Duration, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Orange"/>

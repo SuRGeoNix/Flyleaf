@@ -27,8 +27,6 @@ namespace FlyleafLib.Controls.WPF
 
         public FlyleafWindow(WindowsFormsHost windowsFormsHost)
         {
-            //System.Diagnostics.Debug.WriteLine("FlyleafWindow");
-
             Title               = "FlyleafWindow";
             Height              = 300;
             Width               = 300;
@@ -49,15 +47,12 @@ namespace FlyleafLib.Controls.WPF
 
         void WFH_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            //System.Diagnostics.Debug.WriteLine("WFH_DataContextChanged"); 
             if (e.NewValue == null) return;
             DataContext = e.NewValue;
         }
 
         void WFH_Unloaded(object sender, RoutedEventArgs e)
         {
-            //System.Diagnostics.Debug.WriteLine("WFH_Unloaded");
-            
             windowsFormsHost.SizeChanged    -= Wndhost_SizeChanged;
 
             if (WindowBack != null)
@@ -71,8 +66,6 @@ namespace FlyleafLib.Controls.WPF
 
         void WFH_Loaded(object sender, RoutedEventArgs e)
         {
-            //System.Diagnostics.Debug.WriteLine("WFH_Loaded");
-
             if (WindowBack != null)
             {
                 WindowBack.Closing          += Wndhost_Closing;
@@ -105,8 +98,6 @@ namespace FlyleafLib.Controls.WPF
 
         public void Wndhost_LocationChanged(object sender, EventArgs e)
         {
-            //System.Diagnostics.Debug.WriteLine("Wndhost_LocationChanged");
-
             var locationFromScreen  = windowsFormsHost.PointToScreen(_zeroPoint);
             var source              = PresentationSource.FromVisual(WindowBack);
             var targetPoints        = source.CompositionTarget.TransformFromDevice.Transform(locationFromScreen);
@@ -116,7 +107,6 @@ namespace FlyleafLib.Controls.WPF
 
         public void Wndhost_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            //System.Diagnostics.Debug.WriteLine("Wndhost_SizeChanged");
             var source = PresentationSource.FromVisual(WindowBack);
             if (source == null)
             {
@@ -132,60 +122,54 @@ namespace FlyleafLib.Controls.WPF
             Width                   = size.X;
         }
 
-        void Wndhost_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            //System.Diagnostics.Debug.WriteLine("Wndhost_Closing");
-
-            if (!Master.PreventAutoDispose) Dispose();
-        }
-
-        bool disposed = false;
+        public bool Disposed    { get; private set; }
+        public bool Disposing   { get; private set; }
         internal void Dispose()
         {
-            //System.Diagnostics.Debug.WriteLine("FlyleafWindow_Dispose");
+            if (Disposing) return;
+            Disposing = true;
 
             lock (this)
             {
-                if (disposed) return;
+                if (Disposed) return;
 
-                if (windowsFormsHost != null)
+                try
                 {
-                    windowsFormsHost.DataContextChanged -= WFH_DataContextChanged;
-                    windowsFormsHost.Loaded             -= WFH_Loaded;
-                    windowsFormsHost.Unloaded           -= WFH_Unloaded;
-                    windowsFormsHost.SizeChanged        -= Wndhost_SizeChanged;
-                }
+                    VideoView?.Dispose();
+                    VideoView = null;
 
-                if (WindowBack != null)
-                {
-                    WindowBack.Closing          -= Wndhost_Closing;
-                    WindowBack.LocationChanged  -= Wndhost_LocationChanged;
-                }
+                    if (windowsFormsHost != null)
+                    {
+                        windowsFormsHost.DataContextChanged -= WFH_DataContextChanged;
+                        windowsFormsHost.Loaded             -= WFH_Loaded;
+                        windowsFormsHost.Unloaded           -= WFH_Unloaded;
+                        windowsFormsHost.SizeChanged        -= Wndhost_SizeChanged;
+                    }
 
-                Resources.MergedDictionaries.Clear();
-                Resources.Clear();
-                Template.Resources.MergedDictionaries.Clear();
-                Content = null;
-                SetContent(null);
-                DataContext = null;
-                grid.Children.Clear();
-                windowsFormsHost?.Dispose();
-                WindowBack = null;
+                    if (WindowBack != null)
+                    {
+                        WindowBack.Closing          -= Wndhost_Closing;
+                        WindowBack.LocationChanged  -= Wndhost_LocationChanged;
+                    }
 
-                disposed = true;
+                    Resources.MergedDictionaries.Clear();
+                    Resources.Clear();
+                    Template.Resources.MergedDictionaries.Clear();
+                    Content = null;
+                    SetContent(null);
+                    DataContext = null;
+                    grid.Children.Clear();
+                    windowsFormsHost?.Dispose();
+                    WindowBack = null;
+                    Disposed = true;
+
+                    Close();
+                } catch (Exception) { }
             }
-            VideoView?.Dispose();
-            VideoView = null;
-
-            Close();
         }
 
-        private void FlyleafWindow_Closed(object sender, EventArgs e)
-        {
-            //System.Diagnostics.Debug.WriteLine("FlyleafWindow_Closed");
-
-            if (!Master.PreventAutoDispose) Dispose();
-        }
+        void Wndhost_Closing(object sender, System.ComponentModel.CancelEventArgs e) { Dispose(); }
+        private void FlyleafWindow_Closed(object sender, EventArgs e) { Dispose(); }
 
         protected override void OnKeyDown(KeyEventArgs e) { if (e.Key == Key.System && e.SystemKey == Key.F4) WindowBack?.Focus(); }
     }

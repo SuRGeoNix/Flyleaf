@@ -75,8 +75,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                         codecCtx->pkt_timebase  = stream.AVStream->time_base;
                         codecCtx->codec_id      = codec->id;
-
-                        ret = Setup(codec);
+                        
+                        try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
                         if (ret < 0)
                             return error = $"[{Type} Setup] {ret}";
 
@@ -142,7 +142,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 if (codecCtx != null)
                 {
-                    avcodec_flush_buffers(codecCtx);
+                    // TBR possible not required, also in case of image codec it will through an access violation
+                    //avcodec_flush_buffers(codecCtx);
                     avcodec_close(codecCtx);
                     fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
                 }

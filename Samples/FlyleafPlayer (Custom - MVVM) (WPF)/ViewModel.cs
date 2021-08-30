@@ -1,18 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 
 using FlyleafLib;
+using FlyleafLib.Controls;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
 
-using FlyleafWF = FlyleafLib.Controls.Flyleaf;
-
-namespace Wpf_Samples
+namespace FlyleafPlayer__Custom___MVVM_
 {
-    public class Sample2_ViewModel : INotifyPropertyChanged
+    public class ViewModel
     {
         #region Airspace / Windows / Controls / Events
         /// <summary>
@@ -33,7 +31,7 @@ namespace Wpf_Samples
         ///// <summary>
         ///// WindowsFormsHost child control (to catch events and resolve airspace issues)
         ///// </summary>
-        public FlyleafWF    WinFormsControl => Player.Control;
+        public Flyleaf      WinFormsControl => Player.Control;
         #endregion
 
         #region ViewModel's Properties
@@ -71,19 +69,29 @@ namespace Wpf_Samples
         #endregion
 
         #region Initialize
-        static string sampleVideo = (Environment.Is64BitProcess ? "../" : "") + "../../../../Sample.mp4";
+        public static string    SampleVideo     { get; set; } = Utils.FileExistsBelow("Sample.mp4");
 
         /// <summary>
         /// ViewMode's Constructor
         /// </summary>
-        public Sample2_ViewModel(Player player)
+        public ViewModel()
         {
-            Player = player;
+            // Registers FFmpeg Libraries
+            Master.RegisterFFmpeg(":2");
+
+            // Prepares Player's Configuration
+            Config config = new Config();
+            config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
+            config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
+
+            // Initializes the Player
+            Player = new Player(config);
+            Player.OpenCompleted += Player_OpenCompleted;
+
             OpenVideo   = new RelayCommand(OpenVideoAction);
             PauseVideo  = new RelayCommand(PauseVideoAction);
             PlayVideo   = new RelayCommand(PlayVideoAction);
-            UserInput   = sampleVideo;
-            Player.OpenCompleted += Player_OpenCompleted;
+            UserInput   = SampleVideo;
         }
         #endregion
 
@@ -91,7 +99,7 @@ namespace Wpf_Samples
         public ICommand     OpenVideo   { get ; set; }
         public ICommand     PauseVideo  { get ; set; }
         public ICommand     PlayVideo   { get ; set; }
-        public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = sampleVideo; Player.OpenAsync(UserInput); }
+        public void OpenVideoAction(object param)   { if (string.IsNullOrEmpty(UserInput)) UserInput = SampleVideo; Player.OpenAsync(UserInput); }
         public void PauseVideoAction(object param)  { Player.Pause(); }
         public void PlayVideoAction(object param)   { Player.Play(); }
         #endregion

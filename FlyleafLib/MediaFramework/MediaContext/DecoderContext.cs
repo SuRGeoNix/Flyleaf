@@ -313,7 +313,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         private VideoInputOpenedArgs OpenVideoInput(VideoInput input, bool defaultVideo, bool defaultAudio, bool defaultSubtitles, bool isUserInput)
         {
-            if (!isUserInput) InitializeSwitch();
+            if (!isUserInput && VideoInput != null && EnableDecoding) InitializeSwitch(); // EnableDecoding required cause it disposes the decoders/demuxers (TBR)
 
             VideoInputOpenedArgs result = null;
             VideoInput oldInput = VideoInput;
@@ -426,7 +426,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 if (defaultAudio)
                 {
-                    AudioStream audioStream = SuggestAudio(VideoStream == null ? VideoDemuxer.AudioStreams : AudioDemuxer.AudioStreams);
+                    AudioStream audioStream = SuggestAudio(AudioDemuxer.AudioStreams);
                     if (audioStream != null)
                     {
                         audioStream.AudioInput = input;
@@ -495,12 +495,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             Demuxer demuxer = input is VideoInput ? VideoDemuxer : (input is AudioInput ? AudioDemuxer : SubtitlesDemuxer);
 
-            if (VideoStream == null && input is AudioInput)
-            {
-                Log("Opening audio input on video demuxer");
-                demuxer = VideoDemuxer;
-            }
-
             if (input.IOStream != null)
                 res = demuxer.Open(input.IOStream);
             else
@@ -535,9 +529,24 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     if (stream.Demuxer.Type == MediaType.Video)
                     {
                         if (stream.Type == MediaType.Audio && VideoStream != null)
+                        {
+                            if (!EnableDecoding) AudioDemuxer.Dispose();
                             onClose(AudioInput);
+                        }
                         else if (stream.Type == MediaType.Subs)
+                        {
+                            if (!EnableDecoding) SubtitlesDemuxer.Dispose();
                             onClose(SubtitlesInput);
+                        }
+                    }
+                    else if (!EnableDecoding)
+                    {
+                        // Disable embeded audio when enabling external audio (TBR)
+                        if (stream.Demuxer.Type == MediaType.Audio && stream.Type == MediaType.Audio && AudioStream != null && AudioStream.Demuxer.Type == MediaType.Video)
+                        {
+                            foreach (var aStream in VideoDemuxer.AudioStreams)
+                                VideoDemuxer.DisableStream(aStream);
+                        }
                     }
 
                     // Open Codec / Enable on demuxer
@@ -709,7 +718,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 ticks = startTime;
                 foreward = true;
             }
-            else if (ticks > startTime + VideoDemuxer.Duration - (50 * 10000)) // Should check AudioDemuxer in case of no video
+            else if (ticks > startTime + (!VideoDemuxer.Disposed ? VideoDemuxer.Duration : AudioDemuxer.Duration) - (50 * 10000))
             {
                 ticks = startTime + demuxer.Duration - (50 * 10000);
                 foreward = false;
