@@ -5,8 +5,9 @@ namespace FFmpeg.AutoGen
     /// <summary>
     /// Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
     /// </summary>
-    public unsafe partial class ffmpegEx
+    internal unsafe partial class ffmpegEx
     {
+        #pragma warning disable CS0649
         #region hls demuxer
         public unsafe struct HLSContext
         {
@@ -154,29 +155,29 @@ namespace FFmpeg.AutoGen
             public AVClass* @class;
             /* user data */
             public AVFormatContext *stream;
-            /** raw packet size, including FEC if present */
+            /* raw packet size, including FEC if present */
             public int raw_packet_size;
 
             public long pos47_full;
 
-            /** if true, all pids are analyzed to find streams */
+            /* if true, all pids are analyzed to find streams */
             public int auto_guess;
 
-            /** compute exact PCR for each transport stream packet */
+            /* compute exact PCR for each transport stream packet */
             public int mpeg2ts_compute_pcr;
 
-            /** fix dvb teletext pts                                 */
+            /* fix dvb teletext pts                                 */
             public int fix_teletext_pts;
 
-            public long cur_pcr;    /**< used to estimate the exact PCR */
-            public long pcr_incr;   /**< used to estimate the exact PCR */
+            public long cur_pcr;    /*< used to estimate the exact PCR */
+            public long pcr_incr;   /*< used to estimate the exact PCR */
 
             /* data needed to handle file based ts */
-            /** stop parsing loop */
+            /* stop parsing loop */
             public int stop_parse;
-            /** packet containing Audio/Video data */
+            /* packet containing Audio/Video data */
             public AVPacket *pkt;
-            /** to detect seek */
+            /* to detect seek */
             public long last_pos;
 
             public int skip_changes;
@@ -191,12 +192,12 @@ namespace FFmpeg.AutoGen
             /******************************************/
             /* private mpegts data */
             /* scan context */
-            /** structure to keep track of Program->pids mapping */
+            /* structure to keep track of Program->pids mapping */
             //public uint nb_prg;
             //public struct Program *prg;
 
             //public int8_t crc_validity[NB_PID_MAX];
-            ///** filters for various streams specified by PMT + for the PAT and PMT */
+            /* filters for various streams specified by PMT + for the PAT and PMT */
             //public MpegTSFilter *pids[NB_PID_MAX];
             //public int current_pid;
 
@@ -290,5 +291,6 @@ namespace FFmpeg.AutoGen
             public static implicit operator int[](int_array16 @struct) => @struct.ToArray();
         }
         #endregion
+        #pragma warning restore CS0649
     }
 }

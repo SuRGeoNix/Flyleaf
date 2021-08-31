@@ -6,7 +6,7 @@
     <RootNamespace>Wpf_Samples</RootNamespace>
     <UseWPF>true</UseWPF>
     <AssemblyName>FlyleafPlayer</AssemblyName>
-    <ApplicationIcon>Flyleaf.ico</ApplicationIcon>
+    <ApplicationIcon></ApplicationIcon>
     <Platforms>x64;x86</Platforms>
     <Authors>SuRGeoNix</Authors>
     <Company>SuRGeoNix</Company>

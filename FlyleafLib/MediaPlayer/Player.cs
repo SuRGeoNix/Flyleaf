@@ -797,7 +797,7 @@ namespace FlyleafLib.MediaPlayer
         /// Opens an existing media stream (audio/subtitles/video)
         /// </summary>
         /// <param name="stream">An existing Player's media stream</param>
-        /// <param name="resync">Whether to force resync with other streams/param>
+        /// <param name="resync">Whether to force resync with other streams</param>
         /// <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
         /// <returns></returns>
         public OpenStreamCompletedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
@@ -830,7 +830,7 @@ namespace FlyleafLib.MediaPlayer
         /// You can get the results from <see cref="OpenStreamCompleted"/>
         /// </summary>
         /// <param name="stream">An existing Player's media stream</param>
-        /// <param name="resync">Whether to force resync with other streams/param>
+        /// <param name="resync">Whether to force resync with other streams</param>
         /// <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
         public void OpenAsync(StreamBase stream, bool resync = true, bool defaultAudio = true)
         {

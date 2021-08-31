@@ -14,7 +14,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
     {
         public Demuxer                      Demuxer             { get; internal set; }
         public AVStream*                    AVStream            { get; internal set; }
-        public HLSPlaylist*                 HLSPlaylist         { get; internal set; }
+        internal HLSPlaylist*               HLSPlaylist         { get; set; }
         public int                          StreamIndex         { get; internal set; } = -1;
         public double                       Timebase            { get; internal set; }
 
