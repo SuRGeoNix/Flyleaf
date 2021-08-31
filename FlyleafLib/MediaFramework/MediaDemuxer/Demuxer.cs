@@ -64,7 +64,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public SubtitlesStream          SubtitlesStream { get; private set; }
 
         // Audio/Video Stream's HLSPlaylist
-        public HLSPlaylist*             HLSPlaylist     { get; private set; }
+        internal HLSPlaylist*           HLSPlaylist     { get; private set; }
         
         // Media Packets
         public ConcurrentQueue<IntPtr>  Packets         { get; private set; } = new ConcurrentQueue<IntPtr>();
@@ -88,7 +88,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         #region Constructor / Declaration
         public AVPacket*        packet;
         AVFormatContext*        fmtCtx;
-        public HLSContext*      hlsCtx;
+        internal HLSContext*    hlsCtx;
         long                    hlsPrevFirstTimestamp = -1;
         long                    lastKnownPtsTimestamp = AV_NOPTS_VALUE;
 

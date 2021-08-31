@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+
 using FFmpeg.AutoGen;
+
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaRemuxer;
 
@@ -70,10 +72,13 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
 
         /// <summary>
-        /// Opens the demuxer(s) and fills streams info
+        /// Opens a new media file (audio/video) and prepares it for download (blocking)
         /// </summary>
-        /// <param name="url">The filename or url to open</param>
-        /// <returns>Null on success or error message on failure</returns>
+        /// <param name="url">Media file's url</param>
+        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <returns></returns>
         public string Open(string url, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true)
         {
             lock (lockActions)

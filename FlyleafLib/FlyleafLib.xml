@@ -326,10 +326,13 @@
         </member>
         <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Open(System.String,System.Boolean,System.Boolean,System.Boolean)">
             <summary>
-            Opens the demuxer(s) and fills streams info
+            Opens a new media file (audio/video) and prepares it for download (blocking)
             </summary>
-            <param name="url">The filename or url to open</param>
-            <returns>Null on success or error message on failure</returns>
+            <param name="url">Media file's url</param>
+            <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+            <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+            <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+            <returns></returns>
         </member>
         <member name="M:FlyleafLib.MediaFramework.MediaContext.Downloader.Download(System.String@,System.Boolean)">
             <summary>
@@ -631,8 +634,24 @@
             <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
             <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
         </member>
-        <!-- Badly formed XML comment ignored for member "M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaFramework.MediaStream.StreamBase,System.Boolean,System.Boolean)" -->
-        <!-- Badly formed XML comment ignored for member "M:FlyleafLib.MediaPlayer.Player.OpenAsync(FlyleafLib.MediaFramework.MediaStream.StreamBase,System.Boolean,System.Boolean)" -->
+        <member name="M:FlyleafLib.MediaPlayer.Player.Open(FlyleafLib.MediaFramework.MediaStream.StreamBase,System.Boolean,System.Boolean)">
+            <summary>
+            Opens an existing media stream (audio/subtitles/video)
+            </summary>
+            <param name="stream">An existing Player's media stream</param>
+            <param name="resync">Whether to force resync with other streams</param>
+            <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
+            <returns></returns>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.OpenAsync(FlyleafLib.MediaFramework.MediaStream.StreamBase,System.Boolean,System.Boolean)">
+            <summary>
+            Opens an existing media stream (audio/subtitles/video) without blocking
+            You can get the results from <see cref="E:FlyleafLib.MediaPlayer.Player.OpenStreamCompleted"/>
+            </summary>
+            <param name="stream">An existing Player's media stream</param>
+            <param name="resync">Whether to force resync with other streams</param>
+            <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
+        </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Play">
             <summary>
             Plays AVS streams
@@ -680,28 +699,6 @@
             <summary>
             Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
             </summary>
-        </member>
-        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.raw_packet_size">
-            raw packet size, including FEC if present 
-        </member>
-        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.auto_guess">
-            if true, all pids are analyzed to find streams 
-        </member>
-        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.mpeg2ts_compute_pcr">
-            compute exact PCR for each transport stream packet 
-        </member>
-        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.fix_teletext_pts">
-            fix dvb teletext pts                                 
-        </member>
-        <!-- Badly formed XML comment ignored for member "F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.pcr_incr" -->
-        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.stop_parse">
-            stop parsing loop 
-        </member>
-        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.pkt">
-            packet containing Audio/Video data 
-        </member>
-        <member name="F:FFmpeg.AutoGen.ffmpegEx.MpegTSContext.last_pos">
-            to detect seek 
         </member>
     </members>
 </doc>
