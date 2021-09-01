@@ -464,7 +464,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public VideoFrame GetFrame(int index) // Zero-based frame index
         {
             int ret;
-            long frameTimestamp = (long) (index * (10000000 / av_q2d(VideoStream.AVStream->avg_frame_rate))); // Calculation of FrameX timestamp (based on fps/avgFrameDuration)
+            long frameTimestamp = (long) (index * (10000000 / VideoStream.Fps)); // Calculation of FrameX timestamp (based on fps/avgFrameDuration)
             //System.Diagnostics.Debug.WriteLine($"Searching for {Utils.TicksToTime(frameTimestamp)}");
 
             // Seeking at frameTimestamp or previous I/Key frame and flushing codec
@@ -518,6 +518,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 {
                     // Receive all available frames for the decoder
                     ret = avcodec_receive_frame(codecCtx, frame);
+                    if (ret == AVERROR(EAGAIN)) return GetNextFrame();
                     if (ret != 0) { av_frame_unref(frame); return ret; }
 
                     // Get frame pts (prefer best_effort_timestamp)

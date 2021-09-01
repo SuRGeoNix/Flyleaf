@@ -27,6 +27,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public AVPixFmtDescriptor*          PixelFormatDesc     { get; set; }
         public string                       PixelFormatStr      { get; set; }
         public PixelFormatType              PixelFormatType     { get; set; }
+        public int                          TotalFrames         { get; set; }
         public int                          Width               { get; set; }
 
         public override string GetDump() { return $"[{Type} #{StreamIndex}] {Codec} {PixelFormatStr} {Width}x{Height} @ {Fps.ToString("#.###")} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
@@ -40,7 +41,8 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
             Width           = st->codecpar->width;
             Height          = st->codecpar->height;
-            Fps             = av_q2d(st->r_frame_rate);
+            Fps             = av_q2d(st->avg_frame_rate) > 0 ? av_q2d(st->avg_frame_rate) : av_q2d(st->r_frame_rate);
+            TotalFrames     = st->duration > 0 ? (int) (st->duration * Timebase / (10000000 / Fps)) : (int) (demuxer.Duration / (10000000 / Fps));
 
             var gcd = Utils.GCD(Width, Height);
             if (gcd != 0)
