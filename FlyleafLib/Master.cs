@@ -5,6 +5,7 @@ using System.IO;
 
 using static FFmpeg.AutoGen.ffmpeg;
 
+using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins;
 
@@ -18,7 +19,10 @@ namespace FlyleafLib
         static Master()
         {
             Players     = new Dictionary<int, Player>();
+
             AudioMaster = new AudioMaster();
+            GPUAdapters = Renderer.GetAdapters();
+
             PluginHandler.LoadAssemblies();
         }
 
@@ -26,6 +30,12 @@ namespace FlyleafLib
         /// Manages audio devices, volume &amp; mute
         /// </summary>
         public static AudioMaster               AudioMaster         { get; }
+
+        /// <summary>
+        /// List of GPU Adpaters luid/description <see cref="Config.VideoConfig.GPUAdapteLuid"/>
+        /// </summary>
+        public static Dictionary<long, GPUAdapter>
+                                                GPUAdapters         { get; }
 
         /// <summary>
         /// Holds player instances

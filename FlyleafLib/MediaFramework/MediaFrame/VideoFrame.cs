@@ -1,11 +1,11 @@
 ﻿using System;
 
-using SharpDX.Direct3D11;
+using Vortice.Direct3D11;
 
 namespace FlyleafLib.MediaFramework.MediaFrame
 {
     public class VideoFrame : FrameBase
     {
-        public Texture2D[]  textures;
+        public ID3D11Texture2D[]  textures;
     }
 }

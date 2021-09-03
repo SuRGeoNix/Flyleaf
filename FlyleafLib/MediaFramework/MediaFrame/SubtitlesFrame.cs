@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-
-using SharpDX;
+using System.Drawing;
 
 namespace FlyleafLib.MediaFramework.MediaFrame
 {

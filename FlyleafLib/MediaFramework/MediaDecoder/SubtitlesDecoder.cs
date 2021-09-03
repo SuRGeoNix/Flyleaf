@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Globalization;
 using System.Threading;
-
-using SharpDX;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -11,7 +11,6 @@ using static FFmpeg.AutoGen.AVCodecID;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
-using System.Collections.Concurrent;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
@@ -240,7 +239,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 if (color.from == -1) break;
 
                                 color.len = pos - color.from;
-                                if ((Color) color.value != Color.Transparent) styles.Add(color);
+                                if (color.value != Color.Transparent) styles.Add(color);
                                 color = new SubStyle(SubStyles.COLOR);                                
                             }
                             else
@@ -268,7 +267,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                     blue = int.Parse(hexColor.Substring(hexColor.Length-2, 2), NumberStyles.HexNumber);
                                 }
 
-                                color.value = new Color(red, green, blue);
+                                color.value = Color.FromArgb(255, red, green, blue);
                             }
                             break;
 
