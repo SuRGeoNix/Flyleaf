@@ -5,10 +5,8 @@
 
 >Notes<br/>
 >1. FlyleafLib's releases will be on [NuGet](https://www.nuget.org/packages?q=flyleaf)
->2. You can find a compiled sample version on [GitHub releases](https://github.com/SuRGeoNix/Flyleaf/releases)
->3. Start your own custom WPF MVVM based on [Sample2_Custom](https://github.com/SuRGeoNix/Flyleaf/tree/master/Wpf%20Samples)
->4. To create your own custom control only FlyleafLib package is required
->5. Current documentation on [Wiki](https://github.com/SuRGeoNix/Flyleaf/wiki) and Samples within the solution
+>2. Compiled samples will be on [GitHub releases](https://github.com/SuRGeoNix/Flyleaf/releases)
+>3. Documentation will be on [Wiki](https://github.com/SuRGeoNix/Flyleaf/wiki) and [Samples](https://github.com/SuRGeoNix/Flyleaf/tree/master/Samples) within the solution
 
 ### [Supported Features]
 * ***Light***: for GPU/CPU/RAM as it supports video acceleration, post-processing with pixel shaders and it is coded from scratch
