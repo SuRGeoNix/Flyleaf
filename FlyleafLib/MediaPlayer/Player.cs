@@ -1266,12 +1266,14 @@ namespace FlyleafLib.MediaPlayer
                     ShowOneFrame();
                     if (seeks.Count != 0) return false; 
 
-                    gotVideo = true;
                     showOneFrame = false; 
                 }
 
-                if (!showOneFrame && vFrame == null && VideoDecoder.Frames.Count != 0)
+                if (vFrame == null && VideoDecoder.Frames.Count != 0)
+                {
                     VideoDecoder.Frames.TryDequeue(out vFrame);
+                    if (!showOneFrame) gotVideo = true;
+                }
 
                 if (!gotAudio && aFrame == null && AudioDecoder.Frames.Count != 0)
                     AudioDecoder.Frames.TryDequeue(out aFrame);

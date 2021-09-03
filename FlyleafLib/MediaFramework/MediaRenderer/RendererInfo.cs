@@ -1,5 +1,7 @@
 ﻿using System;
 
+using Vortice.DXGI;
+
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public unsafe class RendererInfo
@@ -14,7 +16,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public int      ScreenHeight    { get; set; }
         public System.Drawing.Rectangle ScreenBounds { get; set; }
 
-        public static void Fill(Renderer renderer, SharpDX.DXGI.Adapter adapter)
+        public static void Fill(Renderer renderer, IDXGIAdapter1 adapter)
         {
             RendererInfo ri = new RendererInfo();
 
@@ -22,20 +24,28 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             ri.SystemMemory = (UInt64)((IntPtr)adapter.Description.DedicatedSystemMemory).ToPointer();
             ri.VideoMemory  = (UInt64)((IntPtr)adapter.Description.DedicatedVideoMemory).ToPointer();
             ri.SharedMemory = (UInt64)((IntPtr)adapter.Description.SharedSystemMemory).ToPointer();
-            ri.Outputs      = adapter.Outputs.Length;
 
             int maxVerticalResolution = 0;
-            foreach(var outputv in adapter.Outputs)
-                if (maxVerticalResolution < outputv.Description.DesktopBounds.Bottom - outputv.Description.DesktopBounds.Top) maxVerticalResolution = outputv.Description.DesktopBounds.Bottom - outputv.Description.DesktopBounds.Top;
+            for(int i=0; ; i++)
+            {
+                var res = adapter.EnumOutputs(i, out IDXGIOutput output);
+                if (output == null) break;
+
+                var bounds = output.Description.DesktopCoordinates;
+
+                if (maxVerticalResolution < bounds.Bottom - bounds.Top) maxVerticalResolution = bounds.Bottom - bounds.Top;
+
+                if (i == 0)
+                {
+                    ri.OutputName   = output.Description.DeviceName;
+                    ri.ScreenBounds = new System.Drawing.Rectangle(new System.Drawing.Point(bounds.Top, bounds.Left), new System.Drawing.Size(bounds.Right - bounds.Left, bounds.Bottom - bounds.Top));
+                    ri.ScreenWidth  = bounds.Right - bounds.Left;
+                    ri.ScreenHeight = bounds.Bottom - bounds.Top;
+                }
+
+                output.Dispose();
+            }
             renderer.Config.Video.MaxVerticalResolutionAuto = maxVerticalResolution;
-
-            SharpDX.DXGI.Output output = adapter.Outputs[0];
-            var bounds = output.Description.DesktopBounds;
-
-            ri.OutputName   = output.Description.DeviceName;
-            ri.ScreenBounds = new System.Drawing.Rectangle(new System.Drawing.Point(bounds.Top, bounds.Left), new System.Drawing.Size(bounds.Right - bounds.Left, bounds.Bottom - bounds.Top));
-            ri.ScreenWidth  = output.Description.DesktopBounds.Right  - output.Description.DesktopBounds.Left;
-            ri.ScreenHeight = output.Description.DesktopBounds.Bottom - output.Description.DesktopBounds.Top;
 
             renderer.Info = ri;
         }
@@ -88,7 +98,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public override string ToString()
         {
             var gcd = Utils.GCD(ScreenWidth, ScreenHeight);
-            return $"[Adapter] {AdapterDesc} System: {GetBytesReadable(SystemMemory)} Video: {GetBytesReadable(VideoMemory)} Shared: {GetBytesReadable(SharedMemory)}\r\n[Output ] {OutputName} (X={ScreenBounds.X}, Y={ScreenBounds.Y}) {ScreenWidth}x{ScreenHeight} [{ScreenWidth/gcd}:{ScreenHeight/gcd}]";
+            return $"[Adapter] {AdapterDesc} System: {GetBytesReadable(SystemMemory)} Video: {GetBytesReadable(VideoMemory)} Shared: {GetBytesReadable(SharedMemory)}\r\n[Output ] {OutputName} (X={ScreenBounds.X}, Y={ScreenBounds.Y}) {ScreenWidth}x{ScreenHeight}" + (gcd > 0 ? $" [{ScreenWidth/gcd}:{ScreenHeight/gcd}]" : "");
         }
     }
 }

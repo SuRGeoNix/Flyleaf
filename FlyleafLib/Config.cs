@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 
-using SharpDX;
-
 using FlyleafLib.MediaPlayer;
 
 namespace FlyleafLib
@@ -270,6 +268,12 @@ namespace FlyleafLib
             public VideoConfig Clone() { return (VideoConfig) MemberwiseClone(); }
 
             /// <summary>
+            /// Forces the decoder/renderer to use the specified GPU adapter / device luid <see cref="Master.GPUAdapters"/>
+            /// Should be set before the decoder's initialization and it cannot be changed after
+            /// </summary>
+            public long             GPUAdapteLuid           { get; set; } = -1;
+
+            /// <summary>
             /// Video aspect ratio
             /// </summary>
             public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value)) player?.renderer?.SetViewport(); } }
@@ -285,18 +289,15 @@ namespace FlyleafLib
             /// Background color of the player's control
             /// </summary>
             public System.Windows.Media.Color
-                                    BackgroundColor             { get => Utils.SharpDXToWpfColor(_BackgroundColor);  set { Set(ref _BackgroundColor, Utils.WpfToSharpDXColor(value)); player?.renderer?.PresentFrame(); } }
-            internal Color _BackgroundColor = Color.Black;
+                                    BackgroundColor             { get => Utils.WinFormsToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, Utils.WPFToWinFormsColor(value)); player?.renderer?.PresentFrame(); } }
+            internal System.Drawing.Color _BackgroundColor = System.Drawing.Color.Black;
 
             /// <summary>
             /// Whether video should be enabled or not
             /// </summary>
-            public bool             Enabled             { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.EnableVideo(); else player?.DisableVideo(); } }
+            public bool             Enabled                     { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.EnableVideo(); else player?.DisableVideo(); } }
             bool    _Enabled = true;
             internal void SetEnabled(bool enabled) { Set(ref _Enabled, enabled, true, nameof(Enabled)); }
-            
-            //public bool             Enabled                     { get => _Enabled; set { Set(ref _Enabled, value); } }
-            //bool    _Enabled = true;
 
             /// <summary>
             /// The max resolution that the current system can achieve and will be used from the input/stream suggester plugins

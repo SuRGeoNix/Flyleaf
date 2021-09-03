@@ -6,16 +6,16 @@ using System.Drawing.Imaging;
 using System.Threading;
 using System.Windows.Forms;
 
-using SharpDX;
-using SharpDX.DXGI;
-using SharpDX.Direct3D11;
+using SharpGen.Runtime;
 
-using Device        = SharpDX.Direct3D11.Device;
-using Resource      = SharpDX.Direct3D11.Resource;
-using Buffer        = SharpDX.Direct3D11.Buffer;
-using InputElement  = SharpDX.Direct3D11.InputElement;
-using Filter        = SharpDX.Direct3D11.Filter;
-using DeviceContext = SharpDX.Direct3D11.DeviceContext;
+using Vortice.DXGI;
+using Vortice.DXGI.Debug;
+using Vortice.Direct3D;
+using Vortice.Direct3D11;
+using Vortice.Mathematics;
+
+using static Vortice.Direct3D11.D3D11;
+using static Vortice.DXGI.DXGI;
 
 using FlyleafLib.MediaFramework.MediaFrame;
 using VideoDecoder = FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder;
@@ -28,7 +28,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public int              UniqueId        { get; private set; }
 
         public Control          Control         { get; private set; }
-        public Device           Device          { get; private set; }
+        public ID3D11Device     Device          { get; private set; }
         public bool             DisableRendering{ get; set; }
         public bool             Disposed        { get; private set; } = true;
         public Viewport         GetViewport     { get; private set; }
@@ -41,33 +41,33 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         //DeviceDebug                       deviceDbg;
         
-        DeviceContext                       context;
-        SwapChain1                          swapChain;
+        ID3D11DeviceContext1                    context;
+        IDXGISwapChain1                         swapChain;
 
-        RenderTargetView                    rtv;
-        Texture2D                           backBuffer;
+        ID3D11RenderTargetView                  rtv;
+        ID3D11Texture2D                         backBuffer;
         
         // Used for off screen rendering
-        RenderTargetView[]                  rtv2;
-        Texture2D[]                         backBuffer2;
-        bool[]                              backBuffer2busy;
+        ID3D11RenderTargetView[]                rtv2;
+        ID3D11Texture2D[]                       backBuffer2;
+        bool[]                                  backBuffer2busy;
 
-        Buffer                              vertexBuffer;
-        InputLayout                         vertexLayout;
+        ID3D11Buffer                            vertexBuffer;
+        ID3D11InputLayout                       vertexLayout;
 
-        PixelShader                         curPixelShader;
-        ShaderResourceView[]                curSRVs;
-        ShaderResourceViewDescription       srvDescR, srvDescRG;
+        ID3D11PixelShader                       curPixelShader;
+        ID3D11ShaderResourceView[]              curSRVs;
+        ShaderResourceViewDescription           srvDescR, srvDescRG;
 
-        Dictionary<string, PixelShader>     pixelShaders;    
-        VertexShader                        vertexShader;
+        Dictionary<string, ID3D11PixelShader>   pixelShaders;    
+        ID3D11VertexShader                      vertexShader;
 
-        SamplerState                        textureSampler;
-
-        static InputElement[]               inputElements =
+        ID3D11SamplerState                      textureSampler;
+        
+        static  InputElementDescription[]       inputElements =
             {
-                new InputElement("POSITION", 0, Format.R32G32B32_Float,     0),
-                new InputElement("TEXCOORD", 0, Format.R32G32_Float,        0),
+                new InputElementDescription("POSITION", 0, Format.R32G32B32_Float,     0),
+                new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float,        0),
                 //new InputElement("COLOR",    0, Format.R32G32B32A32_Float,  0)
             };
         static float[]                      vertexBufferData =
@@ -81,114 +81,227 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                  1.0f,   1.0f,  0,      1.0f, 0.0f
             };
 
+        FeatureLevel[] featureLevels = new[]
+        {
+            //FeatureLevel.Level_12_2,
+            //FeatureLevel.Level_12_1,
+            //FeatureLevel.Level_12_0,
+            //FeatureLevel.Level_11_1, // If enabled and device not supported creation will fail https://docs.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice
+            FeatureLevel.Level_11_0,
+            FeatureLevel.Level_10_1,
+            FeatureLevel.Level_10_0,
+            FeatureLevel.Level_9_3,
+            FeatureLevel.Level_9_2,
+            FeatureLevel.Level_9_1
+        };
+
+        FeatureLevel FeatureLevel;
+
+        IDXGIFactory2 Factory;
+
         public Renderer(VideoDecoder videoDecoder, Config config, Control control = null, int uniqueId = -1)
         {
             Config      = config;
+            Control     = control;
             UniqueId    = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder= videoDecoder;
 
-            /* [Enable Debug Layer]
-                * 
-                * 1) Enable native code debugging in your main project properties
-                * 2) Requires SDK
-                * 
-                * https://docs.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-devices-layers
-                * https://docs.microsoft.com/en-us/windows/win32/direct3d11/using-the-debug-layer-to-test-apps
-                * 
-                * For Windows 7 with Platform Update for Windows 7 (KB2670838) or Windows 8.x, to create a device that supports the debug layer, install the Windows Software Development Kit (SDK) for Windows 8.x to get D3D11_1SDKLayers.dll
-                * For Windows 10, to create a device that supports the debug layer, enable the "Graphics Tools" optional feature. Go to the Settings panel, under System, Apps & features, Manage optional Features, Add a feature, and then look for "Graphics Tools".
-                */
-
-            
-            //Device = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport | DeviceCreationFlags.Debug);
-            //deviceDbg = new DeviceDebug(device); // To Report Live Objects if required
-            Device  = new Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.VideoSupport | DeviceCreationFlags.BgraSupport);
-            context = Device.ImmediateContext;
-
-            using (var mthread = Device.QueryInterface<Multithread>()) mthread.SetMultithreadProtected(true);
-
-            using (var device2 = Device.QueryInterface<SharpDX.DXGI.Device2>())
-            using (var adapter = device2.Adapter)
-            using (var factory = adapter.GetParent<Factory2>())
+            if (CreateDXGIFactory1(out Factory).Failure)
             {
-                device2.MaximumFrameLatency = 1; // Dont queue more than 1 frame
+                throw new InvalidOperationException("Cannot create IDXGIFactory1");
+            }
 
+            using (IDXGIAdapter1 adapter = GetHardwareAdapter())
+            {
                 RendererInfo.Fill(this, adapter);
                 Log("\r\n" + Info.ToString());
 
-                if (control != null)
+                DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+
+                #if DEBUG
+                if (SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
+                #endif
+
+                if (D3D11CreateDevice(adapter, DriverType.Unknown, creationFlags, featureLevels, out ID3D11Device tempDevice, out FeatureLevel, out ID3D11DeviceContext tempContext).Failure)
                 {
-                    Control = control;
-                    Control.Resize += ResizeBuffers;
-                
-                    // Swap Chain (TODO: Backwards compatibility)
-                    var desc1 = new SwapChainDescription1()
-                    {
-                        BufferCount = Device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? 6 : 1,  // Should be 1 for Win < 8 | HDR 60 fps requires 6 for non drops
-                        SwapEffect  = Device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? SwapEffect.FlipSequential : SwapEffect.Discard,
-
-                        //Format      = HDREnabled ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm, // Create always 10 bit and fallback to 8?
-                        Format      = Format.B8G8R8A8_UNorm,
-                        Width       = Control.Width,
-                        Height      = Control.Height,
-                        AlphaMode   = AlphaMode.Ignore,
-                        Usage       = Usage.RenderTargetOutput,
-                        Scaling     = Device.FeatureLevel >= SharpDX.Direct3D.FeatureLevel.Level_11_0 ? Scaling.None : Scaling.Stretch,
-                        //Flags = SwapChainFlags.AllowModeSwitch,
-                        //Flags = 0 (or if already in fullscreen while recreating -> SwapChainFlags.AllowModeSwitch)
-                        SampleDescription = new SampleDescription()
-                        {
-                            Count   = 1,
-                            Quality = 0
-                        }
-                    };
-
-                    swapChain   = new SwapChain1(factory, Device, this.Control.Handle, ref desc1);
-                    backBuffer  = Texture2D.FromSwapChain<Texture2D>(swapChain, 0);
-                    rtv         = new RenderTargetView(Device, backBuffer);
-                    GetViewport = new Viewport(0, 0, Control.Width, Control.Height);
-                    context.Rasterizer.SetViewport(0, 0, Control.Width, Control.Height);
+                    // If the initialization fails, fall back to the WARP device.
+                    // For more information on WARP, see:
+                    // http://go.microsoft.com/fwlink/?LinkId=286690
+                    D3D11CreateDevice(null, DriverType.Warp, creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).CheckError();
                 }
+
+                Device = tempDevice. QueryInterface<ID3D11Device1>();
+                context= tempContext.QueryInterface<ID3D11DeviceContext1>();
+                tempContext.Dispose();
+                tempDevice.Dispose();
+            }
+            
+            using (var mthread = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
+
+            if (Control != null)
+            {
+                Control.Resize += ResizeBuffers;
+
+                SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+                {
+                    BufferCount = FeatureLevel >= FeatureLevel.Level_11_0 ? 6 : 1,
+                    SwapEffect  = FeatureLevel >= FeatureLevel.Level_11_0 ? SwapEffect.FlipSequential : SwapEffect.Discard,
+
+                    Format      = Format.B8G8R8A8_UNorm,
+                    Width       = Control.Width,
+                    Height      = Control.Height,
+                    AlphaMode   = AlphaMode.Ignore,
+                    Usage       = Usage.RenderTargetOutput,
+                    Scaling     = FeatureLevel >= FeatureLevel.Level_11_0 ? Scaling.None : Scaling.Stretch,
+
+                    SampleDescription = new SampleDescription(1, 0)
+                };
+
+                SwapChainFullscreenDescription fullscreenDescription = new SwapChainFullscreenDescription
+                {
+                    Windowed = true
+                };
+            
+                swapChain = Factory.CreateSwapChainForHwnd(Device, Control.Handle, swapChainDescription, fullscreenDescription);
+                backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
+                rtv = Device.CreateRenderTargetView(backBuffer);
+
+                GetViewport = new Viewport(0, 0, Control.Width, Control.Height);
+                context.RSSetViewport(GetViewport);
             }
 
-            vertexBuffer= Buffer.Create(Device, BindFlags.VertexBuffer, vertexBufferData);
+            vertexBuffer = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
 
-            textureSampler = new SamplerState(Device, new SamplerStateDescription()
+            textureSampler = Device.CreateSamplerState(new SamplerDescription()
             {
                 AddressU = TextureAddressMode.Clamp,
                 AddressV = TextureAddressMode.Clamp,
                 AddressW = TextureAddressMode.Clamp,
-                ComparisonFunction = Comparison.Never,
+                ComparisonFunction = ComparisonFunction.Never,
                 Filter = Filter.MinMagMipLinear,
-                MinimumLod = 0,
-                MaximumLod = float.MaxValue,
-                MaximumAnisotropy = 1
+                MinLOD = 0,
+                MaxLOD = float.MaxValue,
+                MaxAnisotropy = 1
             });
 
             // Load Shaders Byte Code
             Dictionary<string, byte[]> Shaders = Shaders_v5.Shaders;
-            if (Device.FeatureLevel < SharpDX.Direct3D.FeatureLevel.Level_11_0) Shaders = Shaders_v4.Shaders;
+            if (FeatureLevel < FeatureLevel.Level_11_0) Shaders = Shaders_v4.Shaders;
             
-            pixelShaders = new Dictionary<string, PixelShader>();
+            pixelShaders = new Dictionary<string, ID3D11PixelShader>();
+
             foreach(var entry in Shaders)
                 if (entry.Key.ToString() == "VertexShader")
                 {
-                    vertexLayout = new InputLayout(Device, entry.Value, inputElements);
-                    vertexShader = new VertexShader(Device, entry.Value);
+                    vertexLayout = Device.CreateInputLayout(inputElements, entry.Value);
+                    vertexShader = Device.CreateVertexShader(entry.Value);
                 }
                 else
-                    pixelShaders.Add(entry.Key.ToString(), new PixelShader(Device, entry.Value));
+                    pixelShaders.Add(entry.Key.ToString(), Device.CreatePixelShader(entry.Value));
 
-            context.InputAssembler.InputLayout      = vertexLayout;
-            context.InputAssembler.PrimitiveTopology= SharpDX.Direct3D.PrimitiveTopology.TriangleList;
-            context.InputAssembler.SetVertexBuffers(0, new VertexBufferBinding(vertexBuffer, Utilities.SizeOf<float>() * 5, 0));
+            context.IASetInputLayout(vertexLayout);
+            context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
+            context.IASetVertexBuffers(0, new VertexBufferView(vertexBuffer, sizeof(float) * 5, 0));
 
-            context.VertexShader.Set(vertexShader);
-            context.PixelShader. SetSampler(0, textureSampler);
+            context.VSSetShader(vertexShader);
+            context.PSSetSampler(0, textureSampler);
 
             Disposed = false;
         }
+        private IDXGIAdapter1 GetHardwareAdapter()
+        {
+            IDXGIAdapter1 adapter = null;
 
+            if (Config.Video.GPUAdapteLuid != -1)
+            {
+                for (int adapterIndex = 0; Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                {
+                    if (adapter.Description.Luid == Config.Video.GPUAdapteLuid)
+                        return adapter;
+
+                    adapter.Dispose();
+                }
+
+                throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
+            }
+            
+            IDXGIFactory6 factory6 = Factory.QueryInterfaceOrNull<IDXGIFactory6>();
+            if (factory6 != null)
+            {
+                for (int adapterIndex = 0; factory6.EnumAdapterByGpuPreference(adapterIndex, GpuPreference.HighPerformance, out adapter).Success; adapterIndex++)
+                {
+                    if (adapter == null)
+                        continue;
+
+                    if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
+                    {
+                        adapter.Dispose();
+                        continue;
+                    }
+
+                    return adapter;
+                }
+
+                factory6.Dispose();
+            }
+
+            if (adapter == null)
+            {
+                for (int adapterIndex = 0; Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                {
+                    if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
+                    {
+                        adapter.Dispose();
+                        continue;
+                    }
+
+                    return adapter;
+                }
+            }
+
+            return adapter;
+        }
+        public static Dictionary<long, GPUAdapter> GetAdapters()
+        {
+            Dictionary<long, GPUAdapter> adapters = new Dictionary<long, GPUAdapter>();
+
+            if (CreateDXGIFactory1(out IDXGIFactory2 factory).Failure)
+                throw new InvalidOperationException("Cannot create IDXGIFactory1");
+
+            #if DEBUG
+            Utils.Log("GPU Adapters ...");
+            #endif
+
+            for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1 adapter).Success; adapterIndex++)
+            {
+                #if DEBUG
+                Utils.Log($"[#{adapterIndex+1}] {adapter.Description.Description} ({adapter.Description.DeviceId})");
+                #endif
+
+                if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
+                {
+                    adapter.Dispose();
+                    continue;
+                }
+
+                bool hasOutput = false;
+                adapter.EnumOutputs(0, out IDXGIOutput output);
+                if (output != null)
+                {
+                    hasOutput = true;
+                    output.Dispose();
+                }
+
+                adapters.Add(adapter.Description.Luid, new GPUAdapter() { Description = adapter.Description.Description, Luid = adapter.Description.Luid, HasOutput = hasOutput });
+
+                adapter.Dispose();
+                adapter = null;
+            }
+
+            factory.Dispose();
+
+            return adapters;
+        }
         public void Dispose()
         {
             if (Device == null) return;
@@ -203,43 +316,41 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     pixelShader.Value.Dispose();
 
                 vertexShader.Dispose();
-
-                context.InputAssembler.Dispose();
-                context.VertexShader.Dispose();
-                context.PixelShader.Dispose();
-                context.Rasterizer.Dispose();
-                context.OutputMerger.Dispose();
-
-                Utilities.Dispose(ref textureSampler);
-                Utilities.Dispose(ref vertexLayout);
-                Utilities.Dispose(ref vertexBuffer);
-                Utilities.Dispose(ref backBuffer);
-                Utilities.Dispose(ref rtv);
+                textureSampler.Dispose();
+                vertexLayout.Dispose();
+                vertexBuffer.Dispose();
+                backBuffer.Dispose();
+                rtv.Dispose();
 
                 if (rtv2 != null)
                     for(int i=0; i<rtv2.Length-1; i++)
-                        Utilities.Dispose(ref rtv2[i]);
+                        rtv2[i].Dispose();
 
                 if (backBuffer2 != null)
                     for(int i=0; i<backBuffer2.Length-1; i++)
-                        Utilities.Dispose(ref backBuffer2[i]);
+                        backBuffer2[i].Dispose();
 
-                //curPixelShader.Dispose();
+                if (curSRVs != null) { for (int i=0; i<curSRVs.Length; i++) { curSRVs[i].Dispose(); curSRVs = null; } }
 
-                context.Flush();
+                
                 context.ClearState();
                 context.Flush();
-                context.ClearState();
-                Utilities.Dispose(ref context);
-                Utilities.Dispose(ref swapChain);
-
-                if (curSRVs != null) { for (int i=0; i<curSRVs.Length; i++) { Utilities.Dispose(ref curSRVs[i]); } curSRVs = null; }
+                context.Dispose();
+                Device.ImmediateContext.Dispose();
+                swapChain.Dispose();
+                Factory.Dispose();
+                
                 Disposed = true;
             }
 
-            //deviceDbg.ReportLiveDeviceObjects(ReportingLevel.Detail);
-            //Utilities.Dispose(ref device); // This will cause stack overflow sometimes
-            
+            #if DEBUG
+            if (DXGIGetDebugInterface1(out IDXGIDebug1 dxgiDebug).Success)
+            {
+                dxgiDebug.ReportLiveObjects(DebugAll, ReportLiveObjectFlags.Summary | ReportLiveObjectFlags.IgnoreInternal);
+                dxgiDebug.Dispose();
+            }
+            #endif
+
             pixelShaders = null;
             vertexShader = null;
             vertexLayout = null;
@@ -252,12 +363,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             
             lock (Device)
             {
-                Utilities.Dispose(ref rtv);
-                Utilities.Dispose(ref backBuffer);
+                rtv.Dispose();
+                backBuffer.Dispose();
 
                 swapChain.ResizeBuffers(0, Control.Width, Control.Height, Format.Unknown, SwapChainFlags.None);
-                backBuffer  = Texture2D.FromSwapChain<Texture2D>(swapChain, 0);
-                rtv         = new RenderTargetView(Device, backBuffer);
+                backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
+                rtv = Device.CreateRenderTargetView(backBuffer);
 
                 SetViewport();
                 PresentFrame(null);
@@ -269,22 +380,22 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 srvDescR = new ShaderResourceViewDescription()
                 {
-                    Format      = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
-                    Dimension   = SharpDX.Direct3D.ShaderResourceViewDimension.Texture2D,
-                    Texture2D   = new ShaderResourceViewDescription.Texture2DResource()
+                    Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
+                    ViewDimension = ShaderResourceViewDimension.Texture2D,
+                    Texture2D = new Texture2DShaderResourceView()
                     {
-                        MipLevels       = 1,
+                        MipLevels = 1,
                         MostDetailedMip = 0
                     }
                 };
 
                 srvDescRG = new ShaderResourceViewDescription()
                 {
-                    Format      = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16G16_UNorm : Format.R8G8_UNorm,
-                    Dimension   = SharpDX.Direct3D.ShaderResourceViewDimension.Texture2D,
-                    Texture2D   = new ShaderResourceViewDescription.Texture2DResource()
+                    Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16G16_UNorm : Format.R8G8_UNorm,
+                    ViewDimension = ShaderResourceViewDimension.Texture2D,
+                    Texture2D = new Texture2DShaderResourceView()
                     {
-                        MipLevels       = 1,
+                        MipLevels = 1,
                         MostDetailedMip = 0
                     }
                 };
@@ -309,46 +420,46 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 else
                 {
                     if (rtv2 != null)
-                        for(int i=0; i<rtv2.Length-1; i++)
-                            Utilities.Dispose(ref rtv2[i]);
+                        for (int i = 0; i < rtv2.Length - 1; i++)
+                            rtv2[i].Dispose();
 
                     if (backBuffer2 != null)
-                        for(int i=0; i<backBuffer2.Length-1; i++)
-                            Utilities.Dispose(ref backBuffer2[i]);
+                        for (int i = 0; i < backBuffer2.Length - 1; i++)
+                            backBuffer2[i].Dispose();
 
                     backBuffer2busy = new bool[MaxOffScreenTextures];
-                    rtv2 = new RenderTargetView[MaxOffScreenTextures];
-                    backBuffer2 = new Texture2D[MaxOffScreenTextures];
+                    rtv2 = new ID3D11RenderTargetView[MaxOffScreenTextures];
+                    backBuffer2 = new ID3D11Texture2D[MaxOffScreenTextures];
 
-                    for(int i=0; i<MaxOffScreenTextures; i++)
+                    for (int i = 0; i < MaxOffScreenTextures; i++)
                     {
-                        backBuffer2[i] = new Texture2D(Device, new Texture2DDescription()
+                        backBuffer2[i] = Device.CreateTexture2D(new Texture2DDescription()
                         {
-                            Usage               = ResourceUsage.Default,
-                            BindFlags           = BindFlags.RenderTarget,
-                            Format              = Format.B8G8R8A8_UNorm,
-                            Width               = VideoDecoder.VideoStream.Width,
-                            Height              = VideoDecoder.VideoStream.Height,
+                            Usage       = ResourceUsage.Default,
+                            BindFlags   = BindFlags.RenderTarget,
+                            Format      = Format.B8G8R8A8_UNorm,
+                            Width       = VideoDecoder.VideoStream.Width,
+                            Height      = VideoDecoder.VideoStream.Height,
 
-                            SampleDescription   = new SampleDescription(1, 0),
-                            ArraySize           = 1,
-                            MipLevels           = 1
+                            ArraySize   = 1,
+                            MipLevels   = 1,
+                            SampleDescription = new SampleDescription(1, 0)
                         });
 
-                        rtv2[i] = new RenderTargetView(Device, backBuffer2[i]);
+                        rtv2[i] = Device.CreateRenderTargetView(backBuffer2[i]);
                     }
 
-                    context.Rasterizer.SetViewport(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height);
-                    context.PixelShader.Set(curPixelShader);
+                    context.RSSetViewport(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height);
+                    context.PSSetShader(curPixelShader);
                 }
             }
         }
         public void SetViewport()
         {
-            if (Config.Video.AspectRatio == AspectRatio.Fill || (Config.Video.AspectRatio == AspectRatio.Keep && VideoDecoder.VideoStream == null))// || !player.Session.CanPlay)
+            if (Config.Video.AspectRatio == AspectRatio.Fill || (Config.Video.AspectRatio == AspectRatio.Keep && VideoDecoder.VideoStream == null))
             {
                 GetViewport     = new Viewport(0, 0, Control.Width, Control.Height);
-                context.Rasterizer.SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
+                context.RSSetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
             }
             else
             {
@@ -358,12 +469,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (Control.Width / ratio > Control.Height)
                 {
                     GetViewport = new Viewport((int)(Control.Width - (Control.Height * ratio)) / 2, 0 ,(int) (Control.Height * ratio),Control.Height, 0.0f, 1.0f);
-                    context.Rasterizer.SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
+                    context.RSSetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
                 }
                 else
                 {
                     GetViewport = new Viewport(0,(int)(Control.Height - (Control.Width / ratio)) / 2, Control.Width,(int) (Control.Width / ratio), 0.0f, 1.0f);
-                    context.Rasterizer.SetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
+                    context.RSSetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
                 }
             }
         }
@@ -385,36 +496,36 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     {
                         if (VideoDecoder.VideoAccelerated)
                         {
-                            curSRVs     = new ShaderResourceView[2];
-                            curSRVs[0]  = new ShaderResourceView(Device, frame.textures[0], srvDescR);
-                            curSRVs[1]  = new ShaderResourceView(Device, frame.textures[0], srvDescRG);
+                            curSRVs     = new ID3D11ShaderResourceView[2];
+                            curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
+                            curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
                         }
                         else if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
                         {
-                            curSRVs     = new ShaderResourceView[3];
-                            curSRVs[0]  = new ShaderResourceView(Device, frame.textures[0]);
-                            curSRVs[1]  = new ShaderResourceView(Device, frame.textures[1]);
-                            curSRVs[2]  = new ShaderResourceView(Device, frame.textures[2]);
+                            curSRVs     = new ID3D11ShaderResourceView[3];
+                            curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
+                            curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[1]);
+                            curSRVs[2]  = Device.CreateShaderResourceView(frame.textures[2]);
                         }
                         else
                         {
-                            curSRVs     = new ShaderResourceView[1];
-                            curSRVs[0]  = new ShaderResourceView(Device, frame.textures[0]);
+                            curSRVs     = new ID3D11ShaderResourceView[1];
+                            curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
                         }
 
-                        context.PixelShader.Set(curPixelShader);
-                        context.PixelShader.SetShaderResources(0, curSRVs);
+                        context.PSSetShader(curPixelShader);
+                        context.PSSetShaderResources(0, curSRVs);
                     }
 
-                    context.OutputMerger.SetRenderTargets(rtv);
+                    context.OMSetRenderTargets(rtv);
                     context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
                     if (!DisableRendering) context.Draw(6, 0);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
                     
                     if (frame != null)
                     {
-                        if (frame.textures  != null)   for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]);
-                        if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { Utilities.Dispose(ref curSRVs[i]); } curSRVs = null; }
+                        if (frame.textures  != null)   for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose();
+                        if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { curSRVs[i].Dispose(); } curSRVs = null; }
                     }
 
                 } catch (Exception e) { Log($"Error {e.Message}"); // Currently seen on video switch when vframe (last frame of previous session) has different config from the new codec (eg. HW accel.)
@@ -433,7 +544,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             int subresource = -1;
 
-            Texture2D stageTexture = new Texture2D(Device, new Texture2DDescription()
+            ID3D11Texture2D stageTexture = Device.CreateTexture2D(new Texture2DDescription()
             {
 	            Usage           = ResourceUsage.Staging,
 	            ArraySize       = 1,
@@ -464,45 +575,46 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (VideoDecoder.VideoAccelerated)
                 {
-                    curSRVs     = new ShaderResourceView[2];
-                    curSRVs[0]  = new ShaderResourceView(Device, frame.textures[0], srvDescR);
-                    curSRVs[1]  = new ShaderResourceView(Device, frame.textures[0], srvDescRG);
+                    curSRVs     = new ID3D11ShaderResourceView[2];
+                    curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
+                    curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
                 }
                 else if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
                 {
-                    curSRVs     = new ShaderResourceView[3];
-                    curSRVs[0]  = new ShaderResourceView(Device, frame.textures[0]);
-                    curSRVs[1]  = new ShaderResourceView(Device, frame.textures[1]);
-                    curSRVs[2]  = new ShaderResourceView(Device, frame.textures[2]);
+                    curSRVs     = new ID3D11ShaderResourceView[3];
+                    curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
+                    curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[1]);
+                    curSRVs[2]  = Device.CreateShaderResourceView(frame.textures[2]);
                 }
                 else
                 {
-                    curSRVs     = new ShaderResourceView[1];
-                    curSRVs[0]  = new ShaderResourceView(Device, frame.textures[0]);
+                    curSRVs     = new ID3D11ShaderResourceView[1];
+                    curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
                 }
 
-                context.PixelShader.SetShaderResources(0, curSRVs);
-                context.OutputMerger.SetRenderTargets(rtv2[subresource]);
+                context.PSSetShader(curPixelShader);
+                context.PSSetShaderResources(0, curSRVs);
+                context.OMSetRenderTargets(rtv2[subresource]);
                 //context.ClearRenderTargetView(rtv2[subresource], Config.video._ClearColor);
                 context.Draw(6, 0);
 
-                for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]);
-                for (int i=0; i<curSRVs.Length; i++)      { Utilities.Dispose(ref curSRVs[i]); }
+                for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose();
+                for (int i=0; i<curSRVs.Length; i++)      { curSRVs[i].Dispose(); } curSRVs = null;
 
-                context.CopyResource(backBuffer2[subresource], stageTexture);
+                context.CopyResource(stageTexture, backBuffer2[subresource]);
                 backBuffer2busy[subresource] = false;
             }
 
             return GetBitmap(stageTexture);
         }
-        public Bitmap GetBitmap(Texture2D stageTexture)
+        public Bitmap GetBitmap(ID3D11Texture2D stageTexture)
         {
-            Bitmap bitmap = new Bitmap(stageTexture.Description.Width, stageTexture.Description.Height);
-            DataBox db      = context.MapSubresource(stageTexture, 0, MapMode.Read, SharpDX.Direct3D11.MapFlags.None);
-            var bitmapData  = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-
+            Bitmap bitmap   = new Bitmap(stageTexture.Description.Width, stageTexture.Description.Height);
+            var db          = context.Map(stageTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
+            var bitmapData  = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            
             if (db.RowPitch == bitmapData.Stride)
-                Utilities.CopyMemory(bitmapData.Scan0,  db.DataPointer, bitmap.Width * bitmap.Height * 4);
+                MemoryHelpers.CopyMemory(bitmapData.Scan0, db.DataPointer, bitmap.Width * bitmap.Height * 4);
             else
             {
                 var sourcePtr   = db.DataPointer;
@@ -510,7 +622,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 for (int y = 0; y < bitmap.Height; y++)
                 {
-                    Utilities.CopyMemory(destPtr, sourcePtr, bitmap.Width * 4);
+                    MemoryHelpers.CopyMemory(destPtr, sourcePtr, bitmap.Width * 4);
 
                     sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
                     destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
@@ -518,7 +630,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
 
             bitmap.UnlockBits(bitmapData);
-            context.UnmapSubresource(stageTexture, 0);
+            context.Unmap(stageTexture, 0);
             stageTexture.Dispose();
             
             return bitmap;
@@ -526,27 +638,27 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public void TakeSnapshot(string fileName)
         {
-	        Texture2D snapshotTexture;
+	        ID3D11Texture2D snapshotTexture;
 
 	        lock (Device)
             {
-                Utilities.Dispose(ref rtv);
-                Utilities.Dispose(ref backBuffer);
+                rtv.Dispose();
+                backBuffer.Dispose();
 
-                swapChain.ResizeBuffers(0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height, Format.Unknown, SwapChainFlags.None);
-                backBuffer  = Texture2D.FromSwapChain<Texture2D>(swapChain, 0);
-                rtv         = new RenderTargetView(Device, backBuffer);
-                context.Rasterizer.SetViewport(0, 0, backBuffer.Description.Width, backBuffer.Description.Height);
+                swapChain.ResizeBuffers(6, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height, Format.Unknown, SwapChainFlags.None);
+                backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
+                rtv = Device.CreateRenderTargetView(backBuffer);
+                context.RSSetViewport(0, 0, backBuffer.Description.Width, backBuffer.Description.Height);
 
                 for (int i=0; i<swapChain.Description.BufferCount; i++)
                 { 
-	                context.OutputMerger.SetRenderTargets(rtv);
+	                context.OMSetRenderTargets(rtv);
 	                context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
 	                context.Draw(6, 0);
 	                swapChain.Present(Config.Video.VSync, PresentFlags.None);
                 }
 
-                snapshotTexture = new Texture2D(Device, new Texture2DDescription()
+                snapshotTexture = Device.CreateTexture2D(new Texture2DDescription()
                 {
 	                Usage           = ResourceUsage.Staging,
 	                ArraySize       = 1,
@@ -559,7 +671,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 	                OptionFlags     = ResourceOptionFlags.None,
 	                SampleDescription = new SampleDescription(1, 0)         
                 });
-                context.CopyResource(backBuffer, snapshotTexture);
+                context.CopyResource(snapshotTexture, backBuffer);
                 ResizeBuffers(null, null);
             }
 

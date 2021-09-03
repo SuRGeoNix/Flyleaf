@@ -8,9 +8,11 @@ using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 using static FFmpeg.AutoGen.AVCodecID;
 
-using SharpDX;
-using SharpDX.Direct3D11;
-using SharpDX.DXGI;
+using Vortice;
+using Vortice.DXGI;
+using Vortice.Direct3D11;
+
+using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -46,8 +48,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         #region Video Acceleration (Should be disposed seperately)
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
-        const AVHWDeviceType    HW_DEVICE       = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA;
-        const AVPixelFormat     HW_PIX_FMT      = AVPixelFormat.AV_PIX_FMT_D3D11;
+        const AVHWDeviceType    HW_DEVICE   = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA;
+        const AVPixelFormat     HW_PIX_FMT  = AVPixelFormat.AV_PIX_FMT_D3D11;
         AVBufferRef*            hw_device_ctx;
 
         internal static bool CheckCodecSupport(AVCodec* codec)
@@ -75,7 +77,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             AVHWDeviceContext* device_ctx = (AVHWDeviceContext*) hw_device_ctx->data;
             AVD3D11VADeviceContext* d3d11va_device_ctx = (AVD3D11VADeviceContext*) device_ctx->hwctx;
-            d3d11va_device_ctx->device = (ID3D11Device*) Renderer.Device.NativePointer;
+            d3d11va_device_ctx->device = (FFmpeg.AutoGen.ID3D11Device*) Renderer.Device.NativePointer;
 
             ret = av_hwdevice_ctx_init(hw_device_ctx);
             if (ret != 0)
@@ -91,9 +93,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         }
         public void DisposeVA()
         {
+            Renderer.Dispose();
             fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
             hw_device_ctx = null;
-            Renderer.Dispose();
         }
         #endregion
 
@@ -347,35 +349,35 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         return ProcessVideoFrame(frame);
                     }
 
-                    Texture2D textureFFmpeg = new Texture2D((IntPtr) frame->data.ToArray()[0]);
+                    ID3D11Texture2D textureFFmpeg = new ID3D11Texture2D((IntPtr) frame->data.ToArray()[0]);
                     textDesc.Format     = textureFFmpeg.Description.Format;
-                    mFrame.textures     = new Texture2D[1];
-                    mFrame.textures[0]  = new Texture2D(Renderer.Device, textDesc);
-                    Renderer.Device.ImmediateContext.CopySubresourceRegion(textureFFmpeg, (int) frame->data.ToArray()[1], new ResourceRegion(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1), mFrame.textures[0], 0);
+                    mFrame.textures     = new ID3D11Texture2D[1];
+                    mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc);
+                    Renderer.Device.ImmediateContext.CopySubresourceRegion(mFrame.textures[0], 0, 0, 0, 0, textureFFmpeg, (int) frame->data.ToArray()[1], new Vortice.Mathematics.Box(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1));
                 }
 
                 // Software Frame (8-bit YUV)   | YUV byte* -> Device Texture[3] (RX) / SRV (RX_RX_RX) -> PixelShader (Y_U_V)
                 else if (VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
                 {
-                    mFrame.textures = new Texture2D[3];
+                    mFrame.textures = new ID3D11Texture2D[3];
 
                     // YUV Planar [Y0 ...] [U0 ...] [V0 ....]
                     if (VideoStream.IsPlanar)
                     {
-                        DataBox db          = new DataBox();
+                        SubresourceData db  = new SubresourceData();
                         db.DataPointer      = (IntPtr)frame->data.ToArray()[0];
-                        db.RowPitch         = frame->linesize.ToArray()[0];
-                        mFrame.textures[0]  = new Texture2D(Renderer.Device, textDesc,  new DataBox[] { db });
+                        db.Pitch            = frame->linesize.ToArray()[0];
+                        mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc, new SubresourceData[] { db });
 
-                        db                  = new DataBox();
+                        db                  = new SubresourceData();
                         db.DataPointer      = (IntPtr)frame->data.ToArray()[1];
-                        db.RowPitch         = frame->linesize.ToArray()[1];
-                        mFrame.textures[1]  = new Texture2D(Renderer.Device, textDescUV, new DataBox[] { db });
+                        db.Pitch            = frame->linesize.ToArray()[1];
+                        mFrame.textures[1]  = Renderer.Device.CreateTexture2D(textDescUV, new SubresourceData[] { db });
 
-                        db                  = new DataBox();
+                        db                  = new SubresourceData();
                         db.DataPointer      = (IntPtr)frame->data.ToArray()[2];
-                        db.RowPitch         = frame->linesize.ToArray()[2];
-                        mFrame.textures[2]  = new Texture2D(Renderer.Device, textDescUV, new DataBox[] { db });
+                        db.Pitch            = frame->linesize.ToArray()[2];
+                        mFrame.textures[2]  = Renderer.Device.CreateTexture2D(textDescUV, new SubresourceData[] { db });
                     }
 
                     // YUV Packed ([Y0U0Y1V0] ....)
@@ -384,17 +386,17 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         DataStream dsY  = new DataStream(textDesc.  Width * textDesc.  Height, true, true);
                         DataStream dsU  = new DataStream(textDescUV.Width * textDescUV.Height, true, true);
                         DataStream dsV  = new DataStream(textDescUV.Width * textDescUV.Height, true, true);
-                        DataBox    dbY  = new DataBox();
-                        DataBox    dbU  = new DataBox();
-                        DataBox    dbV  = new DataBox();
+                        SubresourceData    dbY  = new SubresourceData();
+                        SubresourceData    dbU  = new SubresourceData();
+                        SubresourceData    dbV  = new SubresourceData();
 
-                        dbY.DataPointer = dsY.DataPointer;
-                        dbU.DataPointer = dsU.DataPointer;
-                        dbV.DataPointer = dsV.DataPointer;
+                        dbY.DataPointer = dsY.BasePointer;
+                        dbU.DataPointer = dsU.BasePointer;
+                        dbV.DataPointer = dsV.BasePointer;
 
-                        dbY.RowPitch    = textDesc.  Width;
-                        dbU.RowPitch    = textDescUV.Width;
-                        dbV.RowPitch    = textDescUV.Width;
+                        dbY.Pitch    = textDesc.  Width;
+                        dbU.Pitch    = textDescUV.Width;
+                        dbV.Pitch    = textDescUV.Width;
 
                         long totalSize = frame->linesize.ToArray()[0] * textDesc.Height;
 
@@ -410,11 +412,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         for (int i=3; i<totalSize; i+=VideoStream.Comp2Step)
                             dsV.WriteByte(*(dataPtr + i));
 
-                        mFrame.textures[0] = new Texture2D(Renderer.Device, textDesc,   new DataBox[] { dbY });
-                        mFrame.textures[1] = new Texture2D(Renderer.Device, textDescUV, new DataBox[] { dbU });
-                        mFrame.textures[2] = new Texture2D(Renderer.Device, textDescUV, new DataBox[] { dbV });
+                        mFrame.textures[0] = Renderer.Device.CreateTexture2D(textDesc,   new SubresourceData[] { dbY });
+                        mFrame.textures[1] = Renderer.Device.CreateTexture2D(textDescUV, new SubresourceData[] { dbU });
+                        mFrame.textures[2] = Renderer.Device.CreateTexture2D(textDescUV, new SubresourceData[] { dbV });
 
-                        Utilities.Dispose(ref dsY); Utilities.Dispose(ref dsU); Utilities.Dispose(ref dsV);
+                        dsY.Dispose(); dsU.Dispose(); dsV.Dispose();
                     }
                 }
 
@@ -438,11 +440,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
 
-                    DataBox db          = new DataBox();
+                    SubresourceData db  = new SubresourceData();
                     db.DataPointer      = (IntPtr)outData.ToArray()[0];
-                    db.RowPitch         = outLineSize[0];
-                    mFrame.textures     = new Texture2D[1];
-                    mFrame.textures[0]  = new Texture2D(Renderer.Device, textDesc, new DataBox[] { db });
+                    db.Pitch            = outLineSize[0];
+                    mFrame.textures     = new ID3D11Texture2D[1];
+                    mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc, new SubresourceData[] { db });
                 }
 
                 av_frame_unref(frame);
@@ -539,7 +541,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 DisposeFrame(frame);
             }
         }
-        public static void DisposeFrame(VideoFrame frame) { if (frame != null && frame.textures != null) for (int i=0; i<frame.textures.Length; i++) Utilities.Dispose(ref frame.textures[i]); }
+        public static void DisposeFrame(VideoFrame frame) { if (frame != null && frame.textures != null) for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose(); }
         protected override void DisposeInternal()
         {
             av_buffer_unref(&codecCtx->hw_device_ctx);

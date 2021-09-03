@@ -16,7 +16,6 @@ using System.Xml.Serialization;
 
 using Microsoft.Win32;
 
-using SharpDX;
 //using SharpDX.D3DCompiler; // Enable this if you need to re-compile shaders
 
 using FFmpeg.AutoGen;
@@ -210,8 +209,8 @@ namespace FlyleafLib
             return Encoding.UTF8.GetString(byteBuffer.ToArray());
         }
         
-        public static System.Windows.Media.Color SharpDXToWpfColor(Color sColor) { return System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B); }
-        public static Color WpfToSharpDXColor(System.Windows.Media.Color wColor) { return new Color(wColor.R, wColor.G, wColor.B, wColor.A); }
+        public static System.Windows.Media.Color WinFormsToWPFColor(System.Drawing.Color sColor) { return System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B); }
+        public static System.Drawing.Color WPFToWinFormsColor(System.Windows.Media.Color wColor) { return System.Drawing.Color.FromArgb(wColor.A, wColor.R, wColor.G, wColor.B); }
         public static string ToHexadecimal(byte[] bytes)
         {
             StringBuilder hexBuilder = new StringBuilder();

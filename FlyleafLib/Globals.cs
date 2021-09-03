@@ -19,6 +19,13 @@ namespace FlyleafLib
         Subs
     }
 
+    public struct GPUAdapter
+    {
+        public string   Description { get; internal set; }
+        public long     Luid        { get; internal set; }
+        public bool     HasOutput   { get; internal set; }
+    }
+
     public struct AspectRatio
     {
         public static readonly AspectRatio Keep     = new AspectRatio(-1, 1);

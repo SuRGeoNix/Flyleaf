@@ -155,6 +155,12 @@
             Maximum allowed errors before stopping
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.GPUAdapteLuid">
+            <summary>
+            Forces the decoder/renderer to use the specified GPU adapter / device luid <see cref="P:FlyleafLib.Master.GPUAdapters"/>
+            Should be set before the decoder's initialization and it cannot be changed after
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.VideoConfig.AspectRatio">
             <summary>
             Video aspect ratio
@@ -270,6 +276,11 @@
         <member name="P:FlyleafLib.Master.AudioMaster">
             <summary>
             Manages audio devices, volume &amp; mute
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Master.GPUAdapters">
+            <summary>
+            List of GPU Adpaters luid/description <see cref="P:FlyleafLib.Config.VideoConfig.GPUAdapteLuid"/>
             </summary>
         </member>
         <member name="P:FlyleafLib.Master.Players">
