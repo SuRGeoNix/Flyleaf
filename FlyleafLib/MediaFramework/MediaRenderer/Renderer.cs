@@ -81,19 +81,32 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                  1.0f,   1.0f,  0,      1.0f, 0.0f
             };
 
-        FeatureLevel[] featureLevels = new[]
+        static Renderer()
         {
-            //FeatureLevel.Level_12_2,
-            //FeatureLevel.Level_12_1,
-            //FeatureLevel.Level_12_0,
-            //FeatureLevel.Level_11_1, // If enabled and device not supported creation will fail https://docs.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice
-            FeatureLevel.Level_11_0,
-            FeatureLevel.Level_10_1,
-            FeatureLevel.Level_10_0,
-            FeatureLevel.Level_9_3,
-            FeatureLevel.Level_9_2,
-            FeatureLevel.Level_9_1
-        };
+            List<FeatureLevel> features = new List<FeatureLevel>();
+            if (Utils.IsWin10)
+            {
+                features.Add(FeatureLevel.Level_12_1);
+                features.Add(FeatureLevel.Level_12_0);
+            }
+
+            if (Utils.IsWin10 | Utils.IsWin8)
+                features.Add(FeatureLevel.Level_11_1);
+
+            features.Add(FeatureLevel.Level_11_0);
+            features.Add(FeatureLevel.Level_10_1);
+            features.Add(FeatureLevel.Level_10_0);
+            features.Add(FeatureLevel.Level_9_3);
+            features.Add(FeatureLevel.Level_9_2);
+            features.Add(FeatureLevel.Level_9_1);
+
+            featureLevels = new FeatureLevel[features.Count -1];
+
+            for (int i=0; i<features.Count-1; i++)
+                featureLevels[i] = features[i];
+        }
+
+        static FeatureLevel[] featureLevels;
 
         FeatureLevel FeatureLevel;
 
@@ -136,7 +149,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 tempDevice.Dispose();
             }
             
-            using (var mthread = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
+            using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
+            using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
 
             if (Control != null)
             {
@@ -144,15 +158,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
                 {
-                    BufferCount = FeatureLevel >= FeatureLevel.Level_11_0 ? 6 : 1,
-                    SwapEffect  = FeatureLevel >= FeatureLevel.Level_11_0 ? SwapEffect.FlipSequential : SwapEffect.Discard,
-
                     Format      = Format.B8G8R8A8_UNorm,
                     Width       = Control.Width,
                     Height      = Control.Height,
                     AlphaMode   = AlphaMode.Ignore,
                     Usage       = Usage.RenderTargetOutput,
-                    Scaling     = FeatureLevel >= FeatureLevel.Level_11_0 ? Scaling.None : Scaling.Stretch,
 
                     SampleDescription = new SampleDescription(1, 0)
                 };
@@ -161,10 +171,26 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     Windowed = true
                 };
-            
-                swapChain = Factory.CreateSwapChainForHwnd(Device, Control.Handle, swapChainDescription, fullscreenDescription);
-                backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
-                rtv = Device.CreateRenderTargetView(backBuffer);
+
+                if (Utils.IsWin10)
+                {
+                    swapChainDescription.BufferCount = 6;
+                    swapChainDescription.SwapEffect  = SwapEffect.FlipSequential; // TBR: Ideally for Win10 FlipDiscard but having issues on fullscreen
+                }
+                else if (Utils.IsWin8)
+                {
+                    swapChainDescription.BufferCount = 6;
+                    swapChainDescription.SwapEffect  = SwapEffect.FlipSequential;
+                }
+                else
+                {
+                    swapChainDescription.BufferCount = 1;
+                    swapChainDescription.SwapEffect  = SwapEffect.Discard;
+                }
+
+                swapChain   = Factory.CreateSwapChainForHwnd(Device, Control.Handle, swapChainDescription, fullscreenDescription);
+                backBuffer  = swapChain.GetBuffer<ID3D11Texture2D>(0);
+                rtv         = Device.CreateRenderTargetView(backBuffer);
 
                 GetViewport = new Viewport(0, 0, Control.Width, Control.Height);
                 context.RSSetViewport(GetViewport);
@@ -366,7 +392,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 rtv.Dispose();
                 backBuffer.Dispose();
 
-                swapChain.ResizeBuffers(0, Control.Width, Control.Height, Format.Unknown, SwapChainFlags.None);
+                swapChain.ResizeBuffers(swapChain.Description.BufferCount, Control.Width, Control.Height, Format.Unknown, SwapChainFlags.None);
                 backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 rtv = Device.CreateRenderTargetView(backBuffer);
 
@@ -516,7 +542,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         context.PSSetShader(curPixelShader);
                         context.PSSetShaderResources(0, curSRVs);
                     }
-
+                    
                     context.OMSetRenderTargets(rtv);
                     context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
                     if (!DisableRendering) context.Draw(6, 0);
