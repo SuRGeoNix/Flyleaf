@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -10,6 +11,7 @@ using SharpGen.Runtime;
 
 using Vortice.DXGI;
 using Vortice.DXGI.Debug;
+using Vortice.D3DCompiler;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.Mathematics;
@@ -41,6 +43,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         //DeviceDebug                       deviceDbg;
         
+        IDXGIFactory2                           factory;
         ID3D11DeviceContext1                    context;
         IDXGISwapChain1                         swapChain;
 
@@ -52,25 +55,24 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         ID3D11Texture2D[]                       backBuffer2;
         bool[]                                  backBuffer2busy;
 
+        ID3D11SamplerState                      samplerLinear;
+
+        ID3D11PixelShader                       pixelShader;
+
         ID3D11Buffer                            vertexBuffer;
         ID3D11InputLayout                       vertexLayout;
+        ID3D11VertexShader                      vertexShader;
 
-        ID3D11PixelShader                       curPixelShader;
         ID3D11ShaderResourceView[]              curSRVs;
         ShaderResourceViewDescription           srvDescR, srvDescRG;
 
-        Dictionary<string, ID3D11PixelShader>   pixelShaders;    
-        ID3D11VertexShader                      vertexShader;
-
-        ID3D11SamplerState                      textureSampler;
-        
         static  InputElementDescription[]       inputElements =
             {
                 new InputElementDescription("POSITION", 0, Format.R32G32B32_Float,     0),
                 new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float,        0),
-                //new InputElement("COLOR",    0, Format.R32G32B32A32_Float,  0)
             };
-        static float[]                      vertexBufferData =
+
+        static float[]                          vertexBufferData =
             {
                 -1.0f,  -1.0f,  0,      0.0f, 1.0f,
                 -1.0f,   1.0f,  0,      0.0f, 0.0f,
@@ -84,13 +86,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         static Renderer()
         {
             List<FeatureLevel> features = new List<FeatureLevel>();
-            if (Utils.IsWin10)
+            if (!Utils.IsWin7 && !Utils.IsWin8)
             {
                 features.Add(FeatureLevel.Level_12_1);
                 features.Add(FeatureLevel.Level_12_0);
             }
 
-            if (Utils.IsWin10 | Utils.IsWin8)
+            if (!Utils.IsWin7)
                 features.Add(FeatureLevel.Level_11_1);
 
             features.Add(FeatureLevel.Level_11_0);
@@ -110,7 +112,40 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         FeatureLevel FeatureLevel;
 
-        IDXGIFactory2 Factory;
+        // HDR to SDR
+        float m_toneMappingParam = 1.4f;
+        ID3D11Buffer psBuffer;
+        PSBufferType psBufferData = new PSBufferType();
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct PSBufferType
+        {
+            // size needs to be multiple of 16
+
+            public PSFormat format;
+            public int coefsIndex;
+            public PSHDR2SDRMethod hdrmethod;
+
+            public float brightness;
+            public float contrast;
+
+            public float g_luminance;
+            public float g_toneP1;
+            public float g_toneP2;
+        }
+        enum PSFormat : int
+        {
+            RGB     = 1,
+            Y_UV    = 2,
+            Y_U_V   = 3
+        }
+        public enum PSHDR2SDRMethod : int
+        {
+            None    = 0,
+            Aces    = 1,
+            Hable   = 2,
+            Reinhard= 3
+        }
 
         public Renderer(VideoDecoder videoDecoder, Config config, Control control = null, int uniqueId = -1)
         {
@@ -119,10 +154,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             UniqueId    = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder= videoDecoder;
 
-            if (CreateDXGIFactory1(out Factory).Failure)
-            {
+            if (CreateDXGIFactory1(out factory).Failure)
                 throw new InvalidOperationException("Cannot create IDXGIFactory1");
-            }
 
             using (IDXGIAdapter1 adapter = GetHardwareAdapter())
             {
@@ -136,12 +169,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 #endif
 
                 if (D3D11CreateDevice(adapter, DriverType.Unknown, creationFlags, featureLevels, out ID3D11Device tempDevice, out FeatureLevel, out ID3D11DeviceContext tempContext).Failure)
-                {
-                    // If the initialization fails, fall back to the WARP device.
-                    // For more information on WARP, see:
-                    // http://go.microsoft.com/fwlink/?LinkId=286690
-                    D3D11CreateDevice(null, DriverType.Warp, creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).CheckError();
-                }
+                    D3D11CreateDevice(null,    DriverType.Warp,    creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).CheckError();
+                    // If the initialization fails, fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690
 
                 Device = tempDevice. QueryInterface<ID3D11Device1>();
                 context= tempContext.QueryInterface<ID3D11DeviceContext1>();
@@ -159,6 +188,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
                 {
                     Format      = Format.B8G8R8A8_UNorm,
+                    //Format      = Format.R10G10B10A2_UNorm,
                     Width       = Control.Width,
                     Height      = Control.Height,
                     AlphaMode   = AlphaMode.Ignore,
@@ -172,23 +202,23 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Windowed = true
                 };
 
-                if (Utils.IsWin10)
-                {
-                    swapChainDescription.BufferCount = 6;
-                    swapChainDescription.SwapEffect  = SwapEffect.FlipSequential; // TBR: Ideally for Win10 FlipDiscard but having issues on fullscreen
-                }
-                else if (Utils.IsWin8)
-                {
-                    swapChainDescription.BufferCount = 6;
-                    swapChainDescription.SwapEffect  = SwapEffect.FlipSequential;
-                }
-                else
+                if (Utils.IsWin7)
                 {
                     swapChainDescription.BufferCount = 1;
                     swapChainDescription.SwapEffect  = SwapEffect.Discard;
                 }
+                else if (Utils.IsWin8)
+                {
+                    swapChainDescription.BufferCount = 3;
+                    swapChainDescription.SwapEffect  = SwapEffect.FlipSequential;
+                }
+                else // > Win 8
+                {
+                    swapChainDescription.BufferCount = 3;
+                    swapChainDescription.SwapEffect  = SwapEffect.FlipSequential; // TBR: Ideally for Win10 FlipDiscard but having issues on fullscreen
+                }
 
-                swapChain   = Factory.CreateSwapChainForHwnd(Device, Control.Handle, swapChainDescription, fullscreenDescription);
+                swapChain   = factory.CreateSwapChainForHwnd(Device, Control.Handle, swapChainDescription, fullscreenDescription);
                 backBuffer  = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 rtv         = Device.CreateRenderTargetView(backBuffer);
 
@@ -198,39 +228,40 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             vertexBuffer = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
 
-            textureSampler = Device.CreateSamplerState(new SamplerDescription()
+            samplerLinear = Device.CreateSamplerState(new SamplerDescription()
             {
                 AddressU = TextureAddressMode.Clamp,
                 AddressV = TextureAddressMode.Clamp,
                 AddressW = TextureAddressMode.Clamp,
-                ComparisonFunction = ComparisonFunction.Never,
-                Filter = Filter.MinMagMipLinear,
-                MinLOD = 0,
-                MaxLOD = float.MaxValue,
-                MaxAnisotropy = 1
+                Filter = Filter.MinMagMipLinear
             });
 
-            // Load Shaders Byte Code
-            Dictionary<string, byte[]> Shaders = Shaders_v5.Shaders;
-            if (FeatureLevel < FeatureLevel.Level_11_0) Shaders = Shaders_v4.Shaders;
-            
-            pixelShaders = new Dictionary<string, ID3D11PixelShader>();
+            Compiler.CompileFromFile(@"C:\root\dev\projects\Flyleaf\FlyleafLib\MediaFramework\MediaRenderer\Shaders\FlyleafVS.hlsl", "main", "vs_4_0", out Blob vsBlob, out Blob vsError);
+            if (vsError != null) Log(vsError.ConvertToString());
 
-            foreach(var entry in Shaders)
-                if (entry.Key.ToString() == "VertexShader")
-                {
-                    vertexLayout = Device.CreateInputLayout(inputElements, entry.Value);
-                    vertexShader = Device.CreateVertexShader(entry.Value);
-                }
-                else
-                    pixelShaders.Add(entry.Key.ToString(), Device.CreatePixelShader(entry.Value));
+            Compiler.CompileFromFile(@"C:\root\dev\projects\Flyleaf\FlyleafLib\MediaFramework\MediaRenderer\Shaders\FlyleafPS.hlsl", "main", "ps_4_0", out Blob psBlob, out Blob psError);
+            if (psError != null) Log(psError.ConvertToString());
+
+            pixelShader  = Device.CreatePixelShader(psBlob);
+            vertexLayout = Device.CreateInputLayout(inputElements, vsBlob);
+            vertexShader = Device.CreateVertexShader(vsBlob);
 
             context.IASetInputLayout(vertexLayout);
             context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
             context.IASetVertexBuffers(0, new VertexBufferView(vertexBuffer, sizeof(float) * 5, 0));
 
             context.VSSetShader(vertexShader);
-            context.PSSetSampler(0, textureSampler);
+            context.PSSetShader(pixelShader);
+            context.PSSetSampler(0, samplerLinear);
+
+            psBuffer = Device.CreateBuffer(new BufferDescription() 
+            {
+                Usage           = ResourceUsage.Default,
+                BindFlags       = BindFlags.ConstantBuffer,
+                CpuAccessFlags  = CpuAccessFlags.None,
+                SizeInBytes     = sizeof(PSBufferType)
+            });
+            context.PSSetConstantBuffer(0, psBuffer);
 
             Disposed = false;
         }
@@ -240,7 +271,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             if (Config.Video.GPUAdapteLuid != -1)
             {
-                for (int adapterIndex = 0; Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                 {
                     if (adapter.Description.Luid == Config.Video.GPUAdapteLuid)
                         return adapter;
@@ -251,7 +282,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
             }
             
-            IDXGIFactory6 factory6 = Factory.QueryInterfaceOrNull<IDXGIFactory6>();
+            IDXGIFactory6 factory6 = factory.QueryInterfaceOrNull<IDXGIFactory6>();
             if (factory6 != null)
             {
                 for (int adapterIndex = 0; factory6.EnumAdapterByGpuPreference(adapterIndex, GpuPreference.HighPerformance, out adapter).Success; adapterIndex++)
@@ -273,7 +304,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             if (adapter == null)
             {
-                for (int adapterIndex = 0; Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                 {
                     if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
                     {
@@ -338,11 +369,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (Control != null) Control.Resize -= ResizeBuffers;
 
-                foreach (var pixelShader in pixelShaders)
-                    pixelShader.Value.Dispose();
-
                 vertexShader.Dispose();
-                textureSampler.Dispose();
+                samplerLinear.Dispose();
                 vertexLayout.Dispose();
                 vertexBuffer.Dispose();
                 backBuffer.Dispose();
@@ -364,7 +392,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 context.Dispose();
                 Device.ImmediateContext.Dispose();
                 swapChain.Dispose();
-                Factory.Dispose();
+                factory.Dispose();
                 
                 Disposed = true;
             }
@@ -377,7 +405,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
             #endif
 
-            pixelShaders = null;
             vertexShader = null;
             vertexLayout = null;
             Device = null;
@@ -402,6 +429,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         internal void FrameResized()
         {
+            // TODO: Win7 doesn't support R8G8_UNorm so use SNorm will need also unormUV on pixel shader
             lock (Device)
             {
                 srvDescR = new ShaderResourceViewDescription()
@@ -426,20 +454,39 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
                 };
 
-                string yuvtype = "";
-                string curPixelShaderStr = "";
+                psBufferData.format = VideoDecoder.VideoAccelerated ? PSFormat.Y_UV : ((VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled ? PSFormat.Y_U_V : PSFormat.RGB));                
 
-                if (VideoDecoder.VideoAccelerated)
-                    yuvtype = "Y_UV";
-                else if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
-                    yuvtype = "Y_U_V";
+                if (VideoDecoder.VideoStream.ColorSpace == "BT2020")
+                    psBufferData.coefsIndex = 0;
+                else if (VideoDecoder.VideoStream.ColorSpace == "BT709")
+                    psBufferData.coefsIndex = 1;
+                else if (VideoDecoder.VideoStream.ColorSpace == "BT601")
+                    psBufferData.coefsIndex = 2;
                 else
-                    curPixelShaderStr = "PixelShader";
+                    psBufferData.coefsIndex = 2;
+
+                psBufferData.hdrmethod = VideoDecoder.VideoStream.ColorSpace == "BT2020" ? PSHDR2SDRMethod.Hable : PSHDR2SDRMethod.None;
+                psBufferData.g_luminance = 400.0f;
+
+                if (psBufferData.hdrmethod == PSHDR2SDRMethod.Reinhard)
+                {
+                    psBufferData.g_toneP1 = 0.72f;
+                }
+                else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Aces)
+                {
+                    psBufferData.g_toneP1 = m_toneMappingParam;
+                }
+                else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Hable)
+                {
+                    psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / m_toneMappingParam);
+                    psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * m_toneMappingParam);
+                }
                 
-                if (yuvtype != "") curPixelShaderStr = $"{VideoDecoder.VideoStream.ColorSpace}_{yuvtype}_{VideoDecoder.VideoStream.ColorRange}";
-                
-                Log($"Selected PixelShader: {curPixelShaderStr}");
-                curPixelShader = pixelShaders[curPixelShaderStr];
+
+                psBufferData.contrast = Config.Video.Contrast / 100.0f;
+                psBufferData.brightness = Config.Video.Brightness / 100.0f;
+
+                context.UpdateSubresource(ref psBufferData, psBuffer);
 
                 if (Control != null)
                     SetViewport();
@@ -476,8 +523,32 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     context.RSSetViewport(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height);
-                    context.PSSetShader(curPixelShader);
                 }
+            }
+        }
+        internal void FrameDisplayDataChanged(FFmpeg.AutoGen.AVMasteringDisplayMetadata* displayData)
+        {
+            if (psBufferData.hdrmethod != PSHDR2SDRMethod.None && displayData->has_luminance != 0)
+            {
+                if (psBufferData.hdrmethod == PSHDR2SDRMethod.Reinhard)
+                {
+                    psBufferData.g_toneP1 = (float) (Math.Log10(100) / Math.Log10(displayData->max_luminance.num / displayData->max_luminance.den));
+                    if (psBufferData.g_toneP1 < 0.1f || psBufferData.g_toneP1 > 5.0f)
+                        psBufferData.g_toneP1 = 0.72f;
+                }
+                else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Aces)
+                {
+                    psBufferData.g_luminance = displayData->max_luminance.num / (float)displayData->max_luminance.den;
+                    psBufferData.g_toneP1 = m_toneMappingParam;
+                }
+                else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Hable)
+                {
+                    psBufferData.g_luminance = displayData->max_luminance.num / (float)displayData->max_luminance.den;
+                    psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / m_toneMappingParam);
+                    psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * m_toneMappingParam);
+                }
+
+                context.UpdateSubresource(ref psBufferData, psBuffer);
             }
         }
         public void SetViewport()
@@ -539,7 +610,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                             curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
                         }
 
-                        context.PSSetShader(curPixelShader);
                         context.PSSetShaderResources(0, curSRVs);
                     }
                     
@@ -618,7 +688,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
                 }
 
-                context.PSSetShader(curPixelShader);
                 context.PSSetShaderResources(0, curSRVs);
                 context.OMSetRenderTargets(rtv2[subresource]);
                 //context.ClearRenderTargetView(rtv2[subresource], Config.video._ClearColor);
