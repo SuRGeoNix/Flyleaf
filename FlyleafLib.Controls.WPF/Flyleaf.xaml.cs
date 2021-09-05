@@ -410,16 +410,27 @@ namespace FlyleafLib.Controls.WPF
         public async void OpenSettingsAction(object obj = null)
         {
             if (dialogSettingsIdentifier == null) return;
-
+            
             if (DialogHost.IsDialogOpen(dialogSettingsIdentifier))
             {
                 DialogHost.Close(dialogSettingsIdentifier, "cancel");
                 return;
             }
 
+            var prevVideoConfig = VideoConfig.Clone();
+
             var view = new Settings();//Session);
             view.DataContext = this;
             var result = await DialogHost.Show(view, dialogSettingsIdentifier, view.Closing);
+
+            if (result != null && result.ToString() == "cancel")
+            {
+                VideoConfig.HDRtoSDRMethod  = prevVideoConfig.HDRtoSDRMethod;
+                VideoConfig.HDRtoSDRTone    = prevVideoConfig.HDRtoSDRTone;
+                VideoConfig.Contrast        = prevVideoConfig.Contrast;
+                VideoConfig.Brightness      = prevVideoConfig.Brightness;
+            }
+
             view.Closed(result);
         }
 

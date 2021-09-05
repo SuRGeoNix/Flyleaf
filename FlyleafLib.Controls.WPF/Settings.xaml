@@ -8,6 +8,7 @@
              xmlns:fl="clr-namespace:FlyleafLib;assembly=FlyleafLib"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:dragablz="clr-namespace:Dragablz;assembly=Dragablz"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              
              Background="{DynamicResource MaterialDesignPaper}"
              FontFamily="{materialDesign:MaterialDesignFont}"
@@ -53,7 +54,7 @@
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="TextAlignment" Value="Right"/>
             </Style>
-
+            
             <Style x:Key="FLTextboxNP" TargetType="{x:Type TextBox}" BasedOn="{StaticResource FLTextbox}">
                 <EventSetter Event="PreviewTextInput" Handler="ValidationNumericPositive"/>
             </Style>
@@ -61,6 +62,12 @@
             <Style x:Key="FLTextboxN" TargetType="{x:Type TextBox}" BasedOn="{StaticResource FLTextbox}">
                 <EventSetter Event="PreviewTextInput" Handler="ValidationNumeric"/>
             </Style>
+            
+            <ObjectDataProvider x:Key="dataFromEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="fl:HDRtoSDRMethod"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -217,6 +224,19 @@
                     
                     <TextBlock Grid.Row="4" Text="Decoder Threads" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding DecoderConfig.VideoThreads, UpdateSourceTrigger=Explicit}"/>
+
+                    <TextBlock Grid.Row="5" Text="HDR to SDR Method" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="5" x:Name="cmbHDRtoSDRMethod" Grid.Column="1" ItemsSource="{Binding Source={StaticResource dataFromEnum}}" SelectedItem="{Binding VideoConfig.HDRtoSDRMethod}"/>
+
+                    <TextBlock Grid.Row="6" Text="HDR to SDR Tone" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="6" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding VideoConfig.HDRtoSDRTone, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="7" Text="Brightness" Margin="0,10,0,0"  VerticalAlignment="Center"/>
+                    <Slider Grid.Row="7" Grid.Column="2" Margin="-78,10,0,0" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding VideoConfig.Brightness, Mode=TwoWay}" Minimum="0" Maximum="100"/>
+
+                    <TextBlock Grid.Row="8" Text="Contrast" Margin="0,10,0,0" VerticalAlignment="Center"/>
+                    <Slider Grid.Row="8" Grid.Column="2" Margin="-78,10,0,0" Style="{StaticResource MaterialDesignDiscreteSlider}" HorizontalAlignment="Stretch" Value="{Binding VideoConfig.Contrast, Mode=TwoWay}" Minimum="0" Maximum="100"/>
+
                 </Grid>
                 <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                     <Button Content="Apply" FontWeight="ExtraBold" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="apply"/>

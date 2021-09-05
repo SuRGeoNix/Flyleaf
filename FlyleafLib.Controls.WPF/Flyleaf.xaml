@@ -37,7 +37,7 @@
                             <Grid x:Name="PART_ContextMenuOwner" ContextMenu="{StaticResource PopUpMenu}">
 
                                 <!--Pop Up Dialog (Settings/Set Values)-->
-                                <materialDesign:DialogHost x:Name="PART_DialogSettings"/>
+                                <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
                                 
                                 <!-- Error Message -->
                                 <TextBlock Margin="0 20 20 0" VerticalAlignment="top" HorizontalAlignment="Left" TextAlignment="Left" TextWrapping="Wrap" FontSize="16" Background="Black" Foreground="DarkOrange" FontWeight="Bold" Text="{Binding ErrorMsg}"/>
