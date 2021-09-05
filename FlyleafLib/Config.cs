@@ -4,6 +4,7 @@ using System.IO;
 using System.Xml.Serialization;
 
 using FlyleafLib.MediaPlayer;
+using static FlyleafLib.MediaFramework.MediaRenderer.Renderer;
 
 namespace FlyleafLib
 {
@@ -332,6 +333,8 @@ namespace FlyleafLib
 
             public int              Contrast                    { get; set; } = 50;
             public int              Brightness                  { get; set; } = 50;
+            public PSHDR2SDRMethod  HDRtoSDRMethod              { get; set; } = PSHDR2SDRMethod.Hable;
+            public float            HDRtoSDRTone                { get; set; } = 1.4f;
         }
         public class AudioConfig : NotifyPropertyChanged
         {

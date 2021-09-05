@@ -16,14 +16,7 @@
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>- Updates Player's property changed events for CurTime/Stats to invoke Control's UI thread to ensure the UI refresh
-- Fixes a critical Player WinForms issue with the dispatcher from the latest commit
-
-- Fixes Player's Disposing to auto-invoke Control's UI thread for proper dispose (removes PreventAutoDispose from Config)
-
-- Fixes AudioOnly issues with CurTime/Duration and buffering
-
-- Fixes Downloader to support the new Pluggable DecoderContext</PackageReleaseNotes>
+    <PackageReleaseNotes></PackageReleaseNotes>
     <AssemblyVersion>3.3.1.0</AssemblyVersion>
     <FileVersion>3.3.1.0</FileVersion>
   </PropertyGroup>
@@ -36,6 +29,16 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="MediaFramework\MediaRenderer\Shaders\FlyleafPS.hlsl" />
+    <None Remove="MediaFramework\MediaRenderer\Shaders\FlyleafVS.hlsl" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\FlyleafPS.hlsl" />
+    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\FlyleafVS.hlsl" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.0" />

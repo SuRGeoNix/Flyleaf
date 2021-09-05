@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -112,8 +113,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         FeatureLevel FeatureLevel;
 
+        static Blob vsBlob;
+        static Blob psBlob;
+
         // HDR to SDR
-        float m_toneMappingParam = 1.4f;
         ID3D11Buffer psBuffer;
         PSBufferType psBufferData = new PSBufferType();
 
@@ -233,14 +236,37 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 AddressU = TextureAddressMode.Clamp,
                 AddressV = TextureAddressMode.Clamp,
                 AddressW = TextureAddressMode.Clamp,
-                Filter = Filter.MinMagMipLinear
+                Filter   = Filter.MinMagMipLinear
             });
 
-            Compiler.CompileFromFile(@"C:\root\dev\projects\Flyleaf\FlyleafLib\MediaFramework\MediaRenderer\Shaders\FlyleafVS.hlsl", "main", "vs_4_0", out Blob vsBlob, out Blob vsError);
-            if (vsError != null) Log(vsError.ConvertToString());
-
-            Compiler.CompileFromFile(@"C:\root\dev\projects\Flyleaf\FlyleafLib\MediaFramework\MediaRenderer\Shaders\FlyleafPS.hlsl", "main", "ps_4_0", out Blob psBlob, out Blob psError);
-            if (psError != null) Log(psError.ConvertToString());
+            // Compile VS/PS Embedded Resource Shaders (lock any static)
+            lock (vertexBufferData)
+            {
+                System.Reflection.Assembly assembly = null;
+                if (vsBlob == null)
+                {
+                    assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    using (Stream stream = assembly.GetManifestResourceStream(@"FlyleafLib.MediaFramework.MediaRenderer.Shaders.FlyleafVS.hlsl"))
+                    {
+                        byte[] bytes = new byte[stream.Length];
+                        stream.Read(bytes, 0, bytes.Length);
+                        Compiler.Compile(bytes, "main", null, "vs_4_0", out vsBlob, out Blob vsError);
+                        if (vsError != null) Log(vsError.ConvertToString());
+                    }
+                }
+            
+                if (psBlob == null)
+                {
+                    if (assembly == null) assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    using (Stream stream = assembly.GetManifestResourceStream(@"FlyleafLib.MediaFramework.MediaRenderer.Shaders.FlyleafPS.hlsl"))
+                    {
+                        byte[] bytes = new byte[stream.Length];
+                        stream.Read(bytes, 0, bytes.Length);
+                        Compiler.Compile(bytes, "main", null, "ps_4_0", out psBlob, out Blob psError);
+                        if (psError != null) Log(psError.ConvertToString());
+                    }
+                }
+            }
 
             pixelShader  = Device.CreatePixelShader(psBlob);
             vertexLayout = Device.CreateInputLayout(inputElements, vsBlob);
@@ -474,12 +500,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
                 else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Aces)
                 {
-                    psBufferData.g_toneP1 = m_toneMappingParam;
+                    psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
                 }
                 else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Hable)
                 {
-                    psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / m_toneMappingParam);
-                    psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * m_toneMappingParam);
+                    psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / Config.Video.HDRtoSDRTone);
+                    psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
                 }
                 
 
@@ -539,13 +565,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Aces)
                 {
                     psBufferData.g_luminance = displayData->max_luminance.num / (float)displayData->max_luminance.den;
-                    psBufferData.g_toneP1 = m_toneMappingParam;
+                    psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
                 }
                 else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Hable)
                 {
                     psBufferData.g_luminance = displayData->max_luminance.num / (float)displayData->max_luminance.den;
-                    psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / m_toneMappingParam);
-                    psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * m_toneMappingParam);
+                    psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / Config.Video.HDRtoSDRTone);
+                    psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
                 }
 
                 context.UpdateSubresource(ref psBufferData, psBuffer);

@@ -24,14 +24,15 @@ struct PixelShaderInput
     float2 Texture  : TEXCOORD0;
 };
 
-static const int RGB = 1;
-static const int Y_UV = 2;
-static const int Y_U_V = 3;
+// format enum
+static const int RGB        = 1;
+static const int Y_UV       = 2;
+static const int Y_U_V      = 3;
 
-static const int Aces = 1;
-static const int Hable = 2;
-static const int Reinhard = 3;
-
+// hdrmethod enum
+static const int Aces       = 1;
+static const int Hable      = 2;
+static const int Reinhard   = 3;
 
 // YUV to RGB matrix coefficients
 static const float4x4 coefs[] =
