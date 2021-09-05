@@ -211,6 +211,26 @@
             Whether Vsync should be enabled or not (0: Disabled, 1: Enabled)
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.Contrast">
+            <summary>
+            Sets the Contrast
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.Brightness">
+            <summary>
+            Sets the Brightness
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.HDRtoSDRMethod">
+            <summary>
+            The HDR to SDR method that will be used by the pixel shader
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.VideoConfig.HDRtoSDRTone">
+            <summary>
+            The HDR to SDR Tone float correnction (not used by Reinhard) 
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.AudioConfig.Delay">
             <summary>
             Audio delay ticks (will be reseted to 0 for every new audio stream)

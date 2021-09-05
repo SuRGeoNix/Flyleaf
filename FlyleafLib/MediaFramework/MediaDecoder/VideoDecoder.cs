@@ -349,7 +349,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     HDRDataSent = true;
                     AVFrameSideData* sideData = *frame->side_data;
                     if (sideData->type == AVFrameSideDataType.AV_FRAME_DATA_MASTERING_DISPLAY_METADATA)
-                        Renderer?.FrameDisplayDataChanged((AVMasteringDisplayMetadata*)sideData->data);
+                        Renderer?.UpdateHDRtoSDR((AVMasteringDisplayMetadata*)sideData->data);
                 }
 
                 // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)

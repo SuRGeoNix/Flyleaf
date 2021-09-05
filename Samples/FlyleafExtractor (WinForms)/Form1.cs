@@ -52,6 +52,8 @@ namespace FlyleafExtractor
         {
             if (e.Data.GetDataPresent(DataFormats.Text))
                 txtUrl.Text = e.Data.GetData(DataFormats.Text, false).ToString();
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                txtUrl.Text = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
         }
 
         private void TxtUrl_DragEnter(object sender, DragEventArgs e)

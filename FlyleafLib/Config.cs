@@ -4,14 +4,13 @@ using System.IO;
 using System.Xml.Serialization;
 
 using FlyleafLib.MediaPlayer;
-using static FlyleafLib.MediaFramework.MediaRenderer.Renderer;
 
 namespace FlyleafLib
 {
     /// <summary>
     /// Player's main configuration
     /// </summary>
-    public class Config : NotifyPropertyChanged
+    public unsafe class Config : NotifyPropertyChanged
     {
         public Config() { }
         public Config Clone()
@@ -330,11 +329,29 @@ namespace FlyleafLib
             /// </summary>
             public short            VSync                       { get; set; }
 
+            /// <summary>
+            /// Sets the Contrast
+            /// </summary>
+            public int              Contrast                    { get=> _Contrast; set { if (Set(ref _Contrast, value)) player?.renderer?.UpdateContrast(); } }
+            int _Contrast = 50;
 
-            public int              Contrast                    { get; set; } = 50;
-            public int              Brightness                  { get; set; } = 50;
-            public PSHDR2SDRMethod  HDRtoSDRMethod              { get; set; } = PSHDR2SDRMethod.Hable;
-            public float            HDRtoSDRTone                { get; set; } = 1.4f;
+            /// <summary>
+            /// Sets the Brightness
+            /// </summary>
+            public int              Brightness                  { get=> _Brightness; set { if (Set(ref _Brightness, value)) player?.renderer?.UpdateBrightness(); } }
+            int _Brightness = 50;
+
+            /// <summary>
+            /// The HDR to SDR method that will be used by the pixel shader
+            /// </summary>
+            public HDRtoSDRMethod   HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value)) player?.renderer?.UpdateHDRtoSDR(); }}
+            HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
+
+            /// <summary>
+            /// The HDR to SDR Tone float correnction (not used by Reinhard) 
+            /// </summary>
+            public float            HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value)) player?.renderer?.UpdateHDRtoSDR(); } }
+            float _HDRtoSDRTone = 1.4f;
         }
         public class AudioConfig : NotifyPropertyChanged
         {

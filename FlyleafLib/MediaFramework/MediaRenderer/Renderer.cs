@@ -116,9 +116,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         static Blob vsBlob;
         static Blob psBlob;
 
-        // HDR to SDR
+        #region HDR to SDR
         ID3D11Buffer psBuffer;
         PSBufferType psBufferData = new PSBufferType();
+        float lastLumin;
 
         [StructLayout(LayoutKind.Sequential)]
         struct PSBufferType
@@ -127,7 +128,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             public PSFormat format;
             public int coefsIndex;
-            public PSHDR2SDRMethod hdrmethod;
+            public HDRtoSDRMethod hdrmethod;
 
             public float brightness;
             public float contrast;
@@ -142,13 +143,50 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             Y_UV    = 2,
             Y_U_V   = 3
         }
-        public enum PSHDR2SDRMethod : int
+        public void UpdateContrast()
         {
-            None    = 0,
-            Aces    = 1,
-            Hable   = 2,
-            Reinhard= 3
+            psBufferData.contrast = Config.Video.Contrast / 100.0f;
+            context.UpdateSubresource(ref psBufferData, psBuffer);
+            if (!VideoDecoder.IsRunning) PresentFrame();
         }
+        public void UpdateBrightness()
+        {
+            psBufferData.brightness = Config.Video.Brightness / 100.0f;
+            context.UpdateSubresource(ref psBufferData, psBuffer);
+            if (!VideoDecoder.IsRunning) PresentFrame();
+        }
+        public void UpdateHDRtoSDR(FFmpeg.AutoGen.AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
+        {
+            if (VideoDecoder.VideoStream == null || VideoDecoder.VideoStream.ColorSpace != "BT2020") return;
+
+            float lumin = displayData == null || displayData->has_luminance == 0 ? lastLumin : displayData->max_luminance.num / (float)displayData->max_luminance.den;
+            lastLumin = lumin;
+
+            psBufferData.hdrmethod = Config.Video.HDRtoSDRMethod;
+
+            if (psBufferData.hdrmethod == HDRtoSDRMethod.Reinhard)
+            {
+                psBufferData.g_toneP1 = lastLumin > 0 ? (float)(Math.Log10(100) / Math.Log10(lastLumin)) : 0.72f;
+                if (psBufferData.g_toneP1 < 0.1f || psBufferData.g_toneP1 > 5.0f)
+                    psBufferData.g_toneP1 = 0.72f;
+            }
+            else if (psBufferData.hdrmethod == HDRtoSDRMethod.Aces)
+            {
+                psBufferData.g_luminance = lastLumin > 0 ? lastLumin : 400.0f;
+                psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
+            }
+            else if (psBufferData.hdrmethod == HDRtoSDRMethod.Hable)
+            {
+                psBufferData.g_luminance = lastLumin > 0 ? lastLumin : 400.0f;
+                psBufferData.g_toneP1 = 10000.0f / psBufferData.g_luminance * (2.0f / Config.Video.HDRtoSDRTone);
+                psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
+            }
+
+            context.UpdateSubresource(ref psBufferData, psBuffer);
+
+            if (!VideoDecoder.IsRunning) PresentFrame();
+        }
+        #endregion
 
         public Renderer(VideoDecoder videoDecoder, Config config, Control control = null, int uniqueId = -1)
         {
@@ -289,6 +327,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             });
             context.PSSetConstantBuffer(0, psBuffer);
 
+            psBufferData.hdrmethod  = HDRtoSDRMethod.None;
+            psBufferData.brightness = Config.Video.Brightness / 100.0f;
+            psBufferData.contrast   = Config.Video.Contrast / 100.0f;
+
+            context.UpdateSubresource(ref psBufferData, psBuffer);
+
+            if (Control != null)
+                SetViewport();
+
             Disposed = false;
         }
         private IDXGIAdapter1 GetHardwareAdapter()
@@ -395,12 +442,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (Control != null) Control.Resize -= ResizeBuffers;
 
-                vertexShader.Dispose();
-                samplerLinear.Dispose();
-                vertexLayout.Dispose();
-                vertexBuffer.Dispose();
-                backBuffer.Dispose();
-                rtv.Dispose();
+                pixelShader?.Dispose();
+                psBuffer?.Dispose();
+                vertexShader?.Dispose();
+                samplerLinear?.Dispose();
+                vertexLayout?.Dispose();
+                vertexBuffer?.Dispose();
+                backBuffer?.Dispose();
+                rtv?.Dispose();
 
                 if (rtv2 != null)
                     for(int i=0; i<rtv2.Length-1; i++)
@@ -413,12 +462,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (curSRVs != null) { for (int i=0; i<curSRVs.Length; i++) { curSRVs[i].Dispose(); curSRVs = null; } }
 
                 
-                context.ClearState();
-                context.Flush();
-                context.Dispose();
-                Device.ImmediateContext.Dispose();
-                swapChain.Dispose();
-                factory.Dispose();
+                context?.ClearState();
+                context?.Flush();
+                context?.Dispose();
+                Device?.ImmediateContext?.Dispose();
+                swapChain?.Dispose();
+                factory?.Dispose();
                 
                 Disposed = true;
             }
@@ -480,37 +529,22 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
                 };
 
-                psBufferData.format = VideoDecoder.VideoAccelerated ? PSFormat.Y_UV : ((VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled ? PSFormat.Y_U_V : PSFormat.RGB));                
+                psBufferData.format = VideoDecoder.VideoAccelerated ? PSFormat.Y_UV : ((VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled ? PSFormat.Y_U_V : PSFormat.RGB));
+
+                lastLumin = 0;
+                psBufferData.hdrmethod = HDRtoSDRMethod.None;
 
                 if (VideoDecoder.VideoStream.ColorSpace == "BT2020")
+                {
                     psBufferData.coefsIndex = 0;
+                    UpdateHDRtoSDR(null, false);
+                }
                 else if (VideoDecoder.VideoStream.ColorSpace == "BT709")
                     psBufferData.coefsIndex = 1;
                 else if (VideoDecoder.VideoStream.ColorSpace == "BT601")
                     psBufferData.coefsIndex = 2;
                 else
                     psBufferData.coefsIndex = 2;
-
-                psBufferData.hdrmethod = VideoDecoder.VideoStream.ColorSpace == "BT2020" ? PSHDR2SDRMethod.Hable : PSHDR2SDRMethod.None;
-                psBufferData.g_luminance = 400.0f;
-
-                if (psBufferData.hdrmethod == PSHDR2SDRMethod.Reinhard)
-                {
-                    psBufferData.g_toneP1 = 0.72f;
-                }
-                else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Aces)
-                {
-                    psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
-                }
-                else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Hable)
-                {
-                    psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / Config.Video.HDRtoSDRTone);
-                    psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
-                }
-                
-
-                psBufferData.contrast = Config.Video.Contrast / 100.0f;
-                psBufferData.brightness = Config.Video.Brightness / 100.0f;
 
                 context.UpdateSubresource(ref psBufferData, psBuffer);
 
@@ -552,31 +586,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
             }
         }
-        internal void FrameDisplayDataChanged(FFmpeg.AutoGen.AVMasteringDisplayMetadata* displayData)
-        {
-            if (psBufferData.hdrmethod != PSHDR2SDRMethod.None && displayData->has_luminance != 0)
-            {
-                if (psBufferData.hdrmethod == PSHDR2SDRMethod.Reinhard)
-                {
-                    psBufferData.g_toneP1 = (float) (Math.Log10(100) / Math.Log10(displayData->max_luminance.num / displayData->max_luminance.den));
-                    if (psBufferData.g_toneP1 < 0.1f || psBufferData.g_toneP1 > 5.0f)
-                        psBufferData.g_toneP1 = 0.72f;
-                }
-                else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Aces)
-                {
-                    psBufferData.g_luminance = displayData->max_luminance.num / (float)displayData->max_luminance.den;
-                    psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
-                }
-                else if (psBufferData.hdrmethod == PSHDR2SDRMethod.Hable)
-                {
-                    psBufferData.g_luminance = displayData->max_luminance.num / (float)displayData->max_luminance.den;
-                    psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / Config.Video.HDRtoSDRTone);
-                    psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
-                }
 
-                context.UpdateSubresource(ref psBufferData, psBuffer);
-            }
-        }
         public void SetViewport()
         {
             if (Config.Video.AspectRatio == AspectRatio.Fill || (Config.Video.AspectRatio == AspectRatio.Keep && VideoDecoder.VideoStream == null))

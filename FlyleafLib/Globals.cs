@@ -18,6 +18,13 @@ namespace FlyleafLib
         Video,
         Subs
     }
+    public enum HDRtoSDRMethod : int
+    {
+        None    = 0,
+        Aces    = 1,
+        Hable   = 2,
+        Reinhard= 3
+    }
 
     public struct GPUAdapter
     {
