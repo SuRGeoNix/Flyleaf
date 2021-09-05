@@ -54,10 +54,17 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
                 if (st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT470BG)
                     ColorSpace = "BT601";
-                if (Width > 1024 || Height >= 600)
+                else if (st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT709)
                     ColorSpace = "BT709";
+                else if (st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL)
+                    ColorSpace = "BT2020";
                 else
-                    ColorSpace = "BT601";
+                {
+                    if (Width > 1024 || Height >= 600)
+                        ColorSpace = "BT709";
+                    else
+                        ColorSpace = "BT601";
+                }
 
                 AVPixFmtDescriptor* pixFmtDesc = av_pix_fmt_desc_get((AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), PixelFormat));
                 PixelFormatDesc = pixFmtDesc;

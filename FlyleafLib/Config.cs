@@ -328,6 +328,10 @@ namespace FlyleafLib
             /// Whether Vsync should be enabled or not (0: Disabled, 1: Enabled)
             /// </summary>
             public short            VSync                       { get; set; }
+
+
+            public int              Contrast                    { get; set; } = 50;
+            public int              Brightness                  { get; set; } = 50;
         }
         public class AudioConfig : NotifyPropertyChanged
         {
