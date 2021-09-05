@@ -167,7 +167,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             HDRDataSent = false;
             Renderer?.FrameResized();
-            
+
             return 0;
         }
         internal void Flush()
@@ -344,7 +344,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)}");
 
 
-                if (!HDRDataSent && frame->side_data != null && *frame->side_data != null)// && *frame->side_data == AVPacketSideDataType.AV_PKT_DATA_MASTERING_DISPLAY_METADATA)
+                if (!HDRDataSent && frame->side_data != null && *frame->side_data != null)
                 {
                     HDRDataSent = true;
                     AVFrameSideData* sideData = *frame->side_data;
@@ -368,8 +368,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     textDesc.Format     = textureFFmpeg.Description.Format;
                     mFrame.textures     = new ID3D11Texture2D[1];
                     mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc);
-                    //Renderer.Device.ImmediateContext.CopySubresourceRegion(mFrame.textures[0], 0, 0, 0, 0, textureFFmpeg, (int) frame->data.ToArray()[1], new Vortice.Mathematics.Box(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1));
-                    Renderer.Device.ImmediateContext.CopySubresourceRegion(mFrame.textures[0], 0, 0, 0, 0, textureFFmpeg, (int) frame->data.ToArray()[1]);
+                    Renderer.Device.ImmediateContext.CopySubresourceRegion(mFrame.textures[0], 0, 0, 0, 0, textureFFmpeg, (int) frame->data.ToArray()[1], new Vortice.Mathematics.Box(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1));
                 }
 
                 // Software Frame (8-bit YUV)   | YUV byte* -> Device Texture[3] (RX) / SRV (RX_RX_RX) -> PixelShader (Y_U_V)
