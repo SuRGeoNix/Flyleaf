@@ -63,6 +63,8 @@ namespace FlyleafLib.Plugins
                 }
             });
 
+            curSuggestInput = VideoInputs[VideoInputs.Count - 1];
+
             return new OpenResults();
         }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Windows.Forms;
 
 using FlyleafLib;
@@ -29,12 +30,16 @@ namespace FlyleafPlayer__Custom_
 
             // Parse the control to the Player
             Player.Control = flyleaf1;
+            Player.OpenCompleted += (o, x) => { if (x.Success && x.Type == MediaType.Video) Player.Play(); };
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            // Sample using a 'custom' IO stream
+            //Stream customInput = new FileStream(SampleVideo, FileMode.Open);
+            //Player.OpenAsync(customInput);
+
             Player.OpenAsync(SampleVideo);
-            Player.OpenCompleted += (o, x) => { if (x.Success && x.Type == MediaType.Video) Player.Play(); };
         }
     }
 }
