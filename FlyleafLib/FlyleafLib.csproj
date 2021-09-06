@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.2</Version>
+	<Version>3.3.3</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,14 +16,9 @@
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework ffmpeg sharpdx directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Replaces deprecated SharpDX with fresh Vortice!
-Adds Master.GPUAdapters and Config.Video.GPUAdapterLuid to force a specific adapter
-
-New Pixel Shader implementation and removes old large file shaders
-Adds HDR to SDR (Aces, Habble Support (still no native HDR)
-Adds Brightness &amp; Contrast (Config.Video)</PackageReleaseNotes>
-    <AssemblyVersion>3.3.2.0</AssemblyVersion>
-    <FileVersion>3.3.2.0</FileVersion>
+    <PackageReleaseNotes>Fixes critical issue while parsing an external custom IO stream</PackageReleaseNotes>
+    <AssemblyVersion>3.3.3.0</AssemblyVersion>
+    <FileVersion>3.3.3.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

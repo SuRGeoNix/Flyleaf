@@ -429,6 +429,21 @@ namespace FlyleafDownloader
         private void btnStop_Click(object sender, EventArgs e)
         {
             Downloader.Dispose();
+            btnDownload.Enabled = true;
+            btnStop.Enabled = false;
+            btnBrowse.Enabled = true;
+            isOpened = false;
+            btnStop.Text = "Close";
+            splitContainer1.Panel2.Enabled = true;
+            //progressBar1.Visible = false;
+
+            if (!splitContainer1.Panel2Collapsed)
+            {
+                lastHeight = Height;
+                splitContainer1.Panel2Collapsed = true;
+                Height = splitContainer1.SplitterDistance + 50;
+                return;
+            }
         }
 
         private void btnBrowse_Click(object sender, EventArgs e)
