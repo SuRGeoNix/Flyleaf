@@ -268,16 +268,17 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
 
             vertexBuffer = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
-
+            
             samplerLinear = Device.CreateSamplerState(new SamplerDescription()
             {
                 AddressU = TextureAddressMode.Clamp,
                 AddressV = TextureAddressMode.Clamp,
                 AddressW = TextureAddressMode.Clamp,
-                Filter   = Filter.MinMagMipLinear
+                Filter   = Filter.MinMagMipLinear,
+                MaxLOD   = float.MaxValue // Required from Win7/8?
             });
 
-            // Compile VS/PS Embedded Resource Shaders (lock any static)
+            // Compile VS/PS Embedded Resource Shaders (lock any static) | level_9_3 required from Win7/8 can't use level_9_1 for ps instruction limits
             lock (vertexBufferData)
             {
                 System.Reflection.Assembly assembly = null;
@@ -288,7 +289,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     {
                         byte[] bytes = new byte[stream.Length];
                         stream.Read(bytes, 0, bytes.Length);
-                        Compiler.Compile(bytes, "main", null, "vs_4_0", out vsBlob, out Blob vsError);
+                        Compiler.Compile(bytes, "main", null, "vs_4_0_level_9_3", out vsBlob, out Blob vsError);
                         if (vsError != null) Log(vsError.ConvertToString());
                     }
                 }
@@ -300,7 +301,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     {
                         byte[] bytes = new byte[stream.Length];
                         stream.Read(bytes, 0, bytes.Length);
-                        Compiler.Compile(bytes, "main", null, "ps_4_0", out psBlob, out Blob psError);
+                        Compiler.Compile(bytes, "main", null, "ps_4_0_level_9_3", out psBlob, out Blob psError);
                         if (psError != null) Log(psError.ConvertToString());
                     }
                 }
