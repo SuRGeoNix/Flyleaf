@@ -481,25 +481,32 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public VideoFrame GetFrame(int index) // Zero-based frame index
         {
             int ret;
-            long frameTimestamp = (long) (index * (10000000 / VideoStream.Fps)); // Calculation of FrameX timestamp (based on fps/avgFrameDuration)
-            //System.Diagnostics.Debug.WriteLine($"Searching for {Utils.TicksToTime(frameTimestamp)}");
 
-            // Seeking at frameTimestamp or previous I/Key frame and flushing codec
-            ret = av_seek_frame(demuxer.FormatContext, -1, (VideoStream.StartTime + frameTimestamp) / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
-            avcodec_flush_buffers(codecCtx);
+            // Calculation of FrameX timestamp (based on fps/avgFrameDuration)
+            long frameTimestamp = VideoStream.StartTime + (long) (index * (10000000 / VideoStream.Fps));
+            //Log($"Searching for {Utils.TicksToTime(frameTimestamp)}");
+
+            // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC
+            if (codecCtx->codec_id == AV_CODEC_ID_HEVC)
+                ret = av_seek_frame(demuxer.FormatContext, -1, Math.Max(VideoStream.StartTime, frameTimestamp - (3 * (long)1000 * 10000)) / 10, AVSEEK_FLAG_ANY);
+            else
+                ret = av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
+
             if (ret < 0) return null; // handle seek error
-
+            avcodec_flush_buffers(codecCtx);
+            
+            // Decoding until requested frame/timestamp
             while (GetNextFrame() == 0)
             {
                 // Skip frames before our actual requested frame
-                if ((long)(frame->best_effort_timestamp * VideoStream.Timebase) / 10000 < frameTimestamp / 10000)
+                if ((long)(frame->best_effort_timestamp * VideoStream.Timebase) < frameTimestamp)
                 {
-                    //System.Diagnostics.Debug.WriteLine($"[Skip] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}]");
+                    //Log($"[Skip] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}]");
                     av_frame_unref(frame);
                     continue; 
                 }
 
-                //System.Diagnostics.Debug.WriteLine($"[Found] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}]");
+                //Log($"[Found] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}]");
                 return ProcessVideoFrame(frame);
             }
 

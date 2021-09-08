@@ -184,7 +184,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             context.UpdateSubresource(ref psBufferData, psBuffer);
 
-            if (!VideoDecoder.IsRunning) PresentFrame();
+            if (Control != null && !VideoDecoder.IsRunning) PresentFrame();
         }
         #endregion
 
@@ -621,10 +621,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             if (gotIn)
             {
-                if (rtv == null) return false;
-
                 try
                 {
+                    if (rtv == null) return false;
+
                     if (frame != null)
                     {
                         if (VideoDecoder.VideoAccelerated)
