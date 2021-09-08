@@ -30,6 +30,8 @@ namespace FlyleafExtractor
 
             // Prepares Decoder Context's Configuration
             Config = new Config();
+            //Config.Demuxer.AllowInterrupts = false;
+            Config.Demuxer.AllowTimeouts = false;
             Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
             Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
 
@@ -142,6 +144,7 @@ namespace FlyleafExtractor
 
         public void SaveFrame(VideoFrame frame, int frameNumber)
         {
+            if (frame == null) return;
             Bitmap bmp = VideoDecoder.Renderer.GetBitmap(frame);
             string fullpath = Path.Combine(txtSavePath.Text, $"{Filename}_{frameNumber + 1}.{Extension}");
             bmp.Save(fullpath, ImageFormat);
