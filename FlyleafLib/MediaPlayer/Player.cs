@@ -1509,7 +1509,8 @@ namespace FlyleafLib.MediaPlayer
                 {
                     if (Math.Abs(sDistanceMs - sleepMs) < 30)
                     {
-                        Subtitles.SubsText = sFrame.text;
+                        string tmpSubsText = sFrame.text;
+                        _Control?.BeginInvoke(new Action(() => Subtitles.SubsText = tmpSubsText));
                         sFramePrev = sFrame;
                         SubtitlesDecoder.Frames.TryDequeue(out sFrame);
                     }
@@ -1517,7 +1518,8 @@ namespace FlyleafLib.MediaPlayer
                     {
                         if (sFrame.duration + sDistanceMs > 0)
                         {
-                            Subtitles.SubsText = sFrame.text;
+                            string tmpSubsText = sFrame.text;
+                            _Control?.BeginInvoke(new Action(() => Subtitles.SubsText = tmpSubsText));
                             sFramePrev = sFrame;
                             SubtitlesDecoder.Frames.TryDequeue(out sFrame);
                         }
