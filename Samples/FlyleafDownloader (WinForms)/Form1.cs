@@ -133,7 +133,6 @@ namespace FlyleafDownloader
 
         void RefreshVideoInputs(bool selectEnabled = false)
         {
-            System.Diagnostics.Debug.WriteLine("XXX");
             lstVideoInputs.BeginUpdate();
             lstVideoInputs.Items.Clear();
             lstVideoStreams.Items.Clear();
