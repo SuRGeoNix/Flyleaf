@@ -10,6 +10,7 @@ namespace FlyleafLib.MediaFramework.MediaInput
         public IPlugin          Plugin      { get; set; }
 
         public string           Url         { get; set; }
+        public string           Protocol    { get; set; }
         public Stream           IOStream    { get; set; }
         public object           Tag         { get; set; }
 

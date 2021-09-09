@@ -211,6 +211,7 @@ namespace FlyleafLib.MediaPlayer
         object lockOpen         = new object();
         object lockSeek         = new object();
         object lockPlayPause    = new object();
+        object lockSubtitles    = new object();
 
         ConcurrentStack<SeekData> seeks = new ConcurrentStack<SeekData>();
         ConcurrentStack<OpenData> opens = new ConcurrentStack<OpenData>();
@@ -508,6 +509,9 @@ namespace FlyleafLib.MediaPlayer
         }
         private void Decoder_SubtitlesInputOpened(object sender, SubtitlesInputOpenedArgs e)
         {
+            if (e.Success)
+                lock (lockSubtitles) ReSync(decoder.SubtitlesStream, decoder.GetCurTimeMs());
+
             if (e.IsUserInput)
                 OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Subs, e.Input, e.OldInput, e.Error, e.IsUserInput));
             else
@@ -744,10 +748,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 if (!Video.IsOpened) return new OpenInputCompletedArgs(MediaType.Subs, input, null, "Subtitles require opened video stream", false); // Could be closed?
                 Config.Subtitles.SetEnabled(true);
-                isSubsSwitch = true;
                 args = decoder.OpenSubtitlesInput((SubtitlesInput)input, defaultSubtitles);
-                if (resync) ReSync(decoder.SubtitlesStream, syncMs);
-                isSubsSwitch = false;
             }
 
             return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, args.Error, args.IsUserInput);
@@ -1237,6 +1238,7 @@ namespace FlyleafLib.MediaPlayer
 
             if (Config.Subtitles.Enabled)
             {
+                lock (lockSubtitles)
                 if (SubtitlesDecoder.OnVideoDemuxer)
                     SubtitlesDecoder.Start();
                 else if (!decoder.RequiresResync)

@@ -14,16 +14,17 @@ using static FlyleafLib.Plugins.YoutubeDLJson;
 
 namespace FlyleafLib.Plugins
 {
-    public class YoutubeDL : PluginBase, IOpen, IProvideAudio, IProvideVideo, ISuggestAudioInput, ISuggestVideoInput
+    public class YoutubeDL : PluginBase, IOpen, IProvideAudio, IProvideVideo, IProvideSubtitles, ISuggestAudioInput, ISuggestVideoInput, ISuggestSubtitlesInput
     {
         YoutubeDLJson ytdl;
 
-        public static string plugin_path = "Plugins\\YoutubeDL\\youtube-dl.exe";
+        public static string plugin_path = "Plugins\\YoutubeDL\\yt-dlp.exe";
 
         static JsonSerializerSettings settings = new JsonSerializerSettings();
 
-        public List<AudioInput> AudioInputs { get; set; } = new List<AudioInput>();
-        public List<VideoInput> VideoInputs { get; set; } = new List<VideoInput>();
+        public List<AudioInput>     AudioInputs     { get; set; } = new List<AudioInput>();
+        public List<VideoInput>     VideoInputs     { get; set; } = new List<VideoInput>();
+        public List<SubtitlesInput> SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
 
         public bool IsPlaylist => false;
 
@@ -33,6 +34,7 @@ namespace FlyleafLib.Plugins
         {
             AudioInputs.Clear();
             VideoInputs.Clear();
+            SubtitlesInputs.Clear();
             ytdl = null;
         }
 
@@ -42,14 +44,21 @@ namespace FlyleafLib.Plugins
 
             Format fmt = (Format) input.Tag;
 
+            bool gotReferer = false;
             Config.Demuxer.FormatOpt["headers"] = "";
             foreach (var hdr in fmt.http_headers)
             {
                 if (hdr.Key.ToLower() == "referer")
+                {
+                    gotReferer = true;
                     Config.Demuxer.FormatOpt["referer"] = hdr.Value;
+                }
                 else if (hdr.Key.ToLower() != "user-agent")
                     Config.Demuxer.FormatOpt["headers"] += hdr.Key + ":" + hdr.Value + "\r\n";
             }
+
+            if (!gotReferer)
+                Config.Demuxer.FormatOpt["referer"] = Handler.UserInputUrl;
 
             return new OpenResults();
         }
@@ -61,14 +70,31 @@ namespace FlyleafLib.Plugins
 
             var curFormatOpt = decoder.VideoStream == null ? Config.Demuxer.FormatOpt : Config.Demuxer.AudioFormatOpt;
 
+            bool gotReferer = false;
             curFormatOpt["headers"] = "";
             foreach (var hdr in fmt.http_headers)
             {
                 if (hdr.Key.ToLower() == "referer")
+                {
+                    gotReferer = true;
                     curFormatOpt["referer"] = hdr.Value;
+                }
                 else if (hdr.Key.ToLower() != "user-agent")
                     curFormatOpt["headers"] += hdr.Key + ":" + hdr.Value + "\r\n";
             }
+
+            if (!gotReferer)
+                curFormatOpt["referer"] = Handler.UserInputUrl;
+
+            return new OpenResults();
+        }
+
+        public override OpenResults OnOpenSubtitles(SubtitlesInput input)
+        {
+            if (input.Plugin == null || input.Plugin.Name != Name) return null;
+
+            var curFormatOpt = Config.Demuxer.SubtitlesFormatOpt;
+            curFormatOpt["referer"] = Handler.UserInputUrl;
 
             return new OpenResults();
         }
@@ -128,7 +154,8 @@ namespace FlyleafLib.Plugins
                 Format fmt;
                 InputData inputData = new InputData()
                 {
-                    Title = ytdl.title
+                    Folder  = Path.GetTempPath(),
+                    Title   = ytdl.title
                 };
 
                 // Fix Nulls (we are not sure if they have audio/video)
@@ -145,6 +172,7 @@ namespace FlyleafLib.Plugins
                             InputData   = inputData,
                             Tag         = fmt,
                             Url         = fmt.url,
+                            Protocol    = fmt.protocol,
                             BitRate     = (long) fmt.vbr,
                             Codec       = fmt.vcodec,
                             Language    = Language.Get(fmt.language),
@@ -161,11 +189,33 @@ namespace FlyleafLib.Plugins
                             InputData   = inputData,
                             Tag         = fmt,
                             Url         = fmt.url,
+                            Protocol    = fmt.protocol,
                             BitRate     = (long) fmt.abr,
                             Codec       = fmt.acodec,
                             Language    = Language.Get(fmt.language)
                         });
                     }
+                }
+
+                if (ytdl.automatic_captions != null)
+                foreach (var subtitle1 in ytdl.automatic_captions)
+                {
+                    if (!Config.Subtitles.Languages.Contains(Language.Get(subtitle1.Key))) continue;
+
+                    foreach (var subtitle in subtitle1.Value)
+                    {
+                        if (subtitle.ext.ToLower() != "vtt") continue;
+
+                        SubtitlesInputs.Add(new SubtitlesInput()
+                        { 
+                            Downloaded  = true,
+                            Converted   = true,
+                            Protocol    = subtitle.ext,
+                            Language    = Language.Get(subtitle.name),
+                            Url         = subtitle.url
+                        });
+                    }
+                    
                 }
 
                 if (GetBestMatch() == null && GetAudioOnly() == null) return null;
@@ -195,6 +245,16 @@ namespace FlyleafLib.Plugins
 
             foreach(var input in AudioInputs)
                 if (fmt.url == input.Url) return input;
+
+            return null;
+        }
+
+        public SubtitlesInput SuggestSubtitles(Language lang)
+        {
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
+
+            foreach (var subtitle in SubtitlesInputs)
+                if (subtitle.Language == lang) return subtitle;
 
             return null;
         }
