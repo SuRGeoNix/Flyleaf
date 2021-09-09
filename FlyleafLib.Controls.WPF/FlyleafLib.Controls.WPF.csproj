@@ -4,7 +4,7 @@
     <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.8</Version>
+    <Version>1.1.9</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2021</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -13,11 +13,10 @@
     <PackageIconUrl />
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
-    <PackageReleaseNotes>Adds HDR to SDR configuration in settings
-Adds Brightness and Contrast to settings
-Fixes an issue with PreventAutoDispose not found</PackageReleaseNotes>
-    <AssemblyVersion>1.1.8.0</AssemblyVersion>
-    <FileVersion>1.1.8.0</FileVersion>
+    <PackageReleaseNotes>Adds YT-DLP subtitles inputs
+Adds YT-DLP protocol info</PackageReleaseNotes>
+    <AssemblyVersion>1.1.9.0</AssemblyVersion>
+    <FileVersion>1.1.9.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

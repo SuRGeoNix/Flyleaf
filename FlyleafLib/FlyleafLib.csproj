@@ -8,17 +8,24 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.3</Version>
+	<Version>3.3.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
 	<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
-	<PackageTags>flyleaf flyleaflib video audio media player engine framework ffmpeg sharpdx directx</PackageTags>
+	<PackageTags>flyleaf flyleaflib video audio media player engine framework download extract ffmpeg vortice directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Fixes critical issue while parsing an external custom IO stream</PackageReleaseNotes>
-    <AssemblyVersion>3.3.3.0</AssemblyVersion>
-    <FileVersion>3.3.3.0</FileVersion>
+    <PackageReleaseNotes>Restores backwards compatibility with Win7/8
+Invokes Control's UI thread to ensure Subtitles refresh
+Replaces depracated Youtube-DL plugin with YT-DLP
+Adds YT-DLP subtitles inputs support
+
+Fixes VideoDecoder.GetFrame() to support also 4K HDR to SDR (temp fix for ffmpeg bug with HEVC)
+Fixes Subtitles issue with seek that it was failing at the beginning of the stream
+Fixes Subtitles issue with the demuxer/decoder wouldn't start properly (race condition while was Status=Ended)</PackageReleaseNotes>
+    <AssemblyVersion>3.3.4.0</AssemblyVersion>
+    <FileVersion>3.3.4.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

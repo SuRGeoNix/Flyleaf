@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if not exist &quot;$(SolutionDir)Plugins\YoutubeDL&quot; mkdir &quot;$(SolutionDir)Plugins\YoutubeDL&quot;&#xD;&#xA;if not exist &quot;$(SolutionDir)Plugins\SharedLibs&quot; mkdir &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)Newtonsoft.Json.dll&quot; &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)Plugins\YoutubeDL&quot;&#xD;&#xA;copy /Y &quot;$(ProjectDir)Libs\*&quot; &quot;$(SolutionDir)Plugins\YoutubeDL&quot;" />
+    <Exec Command="if not exist &quot;$(SolutionDir)Plugins\YoutubeDL&quot; mkdir &quot;$(SolutionDir)Plugins\YoutubeDL&quot;&#xD;&#xA;if not exist &quot;$(SolutionDir)Plugins\SharedLibs&quot; mkdir &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)Newtonsoft.Json.dll&quot; &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)Plugins\YoutubeDL&quot;&#xD;&#xA;copy /Y &quot;$(ProjectDir)Libs\*&quot; &quot;$(SolutionDir)Plugins\YoutubeDL&quot;&#xD;&#xA;del /Q &quot;$(SolutionDir)Plugins\YoutubeDL\yt-dlp.exe_here&quot;" />
   </Target>
 
 </Project>
