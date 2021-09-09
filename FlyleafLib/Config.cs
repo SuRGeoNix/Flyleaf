@@ -131,6 +131,7 @@ namespace FlyleafLib
                 demuxer.AudioFormatOpt  = new SerializableDictionary<string, string>();
                 foreach (var kv in FormatOpt) demuxer.FormatOpt.Add(kv.Key, kv.Value);
                 foreach (var kv in AudioFormatOpt) demuxer.AudioFormatOpt.Add(kv.Key, kv.Value);
+                foreach (var kv in SubtitlesFormatOpt) demuxer.SubtitlesFormatOpt.Add(kv.Key, kv.Value);
 
                 return demuxer;
             }
@@ -209,6 +210,9 @@ namespace FlyleafLib
                                     FormatOpt       { get; set; } = DefaultVideoFormatOpt();
             public SerializableDictionary<string, string>
                                     AudioFormatOpt  { get; set; } = DefaultVideoFormatOpt();
+
+            public SerializableDictionary<string, string>
+                                    SubtitlesFormatOpt  { get; set; } = DefaultVideoFormatOpt();
 
             public static SerializableDictionary<string, string> DefaultVideoFormatOpt()
             {

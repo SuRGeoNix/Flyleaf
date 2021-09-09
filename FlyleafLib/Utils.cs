@@ -342,6 +342,7 @@ namespace FlyleafLib
                 #if NETFRAMEWORK
                     return Encoding.Default;
                 #else
+                    //return CodePagesEncodingProvider.Instance.GetEncoding(CultureInfo.CurrentCulture.TextInfo.ANSICodePage);
 
                 // The OEM code page for use by legacy console applications
                 // int oem = System.Globalization.CultureInfo.CurrentCulture.TextInfo.OEMCodePage;

@@ -343,3 +343,6 @@ healthchecksdb
 # NuGet Pack
 *.nuspec
 pack.bat
+
+# YT-DLP
+yt-dlp.exe

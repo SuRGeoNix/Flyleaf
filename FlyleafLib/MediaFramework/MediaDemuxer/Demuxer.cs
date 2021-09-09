@@ -209,7 +209,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     // Parse Options to AV Dictionary Format Options
                     AVDictionary *avopt = null;
 
-                    var curFormats = Type == MediaType.Audio ? Config.AudioFormatOpt : Config.FormatOpt;
+                    var curFormats = Type == MediaType.Video ? Config.FormatOpt : (Type == MediaType.Audio ? Config.AudioFormatOpt : Config.SubtitlesFormatOpt);
                     foreach (var optKV in curFormats)
                         av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
 
@@ -354,7 +354,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             lock (lockActions)
             {
                 if (Disposed) return -1;
-                if (Status == Status.Ended) Status = Status.Stopped;
 
                 int ret;
 
@@ -374,20 +373,29 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     {
                         Log($"[SEEK({(foreward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)} | ANY");
                         ret = foreward ?
-                            avformat_seek_file(fmtCtx, -1, ticks / 10,     ticks / 10, Int64.MaxValue, AVSEEK_FLAG_ANY):
-                            avformat_seek_file(fmtCtx, -1, Int64.MinValue, ticks / 10, ticks / 10,    AVSEEK_FLAG_ANY);
+                            avformat_seek_file(fmtCtx, -1, ticks / 10,     ticks / 10, Int64.MaxValue,  AVSEEK_FLAG_ANY):
+                            avformat_seek_file(fmtCtx, -1, Int64.MinValue, ticks / 10, ticks / 10,      AVSEEK_FLAG_ANY);
                     }
 
                     if (ret < 0)
                     {
                         if (hlsCtx != null) fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
                         Log($"[SEEK] Failed 1/2 (retrying) {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
-                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
+
+                        if (VideoStream != null)
+                            ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
+                        else
+                            ret = foreward ?
+                                avformat_seek_file(fmtCtx, -1, Int64.MinValue   , ticks / 10, ticks / 10    , AVSEEK_FLAG_ANY):
+                                avformat_seek_file(fmtCtx, -1, ticks / 10       , ticks / 10, Int64.MaxValue, AVSEEK_FLAG_ANY);
+
                         if (ret < 0) Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
                     }
 
                     DisposePackets();
                     UpdateCurTime();
+
+                    lock (lockStatus) if (Status == Status.Ended) Status = Status.Stopped;
                 }
 
                 return ret;  // >= 0 for success
