@@ -54,7 +54,7 @@ namespace FlyleafLib.Plugins
                     Config.Demuxer.FormatOpt["referer"] = hdr.Value;
                 }
                 else if (hdr.Key.ToLower() != "user-agent")
-                    Config.Demuxer.FormatOpt["headers"] += hdr.Key + ":" + hdr.Value + "\r\n";
+                    Config.Demuxer.FormatOpt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
             }
 
             if (!gotReferer)
@@ -80,7 +80,7 @@ namespace FlyleafLib.Plugins
                     curFormatOpt["referer"] = hdr.Value;
                 }
                 else if (hdr.Key.ToLower() != "user-agent")
-                    curFormatOpt["headers"] += hdr.Key + ":" + hdr.Value + "\r\n";
+                    curFormatOpt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
             }
 
             if (!gotReferer)
@@ -140,16 +140,25 @@ namespace FlyleafLib.Plugins
                         WindowStyle     = ProcessWindowStyle.Hidden
                     }
                 };
+
                 proc.Start();
-                while (!proc.HasExited && !Handler.Interrupt) { Thread.Sleep(35); }
-                if (Handler.Interrupt) { if (!proc.HasExited) proc.Kill(); 
-                    return null; }
-                if (!File.Exists($"{tmpFile}.info.json")) return null;
+
+                while (!proc.HasExited && !Handler.Interrupt)
+                    Thread.Sleep(35);
+
+                if (Handler.Interrupt)
+                {
+                    if (!proc.HasExited) proc.Kill();
+                    return null;
+                }
+
+                if (!File.Exists($"{tmpFile}.info.json"))
+                    return null;
 
                 // Parse Json Object
                 string json = File.ReadAllText($"{tmpFile}.info.json");
                 ytdl = JsonConvert.DeserializeObject<YoutubeDLJson>(json, settings);
-                if (ytdl == null || ytdl.formats == null || ytdl.formats.Count == 0) return null;
+                if (ytdl == null) return null;
 
                 Format fmt;
                 InputData inputData = new InputData()
@@ -157,6 +166,13 @@ namespace FlyleafLib.Plugins
                     Folder  = Path.GetTempPath(),
                     Title   = ytdl.title
                 };
+
+                // If no formats still could have a single format attched to the main root class
+                if (ytdl.formats == null)
+                {
+                    ytdl.formats = new List<Format>();
+                    ytdl.formats.Add(ytdl);
+                }
 
                 // Fix Nulls (we are not sure if they have audio/video)
                 for (int i = 0; i < ytdl.formats.Count; i++)
@@ -287,10 +303,23 @@ namespace FlyleafLib.Plugins
                 orderby format.height   descending
                 orderby format.width    descending
                 select  format;
+            
+            if (iresults == null || iresults.Count() == 0)
+            {
+                // Fall-back to any
+                iresults =
+                    from    format in ytdl.formats
+                    where   format.vcodec != "none"
+                    orderby format.tbr      descending
+                    orderby format.fps      descending
+                    orderby format.height   descending
+                    orderby format.width    descending
+                    select  format;
 
-            if (iresults == null) return ytdl.formats[ytdl.formats.Count - 1]; // Fallback: Youtube-DL best match
+                if (iresults == null || iresults.Count() == 0) return null;
+            }
+
             List<Format> results = iresults.ToList();
-            if (results.Count == 0) return null;
 
             // Best Resolution
             int bestWidth = (int)results[0].width;
@@ -325,7 +354,19 @@ namespace FlyleafLib.Plugins
 
             return false;
         }
-        private static bool HasVideo(Format fmt) { if ((fmt.height > 0 || fmt.vbr > 0 || (fmt.abr == 0 && (string.IsNullOrEmpty(fmt.acodec) || fmt.acodec != "none"))) || (!string.IsNullOrEmpty(fmt.vcodec) && fmt.vcodec != "none")) return true; return false; }
-        private static bool HasAudio(Format fmt) { if (fmt.abr > 0 ||  (!string.IsNullOrEmpty(fmt.acodec) && fmt.acodec != "none")) return true; return false; }
+        private static bool HasVideo(Format fmt) 
+        {
+            if ((fmt.height > 0 || fmt.vbr > 0 || (fmt.abr == 0 && (string.IsNullOrEmpty(fmt.acodec) || fmt.acodec != "none"))) || (!string.IsNullOrEmpty(fmt.vcodec) && fmt.vcodec != "none"))
+                return true;
+
+            return false; 
+        }
+        private static bool HasAudio(Format fmt)
+        {
+            if (fmt.abr > 0 ||  (!string.IsNullOrEmpty(fmt.acodec) && fmt.acodec != "none"))
+                return true;
+
+            return false;
+        }
     }
 }
