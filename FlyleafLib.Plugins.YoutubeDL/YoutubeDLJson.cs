@@ -3,9 +3,11 @@ using System.Collections.Generic;
 
 using Newtonsoft.Json;
 
+using static FlyleafLib.Plugins.YoutubeDLJson;
+
 namespace FlyleafLib.Plugins
 {
-    internal class YoutubeDLJson
+    public class YoutubeDLJson : Format
     {
         public string   id              { get; set; }
         public string   title           { get; set; }
@@ -34,8 +36,6 @@ namespace FlyleafLib.Plugins
                         categories      { get; set; }
         public List<Format> 
                         formats         { get; set; }
-        public Dictionary<string, string>
-                        http_headers    { get; set; }
         public List<Thumbnail> 
                         thumbnails      { get; set; }
 
@@ -49,26 +49,6 @@ namespace FlyleafLib.Plugins
         public string   extractor_key   { get; set; }
         public string   thumbnail       { get; set; }
         public string   display_id      { get; set; }
-        public double   asr             { get; set; }
-        public string   format_id       { get; set; }
-        public string   format_note     { get; set; }
-        public double   fps             { get; set; }
-        public double   height          { get; set; }
-        public int      quality         { get; set; }
-        public double   tbr             { get; set; }
-        public string   url             { get; set; }
-        public double   width           { get; set; }
-        public string   language        { get; set; }
-        public int      language_preference { get; set; }
-        public string   ext             { get; set; }
-        public string   vcodec          { get; set; }
-        public string   acodec          { get; set; }
-        public string   protocol        { get; set; }
-        public string   video_ext       { get; set; }
-        public string   audio_ext       { get; set; }
-        public double   vbr             { get; set; }
-        public double   abr             { get; set; }
-        public string   format          { get; set; }
         public string   fulltitle       { get; set; }
         public int      epoch           { get; set; }
 
@@ -93,37 +73,6 @@ namespace FlyleafLib.Plugins
             public string AcceptLanguage{ get; set; }
         }
 
-        public class Format
-        {
-            public double   asr         { get; set; }
-            public long     filesize    { get; set; }
-            public string   format_id   { get; set; }   
-            public string   format_note { get; set; }
-            public int      quality     { get; set; }
-            public double   tbr         { get; set; }
-            public string   url         { get; set; }
-            public string   language    { get; set; }
-            public int      language_preference 
-                                        { get; set; }
-            public string   ext         { get; set; }
-            public string   vcodec      { get; set; }
-            public string   acodec      { get; set; }
-            public double   abr         { get; set; }
-            public DownloaderOptions 
-                            downloader_options { get; set; }
-            public string   container   { get; set; }
-            public string   protocol    { get; set; }
-            public string   audio_ext   { get; set; }
-            public string   video_ext   { get; set; }
-            public string   format      { get; set; }
-            public Dictionary<string, string> 
-                            http_headers{ get; set; }
-            public double   fps         { get; set; }
-            public double   height      { get; set; }
-            public double   width       { get; set; }
-            public double   vbr         { get; set; }
-        }
-
         public class Thumbnail
         {
             public string url           { get; set; }
@@ -140,5 +89,36 @@ namespace FlyleafLib.Plugins
             public string url   { get; set; }
             public string name  { get; set; }
         }
+    }
+
+    public class Format
+    {
+        public double   asr         { get; set; }
+        public long     filesize    { get; set; }
+        public string   format_id   { get; set; }   
+        public string   format_note { get; set; }
+        public int      quality     { get; set; }
+        public double   tbr         { get; set; }
+        public string   url         { get; set; }
+        public string   language    { get; set; }
+        public int      language_preference 
+                                    { get; set; }
+        public string   ext         { get; set; }
+        public string   vcodec      { get; set; }
+        public string   acodec      { get; set; }
+        public double   abr         { get; set; }
+        public DownloaderOptions 
+                        downloader_options { get; set; }
+        public string   container   { get; set; }
+        public string   protocol    { get; set; }
+        public string   audio_ext   { get; set; }
+        public string   video_ext   { get; set; }
+        public string   format      { get; set; }
+        public Dictionary<string, string> 
+                        http_headers{ get; set; }
+        public double   fps         { get; set; }
+        public double   height      { get; set; }
+        public double   width       { get; set; }
+        public double   vbr         { get; set; }
     }
 }

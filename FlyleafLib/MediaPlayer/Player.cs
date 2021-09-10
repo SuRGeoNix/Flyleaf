@@ -549,21 +549,32 @@ namespace FlyleafLib.MediaPlayer
         }
         private void Initialize()
         {
-            Log($"[Initializing]");
+            try
+            {
+                Log($"[Initializing]");
 
-            TimeBeginPeriod(1);
+                TimeBeginPeriod(1);
 
-            Status      = Status.Stopped;
-            CanPlay     = false;
-            seeks.Clear();
-            EnsureThreadDone(tSeek);
-            EnsureThreadDone(tPlay);
-            decoder.Initialize();
-            Title = "";
-            Reset();
-            
-            TimeEndPeriod(1);
-            Log($"[Initialized]");
+                Status  = Status.Stopped;
+                CanPlay = false;
+                seeks.Clear();
+                EnsureThreadDone(tSeek);
+                EnsureThreadDone(tPlay);
+                decoder.Initialize();
+                Title = "";
+                Reset();
+
+                Log($"[Initialized]");
+
+            } catch (Exception e)
+            {
+                Log($"Initialize() Error: {e.Message} - check TimeBeginPeriod / TimeEndPeriod");
+
+            } finally
+            {
+                TimeEndPeriod(1);
+            }
+
         }
         #endregion
 
@@ -1003,7 +1014,6 @@ namespace FlyleafLib.MediaPlayer
         #endregion
 
         #region Playback
-
         /// <summary>
         /// Plays AVS streams
         /// </summary>
