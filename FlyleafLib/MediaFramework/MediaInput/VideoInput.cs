@@ -8,6 +8,8 @@ namespace FlyleafLib.MediaFramework.MediaInput
         public int          Height      { get; set; }
         public int          Width       { get; set; }
 
-        public bool         SearchedForSubtitles { get; set;}
+        public bool         HasAudio    { get; set; }
+        public bool         SearchedForSubtitles 
+                                        { get; set;}
     }
 }

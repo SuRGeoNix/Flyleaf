@@ -402,12 +402,13 @@
                                                                                 <DataTemplate>
                                                                                     <TextBlock>
                                                                                         <TextBlock.Text>
-                                                                                            <MultiBinding StringFormat=" {0}x{1} @{2} ({3}) [{4}]">
+                                                                                            <MultiBinding StringFormat=" {0}x{1} @{2} ({3}) [{4}] [Audio:{5}]">
                                                                                                 <Binding Path="Width"/>
                                                                                                 <Binding Path="Height"/>
                                                                                                 <Binding Path="Fps"/>
                                                                                                 <Binding Path="Codec"/>
                                                                                                 <Binding Path="Protocol"/>
+                                                                                                <Binding Path="HasAudio"/>
                                                                                             </MultiBinding>
                                                                                         </TextBlock.Text>
                                                                                     </TextBlock>

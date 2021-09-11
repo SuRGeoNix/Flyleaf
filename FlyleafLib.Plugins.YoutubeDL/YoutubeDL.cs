@@ -10,7 +10,6 @@ using System.Web;
 using Newtonsoft.Json;
 
 using FlyleafLib.MediaFramework.MediaInput;
-using static FlyleafLib.Plugins.YoutubeDLJson;
 
 namespace FlyleafLib.Plugins
 {
@@ -180,8 +179,12 @@ namespace FlyleafLib.Plugins
                     fmt = ytdl.formats[i];
                     if (ytdl.formats[i].vcodec == null) ytdl.formats[i].vcodec = "";
                     if (ytdl.formats[i].acodec == null) ytdl.formats[i].acodec = "";
+                    if (ytdl.formats[i].protocol == null) ytdl.formats[i].protocol = "";
 
-                    if (HasVideo(fmt))
+                    bool hasAudio = HasAudio(fmt);
+                    bool hasVideo = HasVideo(fmt);
+
+                    if (hasVideo)
                     {
                         VideoInputs.Add(new VideoInput()
                         {
@@ -189,6 +192,7 @@ namespace FlyleafLib.Plugins
                             Tag         = fmt,
                             Url         = fmt.url,
                             Protocol    = fmt.protocol,
+                            HasAudio    = hasAudio,
                             BitRate     = (long) fmt.vbr,
                             Codec       = fmt.vcodec,
                             Language    = Language.Get(fmt.language),
@@ -198,7 +202,7 @@ namespace FlyleafLib.Plugins
                         });
                     }
 
-                    if (HasAudio(fmt))
+                    if (hasAudio)
                     {
                         AudioInputs.Add(new AudioInput()
                         {
@@ -206,6 +210,7 @@ namespace FlyleafLib.Plugins
                             Tag         = fmt,
                             Url         = fmt.url,
                             Protocol    = fmt.protocol,
+                            HasVideo    = hasVideo,
                             BitRate     = (long) fmt.abr,
                             Codec       = fmt.acodec,
                             Language    = Language.Get(fmt.language)
@@ -279,12 +284,12 @@ namespace FlyleafLib.Plugins
         {
             // Prefer best with no video (dont waste bandwidth)
             for (int i = ytdl.formats.Count - 1; i >= 0; i--)
-                if (ytdl.formats[i].vcodec == "none" && ytdl.formats[i].acodec.Trim() != "" && ytdl.formats[i].acodec != "none")
+                if (HasAudio(ytdl.formats[i]) && !HasVideo(ytdl.formats[i]))
                     return ytdl.formats[i];
 
-            // Prefer audio from worst video
+            // Prefer audio from worst video?
             for (int i = 0; i < ytdl.formats.Count; i++)
-                if (ytdl.formats[i].acodec.Trim() != "" && ytdl.formats[i].acodec != "none")
+                if (HasAudio(ytdl.formats[i]))
                     return ytdl.formats[i];
 
             return null;
@@ -297,7 +302,7 @@ namespace FlyleafLib.Plugins
             // Video Streams Order based on Screen Resolution
             var iresults =
                 from    format in ytdl.formats
-                where   format.height <= Config.Video.MaxVerticalResolution && format.vcodec != "none" && (format.protocol == null || !Regex.IsMatch(format.protocol, "dash", RegexOptions.IgnoreCase))
+                where   HasVideo(format) && format.height <= Config.Video.MaxVerticalResolution && !Regex.IsMatch(format.protocol, "dash", RegexOptions.IgnoreCase)
                 orderby format.tbr      descending
                 orderby format.fps      descending
                 orderby format.height   descending
@@ -309,7 +314,7 @@ namespace FlyleafLib.Plugins
                 // Fall-back to any
                 iresults =
                     from    format in ytdl.formats
-                    where   format.vcodec != "none"
+                    where   HasVideo(format)
                     orderby format.tbr      descending
                     orderby format.fps      descending
                     orderby format.height   descending
@@ -344,7 +349,7 @@ namespace FlyleafLib.Plugins
                 priority++;
             }
 
-            return ytdl.formats[ytdl.formats.Count - 1]; // Fallback: Youtube-DL best match
+            return results[results.Count - 1]; // Fall-back to any
         }
         private static bool IsBlackListed(List<string> blacklist, string codec)
         {
@@ -354,16 +359,16 @@ namespace FlyleafLib.Plugins
 
             return false;
         }
-        private static bool HasVideo(Format fmt) 
+        private static bool HasVideo(Format fmt)
         {
-            if ((fmt.height > 0 || fmt.vbr > 0 || (fmt.abr == 0 && (string.IsNullOrEmpty(fmt.acodec) || fmt.acodec != "none"))) || (!string.IsNullOrEmpty(fmt.vcodec) && fmt.vcodec != "none"))
+            if (fmt.height > 0 || fmt.vbr > 0 || fmt.vcodec != "none")
                 return true;
 
             return false; 
         }
         private static bool HasAudio(Format fmt)
         {
-            if (fmt.abr > 0 ||  (!string.IsNullOrEmpty(fmt.acodec) && fmt.acodec != "none"))
+            if (fmt.abr > 0 || fmt.acodec != "none")
                 return true;
 
             return false;
