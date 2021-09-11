@@ -612,6 +612,15 @@ namespace FlyleafLib.MediaPlayer
                         args = decoder.OpenVideo((Stream)url_iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
                     else
                         args = decoder.OpenVideo(url_iostream.ToString(), defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+
+                    // Video Fails try Audio Input
+                    if (!args.Success && defaultInput && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist == false)
+                    {
+                        if (url_iostream is Stream)
+                            args = (InputOpenedArgs) decoder.OpenAudio((Stream)url_iostream, defaultInput, defaultAudio);
+                        else
+                            args = (InputOpenedArgs) decoder.OpenAudio(url_iostream.ToString(), defaultInput, defaultAudio);
+                    }
                 }
 
             } catch (Exception e)
@@ -734,6 +743,14 @@ namespace FlyleafLib.MediaPlayer
             }
             else if (input is VideoInput)
             {
+                // Going from AudioOnly to Video
+                bool shouldPlay = false;
+                if (IsPlaying && !Video.IsOpened)
+                {
+                    shouldPlay = true;
+                    Pause();
+                }
+
                 isVideoSwitch = true;
                 requiresBuffering = true;
 
@@ -754,6 +771,8 @@ namespace FlyleafLib.MediaPlayer
                         ShowOneFrame();
                     }
                 }
+
+                if (shouldPlay) Play();
             }
             else
             {

@@ -38,6 +38,8 @@ namespace FlyleafLib.MediaPlayer
             get => volumeSampleProvider == null ? 50 : (int) (volumeSampleProvider.Volume * 100);
             set
             {
+                if (volumeSampleProvider == null) return;
+
                 volumeSampleProvider.Volume = Math.Max(0, value / 100.0f);
                 Raise(nameof(Volume));
 
@@ -63,6 +65,8 @@ namespace FlyleafLib.MediaPlayer
             get => mute;
             set
             {
+                if (volumeSampleProvider == null) return;
+
                 if (value)
                 {
                     prevVolume = volumeSampleProvider.Volume;
