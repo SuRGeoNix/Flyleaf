@@ -20,19 +20,15 @@
 
 ### [Extra Features]
 * ***HLS Player***: supports live seeking (might the 1st FFmpeg player which does that)
-* ***AudioOnly***: supports Audio Player only without the need of Control/Rendering
 * ***RTSP***: supports RTSP cameras with low latency
-* ***Downloader***: supports also the plugins so you can download any youtube-dl supported url as well
+* ***AudioOnly***: supports Audio Player only without the need of Control/Rendering
+* ***HDR to SDR***: supports BT2020 / SMPTE 2084 to BT709 with Aces, Hable and Reinhard methods (still in progress, HDR native not supported yet)
+* ***Fast Forward***: Change playback speed (x1 - x4)
 * ***Recorder***: record the currently watching video
 * ***Snapshots***: Take a snapshot of the current frame
-* ***Fast Forward***: Change playback speed (x1, x2, x3, x4)
 * ***Zoom In/Out***: Zoom In/Out the rendering surface
-* ***Frame Extractor***: Extract video frames to BMP, JPG, PNG etc. (All, Specific or by Step)
-
-### [Missing Features]
-* HDR/HDR.10/HLG support (BT2020 / SMPTE 2084)
-* Post Process Filters (Brightness/Sharping etc.)
-* Windows OS is required
+* ***Downloader***: supports also the plugins so you can download any yt-dlp supported url as well
+* ***Frame Extractor***: Extract video frames to Bmp, Jpeg, Png etc. (All, Specific or by Step)
 
 ### [Thanks to]
 *Flyleaf wouldn't exist without them!*
@@ -41,5 +37,5 @@
 * ***[FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen/)***
 * ***[NAudio](https://github.com/naudio/NAudio)***
 * ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
-* Major open source media players ***VLC***, ***Kodi***, ***FFplay***
-* For plugins thanks to ***Youtube-DL*** and ***OpenSubtitles.org***
+* Major open source media players ***[VLC](https://github.com/videolan/vlc)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***
+* For plugins thanks to ***[YT-DLP](https://github.com/yt-dlp/yt-dlp)*** and ***[OpenSubtitles.org](https://www.opensubtitles.org/)***
