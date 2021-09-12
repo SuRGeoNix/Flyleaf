@@ -40,6 +40,23 @@ namespace FlyleafPlayer__Custom_
             //Player.OpenAsync(customInput);
 
             Player.OpenAsync(SampleVideo);
+            //FullScreen();
+        }
+
+        public void FullScreen()
+        {
+            var screen = Screen.FromControl(this).Bounds;
+
+            if (Width != screen.Width && Height != screen.Height)
+            {
+                FormBorderStyle = FormBorderStyle.None;
+
+                Location       = screen.Location;
+                Size           = screen.Size;
+
+                BringToFront();
+                Focus();
+            }
         }
     }
 }

@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if not exist &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot; mkdir &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot;&#xD;&#xA;if not exist &quot;$(SolutionDir)Plugins\SharedLibs&quot; mkdir &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)Newtonsoft.Json.dll&quot; &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot;" />
+    <Exec Command="if not exist &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot; mkdir &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot;&#xD;&#xA;if not exist &quot;$(SolutionDir)Plugins\SharedLibs&quot; mkdir &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)Newtonsoft.Json.dll&quot; &quot;$(SolutionDir)Plugins\SharedLibs&quot;&#xD;&#xA;move &quot;$(TargetDir)FlyleafLib.Plugins.OpenSubtitlesOrg.dll&quot; &quot;$(SolutionDir)Plugins\OpenSubtitlesOrg&quot;" />
   </Target>
 
 </Project>
