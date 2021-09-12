@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -87,6 +88,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         static Renderer()
         {
             List<FeatureLevel> features = new List<FeatureLevel>();
+
             if (!Utils.IsWin7 && !Utils.IsWin8)
             {
                 features.Add(FeatureLevel.Level_12_1);
@@ -243,21 +245,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Windowed = true
                 };
 
-                if (Utils.IsWin7)
-                {
-                    swapChainDescription.BufferCount = 1;
-                    swapChainDescription.SwapEffect  = SwapEffect.Discard;
-                }
-                else if (Utils.IsWin8)
-                {
-                    swapChainDescription.BufferCount = 3;
-                    swapChainDescription.SwapEffect  = SwapEffect.FlipSequential;
-                }
-                else // > Win 8
-                {
-                    swapChainDescription.BufferCount = 3;
-                    swapChainDescription.SwapEffect  = SwapEffect.FlipSequential; // TBR: Ideally for Win10 FlipDiscard but having issues on fullscreen
-                }
+                swapChainDescription.BufferCount = 1;
+                swapChainDescription.SwapEffect  = SwapEffect.Discard;
 
                 swapChain   = factory.CreateSwapChainForHwnd(Device, Control.Handle, swapChainDescription, fullscreenDescription);
                 backBuffer  = swapChain.GetBuffer<ID3D11Texture2D>(0);
@@ -267,41 +256,46 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 context.RSSetViewport(GetViewport);
             }
 
-            vertexBuffer = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
-            
+            vertexBuffer  = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
+
             samplerLinear = Device.CreateSamplerState(new SamplerDescription()
             {
                 AddressU = TextureAddressMode.Clamp,
                 AddressV = TextureAddressMode.Clamp,
                 AddressW = TextureAddressMode.Clamp,
                 Filter   = Filter.MinMagMipLinear,
-                MaxLOD   = float.MaxValue // Required from Win7/8?
+                MinLOD   = 0,
+                MaxLOD   = float.MaxValue, // Required from Win7/8?
+                MaxAnisotropy = 1
             });
 
             // Compile VS/PS Embedded Resource Shaders (lock any static) | level_9_3 required from Win7/8 can't use level_9_1 for ps instruction limits
             lock (vertexBufferData)
             {
-                System.Reflection.Assembly assembly = null;
+                Assembly assembly = null;
+                string profileExt = FeatureLevel >= FeatureLevel.Level_11_0 ? "_5_0" : "_4_0_level_9_3";
+
                 if (vsBlob == null)
                 {
-                    assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    assembly = Assembly.GetExecutingAssembly();
                     using (Stream stream = assembly.GetManifestResourceStream(@"FlyleafLib.MediaFramework.MediaRenderer.Shaders.FlyleafVS.hlsl"))
                     {
                         byte[] bytes = new byte[stream.Length];
                         stream.Read(bytes, 0, bytes.Length);
-                        Compiler.Compile(bytes, "main", null, "vs_4_0_level_9_3", out vsBlob, out Blob vsError);
+                        Compiler.Compile(bytes, null, null, "main", null, $"vs{profileExt}", ShaderFlags.OptimizationLevel3, out vsBlob, out Blob vsError);
                         if (vsError != null) Log(vsError.ConvertToString());
                     }
                 }
-            
+
                 if (psBlob == null)
                 {
-                    if (assembly == null) assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    if (assembly == null) assembly = Assembly.GetExecutingAssembly();
+
                     using (Stream stream = assembly.GetManifestResourceStream(@"FlyleafLib.MediaFramework.MediaRenderer.Shaders.FlyleafPS.hlsl"))
                     {
                         byte[] bytes = new byte[stream.Length];
                         stream.Read(bytes, 0, bytes.Length);
-                        Compiler.Compile(bytes, "main", null, "ps_4_0_level_9_3", out psBlob, out Blob psError);
+                        Compiler.Compile(bytes, null, null, "main", null, $"ps{profileExt}", ShaderFlags.OptimizationLevel3, out psBlob, out Blob psError);
                         if (psError != null) Log(psError.ConvertToString());
                     }
                 }
@@ -495,7 +489,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 rtv.Dispose();
                 backBuffer.Dispose();
 
-                swapChain.ResizeBuffers(swapChain.Description.BufferCount, Control.Width, Control.Height, Format.Unknown, SwapChainFlags.None);
+                swapChain.ResizeBuffers(0, Control.Width, Control.Height, Format.Unknown, SwapChainFlags.None);
                 backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 rtv = Device.CreateRenderTargetView(backBuffer);
 
@@ -777,7 +771,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 rtv.Dispose();
                 backBuffer.Dispose();
 
-                swapChain.ResizeBuffers(6, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height, Format.Unknown, SwapChainFlags.None);
+                swapChain.ResizeBuffers(0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height, Format.Unknown, SwapChainFlags.None);
                 backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 rtv = Device.CreateRenderTargetView(backBuffer);
                 context.RSSetViewport(0, 0, backBuffer.Description.Width, backBuffer.Description.Height);
@@ -807,9 +801,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 ResizeBuffers(null, null);
             }
 
-            Bitmap snapshotBitmap = GetBitmap(snapshotTexture);
-            try { snapshotBitmap.Save(fileName, ImageFormat.Bmp); } catch (Exception) { }
-            snapshotBitmap.Dispose();
+            Thread tmp = new Thread(() =>
+            {
+                Bitmap snapshotBitmap = GetBitmap(snapshotTexture);
+                try { snapshotBitmap.Save(fileName, ImageFormat.Bmp); } catch (Exception) { }
+                snapshotBitmap.Dispose();
+            });
+            tmp.IsBackground = true;
+            tmp.Start();
         }
 
         private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Renderer] {msg}"); }

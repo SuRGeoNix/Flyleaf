@@ -49,7 +49,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         #region Video Acceleration (Should be disposed seperately)
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
-        const AVHWDeviceType    HW_DEVICE   = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA;
+        const AVHWDeviceType    HW_DEVICE   = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA; // To fully support Win7/8 should consider AV_HWDEVICE_TYPE_DXVA2
         const AVPixelFormat     HW_PIX_FMT  = AVPixelFormat.AV_PIX_FMT_D3D11;
         AVBufferRef*            hw_device_ctx;
 
