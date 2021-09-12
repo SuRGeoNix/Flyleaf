@@ -164,7 +164,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             // Don't allow audio to change our duration without video (TBR: requires timestamp of videodemuxer to wait)
             if (!DecCtx.VideoDemuxer.Disposed && !DecCtx.AudioDemuxer.Disposed)
+            {
+                DecCtx.AudioDemuxer.Config = DecCtx.VideoDemuxer.Config.Clone();
                 DecCtx.AudioDemuxer.Config.BufferDuration = 100 * 10000;
+            }
 
             DecCtx.Start();
 

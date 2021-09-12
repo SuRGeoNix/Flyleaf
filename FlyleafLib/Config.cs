@@ -129,6 +129,8 @@ namespace FlyleafLib
 
                 demuxer.FormatOpt       = new SerializableDictionary<string, string>();
                 demuxer.AudioFormatOpt  = new SerializableDictionary<string, string>();
+                demuxer.SubtitlesFormatOpt = new SerializableDictionary<string, string>();
+
                 foreach (var kv in FormatOpt) demuxer.FormatOpt.Add(kv.Key, kv.Value);
                 foreach (var kv in AudioFormatOpt) demuxer.AudioFormatOpt.Add(kv.Key, kv.Value);
                 foreach (var kv in SubtitlesFormatOpt) demuxer.SubtitlesFormatOpt.Add(kv.Key, kv.Value);
