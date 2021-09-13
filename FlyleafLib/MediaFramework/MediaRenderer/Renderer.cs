@@ -417,7 +417,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     output.Dispose();
                 }
 
-                adapters.Add(adapter.Description.Luid, new GPUAdapter() { Description = adapter.Description.Description, Luid = adapter.Description.Luid, HasOutput = hasOutput });
+                // Vortice.DXGI.AdapterDescription.Luid only for x64
+                adapters[adapter.Description.Luid] = new GPUAdapter() { Description = adapter.Description.Description, Luid = adapter.Description.Luid, HasOutput = hasOutput };
 
                 adapter.Dispose();
                 adapter = null;

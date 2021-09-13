@@ -219,7 +219,12 @@ namespace FlyleafLib.Plugins
             else if (input is VideoInput)
                 VideoInput = (VideoInput)input;
             else
+            {
                 SubtitlesInput = (SubtitlesInput)input;
+                if (!SubtitlesInput.Downloaded && !DownloadSubtitles(SubtitlesInput)) return new OpenResults("Failed to download subtitles");
+                SubtitlesInput.Downloaded = true;
+            }
+                
 
             foreach(var plugin in Plugins.Values)
             {

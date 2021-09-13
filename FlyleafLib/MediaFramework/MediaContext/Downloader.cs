@@ -53,6 +53,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
         public Downloader(Config config, int uniqueId = -1) : base(uniqueId)
         {
             DecCtx = new DecoderContext(config, null, UniqueId, false);
+            DecCtx.AudioDemuxer.Config = config.Demuxer.Clone(); // We change buffer duration and we need to avoid changing video demuxer's config
+
             //DecCtx.VideoInputOpened += (o, e) => { if (!e.Success) OnDownloadCompleted(false); };
             Remuxer = new Remuxer(UniqueId);
             threadName = "Downloader";
@@ -163,9 +165,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
             if (!Remuxer.HasStreams) { OnDownloadCompleted(false); return; }
 
             // Don't allow audio to change our duration without video (TBR: requires timestamp of videodemuxer to wait)
+            long resetBufferDuration = -1;
             if (!DecCtx.VideoDemuxer.Disposed && !DecCtx.AudioDemuxer.Disposed)
             {
-                DecCtx.AudioDemuxer.Config = DecCtx.VideoDemuxer.Config.Clone();
+                resetBufferDuration = DecCtx.AudioDemuxer.Config.BufferDuration;
                 DecCtx.AudioDemuxer.Config.BufferDuration = 100 * 10000;
             }
 
@@ -262,6 +265,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 Remuxer.Write(packet, isAudio);
 
             } while (Status == Status.Running);
+
+            if (resetBufferDuration != -1) DecCtx.AudioDemuxer.Config.BufferDuration = resetBufferDuration;
 
             if (Status != Status.Pausing && Status != Status.Paused)
                 OnDownloadCompleted(Remuxer.WriteTrailer() == 0);
