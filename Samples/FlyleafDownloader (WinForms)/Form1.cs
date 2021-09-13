@@ -27,8 +27,8 @@ namespace FlyleafDownloader
             Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
             Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
 
-            Config.Demuxer.BufferDuration = 99999999999999;     // We might want to use small if we use both VideoDemuxer/AudioDemuxer to avoid having a lot of audio without video
-            Config.Demuxer.ReadTimeout = 60 * 1000 * 10000;     // 60 seconds to retry or fail
+            Config.Demuxer.BufferDuration = 60 * 1000 * 10000;  // 60 seconds should be enough to allow max download speed
+            Config.Demuxer.ReadTimeout    = 60 * 1000 * 10000;  // 60 seconds to retry or fail
             Config.Video.MaxVerticalResolutionCustom = 1080;    // Default Plugins Suggest based on this
 
             // Initializes the Downloader

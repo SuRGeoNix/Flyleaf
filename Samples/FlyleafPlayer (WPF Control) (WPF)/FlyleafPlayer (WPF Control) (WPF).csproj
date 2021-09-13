@@ -29,11 +29,11 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy &quot;$(SolutionDir)Plugins&quot; &quot;$(TargetDir)Plugins\&quot; /E /Y&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(TargetDir)Libs&quot; mkdir &quot;$(TargetDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;if $(PlatformName) == x86 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x86\*&quot; &quot;$(TargetDir)Libs\x86\&quot; /E /Y&#xD;&#xA;)&#xD;&#xA;if $(PlatformName) == x64 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x64\*&quot; &quot;$(TargetDir)Libs\x64\&quot; /E /Y&#xD;&#xA;)" />
+    <Exec Command="xcopy &quot;$(SolutionDir)Plugins.NET5\&quot; &quot;$(TargetDir)Plugins\&quot; /E /Y&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(TargetDir)Libs&quot; mkdir &quot;$(TargetDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;if $(PlatformName) == x86 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x86\*&quot; &quot;$(TargetDir)Libs\x86\&quot; /E /Y&#xD;&#xA;)&#xD;&#xA;if $(PlatformName) == x64 (&#xD;&#xA;  xcopy &quot;$(SolutionDir)Libs\x64\*&quot; &quot;$(TargetDir)Libs\x64\&quot; /E /Y&#xD;&#xA;)" />
   </Target>
 
   <Target Name="PostPublish" AfterTargets="Publish">
-    <Exec Command="del /S /F /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;del /S /F /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;del &quot;$(PublishDir)*.pdb&quot;&#xD;&#xA;del &quot;$(PublishDir)*.xml&quot;&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(PublishDir)Plugins&quot; mkdir &quot;$(PublishDir)Plugins&quot;&#xD;&#xA;if not exist &quot;$(PublishDir)Libs&quot; mkdir &quot;$(PublishDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;xcopy &quot;$(TargetDir)Libs\*&quot; &quot;$(PublishDir)Libs&quot; /E /Y&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\*&quot; &quot;$(PublishDir)Plugins&quot; /E /Y" />
+    <Exec Command="del /S /F /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;del /S /F /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;del &quot;$(PublishDir)*.pdb&quot;&#xD;&#xA;del &quot;$(PublishDir)*.xml&quot;&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(PublishDir)Plugins&quot; mkdir &quot;$(PublishDir)Plugins&quot;&#xD;&#xA;if not exist &quot;$(PublishDir)Libs&quot; mkdir &quot;$(PublishDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;xcopy &quot;$(TargetDir)Libs\*&quot; &quot;$(PublishDir)Libs&quot; /E /Y&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins.NET5\*&quot; &quot;$(PublishDir)Plugins&quot; /E /Y" />
   </Target>
 
 </Project>

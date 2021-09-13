@@ -338,7 +338,8 @@ ASALocalRun/
 healthchecksdb
 
 # Plugins
-/Plugins/
+/Plugins.NET4/
+/Plugins.NET5/
 
 # NuGet Pack
 *.nuspec
