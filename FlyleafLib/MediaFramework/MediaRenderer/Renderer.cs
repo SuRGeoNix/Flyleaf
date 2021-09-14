@@ -400,7 +400,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1 adapter).Success; adapterIndex++)
             {
                 #if DEBUG
-                Utils.Log($"[#{adapterIndex+1}] {adapter.Description.Description} ({adapter.Description.DeviceId})");
+                Utils.Log($"[#{adapterIndex+1}] {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {adapter.Description1.DedicatedVideoMemory}");
                 #endif
 
                 if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
@@ -417,8 +417,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     output.Dispose();
                 }
 
-                // Vortice.DXGI.AdapterDescription.Luid only for x64
-                adapters[adapter.Description.Luid] = new GPUAdapter() { Description = adapter.Description.Description, Luid = adapter.Description.Luid, HasOutput = hasOutput };
+                adapters[adapter.Description1.Luid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.Luid, HasOutput = hasOutput };
 
                 adapter.Dispose();
                 adapter = null;
