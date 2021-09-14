@@ -15,18 +15,10 @@ namespace FlyleafLib.Plugins
 {
     public class BitSwarm : PluginBase, IOpen, IProvideVideo, ISuggestVideoInput
     {
-        /* 1. we need an event when the decoder finishes open to restore EnableBuffering = false;
-         * 2. we need to cancel when we close a stream (causes issues)
-         * 3. similarly for Player.Seek Re-open!
-         * 4. Configuration pass to main config
-        */
-            // Cancel current stream to avoid errors :) 
-            //if (Torrent.data.files[fileIndex] != null && !Torrent.data.files[fileIndex].Created) Torrent.data.files[fileIndex]
-
         SuRGeoNix.BitSwarmLib.BitSwarm bitSwarm;
 
         TorrentOptions cfg = new TorrentOptions(); //TODO
-        Torrent Torrent;
+        Torrent     Torrent;
         int         fileIndex;
         int         fileIndexNext;
         bool        downloadNextStarted;
@@ -273,6 +265,8 @@ namespace FlyleafLib.Plugins
                 MaxTotalConnections = 80;
                 MaxNewConnections   = 15;
                 BlockRequests       = 4;
+
+                PreventTimePeriods  = true;
 
                 //Verbosity = 2;
             }

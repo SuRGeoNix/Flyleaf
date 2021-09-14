@@ -3,9 +3,9 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-using FlyleafLib.MediaFramework.MediaInput;
 using UniversalDetector;
-using static FlyleafLib.Utils;
+
+using FlyleafLib.MediaFramework.MediaInput;
 
 namespace FlyleafLib.Plugins.SubtitlesConverter
 {
@@ -20,7 +20,6 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 #if !NETFRAMEWORK
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 #endif
-
             try
             {
                 ICharsetDetector detector = new CharsetDetector();
@@ -114,7 +113,6 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
                 sw.Flush();
                 sr.Close();
                 sw.Close();
-
             }
             catch (Exception e) { Log($"Convert Error: {e.Message}"); return false; }
 

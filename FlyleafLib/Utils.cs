@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
@@ -15,8 +14,6 @@ using System.Xml.Schema;
 using System.Xml.Serialization;
 
 using Microsoft.Win32;
-
-//using SharpDX.D3DCompiler; // Enable this if you need to re-compile shaders
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
