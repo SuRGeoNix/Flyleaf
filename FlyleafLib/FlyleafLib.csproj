@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.4</Version>
+	<Version>3.3.5</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,16 +16,23 @@
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework download extract ffmpeg vortice directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Restores backwards compatibility with Win7/8
-Invokes Control's UI thread to ensure Subtitles refresh
-Replaces depracated Youtube-DL plugin with YT-DLP
-Adds YT-DLP subtitles inputs support
+    <PackageReleaseNotes>Updating to v3.3.5
 
-Fixes VideoDecoder.GetFrame() to support also 4K HDR to SDR (temp fix for ffmpeg bug with HEVC)
-Fixes Subtitles issue with seek that it was failing at the beginning of the stream
-Fixes Subtitles issue with the demuxer/decoder wouldn't start properly (race condition while was Status=Ended)</PackageReleaseNotes>
-    <AssemblyVersion>3.3.4.0</AssemblyVersion>
-    <FileVersion>3.3.4.0</FileVersion>
+Plugins: New SubtitlesConverter plugin which supports advanced encoding detection (based on Mozilla implementation)
+Plugins: Adds NET Framework support
+BitSwarm: Fixes #87 (frame drops) by updating to v2.4.1
+YT-DLP: Fixes HasAudio/HasVideo, single format and downloader's speed issues
+Player: Fixes AudioPlayer null reference (while sets volume/mute before initialization)
+Player(AVS): Fixes transition issues between AudioOnly to Video
+Player(AVS): Allows AudioOnly in case Video fails/not exists
+Subtitles: Fixes an issue that would drop next subtitles frames while pause/play or buffering
+Renderer: Fixes a crashing issue with x86 platforms
+DXCompiler: Ensures is fully optimized
+DXCompiler: Uses best profiles (eg. vs/ps_5_0) based on current OS
+DXSwapChain: Improves GPU performance by chaning SwapEffect to Discard instead of FlipSequential and BufferCount from 3 to 1
+TakeSnapshot: Improves Speed and Performance</PackageReleaseNotes>
+    <AssemblyVersion>3.3.5.0</AssemblyVersion>
+    <FileVersion>3.3.5.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

@@ -1281,6 +1281,7 @@ namespace FlyleafLib.MediaPlayer
             vFrame = null;
             aFrame = null;
             sFrame = null;
+            sFramePrev = null;
             Subtitles.SubsText = "";
 
             bool gotAudio       = !Audio.IsOpened;
@@ -1347,8 +1348,6 @@ namespace FlyleafLib.MediaPlayer
             while(VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
 
             Log("[SCREAMER] Buffering Done");
-
-            if (sFrame == null) SubtitlesDecoder.Frames.TryDequeue(out sFrame);
 
             if (aFrame != null && aFrame.timestamp < vFrame.timestamp) 
                 videoStartTicks = Math.Max(aFrame.timestamp, vFrame.timestamp - Config.Audio.Latency);
@@ -1424,7 +1423,7 @@ namespace FlyleafLib.MediaPlayer
                 if (Status != Status.Playing) break;
 
                 if (aFrame == null && !isAudioSwitch) AudioDecoder.Frames.TryDequeue(out aFrame);
-                if (sFrame == null && !isSubsSwitch ) SubtitlesDecoder.Frames.TryDequeue(out sFrame);
+                if (sFrame == null && !isSubsSwitch ) SubtitlesDecoder.Frames.TryPeek(out sFrame);
 
                 elapsedTicks    = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
                 vDistanceMs     = (int) ((vFrame.timestamp - elapsedTicks) / 10000);
@@ -1534,31 +1533,29 @@ namespace FlyleafLib.MediaPlayer
                 }
 
                 if (sFramePrev != null)
-                    if (elapsedTicks - sFramePrev.timestamp > (long)sFramePrev.duration * 10000) { Subtitles.SubsText = ""; sFramePrev = null; }
+                    if (elapsedTicks - sFramePrev.timestamp > (long)sFramePrev.duration * 10000)
+                    {
+                        _Control?.BeginInvoke(new Action(() => Subtitles.SubsText = ""));
+                        sFramePrev = null;
+                    }
 
                 if (sFrame != null)
                 {
-                    if (Math.Abs(sDistanceMs - sleepMs) < 30)
+                    if (Math.Abs(sDistanceMs - sleepMs) < 30 || (sDistanceMs < -30 && sFrame.duration + sDistanceMs > 0))
                     {
                         string tmpSubsText = sFrame.text;
                         _Control?.BeginInvoke(new Action(() => Subtitles.SubsText = tmpSubsText));
-                        sFramePrev = sFrame;
-                        SubtitlesDecoder.Frames.TryDequeue(out sFrame);
+                        sFramePrev = new SubtitlesFrame();
+                        sFramePrev.timestamp = sFrame.timestamp;
+                        sFramePrev.duration = sFrame.duration;
+                        sFrame = null;
+                        SubtitlesDecoder.Frames.TryDequeue(out SubtitlesFrame devnull);
                     }
                     else if (sDistanceMs < -30)
                     {
-                        if (sFrame.duration + sDistanceMs > 0)
-                        {
-                            string tmpSubsText = sFrame.text;
-                            _Control?.BeginInvoke(new Action(() => Subtitles.SubsText = tmpSubsText));
-                            sFramePrev = sFrame;
-                            SubtitlesDecoder.Frames.TryDequeue(out sFrame);
-                        }
-                        else
-                        {
-                            Log($"sDistanceMs 2 |-> {sDistanceMs}");
-                            SubtitlesDecoder.Frames.TryDequeue(out sFrame);
-                        }
+                        Log($"sDistanceMs 2 |-> {sDistanceMs}");
+                        sFrame = null;
+                        SubtitlesDecoder.Frames.TryDequeue(out SubtitlesFrame devnull);
                     }
                 }
             }
