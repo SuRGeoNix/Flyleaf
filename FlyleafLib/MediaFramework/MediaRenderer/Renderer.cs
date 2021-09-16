@@ -7,6 +7,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using SharpGen.Runtime;
@@ -35,12 +36,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public ID3D11Device     Device          { get; private set; }
         public bool             DisableRendering{ get; set; }
         public bool             Disposed        { get; private set; } = true;
-        public Viewport         GetViewport     { get; private set; }
         public RendererInfo     Info            { get; internal set; }
         public int              MaxOffScreenTextures
                                                 { get; set; } = 20;
         public VideoDecoder     VideoDecoder    { get; internal set; }
-        public int              Zoom            { get => zoom; set { zoom = value; SetViewport(); if (!VideoDecoder.IsRunning) PresentFrame(); } }
+
+        public Viewport         GetViewport     { get; private set; }
+
+        public int              PanXOffset      { get => panXOffset; set { panXOffset = value; SetViewport(); } }
+        int panXOffset;
+        public int              PanYOffset      { get => panYOffset; set { panYOffset = value; SetViewport(); } }
+        int panYOffset;
+        public int              Zoom            { get => zoom;       set { zoom       = value; SetViewport(); } }
         int zoom;
 
         //DeviceDebug                       deviceDbg;
@@ -118,6 +125,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         static Blob vsBlob;
         static Blob psBlob;
 
+        // Idle Fps (Frame == null)
+        object      lockPresentTask = new object();
+        bool        isPresenting;
+        long        lastPresentAt = 0;
+        long        lastPresentRequestAt = 0;
+
         #region HDR to SDR
         ID3D11Buffer psBuffer;
         PSBufferType psBufferData = new PSBufferType();
@@ -149,13 +162,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             psBufferData.contrast = Config.Video.Contrast / 100.0f;
             context.UpdateSubresource(ref psBufferData, psBuffer);
-            if (!VideoDecoder.IsRunning) PresentFrame();
+            Present();
         }
         public void UpdateBrightness()
         {
             psBufferData.brightness = Config.Video.Brightness / 100.0f;
             context.UpdateSubresource(ref psBufferData, psBuffer);
-            if (!VideoDecoder.IsRunning) PresentFrame();
+            Present();
         }
         public void UpdateHDRtoSDR(FFmpeg.AutoGen.AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
         {
@@ -186,7 +199,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             context.UpdateSubresource(ref psBufferData, psBuffer);
 
-            if (Control != null && !VideoDecoder.IsRunning) PresentFrame();
+            if (Control != null) Present();
         }
         #endregion
 
@@ -494,7 +507,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 rtv = Device.CreateRenderTargetView(backBuffer);
 
                 SetViewport();
-                PresentFrame(null);
             }
         }
         internal void FrameResized()
@@ -587,7 +599,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             if (Config.Video.AspectRatio == AspectRatio.Fill || (Config.Video.AspectRatio == AspectRatio.Keep && VideoDecoder.VideoStream == null))
             {
                 GetViewport     = new Viewport(0, 0, Control.Width, Control.Height);
-                context.RSSetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
+                context.RSSetViewport(GetViewport.X - zoom + PanXOffset, GetViewport.Y - zoom + PanYOffset, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
             }
             else
             {
@@ -597,63 +609,58 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (Control.Width / ratio > Control.Height)
                 {
                     GetViewport = new Viewport((int)(Control.Width - (Control.Height * ratio)) / 2, 0 ,(int) (Control.Height * ratio),Control.Height, 0.0f, 1.0f);
-                    context.RSSetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
+                    context.RSSetViewport(GetViewport.X - zoom + PanXOffset, GetViewport.Y - zoom + PanYOffset, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
                 }
                 else
                 {
                     GetViewport = new Viewport(0,(int)(Control.Height - (Control.Width / ratio)) / 2, Control.Width,(int) (Control.Width / ratio), 0.0f, 1.0f);
-                    context.RSSetViewport(GetViewport.X - zoom, GetViewport.Y - zoom, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
+                    context.RSSetViewport(GetViewport.X - zoom + PanXOffset, GetViewport.Y - zoom + PanYOffset, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
                 }
             }
+
+            Present();
         }
 
-        public bool PresentFrame(VideoFrame frame = null)
+        public bool Present(VideoFrame frame)
         {
+            // NOTE: Will not validate Fps while not playing (eg. from seek / showOneFrame)
+
             if (Device == null) return false;
 
-            // Drop Frames | Priority on video frames
-            bool gotIn = frame == null ? Monitor.TryEnter(Device, 1) : Monitor.TryEnter(Device, 5);
-
-            if (gotIn)
+            if (Monitor.TryEnter(Device, 5))
             {
                 try
                 {
                     if (rtv == null) return false;
 
-                    if (frame != null)
+                    if (VideoDecoder.VideoAccelerated)
                     {
-                        if (VideoDecoder.VideoAccelerated)
-                        {
-                            curSRVs     = new ID3D11ShaderResourceView[2];
-                            curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
-                            curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
-                        }
-                        else if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
-                        {
-                            curSRVs     = new ID3D11ShaderResourceView[3];
-                            curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
-                            curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[1]);
-                            curSRVs[2]  = Device.CreateShaderResourceView(frame.textures[2]);
-                        }
-                        else
-                        {
-                            curSRVs     = new ID3D11ShaderResourceView[1];
-                            curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
-                        }
-
-                        context.PSSetShaderResources(0, curSRVs);
+                        curSRVs     = new ID3D11ShaderResourceView[2];
+                        curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
+                        curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
                     }
-                    
+                    else if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
+                    {
+                        curSRVs     = new ID3D11ShaderResourceView[3];
+                        curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
+                        curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[1]);
+                        curSRVs[2]  = Device.CreateShaderResourceView(frame.textures[2]);
+                    }
+                    else
+                    {
+                        curSRVs     = new ID3D11ShaderResourceView[1];
+                        curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
+                    }
+
+                    context.PSSetShaderResources(0, curSRVs);
+
                     context.OMSetRenderTargets(rtv);
                     context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
                     if (!DisableRendering) context.Draw(6, 0);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
                     
-                    if (frame != null)
-                    {
-                        if (frame.textures  != null)   for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose();
-                        if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { curSRVs[i].Dispose(); } curSRVs = null; }
-                    }
+                    if (frame.textures  != null)   for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose();
+                    if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { curSRVs[i].Dispose(); } curSRVs = null; }
 
                 } catch (Exception e) { Log($"Error {e.Message}"); // Currently seen on video switch when vframe (last frame of previous session) has different config from the new codec (eg. HW accel.)
                 } finally { Monitor.Exit(Device); }
@@ -663,6 +670,57 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             } else { Log("Dropped Frame - Lock timeout " + ( frame != null ? Utils.TicksToTime(frame.timestamp) : "")); VideoDecoder.DisposeFrame(frame); }
 
             return false;
+        }
+
+        public void Present()
+        {
+            // NOTE: We don't have TimeBeginPeriod, FpsForIdle will not be accurate
+
+            lock (lockPresentTask)
+            {
+                if (VideoDecoder.IsRunning) return;
+
+                if (isPresenting) { lastPresentRequestAt = DateTime.UtcNow.Ticks; return;}
+                isPresenting = true;
+            }
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    do
+                    {
+                        if (Device == null) return;
+
+                        if (Monitor.TryEnter(Device, 5))
+                        {        
+                            try
+                            {
+                                if (rtv == null) return;
+
+                                long sleepMs = DateTime.UtcNow.Ticks - lastPresentAt;
+                                sleepMs = sleepMs < (long)( 1.0/Config.Player.IdleFps * 1000 * 10000) ? (long) (1.0/Config.Player.IdleFps * 1000) : 0;
+                                if (sleepMs > 2) Thread.Sleep((int)sleepMs);
+
+                                context.OMSetRenderTargets(rtv);
+                                context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
+                                if (!DisableRendering) context.Draw(6, 0);
+                                swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                                lastPresentAt = DateTime.UtcNow.Ticks;
+                                Log($"Present! {sleepMs}");
+
+                                return;
+                            } finally { Monitor.Exit(Device); }
+                        } else { Log("Dropped Present - Lock timeout"); }
+
+                    } while (lastPresentRequestAt > lastPresentAt);
+
+                    return;
+                } finally
+                {
+                    isPresenting = false;
+                }
+            });
         }
 
         public Bitmap GetBitmap(VideoFrame frame)

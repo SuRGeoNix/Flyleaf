@@ -241,11 +241,37 @@ namespace FlyleafLib.Controls.WPF
                 Player.Control.DoubleClick  += (o, e) => { ToggleFullscreenAction(); };
                 Player.Control.MouseClick   += (o, e) => { if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true; };
 
-                WindowFront.MouseMove       += (o, e) => { lastMouseActivity = DateTime.UtcNow.Ticks; };
-                Player.Control.MouseMove    += (o, e) => { lastMouseActivity = DateTime.UtcNow.Ticks; };
-
                 Player.Control.MouseWheel   += (o, e) => { Flyleaf_MouseWheel(e.Delta); };
                 WindowFront.MouseWheel      += (o, e) => { Flyleaf_MouseWheel(e.Delta); };
+
+                WindowFront.MouseMove       += (o, e) => { lastMouseActivity = DateTime.UtcNow.Ticks; };
+
+                // Pan Drag Move
+                Player.Control.MouseMove    += (o, e) => 
+                {
+                    lastMouseActivity = DateTime.UtcNow.Ticks;
+
+                    if (panClickX != -1 && e.Button == System.Windows.Forms.MouseButtons.Left && 
+                       (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
+                    {
+                        Player.PanXOffset = panPrevX + e.X - panClickX;
+                        Player.PanYOffset = panPrevY + e.Y - panClickY;
+                    }
+                };
+
+                Player.Control.MouseUp      += (o, e) => { panClickX = -1; panClickY = -1; };
+                Player.Control.MouseDown    += (o, e) =>
+                {
+                    if (!Player.CanPlay || e.Button != System.Windows.Forms.MouseButtons.Left) return;
+
+                    if (panClickX == -1)
+                    {
+                        panClickX = e.X;
+                        panClickY = e.Y;
+                        panPrevX = Player.PanXOffset;
+                        panPrevY = Player.PanYOffset;
+                    }
+                };
             }
 
             // Drag & Drop
@@ -256,6 +282,8 @@ namespace FlyleafLib.Controls.WPF
             Player.OpenCompleted        += Player_OpenCompleted;
             Player.OpenInputCompleted   += Player_OpenInputCompleted;
         }
+
+        int panClickX = -1, panClickY = -1, panPrevX = -1, panPrevY = -1;
         #endregion
 
         #region ICommands
@@ -294,7 +322,7 @@ namespace FlyleafLib.Controls.WPF
         public void SetPlaybackSpeedAction(object speed) { Config.Player.Speed = int.Parse(speed.ToString()); }
 
         public ICommand ZoomReset { get; set; }
-        public void ZoomResetAction(object obj = null) { Player.Zoom = 0;  }
+        public void ZoomResetAction(object obj = null) { Player.Zoom = 0; Player.renderer.PanXOffset = 0; Player.renderer.PanYOffset = 0; }
 
         public ICommand Zoom { get; set; }
         public void ZoomAction(object offset) { Player.Zoom += int.Parse(offset.ToString()); }
@@ -353,7 +381,7 @@ namespace FlyleafLib.Controls.WPF
 
 
         bool _CanPaste;
-        public bool         CanPaste        {
+        public bool         CanPaste            {
             get => _CanPaste;
             set => Set(ref _CanPaste, value);
         }
@@ -375,13 +403,13 @@ namespace FlyleafLib.Controls.WPF
         }
 
         string _SubtitlesFontDesc;
-        public string         SubtitlesFontDesc        {
+        public string       SubtitlesFontDesc   {
             get => _SubtitlesFontDesc;
             set => Set(ref _SubtitlesFontDesc, value);
         }
 
         Brush _SubtitlesFontColor;
-        public Brush         SubtitlesFontColor        {
+        public Brush        SubtitlesFontColor  {
             get => _SubtitlesFontColor;
             set => Set(ref _SubtitlesFontColor, value);
         }
@@ -707,6 +735,10 @@ namespace FlyleafLib.Controls.WPF
                     case Key.X:
                         Player.decoder.Flush();
                         break;
+
+                    case Key.D0:
+                        Player.Zoom = 0; Player.renderer.PanXOffset = 0; Player.renderer.PanYOffset = 0;
+                        break;
                 }
 
                 e.Handled = true;
@@ -809,7 +841,7 @@ namespace FlyleafLib.Controls.WPF
         }
         private void Flyleaf_MouseWheel(int delta)
         {
-            if (delta == 0) return;
+            if (delta == 0 || (!Keyboard.IsKeyDown(Key.LeftCtrl) && !Keyboard.IsKeyDown(Key.RightCtrl))) return;
 
             Player.Zoom += delta > 0 ? 50 : -50;
         }
