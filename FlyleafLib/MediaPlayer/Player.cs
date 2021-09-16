@@ -177,6 +177,16 @@ namespace FlyleafLib.MediaPlayer
         }
 
         /// <summary>
+        /// Pan X Offset to change the X location
+        /// </summary>
+        public int PanXOffset                   { get => renderer.PanXOffset; set => renderer.PanXOffset = value; }
+
+        /// <summary>
+        /// Pan Y Offset to change the Y location
+        /// </summary>
+        public int PanYOffset                   { get => renderer.PanYOffset; set => renderer.PanYOffset = value; }
+
+        /// <summary>
         /// Pan zoom in/out per pixel of each side (should be based on Control's width/height)
         /// </summary>
         public int Zoom
@@ -343,7 +353,7 @@ namespace FlyleafLib.MediaPlayer
             VideoDemuxer.RecordingCompleted += (o, e) => { IsRecording = false; };
 
             if (Config.Player.Usage != Usage.Audio)
-                renderer.PresentFrame();
+                renderer.Present();
 
             Log("Created");
         }
@@ -526,7 +536,7 @@ namespace FlyleafLib.MediaPlayer
             if (renderer != null)
             {
                 renderer.DisableRendering = true;
-                renderer.PresentFrame();
+                renderer.Present();
             }
 
             CurTime     = 0;
@@ -1237,7 +1247,7 @@ namespace FlyleafLib.MediaPlayer
                     else
                         SetCurTime(vFrame.timestamp * Config.Player.Speed);
                 }
-                renderer.PresentFrame(vFrame);
+                renderer.Present(vFrame);
             }
             return;
         }
@@ -1486,7 +1496,7 @@ namespace FlyleafLib.MediaPlayer
                 if (Math.Abs(vDistanceMs - sleepMs) <= 2)
                 {
                     //Log($"[V] Presenting {TicksToTime(vFrame.timestamp)}");
-                    if (decoder.VideoDecoder.Renderer.PresentFrame(vFrame)) actualFps++; else droppedFrames++;
+                    if (decoder.VideoDecoder.Renderer.Present(vFrame)) actualFps++; else droppedFrames++;
                     VideoDecoder.Frames.TryDequeue(out vFrame);
                 }
                 else if (vDistanceMs < -2)
@@ -1627,7 +1637,7 @@ namespace FlyleafLib.MediaPlayer
 
                     int sleepMs = (int) ((avgFrameDuration - (curTime - lastPresentTime)) / 10000);
                     if (sleepMs < 11000 && sleepMs > 2) Thread.Sleep(sleepMs);
-                    if (renderer.PresentFrame(vFrame)) actualFps++; else droppedFrames++;
+                    if (renderer.Present(vFrame)) actualFps++; else droppedFrames++;
                     lastPresentTime = DateTime.UtcNow.Ticks;
                     vFrame = null;
                 }

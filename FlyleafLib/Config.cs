@@ -101,6 +101,11 @@ namespace FlyleafLib
             bool _Stats = false;
 
             /// <summary>
+            /// Fps while the player is not playing
+            /// </summary>
+            public double   IdleFps                     { get; set; } = 60.0;
+
+            /// <summary>
             /// Playback's speed (x1 - x4)
             /// </summary>
             public int      Speed {
@@ -277,7 +282,7 @@ namespace FlyleafLib
             /// Forces the decoder/renderer to use the specified GPU adapter / device luid <see cref="Master.GPUAdapters"/>
             /// Should be set before the decoder's initialization and it cannot be changed after
             /// </summary>
-            public long             GPUAdapteLuid           { get; set; } = -1;
+            public long             GPUAdapteLuid               { get; set; } = -1;
 
             /// <summary>
             /// Video aspect ratio
@@ -295,7 +300,7 @@ namespace FlyleafLib
             /// Background color of the player's control
             /// </summary>
             public System.Windows.Media.Color
-                                    BackgroundColor             { get => Utils.WinFormsToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, Utils.WPFToWinFormsColor(value)); player?.renderer?.PresentFrame(); } }
+                                    BackgroundColor             { get => Utils.WinFormsToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, Utils.WPFToWinFormsColor(value)); player?.renderer?.Present(); } }
             internal System.Drawing.Color _BackgroundColor = System.Drawing.Color.Black;
 
             /// <summary>
