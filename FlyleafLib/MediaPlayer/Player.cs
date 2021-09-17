@@ -1192,8 +1192,7 @@ namespace FlyleafLib.MediaPlayer
         }
 
         /// <summary>
-        /// Disposes the Player
-        /// (If you call this manually call it from UI-thread eg. Application.Current.Dispatcher.Invoke(() => Player.Dispose()); )
+        /// Disposes the Player and the hosted VideoView if any
         /// </summary>
         public void Dispose() { Master.DisposePlayer(this); }
 
@@ -1292,7 +1291,7 @@ namespace FlyleafLib.MediaPlayer
             aFrame = null;
             sFrame = null;
             sFramePrev = null;
-            Subtitles.SubsText = "";
+            _Control?.BeginInvoke(new Action(() => Subtitles.SubsText = "" ));
 
             bool gotAudio       = !Audio.IsOpened;
             bool gotVideo       = false;
@@ -1323,7 +1322,7 @@ namespace FlyleafLib.MediaPlayer
                 if (vFrame != null)
                 {
                     if (decoder.RequiresResync)
-                        decoder.Resync();
+                        decoder.Resync(vFrame.timestamp);
 
                     if (!gotAudio && aFrame != null)
                     {

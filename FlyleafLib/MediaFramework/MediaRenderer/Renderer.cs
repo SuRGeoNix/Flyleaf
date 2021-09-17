@@ -707,7 +707,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                                 if (!DisableRendering) context.Draw(6, 0);
                                 swapChain.Present(Config.Video.VSync, PresentFlags.None);
                                 lastPresentAt = DateTime.UtcNow.Ticks;
-                                Log($"Present! {sleepMs}");
 
                                 return;
                             } finally { Monitor.Exit(Device); }

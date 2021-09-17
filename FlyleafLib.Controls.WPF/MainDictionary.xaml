@@ -75,5 +75,6 @@
     <flwpf:VolumeToLevelsConverter x:Key="VolumeToLevels"/>
     <flwpf:QualityToLevelsConverter x:Key="QualityToLevels"/>
     <flwpf:CheckNullConverter x:Key="CheckNull"/>
+    <flwpf:SumConverter x:Key="SumConverter"/>
 
 </ResourceDictionary>

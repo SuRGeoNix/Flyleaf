@@ -64,6 +64,11 @@
             Whether to refresh statistics about bitrates/fps/drops etc.
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.IdleFps">
+            <summary>
+            Fps while the player is not playing
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.PlayerConfig.Speed">
             <summary>
             Playback's speed (x1 - x4)
@@ -564,6 +569,16 @@
             </summary>
             <param name="filename"></param>
         </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.PanXOffset">
+            <summary>
+            Pan X Offset to change the X location
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.PanYOffset">
+            <summary>
+            Pan Y Offset to change the Y location
+            </summary>
+        </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Zoom">
             <summary>
             Pan zoom in/out per pixel of each side (should be based on Control's width/height)
@@ -707,8 +722,7 @@
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Dispose">
             <summary>
-            Disposes the Player
-            (If you call this manually call it from UI-thread eg. Application.Current.Dispatcher.Invoke(() => Player.Dispose()); )
+            Disposes the Player and the hosted VideoView if any
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.SubtitlesInfo.IsOpened">

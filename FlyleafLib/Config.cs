@@ -162,12 +162,12 @@ namespace FlyleafLib
             /// <summary>
             /// List of FFmpeg formats to be excluded from interrupts
             /// </summary>
-            public List<string>     ExcludeInterruptFmts { get; set; } = new List<string>() { "rtsp" };
+            public List<string>     ExcludeInterruptFmts{ get; set; } = new List<string>() { "rtsp" };
 
             /// <summary>
             /// Maximum allowed duration ticks for buffering
             /// </summary>
-            public long             BufferDuration {// get; set; } = 5 * 1000 * 10000;
+            public long             BufferDuration      {
                 get => _BufferDuration;
                 set
                 {
@@ -176,7 +176,7 @@ namespace FlyleafLib
                         player.Config.Player.MinBufferDuration = value;
                 }
             }
-            long _BufferDuration = 5 * 1000 * 10000;
+            long _BufferDuration = 5 * 60 * (long)1000 * 10000;
 
             /// <summary>
             /// Maximum allowed errors before stopping
@@ -265,7 +265,7 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum subtitle frames to be decoded
             /// </summary>
-            public int              MaxSubsFrames   { get; set; } = 10;
+            public int              MaxSubsFrames   { get; set; } = 2;
 
             /// <summary>
             /// Maximum allowed errors before stopping

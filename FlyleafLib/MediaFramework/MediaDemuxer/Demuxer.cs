@@ -357,10 +357,74 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 int ret;
 
+                /* Seek within current bufffered queue
+                 * 
+                 * It doesn't work for HLS live streams
+                 * It doesn't work for decoders buffered queue (which is small only subs might be an issue if we have large decoder queue)
+                 */
+                if (hlsCtx == null && ticks > CurTime + StartTime && ticks < CurTime + StartTime + BufferedDuration)
+                {
+                    Log("Within the Queue");
+
+                    bool found = false;
+                    while (VideoPackets.Count > 0)
+                    {
+                        VideoPackets.TryPeek(out IntPtr packetPtr);
+                        if (packetPtr == IntPtr.Zero) continue;
+                        AVPacket* packet = (AVPacket*)packetPtr;
+                        if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * VideoStream.Timebase && (packet->flags & AV_PKT_FLAG_KEY) != 0)
+                        {
+                            found = true;
+                            ticks = (long) (packet->pts * VideoStream.Timebase);
+                            break;
+                        }
+                        av_packet_free(&packet);
+                        VideoPackets.TryDequeue(out IntPtr devnull);
+                    }
+
+                    while (AudioPackets.Count > 0)
+                    {
+                        AudioPackets.TryPeek(out IntPtr packetPtr);
+                        if (packetPtr == IntPtr.Zero) continue;
+                        AVPacket* packet = (AVPacket*)packetPtr;
+                        if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * AudioStream.Timebase)
+                        {
+                            if (Type == MediaType.Audio) found = true;
+                            break;
+                        }
+                        av_packet_free(&packet);
+                        AudioPackets.TryDequeue(out IntPtr devnull);
+                    }
+
+                    while (SubtitlesPackets.Count > 0)
+                    {
+                        SubtitlesPackets.TryPeek(out IntPtr packetPtr);
+                        if (packetPtr == IntPtr.Zero) continue;
+                        AVPacket* packet = (AVPacket*)packetPtr;
+                        if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * SubtitlesStream.Timebase)
+                        {
+                            if (Type == MediaType.Subs) found = true;
+                            break;
+                        }
+                        av_packet_free(&packet);
+                        SubtitlesPackets.TryDequeue(out IntPtr devnull);
+                    }
+
+                    if (found)
+                    {
+                        UpdateCurTime();
+                        return 0;
+                    }
+                }
+
                 if (Config.AllowReadInterrupts) Interrupter.ForceInterrupt = 1;
                 lock (lockFmtCtx)
                 {
                     Interrupter.ForceInterrupt = 0;
+
+                    // Flush required because of the interrupt
+                    if (fmtCtx->pb != null) avio_flush(fmtCtx->pb);
+                    avformat_flush(fmtCtx);
 
                     if (hlsCtx != null) fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
                     Interrupter.Request(Requester.Seek);
@@ -437,14 +501,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 {
                     Interrupter.Request(Requester.Read);
                     ret = av_read_frame(fmtCtx, packet);
-                    if (Interrupter.ForceInterrupt != 0) { av_packet_unref(packet); gotAVERROR_EXIT = true; continue; }
+                    if (Interrupter.ForceInterrupt != 0) 
+                    {
+                        av_packet_unref(packet); gotAVERROR_EXIT = true;
+                        continue;
+                    }
 
                     // Possible check if interrupt/timeout and we dont seek to reset the backend pb->pos = 0?
                     if (ret != 0)
                     {
                         av_packet_unref(packet);
 
-                        if ((ret == AVERROR_EXIT && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF) { Status = Status.Ended; break; }
+                        if ((ret == AVERROR_EXIT && fmtCtx->pb != null && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF) { Status = Status.Ended; break; }
 
                         allowedErrors--;
                         Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
@@ -459,6 +527,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     // Skip Disabled Streams
                     if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
+
+                    UpdateCurTime();
 
                     if (IsRecording)
                     {
@@ -489,7 +559,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         switch (fmtCtx->streams[packet->stream_index]->codecpar->codec_type)
                         {
                             case AVMEDIA_TYPE_AUDIO:
-                                UpdateCurTime();
                                 //Log($"Audio => {Utils.TicksToTime((long)(packet->pts * AudioStream.Timebase))} | {Utils.TicksToTime(CurTime)}");
 
                                 AudioBytes += packet->size;
@@ -499,7 +568,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                                 break;
 
                             case AVMEDIA_TYPE_VIDEO:
-                                UpdateCurTime();
                                 //Log($"Video => {Utils.TicksToTime((long)(packet->pts * VideoStream.Timebase))} | {Utils.TicksToTime(CurTime)}");
 
                                 VideoBytes += packet->size;
@@ -521,8 +589,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     }
                     else
                     {
-                        UpdateCurTime();
-
                         Packets.Enqueue((IntPtr)packet);
                         packet = av_packet_alloc();
                     }

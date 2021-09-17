@@ -111,7 +111,14 @@
 
                                             <!--Current Time | Slider | Duration-->
                                             <TextBlock Grid.Column="0" HorizontalAlignment="Left"   VerticalAlignment="Center" Text="{Binding Player.CurTime, Converter={StaticResource TicksToTime}}"/>
-                                            <Slider    Grid.Column="1" Style="{DynamicResource FlyleafSlider}" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Player.Duration, Converter={StaticResource TicksToSeconds}}"/>
+                                            <Slider    Grid.Column="1" IsSelectionRangeEnabled="True" SelectionStart="{Binding RelativeSource={RelativeSource Self}, Path=Value, Mode=OneWay}" Style="{DynamicResource FlyleafSlider}" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Player.Duration, Converter={StaticResource TicksToSeconds}}">
+                                                <Slider.SelectionEnd>
+                                                    <MultiBinding Converter="{StaticResource SumConverter}">
+                                                        <Binding Path="SelectionStart" RelativeSource="{RelativeSource Self}" Mode="OneWay"/>
+                                                        <Binding Path="Player.BufferedDuration" Converter="{StaticResource TicksToSeconds}" Mode="OneWay"/>
+                                                    </MultiBinding>
+                                                </Slider.SelectionEnd>
+                                            </Slider>
                                             <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding Player.Duration, Converter={StaticResource TicksToTime}}"/>
                                         </Grid>
 
