@@ -4,7 +4,7 @@
     <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.9</Version>
+    <Version>1.1.10</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2021</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -13,16 +13,17 @@
     <PackageIconUrl />
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
-    <PackageReleaseNotes>Adds YT-DLP subtitles inputs
-Adds YT-DLP protocol info</PackageReleaseNotes>
-    <AssemblyVersion>1.1.9.0</AssemblyVersion>
-    <FileVersion>1.1.9.0</FileVersion>
+    <PackageReleaseNotes>
+		Adds Selection Range for the current buffered duration
+		Changes Slider's Height and Thumb to make possible to seek more easier and closer to it even with the mouse
+		Implements Pan Drag Move in combination with Zoom (keybindings ctrl+mousewheel for zoom, ctrl+mousemove for drag, ctrl+0 for reset)
+	</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Dragablz" Version="0.0.3.223" />
-    <PackageReference Include="MaterialDesignColors" Version="2.0.2-ci2657" />
-    <PackageReference Include="MaterialDesignThemes" Version="4.2.0-ci2657" />
+    <PackageReference Include="MaterialDesignColors" Version="2.0.3-ci8" />
+    <PackageReference Include="MaterialDesignThemes" Version="4.2.1-ci8" />
     <PackageReference Include="WpfColorFontDialog" Version="1.0.8" />
   </ItemGroup>
 

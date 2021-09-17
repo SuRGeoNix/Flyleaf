@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.5</Version>
+	<Version>3.3.6</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,23 +16,14 @@
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework download extract ffmpeg vortice directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Updating to v3.3.5
-
-Plugins: New SubtitlesConverter plugin which supports advanced encoding detection (based on Mozilla implementation)
-Plugins: Adds NET Framework support
-BitSwarm: Fixes #87 (frame drops) by updating to v2.4.1
-YT-DLP: Fixes HasAudio/HasVideo, single format and downloader's speed issues
-Player: Fixes AudioPlayer null reference (while sets volume/mute before initialization)
-Player(AVS): Fixes transition issues between AudioOnly to Video
-Player(AVS): Allows AudioOnly in case Video fails/not exists
-Subtitles: Fixes an issue that would drop next subtitles frames while pause/play or buffering
-Renderer: Fixes a crashing issue with x86 platforms
-DXCompiler: Ensures is fully optimized
-DXCompiler: Uses best profiles (eg. vs/ps_5_0) based on current OS
-DXSwapChain: Improves GPU performance by chaning SwapEffect to Discard instead of FlipSequential and BufferCount from 3 to 1
-TakeSnapshot: Improves Speed and Performance</PackageReleaseNotes>
-    <AssemblyVersion>3.3.5.0</AssemblyVersion>
-    <FileVersion>3.3.5.0</FileVersion>
+    <PackageReleaseNotes>
+		Implements seek within the current buffered queue (requested feature #66)
+		Changes the default Config.Demuxer.BufferDuration from 5 seconds to 5 minutes
+		Introduces Config.Player.IdleFps (default 60) which fixes performance issues with the Renderer
+		Exposes Player.PanXOffset and Player.PanYOffset to allow moving the Pan
+		Minor Seek / ReSync improvements
+		Fixes GPU adapter LUID for x86 platforms (it was always 0)
+	</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
