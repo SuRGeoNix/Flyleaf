@@ -121,7 +121,9 @@ namespace FlyleafLib
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
+        [System.Xml.Serialization.XmlIgnore]
         public bool DisableNotifications { get; set; }
+
         protected bool Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
         {
             //System.Diagnostics.Debug.WriteLine($"[===| {propertyName} |===]");

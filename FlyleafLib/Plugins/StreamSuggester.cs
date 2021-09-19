@@ -11,6 +11,8 @@ namespace FlyleafLib.Plugins
 {
     public unsafe class StreamSuggester : PluginBase, ISuggestAudioStream, ISuggestVideoStream, ISuggestSubtitlesStream
     {
+        public new int Priority { get; set; } = 3000;
+
         public AudioStream SuggestAudio(List<AudioStream> streams)
         {
             lock (streams[0].Demuxer.lockActions)

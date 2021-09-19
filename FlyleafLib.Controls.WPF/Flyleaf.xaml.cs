@@ -54,6 +54,8 @@ namespace FlyleafLib.Controls.WPF
         public VideoConfig      VideoConfig     => Config?.Video;
         public DecoderConfig    DecoderConfig   => Config?.Decoder;
         public DemuxerConfig    DemuxerConfig   => Config?.Demuxer;
+        public SerializableDictionary<string, SerializableDictionary<string, string>>
+                                PluginsConfig   => Config?.Plugins;
 
         string _ErrorMsg;
         public string ErrorMsg { get => _ErrorMsg; set => Set(ref _ErrorMsg, value); }
@@ -447,7 +449,7 @@ namespace FlyleafLib.Controls.WPF
 
             var prevVideoConfig = VideoConfig.Clone();
 
-            var view = new Settings();//Session);
+            var view = new Settings(this);//Session);
             view.DataContext = this;
             var result = await DialogHost.Show(view, dialogSettingsIdentifier, view.Closing);
 
@@ -512,41 +514,20 @@ namespace FlyleafLib.Controls.WPF
         }
         public void Player_OpenCompleted(object sender, Player.OpenCompletedArgs e)
         {
-            //Raise(null);
-
-            //System.Diagnostics.Debug.WriteLine($"[Player_OpenCompleted] Type: {e.Type} Error: {e.Error} Input: {(e.Input != null ? e.Input.Url : "")}");
-
-            if (e.Success)
-                ErrorMsg = "";
-            else if (e.Type != MediaType.Subs)
-                ErrorMsg = e.Error;
-
-            switch (e.Type)
+            if (e.Type == MediaType.Video || (!Player.Video.IsOpened && e.Type == MediaType.Audio))
             {
-                case MediaType.Audio:
-                case MediaType.Video:
-                    Player.Play();
-                    break;
+                ErrorMsg = e.Success ? "" : e.Error;
+                Player.Play();
+                Raise(null); // Ensures fast UI update
             }
         }
         private void Player_OpenInputCompleted(object sender, Player.OpenInputCompletedArgs e)
         {
-            if (e.Success)
-                ErrorMsg = "";
-            else if (e.Type != MediaType.Subs)
-                ErrorMsg = e.Error;
-
-            //System.Diagnostics.Debug.WriteLine($"[Player_OpenInputCompleted] Type: {e.Type} Error: {e.Error} Input: {(e.Input != null ? e.Input.Url : "")} User: {e.IsUserInput} | {(e.OldInput != null ? e.OldInput.Url : "")}");
-
-            if (Player.IsPlaylist)
+            if (e.Type == MediaType.Video || (!Player.Video.IsOpened && e.Type == MediaType.Audio))
             {
-                switch (e.Type)
-                {
-                    case MediaType.Audio:
-                    case MediaType.Video:
-                        Player.Play();
-                        break;
-                }
+                ErrorMsg = e.Success ? "" : e.Error;
+                if (Player.IsPlaylist) Player.Play();
+                Raise(null); // Ensures fast UI update
             }
         }
 

@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
-using System.Text;
+
 using FlyleafLib.MediaFramework.MediaInput;
 using FlyleafLib.MediaFramework.MediaStream;
-using static FlyleafLib.Utils;
 
 namespace FlyleafLib.Plugins
 {
@@ -50,7 +50,7 @@ namespace FlyleafLib.Plugins
         public Dictionary<string, IDownloadSubtitles>         
                                         PluginsDownloadSubtitles        { get; private set; }
 
-        public string                   UserInputUrl                    { get; private set; }
+        public string                   UserInputUrl                    { get; set; }
         public IOpen                    OpenedPlugin                    { get; private set; }
         public IOpenSubtitles           OpenedSubtitlesPlugin           { get; private set; }
 
@@ -81,7 +81,13 @@ namespace FlyleafLib.Plugins
                     plugin.Name     = type.Name;
                     plugin.Type     = type.Type;
                     plugin.Version  = type.Version;
+
                     Plugins.Add(plugin.Name, plugin);
+
+                    // Add Plugins with Options to Config Plugins
+                    if (plugin.Options.Count > 0)
+                        Config.Plugins.Add(plugin.Name, plugin.Options);
+
                 } catch (Exception e) { Log($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
             }
 
@@ -103,18 +109,8 @@ namespace FlyleafLib.Plugins
             PluginsSearchSubtitles          = new Dictionary<string, ISearchSubtitles>();
             PluginsDownloadSubtitles        = new Dictionary<string, IDownloadSubtitles>();
 
-            // Push Defaults as Last Priorities until proper fix
             foreach (var plugin in Plugins.Values)
-            {
-                if (plugin.Name == "OpenVideo" || plugin.Name == "OpenSubtitles" || plugin.Name == "StreamSuggester") continue;
                 LoadPluginInterfaces(plugin);
-            }
-
-            foreach (var plugin in Plugins.Values)
-            {
-                if (plugin.Name != "OpenVideo" && plugin.Name != "OpenSubtitles" && plugin.Name != "StreamSuggester") continue;
-                LoadPluginInterfaces(plugin);
-            }
         }
         internal static void LoadAssemblies()
         {
@@ -181,13 +177,13 @@ namespace FlyleafLib.Plugins
             foreach(var plugin in Plugins.Values)
                 plugin.OnInitialized();
 
-            UserInputUrl    = "";
-            OpenedPlugin    = null;
-            OpenedSubtitlesPlugin = null;
-            AudioInput      = null;
-            VideoInput      = null;
-            SubtitlesInput  = null;
-            searchedForSubtitles = false;
+            UserInputUrl            = "";
+            OpenedPlugin            = null;
+            OpenedSubtitlesPlugin   = null;
+            AudioInput              = null;
+            VideoInput              = null;
+            SubtitlesInput          = null;
+            searchedForSubtitles    = false;
         }
 
         public void OnInitializingSwitch()
@@ -221,14 +217,19 @@ namespace FlyleafLib.Plugins
             else
             {
                 SubtitlesInput = (SubtitlesInput)input;
-                if (!SubtitlesInput.Downloaded && !DownloadSubtitles(SubtitlesInput)) return new OpenResults("Failed to download subtitles");
+
+                if (!SubtitlesInput.Downloaded && !DownloadSubtitles(SubtitlesInput))
+                    return new OpenResults("Failed to download subtitles");
+
                 SubtitlesInput.Downloaded = true;
-            }
-                
+            }    
 
             foreach(var plugin in Plugins.Values)
             {
-                OpenResults res = input is AudioInput ? plugin.OnOpenAudio((AudioInput)input) : (input is VideoInput ? plugin.OnOpenVideo((VideoInput)input) : plugin.OnOpenSubtitles((SubtitlesInput)input));
+                OpenResults res = input is AudioInput ? plugin.OnOpenAudio((AudioInput)input) : 
+                                 (input is VideoInput ? plugin.OnOpenVideo((VideoInput)input) : 
+                                                        plugin.OnOpenSubtitles((SubtitlesInput)input));
+
                 if (res != null && res.Error != null)
                 {
                     onClose(input);
@@ -258,7 +259,8 @@ namespace FlyleafLib.Plugins
         #region Audio / Video
         public OpenResults Open(Stream iostream)
         {
-            foreach(var plugin in PluginsOpen.Values)
+            var plugins = (from plugin in PluginsOpen.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
             {
                 if (Interrupt) return new OpenResults("Cancelled");
 
@@ -290,7 +292,8 @@ namespace FlyleafLib.Plugins
         {
             UserInputUrl = url;
 
-            foreach(var plugin in PluginsOpen.Values)
+            var plugins = (from plugin in PluginsOpen.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
             {
                 if (Interrupt) return new OpenResults("Cancelled");
 
@@ -323,7 +326,8 @@ namespace FlyleafLib.Plugins
 
         public VideoInput SuggestVideo()
         {
-            foreach (var plugin in PluginsSuggestVideoInput.Values)
+            var plugins = (from plugin in PluginsSuggestVideoInput.Values orderby plugin.Priority select plugin).ToList();
+            foreach (var plugin in plugins)
             {
                 if (Interrupt) return null;
 
@@ -335,7 +339,8 @@ namespace FlyleafLib.Plugins
         }
         public AudioInput SuggestAudio()
         {
-            foreach(var plugin in PluginsSuggestAudioInput.Values)
+            var plugins = (from plugin in PluginsSuggestAudioInput.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
             {
                 if (Interrupt) return null;
 
@@ -350,7 +355,8 @@ namespace FlyleafLib.Plugins
         {
             if (streams == null || streams.Count == 0) return null;
 
-            foreach(var plugin in PluginsSuggestVideoStream.Values)
+            var plugins = (from plugin in PluginsSuggestVideoStream.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
             {
                 if (Interrupt) return null;
 
@@ -364,7 +370,8 @@ namespace FlyleafLib.Plugins
         {
             if (streams == null || streams.Count == 0) return null;
 
-            foreach(var plugin in PluginsSuggestAudioStream.Values)
+            var plugins = (from plugin in PluginsSuggestAudioStream.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
             {
                 if (Interrupt) return null;
 
@@ -395,7 +402,8 @@ namespace FlyleafLib.Plugins
         #region Subtitles
         public OpenResults OpenSubtitles(string url)
         {
-            foreach(var plugin in PluginsOpenSubtitles.Values)
+            var plugins = (from plugin in PluginsOpenSubtitles.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
             {
                 OpenResults res = plugin.Open(url);
                 if (res == null) continue;
@@ -416,7 +424,8 @@ namespace FlyleafLib.Plugins
         {
             bool res = false;
 
-            foreach(var plugin in PluginsDownloadSubtitles.Values)
+            var plugins = (from plugin in PluginsDownloadSubtitles.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
                 if (res = plugin.Download(input)) break;
 
             return res;
@@ -425,8 +434,9 @@ namespace FlyleafLib.Plugins
         public void SearchSubtitles()
         {
             // TODO: Search can be offline as well
+            var plugins = (from plugin in PluginsSuggestSubtitlesInput.Values orderby plugin.Priority select plugin).ToList();
             foreach(var lang in Config.Subtitles.Languages)
-                foreach(var plugin in PluginsSuggestSubtitlesInput.Values)
+                foreach(var plugin in plugins)
                     if (!Interrupt && plugin is ISearchSubtitles)
                     {
                         // Remember the inputs that have been already searched?
@@ -472,7 +482,8 @@ namespace FlyleafLib.Plugins
         {
             if (streams == null || streams.Count == 0) return null;
 
-            foreach(var plugin in PluginsSuggestSubtitlesStream.Values)
+            var plugins = (from plugin in PluginsSuggestSubtitlesStream.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
             {
                 if (Interrupt) return null;
 
@@ -484,7 +495,8 @@ namespace FlyleafLib.Plugins
         }
         public SubtitlesInput SuggestSubtitles(Language lang)
         {
-            foreach(var plugin in PluginsSuggestSubtitlesInput.Values)
+            var plugins = (from plugin in PluginsSuggestSubtitlesInput.Values orderby plugin.Priority select plugin).ToList();
+            foreach(var plugin in plugins)
             {
                 if (Interrupt) return null;
 

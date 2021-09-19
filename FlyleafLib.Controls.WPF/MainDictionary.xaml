@@ -76,5 +76,6 @@
     <flwpf:QualityToLevelsConverter x:Key="QualityToLevels"/>
     <flwpf:CheckNullConverter x:Key="CheckNull"/>
     <flwpf:SumConverter x:Key="SumConverter"/>
+    <flwpf:GetDictionaryItemConverter x:Key="GetDictionaryItem"/>
 
 </ResourceDictionary>

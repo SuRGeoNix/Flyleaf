@@ -7,6 +7,8 @@ namespace FlyleafLib.Plugins
 {
     public class OpenSubtitles : PluginBase, IOpenSubtitles, IProvideSubtitles
     {
+        public new int Priority { get; set; } = 3000;
+
         public List<SubtitlesInput> SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
 
         public override void OnInitialized()

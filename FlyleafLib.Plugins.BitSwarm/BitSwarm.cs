@@ -1,38 +1,60 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
-
-using FlyleafLib.MediaFramework.MediaInput;
 
 using SuRGeoNix.BitSwarmLib;
 using SuRGeoNix.BitSwarmLib.BEP;
 
 using static SuRGeoNix.BitSwarmLib.BitSwarm;
 
+using FlyleafLib.MediaFramework.MediaInput;
+
 namespace FlyleafLib.Plugins
 {
     public class BitSwarm : PluginBase, IOpen, IProvideVideo, ISuggestVideoInput
     {
-        SuRGeoNix.BitSwarmLib.BitSwarm bitSwarm;
+        SuRGeoNix.BitSwarmLib.BitSwarm
+                        bitSwarm;
+        TorrentOptions  cfg = new TorrentOptions();
+        Torrent         torrent;
+        int             fileIndex;
+        int             fileIndexNext;
+        bool            downloadNextStarted;
+        bool            torrentReceived;
+        List<string>    sortedPaths;
 
-        TorrentOptions cfg = new TorrentOptions(); //TODO
-        Torrent     Torrent;
-        int         fileIndex;
-        int         fileIndexNext;
-        bool        downloadNextStarted;
-        bool        torrentReceived;
-        List<string> sortedPaths;
-
+        public bool             IsPlaylist          => true;
+        public new int          Priority            { get; set; } = 2000;
         public List<VideoInput> VideoInputs         { get; set; } = new List<VideoInput>();
-        public bool             IsPlaylist           => true;
 
-        public string           FolderComplete      => Torrent.file.paths.Count == 1 ? cfg.FolderComplete : Torrent.data.folder;
+        public bool             Downloaded          => torrent != null && torrent.data.files != null && (torrent.data.files[fileIndex] == null || torrent.data.files[fileIndex].Created);
+        public string           FolderComplete      => torrent.file.paths.Count == 1 ? cfg.FolderComplete : torrent.data.folder;
         public string           FileName            { get; private set; }
         public long             FileSize            { get; private set; }
         public TorrentStream    TorrentStream       { get; private set; }
-        public bool             Downloaded          => Torrent != null && Torrent.data.files != null && (Torrent.data.files[fileIndex] == null || Torrent.data.files[fileIndex].Created);
+
+        public BitSwarm() : base()
+        {
+            foreach(var prop in cfg.GetType().GetProperties())
+                Options.Add(prop.Name, prop.GetValue(cfg).ToString());
+
+            Options.PropertyChanged += Options_PropertyChanged;
+        }
+
+        private void Options_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            var prop = cfg.GetType().GetProperty(e.PropertyName);
+
+            if (prop.PropertyType == typeof(bool))
+                prop.SetValue(cfg, bool.Parse(Options[e.PropertyName]));
+            else if (prop.PropertyType == typeof(int))
+                prop.SetValue(cfg, int.Parse(Options[e.PropertyName]));
+            else
+                prop.SetValue(cfg, Options[e.PropertyName]);
+        }
 
         public override void OnInitializing()
         {
@@ -69,11 +91,11 @@ namespace FlyleafLib.Plugins
             try
             {
                 bitSwarm?.Dispose();
-                Torrent?. Dispose();
-                bitSwarm    = null;
-                Torrent     = null;
-                sortedPaths = null;
-                TorrentStream = null;
+                torrent?. Dispose();
+                bitSwarm            = null;
+                torrent             = null;
+                sortedPaths         = null;
+                TorrentStream       = null;
                 downloadNextStarted = false;
                 cfg.EnableBuffering = false;
 
@@ -140,8 +162,8 @@ namespace FlyleafLib.Plugins
             if (input.Plugin == null || input.Plugin.Name != Name) return null;
 
             FileName    = input.InputData.Title;
-            fileIndex   = Torrent.file.paths.IndexOf(FileName);
-            FileSize    = Torrent.file.lengths[fileIndex];
+            fileIndex   = torrent.file.paths.IndexOf(FileName);
+            FileSize    = torrent.file.lengths[fileIndex];
 
             downloadNextStarted     = false;
             bitSwarm.FocusAreInUse  = false;
@@ -149,7 +171,7 @@ namespace FlyleafLib.Plugins
 
             if (!Downloaded)
             {
-                TorrentStream = Torrent.GetTorrentStream(FileName);
+                TorrentStream = torrent.GetTorrentStream(FileName);
                 input.IOStream  = TorrentStream;
                 bitSwarm.IncludeFiles(new List<string>() { FileName });
                 if (!bitSwarm.isRunning) { Log("Starting"); bitSwarm.Start(); }
@@ -196,14 +218,14 @@ namespace FlyleafLib.Plugins
 
         private void OnFinishing(object source, FinishingArgs e)
         {
-            Log("Download of " + Torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log("Stopped");
+            Log("Download of " + torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log("Stopped");
         }
         private void MetadataReceived(object source, MetadataReceivedArgs e)
         {
             try
             {
-                Torrent     = e.Torrent;
-                sortedPaths = Utils.GetMoviesSorted(Torrent.file.paths);
+                torrent     = e.Torrent;
+                sortedPaths = Utils.GetMoviesSorted(torrent.file.paths);
 
                 foreach (var file in sortedPaths)
                 {
@@ -225,19 +247,19 @@ namespace FlyleafLib.Plugins
         }
         private bool DownloadNext()
         {
-            if (cfg.DownloadNext && !downloadNextStarted && Torrent != null && fileIndex > -1 && (Torrent.data.files[fileIndex] == null || Torrent.data.files[fileIndex].Created))
+            if (cfg.DownloadNext && !downloadNextStarted && torrent != null && fileIndex > -1 && (torrent.data.files[fileIndex] == null || torrent.data.files[fileIndex].Created))
             {
                 downloadNextStarted = true;
 
-                var fileIndex = sortedPaths.IndexOf(Torrent.file.paths[this.fileIndex]) + 1;
+                var fileIndex = sortedPaths.IndexOf(torrent.file.paths[this.fileIndex]) + 1;
                 if (fileIndex > sortedPaths.Count - 1) return false;
 
-                var fileIndex2 = Torrent.file.paths.IndexOf(sortedPaths[fileIndex]);
-                if (fileIndex2 == -1 || Torrent.data.files[fileIndex2] == null || Torrent.data.files[fileIndex2].Created) return false;
+                var fileIndex2 = torrent.file.paths.IndexOf(sortedPaths[fileIndex]);
+                if (fileIndex2 == -1 || torrent.data.files[fileIndex2] == null || torrent.data.files[fileIndex2].Created) return false;
 
-                Log("Downloading next " + Torrent.file.paths[fileIndex2]);
+                Log("Downloading next " + torrent.file.paths[fileIndex2]);
 
-                bitSwarm.IncludeFiles(new List<string>() { Torrent.file.paths[fileIndex2] });
+                bitSwarm.IncludeFiles(new List<string>() { torrent.file.paths[fileIndex2] });
 
                 if (!bitSwarm.isRunning) { Log("Starting"); bitSwarm.Start(); }
 
@@ -253,7 +275,7 @@ namespace FlyleafLib.Plugins
         {
             public new TorrentOptions Clone() { return (TorrentOptions) MemberwiseClone(); }
 
-            public bool             DownloadNext    { get; set; } = true;
+            public bool     DownloadNext    { get; set; } = true;
 
             public TorrentOptions()
             {
@@ -267,8 +289,6 @@ namespace FlyleafLib.Plugins
                 BlockRequests       = 4;
 
                 PreventTimePeriods  = true;
-
-                //Verbosity = 2;
             }
         }
     }
