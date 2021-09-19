@@ -17,12 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Implements seek within the current buffered queue (requested feature #66)
-		Changes the default Config.Demuxer.BufferDuration from 5 seconds to 5 minutes
-		Introduces Config.Player.IdleFps (default 60) which fixes performance issues with the Renderer
-		Exposes Player.PanXOffset and Player.PanYOffset to allow moving the Pan
-		Minor Seek / ReSync improvements
-		Fixes GPU adapter LUID for x86 platforms (it was always 0)
+		
 	</PackageReleaseNotes>
   </PropertyGroup>
 

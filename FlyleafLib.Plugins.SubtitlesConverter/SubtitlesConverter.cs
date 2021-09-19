@@ -11,6 +11,8 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 {
     public class SubtitlesConverter : PluginBase
     {
+        public new int Priority { get; set; } = 2000;
+
         public override OpenResults OnOpenSubtitles(SubtitlesInput input)
         {
             if (input.Converted) return null;

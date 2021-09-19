@@ -25,7 +25,8 @@ namespace FlyleafLib.Plugins
         public List<VideoInput>     VideoInputs     { get; set; } = new List<VideoInput>();
         public List<SubtitlesInput> SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
 
-        public bool IsPlaylist => false;
+        public bool     IsPlaylist   => false;
+        public new int  Priority    { get; set; } = 1999;
 
         static YoutubeDL() { settings.NullValueHandling = NullValueHandling.Ignore; }
 

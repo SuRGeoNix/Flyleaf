@@ -6,16 +6,18 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-using MaterialDesignColors;
 using MaterialDesignThemes.Wpf;
 
 namespace FlyleafLib.Controls.WPF
 {
     public partial class Settings : UserControl, INotifyPropertyChanged
     {
-        public Settings()//(Session session)
+        Flyleaf flyleaf;
+
+        public Settings(Flyleaf flyleaf)
         {
             InitializeComponent();
+            this.flyleaf = flyleaf;
         }
 
         public void Closing(object sender, DialogClosingEventArgs eventArgs) { }
@@ -73,5 +75,12 @@ namespace FlyleafLib.Controls.WPF
         private void ValidationNumericPositive(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^[0-9]+$"); }
         private void ValidationNumeric(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^-?[0-9]*$"); }
         private void ValidationRatio(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^[0-9\.\,\/\:]+$"); }
+
+        private void PluginValueChanged(object sender, RoutedEventArgs e)
+        {
+            string curPlugin = ((TextBlock)((Panel)((FrameworkElement)sender).Parent).Children[0]).Text;
+
+            flyleaf.PluginsConfig[cmbPlugins.Text][curPlugin] = ((TextBox)sender).Text;
+        }
     }
 }

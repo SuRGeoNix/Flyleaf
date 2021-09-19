@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
@@ -316,7 +319,7 @@ namespace FlyleafLib
     }
 
     [Serializable] // https://scatteredcode.net/c-serializable-dictionary/
-    public class SerializableDictionary<TKey, TVal> : Dictionary<TKey, TVal>, IXmlSerializable, ISerializable
+    public class SerializableDictionary<TKey, TVal> : Dictionary<TKey, TVal>, IXmlSerializable, ISerializable, INotifyPropertyChanged, INotifyCollectionChanged
     {
         #region Private Properties
         protected XmlSerializer ValueSerializer
@@ -416,5 +419,33 @@ namespace FlyleafLib
             return null;
         }
         #endregion
+
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        public event NotifyCollectionChangedEventHandler CollectionChanged;
+
+        public new TVal this[TKey key]
+        {
+            get => base[key];
+            
+            set
+            {
+                if (base[key].Equals(value)) return;
+
+                if (CollectionChanged != null)
+                {
+                    KeyValuePair<TKey, TVal> oldItem = new KeyValuePair<TKey, TVal>(key, base[key]);
+                    KeyValuePair<TKey, TVal> newItem = new KeyValuePair<TKey, TVal>(key, value);
+                    base[key] = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(key.ToString()));
+                    CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, newItem, oldItem, this.ToList().IndexOf(newItem)));
+                }
+                else
+                {
+                    base[key] = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(key.ToString()));
+                }
+            }
+        }
     }
 }

@@ -60,6 +60,9 @@ namespace FlyleafLib
         public AudioConfig      Audio       = new AudioConfig();
         public SubtitlesConfig  Subtitles   = new SubtitlesConfig();
 
+        public SerializableDictionary<string, SerializableDictionary<string, string>>
+                                Plugins     = new SerializableDictionary<string, SerializableDictionary<string, string>>();
+
         public class PlayerConfig : NotifyPropertyChanged
         {
             public PlayerConfig Clone()
@@ -313,6 +316,7 @@ namespace FlyleafLib
             /// <summary>
             /// The max resolution that the current system can achieve and will be used from the input/stream suggester plugins
             /// </summary>
+            [XmlIgnore]
             public int              MaxVerticalResolutionAuto   { get; internal set; }
 
             /// <summary>

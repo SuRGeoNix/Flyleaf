@@ -16,6 +16,9 @@ namespace FlyleafLib.Plugins
         public Config                   Config          => Handler.Config;
         public PluginHandler            Handler         { get; internal set; }
         public bool                     Disposed        { get; protected set; }
+        public SerializableDictionary<string, string>
+                                        Options         { get; set; } = new SerializableDictionary<string, string>();
+        public int                      Priority        { get; set; } = 1000;
 
         public virtual void OnInitializing() { }
         public virtual void OnInitialized() { }
@@ -30,23 +33,7 @@ namespace FlyleafLib.Plugins
         public virtual OpenResults OnOpenVideo(VideoInput input) { return null; }
         public virtual OpenResults OnOpenSubtitles(SubtitlesInput input) { return null; }
 
-        public virtual void Dispose()
-        {
-            // Let it to the plugin
-
-            //if (Disposed) return;
-
-            //if (this is IProvideAudio)
-            //    ((IProvideAudio)this).AudioInputs.Clear();
-
-            //if (this is IProvideVideo)
-            //    ((IProvideVideo)this).VideoInputs.Clear();
-
-            //if (this is IProvideSubtitles)
-            //    ((IProvideSubtitles)this).SubtitlesInputs.Clear();
-
-            //Disposed = true;
-        }
+        public virtual void Dispose() { }
 
         public void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{Handler.UniqueId}] [Plugin: {Name}] {msg}"); }
     }
@@ -66,9 +53,10 @@ namespace FlyleafLib.Plugins
 
     public interface IPlugin : IDisposable
     {
-        string          Name      { get; }
-        Version         Version   { get; }
-        PluginHandler   Handler   { get; }
+        string          Name        { get; }
+        Version         Version     { get; }
+        PluginHandler   Handler     { get; }
+        int             Priority    { get; }
 
         void OnInitializing();
         void OnInitialized();
