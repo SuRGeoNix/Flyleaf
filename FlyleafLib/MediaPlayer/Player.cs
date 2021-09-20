@@ -1241,13 +1241,20 @@ namespace FlyleafLib.MediaPlayer
             {
                 VideoFrame vFrame = null;
                 VideoDecoder.Frames.TryDequeue(out vFrame);
-                if (seeks.Count == 0)
+
+                Action refresh = new Action(() =>
                 {
-                    if (VideoDemuxer.HLSPlaylist != null)
-                        SetCurTimeHLS();
-                    else
-                        SetCurTime(vFrame.timestamp * Config.Player.Speed);
-                }
+                    if (seeks.Count == 0)
+                    {
+                        BufferedDuration = VideoDemuxer.BufferedDuration;
+                        if (VideoDemuxer.HLSPlaylist != null)
+                            SetCurTimeHLS();
+                        else
+                            SetCurTime(vFrame.timestamp * Config.Player.Speed);
+                    }
+                });
+                _Control?.BeginInvoke(refresh);
+                
                 renderer.Present(vFrame);
             }
             return;

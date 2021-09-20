@@ -40,6 +40,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
                 if (Status == Status.Ended) Status = Status.Stopped;
+                curSpeedFrame = Speed;
             }
         }
 
@@ -48,7 +49,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int ret = 0;
             int allowedErrors = Config.Decoder.MaxErrors;
             AVPacket *packet;
-            int curFrame = 0;
 
             do
             {
@@ -129,16 +129,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     if (gotFrame < 1 || sub.num_rects < 1 ) continue;
                     if (packet->pts == AV_NOPTS_VALUE) { avsubtitle_free(&sub); av_packet_free(&packet); continue; }
 
-                    if (Speed != 1)
-                    {
-                        curFrame++;
-                        if (curFrame < Speed) { avsubtitle_free(&sub); av_packet_free(&packet); continue; }
-                        curFrame = 0;
-                        packet->pts /= Speed;
-                        sub.start_display_time /= (uint) Speed;
-                        sub.end_display_time /= (uint) Speed;
-                    }
-
                     SubtitlesFrame mFrame = ProcessSubtitlesFrame(packet, &sub);
                     if (mFrame != null) Frames.Enqueue(mFrame);
 
@@ -150,8 +140,22 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         private SubtitlesFrame ProcessSubtitlesFrame(AVPacket* packet, AVSubtitle* sub)
         {
-            SubtitlesFrame mFrame = new SubtitlesFrame();
-            mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
+            SubtitlesFrame mFrame;
+            if (Speed != 1)
+            {
+                curSpeedFrame++;
+                if (curSpeedFrame < Speed) return null;
+                curSpeedFrame = 0;
+                sub->start_display_time /= (uint) Speed;
+                sub->end_display_time /= (uint) Speed;
+                mFrame = new SubtitlesFrame();
+                mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
+                mFrame.timestamp /= Speed;
+            }
+            else {
+                mFrame = new SubtitlesFrame();
+                mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
+            }
 
             try
             {
