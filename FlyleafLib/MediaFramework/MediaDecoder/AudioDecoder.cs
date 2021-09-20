@@ -79,6 +79,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (Status == Status.Ended) Status = Status.Stopped;
 
                 keyFrameRequired = true && !VideoDecoder.Disposed;
+                curSpeedFrame = Speed;
             }
         }
         protected override void RunInternal()
@@ -87,7 +88,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int allowedErrors = Config.Decoder.MaxErrors;
             AVPacket *packet;
 
-            int curFrame = 0;
             do
             {
                 // Wait until Queue not Full or Stopped
@@ -195,14 +195,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 keyFrameRequired = false;
                         }
 
-                        if (Speed != 1)
-                        {
-                            curFrame++;
-                            if (curFrame < Speed) { av_frame_unref(frame); continue; }
-                            curFrame = 0;
-                            frame->pts /= Speed;
-                        }
-
                         AudioFrame mFrame = ProcessAudioFrame(frame);
                         if (mFrame != null) Frames.Enqueue(mFrame);
 
@@ -217,15 +209,28 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         [SecurityCritical]
         private AudioFrame ProcessAudioFrame(AVFrame* frame)
         {
-            AudioFrame mFrame = new AudioFrame();
-            mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+            AudioFrame mFrame;
+            if (Speed != 1)
+            {
+                curSpeedFrame++;
+                if (curSpeedFrame < Speed) return null;
+                curSpeedFrame = 0;
+                mFrame = new AudioFrame();
+                mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+                mFrame.timestamp /= Speed;
+            }
+            else
+            {
+                mFrame = new AudioFrame();
+                mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+            }
             //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)} | {Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase))}");
 
             // Resync with VideoDecoder if required (drop early timestamps)
             if (keyFrameRequired)
             {
                 while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning) Thread.Sleep(10);
-                if (mFrame.timestamp < VideoDecoder.StartTime)
+                if (mFrame.timestamp < VideoDecoder.StartTime/Speed)
                 {
                     //Log($"Droping {Utils.TicksToTime(mFrame.timestamp)} < {Utils.TicksToTime(VideoDecoder.StartTime)}");
                     return null;

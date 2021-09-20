@@ -850,11 +850,19 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             while (!VideoDemuxer.Disposed && !Interrupt && VideoDemuxer.EnabledStreams.Count != 0)
             {
-                lock (VideoDemuxer.lockFmtCtx)
+                if (VideoDemuxer.VideoPackets.Count == 0)
                 {
-                    VideoDemuxer.Interrupter.Request(Requester.Read);
-                    ret = av_read_frame(VideoDemuxer.FormatContext, packet);
-                    if (ret != 0) return -1;
+                    lock (VideoDemuxer.lockFmtCtx)
+                    {
+                        VideoDemuxer.Interrupter.Request(Requester.Read);
+                        ret = av_read_frame(VideoDemuxer.FormatContext, packet);
+                        if (ret != 0) return -1;
+                    }
+                }
+                else
+                {
+                    VideoDemuxer.VideoPackets.TryDequeue(out IntPtr packetPtr);
+                    packet = (AVPacket*) packetPtr;
                 }
 
                 if (!VideoDemuxer.EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
@@ -901,7 +909,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                             VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
                             VideoDecoder.keyFrameRequired = false;
-                            if (VideoDecoder.Speed != 1) frame->pts /= VideoDecoder.Speed;
 
                             VideoFrame mFrame = VideoDecoder.ProcessVideoFrame(frame);
                             if (mFrame != null)

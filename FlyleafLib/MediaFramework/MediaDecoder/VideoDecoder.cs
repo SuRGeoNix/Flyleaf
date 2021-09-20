@@ -182,6 +182,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (Status == Status.Ended) Status = Status.Stopped;
                 keyFrameRequired = true;
                 StartTime = AV_NOPTS_VALUE;
+                curSpeedFrame = Speed;
             }
         }
 
@@ -190,8 +191,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int ret = 0;
             int allowedErrors = Config.Decoder.MaxErrors;
             AVPacket *packet;
-
-            int curFrame = 0;
 
             do
             {
@@ -307,14 +306,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             }
                         }
 
-                        if (Speed != 1)
-                        {
-                            curFrame++;
-                            if (curFrame < Speed) { av_frame_unref(frame); continue; }
-                            curFrame = 0;
-                            frame->pts /= Speed;
-                        }
-
                         VideoFrame mFrame = ProcessVideoFrame(frame);
                         if (mFrame != null) Frames.Enqueue(mFrame);
                     }
@@ -330,10 +321,22 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             try
             {
-                VideoFrame mFrame = new VideoFrame();
-                mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
+                VideoFrame mFrame;
+                if (Speed != 1)
+                {
+                    curSpeedFrame++;
+                    if (curSpeedFrame < Speed) return null;
+                    curSpeedFrame = 0;
+                    mFrame = new VideoFrame();
+                    mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
+                    mFrame.timestamp /= Speed;
+                }
+                else
+                {
+                    mFrame = new VideoFrame();
+                    mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
+                }
                 //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)}");
-
 
                 if (!HDRDataSent && frame->side_data != null && *frame->side_data != null)
                 {

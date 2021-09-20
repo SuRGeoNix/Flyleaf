@@ -20,6 +20,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public Config                   Config          { get; protected set; }
         public int                      Speed           { get; set; } = 1;
 
+
+        protected int               curSpeedFrame = 1;
         protected AVFrame*          frame;
         protected AVCodecContext*   codecCtx;
         internal  object            lockCodecCtx    = new object();
@@ -151,6 +153,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 demuxer = null;
                 Stream = null;
                 Status = Status.Stopped;
+                curSpeedFrame = Speed;
 
                 Disposed = true;
                 Log("Disposed");
