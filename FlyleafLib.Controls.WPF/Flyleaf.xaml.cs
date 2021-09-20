@@ -38,6 +38,7 @@ namespace FlyleafLib.Controls.WPF
         public VideoInfo        VideoInfo       => Player?.Video;
         public SubtitlesInfo    SubtitlesInfo   => Player?.Subtitles;
         public Demuxer          VideoDemuxer    => Player?.VideoDemuxer;
+        public Demuxer          AudioDemuxer    => Player?.AudioDemuxer;
         public VideoDecoder     VideoDecoder    => Player?.VideoDecoder;
         public AudioDecoder     AudioDecoder    => Player?.AudioDecoder;
 
@@ -636,6 +637,14 @@ namespace FlyleafLib.Controls.WPF
             while (_IdleTimeout > 0)
             {
                 Thread.Sleep(500);
+
+                // Temp fix
+                if (!Player.IsPlaying && Player.CanPlay)
+                {
+                    long bufferedDuration = Player.Video.IsOpened ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration;
+                    if (bufferedDuration != Player.BufferedDuration)
+                        Dispatcher.BeginInvoke(new Action(() => Player.BufferedDuration = bufferedDuration));
+                }
 
                 var newMode = GetCurrentActivityMode();
                 if (newMode != CurrentMode)

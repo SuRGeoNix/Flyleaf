@@ -480,10 +480,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (BufferedDuration > Config.BufferDuration && Status == Status.QueueFull) { Thread.Sleep(20); UpdateCurTime(true); }
+                    while (!PauseOnQueueFull && BufferedDuration > Config.BufferDuration && Status == Status.QueueFull) { Thread.Sleep(20); UpdateCurTime(true); }
 
                     lock (lockStatus)
                     {
+                        if (PauseOnQueueFull) Status = Status.Pausing;
                         if (Status != Status.QueueFull) break;
                         Status = Status.Running;
                     }

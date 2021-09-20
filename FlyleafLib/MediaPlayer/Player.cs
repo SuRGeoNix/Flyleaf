@@ -91,7 +91,7 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// The current buffered duration in the demuxer
         /// </summary>
-        public long         BufferedDuration    { get => _BufferedDuration; private set => Set(ref _BufferedDuration, value); }
+        public long         BufferedDuration    { get => _BufferedDuration; set => Set(ref _BufferedDuration, value); }
         long _BufferedDuration;
 
         /// <summary>
@@ -1076,7 +1076,7 @@ namespace FlyleafLib.MediaPlayer
 
                     finally
                     {
-                        if (Status == Status.Stopped) decoder?.Stop(); else decoder?.Pause();
+                        if (Status == Status.Stopped) decoder?.Stop(); else decoder?.PauseOnQueueFull();
                         ClearAudioBuffer();
                         VideoDecoder.DisposeFrame(vFrame); vFrame = null;
                         TimeEndPeriod(1);
@@ -1153,7 +1153,11 @@ namespace FlyleafLib.MediaPlayer
                             if (CanPlay)
                                 decoder.GetVideoFrame();
                             if (CanPlay)
+                            {
                                 ShowOneFrame();
+                                decoder.Start();
+                                decoder.PauseOnQueueFull();
+                            }
                         }
                         else
                             Log("[SEEK] Failed");
@@ -1242,6 +1246,8 @@ namespace FlyleafLib.MediaPlayer
                 VideoFrame vFrame = null;
                 VideoDecoder.Frames.TryDequeue(out vFrame);
 
+                long tmpTimestamp = vFrame.timestamp;
+                renderer.Present(vFrame);
                 Action refresh = new Action(() =>
                 {
                     if (seeks.Count == 0)
@@ -1250,12 +1256,10 @@ namespace FlyleafLib.MediaPlayer
                         if (VideoDemuxer.HLSPlaylist != null)
                             SetCurTimeHLS();
                         else
-                            SetCurTime(vFrame.timestamp * Config.Player.Speed);
+                            SetCurTime(tmpTimestamp * Config.Player.Speed);
                     }
                 });
                 _Control?.BeginInvoke(refresh);
-                
-                renderer.Present(vFrame);
             }
             return;
         }

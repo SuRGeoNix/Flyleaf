@@ -96,10 +96,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (Frames.Count >= Config.Decoder.MaxAudioFrames && Status == Status.QueueFull) Thread.Sleep(20);
+                    while (!PauseOnQueueFull && Frames.Count >= Config.Decoder.MaxAudioFrames && Status == Status.QueueFull) Thread.Sleep(20);
 
                     lock (lockStatus)
                     {
+                        if (PauseOnQueueFull) Status = Status.Pausing;
                         if (Status != Status.QueueFull) break;
                         Status = Status.Running;
                     }       

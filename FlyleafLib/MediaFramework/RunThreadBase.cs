@@ -31,6 +31,7 @@ namespace FlyleafLib.MediaFramework
 
         public bool                 Disposed        { get; protected set; } = true;
         public int                  UniqueId        { get; protected set; } = -1;
+        public bool                 PauseOnQueueFull{ get; set; }
 
         protected Thread            thread;
         protected AutoResetEvent    threadARE       = new AutoResetEvent(false);
@@ -50,6 +51,8 @@ namespace FlyleafLib.MediaFramework
             {
                 lock (lockStatus)
                 {
+                    PauseOnQueueFull = false;
+
                     if (Disposed || thread == null || !thread.IsAlive || Status == Status.Stopping || Status == Status.Stopped || Status == Status.Ended || Status == Status.Pausing || Status == Status.Paused) return;
                     Status = Status.Pausing;
                 }
@@ -63,6 +66,8 @@ namespace FlyleafLib.MediaFramework
                 lock (lockStatus)
                 {
                     if (Disposed || Status == Status.Ended) return;
+
+                    PauseOnQueueFull = false;
 
                     if (Status == Status.Pausing) while (Status != Status.Pausing) Thread.Sleep(3);
                     if (Status == Status.Paused)
@@ -87,6 +92,8 @@ namespace FlyleafLib.MediaFramework
             {
                 lock (lockStatus)
                 {
+                    PauseOnQueueFull = false;
+
                     if (Disposed || thread == null || !thread.IsAlive || Status == Status.Stopping || Status == Status.Stopped || Status == Status.Ended) return;
                     if (Status == Status.Pausing) while (Status != Status.Pausing) Thread.Sleep(3);
                     Status = Status.Stopping;
@@ -105,12 +112,20 @@ namespace FlyleafLib.MediaFramework
             {
                 RunInternal();
 
+                PauseOnQueueFull = false;
+
                 if (Status == Status.Pausing)
                 {
                     threadARE.Reset();
                     Status = Status.Paused;
                     threadARE.WaitOne();
-                    if (Status == Status.Paused) _Status = Status.Running;
+                    if (Status == Status.Paused)
+                    {
+                        #if DEBUG
+                        Log($"{_Status} -> {Status.Running}");
+                        #endif
+                        _Status = Status.Running;
+                    }
                 }
 
             } while (Status == Status.Running);
