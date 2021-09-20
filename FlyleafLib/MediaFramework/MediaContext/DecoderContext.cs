@@ -737,6 +737,16 @@ namespace FlyleafLib.MediaFramework.MediaContext
             AudioDemuxer.Pause();
             SubtitlesDemuxer.Pause();
         }
+        public void PauseOnQueueFull()
+        {
+            VideoDemuxer.PauseOnQueueFull = true;
+            AudioDemuxer.PauseOnQueueFull = true;
+            SubtitlesDemuxer.PauseOnQueueFull = true;
+
+            VideoDecoder.PauseOnQueueFull = true;
+            AudioDecoder.PauseOnQueueFull = true;
+            SubtitlesDecoder.PauseOnQueueFull = true;
+        }
         public void Start()
         {
             //if (RequiresResync) Resync();
