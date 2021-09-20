@@ -178,25 +178,33 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         ret = avcodec_receive_frame(codecCtx, frame);
                         if (ret != 0) { av_frame_unref(frame); break; }
 
-                        if (Speed == 1)
+                        frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                        if (frame->pts == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
+
+                        if (keyFrameRequired)
                         {
-                            AudioFrame mFrame = ProcessAudioFrame(frame);
-                            if (mFrame != null) Frames.Enqueue(mFrame);
+                            while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning) Thread.Sleep(10);
+                            long curTimestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+                            if (curTimestamp < VideoDecoder.StartTime)
+                            {
+                                //Log($"Droping {Utils.TicksToTime(mFrame.timestamp)} < {Utils.TicksToTime(VideoDecoder.StartTime)}");
+                                av_frame_unref(frame);
+                                continue;
+                            }
+                            else
+                                keyFrameRequired = false;
                         }
-                        else
+
+                        if (Speed != 1)
                         {
                             curFrame++;
-                            if (curFrame >= Speed)
-                            {
-                                curFrame = 0;
-                                if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
-                                    frame->pts /= Speed;
-                                else
-                                    frame->best_effort_timestamp /= Speed;
-                                AudioFrame mFrame = ProcessAudioFrame(frame);
-                                if (mFrame != null) Frames.Enqueue(mFrame);
-                            }
+                            if (curFrame < Speed) { av_frame_unref(frame); continue; }
+                            curFrame = 0;
+                            frame->pts /= Speed;
                         }
+
+                        AudioFrame mFrame = ProcessAudioFrame(frame);
+                        if (mFrame != null) Frames.Enqueue(mFrame);
 
                         av_frame_unref(frame);
                     }
@@ -210,9 +218,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         private AudioFrame ProcessAudioFrame(AVFrame* frame)
         {
             AudioFrame mFrame = new AudioFrame();
-            mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
-            if (mFrame.pts == AV_NOPTS_VALUE) return null;
-            mFrame.timestamp = ((long)(mFrame.pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+            mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
             //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)} | {Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase))}");
 
             // Resync with VideoDecoder if required (drop early timestamps)

@@ -289,6 +289,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         ret = avcodec_receive_frame(codecCtx, frame);
                         if (ret != 0) { av_frame_unref(frame); break; }
 
+                        frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                        if (frame->pts == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
+
                         if (keyFrameRequired)
                         {
                             if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
@@ -299,31 +302,21 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             }
                             else
                             {
-                                long curPts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
-                                StartTime = (long)(curPts * VideoStream.Timebase) - demuxer.StartTime;
+                                StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
                                 keyFrameRequired = false;
                             }
                         }
 
-                        if (Speed == 1)
-                        {
-                            VideoFrame mFrame = ProcessVideoFrame(frame);
-                            if (mFrame != null) Frames.Enqueue(mFrame);
-                        }
-                        else
+                        if (Speed != 1)
                         {
                             curFrame++;
-                            if (curFrame >= Speed)
-                            {
-                                curFrame = 0;
-                                if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
-                                    frame->pts /= Speed;
-                                else
-                                    frame->best_effort_timestamp /= Speed;
-                                VideoFrame mFrame = ProcessVideoFrame(frame);
-                                if (mFrame != null) Frames.Enqueue(mFrame);
-                            }
+                            if (curFrame < Speed) { av_frame_unref(frame); continue; }
+                            curFrame = 0;
+                            frame->pts /= Speed;
                         }
+
+                        VideoFrame mFrame = ProcessVideoFrame(frame);
+                        if (mFrame != null) Frames.Enqueue(mFrame);
                     }
 
                 } // Lock CodecCtx
@@ -338,9 +331,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             try
             {
                 VideoFrame mFrame = new VideoFrame();
-                mFrame.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
-                if (mFrame.pts == AV_NOPTS_VALUE) return null;
-                mFrame.timestamp = (long)(mFrame.pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
+                mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
                 //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)}");
 
 
