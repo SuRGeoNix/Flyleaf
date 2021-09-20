@@ -127,33 +127,20 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     }
                             
                     if (gotFrame < 1 || sub.num_rects < 1 ) continue;
+                    if (packet->pts == AV_NOPTS_VALUE) { avsubtitle_free(&sub); av_packet_free(&packet); continue; }
 
-
-                    if (Speed == 1)
-                    {
-                        SubtitlesFrame mFrame = ProcessSubtitlesFrame(packet, &sub);
-                        if (mFrame != null)
-                        {
-                            //Log(Utils.TicksToTime((long)(mFrame.pts * SubtitlesStream.Timebase)) + " | pts -> " + mFrame.pts);
-                            Frames.Enqueue(mFrame);
-                        }
-                    }
-                    else
+                    if (Speed != 1)
                     {
                         curFrame++;
-                        if (curFrame >= Speed)
-                        {
-                            curFrame = 0;
-                            packet->pts /= Speed;
-                            sub.start_display_time /= (uint) Speed;
-                            sub.end_display_time /= (uint) Speed;
-
-                            SubtitlesFrame mFrame = ProcessSubtitlesFrame(packet, &sub);
-                            if (mFrame != null) Frames.Enqueue(mFrame);
-                        }
+                        if (curFrame < Speed) { avsubtitle_free(&sub); av_packet_free(&packet); continue; }
+                        curFrame = 0;
+                        packet->pts /= Speed;
+                        sub.start_display_time /= (uint) Speed;
+                        sub.end_display_time /= (uint) Speed;
                     }
 
-                    
+                    SubtitlesFrame mFrame = ProcessSubtitlesFrame(packet, &sub);
+                    if (mFrame != null) Frames.Enqueue(mFrame);
 
                     avsubtitle_free(&sub);
                     av_packet_free(&packet);
@@ -164,10 +151,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         private SubtitlesFrame ProcessSubtitlesFrame(AVPacket* packet, AVSubtitle* sub)
         {
             SubtitlesFrame mFrame = new SubtitlesFrame();
-            mFrame.pts = packet->pts;
-            if (mFrame.pts == AV_NOPTS_VALUE) return null;
-            //long svDiff = RelatedVideoDecoder != null &&  RelatedVideoDecoder.VideoStream != null ? SubtitlesStream.StartTime - RelatedVideoDecoder.VideoStream.StartTime : 0;
-            mFrame.timestamp = ((long)(mFrame.pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
+            mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
 
             try
             {

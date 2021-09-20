@@ -1037,7 +1037,9 @@ namespace FlyleafLib.MediaPlayer
             AudioDecoder.Speed      = Config.Player.Speed;
             SubtitlesDecoder.Speed  = Config.Player.Speed;
 
-            decoder.Flush();
+            VideoDecoder.Flush();
+            AudioDecoder.Flush();
+            SubtitlesDecoder.Flush();
             isVideoSwitch = false;
         }
         #endregion
@@ -1393,11 +1395,14 @@ namespace FlyleafLib.MediaPlayer
             {
                 if (seeks.TryPop(out SeekData seekData))
                 {
+                    bool fixEnded = VideoDemuxer.Status == MediaFramework.Status.Ended;
                     seeks.Clear();
                     requiresBuffering = true;
                     decoder.OpenedPlugin.OnBuffering();
                     if (decoder.Seek(seekData.ms, seekData.foreward) < 0)
                         Log("[SCREAMER] Seek failed");
+
+                    if (fixEnded) Thread.Sleep(20);
                 }
 
                 if (requiresBuffering)

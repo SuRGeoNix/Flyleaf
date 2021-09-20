@@ -827,8 +827,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         public void Flush()
         {
-            bool wasRunning = VideoDecoder.IsRunning;
-            Pause();
+            //bool wasRunning = VideoDecoder.IsRunning;
+            //Pause();
             
             VideoDemuxer.DisposePackets();
             AudioDemuxer.DisposePackets();
@@ -838,7 +838,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             AudioDecoder.Flush();
             SubtitlesDecoder.Flush();
 
-            if (wasRunning) Start();
+            //if (wasRunning) Start();
         }
         public long GetVideoFrame()
         {
@@ -889,20 +889,24 @@ namespace FlyleafLib.MediaFramework.MediaContext
                                 ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                             if (ret != 0) { av_frame_unref(frame); break; }
 
+                            frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                            if (frame->pts == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
+
                             if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
                             {
-                                Log($"Invalid Seek to Keyframe, skip... {frame->pict_type} | {frame->key_frame}");
+                                Log($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                                 av_frame_unref(frame);
                                 continue;
                             }
+
+                            VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
+                            VideoDecoder.keyFrameRequired = false;
+                            if (VideoDecoder.Speed != 1) frame->pts /= VideoDecoder.Speed;
+
                             VideoFrame mFrame = VideoDecoder.ProcessVideoFrame(frame);
                             if (mFrame != null)
                             {
-                                Log(TicksToTime((long)(mFrame.pts * VideoDecoder.VideoStream.Timebase)) + " | pts -> " + mFrame.pts);
                                 VideoDecoder.Frames.Enqueue(mFrame);
-                                VideoDecoder.keyFrameRequired = false;
-                                VideoDecoder.StartTime = mFrame.timestamp - Config.Audio.Latency;
-
                                 av_frame_free(&frame);
                                 return mFrame.timestamp;
                             }
