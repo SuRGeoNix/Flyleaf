@@ -667,6 +667,8 @@ namespace FlyleafLib.Controls.WPF
         #endregion
 
         #region Events
+        long lastSeekRight = 0;
+        long lastSeekLeft  = long.MaxValue;
         private void Flyleaf_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.System && e.SystemKey == Key.F4) { return; }
@@ -750,12 +752,17 @@ namespace FlyleafLib.Controls.WPF
                     break;
 
                 case Key.Right:
-                    int ms = (int) ((Player.CurTime + (5 * 1000 * (long)10000)) / 10000);
+                    long seekRight  = Player.CurTime + (5 * 1000 * (long)10000);
+                    lastSeekRight   = Math.Max(lastSeekRight + (5 * 1000 * (long)10000), seekRight);
+                    int ms          = (int) (lastSeekRight / 10000);
+                    System.Diagnostics.Debug.WriteLine($"Seeking to {Utils.TicksToTime(ms * (long)10000)}");
                     if (ms <= Player.Duration/10000) Player.Seek(ms, true);
                     break;
 
                 case Key.Left:
-                    ms = (int) ((Player.CurTime - (5 * 1000 * (long)10000)) / 10000);
+                    long seekLeft   = Player.CurTime - (5 * 1000 * (long)10000);
+                    lastSeekLeft    = Math.Min(lastSeekLeft - (5 * 1000 * (long)10000), seekLeft);
+                    ms              = (int) (lastSeekLeft / 10000);
                     Player.Seek(ms > 0 ? ms : 0);
                     break;
 
@@ -796,6 +803,14 @@ namespace FlyleafLib.Controls.WPF
 
             switch (e.Key)
             {
+                case Key.Right:
+                    lastSeekRight = 0;
+                    break;
+
+                case Key.Left:
+                    lastSeekLeft = long.MaxValue;
+                    break;
+
                 case Key.I:
                     lastKeyboardActivity = 0; lastMouseActivity = 0;
                     return;

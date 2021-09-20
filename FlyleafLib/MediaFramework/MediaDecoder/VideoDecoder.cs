@@ -477,8 +477,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             int ret;
 
-            // Calculation of FrameX timestamp (based on fps/avgFrameDuration)
-            long frameTimestamp = VideoStream.StartTime + (long) (index * (10000000 / VideoStream.Fps));
+            // Calculation of FrameX timestamp (based on fps/avgFrameDuration) | offset 2ms
+            long frameTimestamp = VideoStream.StartTime + (long) (index * (10000000 / VideoStream.Fps)) - 20000;
             //Log($"Searching for {Utils.TicksToTime(frameTimestamp)}");
 
             // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC

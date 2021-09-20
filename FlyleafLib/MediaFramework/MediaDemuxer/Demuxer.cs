@@ -303,8 +303,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         break;
 
                     case AVMEDIA_TYPE_VIDEO:
-                        // Might excludes valid video streams for rtsp/web cams? Better way to ensure that they are actually image streams? (fps maybe?)
-                        if (avcodec_get_name(fmtCtx->streams[i]->codecpar->codec_id) == "mjpeg") { Log($"Excluding image stream #{i}"); continue; }
+                        if ((fmtCtx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0) 
+                            { Log($"Excluding image stream #{i}"); continue; }
 
                         VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
                         AVStreamToStream.Add(i, VideoStreams[VideoStreams.Count-1]);
@@ -359,12 +359,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 /* Seek within current bufffered queue
                  * 
+                 * Should respect foreward/backward? (gives 1 sec offset)
                  * It doesn't work for HLS live streams
                  * It doesn't work for decoders buffered queue (which is small only subs might be an issue if we have large decoder queue)
                  */
-                if (hlsCtx == null && ticks > CurTime + StartTime && ticks < CurTime + StartTime + BufferedDuration)
+                if (hlsCtx == null && ticks + (1000 * 10000) > CurTime + StartTime && ticks < CurTime + StartTime + BufferedDuration)
                 {
-                    Log("Within the Queue");
+                    Log("[SEEK] Found in Queue");
 
                     bool found = false;
                     while (VideoPackets.Count > 0)
@@ -416,7 +417,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         return 0;
                     }
                 }
-
+                
                 if (Config.AllowReadInterrupts) Interrupter.ForceInterrupt = 1;
                 lock (lockFmtCtx)
                 {

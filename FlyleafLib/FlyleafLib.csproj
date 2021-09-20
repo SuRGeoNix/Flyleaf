@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.6</Version>
+	<Version>3.3.7</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		
+		Implements buffering even while the Player is paused
+		Improves and fixes issues with Player.Speed
+		Improves and fixes issues with seek within the current buffered queue
+		Fixes an issue with exlusion of image streams
+		Fixes a calculation of X frame issue with VideoDecoder's GetFrame / Extractor
 	</PackageReleaseNotes>
   </PropertyGroup>
 
