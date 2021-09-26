@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -18,16 +20,12 @@ namespace FlyleafLib.Controls.WPF
         {
             InitializeComponent();
             this.flyleaf = flyleaf;
+            DataContext = flyleaf.DataContext;
+            Resources.SetTheme(flyleaf.Resources.GetTheme());
         }
 
-        public void Closing(object sender, DialogClosingEventArgs eventArgs) { }
-        public void Closed(object result)
-        {
-            if (result != null && result.ToString() == "apply")
-                SaveSettings();
-        }
-        public void SaveSettings() { SaveSettingsRec(tabRoot); }
-        public void SaveSettingsRec(Visual parent)
+        public void ApplySettings() { ApplySettingsRec(tabRoot); }
+        public void ApplySettingsRec(Visual parent)
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
             {
@@ -42,19 +40,19 @@ namespace FlyleafLib.Controls.WPF
                         switch (visual)
                         {
                             case System.Windows.Controls.Primitives.ToggleButton b:
-                                (b.GetBindingExpression(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty)).UpdateSource();
+                                b.GetBindingExpression(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty).UpdateSource();
                                 break;
                             case TextBox t:
-                                (t.GetBindingExpression(TextBox.TextProperty)).UpdateSource();
+                                t.GetBindingExpression(TextBox.TextProperty).UpdateSource();
                                 break;
                             case ComboBox c:
-                                (c.GetBindingExpression(ComboBox.SelectedItemProperty)).UpdateSource();
+                                c.GetBindingExpression(ComboBox.SelectedItemProperty).UpdateSource();
                                 break;
                         } 
                     }
                 }
 
-                SaveSettingsRec(visual);
+                ApplySettingsRec(visual);
             }
         }
 
@@ -72,15 +70,35 @@ namespace FlyleafLib.Controls.WPF
             }
         }
 
+        private void ValidationHex(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^[0-9a-f]+$", RegexOptions.IgnoreCase); }
         private void ValidationNumericPositive(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^[0-9]+$"); }
         private void ValidationNumeric(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^-?[0-9]*$"); }
         private void ValidationRatio(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^[0-9\.\,\/\:]+$"); }
-
+        
         private void PluginValueChanged(object sender, RoutedEventArgs e)
         {
             string curPlugin = ((TextBlock)((Panel)((FrameworkElement)sender).Parent).Children[0]).Text;
 
             flyleaf.PluginsConfig[cmbPlugins.Text][curPlugin] = ((TextBox)sender).Text;
         }
+
+        private void NamedColors_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ColorPicker.Color = ((KeyValuePair<string, Color>)NamedColors.SelectedItem).Value;
+        }
+    }
+
+    public class ColorHexRule : ValidationRule
+    {
+        public ColorHexRule() { }
+
+        public override ValidationResult Validate(object value, CultureInfo cultureInfo)
+        {
+            if (value != null && Regex.IsMatch(value.ToString(), @"^[0-9a-f]{6}$", RegexOptions.IgnoreCase))
+                return new ValidationResult(true, null);
+
+            return new ValidationResult(false, "Invalid");
+        }
+
     }
 }

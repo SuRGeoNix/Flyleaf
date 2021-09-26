@@ -489,7 +489,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             if (ret < 0) return null; // handle seek error
             avcodec_flush_buffers(codecCtx);
-            
+
             // Decoding until requested frame/timestamp
             while (GetNextFrame() == 0)
             {
@@ -517,16 +517,23 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
 
             /* TODO
-             * 1. Draining
-             * 2. What about packets with more than one frames?!
+             * What about packets with more than one frames?!
              */
 
             int ret;
+            bool draining = false;
 
-            while (true)
+            while (!draining)
             {
                 ret = demuxer.GetNextPacket(VideoStream.StreamIndex);
-                if (ret != 0) return ret; // handle EOF/error
+                if (ret != 0)
+                {
+                    if (ret != AVERROR_EOF) return ret;
+                    draining = true;
+                    demuxer.packet = av_packet_alloc();
+                    demuxer.packet->data = null;
+                    demuxer.packet->size = 0;
+                }
 
                 // Send Packet for decoding
                 ret = avcodec_send_packet(codecCtx, demuxer.packet);
@@ -548,6 +555,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     return 0;
                 }
             }
+
+            return -1;
         }
 
         public void DisposeFrames()

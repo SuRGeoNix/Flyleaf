@@ -359,14 +359,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 /* Seek within current bufffered queue
                  * 
-                 * Should respect foreward/backward? (gives 1 sec offset)
+                 * 10 seconds because of video keyframe distances or 1 seconds for other (can be fixed also with CurTime+X seek instead of timestamps)
                  * It doesn't work for HLS live streams
                  * It doesn't work for decoders buffered queue (which is small only subs might be an issue if we have large decoder queue)
                  */
-                if (hlsCtx == null && ticks + (1000 * 10000) > CurTime + StartTime && ticks < CurTime + StartTime + BufferedDuration)
+                if (hlsCtx == null && ticks + (VideoStream != null && foreward ? (10000 * 10000) : 1000 * 10000) > CurTime + StartTime && ticks < CurTime + StartTime + BufferedDuration)
                 {
-                    Log("[SEEK] Found in Queue");
-
                     bool found = false;
                     while (VideoPackets.Count > 0)
                     {
@@ -413,6 +411,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     if (found)
                     {
+                        Log("[SEEK] Found in Queue");
                         UpdateCurTime();
                         return 0;
                     }

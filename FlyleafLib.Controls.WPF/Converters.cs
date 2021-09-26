@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 
 namespace FlyleafLib.Controls.WPF
 {
@@ -173,4 +174,82 @@ namespace FlyleafLib.Controls.WPF
 		public object[] ConvertBack(object value, Type[] targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
 	}
 
+    public class MarginConverter : IValueConverter
+    {
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return new System.Windows.Thickness(0, System.Convert.ToDouble(value), 0, 0);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return null;
+        }
+    }
+
+    [ValueConversion(typeof(Color), typeof(Brush))]
+    public class ColorToBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is Color color)
+            {
+                return new SolidColorBrush(color);
+            }
+            return Binding.DoNothing;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is SolidColorBrush brush)
+            {
+                return brush.Color;
+            }
+            return default(Color);
+        }
+    }
+
+    public class BrushToHexConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is null) return null;
+            string lowerHexString(int i) => i.ToString("X2").ToLower();
+            var brush = (SolidColorBrush)value;
+            var hex = lowerHexString(brush.Color.R) +
+                      lowerHexString(brush.Color.G) +
+                      lowerHexString(brush.Color.B);
+            return "#" + hex;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class ColorToHexConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is null) return null;
+
+            string lowerHexString(int i) => i.ToString("X2").ToLower();
+            Color color = (Color)value;
+            var hex = lowerHexString(color.R) +
+                      lowerHexString(color.G) +
+                      lowerHexString(color.B);
+            return hex;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            try
+            {
+                return ColorConverter.ConvertFromString("#" + value.ToString());
+            } catch(Exception) { }
+
+            return Binding.DoNothing;
+        }
+            
+    }
 }
