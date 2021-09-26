@@ -2,7 +2,7 @@
 
 namespace FlyleafLib.MediaFramework.MediaInput
 {
-    public class InputData : NotifyPropertyChanged
+    public class InputData
     {
         public string   Title       { get; set; }
         public string   Folder      { get; set; }

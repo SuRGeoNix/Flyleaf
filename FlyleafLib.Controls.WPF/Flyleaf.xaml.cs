@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -21,6 +23,7 @@ using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaInput;
+
 using static FlyleafLib.Config;
 
 namespace FlyleafLib.Controls.WPF
@@ -49,7 +52,7 @@ namespace FlyleafLib.Controls.WPF
         
         public DecoderContext   DecCtx          => Player?.decoder;
         public Config           Config          => Player?.Config;
-        public PlayerConfig     PlayerConfig    => Config.Player;
+        public PlayerConfig     PlayerConfig    => Config?.Player;
         public AudioConfig      AudioConfig     => Config?.Audio;
         public SubtitlesConfig  SubtitlesConfig => Config?.Subtitles;
         public VideoConfig      VideoConfig     => Config?.Video;
@@ -57,6 +60,85 @@ namespace FlyleafLib.Controls.WPF
         public DemuxerConfig    DemuxerConfig   => Config?.Demuxer;
         public SerializableDictionary<string, SerializableDictionary<string, string>>
                                 PluginsConfig   => Config?.Plugins;
+        public ObservableCollection<UITheme> 
+                                UIThemes        { get; set; } = new ObservableCollection<UITheme>();
+        public string           UIConfigPath    { get; set; }
+        public string           ConfigPath      { get; set; }
+
+        public string SelectedThemeStr
+        {
+            get => _SelectedTheme?.Name;
+            set
+            {
+                if (_SelectedThemeStr == value || value == null) return;
+                Set(ref _SelectedThemeStr, value);
+
+                foreach (var uitheme in UIThemes)
+                    if (uitheme.Name == value) SelectedTheme = uitheme;
+            }
+        }
+        string _SelectedThemeStr;
+
+        public UITheme SelectedTheme
+        {
+            get => _SelectedTheme;
+            set
+            {
+                if (_SelectedTheme != null && _SelectedTheme.Name == value.Name) return;
+                Set(ref _SelectedTheme, value);
+                ITheme theme = Resources.GetTheme();
+                theme.SetPrimaryColor(value.PrimaryColor);
+                theme.SetSecondaryColor(value.SecondaryColor);
+                theme.Paper = value.PaperColor;
+                Resources.SetTheme(theme);
+                settings.Resources.SetTheme(theme);
+                Config.Video.BackgroundColor = value.VideoView;
+            }
+        }
+        UITheme _SelectedTheme;
+
+        public Color SelectedColor  { 
+            get => _SelectedColor;
+            set
+            {
+                if (_SelectedColor == value) return;
+
+                Set(ref _SelectedColor, value);
+
+                switch (selectedColor)
+                {
+                    case "Primary":
+                        ((UITheme)settings.cmbThemes.SelectedItem).PrimaryColor = value;
+                        break;
+
+                    case "Secondary":
+                        ((UITheme)settings.cmbThemes.SelectedItem).SecondaryColor = value;
+                        break;
+
+                    case "Paper":
+                        ((UITheme)settings.cmbThemes.SelectedItem).PaperColor = value;
+                        break;
+
+                    case "VideoView":
+                        ((UITheme)settings.cmbThemes.SelectedItem).VideoView = value;
+                        break;
+                }
+            }
+        }
+        Color _SelectedColor;
+        Color selectedColorPrev;
+        string selectedColor;
+
+        public IEnumerable<KeyValuePair<String, Color>> NamedColors { get; private set; }
+        private IEnumerable<KeyValuePair<String, Color>> GetColors()
+        {
+            return typeof(Colors)
+                .GetProperties()
+                .Where(prop =>
+                    typeof(Color).IsAssignableFrom(prop.PropertyType))
+                .Select(prop =>
+                    new KeyValuePair<String, Color>(prop.Name, (Color)prop.GetValue(null)));
+        }
 
         string _ErrorMsg;
         public string ErrorMsg { get => _ErrorMsg; set => Set(ref _ErrorMsg, value); }
@@ -91,6 +173,8 @@ namespace FlyleafLib.Controls.WPF
         public TextBlock Subtitles { get; set; }
         Thickness subsInitialMargin;
 
+        internal Settings    settings;
+        UITheme     defaultTheme;
         ContextMenu popUpMenu, popUpMenuSubtitles, popUpMenuVideo;
         MenuItem    popUpAspectRatio;
         MenuItem    popUpKeepAspectRatio;
@@ -145,12 +229,14 @@ namespace FlyleafLib.Controls.WPF
 
         private void Initialize()
         {
+            NamedColors = GetColors();
+
             popUpMenu           = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner", this))?.ContextMenu;
             popUpMenuSubtitles  = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner_Subtitles", this))?.ContextMenu;
             popUpMenuVideo      = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner_Video", this))?.ContextMenu;
             Subtitles           = (TextBlock) Template.FindName("PART_Subtitles", this);
 
-            var dialogSettings  = ((DialogHost)Template.FindName("PART_DialogSettings", this));
+            var dialogSettings  = (DialogHost)Template.FindName("PART_DialogSettings", this);
             if (dialogSettings != null)
             {
                 dialogSettingsIdentifier = $"DialogSettings_{Guid.NewGuid()}";
@@ -189,8 +275,6 @@ namespace FlyleafLib.Controls.WPF
                 {
                     CanPaste = String.IsNullOrEmpty(Clipboard.GetText()) ? false : true;
                     popUpCustomAspectRatio.Header = $"Custom ({VideoConfig.CustomAspectRatio})";
-                    //popUpKeepAspectRatio.Header = $"Keep ({Player.VideoInfo.AspectRatio})";
-
                     FixMenuSingleCheck(popUpAspectRatio, VideoConfig.AspectRatio.ToString());
                     if (VideoConfig.AspectRatio == AspectRatio.Custom)
                         popUpCustomAspectRatio.IsChecked = true;
@@ -200,13 +284,13 @@ namespace FlyleafLib.Controls.WPF
             }
 
             RegisterCommands();
+
             if (Subtitles != null)
             {
                 subsInitialMargin   = Subtitles.Margin;
                 SubtitlesFontDesc   = $"{Subtitles.FontFamily} ({Subtitles.FontWeight}), {Subtitles.FontSize}";
                 SubtitlesFontColor  = Subtitles.Foreground;
             }
-            Raise(null);
 
             lastMouseActivity = lastKeyboardActivity = DateTime.UtcNow.Ticks;
 
@@ -216,16 +300,36 @@ namespace FlyleafLib.Controls.WPF
                 idleThread.IsBackground = true;
                 idleThread.Start();
             }
+
+            settings = new Settings(this);
+
+            ITheme theme = Resources.GetTheme();
+            defaultTheme = new UITheme(this, defaultTheme) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, PaperColor = theme.Paper, VideoView = Config.Video.BackgroundColor};
+
+            if (UIConfigPath != null)
+                UIConfig.Load(this, UIConfigPath);
+
+            if (UIThemes == null || UIThemes.Count == 0)
+            {
+                UIThemes.Add(new UITheme(this, defaultTheme) { Name= "Black & White",       PrimaryColor = Colors.White, SecondaryColor = Colors.White, PaperColor = Colors.Black, VideoView = Colors.Black });
+                UIThemes.Add(new UITheme(this, defaultTheme) { Name= "Blue & Red",          PrimaryColor = Colors.DodgerBlue, SecondaryColor = (Color)ColorConverter.ConvertFromString("#e00000"), PaperColor = Colors.Black, VideoView = Colors.Black });
+                UIThemes.Add(new UITheme(this, defaultTheme) { Name= "Orange",              PrimaryColor = (Color)ColorConverter.ConvertFromString("#ff8300"), SecondaryColor = Colors.White, PaperColor = Colors.Black, VideoView = Colors.Black });
+                UIThemes.Add(new UITheme(this, defaultTheme) { Name= "Firebrick",           PrimaryColor = Colors.Firebrick, SecondaryColor = Colors.White, PaperColor = Colors.Black, VideoView = Colors.Black });
+                UIThemes.Add(new UITheme(this, defaultTheme) { Name= "Fuchia,Lime & Blue",  PrimaryColor = (Color)ColorConverter.ConvertFromString("#e615e6"), SecondaryColor = Colors.Lime, PaperColor =(Color)ColorConverter.ConvertFromString("#0f1034"), VideoView = (Color)ColorConverter.ConvertFromString("#0f1034") });
+                UIThemes.Add(new UITheme(this, defaultTheme) { Name= "Gold & Chocolate",    PrimaryColor = (Color)ColorConverter.ConvertFromString("#ffc73b"), SecondaryColor = Colors.Chocolate, PaperColor = (Color)ColorConverter.ConvertFromString("#3b1212"), VideoView = (Color)ColorConverter.ConvertFromString("#3b1212") });
+                UIThemes.Add(new UITheme(this, defaultTheme) { Name= "Green & Brown",       PrimaryColor = (Color)ColorConverter.ConvertFromString("#24b03b"), SecondaryColor = (Color)ColorConverter.ConvertFromString("#e66102"), PaperColor = Colors.Black, VideoView = Colors.Black });
+                UIThemes.Add(new UITheme(this, defaultTheme) { Name= "Custom",              PrimaryColor = Colors.Orange, SecondaryColor = Colors.White, VideoView = Colors.Black });
+            }
+
+            if (string.IsNullOrEmpty(SelectedThemeStr))
+                SelectedTheme = UIThemes[3];
             
+            Raise(null);
         }
         private void InitializePlayer()
         {
             if (playerInitialized) return;
             playerInitialized = true;
-
-            VideoView.Resources   = Resources;
-            VideoView.FontFamily  = FontFamily;
-            VideoView.FontSize    = FontSize;
 
             Unloaded += (o, e) => { Dispose(); };
 
@@ -296,6 +400,7 @@ namespace FlyleafLib.Controls.WPF
             ToggleFullscreen    = new RelayCommand(ToggleFullscreenAction);
             ToggleMute          = new RelayCommand(ToggleMuteAction);
             OpenSettings        = new RelayCommand(OpenSettingsAction);
+            OpenColorPicker     = new RelayCommand(OpenColorPickerAction);
             ChangeAspectRatio   = new RelayCommand(ChangeAspectRatioAction);
             SetSubtitlesFont    = new RelayCommand(SetSubtitlesFontAction);
 
@@ -319,6 +424,26 @@ namespace FlyleafLib.Controls.WPF
             TakeSnapshot        = new RelayCommand(TakeSnapshotAction);
             ZoomReset           = new RelayCommand(ZoomResetAction);
             Zoom                = new RelayCommand(ZoomAction);
+        }
+
+        public ICommand OpenColorPicker { get; set; }
+        public async void OpenColorPickerAction(object curColor)
+        {
+            selectedColor = curColor.ToString(); 
+
+            if (selectedColor == "Primary")
+                SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).PrimaryColor;
+            else if (selectedColor == "Secondary")
+                SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).SecondaryColor;
+            else if (selectedColor == "Paper")
+                SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).PaperColor;
+            else if (selectedColor == "VideoView")
+                SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).VideoView;
+
+            selectedColorPrev = SelectedColor;
+            var result = await DialogHost.Show(settings.ColorPickerDialog.DialogContent, "ColorPickerDialog");
+            if (result != null && result.ToString() == "cancel")
+                SelectedColor = selectedColorPrev;
         }
 
         public ICommand SetPlaybackSpeed { get; set; }
@@ -449,20 +574,22 @@ namespace FlyleafLib.Controls.WPF
             }
 
             var prevVideoConfig = VideoConfig.Clone();
+            var result = await DialogHost.Show(settings, dialogSettingsIdentifier);
+            if (result == null) return;
 
-            var view = new Settings(this);//Session);
-            view.DataContext = this;
-            var result = await DialogHost.Show(view, dialogSettingsIdentifier, view.Closing);
-
-            if (result != null && result.ToString() == "cancel")
+            if (result.ToString() == "cancel")
             {
                 VideoConfig.HDRtoSDRMethod  = prevVideoConfig.HDRtoSDRMethod;
                 VideoConfig.HDRtoSDRTone    = prevVideoConfig.HDRtoSDRTone;
                 VideoConfig.Contrast        = prevVideoConfig.Contrast;
                 VideoConfig.Brightness      = prevVideoConfig.Brightness;
             }
-
-            view.Closed(result);
+            else
+            {
+                settings.ApplySettings();
+                if (result.ToString() == "save")
+                    UIConfig.Save(this, UIConfigPath, ConfigPath);
+            }
         }
 
         public ICommand ToggleMute          { get; set; }
@@ -535,6 +662,7 @@ namespace FlyleafLib.Controls.WPF
         private async void DialogAspectRatio()
         {
             if (dialogSettingsIdentifier == null) return;
+            if (DialogHost.IsDialogOpen(dialogSettingsIdentifier)) return;
 
             var stackVertical    = new StackPanel() { Height=100, Orientation = Orientation.Vertical };
             var stackHorizontal1 = new StackPanel() { Margin = new Thickness(10), Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Center};
@@ -558,7 +686,8 @@ namespace FlyleafLib.Controls.WPF
             stackVertical.Children.Add(stackHorizontal2);
 
             stackVertical.Orientation = Orientation.Vertical;
-
+            stackVertical.Resources = Resources;
+            stackVertical.Resources.SetTheme(Resources.GetTheme());
             var result = await DialogHost.Show(stackVertical, dialogSettingsIdentifier);
         }
         private void FixMenuSingleCheck(MenuItem mi, string checkedItem = null)
@@ -639,7 +768,7 @@ namespace FlyleafLib.Controls.WPF
                 Thread.Sleep(500);
 
                 // Temp fix
-                if (!Player.IsPlaying && Player.CanPlay)
+                if (Player != null && !Player.IsPlaying && Player.CanPlay)
                 {
                     long bufferedDuration = Player.Video.IsOpened ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration;
                     if (bufferedDuration != Player.BufferedDuration)
@@ -649,13 +778,32 @@ namespace FlyleafLib.Controls.WPF
                 var newMode = GetCurrentActivityMode();
                 if (newMode != CurrentMode)
                 {
-                    if (newMode == ActivityMode.Idle && IsFullscreen)
-                        Dispatcher.BeginInvoke(new Action(() => { if (popUpMenu.IsOpen || popUpMenuVideo.IsOpen || popUpMenuSubtitles.IsOpen) return; while (ShowCursor(false) >= 0) { } isCursorHidden = true;}));
+                    try
+                    {
+                        if (newMode == ActivityMode.Idle)
+                        {
+                            Dispatcher.Invoke(new Action(() => 
+                            { 
+                                if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier)) return;
+                                if (popUpMenu.IsOpen || popUpMenuVideo.IsOpen || popUpMenuSubtitles.IsOpen) return; 
+                                CurrentMode = newMode;
 
-                    if (isCursorHidden && newMode == ActivityMode.FullActive)
-                        Dispatcher.BeginInvoke(new Action(() => { while (ShowCursor(true)   < 0) { } }));
+                                while (ShowCursor(false) >= 0) { }
+                                isCursorHidden = true;
+                            }));
+                        }                        
+                        else if (newMode == ActivityMode.FullActive)
+                        {
+                            if (isCursorHidden)
+                                Dispatcher.Invoke(new Action(() => 
+                                {
+                                    while (ShowCursor(true) < 0) { }
+                                    isCursorHidden = false; 
+                                }));
 
-                    CurrentMode = newMode;
+                            CurrentMode = newMode;
+                        }
+                    } catch (Exception) { } // Sometimes cant find fade in/out storyboards?
                 }
             }
         }
@@ -797,9 +945,13 @@ namespace FlyleafLib.Controls.WPF
         {
             if (e.Key == Key.System && e.SystemKey == Key.F4) { return; }
 
-            lastKeyboardActivity = DateTime.UtcNow.Ticks;
+            if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier))
+            {
+                if (e.Key == Key.Escape) DialogHost.Close(dialogSettingsIdentifier, "cancel");
+                return;
+            }
 
-            if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier) && e.Key == Key.Escape) { DialogHost.Close(dialogSettingsIdentifier, "cancel"); return; }
+            lastKeyboardActivity = DateTime.UtcNow.Ticks;
 
             switch (e.Key)
             {

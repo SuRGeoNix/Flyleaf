@@ -46,14 +46,17 @@ namespace FlyleafLib.Plugins
 
         private void Options_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            var prop = cfg.GetType().GetProperty(e.PropertyName);
+            try
+            {
+                var prop = cfg.GetType().GetProperty(e.PropertyName);
 
-            if (prop.PropertyType == typeof(bool))
-                prop.SetValue(cfg, bool.Parse(Options[e.PropertyName]));
-            else if (prop.PropertyType == typeof(int))
-                prop.SetValue(cfg, int.Parse(Options[e.PropertyName]));
-            else
-                prop.SetValue(cfg, Options[e.PropertyName]);
+                if (prop.PropertyType == typeof(bool))
+                    prop.SetValue(cfg, bool.Parse(Options[e.PropertyName]));
+                else if (prop.PropertyType == typeof(int))
+                    prop.SetValue(cfg, int.Parse(Options[e.PropertyName]));
+                else
+                    prop.SetValue(cfg, Options[e.PropertyName]);
+            } catch (Exception) { }
         }
 
         public override void OnInitializing()

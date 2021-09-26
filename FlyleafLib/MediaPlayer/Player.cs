@@ -352,6 +352,9 @@ namespace FlyleafLib.MediaPlayer
             VideoDecoder.CodecChanged        = Decoder_VideoCodecChanged;
             VideoDemuxer.RecordingCompleted += (o, e) => { IsRecording = false; };
 
+            Reset();
+            InitializeAudio();
+
             if (Config.Player.Usage != Usage.Audio)
                 renderer.Present();
 
