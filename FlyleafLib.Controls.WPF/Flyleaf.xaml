@@ -4,6 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:local="clr-namespace:FlyleafLib.Controls.WPF"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              
@@ -165,7 +166,128 @@
                                                     <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                                         <Setter Property="ContextMenu">
                                                             <Setter.Value>
-                                                                <ContextMenu ItemsSource="{StaticResource MenuSubtitlesStreams}"/>
+                                                                <ContextMenu>
+                                                                    <MenuItem Header="External" ItemsSource="{Binding DecCtx.PluginsProvideSubtitles[OpenSubtitles].SubtitlesInputs}" AlternationCount="{Binding DecCtx.PluginsProvideSubtitles[OpenSubtitles].SubtitlesInputs.Count}">
+                                                                        <MenuItem.ItemContainerStyle>
+                                                                            <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                                                                                <Setter Property="IsCheckable" Value="True"/>
+                                                                                <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                                                                                <Setter Property="Header" Value="{Binding Url}"/>
+                                                                            </Style>
+                                                                        </MenuItem.ItemContainerStyle>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="Embedded" ItemsSource="{Binding SubtitlesInfo.Streams}">
+                                                                        <MenuItem.ItemContainerStyle>
+                                                                            <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                <Setter Property="Command" Value="{Binding DataContext.OpenStream, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                                                                                <Setter Property="IsCheckable" Value="True"/>
+                                                                                <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                                                                            </Style>
+                                                                        </MenuItem.ItemContainerStyle>
+                                                                        <MenuItem.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <TextBlock>
+                                                                                    <TextBlock.Text>
+                                                                                        <MultiBinding StringFormat=" [#{0}] {1}">
+                                                                                            <Binding Path="StreamIndex"/>
+                                                                                            <Binding Path="Language"/>
+                                                                                        </MultiBinding>
+                                                                                    </TextBlock.Text>
+                                                                                </TextBlock>
+                                                                            </DataTemplate>
+                                                                        </MenuItem.ItemTemplate>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="OpenSubtitles">
+                                                                        <MenuItem.Style>
+                                                                            <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Value="False">
+                                                                                        <DataTrigger.Binding>
+                                                                                            <MultiBinding Converter="{StaticResource CheckNull}">
+                                                                                                <Binding Path="DecCtx.PluginsProvideSubtitles"/>
+                                                                                                <Binding>
+                                                                                                    <Binding.Source>
+                                                                                                        <sys:String>OpenSubtitlesOrg</sys:String>
+                                                                                                    </Binding.Source>
+                                                                                                </Binding>
+                                                                                            </MultiBinding>
+                                                                                        </DataTrigger.Binding>
+                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                        <Setter Property="ItemsSource" Value="{Binding DecCtx.PluginsProvideSubtitles[OpenSubtitlesOrg].SubtitlesInputs}"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </MenuItem.Style>
+                                                                        <MenuItem.ItemContainerStyle>
+                                                                            <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                                                                                <Setter Property="IsCheckable" Value="True"/>
+                                                                                <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                                                                            </Style>
+                                                                        </MenuItem.ItemContainerStyle>
+                                                                        <MenuItem.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <TextBlock>
+                                                                                    <TextBlock.Text>
+                                                                                        <MultiBinding StringFormat=" ({0}) {1} {2}">
+                                                                                            <Binding Path="Language"/>
+                                                                                            <Binding Path="InputData.Rating"/>
+                                                                                            <Binding Path="InputData.Title"/>
+                                                                                        </MultiBinding>
+                                                                                    </TextBlock.Text>
+                                                                                </TextBlock>
+                                                                            </DataTemplate>
+                                                                        </MenuItem.ItemTemplate>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="YoutubeDL">
+                                                                        <MenuItem.Style>
+                                                                            <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Value="False">
+                                                                                        <DataTrigger.Binding>
+                                                                                            <MultiBinding Converter="{StaticResource CheckNull}">
+                                                                                                <Binding Path="DecCtx.PluginsProvideAudio"/>
+                                                                                                <Binding>
+                                                                                                    <Binding.Source>
+                                                                                                        <sys:String>YoutubeDL</sys:String>
+                                                                                                    </Binding.Source>
+                                                                                                </Binding>
+                                                                                            </MultiBinding>
+                                                                                        </DataTrigger.Binding>
+                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                        <Setter Property="ItemsSource" Value="{Binding DecCtx.PluginsProvideAudio[YoutubeDL].SubtitlesInputs}"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </MenuItem.Style>
+                                                                        <MenuItem.ItemContainerStyle>
+                                                                            <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                                                                                <Setter Property="IsCheckable" Value="True"/>
+                                                                                <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                                                                            </Style>
+                                                                        </MenuItem.ItemContainerStyle>
+                                                                        <MenuItem.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <TextBlock>
+                                                                                    <TextBlock.Text>
+                                                                                        <MultiBinding StringFormat=" [#{0}] {1}">
+                                                                                            <Binding Path="Protocol"/>
+                                                                                            <Binding Path="Language"/>
+                                                                                        </MultiBinding>
+                                                                                    </TextBlock.Text>
+                                                                                </TextBlock>
+                                                                            </DataTemplate>
+                                                                        </MenuItem.ItemTemplate>
+                                                                    </MenuItem>
+                                                                </ContextMenu>
                                                             </Setter.Value>
                                                         </Setter>
                                                         <Setter Property="Visibility" Value="Hidden"/>
@@ -187,7 +309,123 @@
                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                             <Setter Property="ContextMenu">
                                                                 <Setter.Value>
-                                                                    <ContextMenu ItemsSource="{StaticResource MenuVideoStreams}"/>
+                                                                    <ContextMenu>
+                                                                        <MenuItem Header="Embedded" ItemsSource="{Binding VideoInfo.Streams}">
+                                                                            <MenuItem.ItemContainerStyle>
+                                                                                <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                    <Setter Property="Command" Value="{Binding DataContext.OpenStream, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                    <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                                                                                    <Setter Property="IsCheckable" Value="True"/>
+                                                                                    <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                                                                                </Style>
+                                                                            </MenuItem.ItemContainerStyle>
+                                                                            <MenuItem.ItemTemplate>
+                                                                                <DataTemplate>
+                                                                                    <TextBlock>
+                                                                                        <TextBlock.Text>
+                                                                                            <MultiBinding StringFormat=" {0}x{1} @{2:#,#.00} ({3}/{4})">
+                                                                                                <Binding Path="Width"/>
+                                                                                                <Binding Path="Height"/>
+                                                                                                <Binding Path="Fps"/>
+                                                                                                <Binding Path="Codec"/>
+                                                                                                <Binding Path="PixelFormatStr"/>
+                                                                                            </MultiBinding>
+                                                                                        </TextBlock.Text>
+                                                                                    </TextBlock>
+                                                                                </DataTemplate>
+                                                                            </MenuItem.ItemTemplate>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="External" ItemsSource="{Binding DecCtx.PluginsProvideVideo[OpenVideo].VideoInputs}" AlternationCount="{Binding DecCtx.PluginsProvideVideo[OpenVideo].VideoInputs.Count}">
+                                                                            <MenuItem.ItemContainerStyle>
+                                                                                <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                    <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                    <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                                                                                    <Setter Property="IsCheckable" Value="True"/>
+                                                                                    <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                                                                                    <Setter Property="Header" Value="{Binding Url}"/>
+                                                                                </Style>
+                                                                            </MenuItem.ItemContainerStyle>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="BitSwarm">
+                                                                            <MenuItem.Style>
+                                                                                <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Value="False">
+                                                                                            <DataTrigger.Binding>
+                                                                                                <MultiBinding Converter="{StaticResource CheckNull}">
+                                                                                                    <Binding Path="DecCtx.PluginsProvideVideo"/>
+                                                                                                    <Binding>
+                                                                                                        <Binding.Source>
+                                                                                                            <sys:String>BitSwarm</sys:String>
+                                                                                                        </Binding.Source>
+                                                                                                    </Binding>
+                                                                                                </MultiBinding>
+                                                                                            </DataTrigger.Binding>
+                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                            <Setter Property="ItemsSource" Value="{Binding DecCtx.PluginsProvideVideo[BitSwarm].VideoInputs}"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </MenuItem.Style>
+                                                                            <MenuItem.ItemContainerStyle>
+                                                                                <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                    <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                    <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                                                                                    <Setter Property="IsCheckable" Value="True"/>
+                                                                                    <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                                                                                    <Setter Property="Header" Value="{Binding InputData.Title}"/>
+                                                                                </Style>
+                                                                            </MenuItem.ItemContainerStyle>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="YoutubeDL">
+                                                                            <MenuItem.Style>
+                                                                                <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Value="False">
+                                                                                            <DataTrigger.Binding>
+                                                                                                <MultiBinding Converter="{StaticResource CheckNull}">
+                                                                                                    <Binding Path="DecCtx.PluginsProvideVideo"/>
+                                                                                                    <Binding>
+                                                                                                        <Binding.Source>
+                                                                                                            <sys:String>YoutubeDL</sys:String>
+                                                                                                        </Binding.Source>
+                                                                                                    </Binding>
+                                                                                                </MultiBinding>
+                                                                                            </DataTrigger.Binding>
+                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                            <Setter Property="ItemsSource" Value="{Binding DecCtx.PluginsProvideVideo[YoutubeDL].VideoInputs}"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </MenuItem.Style>
+                                                                            <MenuItem.ItemContainerStyle>
+                                                                                <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                                                    <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                    <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                                                                                    <Setter Property="IsCheckable" Value="True"/>
+                                                                                    <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                                                                                </Style>
+                                                                            </MenuItem.ItemContainerStyle>
+                                                                            <MenuItem.ItemTemplate>
+                                                                                <DataTemplate>
+                                                                                    <TextBlock>
+                                                                                        <TextBlock.Text>
+                                                                                            <MultiBinding StringFormat=" {0}x{1} @{2} ({3}) [{4}] [Audio:{5}]">
+                                                                                                <Binding Path="Width"/>
+                                                                                                <Binding Path="Height"/>
+                                                                                                <Binding Path="Fps"/>
+                                                                                                <Binding Path="Codec"/>
+                                                                                                <Binding Path="Protocol"/>
+                                                                                                <Binding Path="HasAudio"/>
+                                                                                            </MultiBinding>
+                                                                                        </TextBlock.Text>
+                                                                                    </TextBlock>
+                                                                                </DataTemplate>
+                                                                            </MenuItem.ItemTemplate>
+                                                                        </MenuItem>
+                                                                    </ContextMenu>
                                                                 </Setter.Value>
                                                             </Setter>
                                                             <Style.Triggers>

@@ -55,7 +55,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             av_opt_set_sample_fmt(swrCtx,    "out_sample_fmt",           AOutSampleFormat, 0);
             
             ret = swr_init(swrCtx);
-            if (ret < 0) Log($"[AudioSetup] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"); 
+            if (ret < 0) Log($"[AudioSetup] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+
+            keyFrameRequired = !VideoDecoder.Disposed;
 
             return ret;
         }
@@ -78,7 +80,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 avcodec_flush_buffers(codecCtx);
                 if (Status == Status.Ended) Status = Status.Stopped;
 
-                keyFrameRequired = true && !VideoDecoder.Disposed;
+                keyFrameRequired = !VideoDecoder.Disposed;
                 curSpeedFrame = Speed;
             }
         }
@@ -182,20 +184,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                         if (frame->pts == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
 
-                        if (keyFrameRequired)
-                        {
-                            while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning) Thread.Sleep(10);
-                            long curTimestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
-                            if (curTimestamp < VideoDecoder.StartTime)
-                            {
-                                //Log($"Droping {Utils.TicksToTime(mFrame.timestamp)} < {Utils.TicksToTime(VideoDecoder.StartTime)}");
-                                av_frame_unref(frame);
-                                continue;
-                            }
-                            else
-                                keyFrameRequired = false;
-                        }
-
                         AudioFrame mFrame = ProcessAudioFrame(frame);
                         if (mFrame != null) Frames.Enqueue(mFrame);
 
@@ -233,6 +221,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning) Thread.Sleep(10);
                 if (mFrame.timestamp < VideoDecoder.StartTime/Speed)
                 {
+                    // TODO: in case of long distance will spin (CPU issue), possible reseek?
+
                     //Log($"Droping {Utils.TicksToTime(mFrame.timestamp)} < {Utils.TicksToTime(VideoDecoder.StartTime)}");
                     return null;
                 }
