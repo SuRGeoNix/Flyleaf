@@ -168,6 +168,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             HDRDataSent = false;
             Renderer?.FrameResized();
 
+            keyFrameRequired = true;
+
             return 0;
         }
         internal void Flush()
@@ -573,6 +575,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             av_buffer_unref(&codecCtx->hw_device_ctx);
             if (swsCtx != null) { sws_freeContext(swsCtx); swsCtx = null; }
             DisposeFrames();
+            StartTime = AV_NOPTS_VALUE;
         }
     }
 }

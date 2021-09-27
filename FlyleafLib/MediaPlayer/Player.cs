@@ -1150,20 +1150,30 @@ namespace FlyleafLib.MediaPlayer
                                 if (decoder.SeekAudio(seekData.ms, seekData.foreward) < 0)
                                     Log("[SEEK] Failed 3");
                             }
-                        }
-                        else if (decoder.Seek(seekData.ms, seekData.foreward) >= 0)
-                        {
-                            if (CanPlay)
-                                decoder.GetVideoFrame();
-                            if (CanPlay)
-                            {
-                                ShowOneFrame();
-                                decoder.Start();
-                                decoder.PauseOnQueueFull();
-                            }
+
+                            // Check also audio only buffering on pause
+                            //decoder.Start();
+                            //decoder.PauseOnQueueFull();
                         }
                         else
-                            Log("[SEEK] Failed");
+                        {
+                            VideoDecoder.Pause();
+                            if (decoder.Seek(seekData.ms, seekData.foreward) >= 0)
+                            {
+                                if (CanPlay)
+                                    decoder.GetVideoFrame();
+                                if (CanPlay)
+                                {
+                                    ShowOneFrame();
+                                    VideoDemuxer.Start();
+                                    AudioDemuxer.Start();
+                                    SubtitlesDemuxer.Start();
+                                    decoder.PauseOnQueueFull();
+                                }
+                            }
+                            else
+                                Log("[SEEK] Failed");
+                        }
 
                         Thread.Sleep(20);
                     }
@@ -1251,6 +1261,11 @@ namespace FlyleafLib.MediaPlayer
 
                 long tmpTimestamp = vFrame.timestamp;
                 renderer.Present(vFrame);
+
+                // Required for buffering on paused
+                if (decoder.RequiresResync && !IsPlaying && seeks.Count == 0)
+                    decoder.Resync(vFrame.timestamp);
+
                 Action refresh = new Action(() =>
                 {
                     if (seeks.Count == 0)
@@ -1308,7 +1323,7 @@ namespace FlyleafLib.MediaPlayer
             sFrame = null;
             sFramePrev = null;
             _Control?.BeginInvoke(new Action(() => Subtitles.SubsText = "" ));
-
+            
             bool gotAudio       = !Audio.IsOpened;
             bool gotVideo       = false;
             bool shouldStop     = false;

@@ -87,12 +87,16 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         public void Initialize()
         {
+            RequiresResync = false;
+
             OnInitializing();
             Stop();
             OnInitialized();
         }
         public void InitializeSwitch()
         {
+            RequiresResync = false;
+
             OnInitializingSwitch();
             Stop();
             OnInitializedSwitch();
@@ -796,6 +800,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 SeekAudio(timestamp / 10000);
                 if (isRunning)
                 {
+                    System.Threading.Thread.Sleep(10); // TBR: Probably race condition on Ending/Pausing
                     AudioDemuxer.Start();
                     AudioDecoder.Start();
                 }
@@ -852,22 +857,19 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         public long GetVideoFrame()
         {
-            if (VideoDemuxer.EnabledStreams.Count == 0) return 0;
-
             int ret;
             AVPacket* packet = av_packet_alloc();
-            AVFrame* frame = av_frame_alloc();
+            AVFrame*  frame  = av_frame_alloc();
 
+            lock (VideoDemuxer.lockFmtCtx)
+            lock (VideoDecoder.lockCodecCtx)
             while (!VideoDemuxer.Disposed && !Interrupt && VideoDemuxer.EnabledStreams.Count != 0)
             {
                 if (VideoDemuxer.VideoPackets.Count == 0)
                 {
-                    lock (VideoDemuxer.lockFmtCtx)
-                    {
-                        VideoDemuxer.Interrupter.Request(Requester.Read);
-                        ret = av_read_frame(VideoDemuxer.FormatContext, packet);
-                        if (ret != 0) return -1;
-                    }
+                    VideoDemuxer.Interrupter.Request(Requester.Read);
+                    ret = av_read_frame(VideoDemuxer.FormatContext, packet);
+                    if (ret != 0) return -1;
                 }
                 else
                 {
@@ -892,8 +894,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                         continue;
 
                     case AVMEDIA_TYPE_VIDEO:
-                        lock (VideoDecoder.lockCodecCtx)
-                            ret = avcodec_send_packet(VideoDecoder.CodecCtx, packet);
+                        ret = avcodec_send_packet(VideoDecoder.CodecCtx, packet);
                         av_packet_free(&packet);
                         packet = av_packet_alloc();
 
@@ -902,9 +903,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                         while (!VideoDemuxer.Disposed && !Interrupt)
                         {
                             VideoDemuxer.UpdateCurTime();
-
-                            lock (VideoDecoder.lockCodecCtx)
-                                ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
+                            ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                             if (ret != 0) { av_frame_unref(frame); break; }
 
                             frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
@@ -924,6 +923,17 @@ namespace FlyleafLib.MediaFramework.MediaContext
                             if (mFrame != null)
                             {
                                 VideoDecoder.Frames.Enqueue(mFrame);
+                                
+                                while (!VideoDemuxer.Disposed && !Interrupt)
+                                {
+                                    frame = av_frame_alloc();
+                                    ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
+                                    if (ret != 0) break;
+                                    VideoFrame mFrame2 = VideoDecoder.ProcessVideoFrame(frame);
+                                    if (mFrame2 != null) VideoDecoder.Frames.Enqueue(mFrame);
+                                }
+
+                                av_packet_free(&packet);
                                 av_frame_free(&frame);
                                 return mFrame.timestamp;
                             }
