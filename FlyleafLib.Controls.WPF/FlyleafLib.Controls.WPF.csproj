@@ -4,7 +4,7 @@
     <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.11</Version>
+    <Version>1.1.12</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2021</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -13,11 +13,7 @@
     <PackageIconUrl />
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
-    <PackageReleaseNotes>
-		Adds Plugins Options in Settings
-		Ensures seek within the current buffered queue
-		Ensures UI refresh of buffered duration selection range
-	</PackageReleaseNotes>
+    <PackageReleaseNotes>Adds Color Themes (based on MaterialDesigninXaml)</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

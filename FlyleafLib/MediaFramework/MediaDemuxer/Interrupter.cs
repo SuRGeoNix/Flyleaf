@@ -14,7 +14,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public long         Requested       { get; private set; }
         public int          Interrupted     { get; private set; }
         public bool         TimedOut        { get; private set; }
-        
 
         public AVIOInterruptCB_callback_func GetCallBackFunc() { return interruptClbk; }
         AVIOInterruptCB_callback_func   interruptClbk = new AVIOInterruptCB_callback_func();     
@@ -38,7 +37,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             if (demuxer.Config.AllowTimeouts)
             {
-                demuxer.Interrupter.TimedOut = false;
+                //demuxer.Interrupter.TimedOut = false; // Currently not used
 
                 long curTimeout = 0;
                 switch (demuxer.Interrupter.Requester)
@@ -62,26 +61,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 if (DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested > curTimeout)
                 {
-                    demuxer.Interrupter.TimedOut = true;
-
                     #if DEBUG
                     demuxer.Log($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms");
                     #endif
+
+                    //demuxer.Interrupter.TimedOut = true;
                     return demuxer.Interrupter.Interrupted = 1;
                 }
             }
 
             if (demuxer.Interrupter.Requester == Requester.Close) return 0;
 
-            if (demuxer.Status == Status.Pausing && demuxer.Config.AllowReadInterrupts && !demuxer.Config.ExcludeInterruptFmts.Contains(demuxer.Name))
-            {
-                #if DEBUG
-                demuxer.Log($"{demuxer.Interrupter.Requester} Interrupt (Pausing) !!!");
-                #endif
-                return demuxer.Interrupter.Interrupted = 1;
-            }
-
-            if (demuxer.Interrupter.ForceInterrupt != 0)
+            if (demuxer.Interrupter.ForceInterrupt != 0 && demuxer.allowReadInterrupts)
             {
                 #if DEBUG
                 demuxer.Log($"{demuxer.Interrupter.Requester} Interrupt !!!");

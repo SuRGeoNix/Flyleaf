@@ -770,7 +770,7 @@ namespace FlyleafLib.Controls.WPF
                 // Temp fix
                 if (Player != null && !Player.IsPlaying && Player.CanPlay)
                 {
-                    long bufferedDuration = Player.Video.IsOpened ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration;
+                    long bufferedDuration = Player.Video.IsOpened || AudioDecoder.OnVideoDemuxer ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration;
                     if (bufferedDuration != Player.BufferedDuration)
                         Dispatcher.BeginInvoke(new Action(() => Player.BufferedDuration = bufferedDuration));
                 }

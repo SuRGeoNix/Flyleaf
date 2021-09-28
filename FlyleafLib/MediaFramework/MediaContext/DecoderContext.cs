@@ -630,7 +630,21 @@ namespace FlyleafLib.MediaFramework.MediaContext
             lock (AudioDecoder.lockCodecCtx)
             lock (SubtitlesDecoder.lockCodecCtx)
             {
-                ret = VideoDemuxer.Seek(CalcSeekTimestamp(VideoDemuxer, ms, ref foreward), foreward);
+                long seekTimestamp = CalcSeekTimestamp(VideoDemuxer, ms, ref foreward);
+
+                // Should exclude seek in queue for all "local/fast" files
+                lock (VideoDemuxer.lockActions)
+                if (OpenedPlugin.Name == "BitSwarm" || VideoDemuxer.SeekInQueue(seekTimestamp, foreward) != 0)
+                {
+                    VideoDemuxer.Interrupter.ForceInterrupt = 1;
+                    OpenedPlugin.OnBuffering();
+                    lock (VideoDemuxer.lockFmtCtx)
+                    {    
+                        if (VideoDemuxer.Disposed) { VideoDemuxer.Interrupter.ForceInterrupt = 0; return -1; }
+                        ret = VideoDemuxer.Seek(seekTimestamp, foreward);
+                    }
+                }
+
                 VideoDecoder.Flush();
                 if (AudioStream != null && AudioDecoder.OnVideoDemuxer)
                     AudioDecoder.Flush();
@@ -643,7 +657,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             {
                 AudioDecoder.Pause();
                 AudioDecoder.Flush();
-                AudioDemuxer.Pause();
+                AudioDemuxer.PauseOnQueueFull = true; // Pause() will cause corrupted packets which causes av_read_frame to EOF
                 RequiresResync = true;
             }
 
@@ -651,7 +665,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             {
                 SubtitlesDecoder.Pause();
                 SubtitlesDecoder.Flush();
-                SubtitlesDemuxer.Pause();
+                SubtitlesDemuxer.PauseOnQueueFull = true;
                 RequiresResync = true;
             }
             
@@ -746,10 +760,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
             VideoDemuxer.PauseOnQueueFull = true;
             AudioDemuxer.PauseOnQueueFull = true;
             SubtitlesDemuxer.PauseOnQueueFull = true;
-
-            VideoDecoder.PauseOnQueueFull = true;
-            AudioDecoder.PauseOnQueueFull = true;
-            SubtitlesDecoder.PauseOnQueueFull = true;
         }
         public void Start()
         {
@@ -800,7 +810,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 SeekAudio(timestamp / 10000);
                 if (isRunning)
                 {
-                    System.Threading.Thread.Sleep(10); // TBR: Probably race condition on Ending/Pausing
                     AudioDemuxer.Start();
                     AudioDecoder.Start();
                 }

@@ -981,6 +981,11 @@ namespace FlyleafLib.MediaPlayer
 
         private void ReSync(StreamBase stream, long syncMs = -1)
         {
+            /* TODO
+             * 
+             * HLS live resync on stream switch should be from the end not from the start (could have different cache/duration)
+             */
+
             if (stream == null) return;
             //if (stream == null || (syncMs == 0 || (syncMs == -1 && decoder.GetCurTimeMs() == 0))) return; // Avoid initial open resync?
 
@@ -1122,7 +1127,9 @@ namespace FlyleafLib.MediaPlayer
             SetCurTime(ms * (long)10000);
             seeks.Push(new SeekData(ms, foreward));
 
+            BufferedDuration = 0;
             decoder.OpenedPlugin?.OnBuffering();
+
             if (Status == Status.Playing) return;
 
             lock (lockSeek) { if (IsSeeking) return; IsSeeking = true; }
@@ -1132,7 +1139,6 @@ namespace FlyleafLib.MediaPlayer
                 try
                 {
                     TimeBeginPeriod(1);
-                    decoder.OpenedPlugin?.OnBuffering();
 
                     while (seeks.TryPop(out SeekData seekData) && CanPlay && !IsPlaying)
                     {
@@ -1144,16 +1150,18 @@ namespace FlyleafLib.MediaPlayer
                             {
                                 if (decoder.Seek(seekData.ms, seekData.foreward) < 0)
                                     Log("[SEEK] Failed 2");
+
+                                VideoDemuxer.Start();
                             }
                             else
                             {
                                 if (decoder.SeekAudio(seekData.ms, seekData.foreward) < 0)
                                     Log("[SEEK] Failed 3");
+
+                                AudioDemuxer.Start();
                             }
 
-                            // Check also audio only buffering on pause
-                            //decoder.Start();
-                            //decoder.PauseOnQueueFull();
+                            decoder.PauseOnQueueFull();
                         }
                         else
                         {
@@ -1277,7 +1285,7 @@ namespace FlyleafLib.MediaPlayer
                             SetCurTime(tmpTimestamp * Config.Player.Speed);
                     }
                 });
-                _Control?.BeginInvoke(refresh);
+                if (seeks.Count == 0) _Control?.BeginInvoke(refresh);
             }
             return;
         }
@@ -1396,10 +1404,13 @@ namespace FlyleafLib.MediaPlayer
 
             startedAtTicks  = DateTime.UtcNow.Ticks;
 
-            if (VideoDemuxer.HLSPlaylist != null)
-                SetCurTimeHLS();
-            else
-                SetCurTime(videoStartTicks * Config.Player.Speed);
+            if (seeks.Count == 0)
+            {
+                if (VideoDemuxer.HLSPlaylist != null)
+                    SetCurTimeHLS();
+                else
+                    SetCurTime(videoStartTicks * Config.Player.Speed);
+            }
 
             decoder.OpenedPlugin.OnBufferingCompleted();
             Log($"[SCREAMER] Started -> {TicksToTime(videoStartTicks)} | [V: {TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {TicksToTime(aFrame.timestamp)}]"));
@@ -1424,14 +1435,11 @@ namespace FlyleafLib.MediaPlayer
             {
                 if (seeks.TryPop(out SeekData seekData))
                 {
-                    bool fixEnded = VideoDemuxer.Status == MediaFramework.Status.Ended;
                     seeks.Clear();
                     requiresBuffering = true;
-                    decoder.OpenedPlugin.OnBuffering();
+                    //decoder.OpenedPlugin.OnBuffering();
                     if (decoder.Seek(seekData.ms, seekData.foreward) < 0)
                         Log("[SCREAMER] Seek failed");
-
-                    if (fixEnded) Thread.Sleep(20);
                 }
 
                 if (requiresBuffering)
