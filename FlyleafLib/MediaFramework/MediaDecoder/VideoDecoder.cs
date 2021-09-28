@@ -179,9 +179,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 if (Disposed) return;
 
+                if (Status == Status.Ended) Status = Status.Stopped;
+                else if (Status == Status.Draining) Status = Status.Stopping;
+
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
-                if (Status == Status.Ended) Status = Status.Stopped;
+                
                 keyFrameRequired = true;
                 StartTime = AV_NOPTS_VALUE;
                 curSpeedFrame = Speed;
@@ -202,11 +205,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (!PauseOnQueueFull && Frames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull) Thread.Sleep(20);
+                    while (Frames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull) Thread.Sleep(20);
 
                     lock (lockStatus)
                     {
-                        if (PauseOnQueueFull) Status = Status.Pausing;
                         if (Status != Status.QueueFull) break;
                         Status = Status.Running;
                     }       
@@ -215,6 +217,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 // While Packets Queue Empty (Drain | Quit if Demuxer stopped | Wait until we get packets)
                 if (demuxer.VideoPackets.Count == 0)
                 {
+                    CriticalArea = true;
+
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueEmpty;
 
@@ -222,17 +226,30 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     {
                         if (demuxer.Status == Status.Ended)
                         {
-                            Log("Draining...");
-                            Status = Status.Draining;
-                            AVPacket* drainPacket = av_packet_alloc();
-                            drainPacket->data = null;
-                            drainPacket->size = 0;
-                            demuxer.VideoPackets.Enqueue((IntPtr)drainPacket);
+                            lock (lockStatus)
+                            {
+                                Log("Draining...");
+                                Status = Status.Draining;
+                                AVPacket* drainPacket = av_packet_alloc();
+                                drainPacket->data = null;
+                                drainPacket->size = 0;
+                                demuxer.VideoPackets.Enqueue((IntPtr)drainPacket);
+                            }
+                            
                             break;
                         }
                         else if (!demuxer.IsRunning)
                         {
                             Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
+
+                            int retries = 5;
+
+                            while (retries > 0)
+                            {
+                                retries--;
+                                Thread.Sleep(10);
+                                if (demuxer.IsRunning) break;
+                            }
 
                             lock (demuxer.lockStatus)
                             lock (lockStatus)
@@ -253,6 +270,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     lock (lockStatus)
                     {
+                        CriticalArea = false;
                         if (Status != Status.QueueEmpty && Status != Status.Draining) break;
                         if (Status != Status.Draining) Status = Status.Running;
                     }

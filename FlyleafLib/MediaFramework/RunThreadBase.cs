@@ -29,6 +29,7 @@ namespace FlyleafLib.MediaFramework
             }
         }
 
+        public bool                 CriticalArea    { get; protected set; }
         public bool                 Disposed        { get; protected set; } = true;
         public int                  UniqueId        { get; protected set; } = -1;
         public bool                 PauseOnQueueFull{ get; set; }
@@ -63,13 +64,27 @@ namespace FlyleafLib.MediaFramework
         {
             lock (lockActions)
             {
+                int retries = 1;
+                while (thread != null && thread.IsAlive && CriticalArea)
+                {
+                    Log($"Start Retry {retries}/5");
+                    Thread.Sleep(20);
+                    retries++;
+                    if (retries > 5) return;
+                }
+
                 lock (lockStatus)
                 {
-                    if (Disposed || Status == Status.Ended) return;
+                    if (Disposed) return;
 
                     PauseOnQueueFull = false;
 
-                    if (Status == Status.Pausing) while (Status != Status.Pausing) Thread.Sleep(3);
+                    if (Status == Status.Draining) while (Status != Status.Draining) Thread.Sleep(3);
+                    if (Status == Status.Stopping) while (Status != Status.Stopping) Thread.Sleep(3);
+                    if (Status == Status.Pausing)  while (Status != Status.Pausing)  Thread.Sleep(3);
+
+                    if (Status == Status.Ended) return;
+
                     if (Status == Status.Paused)
                     {
                         threadARE.Set();
@@ -77,7 +92,8 @@ namespace FlyleafLib.MediaFramework
                         return; 
                     }
 
-                    if (thread != null && thread.IsAlive) return;
+                    if (thread != null && thread.IsAlive) return; // might re-check CriticalArea
+
                     thread = new Thread(() => Run());
                     Status = Status.Running;
 
@@ -111,8 +127,6 @@ namespace FlyleafLib.MediaFramework
             do
             {
                 RunInternal();
-
-                PauseOnQueueFull = false;
 
                 if (Status == Status.Pausing)
                 {

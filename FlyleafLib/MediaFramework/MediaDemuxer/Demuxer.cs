@@ -94,6 +94,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         internal GCHandle       handle;
         public object           lockFmtCtx  = new object();
+        internal bool           allowReadInterrupts;
 
         public Demuxer(DemuxerConfig config, MediaType type = MediaType.Video, int uniqueId = -1, bool useAVSPackets = true) : base(uniqueId)
         {
@@ -220,11 +221,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         fmtCtx->interrupt_callback.callback = Interrupter.GetCallBackFunc();
                         fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
                     }
-                    else
-                    {
-                        Config.AllowReadInterrupts = false;
-                        Config.AllowTimeouts = false;
-                    }
 
                     fmtCtx->flags |= Config.FormatFlags;
 
@@ -233,6 +229,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     lock (lockFmtCtx)
                     {
+                        allowReadInterrupts = true; // allow Open interrupts always
+
                         if (stream != null)
                             stream.Seek(0, SeekOrigin.Begin);
 
@@ -261,6 +259,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     packet = av_packet_alloc();
                     Status = Status.Stopped;
+                    allowReadInterrupts = Config.AllowReadInterrupts && !Config.ExcludeInterruptFmts.Contains(Name);
 
                     return null;
                 }
@@ -341,21 +340,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             return hasVideo;
         }
 
-        public int Seek(long ticks, bool foreward = false)
+        public int SeekInQueue(long ticks, bool foreward = false)
         {
-            /* Current Issues
-             * 
-             * HEVC/MPEG-TS: Fails to seek to keyframe https://blog.csdn.net/Annie_heyeqq/article/details/113649501 | https://trac.ffmpeg.org/ticket/9412
-             * AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
-             * Strange delay (could be 200ms!) after seek on HEVC/yuv420p10le (10-bits) while trying to Present on swapchain (possible recreates texturearray?)
-             * 
-             */
-
             lock (lockActions)
             {
                 if (Disposed) return -1;
-
-                int ret;
 
                 /* Seek within current bufffered queue
                  * 
@@ -416,8 +405,26 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         return 0;
                     }
                 }
-                
-                if (Config.AllowReadInterrupts) Interrupter.ForceInterrupt = 1;
+
+                return -1;
+            }
+        }
+        public int Seek(long ticks, bool foreward = false)
+        {
+            /* Current Issues
+             * 
+             * HEVC/MPEG-TS: Fails to seek to keyframe https://blog.csdn.net/Annie_heyeqq/article/details/113649501 | https://trac.ffmpeg.org/ticket/9412
+             * AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
+             * Strange delay (could be 200ms!) after seek on HEVC/yuv420p10le (10-bits) while trying to Present on swapchain (possible recreates texturearray?)
+             */
+
+            lock (lockActions)
+            {
+                if (Disposed) return -1;
+
+                int ret;
+
+                Interrupter.ForceInterrupt = 1;
                 lock (lockFmtCtx)
                 {
                     Interrupter.ForceInterrupt = 0;
@@ -484,7 +491,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     lock (lockStatus)
                     {
-                        if (PauseOnQueueFull) Status = Status.Pausing;
+                        if (PauseOnQueueFull) { PauseOnQueueFull = false; Status = Status.Pausing; }
                         if (Status != Status.QueueFull) break;
                         Status = Status.Running;
                     }
@@ -513,7 +520,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     {
                         av_packet_unref(packet);
 
-                        if ((ret == AVERROR_EXIT && fmtCtx->pb != null && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF) { Status = Status.Ended; break; }
+                        if ((ret == AVERROR_EXIT && fmtCtx->pb != null && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF)
+                        { 
+                            // AVERROR_EXIT && fmtCtx->pb->eof_reached probably comes from Interrupts (should ensure we seek after that)
+                            Status = Status.Ended;
+                            break;
+                        }
 
                         allowedErrors--;
                         Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
@@ -553,7 +565,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (recGotKeyframe && (fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO || fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO))
                             CurRecorder.Write(av_packet_clone(packet), Type == MediaType.Audio);
                     }
-
+                    
                     // Enqueue Packet (AVS Queue or Single Queue)
                     if (UseAVSPackets)
                     {
@@ -692,7 +704,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             {
                 if (Disposed || stream == null || !EnabledStreams.Contains(stream.StreamIndex)) return;
 
-                fmtCtx->streams[stream.StreamIndex]->discard = AVDiscard.AVDISCARD_ALL;
+                /* AVDISCARD_ALL causes syncing issues between streams (TBR: bandwidth?)
+                 * 1) While switching video streams will not switch at the same timestamp
+                 * 2) By disabling video stream after a seek, audio will not seek properly
+                 */
+
+                fmtCtx->streams[stream.StreamIndex]->discard = AVDiscard.AVDISCARD_ALL; 
                 EnabledStreams.Remove(stream.StreamIndex);
                 stream.Enabled = false;
                 DisableProgram(stream);

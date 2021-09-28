@@ -29,6 +29,11 @@ namespace FlyleafPlayer
             Master.RegisterFFmpeg(":2");
 
             // Prepares Player's Configuration (Load from file if already exists, Flyleaf WPF Control will save at this path)
+            #if DEBUG
+            Config = new Config();
+            Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
+            Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
+            #else
             if (File.Exists("Flyleaf.Config.xml"))
                 Config = Config.Load("Flyleaf.Config.xml");
             else
@@ -37,6 +42,7 @@ namespace FlyleafPlayer
                 Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
                 Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
             }
+            #endif
 
             // Initializes the Player
             Player = new Player(Config);
