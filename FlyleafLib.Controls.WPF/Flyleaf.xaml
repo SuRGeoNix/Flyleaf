@@ -73,7 +73,11 @@
                                 </TextBlock>
 
                                 <!--Subtitles-->
-                                <TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding SubtitlesInfo.SubsText}"/>
+                                <TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding SubtitlesInfo.SubsText}">
+                                    <TextBlock.Effect>
+                                        <DropShadowEffect ShadowDepth="2" Direction="0" Color="{Binding VideoConfig.BackgroundColor}" Opacity="1.0" BlurRadius="0"/>
+                                    </TextBlock.Effect>
+                                </TextBlock>
 
                                 <!--Flyleaf Bar-->
                                 <materialDesign:Card TextElement.FontSize="14" TextElement.FontWeight="Medium" TextElement.Foreground="White" FontFamily="{materialDesign:MaterialDesignFont}" VerticalAlignment="Bottom" Focusable="False">
