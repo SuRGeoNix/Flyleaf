@@ -1084,7 +1084,14 @@ namespace FlyleafLib.MediaPlayer
 
                     finally
                     {
-                        if (Status == Status.Stopped) decoder?.Stop(); else decoder?.PauseOnQueueFull();
+                        if (Status == Status.Stopped)
+                            decoder?.Stop();
+                        else if (decoder != null) 
+                        {
+                            decoder.PauseOnQueueFull();
+                            decoder.PauseDecoders();
+                        } 
+                            
                         ClearAudioBuffer();
                         VideoDecoder.DisposeFrame(vFrame); vFrame = null;
                         TimeEndPeriod(1);

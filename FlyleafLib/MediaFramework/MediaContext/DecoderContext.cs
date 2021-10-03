@@ -755,6 +755,12 @@ namespace FlyleafLib.MediaFramework.MediaContext
             AudioDemuxer.Pause();
             SubtitlesDemuxer.Pause();
         }
+        public void PauseDecoders()
+        {
+            VideoDecoder.Pause();
+            AudioDecoder.Pause();
+            SubtitlesDecoder.Pause();
+        }
         public void PauseOnQueueFull()
         {
             VideoDemuxer.PauseOnQueueFull = true;
