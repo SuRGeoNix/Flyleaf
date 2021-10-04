@@ -596,27 +596,31 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public void SetViewport()
         {
-            if (Config.Video.AspectRatio == AspectRatio.Fill || (Config.Video.AspectRatio == AspectRatio.Keep && VideoDecoder.VideoStream == null))
-            {
-                GetViewport     = new Viewport(0, 0, Control.Width, Control.Height);
-                context.RSSetViewport(GetViewport.X - zoom + PanXOffset, GetViewport.Y - zoom + PanYOffset, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
-            }
-            else
-            {
-                float ratio = Config.Video.AspectRatio == AspectRatio.Keep ? VideoDecoder.VideoStream.AspectRatio.Value : (Config.Video.AspectRatio == AspectRatio.Custom ? Config.Video.CustomAspectRatio.Value : Config.Video.AspectRatio.Value);
-                if (ratio <= 0) ratio = 1;
+            float ratio;
 
-                if (Control.Width / ratio > Control.Height)
-                {
-                    GetViewport = new Viewport((int)(Control.Width - (Control.Height * ratio)) / 2, 0 ,(int) (Control.Height * ratio),Control.Height, 0.0f, 1.0f);
-                    context.RSSetViewport(GetViewport.X - zoom + PanXOffset, GetViewport.Y - zoom + PanYOffset, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
-                }
-                else
-                {
-                    GetViewport = new Viewport(0,(int)(Control.Height - (Control.Width / ratio)) / 2, Control.Width,(int) (Control.Width / ratio), 0.0f, 1.0f);
-                    context.RSSetViewport(GetViewport.X - zoom + PanXOffset, GetViewport.Y - zoom + PanYOffset, GetViewport.Width + (zoom * 2), GetViewport.Height + (zoom * 2));
-                }
-            }
+            if (Config.Video.AspectRatio == AspectRatio.Fill || (VideoDecoder.VideoStream == null && Config.Video.AspectRatio == AspectRatio.Keep))
+                ratio = Control.Width / (float)Control.Height;
+
+            else if (Config.Video.AspectRatio == AspectRatio.Keep)
+                ratio = VideoDecoder.VideoStream.AspectRatio.Value;
+
+            else if (Config.Video.AspectRatio == AspectRatio.Custom)
+                ratio = Config.Video.CustomAspectRatio.Value;
+
+            else
+                ratio = Config.Video.AspectRatio.Value;
+
+            if (ratio <= 0) ratio = 1;
+
+            int Height = Control.Height + (zoom * 2);
+            int Width = Control.Width + (zoom * 2);
+
+            if (Width / ratio > Height)
+                GetViewport = new Viewport(((Control.Width - (Height * ratio)) / 2) + PanXOffset, 0 - zoom + PanYOffset, Height * ratio, Height, 0.0f, 1.0f);
+            else
+                GetViewport = new Viewport(0 - zoom + PanXOffset, ((Control.Height - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
+
+            context.RSSetViewport(GetViewport.X, GetViewport.Y, GetViewport.Width, GetViewport.Height);
 
             Present();
         }
