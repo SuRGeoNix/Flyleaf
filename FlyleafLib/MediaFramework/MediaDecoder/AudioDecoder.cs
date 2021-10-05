@@ -11,6 +11,7 @@ using static FFmpeg.AutoGen.AVCodecID;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
+using FlyleafLib.MediaFramework.MediaRemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
@@ -168,6 +169,15 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     demuxer.AudioPackets.TryDequeue(out IntPtr pktPtr);
                     packet = (AVPacket*) pktPtr;
 
+                    if (isRecording)
+                    {
+                        if (!recGotKeyframe && VideoDecoder.StartRecordTime != AV_NOPTS_VALUE && (long)(packet->pts * AudioStream.Timebase) - demuxer.StartTime > VideoDecoder.StartRecordTime)
+                            recGotKeyframe = true;
+
+                        if (recGotKeyframe)
+                            curRecorder.Write(av_packet_clone(packet), !OnVideoDemuxer);
+                    }
+
                     ret = avcodec_send_packet(codecCtx, packet);
                     av_packet_free(&packet);
 
@@ -205,6 +215,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 }
                 
             } while (Status == Status.Running);
+
+            if (isRecording) { StopRecording(); recCompleted(MediaType.Audio); }
         }
 
         [HandleProcessCorruptedStateExceptions]
@@ -290,6 +302,25 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (aFrame != null) aFrame.audioData = new byte[0];
             }
             Frames = new ConcurrentQueue<AudioFrame>();
+        }
+
+        internal Action<MediaType> recCompleted;
+        Remuxer curRecorder;
+        bool recGotKeyframe;
+        internal bool isRecording;
+
+        internal void StartRecording(Remuxer remuxer, long startAt = -1)
+        {
+            if (Disposed || isRecording) return;
+
+            curRecorder     = remuxer;
+            isRecording     = true;
+            recGotKeyframe  = VideoDecoder.Disposed || VideoDecoder.Stream == null;
+        }
+
+        internal void StopRecording()
+        {
+            isRecording = false;
         }
     }
 }

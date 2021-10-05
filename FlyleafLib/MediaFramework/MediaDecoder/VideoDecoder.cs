@@ -17,6 +17,7 @@ using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
+using FlyleafLib.MediaFramework.MediaRemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
@@ -28,7 +29,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public bool             VideoAccelerated    { get; internal set; }
         public VideoStream      VideoStream         => (VideoStream) Stream;
 
-        public long             StartTime             { get; internal set; }
+        public long             StartTime           { get; internal set; } = AV_NOPTS_VALUE;
+        public long             StartRecordTime     { get; internal set; } = AV_NOPTS_VALUE;
 
         // Hardware & Software_Handled (Y_UV | Y_U_V)
         Texture2DDescription    textDesc, textDescUV;
@@ -282,6 +284,18 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     demuxer.VideoPackets.TryDequeue(out IntPtr pktPtr);
                     packet = (AVPacket*) pktPtr;
 
+                    if (isRecording)
+                    {
+                        if (!recGotKeyframe && (packet->flags & AV_PKT_FLAG_KEY) != 0)
+                        {
+                            recGotKeyframe = true;
+                            StartRecordTime = (long)(packet->pts * VideoStream.Timebase) - demuxer.StartTime;
+                        }
+
+                        if (recGotKeyframe)
+                            curRecorder.Write(av_packet_clone(packet));
+                    }
+
                     ret = avcodec_send_packet(codecCtx, packet);
                     av_packet_free(&packet);
 
@@ -334,6 +348,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 } // Lock CodecCtx
 
             } while (Status == Status.Running);
+
+            if (isRecording) { StopRecording(); recCompleted(MediaType.Video); }
 
             if (Status == Status.Draining) Status = Status.Ended;
         }
@@ -594,6 +610,26 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (swsCtx != null) { sws_freeContext(swsCtx); swsCtx = null; }
             DisposeFrames();
             StartTime = AV_NOPTS_VALUE;
+        }
+
+        internal Action<MediaType> recCompleted;
+        Remuxer curRecorder;
+        bool recGotKeyframe;
+        internal bool isRecording;
+
+        internal void StartRecording(Remuxer remuxer)
+        {
+            if (Disposed || isRecording) return;
+
+            StartRecordTime     = AV_NOPTS_VALUE;
+            curRecorder         = remuxer;
+            recGotKeyframe      = false;
+            isRecording         = true;
+        }
+
+        internal void StopRecording()
+        {
+            isRecording = false;
         }
     }
 }

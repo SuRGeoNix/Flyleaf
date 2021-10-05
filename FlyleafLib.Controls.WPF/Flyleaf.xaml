@@ -65,7 +65,7 @@
                                             <Binding Path="Player.BitRate"/>
                                             <Binding Path="VideoInfo.BitRate"/>
                                             <Binding Path="AudioInfo.BitRate"/>
-                                            <Binding Path="VideoDemuxer.IsRecording"/>
+                                            <Binding Path="Player.IsRecording"/>
                                             <Binding Path="VideoInfo.DroppedFrames"/>
                                             <Binding Path="GPUUsage"/>
                                         </MultiBinding>

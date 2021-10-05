@@ -623,7 +623,7 @@ namespace FlyleafLib.Controls.WPF
         {
             if (!Player.CanPlay) return;
 
-            if (Player.decoder.VideoDemuxer.IsRecording)
+            if (Player.IsRecording)
                 Player.StopRecording();
             else
             {
