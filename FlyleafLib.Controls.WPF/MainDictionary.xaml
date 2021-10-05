@@ -314,7 +314,7 @@
                 </MenuItem.ItemContainerStyle>
             </MenuItem>
             <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding VideoConfig.VideoAcceleration}"/>
-            <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording}" Command="{Binding ToggleRecord}"/>
+            <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording, Mode=OneWay}" Command="{Binding ToggleRecord}"/>
             <MenuItem Header="{Binding PlayerConfig.Speed}" HeaderStringFormat="Speed ({0})">
                 <MenuItem Header=" x 1"   CommandParameter="1" Command="{Binding SetPlaybackSpeed}"/>
                 <MenuItem Header=" x 2"   CommandParameter="2" Command="{Binding SetPlaybackSpeed}"/>

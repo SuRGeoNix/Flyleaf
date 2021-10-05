@@ -129,8 +129,8 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public bool         IsRecording
         {
-            get => VideoDemuxer.IsRecording;
-            set => Set(ref _IsRecording, value);
+            get => decoder.IsRecording;
+            private set => Set(ref _IsRecording, value);
         }
         bool _IsRecording;
 
@@ -142,7 +142,7 @@ namespace FlyleafLib.MediaPlayer
         public void StartRecording(ref string filename, bool useRecommendedExtension = true)
         {
             decoder.StartRecording(ref filename, useRecommendedExtension);
-            IsRecording = VideoDemuxer.IsRecording;
+            IsRecording = decoder.IsRecording;
         }
 
         /// <summary>
@@ -151,7 +151,7 @@ namespace FlyleafLib.MediaPlayer
         public void StopRecording()
         {
             decoder.StopRecording();
-            IsRecording = VideoDemuxer.IsRecording;
+            IsRecording = decoder.IsRecording;
         }
 
         /// <summary>
@@ -350,7 +350,7 @@ namespace FlyleafLib.MediaPlayer
 
             AudioDecoder.CodecChanged        = Decoder_AudioCodecChanged;
             VideoDecoder.CodecChanged        = Decoder_VideoCodecChanged;
-            VideoDemuxer.RecordingCompleted += (o, e) => { IsRecording = false; };
+            decoder.RecordingCompleted += (o, e) => { IsRecording = false; };
 
             Reset();
             InitializeAudio();

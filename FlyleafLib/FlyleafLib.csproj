@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.8</Version>
+	<Version>3.3.9</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,12 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Improves interrupts implementation
-		Adds draining support to VideoDecoder.GetNextFrame
-		Initializes AudioPlayer early to allow changing volume/mute (before opening any input)
-		Ensures rendering is disabled on initialization
-		Fixes critical issues with interrupts (could stop the demuxers/decoders)
-		Fixes critical race condition issues with RunThreadBase (could prevent demuxers/decoders from starting)
+		Ensures decoders are paused on Player's pause (was causing rendering issues)
+		Fixes Pan Zoom In/Out to respect aspect ratio
+		Fixes and Improves Recording to start and stop more accurate and support audio only
+		Fixes AudioDemuxer to seek within queue
+		Fixes a rare dead lock during seeking and re-syncing (after open/download) subtitiles
 	</PackageReleaseNotes>
   </PropertyGroup>
 

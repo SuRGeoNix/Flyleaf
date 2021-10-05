@@ -84,6 +84,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
             VideoDecoder        = new VideoDecoder(Config, control, UniqueId);
             AudioDecoder        = new AudioDecoder(Config, UniqueId, VideoDecoder);
             SubtitlesDecoder    = new SubtitlesDecoder(Config, UniqueId);
+
+            VideoDecoder.recCompleted = RecordCompleted;
+            AudioDecoder.recCompleted = RecordCompleted;
         }
         public void Initialize()
         {
@@ -626,6 +629,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             if (ms == -1) ms = GetCurTimeMs();
 
+            // Review decoder locks (lockAction should be added to avoid dead locks with flush mainly before lockCodecCtx)
             lock (VideoDecoder.lockCodecCtx)
             lock (AudioDecoder.lockCodecCtx)
             lock (SubtitlesDecoder.lockCodecCtx)
@@ -657,7 +661,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             {
                 AudioDecoder.Pause();
                 AudioDecoder.Flush();
-                AudioDemuxer.PauseOnQueueFull = true; // Pause() will cause corrupted packets which causes av_read_frame to EOF
+                AudioDemuxer.PauseOnQueueFull = true;
                 RequiresResync = true;
             }
 
@@ -673,44 +677,55 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         public int SeekAudio(long ms = -1, bool foreward = false)
         {
-            int ret = -1;
+            int ret = 0;
 
-            if (AudioDemuxer.Disposed || AudioDecoder.OnVideoDemuxer || !Config.Audio.Enabled) return ret;
+            if (AudioDemuxer.Disposed || AudioDecoder.OnVideoDemuxer || !Config.Audio.Enabled) return -1;
 
             if (ms == -1) ms = GetCurTimeMs();
 
+            long seekTimestamp = CalcSeekTimestamp(AudioDemuxer, ms, ref foreward);
+
+            lock (AudioDecoder.lockActions)
             lock (AudioDecoder.lockCodecCtx)
             {
-                ret = AudioDemuxer.Seek(CalcSeekTimestamp(AudioDemuxer, ms, ref foreward), foreward);
-                AudioDecoder.Flush();
-            }
+                lock (AudioDemuxer.lockActions)
+                    if (AudioDemuxer.SeekInQueue(seekTimestamp, foreward) != 0)
+                        ret = AudioDemuxer.Seek(seekTimestamp, foreward);
 
-            if (VideoDecoder.IsRunning)
-            {
-                AudioDemuxer.Start();
-                AudioDecoder.Start();
+                AudioDecoder.Flush();
+                if (VideoDecoder.IsRunning)
+                {
+                    AudioDemuxer.Start();
+                    AudioDecoder.Start();
+                }
             }
 
             return ret;
         }
         public int SeekSubtitles(long ms = -1, bool foreward = false)
         {
-            int ret = -1;
+            int ret = 0;
 
-            if (SubtitlesDemuxer.Disposed || SubtitlesDecoder.OnVideoDemuxer || !Config.Subtitles.Enabled) return ret;
+            if (SubtitlesDemuxer.Disposed || SubtitlesDecoder.OnVideoDemuxer || !Config.Subtitles.Enabled) return -1;
 
             if (ms == -1) ms = GetCurTimeMs();
 
+            long seekTimestamp = CalcSeekTimestamp(SubtitlesDemuxer, ms, ref foreward);
+
+            lock (SubtitlesDecoder.lockActions)
             lock (SubtitlesDecoder.lockCodecCtx)
             {
-                ret = SubtitlesDemuxer.Seek(CalcSeekTimestamp(SubtitlesDemuxer, ms, ref foreward), foreward);
-                SubtitlesDecoder.Flush();
-            }
+                // Currently disabled as it will fail to seek within the queue the most of the times
+                //lock (SubtitlesDemuxer.lockActions)
+                    //if (SubtitlesDemuxer.SeekInQueue(seekTimestamp, foreward) != 0)
+                ret = SubtitlesDemuxer.Seek(seekTimestamp, foreward);
 
-            if (VideoDecoder.IsRunning)
-            {
-                SubtitlesDemuxer.Start();
-                SubtitlesDecoder.Start();
+                SubtitlesDecoder.Flush();
+                if (VideoDecoder.IsRunning)
+                {
+                    SubtitlesDemuxer.Start();
+                    SubtitlesDecoder.Start();
+                }
             }
 
             return ret;
@@ -994,58 +1009,64 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         #region Recorder
         Remuxer Recorder = new Remuxer();
+        public event EventHandler RecordingCompleted;
         public bool IsRecording
         {
-            get => VideoDemuxer.IsRecording || AudioDemuxer.IsRecording;
+            get => VideoDecoder.isRecording || AudioDecoder.isRecording;
         }
         int oldMaxAudioFrames;
+        bool recHasVideo;
         public void StartRecording(ref string filename, bool useRecommendedExtension = true)
         {
-            oldMaxAudioFrames = -1;
-
-            if (AudioStream == null || AudioStream.Demuxer.Type == MediaType.Video)
-            {
-                VideoDemuxer.StartRecording(ref filename, useRecommendedExtension);
-                return;
-            }
 
             if (IsRecording) StopRecording();
 
+            oldMaxAudioFrames = -1;
+            recHasVideo = false;
+
             Log("Record Start");
-            VideoDemuxer.RecordingCompleted += RecordingCompleted;
+
+            recHasVideo = !VideoDecoder.Disposed && VideoDecoder.Stream != null;
 
             if (useRecommendedExtension)
-                filename = $"{filename}.{VideoDemuxer.Extension}";
+                filename = $"{filename}.{(recHasVideo ? VideoDecoder.Stream.Demuxer.Extension : AudioDecoder.Stream.Demuxer.Extension)}";
 
             Recorder.Open(filename);
-            for(int i=0; i<VideoDemuxer.EnabledStreams.Count; i++)
-                Log(Recorder.AddStream(VideoDemuxer.AVStreamToStream[VideoDemuxer.EnabledStreams[i]].AVStream).ToString());
-
-            for(int i=0; i<AudioDemuxer.EnabledStreams.Count; i++)
-                Log(Recorder.AddStream(AudioDemuxer.AVStreamToStream[AudioDemuxer.EnabledStreams[i]].AVStream, true).ToString());
+            if (recHasVideo)
+                Log(Recorder.AddStream(VideoDecoder.Stream.AVStream).ToString());
+                
+            if (!AudioDecoder.Disposed && AudioDecoder.Stream != null)
+                Log(Recorder.AddStream(AudioDecoder.Stream.AVStream, !AudioDecoder.OnVideoDemuxer).ToString());
 
             if (!Recorder.HasStreams || Recorder.WriteHeader() != 0) return; //throw new Exception("Invalid remuxer configuration");
 
             // Check also buffering and possible Diff of first audio/video timestamp to remuxer to ensure sync between each other (shouldn't be more than 30-50ms)
             oldMaxAudioFrames = Config.Decoder.MaxAudioFrames;
-            long timestamp = Math.Max(VideoDemuxer.CurTime + VideoDemuxer.BufferedDuration, AudioDemuxer.CurTime + AudioDemuxer.BufferedDuration) + 1500 * 10000;
+            //long timestamp = Math.Max(VideoDemuxer.CurTime + VideoDemuxer.BufferedDuration, AudioDemuxer.CurTime + AudioDemuxer.BufferedDuration) + 1500 * 10000;
             Config.Decoder.MaxAudioFrames = Config.Decoder.MaxVideoFrames;
 
-            VideoDemuxer.StartRecording(Recorder, timestamp);
-            AudioDemuxer.StartRecording(Recorder, timestamp);
+            VideoDecoder.StartRecording(Recorder);
+            AudioDecoder.StartRecording(Recorder);
         }
         public void StopRecording()
         {
             if (oldMaxAudioFrames != -1) Config.Decoder.MaxAudioFrames = oldMaxAudioFrames;
 
-            VideoDemuxer.RecordingCompleted -= RecordingCompleted;
-            VideoDemuxer.StopRecording();
-            AudioDemuxer.StopRecording();
+            VideoDecoder.StopRecording();
+            AudioDecoder.StopRecording();
             Recorder.Dispose();
             oldMaxAudioFrames = -1;
             Log("Record Completed");
         }
-        private void RecordingCompleted(object sender, EventArgs e) { StopRecording(); }
+
+        internal void RecordCompleted(MediaType type)
+        {
+            if (!recHasVideo || (recHasVideo && type == MediaType.Video))
+            {
+                StopRecording();
+                RecordingCompleted?.Invoke(this, new EventArgs());
+            }
+        }
         #endregion
 
         private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [DecoderContext] {msg}"); }

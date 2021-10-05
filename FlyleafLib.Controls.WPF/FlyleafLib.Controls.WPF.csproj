@@ -4,7 +4,7 @@
     <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.12</Version>
+    <Version>1.1.13</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2021</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -13,7 +13,10 @@
     <PackageIconUrl />
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
-    <PackageReleaseNotes>Adds Color Themes (based on MaterialDesigninXaml)</PackageReleaseNotes>
+    <PackageReleaseNotes>
+		Adds subtitles shadow for better visibility
+		Fixes IsRecording bindings
+	</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

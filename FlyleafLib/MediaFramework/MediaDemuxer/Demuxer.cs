@@ -102,8 +102,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Type            = type;
             UseAVSPackets   = useAVSPackets;
             CurPackets      = Packets; // Will be updated on stream switch in case of AVS
-
-            Recorder        = new Remuxer(UniqueId);
             Interrupter     = new Interrupter(this);
             CustomIOContext = new CustomIOContext(this);
 
@@ -349,6 +347,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 /* Seek within current bufffered queue
                  * 
                  * 10 seconds because of video keyframe distances or 1 seconds for other (can be fixed also with CurTime+X seek instead of timestamps)
+                 * For subtitles it should keep (prev packet) the last presented as it can have a lot of distance with CurTime (cur packet)
                  * It doesn't work for HLS live streams
                  * It doesn't work for decoders buffered queue (which is small only subs might be an issue if we have large decoder queue)
                  */
@@ -543,28 +542,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     UpdateCurTime();
 
-                    if (IsRecording)
-                    {
-                        if (StartRecordingAt == -1)
-                        {
-                            if (!recGotKeyframe && VideoStream == null)
-                                recGotKeyframe = true;
-                            else if (!recGotKeyframe && fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && (packet->flags & AV_PKT_FLAG_KEY) != 0)
-                                recGotKeyframe = true;
-                        }
-                        else
-                        {
-                            if (!recGotKeyframe && (long)(packet->pts * AVStreamToStream[packet->stream_index].Timebase) >= StartRecordingAt)
-                            {
-                                recGotKeyframe = true;
-                                Log($"Starts recording at {Utils.TicksToTime((long)(packet->pts * AVStreamToStream[packet->stream_index].Timebase))}");
-                            }
-                            
-                        }
-
-                        if (recGotKeyframe && (fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO || fmtCtx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO))
-                            CurRecorder.Write(av_packet_clone(packet), Type == MediaType.Audio);
-                    }
                     
                     // Enqueue Packet (AVS Queue or Single Queue)
                     if (UseAVSPackets)
@@ -607,8 +584,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     }
                 }
             } while (Status == Status.Running);
-
-            if (IsRecording) { StopRecording(); OnRecordingCompleted(); }
         }
         #endregion
 
@@ -909,70 +884,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 return 0;
             }
         }
-
-        #region Recording
-        Remuxer Recorder, CurRecorder;
-        bool        recGotKeyframe;
-        bool        isExternalRecorder;
-        
-        public long StartRecordingAt { get; private set; } = -1;
-        public bool IsRecording { get; private set; }
-        public event EventHandler RecordingCompleted;
-        public void OnRecordingCompleted() { RecordingCompleted.Invoke(this, new EventArgs()); }
-        public void StartRecording(Remuxer remuxer, long startAt = -1)
-        {
-            if (Disposed) return;
-
-            StartRecordingAt    = startAt;
-            CurRecorder         = remuxer;
-            isExternalRecorder  = true;
-            recGotKeyframe      = false;
-            IsRecording         = true;
-
-        }
-
-        /// <summary>
-        /// Records the currently enabled AVS streams
-        /// </summary>
-        /// <param name="filename">The filename to save the recorded video. The file extension will let the demuxer to choose the output format (eg. mp4). If you useRecommendedExtension will be updated with the extension.</param>
-        /// <param name="useRecommendedExtension">Will try to match the output container with the input container</param>
-        public void StartRecording(ref string filename, bool useRecommendedExtension = true)
-        {
-            if (Disposed) return;
-
-            lock (lockFmtCtx)
-            {
-                if (IsRecording) StopRecording();
-
-                Log("Record Start");
-                CurRecorder = Recorder;
-                isExternalRecorder = false;
-
-                if (useRecommendedExtension)
-                    filename = $"{filename}.{Extension}";
-
-                Recorder.Open(filename);
-                for(int i=0; i<EnabledStreams.Count; i++)
-                    Log(Recorder.AddStream(fmtCtx->streams[EnabledStreams[i]]).ToString());
-                if (!Recorder.HasStreams || Recorder.WriteHeader() != 0) return; //throw new Exception("Invalid remuxer configuration");
-                recGotKeyframe = false;
-                IsRecording = true;
-            }
-        }
-        public void StopRecording()
-        {
-            lock (lockFmtCtx)
-            {
-                if (!IsRecording) return;
-
-                Log("Record Completed");
-                IsRecording = false;
-                if (isExternalRecorder) return;
-                Recorder.Dispose();
-            }
-        }
-        #endregion
-
         #endregion
     }
 }

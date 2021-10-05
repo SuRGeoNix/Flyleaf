@@ -412,13 +412,6 @@
             <param name="streamIndex">Find packets only for the specified stream index</param>
             <returns></returns>
         </member>
-        <member name="M:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.StartRecording(System.String@,System.Boolean)">
-            <summary>
-            Records the currently enabled AVS streams
-            </summary>
-            <param name="filename">The filename to save the recorded video. The file extension will let the demuxer to choose the output format (eg. mp4). If you useRecommendedExtension will be updated with the extension.</param>
-            <param name="useRecommendedExtension">Will try to match the output container with the input container</param>
-        </member>
         <member name="P:FlyleafLib.MediaPlayer.AudioInfo.IsOpened">
             <summary>
             Whether the input has audio and it is configured
