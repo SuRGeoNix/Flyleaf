@@ -33,10 +33,9 @@ namespace FlyleafLib.Controls.WPF
         #region Properties
         private bool            IsDesignMode=> (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
 
-        public Player           Player      { get => _Player; set { _Player = value; InitializePlayer(); } }
+        public Player           Player          { get => _Player; set { _Player = value; InitializePlayer(); } }
         Player _Player;
 
-        
         public AudioInfo        AudioInfo       => Player?.Audio;
         public VideoInfo        VideoInfo       => Player?.Video;
         public SubtitlesInfo    SubtitlesInfo   => Player?.Subtitles;
@@ -415,6 +414,7 @@ namespace FlyleafLib.Controls.WPF
             ResetSubsPositionY  = new RelayCommand(ResetSubsPositionYAction);
             ResetSubsDelayMs    = new RelayCommand(ResetSubsDelayMsAction);
             ResetAudioDelayMs   = new RelayCommand(ResetAudioDelayMsAction);
+            GoToChapter         = new RelayCommand(GoToChapterAction);
             OpenStream          = new RelayCommand(OpenStreamAction);
             OpenInput           = new RelayCommand(OpenInputAction);
 
@@ -469,6 +469,9 @@ namespace FlyleafLib.Controls.WPF
 
         public ICommand ShowVideoMenu { get; set; }
         public void ShowVideoMenuAction(object obj = null) { popUpMenuVideo.IsOpen = true; }
+
+        public ICommand GoToChapter { get; set; }
+        public void GoToChapterAction(object chapter) { Player.Seek((int) (((Demuxer.Chapter)chapter).StartTime / 10000.0)); }
 
         public ICommand OpenStream { get; set; }
         public void OpenStreamAction(object stream) { Player.OpenAsync((StreamBase)stream); }

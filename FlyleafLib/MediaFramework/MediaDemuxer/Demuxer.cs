@@ -83,6 +83,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         // Interrupt
         public Interrupter              Interrupter     { get; private set; }
+
+        public List<Chapter>            Chapters        { get; private set; } = new List<Chapter>();
+        public class Chapter
+        {
+            public long     StartTime   { get; set; }
+            public long     EndTime     { get; set; }
+            public string   Title       { get; set; }
+        }
         #endregion
 
         #region Constructor / Declaration
@@ -287,6 +295,32 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             bool hasVideo = false;
             AVStreamToStream = new Dictionary<int, StreamBase>();
+
+            Chapters.Clear();
+            for (int i=0; i<fmtCtx->nb_chapters; i++)
+            {
+                var chp = fmtCtx->chapters[i];
+                double tb = av_q2d(chp->time_base) * 10000.0 * 1000.0;
+                string title = "";
+
+                AVDictionaryEntry* b = null;
+                while (true)
+                {
+                    b = av_dict_get(chp->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
+                    if (b == null) break;
+                    if (Utils.BytePtrToStringUTF8(b->key).ToLower() == "title")
+                        title = Utils.BytePtrToStringUTF8(b->value);
+                }
+
+                Log($"[Chapter {i+1}] {Utils.TicksToTime((long)(chp->start * tb) - StartTime)} - {Utils.TicksToTime((long)(chp->end * tb) - StartTime)} | {title}");
+
+                Chapters.Add(new Chapter()
+                {
+                    StartTime   = (long)((chp->start * tb) - StartTime),
+                    EndTime     = (long)((chp->end * tb) - StartTime),
+                    Title       = title
+                });
+            }
 
             for (int i=0; i<fmtCtx->nb_streams; i++)
             {
