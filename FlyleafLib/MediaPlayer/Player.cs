@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -61,7 +62,7 @@ namespace FlyleafLib.MediaPlayer
         public bool         IsOpening           { get; private set; }
         public bool         IsOpeningInput      { get; private set; }
         public bool         IsPlaying           => Status == Status.Playing;
-        public bool         IsPlaylist          =>  decoder != null && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist;
+        public bool         IsPlaylist          => decoder != null && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist;
 
         /// <summary>
         /// Player's Status
@@ -74,6 +75,12 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public bool         CanPlay             { get => _CanPlay;          private set => Set(ref _CanPlay, value); }
         bool _CanPlay;
+
+        /// <summary>
+        /// The list of chapters
+        /// </summary>
+        public List<Demuxer.Chapter> 
+                            Chapters            => VideoDemuxer?.Chapters;
 
         /// <summary>
         /// Player's current time or user's current seek time (uses forward direction)
@@ -129,7 +136,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public bool         IsRecording
         {
-            get => decoder.IsRecording;
+            get => decoder != null ? decoder.IsRecording : false;
             private set => Set(ref _IsRecording, value);
         }
         bool _IsRecording;
@@ -205,7 +212,7 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Player's Renderer. Normally you should not access this directly.
         /// </summary>
-        public Renderer             renderer => decoder?.VideoDecoder?.Renderer;
+        public Renderer             renderer            => decoder?.VideoDecoder?.Renderer;
 
         public Demuxer              AudioDemuxer        => decoder.AudioDemuxer;
         public Demuxer              VideoDemuxer        => decoder.VideoDemuxer;

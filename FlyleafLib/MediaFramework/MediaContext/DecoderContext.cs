@@ -85,6 +85,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
             AudioDecoder        = new AudioDecoder(Config, UniqueId, VideoDecoder);
             SubtitlesDecoder    = new SubtitlesDecoder(Config, UniqueId);
 
+            Recorder            = new Remuxer(UniqueId);
+
             VideoDecoder.recCompleted = RecordCompleted;
             AudioDecoder.recCompleted = RecordCompleted;
         }
@@ -1008,7 +1010,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
 
         #region Recorder
-        Remuxer Recorder = new Remuxer();
+        Remuxer Recorder;
         public event EventHandler RecordingCompleted;
         public bool IsRecording
         {
