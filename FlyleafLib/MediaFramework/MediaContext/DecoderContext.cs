@@ -251,6 +251,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 {
                     SubtitlesStream subtitlesStream = SuggestSubtitles(SubtitlesDemuxer.SubtitlesStreams);
 
+                    // External Subtitles will have undefined language
+                    if (subtitlesStream == null)
+                        subtitlesStream = SuggestSubtitles(SubtitlesDemuxer.SubtitlesStreams, Language.Get("und"));
+
                     if (subtitlesStream != null)
                     {
                         subtitlesStream.SubtitlesInput = input;
@@ -625,7 +629,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         #endregion
 
         #region Seek
-        public int Seek(long ms = -1, bool foreward = false)
+        public int Seek(long ms = -1, bool foreward = false, bool seekInQueue = true)
         {
             int ret = 0;
 
@@ -640,7 +644,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 // Should exclude seek in queue for all "local/fast" files
                 lock (VideoDemuxer.lockActions)
-                if (OpenedPlugin.Name == "BitSwarm" || VideoDemuxer.SeekInQueue(seekTimestamp, foreward) != 0)
+                if (OpenedPlugin.Name == "BitSwarm" || !seekInQueue || VideoDemuxer.SeekInQueue(seekTimestamp, foreward) != 0)
                 {
                     VideoDemuxer.Interrupter.ForceInterrupt = 1;
                     OpenedPlugin.OnBuffering();

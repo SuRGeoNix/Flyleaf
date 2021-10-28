@@ -320,7 +320,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             context.IASetInputLayout(vertexLayout);
             context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-            context.IASetVertexBuffers(0, new VertexBufferView(vertexBuffer, sizeof(float) * 5, 0));
+            context.IASetVertexBuffers(0, new VertexBufferView[] { new VertexBufferView(vertexBuffer, sizeof(float) * 5, 0) });
 
             context.VSSetShader(vertexShader);
             context.PSSetShader(pixelShader);
@@ -354,7 +354,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                 {
-                    if (adapter.Description.Luid == Config.Video.GPUAdapteLuid)
+                    if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
                         return adapter;
 
                     adapter.Dispose();
@@ -421,6 +421,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     adapter.Dispose();
                     continue;
                 }
+
+                //Utils.Log($"[#{adapterIndex+1}] {adapter.Description.Description} ({adapter.Description.DeviceId} | {adapter.Description1.AdapterLuid} | {adapter.Description.AdapterLuid}) | {adapter.Description1.DedicatedVideoMemory}");
 
                 bool hasOutput = false;
                 adapter.EnumOutputs(0, out IDXGIOutput output);

@@ -322,6 +322,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 });
             }
 
+            bool audioHasEng = false;
+            bool subsHasEng = false;
+
             for (int i=0; i<fmtCtx->nb_streams; i++)
             {
                 fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
@@ -331,6 +334,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     case AVMEDIA_TYPE_AUDIO:
                         AudioStreams.Add(new AudioStream(this, fmtCtx->streams[i]));
                         AVStreamToStream.Add(i, AudioStreams[AudioStreams.Count-1]);
+                        if (AudioStreams[AudioStreams.Count-1].Language == Language.Get("eng")) audioHasEng = true;
                         break;
 
                     case AVMEDIA_TYPE_VIDEO:
@@ -345,11 +349,30 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     case AVMEDIA_TYPE_SUBTITLE:
                         SubtitlesStreams.Add(new SubtitlesStream(this, fmtCtx->streams[i]));
                         AVStreamToStream.Add(i, SubtitlesStreams[SubtitlesStreams.Count-1]);
+                        if (SubtitlesStreams[SubtitlesStreams.Count-1].Language == Language.Get("eng")) subsHasEng = true;
                         break;
 
                     default:
                         Log($"#[Unknown #{i}] {fmtCtx->streams[i]->codecpar->codec_type}");
                         break;
+                }
+            }
+
+            if (!audioHasEng)
+            {
+                for (int i=0; i<AudioStreams.Count; i++)
+                {
+                    if (AudioStreams[i].Language.IdSubLanguage == "und" && (string.IsNullOrEmpty(AudioStreams[i].Language.OriginalInput) || System.Text.RegularExpressions.Regex.IsMatch(AudioStreams[i].Language.OriginalInput, "^un", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
+                        AudioStreams[i].Language = Language.Get("eng");
+                }
+            }
+
+            if (!subsHasEng && Type == MediaType.Video)
+            {
+                for (int i=0; i<SubtitlesStreams.Count; i++)
+                {
+                    if (SubtitlesStreams[i].Language.IdSubLanguage == "und" && (string.IsNullOrEmpty(SubtitlesStreams[i].Language.OriginalInput) || System.Text.RegularExpressions.Regex.IsMatch(SubtitlesStreams[i].Language.OriginalInput, "^un", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
+                        SubtitlesStreams[i].Language = Language.Get("eng");
                 }
             }
 

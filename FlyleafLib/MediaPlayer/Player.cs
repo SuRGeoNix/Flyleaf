@@ -962,7 +962,7 @@ namespace FlyleafLib.MediaPlayer
             Pause();
             decoder.OpenSuggestedVideo();
             Video.Refresh();
-            decoder.Seek(curTime);
+            decoder.Seek(curTime, false, false);
             if (wasPlaying) Play();
 
         }
@@ -1003,7 +1003,7 @@ namespace FlyleafLib.MediaPlayer
                 isSubsSwitch = true;
                 requiresBuffering = true;
 
-                decoder.Seek(syncMs);
+                decoder.Seek(syncMs, false, false);
 
                 aFrame = null;
                 isAudioSwitch = false;

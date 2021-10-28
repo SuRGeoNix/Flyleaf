@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.9</Version>
+	<Version>3.3.10</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Ensures decoders are paused on Player's pause (was causing rendering issues)
-		Fixes Pan Zoom In/Out to respect aspect ratio
-		Fixes and Improves Recording to start and stop more accurate and support audio only
-		Fixes AudioDemuxer to seek within queue
-		Fixes a rare dead lock during seeking and re-syncing (after open/download) subtitiles
+		Adds Chapters support
+		Improves language handling
+		Fixes a resync issue during audio stream switch
+		Updating Libraries (BitSwarm, YT-DLP, Vortice, FFmpeg.Autogen)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -45,11 +44,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FFmpeg.AutoGen" Version="4.4.0" />
+    <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1" />
     <PackageReference Include="NAudio.Core" Version="2.0.0" />
     <PackageReference Include="NAudio.Wasapi" Version="2.0.0" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="1.9.143" />
-    <PackageReference Include="Vortice.Direct3D11" Version="1.9.143" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.0.20-beta" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.0.20-beta" />
     <PackageReference Include="Vortice.Mathematics" Version="1.3.21" />
   </ItemGroup>
   
