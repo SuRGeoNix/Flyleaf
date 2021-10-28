@@ -12,6 +12,7 @@ namespace FlyleafLib
         public string LanguageName;
         public string UploadEnabled;
         public string WebEnabled;
+        public string OriginalInput;
 
         public Language()
         {
@@ -27,8 +28,6 @@ namespace FlyleafLib
             this.WebEnabled = WebEnabled;
         }
 
-        
-
         private static readonly IDictionary<string, string> AlternativeNames = new Dictionary<string, string>
         {
             { "nld", "dut" },
@@ -41,29 +40,29 @@ namespace FlyleafLib
         public static Language Get(string name)
         {
             if (string.IsNullOrEmpty(name))
-            {
                 return Get("und");
-            }
 
             var res = Master.Languages.FirstOrDefault(lang => string.Equals(name, lang.IdSubLanguage, StringComparison.OrdinalIgnoreCase) ||
                                                        string.Equals(name, lang.ISO639, StringComparison.OrdinalIgnoreCase) ||
                                                        string.Equals(name, lang.LanguageName, StringComparison.OrdinalIgnoreCase));
 
             if (res != null)
-            {
                 return res;
-            }
 
             if (AlternativeNames.TryGetValue(name, out var alternativeName))
-            {
                 return Get(alternativeName);
-            }
 
-            return Get("und");
+            Language langUnd = Get("und");
+            langUnd.OriginalInput = name;
+
+            return langUnd;
         }
 
         public override string ToString()
         {
+            if (IdSubLanguage == "und" && !string.IsNullOrEmpty(OriginalInput))
+                return OriginalInput;
+
             return LanguageName;
         }
     }

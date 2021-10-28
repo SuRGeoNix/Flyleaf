@@ -412,17 +412,17 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     {
                         SubresourceData db  = new SubresourceData();
                         db.DataPointer      = (IntPtr)frame->data.ToArray()[0];
-                        db.Pitch            = frame->linesize.ToArray()[0];
+                        db.RowPitch         = frame->linesize.ToArray()[0];
                         mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc, new SubresourceData[] { db });
 
                         db                  = new SubresourceData();
                         db.DataPointer      = (IntPtr)frame->data.ToArray()[1];
-                        db.Pitch            = frame->linesize.ToArray()[1];
+                        db.RowPitch         = frame->linesize.ToArray()[1];
                         mFrame.textures[1]  = Renderer.Device.CreateTexture2D(textDescUV, new SubresourceData[] { db });
 
                         db                  = new SubresourceData();
                         db.DataPointer      = (IntPtr)frame->data.ToArray()[2];
-                        db.Pitch            = frame->linesize.ToArray()[2];
+                        db.RowPitch         = frame->linesize.ToArray()[2];
                         mFrame.textures[2]  = Renderer.Device.CreateTexture2D(textDescUV, new SubresourceData[] { db });
                     }
 
@@ -440,9 +440,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         dbU.DataPointer = dsU.BasePointer;
                         dbV.DataPointer = dsV.BasePointer;
 
-                        dbY.Pitch    = textDesc.  Width;
-                        dbU.Pitch    = textDescUV.Width;
-                        dbV.Pitch    = textDescUV.Width;
+                        dbY.RowPitch    = textDesc.  Width;
+                        dbU.RowPitch    = textDescUV.Width;
+                        dbV.RowPitch    = textDescUV.Width;
 
                         long totalSize = frame->linesize.ToArray()[0] * textDesc.Height;
 
@@ -488,7 +488,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     SubresourceData db  = new SubresourceData();
                     db.DataPointer      = (IntPtr)outData.ToArray()[0];
-                    db.Pitch            = outLineSize[0];
+                    db.RowPitch         = outLineSize[0];
                     mFrame.textures     = new ID3D11Texture2D[1];
                     mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc, new SubresourceData[] { db });
                 }

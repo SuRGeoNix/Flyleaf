@@ -67,8 +67,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
             foreach (var kv in Metadata)
                 if (kv.Key.ToLower() == "language" || kv.Key.ToLower() == "lang") { Language = Language.Get(kv.Value); break; }
 
-            // We consider default language english?
-            if (Language == null || Language == Language.Get("und")) Language = Language.Get("eng");
+            if (Language == null) Language = Language.Get("und");
         }
     }
 }
