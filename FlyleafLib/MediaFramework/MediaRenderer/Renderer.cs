@@ -224,7 +224,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                 {
-                    if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
+                    if (adapter.Description1.AdapterLuid == Config.Video.GPUAdapteLuid)
                        break;
 
                     adapter.Dispose();
@@ -277,7 +277,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Width       = Control.Width,
                     Height      = Control.Height,
                     AlphaMode   = AlphaMode.Ignore,
-                    Usage       = Usage.RenderTargetOutput,
+                    BufferUsage = Usage.RenderTargetOutput,
 
                     SampleDescription = new SampleDescription(1, 0)
                 };
@@ -389,7 +389,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1 adapter).Success; adapterIndex++)
             {
                 #if DEBUG
-                Utils.Log($"[#{adapterIndex+1}] {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {adapter.Description1.DedicatedVideoMemory}");
+                Utils.Log($"[#{adapterIndex+1}] {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.AdapterLuid}) | DVM: {adapter.Description1.DedicatedVideoMemory}");
                 #endif
 
                 if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
@@ -408,7 +408,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     output.Dispose();
                 }
 
-                adapters[adapter.Description1.Luid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.Luid, HasOutput = hasOutput };
+                adapters[adapter.Description1.AdapterLuid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.AdapterLuid, HasOutput = hasOutput };
 
                 adapter.Dispose();
                 adapter = null;

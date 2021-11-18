@@ -47,8 +47,8 @@
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1" />
     <PackageReference Include="NAudio.Core" Version="2.0.0" />
     <PackageReference Include="NAudio.Wasapi" Version="2.0.0" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.0.20-beta" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.0.20-beta" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.0-beta4" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.1.0-beta4" />
     <PackageReference Include="Vortice.Mathematics" Version="1.3.21" />
   </ItemGroup>
   
