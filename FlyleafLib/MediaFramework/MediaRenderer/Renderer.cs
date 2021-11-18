@@ -95,15 +95,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         static Renderer()
         {
             List<FeatureLevel> features = new List<FeatureLevel>();
+            List<FeatureLevel> featuresAll = new List<FeatureLevel>();
 
-            if (!Utils.IsWin7 && !Utils.IsWin8)
-            {
-                features.Add(FeatureLevel.Level_12_1);
-                features.Add(FeatureLevel.Level_12_0);
-            }
-
-            if (!Utils.IsWin7)
-                features.Add(FeatureLevel.Level_11_1);
+            featuresAll.Add(FeatureLevel.Level_12_1);
+            featuresAll.Add(FeatureLevel.Level_12_0);
+            featuresAll.Add(FeatureLevel.Level_11_1);
 
             features.Add(FeatureLevel.Level_11_0);
             features.Add(FeatureLevel.Level_10_1);
@@ -112,13 +108,22 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             features.Add(FeatureLevel.Level_9_2);
             features.Add(FeatureLevel.Level_9_1);
 
-            featureLevels = new FeatureLevel[features.Count -1];
+            featureLevels = new FeatureLevel[features.Count];
+            featureLevelsAll = new FeatureLevel[features.Count + featuresAll.Count];
 
-            for (int i=0; i<features.Count-1; i++)
+            for (int i=0; i<featuresAll.Count; i++)
+                featureLevelsAll[i] = featuresAll[i];
+
+            for (int i=0; i<features.Count; i++)
+            {
                 featureLevels[i] = features[i];
+                featureLevelsAll[i + featuresAll.Count] = features[i];
+            }
+                
         }
 
         static FeatureLevel[] featureLevels;
+        static FeatureLevel[] featureLevelsAll;
 
         FeatureLevel FeatureLevel;
 
@@ -235,9 +240,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             if (SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
             #endif
 
-            // Creates the D3D11 Device based on selected adapter or default hardware (fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
-            if (D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out ID3D11Device tempDevice, out FeatureLevel, out ID3D11DeviceContext tempContext).Failure)
-                D3D11CreateDevice(null,    DriverType.Warp,     creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).CheckError();
+            // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
+            if (D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out ID3D11Device tempDevice, out FeatureLevel, out ID3D11DeviceContext tempContext).Failure)
+                if (D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).Failure)
+                    D3D11CreateDevice(null,    DriverType.Warp,     creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).CheckError();
 
             Device = tempDevice. QueryInterface<ID3D11Device1>();
             context= tempContext.QueryInterface<ID3D11DeviceContext1>();
