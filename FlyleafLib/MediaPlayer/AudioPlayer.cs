@@ -130,6 +130,8 @@ namespace FlyleafLib.MediaPlayer
         }
         internal void InitializeAudio(int sampleRate = -1)
         {
+            if (Master.AudioMaster.Failed) { Config.Audio.Enabled = false; return; }
+
             lock (lockerAudioPlayer)
             {
                 if (sampleRate != -1)

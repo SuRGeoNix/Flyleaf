@@ -19,6 +19,11 @@
             Audio device name which will be used for all the audio players (see Devices for valid input names)
             </summary>
         </member>
+        <member name="P:FlyleafLib.AudioMaster.Failed">
+            <summary>
+            Whether no audio devices were found or audio failed to initialize
+            </summary>
+        </member>
         <member name="P:FlyleafLib.AudioMaster.VolumeMaster">
             <summary>
             Gets or sets the master's volume (valid values 0 - 100)
