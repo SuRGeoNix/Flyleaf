@@ -81,11 +81,12 @@ namespace FlyleafLib.MediaFramework.MediaContext
             VideoDemuxer        = new Demuxer(Config.Demuxer, MediaType.Video, UniqueId, EnableDecoding);
             SubtitlesDemuxer    = new Demuxer(Config.Demuxer, MediaType.Subs,  UniqueId, EnableDecoding);
 
-            VideoDecoder        = new VideoDecoder(Config, control, UniqueId);
+            Recorder            = new Remuxer(UniqueId);
+
+            // TBR: Dont initialize them if Decoding is not enabled (ensure all instances are safe - checked for not null)
+            VideoDecoder        = new VideoDecoder(Config, control, UniqueId, EnableDecoding);
             AudioDecoder        = new AudioDecoder(Config, UniqueId, VideoDecoder);
             SubtitlesDecoder    = new SubtitlesDecoder(Config, UniqueId);
-
-            Recorder            = new Remuxer(UniqueId);
 
             VideoDecoder.recCompleted = RecordCompleted;
             AudioDecoder.recCompleted = RecordCompleted;
