@@ -77,6 +77,17 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
             if ((fmt->flags & AVFMT_GLOBALHEADER) != 0)
                 out_stream->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
+            // Copy metadata (currently only language)
+            AVDictionaryEntry* b = null;
+            while (true)
+            {
+                b = av_dict_get(in_stream->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
+                if (b == null) break;
+
+                if (Utils.BytePtrToStringUTF8(b->key).ToLower() == "language" || Utils.BytePtrToStringUTF8(b->key).ToLower() == "lang")
+                    av_dict_set(&out_stream->metadata, Utils.BytePtrToStringUTF8(b->key), Utils.BytePtrToStringUTF8(b->value), 0);
+            }
+
             out_stream->codecpar->codec_tag = 0;
 
             // TODO:
@@ -113,7 +124,10 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
             ret = avio_open(&fmtCtx->pb, Filename, AVIO_FLAG_WRITE);
             if (ret < 0) { Dispose(); return ret; }
 
-            ret = avformat_write_header(fmtCtx, null);
+            AVDictionary *avopt = null;
+            //av_dict_set(&avopt, "movflags", "use_metadata_tags", 0); // Copy format metadata (not working?)
+            ret = avformat_write_header(fmtCtx, &avopt);
+            //av_dict_free(&avopt);
             if (ret < 0) { Dispose(); return ret; }
             
             HeaderWritten = true;
