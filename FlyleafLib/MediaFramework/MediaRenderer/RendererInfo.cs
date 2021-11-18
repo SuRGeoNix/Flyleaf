@@ -6,6 +6,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public unsafe class RendererInfo
     {
+        public long     Luid            { get; set; }
         public string   AdapterDesc     { get; set; }
         public UInt64   SystemMemory    { get; set; }
         public UInt64   VideoMemory     { get; set; }
@@ -24,6 +25,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             ri.SystemMemory = (UInt64)((IntPtr)adapter.Description.DedicatedSystemMemory).ToPointer();
             ri.VideoMemory  = (UInt64)((IntPtr)adapter.Description.DedicatedVideoMemory).ToPointer();
             ri.SharedMemory = (UInt64)((IntPtr)adapter.Description.SharedSystemMemory).ToPointer();
+            ri.Luid         = adapter.Description1.Luid;
 
             int maxVerticalResolution = 0;
             for(int i=0; ; i++)
@@ -98,7 +100,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public override string ToString()
         {
             var gcd = Utils.GCD(ScreenWidth, ScreenHeight);
-            return $"[Adapter] {AdapterDesc} System: {GetBytesReadable(SystemMemory)} Video: {GetBytesReadable(VideoMemory)} Shared: {GetBytesReadable(SharedMemory)}\r\n[Output ] {OutputName} (X={ScreenBounds.X}, Y={ScreenBounds.Y}) {ScreenWidth}x{ScreenHeight}" + (gcd > 0 ? $" [{ScreenWidth/gcd}:{ScreenHeight/gcd}]" : "");
+            return $"[Adapter-{Luid}] {AdapterDesc} System: {GetBytesReadable(SystemMemory)} Video: {GetBytesReadable(VideoMemory)} Shared: {GetBytesReadable(SharedMemory)}\r\n[Output ] {OutputName} (X={ScreenBounds.X}, Y={ScreenBounds.Y}) {ScreenWidth}x{ScreenHeight}" + (gcd > 0 ? $" [{ScreenWidth/gcd}:{ScreenHeight/gcd}]" : "");
         }
     }
 }

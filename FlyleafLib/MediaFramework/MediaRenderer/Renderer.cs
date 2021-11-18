@@ -213,26 +213,49 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             if (CreateDXGIFactory1(out factory).Failure)
                 throw new InvalidOperationException("Cannot create IDXGIFactory1");
 
-            using (IDXGIAdapter1 adapter = GetHardwareAdapter())
+            IDXGIAdapter1 adapter = null;
+
+            if (Config.Video.GPUAdapteLuid != -1)
             {
-                RendererInfo.Fill(this, adapter);
-                Log("\r\n" + Info.ToString());
+                for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                {
+                    if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
+                       break;
 
-                DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+                    adapter.Dispose();
+                }
 
-                #if DEBUG
-                if (SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
-                #endif
-
-                if (D3D11CreateDevice(adapter, DriverType.Unknown, creationFlags, featureLevels, out ID3D11Device tempDevice, out FeatureLevel, out ID3D11DeviceContext tempContext).Failure)
-                    D3D11CreateDevice(null,    DriverType.Warp,    creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).CheckError();
-                    // If the initialization fails, fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690
-
-                Device = tempDevice. QueryInterface<ID3D11Device1>();
-                context= tempContext.QueryInterface<ID3D11DeviceContext1>();
-                tempContext.Dispose();
-                tempDevice.Dispose();
+                if (adapter == null)
+                    throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
             }
+
+            DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+
+            #if DEBUG
+            if (SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
+            #endif
+
+            // Creates the D3D11 Device based on selected adapter or default hardware (fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
+            if (D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out ID3D11Device tempDevice, out FeatureLevel, out ID3D11DeviceContext tempContext).Failure)
+                D3D11CreateDevice(null,    DriverType.Warp,     creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).CheckError();
+
+            Device = tempDevice. QueryInterface<ID3D11Device1>();
+            context= tempContext.QueryInterface<ID3D11DeviceContext1>();
+
+            // Gets the default adapter from the D3D11 Device
+            if (adapter == null)
+            {
+                using (var deviceTmp = Device.QueryInterface<IDXGIDevice1>())
+                using (var adapterTmp = deviceTmp.GetAdapter())
+                    adapter = adapterTmp.QueryInterface<IDXGIAdapter1>();
+            }
+
+            RendererInfo.Fill(this, adapter);
+            Log("\r\n" + Info.ToString());
+
+            tempContext.Dispose();
+            tempDevice.Dispose();
+            adapter.Dispose();
             
             using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
             using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
@@ -345,59 +368,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 SetViewport();
 
             Disposed = false;
-        }
-        private IDXGIAdapter1 GetHardwareAdapter()
-        {
-            IDXGIAdapter1 adapter = null;
-
-            if (Config.Video.GPUAdapteLuid != -1)
-            {
-                for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
-                {
-                    if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
-                        return adapter;
-
-                    adapter.Dispose();
-                }
-
-                throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
-            }
-            
-            IDXGIFactory6 factory6 = factory.QueryInterfaceOrNull<IDXGIFactory6>();
-            if (factory6 != null)
-            {
-                for (int adapterIndex = 0; factory6.EnumAdapterByGpuPreference(adapterIndex, GpuPreference.HighPerformance, out adapter).Success; adapterIndex++)
-                {
-                    if (adapter == null)
-                        continue;
-
-                    if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
-                    {
-                        adapter.Dispose();
-                        continue;
-                    }
-
-                    return adapter;
-                }
-
-                factory6.Dispose();
-            }
-
-            if (adapter == null)
-            {
-                for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
-                {
-                    if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
-                    {
-                        adapter.Dispose();
-                        continue;
-                    }
-
-                    return adapter;
-                }
-            }
-
-            return adapter;
         }
         public static Dictionary<long, GPUAdapter> GetAdapters()
         {
