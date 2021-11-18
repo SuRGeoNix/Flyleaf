@@ -494,6 +494,11 @@
             Whether the player's status is capable of accepting playback commands
             </summary>
         </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Chapters">
+            <summary>
+            The list of chapters
+            </summary>
+        </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.CurTime">
             <summary>
             Player's current time or user's current seek time (uses forward direction)
