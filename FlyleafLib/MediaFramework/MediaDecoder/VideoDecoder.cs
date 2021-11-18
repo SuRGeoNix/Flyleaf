@@ -96,15 +96,18 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         }
         public void DisposeVA()
         {
+            if (Renderer == null) return;
+
             Renderer.Dispose();
             fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
             hw_device_ctx = null;
         }
         #endregion
 
-        public VideoDecoder(Config config, Control control = null, int uniqueId = -1) : base(config, uniqueId)
+        public VideoDecoder(Config config, Control control = null, int uniqueId = -1, bool initVA = true) : base(config, uniqueId)
         {
-            InitVA(control);
+            if (initVA)
+                InitVA(control);
         }
 
         protected override int Setup(AVCodec* codec)
