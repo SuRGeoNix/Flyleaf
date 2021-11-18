@@ -55,6 +55,11 @@ namespace FlyleafLib
         }
 
         /// <summary>
+        /// Whether no audio devices were found or audio failed to initialize
+        /// </summary>
+        public bool         Failed              { get; private set; }
+
+        /// <summary>
         /// Gets or sets the master's volume (valid values 0 - 100)
         /// </summary>
         public int          VolumeMaster        { get { return GetVolumeMaster();   }   set { SetVolumeMaster(value);   } }
@@ -113,10 +118,17 @@ namespace FlyleafLib
                 foreach(var player in Master.Players.Values)
                     player.InitializeAudio();
 
-                if (Device == DefaultDeviceName)
-                    device = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                else
-                    device = deviceEnum.GetDevice(DeviceId);
+                try
+                {
+                    if (Device == DefaultDeviceName)
+                        device = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                    else
+                        device = deviceEnum.GetDevice(DeviceId);
+                } catch (Exception)
+                {
+                    Failed = true;
+                    return;
+                }
 
                 device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
                 device.AudioSessionManager.OnSessionCreated += (o, newSession) =>
