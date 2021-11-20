@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.11</Version>
+	<Version>3.3.12</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,8 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Adds support for systems with no audio devices or disabled audio service
-
-		Renderer: Adds support for other windows version such as Windows Server by re-creating the D3D11 device with lower feature levels
-		Renderer: Fixes a critical issue in case of multiple GPU adapters and selects the default one
-		Renderer: Updates Vortice
-
-		Downloader: Prevents Video Acceleration initialization
-		Remuxer (Download/Record): Copies audio language metadata to the output format
+		Introduces Master.HighPerformaceTimers to ensure TimeBeginPeriod(1) for multi-players
+		Renderer: Fixes a critical VRAM memory leak
 	</PackageReleaseNotes>
   </PropertyGroup>
 
