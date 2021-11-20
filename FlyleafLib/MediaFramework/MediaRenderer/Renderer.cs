@@ -458,6 +458,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 Disposed = true;
             }
 
+            vertexShader = null;
+            vertexLayout = null;
+            Device.Dispose();
+            Device = null;
+
             #if DEBUG
             if (DXGIGetDebugInterface1(out IDXGIDebug1 dxgiDebug).Success)
             {
@@ -465,10 +470,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 dxgiDebug.Dispose();
             }
             #endif
-
-            vertexShader = null;
-            vertexLayout = null;
-            Device = null;
         }
 
         private void ResizeBuffers(object sender, EventArgs e)
@@ -678,11 +679,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         {        
                             try
                             {
-                                if (rtv == null) return;
-
                                 long sleepMs = DateTime.UtcNow.Ticks - lastPresentAt;
                                 sleepMs = sleepMs < (long)( 1.0/Config.Player.IdleFps * 1000 * 10000) ? (long) (1.0/Config.Player.IdleFps * 1000) : 0;
                                 if (sleepMs > 2) Thread.Sleep((int)sleepMs);
+
+                                if (rtv == null) return;
 
                                 context.OMSetRenderTargets(rtv);
                                 context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);

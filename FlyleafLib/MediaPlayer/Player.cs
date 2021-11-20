@@ -63,6 +63,7 @@ namespace FlyleafLib.MediaPlayer
         public bool         IsOpeningInput      { get; private set; }
         public bool         IsPlaying           => Status == Status.Playing;
         public bool         IsPlaylist          => decoder != null && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist;
+        public bool         IsDisposed          => disposed;
 
         /// <summary>
         /// Player's Status
@@ -1290,7 +1291,7 @@ namespace FlyleafLib.MediaPlayer
 
                 Action refresh = new Action(() =>
                 {
-                    if (seeks.Count == 0)
+                    if (seeks.Count == 0 && decoder != null)
                     {
                         BufferedDuration = VideoDemuxer.BufferedDuration;
                         if (VideoDemuxer.HLSPlaylist != null)
