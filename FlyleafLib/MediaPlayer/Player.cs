@@ -1855,6 +1855,20 @@ namespace FlyleafLib.MediaPlayer
         }
         #endregion
 
+        private void TimeBeginPeriod(uint i)
+        {
+            if (Master.HighPerformaceTimers) return;
+
+            NativeMethods.TimeBeginPeriod(i);
+        }
+
+        private void TimeEndPeriod(uint i)
+        {
+            if (Master.HighPerformaceTimers) return;
+
+            NativeMethods.TimeEndPeriod(i);
+        }
+
         private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
     }
 
