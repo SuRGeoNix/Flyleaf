@@ -779,7 +779,7 @@ namespace FlyleafLib.Controls.WPF
                 }
 
                 var newMode = GetCurrentActivityMode();
-                if (newMode != CurrentMode)
+                if (newMode != CurrentMode || (newMode == ActivityMode.FullActive && isCursorHidden))
                 {
                     try
                     {
@@ -787,10 +787,15 @@ namespace FlyleafLib.Controls.WPF
                         {
                             Dispatcher.Invoke(new Action(() => 
                             { 
-                                if (dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier)) return;
+                                try
+                                {
+                                    if (DialogHost.IsDialogOpen(dialogSettingsIdentifier) || Player.IsDisposed) return;
+                                } catch (Exception) { }
+                                
                                 if (popUpMenu.IsOpen || popUpMenuVideo.IsOpen || popUpMenuSubtitles.IsOpen) return; 
                                 CurrentMode = newMode;
 
+                                if (!IsFullscreen) return;
                                 while (ShowCursor(false) >= 0) { }
                                 isCursorHidden = true;
                             }));
@@ -811,7 +816,7 @@ namespace FlyleafLib.Controls.WPF
             }
         }
 
-        bool isCursorHidden;
+        static bool isCursorHidden;
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern int ShowCursor(bool bShow);

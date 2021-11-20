@@ -98,9 +98,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             if (Renderer == null) return;
 
-            Renderer.Dispose();
             fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
             hw_device_ctx = null;
+
+            Renderer.Dispose();
         }
         #endregion
 
