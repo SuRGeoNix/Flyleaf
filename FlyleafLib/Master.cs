@@ -38,6 +38,13 @@ namespace FlyleafLib
                                                 GPUAdapters         { get; }
 
         /// <summary>
+        /// Disable this to use high performance timers only when required (useful for single player)
+        /// Must be set before calling RegisterFFmpeg
+        /// </summary>
+        public static bool                      HighPerformaceTimers
+                                                                    { get; set; } = true;
+
+        /// <summary>
         /// Holds player instances
         /// </summary>
         public static Dictionary<int, Player>   Players             { get; }
@@ -66,6 +73,10 @@ namespace FlyleafLib
         public static void RegisterFFmpeg(string absolutePath = ":1", int verbosity = AV_LOG_WARNING) //AV_LOG_MAX_OFFSET
         {
             if (alreadyRegister) return;
+
+            if (HighPerformaceTimers)
+                Utils.NativeMethods.TimeBeginPeriod(1);
+
             alreadyRegister = true;
             RootPath        = null;
 

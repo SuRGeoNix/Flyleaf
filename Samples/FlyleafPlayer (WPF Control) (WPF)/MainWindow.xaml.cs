@@ -27,6 +27,9 @@ namespace FlyleafPlayer
             ThreadPool.GetMinThreads(out int workers, out int ports);
             ThreadPool.SetMinThreads(workers + 6, ports + 6);
 
+            // Less power consumption (safe to use only for single player)
+            Master.HighPerformaceTimers = false;
+
             // Registers FFmpeg Libraries
             Master.RegisterFFmpeg(":2");
 
