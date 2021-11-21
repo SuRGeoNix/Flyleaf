@@ -313,6 +313,12 @@
             List of GPU Adpaters luid/description <see cref="P:FlyleafLib.Config.VideoConfig.GPUAdapteLuid"/>
             </summary>
         </member>
+        <member name="P:FlyleafLib.Master.HighPerformaceTimers">
+            <summary>
+            Disable this to use high performance timers only when required (useful for single player)
+            Must be set before calling RegisterFFmpeg
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Master.Players">
             <summary>
             Holds player instances

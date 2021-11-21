@@ -920,6 +920,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Log(dump);
         }
 
+        public int GetNextVideoPacket()
+        {
+            if (VideoPackets.Count > 0)
+            {
+                VideoPackets.TryDequeue(out IntPtr pktPtr);
+                packet = (AVPacket*) pktPtr;
+                return 0;
+            }
+            else
+                return GetNextPacket(VideoStream.StreamIndex);
+        }
+
         /// <summary>
         /// Demuxes until the a valid packet within EnabledStreams or the specified stream (Will be stored in AVPacket* packet)
         /// </summary>
@@ -931,6 +943,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             while (true)
             {
+                Interrupter.Request(Requester.Read);
                 ret = av_read_frame(fmtCtx, packet);
                 if (ret != 0) { av_packet_unref(packet); return ret; }
 
