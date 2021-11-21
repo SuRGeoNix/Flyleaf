@@ -1553,6 +1553,7 @@ namespace FlyleafLib.MediaPlayer
                 {
                     //Log($"[V] Presenting {TicksToTime(vFrame.timestamp)}");
                     if (decoder.VideoDecoder.Renderer.Present(vFrame)) actualFps++; else droppedFrames++;
+                    _CurTime = elapsedTicks * Config.Player.Speed;
                     VideoDecoder.Frames.TryDequeue(out vFrame);
                 }
                 else if (vDistanceMs < -2)
@@ -1855,13 +1856,101 @@ namespace FlyleafLib.MediaPlayer
         }
         #endregion
 
+        #region ShowFrame (Index/Prev/Next)
+        public void ShowFrame(int frameIndex)
+        {
+            lock (lockPlayPause)
+            {
+                Pause();
+
+                VideoFrame vFrame = VideoDecoder.GetFrame(frameIndex);
+                if (vFrame == null) return;
+
+                long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
+                Log($"SFI: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                renderer.Present(vFrame);
+
+                Action refresh = new Action(() =>
+                {
+                    if (seeks.Count == 0 && decoder != null)
+                    {
+                        BufferedDuration = VideoDemuxer.BufferedDuration;
+                        if (VideoDemuxer.HLSPlaylist != null)
+                            SetCurTimeHLS();
+                        else
+                            SetCurTime(tmpTimestamp * Config.Player.Speed);
+                    }
+                });
+                if (seeks.Count == 0) _Control?.Invoke(refresh);
+            }
+        }
+        public void ShowFrameNext()
+        {
+            lock (lockPlayPause)
+            {
+                Pause();
+
+                VideoFrame vFrame = null;
+                if (VideoDecoder.Frames.Count == 0)
+                    vFrame = VideoDecoder.GetFrameNext();
+                else
+                    VideoDecoder.Frames.TryDequeue(out vFrame);
+                if (vFrame == null) return;
+
+                long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
+                Log($"SFN: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                renderer.Present(vFrame);
+
+                Action refresh = new Action(() =>
+                {
+                    if (seeks.Count == 0 && decoder != null)
+                    {
+                        BufferedDuration = VideoDemuxer.BufferedDuration;
+                        if (VideoDemuxer.HLSPlaylist != null)
+                            SetCurTimeHLS();
+                        else
+                            SetCurTime(tmpTimestamp * Config.Player.Speed);
+                    }
+                });
+                if (seeks.Count == 0) _Control?.Invoke(refresh);
+            }
+        }
+        public void ShowFramePrev()
+        {
+            lock (lockPlayPause)
+            {
+                Pause();
+
+                VideoFrame vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(_CurTime) - 1);
+                if (vFrame == null) return;
+
+                long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
+                Log($"SFB: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                renderer.Present(vFrame);
+
+                Action refresh = new Action(() =>
+                {
+                    if (seeks.Count == 0 && decoder != null)
+                    {
+                        BufferedDuration = VideoDemuxer.BufferedDuration;
+                        if (VideoDemuxer.HLSPlaylist != null)
+                            SetCurTimeHLS();
+                        else
+                            SetCurTime(tmpTimestamp * Config.Player.Speed);
+                    }
+                });
+                if (seeks.Count == 0) _Control?.Invoke(refresh);
+            }
+        }
+        #endregion
+
+        #region Misc
         private void TimeBeginPeriod(uint i)
         {
             if (Master.HighPerformaceTimers) return;
 
             NativeMethods.TimeBeginPeriod(i);
         }
-
         private void TimeEndPeriod(uint i)
         {
             if (Master.HighPerformaceTimers) return;
@@ -1870,6 +1959,7 @@ namespace FlyleafLib.MediaPlayer
         }
 
         private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
+        #endregion
     }
 
     public enum Status

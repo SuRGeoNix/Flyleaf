@@ -508,6 +508,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             }
         }
 
+        public int GetFrameNumber(long timestamp)
+        {
+            // offset 2ms
+            return (int) ((timestamp + 20000) / (10000000 / VideoStream.Fps));
+        }
+
         /// <summary>
         /// Seeks and demuxes until the requested frame
         /// </summary>
@@ -522,13 +528,21 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             //Log($"Searching for {Utils.TicksToTime(frameTimestamp)}");
 
             // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC
+            demuxer.Pause();
+            Pause();
+            demuxer.Interrupter.Request(MediaDemuxer.Requester.Seek);
             if (codecCtx->codec_id == AV_CODEC_ID_HEVC)
                 ret = av_seek_frame(demuxer.FormatContext, -1, Math.Max(VideoStream.StartTime, frameTimestamp - (3 * (long)1000 * 10000)) / 10, AVSEEK_FLAG_ANY);
             else
                 ret = av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
 
+            demuxer.DisposePackets();
+            demuxer.UpdateCurTime();
+            if (demuxer.Status == Status.Ended) demuxer.Status = Status.Stopped;
             if (ret < 0) return null; // handle seek error
-            avcodec_flush_buffers(codecCtx);
+            Flush();
+            keyFrameRequired = false;
+            //avcodec_flush_buffers(codecCtx);
 
             // Decoding until requested frame/timestamp
             while (GetNextFrame() == 0)
@@ -549,6 +563,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         }
 
 
+        public VideoFrame GetFrameNext()
+        {
+            if (GetNextFrame() != 0) return null;
+
+            return ProcessVideoFrame(frame);
+        }
+
         /// <summary>
         /// Demuxes until the next valid video frame (will be stored in AVFrame* frame)
         /// </summary>
@@ -565,7 +586,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             while (!draining)
             {
-                ret = demuxer.GetNextPacket(VideoStream.StreamIndex);
+                ret = demuxer.GetNextVideoPacket();
                 if (ret != 0)
                 {
                     if (ret != AVERROR_EOF) return ret;

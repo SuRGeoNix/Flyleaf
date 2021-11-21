@@ -853,6 +853,14 @@ namespace FlyleafLib.Controls.WPF
                         SubtitlesConfig.Delay += 1000 * 10000;
                         break;
 
+                    case Key.Left:
+                        Player.ShowFramePrev();
+                        break;
+
+                    case Key.Right:
+                        Player.ShowFrameNext();
+                        break;
+
                     case Key.Up:
                         t = Subtitles.Margin; t.Bottom += 2; Subtitles.Margin = t; Raise(nameof(Subtitles));
                         break;
@@ -911,7 +919,6 @@ namespace FlyleafLib.Controls.WPF
                     long seekRight  = Player.CurTime + (5 * 1000 * (long)10000);
                     lastSeekRight   = Math.Max(lastSeekRight + (5 * 1000 * (long)10000), seekRight);
                     int ms          = (int) (lastSeekRight / 10000);
-                    System.Diagnostics.Debug.WriteLine($"Seeking to {Utils.TicksToTime(ms * (long)10000)}");
                     if (ms <= Player.Duration/10000) Player.Seek(ms, true);
                     break;
 
