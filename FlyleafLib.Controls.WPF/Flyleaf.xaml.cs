@@ -33,7 +33,14 @@ namespace FlyleafLib.Controls.WPF
         #region Properties
         private bool            IsDesignMode=> (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
 
-        public Player           Player          { get => _Player; set { _Player = value; InitializePlayer(); } }
+        public Player           Player          { get => _Player;
+            set
+            { 
+                var oldPlayer = _Player;
+                _Player = value;
+                InitializePlayer(oldPlayer);
+            } 
+        }
         Player _Player;
 
         public AudioInfo        AudioInfo       => Player?.Audio;
@@ -302,7 +309,7 @@ namespace FlyleafLib.Controls.WPF
 
             settings = new Settings(this);
 
-            ITheme theme = Resources.GetTheme();
+            ITheme theme = Resources.GetTheme();            
             defaultTheme = new UITheme(this, defaultTheme) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, PaperColor = theme.Paper, VideoView = Config.Video.BackgroundColor};
 
             if (UIConfigPath != null)
@@ -325,9 +332,32 @@ namespace FlyleafLib.Controls.WPF
             
             Raise(null);
         }
-        private void InitializePlayer()
+        private void InitializePlayer(Player oldPlayer = null)
         {
-            if (playerInitialized) return;
+            if (oldPlayer != null && oldPlayer.PlayerId == Player.PlayerId) return;
+
+            if (oldPlayer != null)
+            {
+                // Re-subscribes the new Player after swaping (Raise null required for refreshing Player's reference in the ViewModel)
+                Raise(null);
+
+                if (EnableMouseEvents)
+                {
+                    Player.Control.DoubleClick  += Control_DoubleClick;
+                    Player.Control.MouseClick   += Control_MouseClick;
+                    Player.Control.MouseWheel   += Control_MouseWheel;
+                    Player.Control.MouseMove    += Control_MouseMove;
+                    Player.Control.MouseUp      += Control_MouseUp;
+                    Player.Control.MouseDown    += Control_MouseDown;
+                    Player.Control.DragEnter    += Flyleaf_DragEnter;
+                    Player.Control.DragDrop     += Flyleaf_DragDrop;
+                }
+
+                Player.OpenCompleted        += Player_OpenCompleted;
+                Player.OpenInputCompleted   += Player_OpenInputCompleted;
+
+                return;
+            }
             playerInitialized = true;
 
             Unloaded += (o, e) => { Dispose(); };
@@ -344,40 +374,16 @@ namespace FlyleafLib.Controls.WPF
             // Mouse (For back window we can only use Player.Control to catch mouse events) | WinFroms + WPF :(
             if (EnableMouseEvents)
             {
-                Player.Control.DoubleClick  += (o, e) => { ToggleFullscreenAction(); };
-                Player.Control.MouseClick   += (o, e) => { if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true; };
-
-                Player.Control.MouseWheel   += (o, e) => { Flyleaf_MouseWheel(e.Delta); };
+                Player.Control.DoubleClick  += Control_DoubleClick;
+                Player.Control.MouseClick   += Control_MouseClick;
+                Player.Control.MouseWheel   += Control_MouseWheel;
                 WindowFront.MouseWheel      += (o, e) => { Flyleaf_MouseWheel(e.Delta); };
-
                 WindowFront.MouseMove       += (o, e) => { lastMouseActivity = DateTime.UtcNow.Ticks; };
 
                 // Pan Drag Move
-                Player.Control.MouseMove    += (o, e) => 
-                {
-                    lastMouseActivity = DateTime.UtcNow.Ticks;
-
-                    if (panClickX != -1 && e.Button == System.Windows.Forms.MouseButtons.Left && 
-                       (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
-                    {
-                        Player.PanXOffset = panPrevX + e.X - panClickX;
-                        Player.PanYOffset = panPrevY + e.Y - panClickY;
-                    }
-                };
-
-                Player.Control.MouseUp      += (o, e) => { panClickX = -1; panClickY = -1; };
-                Player.Control.MouseDown    += (o, e) =>
-                {
-                    if (!Player.CanPlay || e.Button != System.Windows.Forms.MouseButtons.Left) return;
-
-                    if (panClickX == -1)
-                    {
-                        panClickX = e.X;
-                        panClickY = e.Y;
-                        panPrevX = Player.PanXOffset;
-                        panPrevY = Player.PanYOffset;
-                    }
-                };
+                Player.Control.MouseMove    += Control_MouseMove;
+                Player.Control.MouseUp      += Control_MouseUp;
+                Player.Control.MouseDown    += Control_MouseDown;
             }
 
             // Drag & Drop
@@ -387,6 +393,64 @@ namespace FlyleafLib.Controls.WPF
 
             Player.OpenCompleted        += Player_OpenCompleted;
             Player.OpenInputCompleted   += Player_OpenInputCompleted;
+        }
+
+        public void UnsubscribePlayer()
+        {
+            Player.Control.DoubleClick  -= Control_DoubleClick;
+            Player.Control.MouseClick   -= Control_MouseClick;
+            Player.Control.MouseWheel   -= Control_MouseWheel;
+            Player.Control.MouseMove    -= Control_MouseMove;
+            Player.Control.MouseUp      -= Control_MouseUp;
+            Player.Control.MouseDown    -= Control_MouseDown;
+            Player.Control.DragEnter    -= Flyleaf_DragEnter;
+            Player.Control.DragDrop     -= Flyleaf_DragDrop;
+
+            Player.OpenCompleted        -= Player_OpenCompleted;
+            Player.OpenInputCompleted   -= Player_OpenInputCompleted;
+        }
+
+        private void Control_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (!Player.CanPlay || e.Button != System.Windows.Forms.MouseButtons.Left) return;
+
+            if (panClickX == -1)
+            {
+                panClickX = e.X;
+                panClickY = e.Y;
+                panPrevX = Player.PanXOffset;
+                panPrevY = Player.PanYOffset;
+            }
+        }
+        private void Control_MouseUp(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            panClickX = -1; panClickY = -1;
+        }
+        private void Control_MouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            lastMouseActivity = DateTime.UtcNow.Ticks;
+
+            if (panClickX != -1 && e.Button == System.Windows.Forms.MouseButtons.Left && 
+                (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
+            {
+                Player.PanXOffset = panPrevX + e.X - panClickX;
+                Player.PanYOffset = panPrevY + e.Y - panClickY;
+            }
+        }
+        private void Control_MouseClick(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true;
+        }
+        private void Control_DoubleClick(object sender, EventArgs e)
+        {
+            Controls.Flyleaf f = (Controls.Flyleaf)sender;
+            var t1 = f.Player.PlayerId;
+
+            ToggleFullscreenAction();
+        }
+        private void Control_MouseWheel(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            Flyleaf_MouseWheel(e.Delta);
         }
 
         int panClickX = -1, panClickY = -1, panPrevX = -1, panPrevY = -1;
@@ -789,7 +853,7 @@ namespace FlyleafLib.Controls.WPF
                             { 
                                 try
                                 {
-                                    if (DialogHost.IsDialogOpen(dialogSettingsIdentifier) || Player.IsDisposed) return;
+                                    if (DialogHost.IsDialogOpen(dialogSettingsIdentifier) || ( Player != null && Player.IsDisposed)) return;
                                 } catch (Exception) { }
                                 
                                 if (popUpMenu.IsOpen || popUpMenuVideo.IsOpen || popUpMenuSubtitles.IsOpen) return; 

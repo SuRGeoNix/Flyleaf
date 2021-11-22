@@ -54,6 +54,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         const AVHWDeviceType    HW_DEVICE   = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA; // To fully support Win7/8 should consider AV_HWDEVICE_TYPE_DXVA2
         const AVPixelFormat     HW_PIX_FMT  = AVPixelFormat.AV_PIX_FMT_D3D11;
         AVBufferRef*            hw_device_ctx;
+        AVBufferRef*            swap_hw_device_ctx;
+        Renderer                swap_renderer;
 
         internal static bool CheckCodecSupport(AVCodec* codec)
         {
@@ -102,6 +104,59 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             hw_device_ctx = null;
 
             Renderer.Dispose();
+        }
+        public void Swap(VideoDecoder videoDecoder)
+        {
+            if (swap_renderer == null && hw_device_ctx != null)
+            {
+                swap_renderer = Renderer;
+                swap_hw_device_ctx = av_buffer_ref(hw_device_ctx);
+                fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
+            }
+
+            if (videoDecoder.swap_renderer != null)
+            {
+                Renderer = videoDecoder.swap_renderer;
+                videoDecoder.swap_renderer = null;
+                hw_device_ctx = av_buffer_ref(videoDecoder.swap_hw_device_ctx);
+                fixed(AVBufferRef** ptr = &videoDecoder.swap_hw_device_ctx) av_buffer_unref(ptr);
+            }
+            else if (videoDecoder.Renderer != null)
+            {
+                videoDecoder.Renderer.DisableRendering = true;
+                videoDecoder.Renderer.Present();
+                Renderer = videoDecoder.Renderer;
+                videoDecoder.Renderer = null;
+                hw_device_ctx = av_buffer_ref(videoDecoder.hw_device_ctx);
+                fixed(AVBufferRef** ptr = &videoDecoder.hw_device_ctx) av_buffer_unref(ptr);
+
+                if (videoDecoder.codecCtx != null && videoDecoder.codecCtx->hw_device_ctx != null) av_buffer_unref(&videoDecoder.codecCtx->hw_device_ctx);
+            }
+
+            if (videoDecoder.codecCtx != null && videoDecoder.codecCtx->hw_device_ctx != null)
+            {
+                av_buffer_unref(&videoDecoder.codecCtx->hw_device_ctx);
+                videoDecoder.codecCtx->hw_device_ctx = av_buffer_ref(videoDecoder.hw_device_ctx);
+            }
+
+            if (codecCtx != null)
+            {
+                if (codecCtx->hw_device_ctx != null) av_buffer_unref(&codecCtx->hw_device_ctx);
+                if (VideoAccelerated) codecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+            }
+            
+            Renderer.VideoDecoder = this;
+
+            if (!Disposed)
+            {
+                Renderer.DisableRendering = false;
+                Renderer.FrameResized();
+                //Setup(codecCtx->codec);
+            }
+            else
+                Renderer.DisableRendering = true;
+
+            Renderer.Present();
         }
         #endregion
 

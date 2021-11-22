@@ -59,6 +59,7 @@ namespace FlyleafLib.MediaPlayer
         public bool         HasEnded            => decoder != null && VideoDecoder.Status == MediaFramework.Status.Ended;
         public bool         IsBuffering         { get; private set; }
         public bool         IsSeeking           { get; private set; }
+        public bool         IsSwaping           { get; private set; }
         public bool         IsOpening           { get; private set; }
         public bool         IsOpeningInput      { get; private set; }
         public bool         IsPlaying           => Status == Status.Playing;
@@ -281,9 +282,51 @@ namespace FlyleafLib.MediaPlayer
         long elapsedTicks;
         long startedAtTicks;
         long videoStartTicks;
+
+        bool swap_WasPlaying;
         #endregion
 
         #region  Constructor / Initialize Control/Decoder
+
+        internal void SwapPlayer(Player player)
+        {
+            Log($"Swaping Player {PlayerId} with Player {player.PlayerId}");
+
+            bool swapCompleted = false;
+
+            if (!IsSwaping)
+            {
+                IsSwaping = true;
+                swap_WasPlaying = IsPlaying;
+                Pause();
+                decoder.Pause();
+                decoder.VideoDecoder.DisposeFrames();
+                CanPlay = false;
+            }
+            else
+                swapCompleted = true;
+
+            if (!player.IsSwaping)
+            {
+                player.IsSwaping = true;
+                player.swap_WasPlaying = player.IsPlaying;
+                player.Pause();
+                player.decoder.Pause();
+                player.decoder.VideoDecoder.DisposeFrames();
+                player.CanPlay = false;
+            }
+            else
+                player.IsSwaping = false;
+
+            VideoDecoder.Swap(player.VideoDecoder);
+
+            _Control.Player = this; // Changes the renderer to the control
+            IsSwaping = !swapCompleted;
+            CanPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+            ReSync(VideoDecoder.VideoStream);
+            if (swap_WasPlaying) Play();
+        }
+
 		public Player(Config config = null) : base(config)
         {
             Config.SetPlayer(this);
@@ -307,14 +350,22 @@ namespace FlyleafLib.MediaPlayer
             lock (this)
             {
                 if (newValue == null) return;
-                if (oldValue != null && newValue != null && oldValue.Handle == newValue?.Handle) return;
 
-                Log($"Creating (Usage = {Config.Player.Usage}) ... (2/3 waiting for handle to be created)");
+                if (oldValue != null && newValue != null)
+                {
+                    if (oldValue.Handle == newValue.Handle) return;
 
-                if (newValue.Handle != IntPtr.Zero)
-                    InitializeControl2(newValue);
+                    _Control = newValue;
+                }
                 else
-                    newValue.HandleCreated += (o, e) => { InitializeControl2(newValue); };
+                {
+                    Log($"Creating (Usage = {Config.Player.Usage}) ... (2/3 waiting for handle to be created)");
+
+                    if (newValue.Handle != IntPtr.Zero)
+                        InitializeControl2(newValue);
+                    else
+                        newValue.HandleCreated += (o, e) => { InitializeControl2(newValue); };
+                }
             }   
         }
         private void InitializeControl2(Flyleaf newValue)

@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net5.0-windows</TargetFramework>
+    <RootNamespace>FlyleafMultiPlayer__WPF_</RootNamespace>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj" />
+    <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" />
+  </ItemGroup>
+
+</Project>

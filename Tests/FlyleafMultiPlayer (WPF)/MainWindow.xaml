@@ -1,0 +1,42 @@
+﻿<Window x:Class="FlyleafMultiPlayer__WPF_.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FlyleafMultiPlayer__WPF_"
+        
+        xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
+        xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
+        
+        mc:Ignorable="d"
+        Title="Flyleaf MultiPlayer" Height="450" Width="800">
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_Tests">
+                <MenuItem Header="Swap Players Clockwise" Command="{Binding RotatePlayers}" />
+            </MenuItem>
+        </Menu>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <fl:VideoView Grid.Row="0"  Grid.Column="0" Player="{Binding PlayerView1}">
+                <flwpf:Flyleaf x:Name="flyleafControl1"/>
+            </fl:VideoView>
+            <fl:VideoView Grid.Row="0"  Grid.Column="1" Player="{Binding PlayerView2}">
+                <flwpf:Flyleaf x:Name="flyleafControl2"/>
+            </fl:VideoView>
+            <fl:VideoView Grid.Row="1"  Grid.Column="0" Player="{Binding PlayerView3}">
+                <flwpf:Flyleaf x:Name="flyleafControl3"/>
+            </fl:VideoView>
+            <fl:VideoView Grid.Row="1"  Grid.Column="1" Player="{Binding PlayerView4}">
+                <flwpf:Flyleaf x:Name="flyleafControl4"/>
+            </fl:VideoView>
+        </Grid>
+    </DockPanel>
+</Window>
