@@ -45,8 +45,16 @@ namespace FlyleafLib.Controls.WPF
             if (VideoView.FlyleafWF == null) return;
 
             Player Player       = e.NewValue as Player;
+            Player oldPlayer    = e.OldValue as Player;
+            if (oldPlayer != null && oldPlayer.PlayerId == Player.PlayerId) return;
+
+            //Utils.Log($"New Player {Player.PlayerId}" + (oldPlayer != null ? $" (Old Player {oldPlayer.PlayerId})" : ""));
+
             Player.VideoView    = VideoView;
             Player.Control      = VideoView.FlyleafWF;
+
+            if (oldPlayer != null) Player.SwapPlayer(oldPlayer);
+
             if (VideoView.ControlRequiresPlayer != null) VideoView.ControlRequiresPlayer.Player = Player;
         }
 

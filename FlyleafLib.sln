@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31808.319
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31624.102
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafLib", "FlyleafLib\FlyleafLib.csproj", "{D262BA82-2306-4AB9-93E2-84D99869093A}"
 EndProject
@@ -64,6 +64,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfNetFramework", "Tests\Wp
 		{DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1} = {DCD91C61-1243-4A9D-8567-DDDEFDD4CEF1}
 		{BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005} = {BCE7C6B3-8EC7-44A1-84BA-89FE95A2B005}
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafMultiPlayer (WPF)", "Tests\FlyleafMultiPlayer (WPF)\FlyleafMultiPlayer (WPF).csproj", "{3582BB1E-8D29-4462-809A-BE62F8791F2B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -242,6 +244,18 @@ Global
 		{E41D1F95-6374-42B8-9FC1-0AADB0D260E3}.Release|x64.Build.0 = Release|Any CPU
 		{E41D1F95-6374-42B8-9FC1-0AADB0D260E3}.Release|x86.ActiveCfg = Release|Any CPU
 		{E41D1F95-6374-42B8-9FC1-0AADB0D260E3}.Release|x86.Build.0 = Release|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Debug|x64.Build.0 = Debug|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Debug|x86.Build.0 = Debug|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Release|x64.ActiveCfg = Release|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Release|x64.Build.0 = Release|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Release|x86.ActiveCfg = Release|Any CPU
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -257,6 +271,7 @@ Global
 		{A5F77AC7-F80C-401B-930D-5AE86EE2AAA2} = {6029F6A2-3EB6-475B-B7DB-048C4992B772}
 		{80336F02-CB8A-4D25-832F-CD03E38F8234} = {6029F6A2-3EB6-475B-B7DB-048C4992B772}
 		{E41D1F95-6374-42B8-9FC1-0AADB0D260E3} = {01A29B6E-AD65-46B6-B3F8-B09192F2CE18}
+		{3582BB1E-8D29-4462-809A-BE62F8791F2B} = {01A29B6E-AD65-46B6-B3F8-B09192F2CE18}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EA552D17-7796-4337-8E9D-A206F3AAE077}
