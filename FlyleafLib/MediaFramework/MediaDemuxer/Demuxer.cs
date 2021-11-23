@@ -829,7 +829,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 }
                 else
                 {
-                    if (packet->pts != AV_NOPTS_VALUE)
+                    if (packet->pts != AV_NOPTS_VALUE && AVStreamToStream.ContainsKey(packet->stream_index))
                         lastKnownPtsTimestamp = (long)(packet->pts * AVStreamToStream[packet->stream_index].Timebase);
                     else if (lastKnownPtsTimestamp == AV_NOPTS_VALUE)
                         return false;
@@ -841,6 +841,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 BufferedDuration = bufferedDuration;
 
                 return true;
+
+            } catch (Exception)
+            {
+                return false; 
 
             } finally
             {
