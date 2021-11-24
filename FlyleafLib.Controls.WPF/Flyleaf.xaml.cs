@@ -839,7 +839,7 @@ namespace FlyleafLib.Controls.WPF
                 {
                     long bufferedDuration = Player.Video.IsOpened || AudioDecoder.OnVideoDemuxer ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration;
                     if (bufferedDuration != Player.BufferedDuration)
-                        Dispatcher.BeginInvoke(new Action(() => Player.BufferedDuration = bufferedDuration));
+                        Dispatcher.BeginInvoke(new Action(() => Player.BufferedDuration = Player.Video.IsOpened || AudioDecoder.OnVideoDemuxer ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration));
                 }
 
                 var newMode = GetCurrentActivityMode();
@@ -958,6 +958,10 @@ namespace FlyleafLib.Controls.WPF
 
                     case Key.D0:
                         Player.Zoom = 0; Player.renderer.PanXOffset = 0; Player.renderer.PanYOffset = 0;
+                        break;
+
+                    case Key.Back:
+                        Player.ReversePlayback = !Player.ReversePlayback;
                         break;
                 }
 

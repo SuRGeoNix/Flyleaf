@@ -824,6 +824,19 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             Interrupt = false;
         }
+        public void StopThreads()
+        {
+            Interrupt = true;
+
+            VideoDecoder.Stop();
+            AudioDecoder.Stop();
+            SubtitlesDecoder.Stop();
+            AudioDemuxer.Stop();
+            SubtitlesDemuxer.Stop();
+            VideoDemuxer.Stop();
+
+            Interrupt = false;
+        }
         #endregion
 
         public void Resync(long timestamp = -1)
