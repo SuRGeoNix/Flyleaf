@@ -204,6 +204,31 @@ namespace FlyleafLib.MediaPlayer
             set {  renderer.Zoom = value; Set(ref _Zoom, renderer.Zoom); }
         }
         int _Zoom;
+
+        public bool ReversePlayback
+        {
+            get => _ReversePlayback;
+
+            set
+            {
+                if (Set(ref _ReversePlayback, value))
+                {
+                    lock (lockPlayPause)
+                    {
+                        bool shouldPlay = IsPlaying;
+                        Pause();
+                        Subtitles.SubsText = ""; sFrame = null;
+                        decoder.StopThreads();
+                        decoder.Flush();
+                        VideoDemuxer.ReversePlayback = value;
+                        decoder.Seek(CurTime/10000, !value, false);
+                        if (shouldPlay) Play();
+                        BufferedDuration = 0;
+                    }
+                }
+            }
+        }
+        bool _ReversePlayback;
         #endregion
 
         #region DecoderContext Properties / Events Exposure
@@ -1137,7 +1162,12 @@ namespace FlyleafLib.MediaPlayer
                         else if (Config.Player.Usage == Usage.Audio || !Video.IsOpened)
                             ScreamerAudioOnly();
                         else
-                            Screamer();
+                        {
+                            if (ReversePlayback)
+                                ScreamerReverse();
+                            else
+                                Screamer();
+                        }
 
                     } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
 
@@ -1234,9 +1264,9 @@ namespace FlyleafLib.MediaPlayer
                             VideoDecoder.Pause();
                             if (decoder.Seek(seekData.ms, seekData.foreward) >= 0)
                             {
-                                if (CanPlay)
+                                if (!ReversePlayback && CanPlay)
                                     decoder.GetVideoFrame();
-                                if (CanPlay)
+                                if (!ReversePlayback && CanPlay)
                                 {
                                     ShowOneFrame();
                                     VideoDemuxer.Start();
@@ -1891,6 +1921,44 @@ namespace FlyleafLib.MediaPlayer
 
                 AddAudioSamples(aFrame.audioData, false);
                 AudioDecoder.Frames.TryDequeue(out aFrame);
+            }
+        }
+
+        private void ScreamerReverse()
+        {
+            VideoDemuxer.Start();
+            VideoDecoder.Start();
+
+            while (Status == Status.Playing)
+            {
+                if (seeks.TryPop(out SeekData seekData))
+                {
+                    seeks.Clear();
+                    if (decoder.Seek(seekData.ms, seekData.foreward) < 0)
+                        Log("[SCREAMER] Seek failed");
+                }
+
+                if (vFrame == null)
+                {
+                    while (VideoDecoder.Frames.Count == 0 && Status == Status.Playing && VideoDecoder.IsRunning) Thread.Sleep(35);
+                    VideoDecoder.Frames.TryDequeue(out vFrame);
+                    if (vFrame == null) break;
+                }
+
+                renderer.Present(vFrame);
+                long curTimestamp = vFrame.timestamp;
+                VideoDecoder.Frames.TryDequeue(out vFrame);
+
+                Action refresh = new Action(() =>
+                {
+                    try
+                    {
+                        SetCurTime(curTimestamp);
+                    } catch (Exception) { }
+                });
+                _Control?.BeginInvoke(refresh);
+
+                Thread.Sleep(42); // ~24 Fps
             }
         }
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -48,6 +49,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         internal bool           keyFrameRequired;
         bool HDRDataSent;
+
+        // Reverse Playback
+        ConcurrentStack<List<IntPtr>>   curVideoStackReverse    = new ConcurrentStack<List<IntPtr>>();
+        List<IntPtr>                    curVideoPacketsReverse  = new List<IntPtr>();
+        List<VideoFrame>                curVideoFramesReverse   = new List<VideoFrame>();
 
         #region Video Acceleration (Should be disposed seperately)
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
@@ -254,6 +260,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected override void RunInternal()
         {
+            if (demuxer.ReversePlayback)
+            {
+                RunInternalReverse();
+                return;
+            }
+
             int ret = 0;
             int allowedErrors = Config.Decoder.MaxErrors;
             AVPacket *packet;
@@ -409,6 +421,140 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             } while (Status == Status.Running);
 
             if (isRecording) { StopRecording(); recCompleted(MediaType.Video); }
+
+            if (Status == Status.Draining) Status = Status.Ended;
+        }
+
+        private void RunInternalReverse()
+        {
+            int ret = 0;
+            int allowedErrors = Config.Decoder.MaxErrors;
+            AVPacket *packet;
+            int curPktPos = 0; // TODO global with interrupt support
+
+            do
+            {
+                // Wait until Queue not Full or Stopped
+                if (Frames.Count >= Config.Decoder.MaxVideoFrames * 3)
+                {
+                    lock (lockStatus)
+                        if (Status == Status.Running) Status = Status.QueueFull;
+
+                    while (Frames.Count >= Config.Decoder.MaxVideoFrames * 3 && Status == Status.QueueFull) Thread.Sleep(20);
+
+                    lock (lockStatus)
+                    {
+                        if (Status != Status.QueueFull) break;
+                        Status = Status.Running;
+                    }
+                }
+
+                // While Packets Queue Empty (Drain | Quit if Demuxer stopped | Wait until we get packets)
+                if (demuxer.VideoPacketsReverse.Count == 0 && curVideoStackReverse.Count == 0 && curVideoPacketsReverse.Count == 0)
+                {
+                    CriticalArea = true;
+
+                    lock (lockStatus)
+                        if (Status == Status.Running) Status = Status.QueueEmpty;
+
+                    while (demuxer.VideoPacketsReverse.Count == 0 && Status == Status.QueueEmpty)
+                    {
+                        if (demuxer.Status == Status.Ended) // TODO
+                        {
+                            lock (lockStatus) Status = Status.Ended;
+                            
+                            break;
+                        }
+                        else if (!demuxer.IsRunning)
+                        {
+                            Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
+
+                            int retries = 5;
+
+                            while (retries > 0)
+                            {
+                                retries--;
+                                Thread.Sleep(10);
+                                if (demuxer.IsRunning) break;
+                            }
+
+                            lock (demuxer.lockStatus)
+                            lock (lockStatus)
+                            {
+                                if (demuxer.Status == Status.Pausing || demuxer.Status == Status.Paused)
+                                    Status = Status.Pausing;
+                                else if (demuxer.Status != Status.Ended)
+                                    Status = Status.Stopping;
+                                else
+                                    continue;
+                            }
+
+                            break;
+                        }
+                        
+                        Thread.Sleep(20);
+                    }
+
+                    lock (lockStatus)
+                    {
+                        CriticalArea = false;
+                        if (Status != Status.QueueEmpty && Status != Status.Draining) break;
+                        if (Status != Status.Draining) Status = Status.Running;
+                    }
+                }
+
+                lock (lockCodecCtx)
+                {
+                    if (Status == Status.Stopped || demuxer.VideoPacketsReverse.Count == 0) continue;
+
+                    if (curVideoStackReverse.Count == 0)
+                        demuxer.VideoPacketsReverse.TryDequeue(out curVideoStackReverse);
+
+                    if (curVideoPacketsReverse.Count == 0)
+                        curVideoStackReverse.TryPop(out curVideoPacketsReverse);
+
+                    while (curVideoPacketsReverse.Count > 0)
+                    {
+                        packet = (AVPacket*)curVideoPacketsReverse[curPktPos++];
+                        ret = avcodec_send_packet(codecCtx, packet);
+                        if (ret != 0 && ret != AVERROR(EAGAIN))
+                            break; // TODO
+
+                        bool shouldProcess = curVideoPacketsReverse.Count - curPktPos < Config.Decoder.MaxVideoFrames;
+                        if (shouldProcess) av_packet_free(&packet);
+
+                        while (true)
+                        {
+                            ret = avcodec_receive_frame(codecCtx, frame);
+                            if (ret != 0) { av_frame_unref(frame); break; }
+
+                            frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
+                            if (frame->pts == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
+
+                            if (shouldProcess)
+                            {
+                                VideoFrame mFrame = ProcessVideoFrame(frame);
+                                if (mFrame != null) curVideoFramesReverse.Add(mFrame);
+                            }
+                            else
+                                av_frame_unref(frame);
+                        }
+
+                        if (curPktPos == curVideoPacketsReverse.Count)
+                        {
+                            curVideoPacketsReverse.RemoveRange(Math.Max(0, curVideoPacketsReverse.Count - Config.Decoder.MaxVideoFrames), Math.Min(curVideoPacketsReverse.Count, Config.Decoder.MaxVideoFrames) );
+                            avcodec_flush_buffers(codecCtx);
+                            curPktPos = 0;
+
+                            for (int i = curVideoFramesReverse.Count -1; i>=0; i--)
+                                Frames.Enqueue(curVideoFramesReverse[i]);
+
+                            curVideoFramesReverse.Clear();
+                        }
+                    }
+                } // Lock CodecCtx
+
+            } while (Status == Status.Running);
 
             if (Status == Status.Draining) Status = Status.Ended;
         }
@@ -682,6 +828,26 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 Frames.TryDequeue(out VideoFrame frame);
                 DisposeFrame(frame);
             }
+
+            DisposeFramesReverse();
+        }
+        private void DisposeFramesReverse()
+        {
+            while (!curVideoStackReverse.IsEmpty)
+            {
+                curVideoStackReverse.TryPop(out var t2);
+                for (int i = 0; i < t2.Count; i++)
+                { 
+                    if (t2[i] == IntPtr.Zero) continue;
+                    AVPacket* packet = (AVPacket*)t2[i];
+                    av_packet_free(&packet);
+                }
+            }
+
+            while (curVideoFramesReverse.Count > 0)
+                DisposeFrame(curVideoFramesReverse[curVideoFramesReverse.Count - 1]);
+
+            curVideoFramesReverse.Clear();
         }
         public static void DisposeFrame(VideoFrame frame) { if (frame != null && frame.textures != null) for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose(); }
         protected override void DisposeInternal()

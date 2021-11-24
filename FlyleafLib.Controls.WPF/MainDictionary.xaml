@@ -341,6 +341,7 @@
                 <MenuItem Header=" x 3"   CommandParameter="3" Command="{Binding SetPlaybackSpeed}"/>
                 <MenuItem Header=" x 4"   CommandParameter="4" Command="{Binding SetPlaybackSpeed}"/>
             </MenuItem>
+            <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
             <MenuItem Header="Streams">
                 <MenuItem Header="Embedded" ItemsSource="{Binding VideoInfo.Streams}">
                     <MenuItem.ItemContainerStyle>
