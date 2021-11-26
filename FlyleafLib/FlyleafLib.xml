@@ -150,6 +150,11 @@
             Maximum video frames to be decoded and processed for rendering
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.DecoderConfig.MaxVideoFramesReverse">
+            <summary>
+            Maximum video frames to be decoded and processed for rendering (reverse playback)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.DecoderConfig.MaxAudioFrames">
             <summary>
             Maximum audio frames to be decoded and processed for playback
@@ -395,16 +400,24 @@
         </member>
         <member name="M:FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder.GetFrame(System.Int32)">
             <summary>
-            Seeks and demuxes until the requested frame
+            Performs accurate seeking to the requested video frame and returns it
             </summary>
-            <param name="index"></param>
+            <param name="index">Zero based frame index</param>
             <returns>The requested VideoFrame or null on failure</returns>
         </member>
-        <member name="M:FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder.GetNextFrame">
+        <member name="M:FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder.GetFrameNext">
             <summary>
             Demuxes until the next valid video frame (will be stored in AVFrame* frame)
             </summary>
             <returns>0 on success</returns>
+            
+        </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder.GetFrameNext(System.Boolean)">
+            <summary>
+            Pushes the demuxer and the decoder to the next available video frame
+            </summary>
+            <param name="checkExtraFrames">Whether to check for extra frames within the decoder's cache. Set to true if not sure.</param>
+            <returns></returns>
         </member>
         <member name="P:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.CurTime">
             <summary>
@@ -416,12 +429,18 @@
             The buffered time in the queue (last packet time - first packet time)
             </summary>
         </member>
+        <member name="M:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.GetNextVideoPacket">
+            <summary>
+            Pushes the demuxer to the next available video packet (uses also the buffer queue)
+            </summary>
+            <returns>0 on success</returns>
+        </member>
         <member name="M:FlyleafLib.MediaFramework.MediaDemuxer.Demuxer.GetNextPacket(System.Int32)">
             <summary>
-            Demuxes until the a valid packet within EnabledStreams or the specified stream (Will be stored in AVPacket* packet)
+            Pushes the demuxer to the next available packet
             </summary>
-            <param name="streamIndex">Find packets only for the specified stream index</param>
-            <returns></returns>
+            <param name="streamIndex">Packet's stream index</param>
+            <returns>0 on success</returns>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.AudioInfo.IsOpened">
             <summary>
@@ -742,6 +761,11 @@
         <member name="P:FlyleafLib.MediaPlayer.VideoInfo.IsOpened">
             <summary>
             Whether the input has video and it is configured
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.VideoInfo.TotalFrames">
+            <summary>
+            Total Frames
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.VideoInfo.CurrentFps">

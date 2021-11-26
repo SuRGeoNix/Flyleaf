@@ -47,6 +47,12 @@ namespace FlyleafLib.MediaPlayer
         public int                  DroppedFrames   { get => _DroppedFrames;    internal set => Set(ref _DroppedFrames, value); }
         int _DroppedFrames;
 
+        /// <summary>
+        /// Total Frames
+        /// </summary>
+        public int                  TotalFrames     { get => _TotalFrames;      internal set => Set(ref _TotalFrames, value); }
+        int _TotalFrames;
+
         public double               Fps             { get => _Fps;              internal set => Set(ref _Fps, value); }
         double _Fps;
 
@@ -80,6 +86,7 @@ namespace FlyleafLib.MediaPlayer
             Width               = decoder.VideoStream.Width;
             Height              = decoder.VideoStream.Height;
             Exists              = decoder.VideoStream != null;
+            TotalFrames         = decoder.VideoStream.TotalFrames;
 
             if (decoder.VideoDecoder == null) return;
             player.renderer.DisableRendering = false;
@@ -96,6 +103,7 @@ namespace FlyleafLib.MediaPlayer
             PixelFormat         = null;
             Width               = 0;
             Height              = 0;
+            TotalFrames         = 0;
             VideoAcceleration   = false;
             Exists              = false;
             IsOpened            = false;

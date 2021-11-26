@@ -76,10 +76,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public ConcurrentQueue<IntPtr>  GetPacketsPtr(MediaType type) 
             { if (!UseAVSPackets) return Packets; return type == MediaType.Audio ? AudioPackets : (type == MediaType.Video ? VideoPackets : SubtitlesPackets); }
 
-        public bool                     ReversePlayback { get; set; }
         public ConcurrentQueue<ConcurrentStack<List<IntPtr>>>
                                         VideoPacketsReverse
                                                         { get; private set; } = new ConcurrentQueue<ConcurrentStack<List<IntPtr>>>();
+        public bool                     IsReversePlayback
+                                                        { get; private set; }
         
         // Stats
         public long                     TotalBytes      { get; private set; } = 0;
@@ -116,11 +117,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
          *          Video Packets List Keyframe (List)      List<IntPtr>
          */
 
-        long                    stopAtPts               = AV_NOPTS_VALUE;
-        long                    startedAtPts            = AV_NOPTS_VALUE;
-        List<IntPtr>            curVideoPacketsReverse  = new List<IntPtr>();
+        long                    curReverseStopPts       = AV_NOPTS_VALUE;
+        long                    curReverseStopRequestedPts 
+                                                        = AV_NOPTS_VALUE;
+        long                    curReverseStartPts      = AV_NOPTS_VALUE;
+        List<IntPtr>            curReverseVideoPackets  = new List<IntPtr>();
         ConcurrentStack<List<IntPtr>>
-                                curVideoStackReverse    = new ConcurrentStack<List<IntPtr>>();
+                                curReverseVideoStack    = new ConcurrentStack<List<IntPtr>>();
 
         public Demuxer(DemuxerConfig config, MediaType type = MediaType.Video, int uniqueId = -1, bool useAVSPackets = true) : base(uniqueId)
         {
@@ -179,9 +182,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 }
             }
 
-            while (!curVideoStackReverse.IsEmpty)
+            while (!curReverseVideoStack.IsEmpty)
             {
-                curVideoStackReverse.TryPop(out var t2);
+                curReverseVideoStack.TryPop(out var t2);
                 for (int i = 0; i < t2.Count; i++)
                 { 
                     if (t2[i] == IntPtr.Zero) continue;
@@ -207,8 +210,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 CurTime = 0;
                 EndTimeLive = 0;
 
-                stopAtPts = AV_NOPTS_VALUE;
-                startedAtPts = AV_NOPTS_VALUE;
+                IsReversePlayback = false;
+                curReverseStopPts = AV_NOPTS_VALUE;
+                curReverseStartPts = AV_NOPTS_VALUE;
 
                 // Free Streams
                 AudioStreams.Clear();
@@ -546,8 +550,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         Log($"[SEEK({(foreward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
                         ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
 
-                        stopAtPts = AV_NOPTS_VALUE;
-                        startedAtPts = AV_NOPTS_VALUE;
+                        curReverseStopPts = AV_NOPTS_VALUE;
+                        curReverseStartPts = AV_NOPTS_VALUE;
                     }
                     else
                     {
@@ -584,7 +588,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
         protected override void RunInternal()
         {
-            if (ReversePlayback)
+            if (IsReversePlayback)
             {
                 RunInternalReverse();
                 return;
@@ -711,6 +715,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             // To avoid seeking very often (more memory and slower start of playback)
             // responsible for how many lists of keyframe packets will be stored in the stack
             long seekOffset = av_rescale_q((1 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+            long startTimePts = VideoStream.AVStream->start_time != AV_NOPTS_VALUE ? VideoStream.AVStream->start_time : (fmtCtx->start_time != AV_NOPTS_VALUE ? av_rescale_q(fmtCtx->start_time, av_get_time_base_q(), VideoStream.AVStream->time_base) : 0);
+            long hevcTimePts = av_rescale_q((5 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
 
             // To demux further for buffering (related to BufferDuration) | TODO: CurTime is not updating here
             int maxQueueSize = 2;
@@ -774,59 +780,104 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     if (VideoStream.StreamIndex != packet->stream_index) { av_packet_unref(packet); continue; }
 
+                    if (packet->pts != AV_NOPTS_VALUE) CurTime = (long) ((packet->pts * VideoStream.Timebase) - StartTime);
+
                     if ((packet->flags & AV_PKT_FLAG_KEY) != 0)
                     {
-                        if (startedAtPts == AV_NOPTS_VALUE)
-                            startedAtPts = packet->pts;
+                        if (curReverseStartPts == AV_NOPTS_VALUE)
+                            curReverseStartPts = packet->pts;
 
-                        if (curVideoPacketsReverse.Count > 0)
+                        if (curReverseVideoPackets.Count > 0)
                         {
                             AVPacket* drainPacket = av_packet_alloc();
                             drainPacket->data = null;
                             drainPacket->size = 0;
-                            curVideoPacketsReverse.Add((IntPtr)drainPacket);
-                            curVideoStackReverse.Push(curVideoPacketsReverse);
-                            curVideoPacketsReverse = new List<IntPtr>();
+                            curReverseVideoPackets.Add((IntPtr)drainPacket);
+                            curReverseVideoStack.Push(curReverseVideoPackets);
+                            curReverseVideoPackets = new List<IntPtr>();
                         }
                     }
 
-                    if ((stopAtPts == AV_NOPTS_VALUE && (packet->flags & AV_PKT_FLAG_KEY) != 0) || packet->pts == stopAtPts)
+                    if (packet->pts != AV_NOPTS_VALUE && (
+                        (curReverseStopRequestedPts != AV_NOPTS_VALUE && curReverseStopRequestedPts <= packet->pts)  ||
+                        (curReverseStopPts == AV_NOPTS_VALUE && (packet->flags & AV_PKT_FLAG_KEY) != 0)     ||
+                        (packet->pts == curReverseStopPts)
+                        ))
                     {
-                        if ((packet->flags & AV_PKT_FLAG_KEY) == 0 && curVideoPacketsReverse.Count > 0)
+                        curReverseStopRequestedPts = AV_NOPTS_VALUE;
+
+                        if ((packet->flags & AV_PKT_FLAG_KEY) == 0 && curReverseVideoPackets.Count > 0)
                         {
                             AVPacket* drainPacket = av_packet_alloc();
                             drainPacket->data = null;
                             drainPacket->size = 0;
-                            curVideoPacketsReverse.Add((IntPtr)drainPacket);
-                            curVideoStackReverse.Push(curVideoPacketsReverse);
-                            curVideoPacketsReverse = new List<IntPtr>();
+                            curReverseVideoPackets.Add((IntPtr)drainPacket);
+                            curReverseVideoStack.Push(curReverseVideoPackets);
+                            curReverseVideoPackets = new List<IntPtr>();
                         }
 
-                        if (curVideoStackReverse.Count > 0)
+                        if (curReverseVideoStack.Count > 0)
                         {
-                            VideoPacketsReverse.Enqueue(curVideoStackReverse);
-                            curVideoStackReverse = new ConcurrentStack<List<IntPtr>>();
+                            VideoPacketsReverse.Enqueue(curReverseVideoStack);
+                            curReverseVideoStack = new ConcurrentStack<List<IntPtr>>();
                         }
 
-                        if (startedAtPts != AV_NOPTS_VALUE && startedAtPts <= StartTime)
+                        if (curReverseStartPts != AV_NOPTS_VALUE && curReverseStartPts <= startTimePts)
                         {
                             Status = Status.Stopping;
                             break;
                         }
 
-                        ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, startedAtPts - seekOffset, AVSEEK_FLAG_BACKWARD);
-                        stopAtPts = startedAtPts;
-                        startedAtPts = AV_NOPTS_VALUE;
+#pragma warning disable CS0618 // Type or member is obsolete
+                        if (VideoStream.AVStream->codec->codec_id == AVCodecID.AV_CODEC_ID_HEVC)
+#pragma warning restore CS0618 // Type or member is obsolete
+                            ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, curReverseStartPts - hevcTimePts, AVSEEK_FLAG_ANY);
+                        else
+                            ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, curReverseStartPts - seekOffset, AVSEEK_FLAG_BACKWARD);
+                        curReverseStopPts = curReverseStartPts;
+                        curReverseStartPts = AV_NOPTS_VALUE;
                         av_packet_unref(packet);
                     }
                     else
                     {
-                        curVideoPacketsReverse.Add((IntPtr)packet);
-                        packet = av_packet_alloc();
+                        if (curReverseStartPts != AV_NOPTS_VALUE)
+                        {
+                            curReverseVideoPackets.Add((IntPtr)packet);
+                            packet = av_packet_alloc();
+                        }
+                        else
+                            av_packet_unref(packet);
                     }
                 }
 
             } while (Status == Status.Running);
+        }
+
+        public int EnableReversePlayback(long timestamp)
+        {
+            //if (IsReversePlayback) return -1;
+            IsReversePlayback = true;
+
+            int ret;
+            long hevcTimePts = av_rescale_q((5 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+                
+            curReverseStopRequestedPts = av_rescale_q((StartTime + timestamp) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            if (VideoStream.AVStream->codec->codec_id == AVCodecID.AV_CODEC_ID_HEVC)
+#pragma warning restore CS0618 // Type or member is obsolete
+                ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, curReverseStopRequestedPts - hevcTimePts, AVSEEK_FLAG_ANY);
+            else
+                ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, curReverseStopRequestedPts, AVSEEK_FLAG_BACKWARD);
+            
+            lock (lockStatus) if (Status == Status.Ended) Status = Status.Stopped;
+
+            return ret;
+        }
+        public int DisableReversePlayback()
+        {
+            IsReversePlayback = false;
+            return 0;
         }
         #endregion
 
@@ -1110,6 +1161,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Log(dump);
         }
 
+        /// <summary>
+        /// Pushes the demuxer to the next available video packet (uses also the buffer queue)
+        /// </summary>
+        /// <returns>0 on success</returns>
         public int GetNextVideoPacket()
         {
             if (VideoPackets.Count > 0)
@@ -1123,10 +1178,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         }
 
         /// <summary>
-        /// Demuxes until the a valid packet within EnabledStreams or the specified stream (Will be stored in AVPacket* packet)
+        /// Pushes the demuxer to the next available packet
         /// </summary>
-        /// <param name="streamIndex">Find packets only for the specified stream index</param>
-        /// <returns></returns>
+        /// <param name="streamIndex">Packet's stream index</param>
+        /// <returns>0 on success</returns>
         public int GetNextPacket(int streamIndex = -1)
         {
             int ret;
@@ -1135,13 +1190,32 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             {
                 Interrupter.Request(Requester.Read);
                 ret = av_read_frame(fmtCtx, packet);
-                if (ret != 0) { av_packet_unref(packet); return ret; }
 
-                if ((streamIndex == -1 && !EnabledStreams.Contains(packet->stream_index)) || 
-                    (streamIndex != -1 && packet->stream_index != streamIndex))
-                { av_packet_unref(packet); continue; }
+                if (ret != 0) 
+                {
+                    av_packet_unref(packet);
 
-                return 0;
+                    if ((ret == AVERROR_EXIT && fmtCtx->pb != null && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF)
+                    {
+                        packet = av_packet_alloc();
+                        packet->data = null;
+                        packet->size = 0;
+
+                        Status = Status.Ended;
+                    }
+
+                    return ret; 
+                }
+
+                if (streamIndex != -1)
+                {
+                    if (packet->stream_index == streamIndex)
+                        return 0;
+                }
+                else if (EnabledStreams.Contains(packet->stream_index))
+                    return 0;
+
+                av_packet_unref(packet);
             }
         }
         #endregion
