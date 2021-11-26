@@ -834,12 +834,18 @@ namespace FlyleafLib.Controls.WPF
             {
                 Thread.Sleep(500);
 
-                // Temp fix
+                // Temp fix to update buffer duration on pause
                 if (Player != null && !Player.IsPlaying && Player.CanPlay)
                 {
                     long bufferedDuration = Player.Video.IsOpened || AudioDecoder.OnVideoDemuxer ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration;
                     if (bufferedDuration != Player.BufferedDuration)
-                        Dispatcher.BeginInvoke(new Action(() => Player.BufferedDuration = Player.Video.IsOpened || AudioDecoder.OnVideoDemuxer ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration));
+                        Dispatcher.BeginInvoke(new Action(() => 
+                        { 
+                            if (Player != null && !Player.IsPlaying && Player.CanPlay && !Player.ReversePlayback)
+                            {
+                                Player.BufferedDuration = Player.Video.IsOpened || AudioDecoder.OnVideoDemuxer ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration;
+                            }
+                        }));
                 }
 
                 var newMode = GetCurrentActivityMode();

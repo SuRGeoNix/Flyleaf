@@ -51,9 +51,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         bool HDRDataSent;
 
         // Reverse Playback
-        ConcurrentStack<List<IntPtr>>   curVideoStackReverse    = new ConcurrentStack<List<IntPtr>>();
-        List<IntPtr>                    curVideoPacketsReverse  = new List<IntPtr>();
-        List<VideoFrame>                curVideoFramesReverse   = new List<VideoFrame>();
+        ConcurrentStack<List<IntPtr>>   curReverseVideoStack    = new ConcurrentStack<List<IntPtr>>();
+        List<IntPtr>                    curReverseVideoPackets  = new List<IntPtr>();
+        List<VideoFrame>                curReverseVideoFrames   = new List<VideoFrame>();
+        int                             curReversePacketPos     = 0;
 
         #region Video Acceleration (Should be disposed seperately)
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
@@ -260,7 +261,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected override void RunInternal()
         {
-            if (demuxer.ReversePlayback)
+            if (demuxer.IsReversePlayback)
             {
                 RunInternalReverse();
                 return;
@@ -301,6 +302,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         {
                             lock (lockStatus)
                             {
+                                // TODO: let the demuxer push the draining packet
                                 Log("Draining...");
                                 Status = Status.Draining;
                                 AVPacket* drainPacket = av_packet_alloc();
@@ -367,6 +369,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             curRecorder.Write(av_packet_clone(packet));
                     }
 
+                    // TBR: AVERROR(EAGAIN) means avcodec_receive_frame but after resend the same packet
                     ret = avcodec_send_packet(codecCtx, packet);
                     av_packet_free(&packet);
 
@@ -430,17 +433,16 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int ret = 0;
             int allowedErrors = Config.Decoder.MaxErrors;
             AVPacket *packet;
-            int curPktPos = 0; // TODO global with interrupt support
 
             do
             {
                 // Wait until Queue not Full or Stopped
-                if (Frames.Count >= Config.Decoder.MaxVideoFrames * 3)
+                if (Frames.Count >= Config.Decoder.MaxVideoFramesReverse)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (Frames.Count >= Config.Decoder.MaxVideoFrames * 3 && Status == Status.QueueFull) Thread.Sleep(20);
+                    while (Frames.Count >= Config.Decoder.MaxVideoFramesReverse && Status == Status.QueueFull) Thread.Sleep(20);
 
                     lock (lockStatus)
                     {
@@ -450,7 +452,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 }
 
                 // While Packets Queue Empty (Drain | Quit if Demuxer stopped | Wait until we get packets)
-                if (demuxer.VideoPacketsReverse.Count == 0 && curVideoStackReverse.Count == 0 && curVideoPacketsReverse.Count == 0)
+                if (demuxer.VideoPacketsReverse.Count == 0 && curReverseVideoStack.Count == 0 && curReverseVideoPackets.Count == 0)
                 {
                     CriticalArea = true;
 
@@ -498,30 +500,69 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     lock (lockStatus)
                     {
                         CriticalArea = false;
-                        if (Status != Status.QueueEmpty && Status != Status.Draining) break;
-                        if (Status != Status.Draining) Status = Status.Running;
+                        if (Status != Status.QueueEmpty) break;
+                        Status = Status.Running;
                     }
                 }
 
-                lock (lockCodecCtx)
+                if (curReverseVideoPackets.Count == 0)
                 {
-                    if (Status == Status.Stopped || demuxer.VideoPacketsReverse.Count == 0) continue;
+                    if (curReverseVideoStack.Count == 0)
+                        demuxer.VideoPacketsReverse.TryDequeue(out curReverseVideoStack);
 
-                    if (curVideoStackReverse.Count == 0)
-                        demuxer.VideoPacketsReverse.TryDequeue(out curVideoStackReverse);
+                    curReverseVideoStack.TryPop(out curReverseVideoPackets);
+                    curReversePacketPos = 0;
+                }
 
-                    if (curVideoPacketsReverse.Count == 0)
-                        curVideoStackReverse.TryPop(out curVideoPacketsReverse);
+                keyFrameRequired = false;
 
-                    while (curVideoPacketsReverse.Count > 0)
+                while (curReverseVideoPackets.Count > 0 && Status == Status.Running)
+                {
+                    lock (lockCodecCtx)
                     {
-                        packet = (AVPacket*)curVideoPacketsReverse[curPktPos++];
-                        ret = avcodec_send_packet(codecCtx, packet);
-                        if (ret != 0 && ret != AVERROR(EAGAIN))
-                            break; // TODO
+                        if (keyFrameRequired == true)
+                        {
+                            curReversePacketPos = 0;
+                            break;
+                        }
 
-                        bool shouldProcess = curVideoPacketsReverse.Count - curPktPos < Config.Decoder.MaxVideoFrames;
-                        if (shouldProcess) av_packet_free(&packet);
+                        packet = (AVPacket*)curReverseVideoPackets[curReversePacketPos++];
+                        ret = avcodec_send_packet(codecCtx, packet);
+
+                        if (ret != 0 && ret != AVERROR(EAGAIN))
+                        {
+                            if (ret == AVERROR_EOF) { Status = Status.Ended; break; }
+                            
+                            Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+
+                            allowedErrors--;
+                            if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
+
+                            for (int i=curReverseVideoPackets.Count-1; i>=curReversePacketPos-1; i--)
+                            {
+                                packet = (AVPacket*)curReverseVideoPackets[i];
+                                av_packet_free(&packet);
+                                curReverseVideoPackets[curReversePacketPos - 1] = IntPtr.Zero;
+                                curReverseVideoPackets.RemoveAt(i);
+                            }
+
+                            avcodec_flush_buffers(codecCtx);
+                            curReversePacketPos = 0;
+
+                            for (int i=curReverseVideoFrames.Count -1; i>=0; i--)
+                                Frames.Enqueue(curReverseVideoFrames[i]);
+
+                            curReverseVideoFrames.Clear();
+
+                            continue;
+                        }
+
+                        bool shouldProcess = curReverseVideoPackets.Count - curReversePacketPos < Config.Decoder.MaxVideoFramesReverse;
+                        if (shouldProcess)
+                        {
+                            av_packet_free(&packet);
+                            curReverseVideoPackets[curReversePacketPos - 1] = IntPtr.Zero;
+                        }
 
                         while (true)
                         {
@@ -534,29 +575,34 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             if (shouldProcess)
                             {
                                 VideoFrame mFrame = ProcessVideoFrame(frame);
-                                if (mFrame != null) curVideoFramesReverse.Add(mFrame);
+                                if (mFrame != null) curReverseVideoFrames.Add(mFrame);
                             }
                             else
                                 av_frame_unref(frame);
                         }
 
-                        if (curPktPos == curVideoPacketsReverse.Count)
+                        if (curReversePacketPos == curReverseVideoPackets.Count)
                         {
-                            curVideoPacketsReverse.RemoveRange(Math.Max(0, curVideoPacketsReverse.Count - Config.Decoder.MaxVideoFrames), Math.Min(curVideoPacketsReverse.Count, Config.Decoder.MaxVideoFrames) );
+                            curReverseVideoPackets.RemoveRange(Math.Max(0, curReverseVideoPackets.Count - Config.Decoder.MaxVideoFramesReverse), Math.Min(curReverseVideoPackets.Count, Config.Decoder.MaxVideoFramesReverse) );
                             avcodec_flush_buffers(codecCtx);
-                            curPktPos = 0;
+                            curReversePacketPos = 0;
 
-                            for (int i = curVideoFramesReverse.Count -1; i>=0; i--)
-                                Frames.Enqueue(curVideoFramesReverse[i]);
+                            for (int i = curReverseVideoFrames.Count -1; i>=0; i--)
+                                Frames.Enqueue(curReverseVideoFrames[i]);
 
-                            curVideoFramesReverse.Clear();
+                            curReverseVideoFrames.Clear();
+
+                            break; // force recheck for max queues etc...
                         }
-                    }
-                } // Lock CodecCtx
+
+                    } // Lock CodecCtx
+
+                } // while curReverseVideoPackets.Count > 0
 
             } while (Status == Status.Running);
 
-            if (Status == Status.Draining) Status = Status.Ended;
+            if (Status != Status.Pausing && Status != Status.Paused)
+                curReversePacketPos = 0;
         }
 
         internal VideoFrame ProcessVideoFrame(AVFrame* frame)
@@ -716,9 +762,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         }
 
         /// <summary>
-        /// Seeks and demuxes until the requested frame
+        /// Performs accurate seeking to the requested video frame and returns it
         /// </summary>
-        /// <param name="index"></param>
+        /// <param name="index">Zero based frame index</param>
         /// <returns>The requested VideoFrame or null on failure</returns>
         public VideoFrame GetFrame(int index) // Zero-based frame index
         {
@@ -743,16 +789,19 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (ret < 0) return null; // handle seek error
             Flush();
             keyFrameRequired = false;
-            //avcodec_flush_buffers(codecCtx);
+            StartTime = frameTimestamp - VideoStream.StartTime; // required for audio sync
 
             // Decoding until requested frame/timestamp
-            while (GetNextFrame() == 0)
+            bool checkExtraFrames = false;
+
+            while (GetFrameNext(checkExtraFrames) == 0)
             {
                 // Skip frames before our actual requested frame
                 if ((long)(frame->best_effort_timestamp * VideoStream.Timebase) < frameTimestamp)
                 {
                     //Log($"[Skip] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}]");
                     av_frame_unref(frame);
+                    checkExtraFrames = true;
                     continue; 
                 }
 
@@ -763,62 +812,89 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             return null;
         }
 
-
+        /// <summary>
+        /// Demuxes until the next valid video frame (will be stored in AVFrame* frame)
+        /// </summary>
+        /// <returns>0 on success</returns>
+        /// 
         public VideoFrame GetFrameNext()
         {
-            if (GetNextFrame() != 0) return null;
+            if (GetFrameNext(true) != 0) return null;
 
             return ProcessVideoFrame(frame);
         }
 
         /// <summary>
-        /// Demuxes until the next valid video frame (will be stored in AVFrame* frame)
+        /// Pushes the demuxer and the decoder to the next available video frame
         /// </summary>
-        /// <returns>0 on success</returns>
-        public int GetNextFrame()
+        /// <param name="checkExtraFrames">Whether to check for extra frames within the decoder's cache. Set to true if not sure.</param>
+        /// <returns></returns>
+        public int GetFrameNext(bool checkExtraFrames)
         {
-
-            /* TODO
-             * What about packets with more than one frames?!
-             */
-
             int ret;
-            bool draining = false;
+            int allowedErrors = Config.Decoder.MaxErrors;
 
-            while (!draining)
+            if (checkExtraFrames)
             {
-                ret = demuxer.GetNextVideoPacket();
-                if (ret != 0)
+                ret = avcodec_receive_frame(codecCtx, frame);
+
+                if (ret == 0)
                 {
-                    if (ret != AVERROR_EOF) return ret;
-                    draining = true;
-                    demuxer.packet = av_packet_alloc();
-                    demuxer.packet->data = null;
-                    demuxer.packet->size = 0;
-                }
+                    if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
+                        frame->best_effort_timestamp = frame->pts;
 
-                // Send Packet for decoding
-                ret = avcodec_send_packet(codecCtx, demuxer.packet);
-                av_packet_unref(demuxer.packet);
-                if (ret != 0) return ret; // handle EOF/error
+                    if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
+                    {
+                        av_frame_unref(frame);
+                        return GetFrameNext(true);
+                    }
 
-                while (true)
-                {
-                    // Receive all available frames for the decoder
-                    ret = avcodec_receive_frame(codecCtx, frame);
-                    if (ret == AVERROR(EAGAIN)) return GetNextFrame();
-                    if (ret != 0) { av_frame_unref(frame); return ret; }
-
-                    // Get frame pts (prefer best_effort_timestamp)
-                    if (frame->best_effort_timestamp == AV_NOPTS_VALUE) frame->best_effort_timestamp = frame->pts;
-                    if (frame->best_effort_timestamp == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
-
-                    av_packet_unref(demuxer.packet);
                     return 0;
                 }
+
+                if (ret != AVERROR(EAGAIN)) return ret;
             }
 
-            return -1;
+            while (true)
+            {
+                if (demuxer.Status == Status.Ended) return AVERROR_EOF;
+
+                ret = demuxer.GetNextVideoPacket();
+                if (ret != 0 && demuxer.Status != Status.Ended)
+                    return ret;
+
+                ret = avcodec_send_packet(codecCtx, demuxer.packet);
+                av_packet_unref(demuxer.packet);
+
+                if (ret != 0)
+                {
+                    if (allowedErrors < 1 || demuxer.Status == Status.Ended) return ret;
+                    allowedErrors--;
+                    continue;
+                }
+
+                ret = avcodec_receive_frame(codecCtx, frame);
+                
+                if (ret == AVERROR(EAGAIN))
+                    continue;
+
+                if (ret != 0)
+                {
+                    av_frame_unref(frame);
+                    return ret;
+                }
+
+                if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
+                    frame->best_effort_timestamp = frame->pts;
+
+                if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
+                {
+                    av_frame_unref(frame);
+                    return GetFrameNext(true);
+                }
+
+                return 0;
+            }
         }
 
         public void DisposeFrames()
@@ -833,10 +909,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         }
         private void DisposeFramesReverse()
         {
-            while (!curVideoStackReverse.IsEmpty)
+            while (!curReverseVideoStack.IsEmpty)
             {
-                curVideoStackReverse.TryPop(out var t2);
-                for (int i = 0; i < t2.Count; i++)
+                curReverseVideoStack.TryPop(out var t2);
+                for (int i = 0; i<t2.Count; i++)
                 { 
                     if (t2[i] == IntPtr.Zero) continue;
                     AVPacket* packet = (AVPacket*)t2[i];
@@ -844,12 +920,26 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 }
             }
 
-            while (curVideoFramesReverse.Count > 0)
-                DisposeFrame(curVideoFramesReverse[curVideoFramesReverse.Count - 1]);
+            for (int i = 0; i<curReverseVideoPackets.Count; i++)
+            { 
+                if (curReverseVideoPackets[i] == IntPtr.Zero) continue;
+                AVPacket* packet = (AVPacket*)curReverseVideoPackets[i];
+                av_packet_free(&packet);
+            }
 
-            curVideoFramesReverse.Clear();
+            curReverseVideoPackets.Clear();
+
+            for (int i=0; i<curReverseVideoFrames.Count; i++)
+                DisposeFrame(curReverseVideoFrames[i]);
+
+            curReverseVideoFrames.Clear();
         }
-        public static void DisposeFrame(VideoFrame frame) { if (frame != null && frame.textures != null) for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose(); }
+        public static void DisposeFrame(VideoFrame frame)
+        {
+            if (frame != null && frame.textures != null)
+                for (int i=0; i<frame.textures.Length; i++)
+                    frame.textures[i].Dispose();
+        }
         protected override void DisposeInternal()
         {
             av_buffer_unref(&codecCtx->hw_device_ctx);

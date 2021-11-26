@@ -211,6 +211,12 @@ namespace FlyleafLib.MediaPlayer
 
             set
             {
+                if (!Video.IsOpened || !CanPlay)
+                {
+                    Set(ref _ReversePlayback, value);
+                    return;
+                }
+
                 if (Set(ref _ReversePlayback, value))
                 {
                     lock (lockPlayPause)
@@ -220,10 +226,20 @@ namespace FlyleafLib.MediaPlayer
                         Subtitles.SubsText = ""; sFrame = null;
                         decoder.StopThreads();
                         decoder.Flush();
-                        VideoDemuxer.ReversePlayback = value;
-                        decoder.Seek(CurTime/10000, !value, false);
-                        if (shouldPlay) Play();
+
+                        if (value)
+                            VideoDemuxer.EnableReversePlayback(_CurTime);
+                        else
+                        {
+                            VideoDemuxer.DisableReversePlayback();
+                            VideoFrame vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(_CurTime));
+                            VideoDecoder.DisposeFrame(vFrame);
+                            vFrame = null;
+                        }
+
+                        reversePlaybackResync = false;
                         BufferedDuration = 0;
+                        if (shouldPlay) Play();
                     }
                 }
             }
@@ -297,6 +313,7 @@ namespace FlyleafLib.MediaPlayer
         AudioStream     lastAudioStream;
         SubtitlesStream lastSubtitlesStream;
 
+        bool reversePlaybackResync;
         bool requiresBuffering;
         int  droppedFrames;
 
@@ -654,6 +671,7 @@ namespace FlyleafLib.MediaPlayer
 
                 Status  = Status.Stopped;
                 CanPlay = false;
+                ReversePlayback = false;
                 seeks.Clear();
                 EnsureThreadDone(tSeek);
                 EnsureThreadDone(tPlay);
@@ -694,6 +712,8 @@ namespace FlyleafLib.MediaPlayer
                 }
 
                 Initialize();
+                VideoDemuxer.DisableReversePlayback();
+                ReversePlayback = false;
                 Status = Status.Opening;
 
                 if (Config.Player.Usage == Usage.Audio)
@@ -1182,7 +1202,8 @@ namespace FlyleafLib.MediaPlayer
                         } 
                             
                         ClearAudioBuffer();
-                        VideoDecoder.DisposeFrame(vFrame); vFrame = null;
+                        VideoDecoder.DisposeFrame(vFrame);
+                        vFrame = null;
                         TimeEndPeriod(1);
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
                         Status = HasEnded ? Status.Ended : Status.Paused;
@@ -1722,6 +1743,8 @@ namespace FlyleafLib.MediaPlayer
             long    lastPresentTime = 0;
 
             VideoDecoder.DisposeFrame(vFrame);
+            vFrame = null;
+
             //decoder.Seek(0);
             decoder.Flush();
             VideoDemuxer.Start();
@@ -1926,8 +1949,20 @@ namespace FlyleafLib.MediaPlayer
 
         private void ScreamerReverse()
         {
+            if (reversePlaybackResync)
+            {
+                decoder.Flush();
+                VideoDemuxer.EnableReversePlayback(_CurTime);
+                reversePlaybackResync = false;
+            }
             VideoDemuxer.Start();
             VideoDecoder.Start();
+
+            //long lastPresented = -1;
+
+            long    elapsedSec = startedAtTicks;
+            int     vDistanceMs;
+            int     sleepMs;
 
             while (Status == Status.Playing)
             {
@@ -1940,25 +1975,57 @@ namespace FlyleafLib.MediaPlayer
 
                 if (vFrame == null)
                 {
-                    while (VideoDecoder.Frames.Count == 0 && Status == Status.Playing && VideoDecoder.IsRunning) Thread.Sleep(35);
+                    while (VideoDecoder.Frames.Count == 0 && Status == Status.Playing && VideoDecoder.IsRunning) Thread.Sleep(15);
                     VideoDecoder.Frames.TryDequeue(out vFrame);
-                    if (vFrame == null) break;
+                    if (vFrame == null) { Log("[SCREAMER] No video frame"); break; }
+                    videoStartTicks = vFrame.timestamp;
+                    startedAtTicks  = DateTime.UtcNow.Ticks;
+                    elapsedTicks = videoStartTicks;
+                    elapsedSec = startedAtTicks;
                 }
 
-                renderer.Present(vFrame);
-                long curTimestamp = vFrame.timestamp;
-                VideoDecoder.Frames.TryDequeue(out vFrame);
+                elapsedTicks    = videoStartTicks - (DateTime.UtcNow.Ticks - startedAtTicks);
+                vDistanceMs     = (int) ((elapsedTicks - vFrame.timestamp) / 10000);
+                sleepMs         = vDistanceMs - 1;
 
-                Action refresh = new Action(() =>
+                if (sleepMs < 0) sleepMs = 0;
+
+                if (Math.Abs(vDistanceMs - sleepMs) > 300)
                 {
-                    try
-                    {
-                        SetCurTime(curTimestamp);
-                    } catch (Exception) { }
-                });
-                _Control?.BeginInvoke(refresh);
+                    Log($"vDistanceMs |-> {vDistanceMs}");
+                    VideoDecoder.DisposeFrame(vFrame);
+                    vFrame = null;
+                    continue; // rebuffer
+                }
 
-                Thread.Sleep(42); // ~24 Fps
+                if (sleepMs > 2)
+                {
+                    // Every seconds informs the application with CurTime / Bitrates (invokes UI thread to ensure the updates will actually happen)
+                    if (Math.Abs(elapsedSec - elapsedTicks) > 10000000)
+                    {
+                        elapsedSec  = elapsedTicks;
+
+                        Action refresh = new Action(() =>
+                        {
+                            try
+                            {
+                                if (Config == null) return;
+
+                                if (VideoDemuxer.HLSPlaylist != null)
+                                    SetCurTimeHLS();
+                                else
+                                    SetCurTime(elapsedTicks * Config.Player.Speed);
+                            } catch (Exception) { }
+                        });
+                        _Control?.BeginInvoke(refresh);
+                    }
+
+                    Thread.Sleep(sleepMs);
+                }
+
+                decoder.VideoDecoder.Renderer.Present(vFrame);
+                _CurTime = elapsedTicks * Config.Player.Speed;
+                VideoDecoder.Frames.TryDequeue(out vFrame);
             }
         }
 
@@ -1978,6 +2045,8 @@ namespace FlyleafLib.MediaPlayer
         #region ShowFrame (Index/Prev/Next)
         public void ShowFrame(int frameIndex)
         {
+            if (!Video.IsOpened || !CanPlay) return;
+
             lock (lockPlayPause)
             {
                 Pause();
@@ -1988,6 +2057,7 @@ namespace FlyleafLib.MediaPlayer
                 long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
                 Log($"SFI: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
                 renderer.Present(vFrame);
+                reversePlaybackResync = true;
 
                 Action refresh = new Action(() =>
                 {
@@ -2005,6 +2075,8 @@ namespace FlyleafLib.MediaPlayer
         }
         public void ShowFrameNext()
         {
+            if (!Video.IsOpened || !CanPlay) return;
+
             lock (lockPlayPause)
             {
                 Pause();
@@ -2019,6 +2091,7 @@ namespace FlyleafLib.MediaPlayer
                 long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
                 Log($"SFN: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
                 renderer.Present(vFrame);
+                reversePlaybackResync = true;
 
                 Action refresh = new Action(() =>
                 {
@@ -2036,6 +2109,8 @@ namespace FlyleafLib.MediaPlayer
         }
         public void ShowFramePrev()
         {
+            if (!Video.IsOpened || !CanPlay) return;
+
             lock (lockPlayPause)
             {
                 Pause();
@@ -2046,6 +2121,7 @@ namespace FlyleafLib.MediaPlayer
                 long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
                 Log($"SFB: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
                 renderer.Present(vFrame);
+                reversePlaybackResync = true;
 
                 Action refresh = new Action(() =>
                 {

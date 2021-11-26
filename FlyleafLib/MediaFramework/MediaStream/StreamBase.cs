@@ -41,7 +41,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
             Codec       = avcodec_get_name(st->codecpar->codec_id);
             StreamIndex = st->index;
             Timebase    = av_q2d(st->time_base) * 10000.0 * 1000.0;
-            StartTime   = st->start_time != AV_NOPTS_VALUE && Demuxer.hlsCtx == null ? (long)(st->start_time * Timebase) : 0;
+            StartTime   = st->start_time != AV_NOPTS_VALUE && Demuxer.hlsCtx == null ? (long)(st->start_time * Timebase) : demuxer.StartTime;
             Duration    = (long)(st->duration * Timebase);
             
             if (demuxer.hlsCtx != null)

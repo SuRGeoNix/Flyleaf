@@ -261,6 +261,12 @@ namespace FlyleafLib
             public int              MaxVideoFrames  { get; set; } = Math.Max(10, Environment.ProcessorCount);
 
             /// <summary>
+            /// Maximum video frames to be decoded and processed for rendering (reverse playback)
+            /// </summary>
+            public int              MaxVideoFramesReverse
+                                                    { get; set; } = Math.Max(30, Environment.ProcessorCount * 3);
+
+            /// <summary>
             /// Maximum audio frames to be decoded and processed for playback
             /// </summary>
             public int              MaxAudioFrames  { get; set; } = 30;
