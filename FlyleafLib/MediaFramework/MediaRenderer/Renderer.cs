@@ -640,7 +640,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
                     if (!DisableRendering) context.Draw(6, 0);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
-                    
+
                     if (frame.textures  != null)   for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose();
                     if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { curSRVs[i].Dispose(); } curSRVs = null; }
 

@@ -474,6 +474,8 @@ namespace FlyleafLib.Controls.WPF
             SetAudioDelayMs     = new RelayCommand(SetAudioDelayMsAction);
             SetSubsPositionY    = new RelayCommand(SetSubsPositionYAction);
             SetPlaybackSpeed    = new RelayCommand(SetPlaybackSpeedAction);
+            SetPlaybackSpeedReverse
+                                = new RelayCommand(SetPlaybackSpeedReverseAction);
 
             ResetSubsPositionY  = new RelayCommand(ResetSubsPositionYAction);
             ResetSubsDelayMs    = new RelayCommand(ResetSubsDelayMsAction);
@@ -512,6 +514,9 @@ namespace FlyleafLib.Controls.WPF
 
         public ICommand SetPlaybackSpeed { get; set; }
         public void SetPlaybackSpeedAction(object speed) { Config.Player.Speed = int.Parse(speed.ToString()); }
+
+        public ICommand SetPlaybackSpeedReverse { get; set; }
+        public void SetPlaybackSpeedReverseAction(object speed) { Config.Player.SpeedReverse = double.Parse(speed.ToString()); }
 
         public ICommand ZoomReset { get; set; }
         public void ZoomResetAction(object obj = null) { Player.Zoom = 0; Player.renderer.PanXOffset = 0; Player.renderer.PanYOffset = 0; }
@@ -1004,11 +1009,17 @@ namespace FlyleafLib.Controls.WPF
                     break;
 
                 case Key.OemPlus:
-                    Config.Player.Speed = Config.Player.Speed == 4 ? 1 : Config.Player.Speed + 1;
+                    if (Player.ReversePlayback)
+                        Config.Player.SpeedReverse = Config.Player.SpeedReverse == 1 ? 0.25 : Config.Player.SpeedReverse + 0.25;
+                    else
+                        Config.Player.Speed = Config.Player.Speed == 4 ? 1 : Config.Player.Speed + 1;
                     break;
 
                 case Key.OemMinus:
-                    Config.Player.Speed = Config.Player.Speed == 1 ? 4 : Config.Player.Speed - 1;
+                    if (Player.ReversePlayback)
+                        Config.Player.SpeedReverse = Config.Player.SpeedReverse == 0.25 ? 1 : Config.Player.SpeedReverse - 0.25;
+                    else
+                        Config.Player.Speed = Config.Player.Speed == 1 ? 4 : Config.Player.Speed - 1;
                     break;
 
                 case Key.OemOpenBrackets:

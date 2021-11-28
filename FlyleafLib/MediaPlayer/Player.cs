@@ -1949,17 +1949,6 @@ namespace FlyleafLib.MediaPlayer
 
         private void ScreamerReverse()
         {
-            if (reversePlaybackResync)
-            {
-                decoder.Flush();
-                VideoDemuxer.EnableReversePlayback(_CurTime);
-                reversePlaybackResync = false;
-            }
-            VideoDemuxer.Start();
-            VideoDecoder.Start();
-
-            //long lastPresented = -1;
-
             long    elapsedSec = startedAtTicks;
             int     vDistanceMs;
             int     sleepMs;
@@ -1975,9 +1964,19 @@ namespace FlyleafLib.MediaPlayer
 
                 if (vFrame == null)
                 {
+                    if (reversePlaybackResync)
+                    {
+                        decoder.Flush();
+                        VideoDemuxer.EnableReversePlayback(_CurTime);
+                        reversePlaybackResync = false;
+                    }
+                    VideoDemuxer.Start();
+                    VideoDecoder.Start();
+
                     while (VideoDecoder.Frames.Count == 0 && Status == Status.Playing && VideoDecoder.IsRunning) Thread.Sleep(15);
                     VideoDecoder.Frames.TryDequeue(out vFrame);
                     if (vFrame == null) { Log("[SCREAMER] No video frame"); break; }
+                    vFrame.timestamp = (long) (vFrame.timestamp / Config.Player.SpeedReverse);
                     videoStartTicks = vFrame.timestamp;
                     startedAtTicks  = DateTime.UtcNow.Ticks;
                     elapsedTicks = videoStartTicks;
@@ -1990,16 +1989,26 @@ namespace FlyleafLib.MediaPlayer
 
                 if (sleepMs < 0) sleepMs = 0;
 
-                if (Math.Abs(vDistanceMs - sleepMs) > 300)
+                if (Math.Abs(vDistanceMs - sleepMs) > 5)
                 {
                     Log($"vDistanceMs |-> {vDistanceMs}");
                     VideoDecoder.DisposeFrame(vFrame);
                     vFrame = null;
+                    Thread.Sleep(5);
                     continue; // rebuffer
                 }
 
                 if (sleepMs > 2)
                 {
+                    if (sleepMs > 1000)
+                    {
+                        Log($"sleepMs -> {sleepMs} , vDistanceMs |-> {vDistanceMs}");
+                        VideoDecoder.DisposeFrame(vFrame);
+                        vFrame = null;
+                        Thread.Sleep(5);
+                        continue; // rebuffer
+                    }
+
                     // Every seconds informs the application with CurTime / Bitrates (invokes UI thread to ensure the updates will actually happen)
                     if (Math.Abs(elapsedSec - elapsedTicks) > 10000000)
                     {
@@ -2014,7 +2023,7 @@ namespace FlyleafLib.MediaPlayer
                                 if (VideoDemuxer.HLSPlaylist != null)
                                     SetCurTimeHLS();
                                 else
-                                    SetCurTime(elapsedTicks * Config.Player.Speed);
+                                    SetCurTime((long) (elapsedTicks * Config.Player.SpeedReverse));
                             } catch (Exception) { }
                         });
                         _Control?.BeginInvoke(refresh);
@@ -2024,8 +2033,9 @@ namespace FlyleafLib.MediaPlayer
                 }
 
                 decoder.VideoDecoder.Renderer.Present(vFrame);
-                _CurTime = elapsedTicks * Config.Player.Speed;
+                _CurTime = (long) (elapsedTicks * Config.Player.SpeedReverse);
                 VideoDecoder.Frames.TryDequeue(out vFrame);
+                if (vFrame != null) vFrame.timestamp = (long) (vFrame.timestamp / Config.Player.SpeedReverse);
             }
         }
 

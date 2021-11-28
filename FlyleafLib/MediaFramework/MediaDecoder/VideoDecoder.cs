@@ -90,7 +90,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             AVHWDeviceContext* device_ctx = (AVHWDeviceContext*) hw_device_ctx->data;
             AVD3D11VADeviceContext* d3d11va_device_ctx = (AVD3D11VADeviceContext*) device_ctx->hwctx;
             d3d11va_device_ctx->device = (FFmpeg.AutoGen.ID3D11Device*) Renderer.Device.NativePointer;
-
+            
             ret = av_hwdevice_ctx_init(hw_device_ctx);
             if (ret != 0)
             {
@@ -458,7 +458,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueEmpty;
-
+                    
                     while (demuxer.VideoPacketsReverse.Count == 0 && Status == Status.QueueEmpty)
                     {
                         if (demuxer.Status == Status.Ended) // TODO
@@ -496,7 +496,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         
                         Thread.Sleep(20);
                     }
-
+                    
                     lock (lockStatus)
                     {
                         CriticalArea = false;
@@ -591,12 +591,16 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 Frames.Enqueue(curReverseVideoFrames[i]);
 
                             curReverseVideoFrames.Clear();
-
+                            
                             break; // force recheck for max queues etc...
                         }
 
                     } // Lock CodecCtx
 
+                    // Import Sleep required to prevent delay during Renderer.Present
+                    // TBR: Might Monitor.TryEnter with priorities between decoding and rendering will work better
+                    Thread.Sleep(10);
+                    
                 } // while curReverseVideoPackets.Count > 0
 
             } while (Status == Status.Running);
@@ -604,7 +608,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (Status != Status.Pausing && Status != Status.Paused)
                 curReversePacketPos = 0;
         }
-
+        
         internal VideoFrame ProcessVideoFrame(AVFrame* frame)
         {
             try

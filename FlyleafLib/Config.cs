@@ -125,6 +125,24 @@ namespace FlyleafLib
             }
             int _Speed = 1;
 
+            /// <summary>
+            /// Reverse playback's speed (x0.1 - x1)
+            /// </summary>
+            public double   SpeedReverse {
+                get => _SpeedReverse; 
+                set
+                {
+                    double newValue = value;
+                    if (value <= 0 ) newValue = 0.1;
+                    if (value > 1) newValue = 1;
+                    if (newValue == _SpeedReverse) return;
+
+                    Set(ref _SpeedReverse, newValue);
+                    //if (Set(ref _SpeedReverse, newValue)) player?.SetSpeedReverse();
+                }
+            }
+            double _SpeedReverse = 1;
+
             public Usage    Usage                       { get ; set; } = Usage.AVS;
         }
         public class DemuxerConfig : NotifyPropertyChanged
@@ -262,6 +280,7 @@ namespace FlyleafLib
 
             /// <summary>
             /// Maximum video frames to be decoded and processed for rendering (reverse playback)
+            /// Larger values will reduce GPU/CPU and increase VRAM/RAM
             /// </summary>
             public int              MaxVideoFramesReverse
                                                     { get; set; } = Math.Max(30, Environment.ProcessorCount * 3);
