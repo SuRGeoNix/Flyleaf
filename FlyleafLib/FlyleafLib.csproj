@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.12</Version>
+	<Version>3.3.13</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,8 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Introduces Master.HighPerformaceTimers to ensure TimeBeginPeriod(1) for multi-players
-		Renderer: Fixes a critical VRAM memory leak
+		Adds Reverse Playback support (Player.ReversePlayback, Config.Decoder.MaxVideoFramesReverse)
+		Adds Reverse Speed (Delay) support (Config.Player.SpeedReverse = 0.0 to 1.0)
+		Adds Frame-By-Frame Seek support (Player.ShowFrame(frameIndex), Player.ShowFrameNext() and Player.ShowFramePrev())
+		Adds fast Switch/Swap Player support between VideoViews (Note: you might need to unsubscribe from Player's and Control's events and re-subscribe after the swap)
+		Fixes a possible crash during UpdateCurTime() on demuxer
 	</PackageReleaseNotes>
   </PropertyGroup>
 

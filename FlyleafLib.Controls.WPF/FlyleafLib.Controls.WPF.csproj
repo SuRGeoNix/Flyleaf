@@ -4,7 +4,7 @@
     <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.13</Version>
+    <Version>1.1.14</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2021</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,8 +14,11 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		Adds subtitles shadow for better visibility
-		Fixes IsRecording bindings
+		Adds Reverse Playback (Toggles from Video pop-up menu and with Ctrl+Backspace keybinding)
+		Adds Speed Reverse (x 1, x 0.75, x 0.50, x 0.25) (Set from Video pop up menu and with -,+ keybindings)
+		Adds Frame-By-Frame Seek (Ctrl+Left Arrow and Ctrl+Right Arrow)
+		Adds Chapters support (in Video pop-up menu)
+		Allows late Player's initialization
 	</PackageReleaseNotes>
   </PropertyGroup>
 
