@@ -98,7 +98,7 @@ namespace FlyleafLib.Controls.WPF
                 theme.Paper = value.PaperColor;
                 Resources.SetTheme(theme);
                 settings.Resources.SetTheme(theme);
-                Config.Video.BackgroundColor = value.VideoView;
+                if (VideoConfig != null) VideoConfig.BackgroundColor = value.VideoView;
             }
         }
         UITheme _SelectedTheme;
@@ -187,7 +187,6 @@ namespace FlyleafLib.Controls.WPF
         MenuItem    popUpCustomAspectRatio;
         MenuItem    popUpCustomAspectRatioSet;
         string      dialogSettingsIdentifier;
-        bool        playerInitialized;
 
         int snapshotCounter = 1;
         int recordCounter = 1;
@@ -309,8 +308,8 @@ namespace FlyleafLib.Controls.WPF
 
             settings = new Settings(this);
 
-            ITheme theme = Resources.GetTheme();            
-            defaultTheme = new UITheme(this, defaultTheme) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, PaperColor = theme.Paper, VideoView = Config.Video.BackgroundColor};
+            ITheme theme = Resources.GetTheme();
+            defaultTheme = new UITheme(this, defaultTheme) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, PaperColor = theme.Paper, VideoView = VideoConfig != null ? VideoConfig.BackgroundColor : Colors.Black};
 
             if (UIConfigPath != null)
                 UIConfig.Load(this, UIConfigPath);
@@ -331,6 +330,7 @@ namespace FlyleafLib.Controls.WPF
                 SelectedTheme = UIThemes[3];
             
             Raise(null);
+            settings.Raise(null);
         }
         private void InitializePlayer(Player oldPlayer = null)
         {
@@ -340,6 +340,7 @@ namespace FlyleafLib.Controls.WPF
             {
                 // Re-subscribes the new Player after swaping (Raise null required for refreshing Player's reference in the ViewModel)
                 Raise(null);
+                settings?.Raise(null);
 
                 if (EnableMouseEvents)
                 {
@@ -358,7 +359,6 @@ namespace FlyleafLib.Controls.WPF
 
                 return;
             }
-            playerInitialized = true;
 
             Unloaded += (o, e) => { Dispose(); };
 
@@ -393,6 +393,15 @@ namespace FlyleafLib.Controls.WPF
 
             Player.OpenCompleted        += Player_OpenCompleted;
             Player.OpenInputCompleted   += Player_OpenInputCompleted;
+
+            if (defaultTheme != null)
+                defaultTheme.VideoView = VideoConfig.BackgroundColor;
+
+            if (SelectedTheme != null)
+                VideoConfig.BackgroundColor = SelectedTheme.VideoView;
+
+            Raise(null);
+            settings?.Raise(null);
         }
 
         public void UnsubscribePlayer()
@@ -637,7 +646,7 @@ namespace FlyleafLib.Controls.WPF
         public ICommand OpenSettings        { get; set; }
         public async void OpenSettingsAction(object obj = null)
         {
-            if (dialogSettingsIdentifier == null) return;
+            if (Config == null || dialogSettingsIdentifier == null) return;
             
             if (DialogHost.IsDialogOpen(dialogSettingsIdentifier))
             {

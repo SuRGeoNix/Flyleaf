@@ -57,11 +57,11 @@ namespace FlyleafLib.Controls.WPF
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void Raise([CallerMemberName] string propertyName = "")
+        internal void Raise([CallerMemberName] string propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-        protected void Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
+        internal void Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
         {
             if (!check || (field == null && value != null) || (field != null && !field.Equals(value)))
             {
