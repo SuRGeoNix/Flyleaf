@@ -835,6 +835,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         /// <returns></returns>
         public int GetFrameNext(bool checkExtraFrames)
         {
+            // TODO: Should know if draining to be able to get more than one drained frames
+
             int ret;
             int allowedErrors = Config.Decoder.MaxErrors;
 
@@ -861,8 +863,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             while (true)
             {
-                if (demuxer.Status == Status.Ended) return AVERROR_EOF;
-
                 ret = demuxer.GetNextVideoPacket();
                 if (ret != 0 && demuxer.Status != Status.Ended)
                     return ret;
