@@ -79,6 +79,11 @@
             Playback's speed (x1 - x4)
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.SpeedReverse">
+            <summary>
+            Reverse playback's speed (x0.1 - x1)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.DemuxerConfig.AllowInterrupts">
             <summary>
             Whether to enable demuxer's custom interrupt callback (for timeouts and interrupts)
@@ -153,6 +158,7 @@
         <member name="P:FlyleafLib.Config.DecoderConfig.MaxVideoFramesReverse">
             <summary>
             Maximum video frames to be decoded and processed for rendering (reverse playback)
+            Larger values will reduce GPU/CPU and increase VRAM/RAM
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.DecoderConfig.MaxAudioFrames">

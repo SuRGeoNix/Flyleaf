@@ -346,6 +346,7 @@
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Text="Buffer Duration Min.  (ms)" VerticalAlignment="Center"/>
@@ -359,6 +360,9 @@
 
                             <TextBlock Grid.Row="3" Text="Video Frames Max." VerticalAlignment="Center"/>
                             <TextBox Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding DecoderConfig.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
+
+                            <TextBlock Grid.Row="4" Text="Reverse Frames Max." VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding DecoderConfig.MaxVideoFramesReverse, UpdateSourceTrigger=Explicit}"/>
                         </Grid>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <Button Style="{StaticResource SaveButton}"/>

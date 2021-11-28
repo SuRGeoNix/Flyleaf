@@ -26,6 +26,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
         public AVCodecID                    CodecID             { get; internal set; }
         public long                         StartTime           { get; internal set; }
+        public long                         StartTimePts        { get; internal set; }
         public long                         Duration            { get; internal set; }
         public Dictionary<string, string>   Metadata            { get; internal set; }
         public MediaType                    Type                { get; internal set; }
@@ -42,7 +43,8 @@ namespace FlyleafLib.MediaFramework.MediaStream
             StreamIndex = st->index;
             Timebase    = av_q2d(st->time_base) * 10000.0 * 1000.0;
             StartTime   = st->start_time != AV_NOPTS_VALUE && Demuxer.hlsCtx == null ? (long)(st->start_time * Timebase) : demuxer.StartTime;
-            Duration    = (long)(st->duration * Timebase);
+            StartTimePts= st->start_time != AV_NOPTS_VALUE ? st->start_time : av_rescale_q(StartTime/10, av_get_time_base_q(), st->time_base);
+            Duration    = st->duration   != AV_NOPTS_VALUE ? (long)(st->duration * Timebase) : demuxer.Duration;
             
             if (demuxer.hlsCtx != null)
                 for (int i=0; i<demuxer.hlsCtx->n_playlists; i++)
