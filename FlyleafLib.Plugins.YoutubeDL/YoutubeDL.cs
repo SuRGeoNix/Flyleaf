@@ -15,20 +15,54 @@ namespace FlyleafLib.Plugins
 {
     public class YoutubeDL : PluginBase, IOpen, IProvideAudio, IProvideVideo, IProvideSubtitles, ISuggestAudioInput, ISuggestVideoInput, ISuggestSubtitlesInput
     {
-        YoutubeDLJson ytdl;
-
-        public static string plugin_path = "Plugins\\YoutubeDL\\yt-dlp.exe";
-
-        static JsonSerializerSettings settings = new JsonSerializerSettings();
-
         public List<AudioInput>     AudioInputs     { get; set; } = new List<AudioInput>();
         public List<VideoInput>     VideoInputs     { get; set; } = new List<VideoInput>();
         public List<SubtitlesInput> SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
 
-        public bool     IsPlaylist   => false;
-        public new int  Priority    { get; set; } = 1999;
+        public bool                 IsPlaylist      => false;
+        public new int              Priority        { get; set; } = 1999;
 
-        static YoutubeDL() { settings.NullValueHandling = NullValueHandling.Ignore; }
+        static string               plugin_path     = "Plugins\\YoutubeDL\\yt-dlp.exe";
+
+        static JsonSerializerSettings
+                                    jsonSettings    = new JsonSerializerSettings();
+        static string               defaultBrowser;
+
+        YoutubeDLJson               ytdl;
+
+        static YoutubeDL()
+        {
+            // Default priority of which browser's cookies will be used (default profile)
+            // https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/cookies.py
+
+            string appdata = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string appdataroaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            
+            if (Directory.Exists(Path.Combine(appdata, @"BraveSoftware\Brave-Browser\User Data")))
+                defaultBrowser = "brave";
+            else if (Directory.Exists(Path.Combine(appdata, @"Google\Chrome\User Data")))
+                defaultBrowser = "chrome";
+            else if (Directory.Exists(Path.Combine(appdata, @"Mozilla\Firefox\Profiles")))
+                defaultBrowser = "firefox";
+            else if (Directory.Exists(Path.Combine(appdataroaming, @"Opera Software\Opera Stable")))
+                defaultBrowser = "opera";
+            else if (Directory.Exists(Path.Combine(appdata, @"Vivaldi\User Data")))
+                defaultBrowser = "vivaldi";
+            else if (Directory.Exists(Path.Combine(appdata, @"Chromium\User Data")))
+                defaultBrowser = "chromium";
+            else if (Directory.Exists(Path.Combine(appdata, @"Microsoft\Edge\User Data")))
+                defaultBrowser = "edge";
+
+            jsonSettings.NullValueHandling = NullValueHandling.Ignore;
+        }
+
+        public override SerializableDictionary<string, string> GetDefaultOptions()
+        {
+            SerializableDictionary<string, string> defaultOptions = new SerializableDictionary<string, string>();
+            defaultOptions.Add("ExtraArguments", defaultBrowser == null ? "" : $"--cookies-from-browser {defaultBrowser}");
+
+            return defaultOptions;
+        }
 
         public override void OnInitialized()
         {
@@ -46,16 +80,17 @@ namespace FlyleafLib.Plugins
 
             bool gotReferer = false;
             Config.Demuxer.FormatOpt["headers"] = "";
-            foreach (var hdr in fmt.http_headers)
-            {
-                if (hdr.Key.ToLower() == "referer")
+            if (fmt.http_headers != null)
+                foreach (var hdr in fmt.http_headers)
                 {
-                    gotReferer = true;
-                    Config.Demuxer.FormatOpt["referer"] = hdr.Value;
+                    if (hdr.Key.ToLower() == "referer")
+                    {
+                        gotReferer = true;
+                        Config.Demuxer.FormatOpt["referer"] = hdr.Value;
+                    }
+                    else if (hdr.Key.ToLower() != "user-agent")
+                        Config.Demuxer.FormatOpt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
                 }
-                else if (hdr.Key.ToLower() != "user-agent")
-                    Config.Demuxer.FormatOpt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
-            }
 
             if (!gotReferer)
                 Config.Demuxer.FormatOpt["referer"] = Handler.UserInputUrl;
@@ -72,16 +107,17 @@ namespace FlyleafLib.Plugins
 
             bool gotReferer = false;
             curFormatOpt["headers"] = "";
-            foreach (var hdr in fmt.http_headers)
-            {
-                if (hdr.Key.ToLower() == "referer")
+            if (fmt.http_headers != null)
+                foreach (var hdr in fmt.http_headers)
                 {
-                    gotReferer = true;
-                    curFormatOpt["referer"] = hdr.Value;
+                    if (hdr.Key.ToLower() == "referer")
+                    {
+                        gotReferer = true;
+                        curFormatOpt["referer"] = hdr.Value;
+                    }
+                    else if (hdr.Key.ToLower() != "user-agent")
+                        curFormatOpt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
                 }
-                else if (hdr.Key.ToLower() != "user-agent")
-                    curFormatOpt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
-            }
 
             if (!gotReferer)
                 curFormatOpt["referer"] = Handler.UserInputUrl;
@@ -119,22 +155,22 @@ namespace FlyleafLib.Plugins
         {
             try
             {
+                /* TODO playlists
+                 * use -P path instead of -o file to extract all info.json for each media in playlist
+                 * use global proc and wait until you have only the first one to start playing and let it continue for the rest (abort on dispose/initialize)
+                 * review how to expose both playlist and no-playlist wiht multiple inputs (resolution/codecs)
+                 */
+
                 Uri uri = new Uri(url);
 
-                if (Regex.IsMatch(uri.DnsSafeHost, @"\.youtube\.", RegexOptions.IgnoreCase))
-                {
-                    var query = HttpUtility.ParseQueryString(uri.Query);
-                    url = uri.Scheme + "://" + uri.Host + uri.AbsolutePath + "?v=" + query["v"];
-                }
-
-                string tmpFile = Path.GetTempPath() + Guid.NewGuid().ToString();
+                string tmpFile = Path.GetTempPath() + Guid.NewGuid().ToString() + ".tmp"; // extension required on some cases (fall back to generic extractor t1.tmp will create 2 json's in case of playlist t1.info.json and t1.tmp.info.json)
 
                 Process proc = new Process
                 {
                     StartInfo = new ProcessStartInfo
                     {
                         FileName        = plugin_path,
-                        Arguments       = $"--no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -o \"{tmpFile}\" \"{url}\"",
+                        Arguments       = $"{Options["ExtraArguments"]} --no-playlist --no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -o \"{tmpFile}\" \"{url}\"",
                         CreateNoWindow  = true,
                         UseShellExecute = false,
                         WindowStyle     = ProcessWindowStyle.Hidden
@@ -157,7 +193,7 @@ namespace FlyleafLib.Plugins
 
                 // Parse Json Object
                 string json = File.ReadAllText($"{tmpFile}.info.json");
-                ytdl = JsonConvert.DeserializeObject<YoutubeDLJson>(json, settings);
+                ytdl = JsonConvert.DeserializeObject<YoutubeDLJson>(json, jsonSettings);
                 if (ytdl == null) return null;
 
                 Format fmt;

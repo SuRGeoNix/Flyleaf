@@ -16,16 +16,6 @@ namespace FlyleafLib.Plugins
 {
     public class BitSwarm : PluginBase, IOpen, IProvideVideo, ISuggestVideoInput
     {
-        SuRGeoNix.BitSwarmLib.BitSwarm
-                        bitSwarm;
-        TorrentOptions  cfg = new TorrentOptions();
-        Torrent         torrent;
-        int             fileIndex;
-        int             fileIndexNext;
-        bool            downloadNextStarted;
-        bool            torrentReceived;
-        List<string>    sortedPaths;
-
         public bool             IsPlaylist          => true;
         public new int          Priority            { get; set; } = 2000;
         public List<VideoInput> VideoInputs         { get; set; } = new List<VideoInput>();
@@ -36,12 +26,40 @@ namespace FlyleafLib.Plugins
         public long             FileSize            { get; private set; }
         public TorrentStream    TorrentStream       { get; private set; }
 
-        public BitSwarm() : base()
-        {
-            foreach(var prop in cfg.GetType().GetProperties())
-                Options.Add(prop.Name, prop.GetValue(cfg).ToString());
+        SuRGeoNix.BitSwarmLib.BitSwarm
+                        bitSwarm;
+        TorrentOptions  cfg = new TorrentOptions();
+        Torrent         torrent;
+        int             fileIndex;
+        int             fileIndexNext;
+        bool            downloadNextStarted;
+        bool            torrentReceived;
+        List<string>    sortedPaths;
 
+        static SerializableDictionary<string, string>
+                        defaultOptions;
+
+        public override void OnLoaded()
+        {
             Options.PropertyChanged += Options_PropertyChanged;
+
+            // Force initial update on torrent options from config options
+            foreach (var prop in cfg.GetType().GetProperties())
+                Options_PropertyChanged(this, new PropertyChangedEventArgs(prop.Name));
+        }
+
+        public override SerializableDictionary<string, string> GetDefaultOptions()
+        {
+            if (defaultOptions != null)
+                return defaultOptions;
+
+            defaultOptions = new SerializableDictionary<string, string>();
+
+            var cfg = new TorrentOptions();
+            foreach (var prop in cfg.GetType().GetProperties())
+                defaultOptions.Add(prop.Name, prop.GetValue(cfg).ToString());
+
+            return defaultOptions;
         }
 
         private void Options_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -56,7 +74,8 @@ namespace FlyleafLib.Plugins
                     prop.SetValue(cfg, int.Parse(Options[e.PropertyName]));
                 else
                     prop.SetValue(cfg, Options[e.PropertyName]);
-            } catch (Exception) { }
+            }
+            catch (Exception) { }
         }
 
         public override void OnInitializing()
