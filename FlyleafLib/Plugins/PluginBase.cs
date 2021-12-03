@@ -11,15 +11,21 @@ namespace FlyleafLib.Plugins
 {
     public abstract class PluginBase : PluginType, IPlugin
     {
+        //public SerializableDictionary<string, string>
+        //                                DefaultOptions  { get; set; } = new SerializableDictionary<string, string>();
+        public SerializableDictionary<string, string>
+                                        Options         => Config?.Plugins[Name];
+        public Config                   Config          => Handler.Config;
+        
         public DecoderContext           decoder         => (DecoderContext) Handler;
 
-        public Config                   Config          => Handler.Config;
+        
         public PluginHandler            Handler         { get; internal set; }
         public bool                     Disposed        { get; protected set; }
-        public SerializableDictionary<string, string>
-                                        Options         { get; set; } = new SerializableDictionary<string, string>();
         public int                      Priority        { get; set; } = 1000;
 
+
+        public virtual void OnLoaded() { }
         public virtual void OnInitializing() { }
         public virtual void OnInitialized() { }
 
@@ -35,6 +41,10 @@ namespace FlyleafLib.Plugins
 
         public virtual void Dispose() { }
 
+        public virtual SerializableDictionary<string, string> GetDefaultOptions()
+        {
+            return new SerializableDictionary<string, string>();
+        }
         public void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{Handler.UniqueId}] [Plugin: {Name}] {msg}"); }
     }
     public class PluginType
@@ -58,6 +68,7 @@ namespace FlyleafLib.Plugins
         PluginHandler   Handler     { get; }
         int             Priority    { get; }
 
+        void OnLoaded();
         void OnInitializing();
         void OnInitialized();
         void OnInitializingSwitch();

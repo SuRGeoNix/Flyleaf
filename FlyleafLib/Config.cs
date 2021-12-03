@@ -4,6 +4,7 @@ using System.IO;
 using System.Xml.Serialization;
 
 using FlyleafLib.MediaPlayer;
+using FlyleafLib.Plugins;
 
 namespace FlyleafLib
 {
@@ -12,7 +13,23 @@ namespace FlyleafLib
     /// </summary>
     public unsafe class Config : NotifyPropertyChanged
     {
-        public Config() { }
+        public Config()
+        {
+            // Parse default plugin options to Config.Plugins (Creates instances until fix with statics in interfaces)
+            foreach (var plugin in PluginHandler.PluginTypes.Values)
+            {
+                var tmpPlugin = PluginHandler.CreatePluginInstance(plugin);
+                var defaultOptions = tmpPlugin.GetDefaultOptions();
+                tmpPlugin.Dispose();
+
+                if (defaultOptions == null || defaultOptions.Count == 0) continue;
+
+                Plugins.Add(plugin.Name, new SerializableDictionary<string, string>());
+                foreach (var opt in defaultOptions)
+                    Plugins[plugin.Name].Add(opt.Key, opt.Value);
+            }
+                
+        }
         public Config Clone()
         {
             Config config   = new Config();

@@ -730,7 +730,7 @@ namespace FlyleafLib.MediaPlayer
                     else
                         args = decoder.OpenVideo(url_iostream.ToString(), defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
 
-                    // Video Fails try Audio Input
+                    // TBR: Video Fails try Audio Input (this is wrong, works on every failure. Should do that only for No Video Stream error and maybe back to the decoder with general Open instead of OpenAV?)
                     if (!args.Success && defaultInput && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist == false)
                     {
                         if (url_iostream is Stream)

@@ -68,6 +68,20 @@ namespace FlyleafLib.Plugins
             UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             LoadPlugins();
         }
+
+        public static PluginBase CreatePluginInstance(PluginType type, PluginHandler handler = null)
+        {
+            PluginBase plugin = (PluginBase) Activator.CreateInstance(type.Type, true);
+            plugin.Handler  = handler;
+            plugin.Name     = type.Name;
+            plugin.Type     = type.Type;
+            plugin.Version  = type.Version;
+
+            if (handler != null)
+                plugin.OnLoaded();
+
+            return plugin;
+        }
         private void LoadPlugins()
         {
             Plugins = new Dictionary<string, PluginBase>();
@@ -76,18 +90,8 @@ namespace FlyleafLib.Plugins
             {
                 try
                 {
-                    PluginBase plugin = (PluginBase) Activator.CreateInstance(type.Type);
-                    plugin.Handler  = this;
-                    plugin.Name     = type.Name;
-                    plugin.Type     = type.Type;
-                    plugin.Version  = type.Version;
-
+                    PluginBase plugin = CreatePluginInstance(type, this);
                     Plugins.Add(plugin.Name, plugin);
-
-                    // Add Plugins with Options to Config Plugins
-                    if (plugin.Options.Count > 0)
-                        Config.Plugins.Add(plugin.Name, plugin.Options);
-
                 } catch (Exception e) { Log($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
             }
 
@@ -136,6 +140,9 @@ namespace FlyleafLib.Plugins
                     foreach (var type in types)
                         if (pluginBaseType.IsAssignableFrom(type) && type.IsClass && !type.IsAbstract)
                         {
+                            // Force static constructors to execute (For early load, will be useful with c# 8.0 and static properties for interfaces eg. DefaultOptions)
+                            // System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+
                             PluginTypes.Add(type.Name, new PluginType() { Name = type.Name, Type = type, Version = assembly.GetName().Version});
                             Utils.Log($"[PluginHandler] Loaded {type.Name} [{assembly.GetName().Version}]");
                         }
