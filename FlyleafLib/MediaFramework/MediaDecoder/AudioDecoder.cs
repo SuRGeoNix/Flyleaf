@@ -228,23 +228,18 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 curSpeedFrame++;
                 if (curSpeedFrame < Speed) return null;
-                curSpeedFrame = 0;
-                mFrame = new AudioFrame();
-                mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
-                mFrame.timestamp /= Speed;
+                curSpeedFrame = 0;    
             }
-            else
-            {
-                mFrame = new AudioFrame();
-                mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
-            }
+
+            mFrame = new AudioFrame();
+            mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
             //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)} | {Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase))}");
 
             // Resync with VideoDecoder if required (drop early timestamps)
             if (keyFrameRequired)
             {
-                while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning) Thread.Sleep(10);
-                if (mFrame.timestamp < VideoDecoder.StartTime/Speed)
+                while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning && keyFrameRequired) Thread.Sleep(10);
+                if (mFrame.timestamp < VideoDecoder.StartTime)
                 {
                     // TODO: in case of long distance will spin (CPU issue), possible reseek?
 

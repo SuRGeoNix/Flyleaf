@@ -41,7 +41,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         /// <summary>
         /// The buffered time in the queue (last packet time - first packet time)
         /// </summary>
-        public long                     BufferedDuration{ get; private set; }
+        public long                     BufferedDuration{ get { if (!IsRunning) UpdateCurTime(); return _BufferedDuration; } set => _BufferedDuration = value; }
+        long _BufferedDuration;
 
         public bool                     IsLive          { get; private set; }
 
@@ -450,11 +451,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             return hasVideo;
         }
 
-        public int SeekInQueue(long ticks, bool foreward = false)
+        public int SeekInQueue(long ticks, bool forward = false)
         {
             lock (lockActions)
             {
-                if (Disposed) return -1;
+                if (Disposed || hlsCtx != null) return -1;
 
                 /* Seek within current bufffered queue
                  * 
@@ -463,7 +464,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                  * It doesn't work for HLS live streams
                  * It doesn't work for decoders buffered queue (which is small only subs might be an issue if we have large decoder queue)
                  */
-                if (hlsCtx == null && ticks + (VideoStream != null && foreward ? (10000 * 10000) : 1000 * 10000) > CurTime + StartTime && ticks < CurTime + StartTime + BufferedDuration)
+                if (ticks + (VideoStream != null && forward ? (10000 * 10000) : 1000 * 10000) > CurTime + StartTime && ticks < CurTime + StartTime + BufferedDuration)
                 {
                     bool found = false;
                     while (VideoPackets.Count > 0)
@@ -520,7 +521,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 return -1;
             }
         }
-        public int Seek(long ticks, bool foreward = false)
+        public int Seek(long ticks, bool forward = false)
         {
             /* Current Issues
              * 
@@ -548,16 +549,16 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     Interrupter.Request(Requester.Seek);
                     if (VideoStream != null)
                     {
-                        Log($"[SEEK({(foreward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
-                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
+                        Log($"[SEEK({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
+                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
 
                         curReverseStopPts = AV_NOPTS_VALUE;
                         curReverseStartPts = AV_NOPTS_VALUE;
                     }
                     else
                     {
-                        Log($"[SEEK({(foreward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)} | ANY");
-                        ret = foreward ?
+                        Log($"[SEEK({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)} | ANY");
+                        ret = forward ?
                             avformat_seek_file(fmtCtx, -1, ticks / 10,     ticks / 10, Int64.MaxValue,  AVSEEK_FLAG_ANY):
                             avformat_seek_file(fmtCtx, -1, Int64.MinValue, ticks / 10, ticks / 10,      AVSEEK_FLAG_ANY);
                     }
@@ -568,9 +569,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         Log($"[SEEK] Failed 1/2 (retrying) {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
 
                         if (VideoStream != null)
-                            ret = av_seek_frame(fmtCtx, -1, ticks / 10, foreward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
+                            ret = av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
                         else
-                            ret = foreward ?
+                            ret = forward ?
                                 avformat_seek_file(fmtCtx, -1, Int64.MinValue   , ticks / 10, ticks / 10    , AVSEEK_FLAG_ANY):
                                 avformat_seek_file(fmtCtx, -1, ticks / 10       , ticks / 10, Int64.MaxValue, AVSEEK_FLAG_ANY);
 
@@ -602,12 +603,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             do
             {
                 // Wait until not QueueFull
-                if (BufferedDuration > Config.BufferDuration)
+                if (_BufferedDuration > Config.BufferDuration)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (!PauseOnQueueFull && BufferedDuration > Config.BufferDuration && Status == Status.QueueFull) { Thread.Sleep(20); UpdateCurTime(true); }
+                    while (!PauseOnQueueFull && _BufferedDuration > Config.BufferDuration && Status == Status.QueueFull) { Thread.Sleep(20); UpdateCurTime(true); }
 
                     lock (lockStatus)
                     {
@@ -1082,7 +1083,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 if (bufferedDuration < 0) return false;
                 BufferedDuration = bufferedDuration;
-
+                
                 return true;
 
             } catch (Exception)
@@ -1093,7 +1094,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             {
                 if (HLSPlaylist != null)
                 {
-                    CurTime = EndTimeLive - BufferedDuration > Duration - (HLSPlaylist->target_duration * 10) ? Duration : (EndTimeLive - BufferedDuration < HLSPlaylist->target_duration * 10 ? 0 : EndTimeLive - BufferedDuration);
+                    // TBR: This is not accurate when we use large buffer
+                    CurTime = EndTimeLive - _BufferedDuration > Duration - (HLSPlaylist->target_duration * 10) ? Duration : (EndTimeLive - _BufferedDuration < HLSPlaylist->target_duration * 10 ? 0 : EndTimeLive - _BufferedDuration);
+                    //Log($"DC: {Utils.TicksToTime(CurTime)} | {Utils.TicksToTime(EndTimeLive)} | {Utils.TicksToTime(BufferedDuration)} | {Utils.TicksToTime(Duration)} | {HLSPlaylist->last_seq_no} - {HLSPlaylist->start_seq_no} = {HLSPlaylist->n_segments} | {HLSPlaylist->cur_seq_no}");
                 }
                 else if (curTimestamp != -1)
                     CurTime = curTimestamp - StartTime;

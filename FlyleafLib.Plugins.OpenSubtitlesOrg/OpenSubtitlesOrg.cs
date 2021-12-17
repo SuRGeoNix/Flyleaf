@@ -79,7 +79,8 @@ namespace FlyleafLib.Plugins
 
         public void Search(Language lang)
         {
-            if (searchOnceTmp) return;
+            if (!Config.Subtitles.UseOnlineDatabases || searchOnceTmp) return;
+
             searchOnceTmp = true; // Should be recoded to search by lang (so if a priority already found will skip the rest)
 
             string hash = null;

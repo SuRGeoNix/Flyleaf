@@ -46,8 +46,6 @@ namespace FlyleafPlayer__WPF_Control_
 
             // Prepares Player's Configuration
             Config config = new Config();
-            config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
 
             // Initializes the Player
             Player = new Player(config);

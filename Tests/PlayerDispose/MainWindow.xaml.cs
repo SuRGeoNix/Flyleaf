@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -22,16 +23,7 @@ namespace DisposePlayer
 
         public MainWindow()
         {
-            // Registers FFmpeg Libraries
             Master.RegisterFFmpeg(":2");
-
-            // Prepares Player's Configuration
-            Config = new Config();
-            Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
-
-            // Initializes the Player
-            Player = new Player(Config);
 
             InitializeComponent();
         }
@@ -39,37 +31,18 @@ namespace DisposePlayer
         {
             lock (this)
             {
-                // Disposing from non UI thread
-                if (Player != null) System.Threading.Tasks.Task.Run(() => { Player?.Dispose(); });
-
-                // Disposing from UI thread
-                //Player?.Dispose();
-
-                // Remove to test naked control
-                Flyleaf = new Flyleaf();
+                Player?.Dispose();
+                Player = new Player();
 
                 VideoView = new VideoView();
-                VideoView.UpdateDefaultStyle();
                 VideoView.ApplyTemplate();
-
-                // Remove to test naked control
-                VideoView.Content = Flyleaf;
-
-                Player = new Player(Config);
-                VideoView.BeginInit();
-
-                Player.Control = VideoView.FlyleafWF;
-                VideoView.Player = Player;
-
-                // Remove to test naked control
-                Flyleaf.Player = Player;
-
                 ContentControl.Content = VideoView;
 
-                Player.OpenAsync(SampleVideo);
+                // Add to test WPF control (possible memory leak, settings/tab control? -does not happen on new window?-) 
+                //VideoView.Content = new Flyleaf();
 
-                // Add to test naked control
-                //Player.OpenCompleted += (o, e2) => { Player.Play(); };
+                VideoView.Player = Player;
+                Player.OpenAsync(SampleVideo);
             }
         }
 
@@ -79,20 +52,26 @@ namespace DisposePlayer
             {
                 FlyleafWPFControl sample1 = new FlyleafWPFControl();
 
-                //Sample1 sample1 = new Sample1();
                 sample1.Show();
+                System.Threading.Thread.Sleep(100);
                 sample1.Player.OpenAsync(SampleVideo);
-                System.Threading.Thread.Sleep(500);
+                Task.Run(() =>
+                {
+                    System.Threading.Thread.Sleep(5500);
 
-                // Test Stop/Start within the same instance
-                //for (int i=1; i<100; i++)
-                //{
-                //    sample1.Player.Stop();
-                //    sample1.Player.Open(sampleVideo);
-                //    System.Threading.Thread.Sleep(300);
-                //}
+                    // Test Stop/Start within the same instance
+                    //for (int i = 1; i < 100; i++)
+                    //{
+                    //    sample1.Player.Stop();
+                    //    sample1.Player.Open(SampleVideo);
+                    //    System.Threading.Thread.Sleep(300);
+                    //}
 
-                sample1.Close();
+                    Application.Current.Dispatcher.BeginInvoke(new Action(() => sample1.Close()));
+                });
+                
+
+                
             }
         }
     }

@@ -54,6 +54,16 @@
             Required buffered duration ticks before playing
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.KeyBindings">
+            <summary>
+            Key bindings configuration
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.MouseBindigns">
+            <summary>
+            Mouse bindings configuration
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.PlayerConfig.LowLatencyMaxVideoFrames">
             <summary>
             Limit before dropping frames. Lower value means lower latency (>=1)
@@ -74,14 +84,9 @@
             Fps while the player is not playing
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.PlayerConfig.Speed">
+        <member name="P:FlyleafLib.Config.PlayerConfig.AutoPlay">
             <summary>
-            Playback's speed (x1 - x4)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.PlayerConfig.SpeedReverse">
-            <summary>
-            Reverse playback's speed (x0.1 - x1)
+            It will automatically start playing after open or seek after ended
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.DemuxerConfig.AllowInterrupts">
@@ -199,7 +204,7 @@
         </member>
         <member name="P:FlyleafLib.Config.VideoConfig.Enabled">
             <summary>
-            Whether video should be enabled or not
+            Whether video should be allowed
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.VideoConfig.MaxVerticalResolutionAuto">
@@ -229,7 +234,7 @@
         </member>
         <member name="P:FlyleafLib.Config.VideoConfig.VSync">
             <summary>
-            Whether Vsync should be enabled or not (0: Disabled, 1: Enabled)
+            Whether Vsync should be enabled (0: Disabled, 1: Enabled)
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.VideoConfig.Contrast">
@@ -259,7 +264,7 @@
         </member>
         <member name="P:FlyleafLib.Config.AudioConfig.Enabled">
             <summary>
-            Whether audio should be enabled or not
+            Whether audio should allowed
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.AudioConfig.Languages">
@@ -279,7 +284,7 @@
         </member>
         <member name="P:FlyleafLib.Config.SubtitlesConfig.Enabled">
             <summary>
-            Whether subtitles should be enabled or not
+            Whether subtitles should be allowed
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.SubtitlesConfig.Languages">
@@ -287,9 +292,14 @@
             Subtitle languages preference by priority
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.SubtitlesConfig.UseLocalSearch">
+            <summary>
+            Whether to use offline (local) search plugins
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.SubtitlesConfig.UseOnlineDatabases">
             <summary>
-            Whether to use online search plugins or not
+            Whether to use online search plugins
             </summary>
         </member>
         <member name="F:FlyleafLib.Controls.Flyleaf.components">
@@ -333,6 +343,17 @@
         <member name="P:FlyleafLib.Master.Players">
             <summary>
             Holds player instances
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Master.UIRefresh">
+            <summary>
+            Allows monitoring and refreshing player's activity / buffered duration / stats / ui updates
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "P:FlyleafLib.Master.UIRefreshInterval" -->
+        <member name="P:FlyleafLib.Master.UICurTimePerSecond">
+            <summary>
+            Updates CurTime when the second changes otherwise every UIRefreshInterval
             </summary>
         </member>
         <member name="M:FlyleafLib.Master.RegisterFFmpeg(System.String,System.Int32)">
@@ -448,76 +469,130 @@
             <param name="streamIndex">Packet's stream index</param>
             <returns>0 on success</returns>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioInfo.IsOpened">
+        <member name="P:FlyleafLib.MediaPlayer.Audio.IsOpened">
             <summary>
             Whether the input has audio and it is configured
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.PlayerId">
+        <member name="P:FlyleafLib.MediaPlayer.Audio.ChannelsOut">
             <summary>
-            Player's incremental unique id
+            Audio player's channels out (currently 2 channels supported only)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Config">
+        <member name="P:FlyleafLib.MediaPlayer.Audio.SampleRate">
             <summary>
-            Player's configuration (set once in the constructor)
+            Audio sample rate (in/out)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Channels">
-            <summary>
-            Audio player's channels (currently 2 channels supported only)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.SampleRate">
-            <summary>
-            Audio player's sample rate (ffmpeg will set this)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Volume">
+        <member name="P:FlyleafLib.MediaPlayer.Audio.Volume">
             <summary>
             Audio player's volume / amplifier (valid values 0 - no upper limit)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.Mute">
+        <member name="P:FlyleafLib.MediaPlayer.Audio.Mute">
             <summary>
             Audio player's mute
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.AudioPlayer.AudioDevice">
+        <member name="P:FlyleafLib.MediaPlayer.Audio.Device">
             <summary>
             Audio player's current device (see Master.AudioMaster.Devices for valid input names)
             Set to null to use AudioMaster's Device which handles all instances (Default)
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.VideoView">
-            <summary>
-            The Content Control which hosts WindowsFormsHost (useful for airspace issues &amp; change to fullscreen mode)
-            (WinForms: not set)
-            </summary>
-        </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Control">
             <summary>
             Flyleaf Control (WinForms)
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.VideoView">
+            <summary>
+            The Content Control which hosts WindowsFormsHost (WPF)
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Activity">
+            <summary>
+            Player's Activity (Idle/Active/FullActive)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Commands">
+            <summary>
+            Helper ICommands for WPF MVVM
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Audio">
             <summary>
-            Information about the current opened audio
+            Player's Audio (In/Out)
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Video">
             <summary>
-            Information about the current opened video
+            Player's Video
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Subtitles">
             <summary>
-            Information about the current opened subtitles
+            Player's Subtitles
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.HasEnded">
+        <member name="P:FlyleafLib.MediaPlayer.Player.renderer">
             <summary>
-            Whether the input has ended
+            Player's Renderer
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="F:FlyleafLib.MediaPlayer.Player.decoder">
+            <summary>
+            Player's Decoder Context
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.AudioDecoder">
+            <summary>
+            Audio Decoder
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.VideoDecoder">
+            <summary>
+            Video Decoder
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.SubtitlesDecoder">
+            <summary>
+            Subtitles Decoder
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.AudioDemuxer">
+            <summary>
+            Audio Demuxer
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.VideoDemuxer">
+            <summary>
+            Video Demuxer
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.SubtitlesDemuxer">
+            <summary>
+            Subtitles Demuxer
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.PlayerId">
+            <summary>
+            Player's incremental unique id
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Config">
+            <summary>
+            Player's configuration (set once in the constructor)
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Status">
@@ -530,6 +605,16 @@
             Whether the player's status is capable of accepting playback commands
             </summary>
         </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.HasEnded">
+            <summary>
+            Whether playback has been completed
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.IsFullScreen">
+            <summary>
+            Whether the player's state is in fullscreen mode
+            </summary>
+        </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Chapters">
             <summary>
             The list of chapters
@@ -537,7 +622,7 @@
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.CurTime">
             <summary>
-            Player's current time or user's current seek time (uses forward direction)
+            Player's current time or user's current seek time (uses backward/forward direction based on previous time)
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Duration">
@@ -552,17 +637,7 @@
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.IsLive">
             <summary>
-            Whether the input is live or not (duration might not be 0 on live sessions to allow live seek, eg. hls)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.Folder">
-            <summary>
-            Input's folder which might be used from plugins (eg. load / save subtitles)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.FileSize">
-            <summary>
-            Input's size which might be used from plugins (eg. calculate movie hash for subtitles)
+            Whether the input is live (duration might not be 0 on live sessions to allow live seek, eg. hls)
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Title">
@@ -572,7 +647,48 @@
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.IsRecording">
             <summary>
-            Whether is recording or not
+            Whether the player is recording
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.PanXOffset">
+            <summary>
+            Pan X Offset to change the X location
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.PanYOffset">
+            <summary>
+            Pan Y Offset to change the Y location
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Speed">
+            <summary>
+            Playback's speed (x1 - x4)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.Zoom">
+            <summary>
+            Pan zoom in/out per pixel of each side (should be based on Control's width/height)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.ReversePlayback">
+            <summary>
+            Whether to use reverse playback mode
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.SwitchPlayer(FlyleafLib.MediaPlayer.Player)">
+            <summary>
+            Switch player with another's player control (WinForms only) - For WPF just set VideoView's Player
+            </summary>
+            <param name="player">Specify the Player that has the required control</param>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.Dispose">
+            <summary>
+            Disposes the Player and the hosted VideoView if any
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.StartRecording">
+            <summary>
+            Starts recording (uses current path and default filename)
             </summary>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.StartRecording(System.String@,System.Boolean)">
@@ -587,14 +703,9 @@
             Stops recording
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.ScreenWidth">
+        <member name="M:FlyleafLib.MediaPlayer.Player.TakeSnapshot">
             <summary>
-            Renderer's adapter attached screen width
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.ScreenHeight">
-            <summary>
-            Renderer's adapter attached screen height
+            Saves the current video frame to bitmap file (uses current path and default filename)
             </summary>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.TakeSnapshot(System.String)">
@@ -603,30 +714,33 @@
             </summary>
             <param name="filename"></param>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.PanXOffset">
+        <member name="M:FlyleafLib.MediaPlayer.Player.KeyUp(FlyleafLib.MediaPlayer.Player,System.Windows.Input.KeyEventArgs)">
             <summary>
-            Pan X Offset to change the X location
+            Can be used to route KeyUp events (WPF)
             </summary>
+            <param name="player"></param>
+            <param name="e"></param>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.PanYOffset">
+        <member name="M:FlyleafLib.MediaPlayer.Player.KeyDown(FlyleafLib.MediaPlayer.Player,System.Windows.Input.KeyEventArgs)">
             <summary>
-            Pan Y Offset to change the Y location
+            Can be used to route KeyDown events (WPF)
             </summary>
+            <param name="player"></param>
+            <param name="e"></param>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.Zoom">
+        <member name="M:FlyleafLib.MediaPlayer.Player.KeyUp(FlyleafLib.MediaPlayer.Player,System.Windows.Forms.KeyEventArgs)">
             <summary>
-            Pan zoom in/out per pixel of each side (should be based on Control's width/height)
+            Can be used to route KeyUp events (WinForms)
             </summary>
+            <param name="player"></param>
+            <param name="e"></param>
         </member>
-        <member name="F:FlyleafLib.MediaPlayer.Player.decoder">
+        <member name="M:FlyleafLib.MediaPlayer.Player.KeyDown(FlyleafLib.MediaPlayer.Player,System.Windows.Forms.KeyEventArgs)">
             <summary>
-            Player's Decoder Context. Normally you should not access this directly.
+            Can be used to route KeyDown events (WinForms)
             </summary>
-        </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.renderer">
-            <summary>
-            Player's Renderer. Normally you should not access this directly.
-            </summary>
+            <param name="player"></param>
+            <param name="e"></param>
         </member>
         <member name="E:FlyleafLib.MediaPlayer.Player.OpenCompleted">
             <summary>
@@ -641,11 +755,6 @@
         <member name="E:FlyleafLib.MediaPlayer.Player.OpenStreamCompleted">
             <summary>
             Fires on open completed of an existing media stream (success or failure)
-            </summary>
-        </member>
-        <member name="E:FlyleafLib.MediaPlayer.Player.PlaybackCompleted">
-            <summary>
-            Fires on playback ended successfully
             </summary>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Open(System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
@@ -732,6 +841,11 @@
             <param name="resync">Whether to force resync with other streams</param>
             <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
         </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.PlaybackCompleted">
+            <summary>
+            Fires on playback ended successfully
+            </summary>
+        </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Play">
             <summary>
             Plays AVS streams
@@ -744,37 +858,92 @@
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Seek(System.Int32,System.Boolean)">
             <summary>
-            Seeks backwards or forewards based on the specified ms to the nearest keyframe
+            Seeks backwards or forwards based on the specified ms to the nearest keyframe
             </summary>
             <param name="ms"></param>
-            <param name="foreward"></param>
+            <param name="forward"></param>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Stop">
             <summary>
             Stops and Closes AVS streams
             </summary>
         </member>
-        <member name="M:FlyleafLib.MediaPlayer.Player.Dispose">
+        <member name="P:FlyleafLib.MediaPlayer.KeysConfig.Enabled">
             <summary>
-            Disposes the Player and the hosted VideoView if any
+            Whether key bindings should be enabled or not
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.SubtitlesInfo.IsOpened">
+        <member name="P:FlyleafLib.MediaPlayer.KeysConfig.FlyleafWindow">
+            <summary>
+            Whether to subscribe key bindings also to the front windows (WPF)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.KeysConfig.Keys">
+            <summary>
+            Currently configured key bindings
+            (Normally you should not access this directly)
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.KeysConfig.Get">
+            <summary>
+            Gets a read-only copy of the currently assigned key bindings
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.KeysConfig.Add(System.Windows.Input.Key,FlyleafLib.MediaPlayer.KeyBindingAction,System.Boolean)">
+            <summary>
+            Adds a new key binding 
+            </summary>
+            <param name="key">The key to bind</param>
+            <param name="action">Which action from the available to assign</param>
+            <param name="ctrl">If Ctrl should be pressed</param>
+            <exception cref="T:System.Exception"></exception>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.KeysConfig.Remove(System.Windows.Input.Key,System.Boolean)">
+            <summary>
+            Removes a binding based on Key/Ctrl combination
+            </summary>
+            <param name="key">The assigned key</param>
+            <param name="ctrl">The assigned state of Ctrl</param>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.KeysConfig.Remove(FlyleafLib.MediaPlayer.KeyBindingAction)">
+            <summary>
+            Removes a binding based on assigned action
+            </summary>
+            <param name="action">The assigned action</param>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.KeysConfig.RemoveAll">
+            <summary>
+            Removes all the bindings
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.KeysConfig.LoadDefault">
+            <summary>
+            Resets to default bindings
+            </summary>
+        </member>
+        <member name="M:FlyleafLib.MediaPlayer.KeyBinding.SetAction(System.Action)">
+            <summary>
+            Sets action for custom key binding
+            </summary>
+            <param name="action"></param>
+        </member>
+        <member name="P:FlyleafLib.MediaPlayer.Subtitles.IsOpened">
             <summary>
             Whether the input has subtitles and it is configured
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.VideoInfo.IsOpened">
+        <member name="P:FlyleafLib.MediaPlayer.Video.IsOpened">
             <summary>
             Whether the input has video and it is configured
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.VideoInfo.TotalFrames">
+        <member name="P:FlyleafLib.MediaPlayer.Video.FramesTotal">
             <summary>
             Total Frames
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.VideoInfo.CurrentFps">
+        <member name="P:FlyleafLib.MediaPlayer.Video.FPSCurrent">
             <summary>
             Actual Frames rendered per second (FPS)
             </summary>

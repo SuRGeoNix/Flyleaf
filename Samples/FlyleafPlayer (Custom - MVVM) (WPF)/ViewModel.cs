@@ -48,7 +48,7 @@ namespace FlyleafPlayer__Custom___MVVM_
 
         #region Using Library's Model & Basic ViewModel
         /// <summary>
-        /// Player's functions (open new input or existing stream/play/pause/seek forewards or backwards etc.) + Plugins[Plugin_Name].[Media]Streams + Status [see Player.cs for details]
+        /// Player's functions (open new input or existing stream/play/pause/seek forwards or backwards etc.) + Plugins[Plugin_Name].[Media]Streams + Status [see Player.cs for details]
         /// </summary>
         public Player       Player          { get ; set; }
 
@@ -81,8 +81,6 @@ namespace FlyleafPlayer__Custom___MVVM_
 
             // Prepares Player's Configuration
             Config config = new Config();
-            config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
 
             // Initializes the Player
             Player = new Player(config);
@@ -105,7 +103,7 @@ namespace FlyleafPlayer__Custom___MVVM_
         #endregion
 
         #region Events
-        private void Player_OpenCompleted(object sender, Player.OpenCompletedArgs e)
+        private void Player_OpenCompleted(object sender, OpenCompletedArgs e)
         {
             if (e.Success && e.Type == MediaType.Video)
                 Player.Play();

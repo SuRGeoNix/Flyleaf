@@ -8,9 +8,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
     {
         public string   AdapterDesc     { get; set; }
         public long     AdapterLuid     { get; set; }
-        public UInt64   SystemMemory    { get; set; }
-        public UInt64   VideoMemory     { get; set; }
-        public UInt64   SharedMemory    { get; set; }
+        public long     SystemMemory    { get; set; }
+        public long     VideoMemory     { get; set; }
+        public long     SharedMemory    { get; set; }
         public int      Outputs         { get; set; }
         public string   OutputName      { get; set; }
         public int      ScreenWidth     { get; set; }
@@ -21,11 +21,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             RendererInfo ri = new RendererInfo();
 
-            ri.AdapterLuid  = adapter.Description1.AdapterLuid;
-            ri.AdapterDesc  = adapter.Description.Description;
-            ri.SystemMemory = adapter.Description.DedicatedSystemMemory;
-            ri.VideoMemory  = adapter.Description.DedicatedVideoMemory;
-            ri.SharedMemory = adapter.Description.SharedSystemMemory;
+            ri.AdapterLuid  = adapter.Description1.Luid;
+            ri.AdapterDesc  = adapter.Description1.Description;
+            ri.SystemMemory = adapter.Description1.DedicatedSystemMemory;
+            ri.VideoMemory  = adapter.Description1.DedicatedVideoMemory;
+            ri.SharedMemory = adapter.Description1.SharedSystemMemory;
 
             int maxVerticalResolution = 0;
             for(int i=0; ; i++)
@@ -52,7 +52,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             renderer.Info = ri;
         }
 
-        public string GetBytesReadable(UInt64 i)
+        public string GetBytesReadable(long i)
         {
             // Determine the suffix and readable value
             string suffix;

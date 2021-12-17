@@ -244,8 +244,7 @@ namespace FlyleafLib.Plugins
                 }
             }
 
-            if (Config.Subtitles.Enabled && Config.Subtitles.UseOnlineDatabases && input is VideoInput 
-                && (((IOpen)VideoInput.Plugin).IsPlaylist || !searchedForSubtitles) && !VideoInput.SearchedForSubtitles)
+            if (Config.Subtitles.Enabled && input is VideoInput) 
                 SearchSubtitles();
 
             return null;
@@ -440,20 +439,25 @@ namespace FlyleafLib.Plugins
 
         public void SearchSubtitles()
         {
-            // TODO: Search can be offline as well
-            var plugins = (from plugin in PluginsSuggestSubtitlesInput.Values orderby plugin.Priority select plugin).ToList();
-            foreach(var lang in Config.Subtitles.Languages)
-                foreach(var plugin in plugins)
-                    if (!Interrupt && plugin is ISearchSubtitles)
-                    {
-                        // Remember the inputs that have been already searched?
-                        ((ISearchSubtitles)plugin).Search(lang);
-                        if (plugin is IProvideSubtitles)
-                            foreach(var input in ((IProvideSubtitles)plugin).SubtitlesInputs)input.Plugin = plugin;
-                    }
+            if (VideoInput != null && (((IOpen)VideoInput.Plugin).IsPlaylist || !searchedForSubtitles) && !VideoInput.SearchedForSubtitles)
+            {
+                var plugins = (from plugin in PluginsSearchSubtitles.Values orderby plugin.Priority select plugin).ToList();
+                foreach(var lang in Config.Subtitles.Languages)
+                    foreach(var plugin in plugins)
+                        if (!Interrupt)
+                        {
+                            // Remember the inputs that have been already searched?
+                            plugin.Search(lang);
+                            if (plugin is IProvideSubtitles)
+                                foreach(var input in ((IProvideSubtitles)plugin).SubtitlesInputs)input.Plugin = plugin;
+                        }
 
-            VideoInput.SearchedForSubtitles = true;
-            searchedForSubtitles = true;
+                if (Config.Subtitles.UseOnlineDatabases) // Temporary until remember if searched for each plugin/input
+                {
+                    VideoInput.SearchedForSubtitles = true;
+                    searchedForSubtitles = true;
+                }
+            }
         }
         public void SuggestSubtitles(out SubtitlesStream stream, out SubtitlesInput input, List<SubtitlesStream> streams)
         {

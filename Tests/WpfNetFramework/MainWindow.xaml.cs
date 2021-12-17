@@ -29,8 +29,6 @@ namespace WpfNetFramework
 
             // Prepares Player's Configuration
             Config = new Config();
-            Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
 
             // Initializes the Player
             Player = new Player(Config);

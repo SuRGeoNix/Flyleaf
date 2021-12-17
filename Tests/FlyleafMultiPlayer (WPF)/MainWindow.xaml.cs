@@ -1,23 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 namespace FlyleafMultiPlayer__WPF_
 {
     /// <summary>
@@ -40,15 +31,23 @@ namespace FlyleafMultiPlayer__WPF_
 
         List<Player> Players = new List<Player>();
 
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MainWindow()
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Master.RegisterFFmpeg(":2");
 
             // Creates 4 Players and adds them in the PlayerViews
             for (int i=0; i<4; i++)
-                Players.Add(new Player());
+            {
+                // Use performance wise config for multiple players
+                var config = new Config();
+
+                config.Demuxer.BufferDuration = TimeSpan.FromSeconds(5).Ticks; // Reduces RAM as the demuxer will not buffer large number of packets
+                config.Decoder.MaxVideoFrames = 2; // Reduces VRAM as video decoder will not keep large queues in VRAM (should be tested for smooth video playback, especially for 4K)
+                config.Decoder.VideoThreads = 2; // Reduces VRAM/GPU (should be tested for smooth video playback, especially for 4K)
+                // Consider using lower quality streams on normal screen and higher quality on fullscreen (if available)
+
+                Players.Add(new Player(config));
+            }
 
             PlayerView1 = Players[0];
             PlayerView2 = Players[1];
@@ -64,23 +63,25 @@ namespace FlyleafMultiPlayer__WPF_
 
         private void RotatePlayersAction(object obj)
         {
-            // User should unsubscribe from all Player (and Player.Control) events before swaping
+            // Clockwise rotation
+
+            // User should unsubscribe from all Player events before swaping
             flyleafControl1.UnsubscribePlayer();
             flyleafControl2.UnsubscribePlayer();
             flyleafControl3.UnsubscribePlayer();
             flyleafControl4.UnsubscribePlayer();
 
-            PlayerView1 = PrevPlayer(PlayerView1);
-            PlayerView2 = PrevPlayer(PlayerView2);
-            PlayerView3 = PrevPlayer(PlayerView3);
-            PlayerView4 = PrevPlayer(PlayerView4);
+            Player old1 = PlayerView1;
+            Player old2 = PlayerView2;
+            Player old3 = PlayerView3;
 
-            // User should subscribe to all Player (and Player.Control) events after swaping and Raise(null) (Flyleaf WPF Control will handle the re-subscribe to the new player automatically)
-        }
+            PlayerView1 = PlayerView4;
+            PlayerView2 = old1;
+            PlayerView3 = old2;
+            PlayerView4 = old3;
 
-        private Player PrevPlayer(Player player)
-        {
-            return player.PlayerId == 1 ? Players[Players.Count - 1] : Players[player.PlayerId - 2];
+            // User should subscribe to all Player events after swaping and possible Raise(null) (Flyleaf WPF Control will handle the re-subscribe to the new player automatically)
         }
     }
 }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.

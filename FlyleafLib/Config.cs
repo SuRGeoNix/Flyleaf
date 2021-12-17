@@ -28,7 +28,9 @@ namespace FlyleafLib
                 foreach (var opt in defaultOptions)
                     Plugins[plugin.Name].Add(opt.Key, opt.Value);
             }
-                
+
+            Player.config = this;
+            Demuxer.config = this;
         }
         public Config Clone()
         {
@@ -63,23 +65,24 @@ namespace FlyleafLib
         internal void SetPlayer(Player player)
         {
             Player.player   = player;
+            Player.KeyBindings.SetPlayer(player);
             Demuxer.player  = player;
             Decoder.player  = player;
             Audio.player    = player;
             Video.player    = player;
             Subtitles.player= player;
+            
         }
 
-        public PlayerConfig     Player      = new PlayerConfig();
-        public DemuxerConfig    Demuxer     = new DemuxerConfig();
-        public DecoderConfig    Decoder     = new DecoderConfig();
-        public VideoConfig      Video       = new VideoConfig();
-        public AudioConfig      Audio       = new AudioConfig();
-        public SubtitlesConfig  Subtitles   = new SubtitlesConfig();
+        public PlayerConfig     Player      { get; set; } = new PlayerConfig();
+        public DemuxerConfig    Demuxer     { get; set; } = new DemuxerConfig();
+        public DecoderConfig    Decoder     { get; set; } = new DecoderConfig();
+        public VideoConfig      Video       { get; set; } = new VideoConfig();
+        public AudioConfig      Audio       { get; set; } = new AudioConfig();
+        public SubtitlesConfig  Subtitles   { get; set; } = new SubtitlesConfig();
 
         public SerializableDictionary<string, SerializableDictionary<string, string>>
                                 Plugins     = new SerializableDictionary<string, SerializableDictionary<string, string>>();
-
         public class PlayerConfig : NotifyPropertyChanged
         {
             public PlayerConfig Clone()
@@ -89,6 +92,7 @@ namespace FlyleafLib
             }
 
             internal Player player;
+            internal Config config;
 
             /// <summary>
             /// Required buffered duration ticks before playing
@@ -98,11 +102,23 @@ namespace FlyleafLib
                 set
                 {
                     if (!Set(ref _MinBufferDuration, value)) return;
-                    if (player != null && value > player.Config.Demuxer.BufferDuration)
-                        player.Config.Demuxer.BufferDuration = value;
+                    if (config != null && value > config.Demuxer.BufferDuration)
+                        config.Demuxer.BufferDuration = value;
                 }
             }
-            long _MinBufferDuration = 1 * 1000 * 10000;
+            long _MinBufferDuration = 500 * 10000;
+
+            /// <summary>
+            /// Key bindings configuration
+            /// </summary>
+            public KeysConfig
+                            KeyBindings                 { get; set; } = new KeysConfig();
+
+            /// <summary>
+            /// Mouse bindings configuration
+            /// </summary>
+            public MouseConfig  
+                            MouseBindigns               { get; set; } = new MouseConfig();
 
             /// <summary>
             /// Limit before dropping frames. Lower value means lower latency (>=1)
@@ -125,46 +141,36 @@ namespace FlyleafLib
             /// </summary>
             public double   IdleFps                     { get; set; } = 60.0;
 
-            /// <summary>
-            /// Playback's speed (x1 - x4)
-            /// </summary>
-            public int      Speed {
-                get => _Speed; 
-                set
-                {
-                    int newValue = value;
-                    if (value <= 0 ) newValue = 1;
-                    if (value > 4) newValue = 4;
-                    if (newValue == _Speed) return;
+            public Usage    Usage                       { get; set; } = Usage.AVS;
 
-                    if (Set(ref _Speed, newValue)) player?.SetSpeed();
-                }
-            }
-            int _Speed = 1;
+            public bool     ActivityMode                { get => _ActivityMode; set { _ActivityMode = value; if (value) player?.Activity.ForceFullActive(); } }
+            bool _ActivityMode = true;
 
             /// <summary>
-            /// Reverse playback's speed (x0.1 - x1)
+            /// Idle Timeout (ms)
             /// </summary>
-            public double   SpeedReverse {
-                get => _SpeedReverse; 
-                set
-                {
-                    double newValue = value;
-                    if (value <= 0 ) newValue = 0.1;
-                    if (value > 1) newValue = 1;
-                    if (newValue == _SpeedReverse) return;
+            public int      ActivityTimeout             { get => _ActivityTimeout; set => Set(ref _ActivityTimeout, value); }
+            int _ActivityTimeout = 6000;
 
-                    Set(ref _SpeedReverse, newValue);
-                    //if (Set(ref _SpeedReverse, newValue)) player?.SetSpeedReverse();
-                }
-            }
-            double _SpeedReverse = 1;
-
-            public Usage    Usage                       { get ; set; } = Usage.AVS;
+            
+            /// <summary>
+            /// It will automatically start playing after open or seek after ended
+            /// </summary>
+            public bool     AutoPlay                    { get; set; } = true;
+            public int      ZoomOffset                  { get; set; } = 50;
+            public long     AudioDelayOffset            { get; set; } =  100 * 10000;
+            public long     AudioDelayOffset2           { get; set; } = 1000 * 10000;
+            public long     SubtitlesDelayOffset        { get; set; } =  100 * 10000;
+            public long     SubtitlesDelayOffset2       { get; set; } = 1000 * 10000;
+            public long     SeekOffset                  { get; set; } = 5 * (long)1000 * 10000;
+            public int      VolumeOffset                { get; set; } = 5;
+            public int      VolumeMax                   { get => _VolumeMax; set => Set(ref _VolumeMax, value); }
+            int _VolumeMax = 150;
         }
         public class DemuxerConfig : NotifyPropertyChanged
         {
             internal Player player;
+            internal Config config;
 
             public DemuxerConfig Clone()
             {
@@ -210,11 +216,11 @@ namespace FlyleafLib
                 set
                 {
                     if (!Set(ref _BufferDuration, value)) return;
-                    if (player != null && value < player.Config.Player.MinBufferDuration)
-                        player.Config.Player.MinBufferDuration = value;
+                    if (config != null && value < config.Player.MinBufferDuration)
+                       config.Player.MinBufferDuration = value;
                 }
             }
-            long _BufferDuration = 5 * 60 * (long)1000 * 10000;
+            long _BufferDuration = 2 * 60 * (long)1000 * 10000;
 
             /// <summary>
             /// Maximum allowed errors before stopping
@@ -263,19 +269,18 @@ namespace FlyleafLib
             {
                 SerializableDictionary<string, string> defaults = new SerializableDictionary<string, string>();
 
-                //defaults.Add("probesize",           (116 * (long)1024 * 1024).ToString());      // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
-                //defaults.Add("analyzeduration",     (333 * (long)1000 * 1000).ToString());      // (Microseconds) Default 5 seconds | Higher for network streams
-                //defaults.Add("live_start_index",   "-1");
+                defaults.Add("probesize",           (50 * (long)1024 * 1024).ToString());      // (Bytes) Default 5MB | Higher for weird formats (such as .ts?) and 4K/Hevc
+                defaults.Add("analyzeduration",     (10 * (long)1000 * 1000).ToString());      // (Microseconds) Default 5 seconds | Higher for network streams
                 defaults.Add("reconnect",           "1");                                       // auto reconnect after disconnect before EOF
                 defaults.Add("reconnect_streamed",  "1");                                       // auto reconnect streamed / non seekable streams
                 defaults.Add("reconnect_delay_max", "5");                                       // max reconnect delay in seconds after which to give up
                 defaults.Add("rtsp_transport",      "tcp");                                     // Seems UDP causing issues (use this by default?)
                 defaults.Add("user_agent",          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36");
 
+                //defaults.Add("live_start_index",   "-1");
                 //defaults.Add("timeout",           (2 * (long)1000 * 1000).ToString());      // (Bytes) Default 5MB | Higher for weird formats (such as .ts?)
                 //defaults.Add("rw_timeout",     (2 * (long)1000 * 1000).ToString());      // (Microseconds) Default 5 seconds | Higher for network streams
 
-                
                 return defaults;
             }
         }
@@ -293,7 +298,7 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum video frames to be decoded and processed for rendering
             /// </summary>
-            public int              MaxVideoFrames  { get; set; } = Math.Max(10, Environment.ProcessorCount);
+            public int              MaxVideoFrames  { get; set; } = 4;
 
             /// <summary>
             /// Maximum video frames to be decoded and processed for rendering (reverse playback)
@@ -349,9 +354,9 @@ namespace FlyleafLib
             internal System.Drawing.Color _BackgroundColor = System.Drawing.Color.Black;
 
             /// <summary>
-            /// Whether video should be enabled or not
+            /// Whether video should be allowed
             /// </summary>
-            public bool             Enabled                     { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.EnableVideo(); else player?.DisableVideo(); } }
+            public bool             Enabled                     { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.Video.Enable(); else player?.Video.Disable(); } }
             bool    _Enabled = true;
             internal void SetEnabled(bool enabled) { Set(ref _Enabled, enabled, true, nameof(Enabled)); }
 
@@ -382,7 +387,7 @@ namespace FlyleafLib
             public bool             VideoAcceleration           { get; set; } = true;
 
             /// <summary>
-            /// Whether Vsync should be enabled or not (0: Disabled, 1: Enabled)
+            /// Whether Vsync should be enabled (0: Disabled, 1: Enabled)
             /// </summary>
             public short            VSync                       { get; set; }
 
@@ -419,14 +424,14 @@ namespace FlyleafLib
             /// <summary>
             /// Audio delay ticks (will be reseted to 0 for every new audio stream)
             /// </summary>
-            public long             Delay               { get => _Delay;            set { if (player != null && !player.Audio.IsOpened) return;  if (Set(ref _Delay, value)) player?.SetAudioDelay(); } }
+            public long             Delay               { get => _Delay;            set { if (player != null && !player.Audio.IsOpened) return;  if (Set(ref _Delay, value)) player?.ReSync(player.decoder.AudioStream); } }
             long _Delay;
             internal void SetDelay(long delay) { Set(ref _Delay, delay, true, nameof(Delay)); }
 
             /// <summary>
-            /// Whether audio should be enabled or not
+            /// Whether audio should allowed
             /// </summary>
-            public bool             Enabled             { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.EnableAudio(); else player?.DisableAudio(); } }
+            public bool             Enabled             { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.Audio.Enable(); else player?.Audio.Disable(); } }
             bool    _Enabled = true;
             internal void SetEnabled(bool enabled) { Set(ref _Enabled, enabled, true, nameof(Enabled)); }
 
@@ -459,14 +464,14 @@ namespace FlyleafLib
             /// <summary>
             /// Subtitle delay ticks (will be reseted to 0 for every new subtitle stream)
             /// </summary>
-            public long             Delay               { get => _Delay;            set { if (player != null && !player.Subtitles.IsOpened) return; if (Set(ref _Delay, value)) player?.SetSubsDelay(); } }
+            public long             Delay               { get => _Delay;            set { if (player != null && !player.Subtitles.IsOpened) return; if (Set(ref _Delay, value)) player?.ReSync(player.decoder.SubtitlesStream); } }
             long _Delay;
             internal void SetDelay(long delay) { Set(ref _Delay, delay, true, nameof(Delay)); }
 
             /// <summary>
-            /// Whether subtitles should be enabled or not
+            /// Whether subtitles should be allowed
             /// </summary>
-            public bool             Enabled             { get => _Enabled;          set { if(Set(ref _Enabled, value)) if (value) player?.EnableSubs(); else player?.DisableSubs(); } }
+            public bool             Enabled             { get => _Enabled;          set { if(Set(ref _Enabled, value)) if (value) player?.Subtitles.Enable(); else player?.Subtitles.Disable(); } }
             bool    _Enabled = true;
             internal void SetEnabled(bool enabled) { Set(ref _Enabled, enabled, true, nameof(Enabled)); }
 
@@ -477,7 +482,13 @@ namespace FlyleafLib
             List<Language> _Languages;
 
             /// <summary>
-            /// Whether to use online search plugins or not
+            /// Whether to use offline (local) search plugins
+            /// </summary>
+            public bool             UseLocalSearch  { get => _UseLocalSearch;set { Set(ref _UseLocalSearch, value); } }
+            bool    _UseLocalSearch = false;
+
+            /// <summary>
+            /// Whether to use online search plugins
             /// </summary>
             public bool             UseOnlineDatabases  { get => _UseOnlineDatabases;set { Set(ref _UseOnlineDatabases, value); } }
             bool    _UseOnlineDatabases = false;

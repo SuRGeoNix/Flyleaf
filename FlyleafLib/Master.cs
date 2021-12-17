@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 
 using static FFmpeg.AutoGen.ffmpeg;
 
@@ -16,53 +17,55 @@ namespace FlyleafLib
     /// </summary>
     public static class Master
     {
-        static Master()
-        {
-            Players     = new Dictionary<int, Player>();
-
-            AudioMaster = new AudioMaster();
-            GPUAdapters = Renderer.GetAdapters();
-
-            PluginHandler.LoadAssemblies();
-        }
-
         /// <summary>
         /// Manages audio devices, volume &amp; mute
         /// </summary>
-        public static AudioMaster               AudioMaster         { get; }
+        public static AudioMaster                   AudioMaster             { get; }
 
         /// <summary>
         /// List of GPU Adpaters luid/description <see cref="Config.VideoConfig.GPUAdapteLuid"/>
         /// </summary>
-        public static Dictionary<long, GPUAdapter>
-                                                GPUAdapters         { get; }
+        public static Dictionary<long, GPUAdapter>  GPUAdapters             { get; }
 
         /// <summary>
         /// Disable this to use high performance timers only when required (useful for single player)
         /// Must be set before calling RegisterFFmpeg
         /// </summary>
-        public static bool                      HighPerformaceTimers
-                                                                    { get; set; } = true;
+        public static bool                          HighPerformaceTimers    { get; set; } = true;
 
         /// <summary>
         /// Holds player instances
         /// </summary>
-        public static Dictionary<int, Player>   Players             { get; }
+        public static List<Player>                  Players                 { get; }
 
-        internal static void DisposePlayer(Player player)
+        /// <summary>
+        /// Allows monitoring and refreshing player's activity / buffered duration / stats / ui updates
+        /// </summary>
+        public static bool                          UIRefresh               { get; set; } = true;
+
+        /// <summary>
+        /// How often should update the UI in ms (low values can cause performance issues)
+        /// (Should UIRefreshInterval < 1000ms and 1000 % UIRefreshInterval == 0)
+        /// </summary>
+        public static int                           UIRefreshInterval       { get ; set; } = 100;
+
+        /// <summary>
+        /// Updates CurTime when the second changes otherwise every UIRefreshInterval
+        /// </summary>
+        public static bool                          UICurTimePerSecond      { get; set; } = true;
+
+        static Thread tMaster;
+        static bool isCursorHidden;
+        static bool alreadyRegister = false;
+
+        static Master()
         {
-            if (player == null) return;
+            Players     = new List<Player>();
 
-            DisposePlayer(player.PlayerId);
-            player = null;
-        }
-        internal static void DisposePlayer(int playerId)
-        {
-            if (!Players.ContainsKey(playerId)) return;
+            AudioMaster = new AudioMaster();
+            GPUAdapters = Renderer.GetAdapters();
 
-            Player player = Players[playerId];
-            player.DisposeInternal();
-            Players.Remove(playerId);
+            PluginHandler.LoadAssemblies();
         }
 
         /// <summary>
@@ -110,7 +113,184 @@ namespace FlyleafLib
                 Log($"[FFmpegLoader] [Version: {ver >> 16}.{ver >> 8 & 255}.{ver & 255}] [Location: {RootPath}]");
             } catch (Exception e) { throw new Exception("Failed to register FFmpeg libraries", e); }
         }
-        static bool alreadyRegister = false;
+
+        internal static void AddPlayer(Player player)
+        {
+            lock (Players)
+                Players.Add(player);
+
+            if (System.Windows.Application.Current == null)
+                new System.Windows.Application();
+
+            // Currently Thread starts only when at least on Player will be added (possible will be used also for downloader)
+            if (tMaster == null && UIRefresh)
+                StartThread();
+        }
+        internal static int GetPlayerPos(int playerId)
+        {
+            for (int i=0; i<Players.Count; i++)
+                if (Players[i].PlayerId == playerId)
+                    return i;
+
+            return -1;
+        }
+        internal static void DisposePlayer(Player player)
+        {
+            if (player == null) return;
+
+            DisposePlayer(player.PlayerId);
+        }
+        internal static void DisposePlayer(int playerId)
+        {
+
+            lock (Players)
+            {
+                Log($"Disposing {playerId}");
+                int pos = GetPlayerPos(playerId);
+                if (pos == -1) return;
+
+                Player player = Players[pos];
+                player.DisposeInternal();
+                Players.RemoveAt(pos);
+                Log($"Disposed {playerId}");
+            }
+        }
+
+        static void StartThread()
+        {
+            tMaster = new Thread(() => { MasterThread(); });
+            tMaster.Name = "Master";
+            tMaster.IsBackground = true;
+            tMaster.Start();
+        }
+        static void MasterThread()
+        {
+            /* Check whether TimeBeginPeriod(1) is required
+             */
+
+            int sleepMs = 100;
+            int curLoop = 0;
+            int secondLoops = 1000 / UIRefreshInterval; 
+
+            Dictionary<int, PlayerStats> stats = new Dictionary<int, PlayerStats>();
+
+            do
+            {
+                try
+                {
+                    if (Players.Count == 0)
+                    {
+                        Thread.Sleep(UIRefreshInterval);
+                        continue;
+                    }
+
+                    curLoop++;
+
+                    lock (Players)
+                        foreach (Player player in Players)
+                        {
+
+                            /* Every UIRefreshInterval */
+                            if (player.Config.Player.ActivityMode)
+                                player.Activity.mode = player.Activity.Check();
+
+                            /* Every Second */
+                            if (curLoop == secondLoops)
+                            {
+                                curLoop = 0;
+
+                                if (player.Config.Player.Stats)
+                                {
+                                    if (!stats.ContainsKey(player.PlayerId))
+                                        stats.Add(player.PlayerId, new PlayerStats());
+
+                                    var curStats = stats[player.PlayerId];
+
+                                    long curTotalBytes  = player.VideoDemuxer.TotalBytes + player.AudioDemuxer.TotalBytes + player.SubtitlesDemuxer.TotalBytes;
+                                    long curVideoBytes  = player.VideoDemuxer.VideoBytes + player.AudioDemuxer.VideoBytes + player.SubtitlesDemuxer.VideoBytes;
+                                    long curAudioBytes  = player.VideoDemuxer.AudioBytes + player.AudioDemuxer.AudioBytes + player.SubtitlesDemuxer.AudioBytes;
+
+                                    player.bitRate      = (curTotalBytes - curStats.TotalBytes) * 8 / 1000.0;
+                                    player.Video.bitRate= (curVideoBytes - curStats.VideoBytes) * 8 / 1000.0;
+                                    player.Audio.bitRate= (curAudioBytes - curStats.AudioBytes) * 8 / 1000.0;
+
+                                    curStats.TotalBytes = curTotalBytes;
+                                    curStats.VideoBytes = curVideoBytes;
+                                    curStats.AudioBytes = curAudioBytes;
+
+                                    if (player.IsPlaying)
+                                    {
+                                        player.Video.fpsCurrent = player.Video.FramesDisplayed - curStats.FramesDisplayed;
+                                        curStats.FramesDisplayed = player.Video.FramesDisplayed;
+                                    }
+                                }
+                            }
+                        }
+
+                    Action action = () =>
+                    {
+                        try
+                        {
+                            foreach (Player player in Players)
+                            {
+                                /* Every UIRefreshInterval */
+
+                                // Activity Mode Refresh & Hide Mouse Cursor (FullScreen only)
+                                if (player.Activity.mode != player.Activity._Mode && (player.Config.Player.ActivityMode || isCursorHidden))
+                                {
+                                    player.Activity.Mode = player.Activity.Mode;
+
+                                    if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle && player.Config.Player.MouseBindigns.HideCursorOnFullScreenIdle)
+                                    {
+                                        while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
+                                        isCursorHidden = true;
+                                    }    
+                                    else if (isCursorHidden && player.Activity.Mode == ActivityMode.FullActive)
+                                    {
+                                        while (Utils.NativeMethods.ShowCursor(true) < 0) { }
+                                        isCursorHidden = false;
+                                    }   
+                                }
+
+                                // Buffered Duration Refresh
+                                if (player.Duration != 0)
+                                    player.BufferedDuration = player.BufferedDuration;
+
+                                // CurTime
+                                if (!UICurTimePerSecond)
+                                    player.UpdateCurTime();
+
+                                /* Every Second */
+                                if (curLoop == 0)
+                                {
+                                    // Stats Refresh (BitRates / FrameDisplayed / FramesDropped / FPS)
+                                    if (player.Config.Player.Stats)
+                                    {
+                                        player.BitRate = player.BitRate;
+                                        player.Video.BitRate = player.Video.BitRate;
+                                        player.Audio.BitRate = player.Audio.BitRate;
+
+                                        if (player.IsPlaying)
+                                        {
+                                            player.Video.FramesDisplayed= player.Video.FramesDisplayed;
+                                            player.Video.FramesDropped  = player.Video.FramesDropped;
+                                            player.Video.FPSCurrent     = player.Video.FPSCurrent;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch { }
+                    };
+
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(action);
+                    Thread.Sleep(sleepMs);
+
+                } catch { curLoop = 0; }
+
+            } while (true);
+        }
+        
+        private static void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] {msg}"); }
 
         public static readonly List<Language> Languages = new List<Language>
         {
@@ -594,7 +774,5 @@ namespace FlyleafLib
             new Language("spl","ea","Spanish (LA)","1","0"),
             new Language("spn","sp","Spanish (EU)","1","0")
         };
-
-        private static void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] {msg}"); }
     }
 }

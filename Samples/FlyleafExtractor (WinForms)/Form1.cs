@@ -32,8 +32,6 @@ namespace FlyleafExtractor
             Config = new Config();
             //Config.Demuxer.AllowInterrupts = false;
             Config.Demuxer.AllowTimeouts = false;
-            Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
 
             Config.Demuxer.BufferDuration = 99999999999999;     // We might want to use small if we use both VideoDemuxer/AudioDemuxer to avoid having a lot of audio without video
             Config.Demuxer.ReadTimeout = 60 * 1000 * 10000;     // 60 seconds to retry or fail

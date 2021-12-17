@@ -40,10 +40,10 @@
                                 <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
                                 
                                 <!-- Error Message -->
-                                <TextBlock Margin="20" VerticalAlignment="top" HorizontalAlignment="Left" TextAlignment="Left" TextWrapping="Wrap" FontSize="16" Background="{Binding VideoConfig.BackgroundColor, Converter={StaticResource ColorToBrush}}" Foreground="{DynamicResource PrimaryHueMidBrush}" FontWeight="Bold" Text="{Binding ErrorMsg}"/>
+                                <TextBlock Margin="20" VerticalAlignment="top" HorizontalAlignment="Left" TextAlignment="Left" TextWrapping="Wrap" FontSize="16" Background="{Binding Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}" Foreground="{DynamicResource PrimaryHueMidBrush}" FontWeight="Bold" Text="{Binding ErrorMsg}"/>
 
                                 <!--Media Info-->
-                                <TextBlock Margin="0 20 20 0" VerticalAlignment="top" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap" FontSize="16" Background="{Binding VideoConfig.BackgroundColor, Converter={StaticResource ColorToBrush}}" Foreground="{DynamicResource PrimaryHueMidBrush}" FontWeight="Bold">
+                                <TextBlock Margin="0 20 20 0" VerticalAlignment="top" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap" FontSize="16" Background="{Binding Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}" Foreground="{DynamicResource PrimaryHueMidBrush}" FontWeight="Bold">
                                     <TextBlock.Style>
                                         <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -56,44 +56,44 @@
                                     </TextBlock.Style>
                                     <TextBlock.Text>
                                         <MultiBinding StringFormat=" {0}p @{1} {2}/{3} [hw: {4}|{5}] &#x0d;&#x0a; [tbr: {6:#,#.00}] [vbr: {7:#,#.00}] [abr: {8:#,#.00}] &#x0d;&#x0a; [rec: {9}] [drops: {10}] [gpu: {11}]">
-                                            <Binding Path="VideoInfo.Height"/>
-                                            <Binding Path="VideoInfo.CurrentFps"/>
-                                            <Binding Path="VideoInfo.Codec"/>
-                                            <Binding Path="VideoInfo.PixelFormat"/>
-                                            <Binding Path="VideoConfig.VideoAcceleration"/>
-                                            <Binding Path="VideoInfo.VideoAcceleration"/>
+                                            <Binding Path="Player.Video.Height"/>
+                                            <Binding Path="Player.Video.FPSCurrent"/>
+                                            <Binding Path="Player.Video.Codec"/>
+                                            <Binding Path="Player.Video.PixelFormat"/>
+                                            <Binding Path="Config.Video.VideoAcceleration"/>
+                                            <Binding Path="Player.Video.VideoAcceleration"/>
                                             <Binding Path="Player.BitRate"/>
-                                            <Binding Path="VideoInfo.BitRate"/>
-                                            <Binding Path="AudioInfo.BitRate"/>
+                                            <Binding Path="Player.Video.BitRate"/>
+                                            <Binding Path="Player.Audio.BitRate"/>
                                             <Binding Path="Player.IsRecording"/>
-                                            <Binding Path="VideoInfo.DroppedFrames"/>
+                                            <Binding Path="Player.Video.FramesDropped"/>
                                             <Binding Path="GPUUsage"/>
                                         </MultiBinding>
                                     </TextBlock.Text>
                                 </TextBlock>
 
                                 <!--Subtitles-->
-                                <TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding SubtitlesInfo.SubsText}">
+                                <TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding Player.Subtitles.SubsText}">
                                     <TextBlock.Effect>
-                                        <DropShadowEffect ShadowDepth="2" Direction="0" Color="{Binding VideoConfig.BackgroundColor}" Opacity="1.0" BlurRadius="0"/>
+                                        <DropShadowEffect ShadowDepth="2" Direction="0" Color="{Binding Config.Video.BackgroundColor}" Opacity="1.0" BlurRadius="0"/>
                                     </TextBlock.Effect>
                                 </TextBlock>
 
                                 <!--Flyleaf Bar-->
                                 <materialDesign:Card TextElement.FontSize="14" TextElement.FontWeight="Medium" TextElement.Foreground="White" FontFamily="{materialDesign:MaterialDesignFont}" VerticalAlignment="Bottom" Focusable="False">
                                     <materialDesign:Card.Background>
-                                        <SolidColorBrush Color="{Binding VideoConfig.BackgroundColor}" Opacity="0.15"/>
+                                        <SolidColorBrush Color="{Binding Config.Video.BackgroundColor}" Opacity="0.15"/>
                                     </materialDesign:Card.Background>
                                     <materialDesign:Card.Style>
                                         <Style TargetType="{x:Type materialDesign:Card}">
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding CurrentMode}" Value="Idle">
+                                                <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
                                                     <DataTrigger.EnterActions>
                                                         <RemoveStoryboard BeginStoryboardName="fadeInN" />
                                                         <BeginStoryboard x:Name="fadeOutN" Storyboard="{StaticResource fadeOut}" />
                                                     </DataTrigger.EnterActions>
                                                 </DataTrigger>
-                                                <DataTrigger Binding="{Binding CurrentMode}" Value="FullActive">
+                                                <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="FullActive">
                                                     <DataTrigger.EnterActions>
                                                         <RemoveStoryboard BeginStoryboardName="fadeOutN" />
                                                         <BeginStoryboard x:Name="fadeInN" Storyboard="{StaticResource fadeIn}" />
@@ -151,7 +151,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <!--Play / Pause Button-->
-                                            <Button Grid.Column="0" Command="{Binding TogglePlayPause}">
+                                            <Button Grid.Column="0" Command="{Binding Player.Commands.TogglePlayPause}">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                                         <Setter Property="Content" Value="{materialDesign:PackIcon Kind=Play}"/>
@@ -171,10 +171,10 @@
                                                         <Setter Property="ContextMenu">
                                                             <Setter.Value>
                                                                 <ContextMenu>
-                                                                    <MenuItem Header="External" ItemsSource="{Binding DecCtx.PluginsProvideSubtitles[OpenSubtitles].SubtitlesInputs}" AlternationCount="{Binding DecCtx.PluginsProvideSubtitles[OpenSubtitles].SubtitlesInputs.Count}">
+                                                                    <MenuItem Header="External" ItemsSource="{Binding Player.Subtitles.Plugins[OpenSubtitles].SubtitlesInputs}" AlternationCount="{Binding Player.Subtitles.Plugins[OpenSubtitles].SubtitlesInputs.Count}">
                                                                         <MenuItem.ItemContainerStyle>
                                                                             <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                                                                <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                 <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                 <Setter Property="IsCheckable" Value="True"/>
                                                                                 <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
@@ -182,10 +182,10 @@
                                                                             </Style>
                                                                         </MenuItem.ItemContainerStyle>
                                                                     </MenuItem>
-                                                                    <MenuItem Header="Embedded" ItemsSource="{Binding SubtitlesInfo.Streams}">
+                                                                    <MenuItem Header="Embedded" ItemsSource="{Binding Player.Subtitles.Streams}">
                                                                         <MenuItem.ItemContainerStyle>
                                                                             <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                                                                <Setter Property="Command" Value="{Binding DataContext.OpenStream, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                 <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                 <Setter Property="IsCheckable" Value="True"/>
                                                                                 <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
@@ -212,7 +212,7 @@
                                                                                     <DataTrigger Value="False">
                                                                                         <DataTrigger.Binding>
                                                                                             <MultiBinding Converter="{StaticResource CheckNull}">
-                                                                                                <Binding Path="DecCtx.PluginsProvideSubtitles"/>
+                                                                                                <Binding Path="Player.Subtitles.Plugins"/>
                                                                                                 <Binding>
                                                                                                     <Binding.Source>
                                                                                                         <sys:String>OpenSubtitlesOrg</sys:String>
@@ -221,14 +221,14 @@
                                                                                             </MultiBinding>
                                                                                         </DataTrigger.Binding>
                                                                                         <Setter Property="Visibility" Value="Visible"/>
-                                                                                        <Setter Property="ItemsSource" Value="{Binding DecCtx.PluginsProvideSubtitles[OpenSubtitlesOrg].SubtitlesInputs}"/>
+                                                                                        <Setter Property="ItemsSource" Value="{Binding Player.Subtitles.Plugins[OpenSubtitlesOrg].SubtitlesInputs}"/>
                                                                                     </DataTrigger>
                                                                                 </Style.Triggers>
                                                                             </Style>
                                                                         </MenuItem.Style>
                                                                         <MenuItem.ItemContainerStyle>
                                                                             <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                                                                <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                 <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                 <Setter Property="IsCheckable" Value="True"/>
                                                                                 <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
@@ -256,7 +256,7 @@
                                                                                     <DataTrigger Value="False">
                                                                                         <DataTrigger.Binding>
                                                                                             <MultiBinding Converter="{StaticResource CheckNull}">
-                                                                                                <Binding Path="DecCtx.PluginsProvideAudio"/>
+                                                                                                <Binding Path="Player.Audio.Plugins"/>
                                                                                                 <Binding>
                                                                                                     <Binding.Source>
                                                                                                         <sys:String>YoutubeDL</sys:String>
@@ -265,14 +265,14 @@
                                                                                             </MultiBinding>
                                                                                         </DataTrigger.Binding>
                                                                                         <Setter Property="Visibility" Value="Visible"/>
-                                                                                        <Setter Property="ItemsSource" Value="{Binding DecCtx.PluginsProvideAudio[YoutubeDL].SubtitlesInputs}"/>
+                                                                                        <Setter Property="ItemsSource" Value="{Binding Player.Audio.Plugins[YoutubeDL].SubtitlesInputs}"/>
                                                                                     </DataTrigger>
                                                                                 </Style.Triggers>
                                                                             </Style>
                                                                         </MenuItem.Style>
                                                                         <MenuItem.ItemContainerStyle>
                                                                             <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                                                                <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                 <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                 <Setter Property="IsCheckable" Value="True"/>
                                                                                 <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
@@ -294,12 +294,6 @@
                                                                 </ContextMenu>
                                                             </Setter.Value>
                                                         </Setter>
-                                                        <Setter Property="Visibility" Value="Hidden"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding VideoInfo.IsOpened}" Value="True">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
                                                     </Style>
                                                 </Button.Style>
                                             </Button>
@@ -310,14 +304,13 @@
                                                     <Button.Style>
                                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                                             <Setter Property="Content" Value=""/>
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
                                                             <Setter Property="ContextMenu">
                                                                 <Setter.Value>
                                                                     <ContextMenu>
-                                                                        <MenuItem Header="Embedded" ItemsSource="{Binding VideoInfo.Streams}">
+                                                                        <MenuItem Header="Embedded" ItemsSource="{Binding Player.Video.Streams}">
                                                                             <MenuItem.ItemContainerStyle>
                                                                                 <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                                                                    <Setter Property="Command" Value="{Binding DataContext.OpenStream, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                    <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                     <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                     <Setter Property="IsCheckable" Value="True"/>
                                                                                     <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
@@ -330,7 +323,7 @@
                                                                                             <MultiBinding StringFormat=" {0}x{1} @{2:#,#.00} ({3}/{4})">
                                                                                                 <Binding Path="Width"/>
                                                                                                 <Binding Path="Height"/>
-                                                                                                <Binding Path="Fps"/>
+                                                                                                <Binding Path="FPS"/>
                                                                                                 <Binding Path="Codec"/>
                                                                                                 <Binding Path="PixelFormatStr"/>
                                                                                             </MultiBinding>
@@ -339,10 +332,10 @@
                                                                                 </DataTemplate>
                                                                             </MenuItem.ItemTemplate>
                                                                         </MenuItem>
-                                                                        <MenuItem Header="External" ItemsSource="{Binding DecCtx.PluginsProvideVideo[OpenVideo].VideoInputs}" AlternationCount="{Binding DecCtx.PluginsProvideVideo[OpenVideo].VideoInputs.Count}">
+                                                                        <MenuItem Header="External" ItemsSource="{Binding Player.Video.Plugins[OpenVideo].VideoInputs}" AlternationCount="{Binding Player.Video.Plugins[OpenVideo].VideoInputs.Count}">
                                                                             <MenuItem.ItemContainerStyle>
                                                                                 <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                                                                    <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                    <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                     <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                     <Setter Property="IsCheckable" Value="True"/>
                                                                                     <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
@@ -358,7 +351,7 @@
                                                                                         <DataTrigger Value="False">
                                                                                             <DataTrigger.Binding>
                                                                                                 <MultiBinding Converter="{StaticResource CheckNull}">
-                                                                                                    <Binding Path="DecCtx.PluginsProvideVideo"/>
+                                                                                                    <Binding Path="Player.Video.Plugins"/>
                                                                                                     <Binding>
                                                                                                         <Binding.Source>
                                                                                                             <sys:String>BitSwarm</sys:String>
@@ -367,14 +360,14 @@
                                                                                                 </MultiBinding>
                                                                                             </DataTrigger.Binding>
                                                                                             <Setter Property="Visibility" Value="Visible"/>
-                                                                                            <Setter Property="ItemsSource" Value="{Binding DecCtx.PluginsProvideVideo[BitSwarm].VideoInputs}"/>
+                                                                                            <Setter Property="ItemsSource" Value="{Binding Player.Video.Plugins[BitSwarm].VideoInputs}"/>
                                                                                         </DataTrigger>
                                                                                     </Style.Triggers>
                                                                                 </Style>
                                                                             </MenuItem.Style>
                                                                             <MenuItem.ItemContainerStyle>
                                                                                 <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                                                                    <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                    <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                     <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                     <Setter Property="IsCheckable" Value="True"/>
                                                                                     <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
@@ -390,7 +383,7 @@
                                                                                         <DataTrigger Value="False">
                                                                                             <DataTrigger.Binding>
                                                                                                 <MultiBinding Converter="{StaticResource CheckNull}">
-                                                                                                    <Binding Path="DecCtx.PluginsProvideVideo"/>
+                                                                                                    <Binding Path="Player.Video.Plugins"/>
                                                                                                     <Binding>
                                                                                                         <Binding.Source>
                                                                                                             <sys:String>YoutubeDL</sys:String>
@@ -399,14 +392,14 @@
                                                                                                 </MultiBinding>
                                                                                             </DataTrigger.Binding>
                                                                                             <Setter Property="Visibility" Value="Visible"/>
-                                                                                            <Setter Property="ItemsSource" Value="{Binding DecCtx.PluginsProvideVideo[YoutubeDL].VideoInputs}"/>
+                                                                                            <Setter Property="ItemsSource" Value="{Binding Player.Video.Plugins[YoutubeDL].VideoInputs}"/>
                                                                                         </DataTrigger>
                                                                                     </Style.Triggers>
                                                                                 </Style>
                                                                             </MenuItem.Style>
                                                                             <MenuItem.ItemContainerStyle>
                                                                                 <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                                                                    <Setter Property="Command" Value="{Binding DataContext.OpenInput, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                                                                                    <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
                                                                                     <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
                                                                                     <Setter Property="IsCheckable" Value="True"/>
                                                                                     <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
@@ -433,20 +426,17 @@
                                                                 </Setter.Value>
                                                             </Setter>
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding VideoInfo.Height, Converter={StaticResource QualityToLevels}}" Value="Low">
+                                                                <DataTrigger Binding="{Binding Player.Video.Height, Converter={StaticResource QualityToLevels}}" Value="Low">
                                                                     <Setter Property="Content" Value="{materialDesign:PackIcon Kind=QualityLow}"/>
                                                                 </DataTrigger>
-                                                                <DataTrigger Binding="{Binding VideoInfo.Height, Converter={StaticResource QualityToLevels}}" Value="Med">
+                                                                <DataTrigger Binding="{Binding Player.Video.Height, Converter={StaticResource QualityToLevels}}" Value="Med">
                                                                     <Setter Property="Content" Value="{materialDesign:PackIcon Kind=QualityMedium}"/>
                                                                 </DataTrigger>
-                                                                <DataTrigger Binding="{Binding VideoInfo.Height, Converter={StaticResource QualityToLevels}}" Value="High">
+                                                                <DataTrigger Binding="{Binding Player.Video.Height, Converter={StaticResource QualityToLevels}}" Value="High">
                                                                     <Setter Property="Content" Value="{materialDesign:PackIcon Kind=QualityHigh}"/>
                                                                 </DataTrigger>
-                                                                <DataTrigger Binding="{Binding VideoInfo.Height, Converter={StaticResource QualityToLevels}}" Value="_4K">
+                                                                <DataTrigger Binding="{Binding Player.Video.Height, Converter={StaticResource QualityToLevels}}" Value="_4K">
                                                                     <Setter Property="Content" Value="{materialDesign:PackIcon Kind=Video4kBox}"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding VideoInfo.IsOpened}" Value="True">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -468,21 +458,21 @@
                                             </StackPanel>
 
                                             <!--Volume Button (Mute/Unmute)-->
-                                            <Button Grid.Column="3" Foreground="{DynamicResource SecondaryHueMidBrush}" Command="{Binding ToggleMute}">
+                                            <Button Grid.Column="3" Foreground="{DynamicResource SecondaryHueMidBrush}" Command="{Binding Player.Commands.ToggleMute}">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                                         <Setter Property="Content" Value="{materialDesign:PackIcon Kind=VolumeHigh}"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Player.Volume, Converter={StaticResource VolumeToLevels}}" Value="Mute">
+                                                            <DataTrigger Binding="{Binding Player.Audio.Volume, Converter={StaticResource VolumeToLevels}}" Value="Mute">
                                                                 <Setter Property="Content" Value="{materialDesign:PackIcon Kind=VolumeMute}"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Player.Volume, Converter={StaticResource VolumeToLevels}}" Value="Low">
+                                                            <DataTrigger Binding="{Binding Player.Audio.Volume, Converter={StaticResource VolumeToLevels}}" Value="Low">
                                                                 <Setter Property="Content" Value="{materialDesign:PackIcon Kind=VolumeLow}"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Player.Volume, Converter={StaticResource VolumeToLevels}}" Value="Med">
+                                                            <DataTrigger Binding="{Binding Player.Audio.Volume, Converter={StaticResource VolumeToLevels}}" Value="Med">
                                                                 <Setter Property="Content" Value="{materialDesign:PackIcon Kind=VolumeMedium}"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Player.Mute}" Value="True">
+                                                            <DataTrigger Binding="{Binding Player.Audio.Mute}" Value="True">
                                                                 <Setter Property="Content" Value="{materialDesign:PackIcon Kind=VolumeMute}"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -491,18 +481,18 @@
                                             </Button>
 
                                             <!--Volume Slider (Decibel)-->
-                                            <Slider Grid.Column="4" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource SecondaryHueMidBrush}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="150" Value="{Binding Player.Volume}"/>
+                                            <Slider Grid.Column="4" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource SecondaryHueMidBrush}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Config.Player.VolumeMax, Mode=OneWay}" Value="{Binding Player.Audio.Volume}"/>
 
                                             <!--Open Settings Button-->
                                             <Button Grid.Column="5" Style="{StaticResource IconButton}" Content="{materialDesign:PackIcon Kind=SettingsOutline}" Command="{Binding OpenSettings}"/>
 
                                             <!--Toggle Fullscreen Button-->
-                                            <Button Grid.Column="6" Command="{Binding ToggleFullscreen}">
+                                            <Button Grid.Column="6" Command="{Binding Player.Commands.ToggleFullScreen}">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                                         <Setter Property="Content" Value="{materialDesign:PackIcon Kind=Fullscreen}"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsFullscreen}" Value="true">
+                                                            <DataTrigger Binding="{Binding Player.IsFullScreen}" Value="true">
                                                                 <Setter Property="Content" Value="{materialDesign:PackIcon Kind=FullscreenExit}"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>

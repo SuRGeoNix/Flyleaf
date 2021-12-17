@@ -24,8 +24,6 @@ namespace FlyleafDownloader
 
             // Prepares Player's Configuration
             Config = new Config();
-            Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
 
             Config.Demuxer.BufferDuration = 60 * 1000 * 10000;  // 60 seconds should be enough to allow max download speed
             Config.Demuxer.ReadTimeout    = 60 * 1000 * 10000;  // 60 seconds to retry or fail
@@ -181,7 +179,7 @@ namespace FlyleafDownloader
             {
                 string dump;
                 if (stream.Width > 0 && stream.Height > 0)
-                    dump = $"#{stream.StreamIndex} {stream.Width}x{stream.Height}@{stream.Fps} ({stream.Codec}) {stream.BitRate/1000} Kbps";
+                    dump = $"#{stream.StreamIndex} {stream.Width}x{stream.Height}@{stream.FPS} ({stream.Codec}) {stream.BitRate/1000} Kbps";
                 else
                     dump = "Faulty";
 
