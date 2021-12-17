@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms.Integration;
+using System.Windows.Media;
 
 using FlyleafLib.MediaPlayer;
 using FlyleafWF = FlyleafLib.Controls.Flyleaf;
@@ -30,39 +31,48 @@ namespace FlyleafLib.Controls.WPF
         public Grid             PlayerGrid      { get; set; }
         public Player           Player
         {
-            get { return (Player)GetValue(PlayerProperty); }
-            set { SetValue(PlayerProperty, value); }
+            get { return (Player)GetValue(PlayerProperty) == null ? lastPlayer : (Player)GetValue(PlayerProperty); }
+            set { if (!isSwitchingState) SetValue(PlayerProperty, value); }
         }
+        internal Player lastPlayer; // TBR: ToggleFullScreen will cause to loose binding and the Player
 
         public static readonly DependencyProperty PlayerProperty =
             DependencyProperty.Register("Player", typeof(Player), typeof(VideoView), new PropertyMetadata(null, OnPlayerChanged));
 
         private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (e.NewValue == null) return;
-
             VideoView VideoView = d as VideoView;
-            if (VideoView.FlyleafWF == null) return;
 
-            Player Player       = e.NewValue as Player;
-            Player oldPlayer    = e.OldValue as Player;
-            if (oldPlayer != null && oldPlayer.PlayerId == Player.PlayerId) return;
+            if (e.NewValue == null || isSwitchingState)
+                return;
 
-            //Utils.Log($"New Player {Player.PlayerId}" + (oldPlayer != null ? $" (Old Player {oldPlayer.PlayerId})" : ""));
+            if (VideoView.FlyleafWF == null)
+                return;
 
-            Player.VideoView    = VideoView;
-            Player.Control      = VideoView.FlyleafWF;
+            Player Player   = e.NewValue as Player;
+            Player oldPlayer= e.OldValue as Player;
 
-            if (oldPlayer != null) Player.SwapPlayer(oldPlayer);
+            VideoView.lastPlayer = Player;
 
-            if (VideoView.ControlRequiresPlayer != null) VideoView.ControlRequiresPlayer.Player = Player;
+            if (oldPlayer != null && oldPlayer.PlayerId == Player.PlayerId)
+                return;
+
+            if (oldPlayer == null)
+            {
+                Player.VideoView= VideoView;
+                Player.Control  = VideoView.FlyleafWF;
+            }
+            else
+                Player.SwapPlayer(oldPlayer, VideoView);
+
+            if (VideoView.ControlRequiresPlayer != null)
+                VideoView.ControlRequiresPlayer.Player = Player;
         }
-
         public VideoView() { DefaultStyleKey = typeof(VideoView); }
 
         public override void OnApplyTemplate()
         {
-            base.ApplyTemplate();
+            base.OnApplyTemplate();
 
             if (IsDesignMode | disposed) return;
             
@@ -70,6 +80,9 @@ namespace FlyleafLib.Controls.WPF
             WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
             FlyleafWF   = Template.FindName(PART_PlayerView, this) as FlyleafWF;
             WindowFront = new FlyleafWindow(WinFormsHost);
+
+            if (Content != null && ControlRequiresPlayer == null)
+                FindIVideoView((Visual)Content);
 
             var curContent = Content;
             IsUpdatingContent = true;
@@ -80,18 +93,47 @@ namespace FlyleafLib.Controls.WPF
             WindowFront.DataContext = DataContext;
             WindowFront.VideoView   = this;
 
-            if (curContent != null && curContent is IVideoView) 
-                ControlRequiresPlayer = (IVideoView)curContent;
-
             if (Player != null && Player.VideoView == null)
             {
                 Player.VideoView= this;
                 Player.Control  = FlyleafWF;
-                if (ControlRequiresPlayer != null) ControlRequiresPlayer.Player = Player;
+                lastPlayer = Player;
+
+                if (ControlRequiresPlayer != null)
+                    ControlRequiresPlayer.Player = Player;
             }
         }
+
+        public void FindIVideoView(Visual parent)
+        {
+            if (parent is IVideoView)
+            {
+                ControlRequiresPlayer = (IVideoView)parent;
+                return;
+            }
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                Visual visual  = (Visual)VisualTreeHelper.GetChild(parent, i);
+                
+                if (visual == null)
+                    break;
+
+                if (visual is IVideoView)
+                {
+                    ControlRequiresPlayer = (IVideoView)visual;
+                    break;
+                }
+
+                FindIVideoView(visual);
+            }
+        }
+
         protected override void OnContentChanged(object oldContent, object newContent)
         {
+            if (newContent != null)
+                FindIVideoView((Visual)newContent);
+
             if (IsUpdatingContent | IsDesignMode | disposed) return;
 
             if (WindowFront != null)
@@ -104,23 +146,30 @@ namespace FlyleafLib.Controls.WPF
             }
         }
 
-        public bool IsFullScreen { get ; private set; }
-
-        object  oldContent;
-        ResizeMode oldMode;
+        object      oldContent;
+        ResizeMode  oldMode;
         WindowStyle oldStyle;
         WindowState oldState;
+
+        internal static bool isSwitchingState;
         public bool FullScreen()
         {
+            /* TBR:
+             * 1) As we don't remove VideoView but only WinFormsHost we loose the bindings on VideoView (currently only the player)
+             *    This causes loosing the Player on VideoView however so far nobody uses this from here
+             * 
+             * 2) Suspend/Resume Layout failed so far
+             */
+
             if (WindowBack == null) return false;
 
+            isSwitchingState = true;
+
             WindowBack.Visibility = Visibility.Hidden;
-
             PlayerGrid.Children.Remove(WinFormsHost);
-
             oldContent = WindowBack.Content;
             WindowBack.Content = WinFormsHost;
-            
+
             oldMode     = WindowBack.ResizeMode;
             oldStyle    = WindowBack.WindowStyle;
             oldState    = WindowBack.WindowState;
@@ -128,18 +177,17 @@ namespace FlyleafLib.Controls.WPF
             WindowBack.ResizeMode   = ResizeMode. NoResize;
             WindowBack.WindowStyle  = WindowStyle.None;
             WindowBack.WindowState  = WindowState.Maximized;
+            WindowBack.Visibility   = Visibility.Visible;
 
-            IsFullScreen = true;
-            //WindowFront.Activate(); // GPU performance issue? (renderer should be the active window on fullscreen? but only when it goes to fullscreen, after that is fine if you activate front window) TBR...
-
-            WindowBack.Visibility = Visibility.Visible;
-            
+            isSwitchingState = false;
             return true;
         }
 
         public bool NormalScreen()
         {
             if (WindowBack == null) return false;
+
+            isSwitchingState = true;
 
             WindowBack.Content = null;
             WindowBack.Content = oldContent;
@@ -150,9 +198,9 @@ namespace FlyleafLib.Controls.WPF
             WindowBack.WindowStyle  = oldStyle;
             WindowBack.WindowState  = oldState;
 
-            IsFullScreen = false;
             WindowFront.Activate();
 
+            isSwitchingState = false;
             return true;
         }
 
@@ -174,9 +222,9 @@ namespace FlyleafLib.Controls.WPF
                 
                     if (Player != null)
                     {
+                        Player.Dispose();
                         Player.VideoView = null;
                         Player._Control = null;
-                        Player.Dispose();
                     }
 
                     Resources.MergedDictionaries.Clear();

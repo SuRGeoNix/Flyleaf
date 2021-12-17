@@ -36,17 +36,11 @@ namespace FlyleafPlayer
             // Prepares Player's Configuration (Load from file if already exists, Flyleaf WPF Control will save at this path)
             #if DEBUG
             Config = new Config();
-            Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
             #else
             if (File.Exists("Flyleaf.Config.xml"))
                 Config = Config.Load("Flyleaf.Config.xml");
             else
-            {
                 Config = new Config();
-                Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-                Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
-            }
             #endif
 
             // Initializes the Player
@@ -65,7 +59,7 @@ namespace FlyleafPlayer
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Giving access to keyboard events on start up
-            flyleafControl.VideoView.WinFormsHost.Focus();
+            Player.VideoView.WinFormsHost.Focus();
         }
 
         protected override void OnSourceInitialized(EventArgs e)

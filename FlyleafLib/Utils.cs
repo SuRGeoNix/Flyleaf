@@ -262,6 +262,8 @@ namespace FlyleafLib
 
             [DllImport("user32.dll",SetLastError = true)]
             public static extern bool GetWindowInfo(IntPtr hwnd, ref WINDOWINFO pwi);
+            [DllImport("user32.dll")]
+            public static extern int ShowCursor(bool bShow);
 
             [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod", SetLastError = true)]
             public static extern uint TimeBeginPeriod(uint uMilliseconds);

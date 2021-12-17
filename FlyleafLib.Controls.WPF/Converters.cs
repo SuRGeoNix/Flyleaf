@@ -29,10 +29,8 @@ namespace FlyleafLib.Controls.WPF
                 return Qualities.High;
             else if (videoHeight == 720)
                 return Qualities.Med;
-            else if (videoHeight > 0)
+            else 
                 return Qualities.Low;
-            else
-                return Qualities.None;
         }
 		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
 	}

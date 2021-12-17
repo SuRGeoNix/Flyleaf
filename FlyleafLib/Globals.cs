@@ -117,6 +117,13 @@ namespace FlyleafLib
         public override string ToString() { return this == Keep ? "Keep" : (this == Fill ? "Fill" : (this == Custom ? "Custom" : (this == Invalid ? "Invalid" : $"{Num}:{Den}"))); }
     }
 
+    class PlayerStats
+    {
+        public long TotalBytes      { get; set; }
+        public long VideoBytes      { get; set; }
+        public long AudioBytes      { get; set; }
+        public long FramesDisplayed { get; set; }
+    }
     public class NotifyPropertyChanged : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
@@ -130,7 +137,7 @@ namespace FlyleafLib
 
             if (!check || (field == null && value != null) || (field != null && !field.Equals(value)))
             {
-                //System.Diagnostics.Debug.WriteLine($"\t[===| {propertyName} |===]");
+                //Utils.Log($"[===| {propertyName} ({(field != null ? field.ToString() : "null")} => {(value != null ? value.ToString() : "null")}) |===] | {(Master.UIControl != null ? Master.UIControl.InvokeRequired.ToString() : "")}");
 
                 field = value;
 

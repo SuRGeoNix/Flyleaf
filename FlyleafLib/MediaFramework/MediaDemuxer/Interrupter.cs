@@ -13,7 +13,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public Requester    Requester       { get; private set; }
         public long         Requested       { get; private set; }
         public int          Interrupted     { get; private set; }
-        public bool         TimedOut        { get; private set; }
 
         public AVIOInterruptCB_callback_func GetCallBackFunc() { return interruptClbk; }
         AVIOInterruptCB_callback_func   interruptClbk = new AVIOInterruptCB_callback_func();     
@@ -65,7 +64,16 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     demuxer.Log($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms");
                     #endif
 
-                    //demuxer.Interrupter.TimedOut = true;
+                    // Prevent Live Streams from Timeout (while demuxer is at the end)
+                    if (demuxer.Duration == 0 || (demuxer.HLSPlaylist != null && demuxer.HLSPlaylist->cur_seq_no > demuxer.HLSPlaylist->last_seq_no - 2))
+                    {
+                        #if DEBUG
+                        demuxer.Log($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms | Live HLS Excluded");
+                        #endif
+
+                        return demuxer.Interrupter.Interrupted = 0;
+                    }
+
                     return demuxer.Interrupter.Interrupted = 1;
                 }
             }

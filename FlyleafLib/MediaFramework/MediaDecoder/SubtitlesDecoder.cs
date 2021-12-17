@@ -42,7 +42,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
-                curSpeedFrame = Speed;
             }
         }
 
@@ -155,21 +154,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         private SubtitlesFrame ProcessSubtitlesFrame(AVPacket* packet, AVSubtitle* sub)
         {
             SubtitlesFrame mFrame;
-            if (Speed != 1)
-            {
-                curSpeedFrame++;
-                if (curSpeedFrame < Speed) return null;
-                curSpeedFrame = 0;
-                sub->start_display_time /= (uint) Speed;
-                sub->end_display_time /= (uint) Speed;
-                mFrame = new SubtitlesFrame();
-                mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
-                mFrame.timestamp /= Speed;
-            }
-            else {
-                mFrame = new SubtitlesFrame();
-                mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
-            }
+            mFrame = new SubtitlesFrame();
+            mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
 
             try
             {

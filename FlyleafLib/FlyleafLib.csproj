@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.3.13</Version>
+	<Version>3.4.0-pre</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,6 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Adds Reverse Playback support (Player.ReversePlayback, Config.Decoder.MaxVideoFramesReverse)
-		Adds Reverse Speed (Delay) support (Config.Player.SpeedReverse = 0.0 to 1.0)
-		Adds Frame-By-Frame Seek support (Player.ShowFrame(frameIndex), Player.ShowFrameNext() and Player.ShowFramePrev())
-		Adds fast Switch/Swap Player support between VideoViews (Note: you might need to unsubscribe from Player's and Control's events and re-subscribe after the swap)
-		Fixes a possible crash during UpdateCurTime() on demuxer
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -45,12 +40,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1" />
+    <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
     <PackageReference Include="NAudio.Core" Version="2.0.0" />
     <PackageReference Include="NAudio.Wasapi" Version="2.0.0" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.0-beta4" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.1.0-beta4" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.3.21" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.0-beta8" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.1.0-beta8" />
+    <PackageReference Include="Vortice.Mathematics" Version="1.3.22" />
   </ItemGroup>
   
   <ItemGroup>

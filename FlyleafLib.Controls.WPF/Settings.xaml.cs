@@ -24,6 +24,25 @@ namespace FlyleafLib.Controls.WPF
             Resources.SetTheme(flyleaf.Resources.GetTheme());
         }
 
+        public void Dispose()
+        {
+            tabRoot.Resources.MergedDictionaries.Clear();
+            tabRoot.Resources.Clear();
+            tabRoot = null;
+
+            ColorPicker.Resources.MergedDictionaries.Clear();
+            ColorPicker.Resources.Clear();
+            ColorPicker = null;
+            DataContext = null;
+
+            Resources.MergedDictionaries.Clear();
+            Resources.Clear();
+            Resources = null;
+
+            Content = null;
+            Raise(null);
+        }
+
         public void ApplySettings() { ApplySettingsRec(tabRoot); }
         public void ApplySettingsRec(Visual parent)
         {
@@ -79,7 +98,7 @@ namespace FlyleafLib.Controls.WPF
         {
             string curPlugin = ((TextBlock)((Panel)((FrameworkElement)sender).Parent).Children[0]).Text;
 
-            flyleaf.PluginsConfig[cmbPlugins.Text][curPlugin] = ((TextBox)sender).Text;
+            flyleaf.Config.Plugins[cmbPlugins.Text][curPlugin] = ((TextBox)sender).Text;
         }
 
         private void NamedColors_SelectionChanged(object sender, SelectionChangedEventArgs e)

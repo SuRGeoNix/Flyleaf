@@ -81,7 +81,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             int ret;
 
-            Renderer = new Renderer(this, Config, control, UniqueId);
+            Renderer = new Renderer(this, control, UniqueId);
 
             if (Renderer.Device == null || hw_device_ctx != null) return -1;
 
@@ -145,7 +145,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 av_buffer_unref(&videoDecoder.codecCtx->hw_device_ctx);
                 videoDecoder.codecCtx->hw_device_ctx = av_buffer_ref(videoDecoder.hw_device_ctx);
             }
-
+            
             if (codecCtx != null)
             {
                 if (codecCtx->hw_device_ctx != null) av_buffer_unref(&codecCtx->hw_device_ctx);
@@ -157,7 +157,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (!Disposed)
             {
                 Renderer.DisableRendering = false;
-                Renderer.FrameResized();
+                //Renderer.FrameResized();
+                Open(VideoStream);
                 //Setup(codecCtx->codec);
             }
             else
@@ -617,17 +618,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (Speed != 1)
                 {
                     curSpeedFrame++;
-                    if (curSpeedFrame < Speed) return null;
-                    curSpeedFrame = 0;
-                    mFrame = new VideoFrame();
-                    mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
-                    mFrame.timestamp /= Speed;
+                    if (curSpeedFrame < Speed)
+                        return null;
+
+                    curSpeedFrame = 0;                    
                 }
-                else
-                {
-                    mFrame = new VideoFrame();
-                    mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
-                }
+                
+                mFrame = new VideoFrame();
+                mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
                 //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)}");
 
                 if (!HDRDataSent && frame->side_data != null && *frame->side_data != null)
@@ -762,7 +760,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public int GetFrameNumber(long timestamp)
         {
             // offset 2ms
-            return (int) ((timestamp + 20000) / (10000000 / VideoStream.Fps));
+            return (int) ((timestamp + 20000) / (10000000 / VideoStream.FPS));
         }
 
         /// <summary>
@@ -775,7 +773,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int ret;
 
             // Calculation of FrameX timestamp (based on fps/avgFrameDuration) | offset 2ms
-            long frameTimestamp = VideoStream.StartTime + (long) (index * (10000000 / VideoStream.Fps)) - 20000;
+            long frameTimestamp = VideoStream.StartTime + (long) (index * (10000000 / VideoStream.FPS)) - 20000;
             //Log($"Searching for {Utils.TicksToTime(frameTimestamp)}");
 
             // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC

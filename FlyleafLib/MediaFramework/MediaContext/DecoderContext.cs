@@ -630,29 +630,30 @@ namespace FlyleafLib.MediaFramework.MediaContext
         #endregion
 
         #region Seek
-        public int Seek(long ms = -1, bool foreward = false, bool seekInQueue = true)
+        public int Seek(long ms = -1, bool forward = false, bool seekInQueue = true)
         {
             int ret = 0;
 
             if (ms == -1) ms = GetCurTimeMs();
 
             // Review decoder locks (lockAction should be added to avoid dead locks with flush mainly before lockCodecCtx)
+            AudioDecoder.keyFrameRequired = false; // Temporary to avoid dead lock on AudioDecoder.lockCodecCtx
             lock (VideoDecoder.lockCodecCtx)
             lock (AudioDecoder.lockCodecCtx)
             lock (SubtitlesDecoder.lockCodecCtx)
             {
-                long seekTimestamp = CalcSeekTimestamp(VideoDemuxer, ms, ref foreward);
+                long seekTimestamp = CalcSeekTimestamp(VideoDemuxer, ms, ref forward);
 
                 // Should exclude seek in queue for all "local/fast" files
                 lock (VideoDemuxer.lockActions)
-                if (OpenedPlugin.Name == "BitSwarm" || !seekInQueue || VideoDemuxer.SeekInQueue(seekTimestamp, foreward) != 0)
+                if (OpenedPlugin.Name == "BitSwarm" || !seekInQueue || VideoDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
                 {
                     VideoDemuxer.Interrupter.ForceInterrupt = 1;
                     OpenedPlugin.OnBuffering();
                     lock (VideoDemuxer.lockFmtCtx)
                     {    
                         if (VideoDemuxer.Disposed) { VideoDemuxer.Interrupter.ForceInterrupt = 0; return -1; }
-                        ret = VideoDemuxer.Seek(seekTimestamp, foreward);
+                        ret = VideoDemuxer.Seek(seekTimestamp, forward);
                     }
                 }
 
@@ -682,7 +683,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             
             return ret;
         }
-        public int SeekAudio(long ms = -1, bool foreward = false)
+        public int SeekAudio(long ms = -1, bool forward = false)
         {
             int ret = 0;
 
@@ -690,14 +691,15 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             if (ms == -1) ms = GetCurTimeMs();
 
-            long seekTimestamp = CalcSeekTimestamp(AudioDemuxer, ms, ref foreward);
+            long seekTimestamp = CalcSeekTimestamp(AudioDemuxer, ms, ref forward);
 
+            AudioDecoder.keyFrameRequired = false; // Temporary to avoid dead lock on AudioDecoder.lockCodecCtx
             lock (AudioDecoder.lockActions)
             lock (AudioDecoder.lockCodecCtx)
             {
                 lock (AudioDemuxer.lockActions)
-                    if (AudioDemuxer.SeekInQueue(seekTimestamp, foreward) != 0)
-                        ret = AudioDemuxer.Seek(seekTimestamp, foreward);
+                    if (AudioDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
+                        ret = AudioDemuxer.Seek(seekTimestamp, forward);
 
                 AudioDecoder.Flush();
                 if (VideoDecoder.IsRunning)
@@ -709,7 +711,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             return ret;
         }
-        public int SeekSubtitles(long ms = -1, bool foreward = false)
+        public int SeekSubtitles(long ms = -1, bool forward = false)
         {
             int ret = 0;
 
@@ -717,15 +719,15 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             if (ms == -1) ms = GetCurTimeMs();
 
-            long seekTimestamp = CalcSeekTimestamp(SubtitlesDemuxer, ms, ref foreward);
+            long seekTimestamp = CalcSeekTimestamp(SubtitlesDemuxer, ms, ref forward);
 
             lock (SubtitlesDecoder.lockActions)
             lock (SubtitlesDecoder.lockCodecCtx)
             {
                 // Currently disabled as it will fail to seek within the queue the most of the times
                 //lock (SubtitlesDemuxer.lockActions)
-                    //if (SubtitlesDemuxer.SeekInQueue(seekTimestamp, foreward) != 0)
-                ret = SubtitlesDemuxer.Seek(seekTimestamp, foreward);
+                    //if (SubtitlesDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
+                ret = SubtitlesDemuxer.Seek(seekTimestamp, forward);
 
                 SubtitlesDecoder.Flush();
                 if (VideoDecoder.IsRunning)
@@ -743,7 +745,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             return !VideoDemuxer.Disposed ? (int)(VideoDemuxer.CurTime / 10000) : (!AudioDemuxer.Disposed ? (int)(AudioDemuxer.CurTime / 10000): 0);
         }
 
-        private long CalcSeekTimestamp(Demuxer demuxer, long ms, ref bool foreward)
+        private long CalcSeekTimestamp(Demuxer demuxer, long ms, ref bool forward)
         {
             long startTime = demuxer.hlsCtx == null ? demuxer.StartTime : demuxer.hlsCtx->first_timestamp * 10;
             long ticks = (ms * 10000) + startTime;
@@ -754,12 +756,12 @@ namespace FlyleafLib.MediaFramework.MediaContext
             if (ticks < startTime) 
             {
                 ticks = startTime;
-                foreward = true;
+                forward = true;
             }
             else if (ticks > startTime + (!VideoDemuxer.Disposed ? VideoDemuxer.Duration : AudioDemuxer.Duration) - (50 * 10000))
             {
                 ticks = startTime + demuxer.Duration - (50 * 10000);
-                foreward = false;
+                forward = false;
             }
 
             return ticks;
@@ -970,6 +972,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
                             VideoDecoder.keyFrameRequired = false;
 
                             VideoFrame mFrame = VideoDecoder.ProcessVideoFrame(frame);
+                            if (mFrame == null) return -1;
+
                             if (mFrame != null)
                             {
                                 VideoDecoder.Frames.Enqueue(mFrame);

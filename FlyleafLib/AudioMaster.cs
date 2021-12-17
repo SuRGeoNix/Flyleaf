@@ -115,8 +115,8 @@ namespace FlyleafLib
             {
                 if (device != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
 
-                foreach(var player in Master.Players.Values)
-                    player.InitializeAudio();
+                foreach(var player in Master.Players)
+                    player.Audio.Initialize();
 
                 try
                 {

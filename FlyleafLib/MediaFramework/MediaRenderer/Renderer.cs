@@ -29,7 +29,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public unsafe class Renderer : IDisposable
     {
-        public Config           Config          { get; private set; }
+        public Config           Config          => VideoDecoder?.Config;
         public int              UniqueId        { get; private set; }
 
         public Control          Control         { get; private set; }
@@ -208,9 +208,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         #endregion
 
-        public Renderer(VideoDecoder videoDecoder, Config config, Control control = null, int uniqueId = -1)
+        public Renderer(VideoDecoder videoDecoder, Control control = null, int uniqueId = -1)
         {
-            Config      = config;
             Control     = control;
             UniqueId    = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder= videoDecoder;
@@ -224,7 +223,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                 {
-                    if (adapter.Description1.AdapterLuid == Config.Video.GPUAdapteLuid)
+                    if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
                        break;
 
                     adapter.Dispose();
@@ -389,7 +388,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1 adapter).Success; adapterIndex++)
             {
                 #if DEBUG
-                Utils.Log($"[#{adapterIndex+1}] {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.AdapterLuid}) | DVM: {adapter.Description1.DedicatedVideoMemory}");
+                Utils.Log($"[#{adapterIndex+1}] {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {adapter.Description1.DedicatedVideoMemory}");
                 #endif
 
                 if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
@@ -408,7 +407,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     output.Dispose();
                 }
 
-                adapters[adapter.Description1.AdapterLuid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.AdapterLuid, HasOutput = hasOutput };
+                adapters[adapter.Description1.Luid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.Luid, HasOutput = hasOutput };
 
                 adapter.Dispose();
                 adapter = null;
@@ -436,10 +435,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 vertexBuffer?.Dispose();
                 backBuffer?.Dispose();
                 rtv?.Dispose();
+                rtv = null;
 
                 if (rtv2 != null)
+                {
                     for(int i=0; i<rtv2.Length-1; i++)
                         rtv2[i].Dispose();
+
+                    rtv2 = null;
+                }
 
                 if (backBuffer2 != null)
                     for(int i=0; i<backBuffer2.Length-1; i++)
@@ -450,6 +454,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 context?.ClearState();
                 context?.Flush();
                 context?.Dispose();
+                context = null;
+
                 Device?.ImmediateContext?.Dispose();
                 swapChain?.Dispose();
                 factory?.Dispose();
@@ -492,6 +498,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             // TODO: Win7 doesn't support R8G8_UNorm so use SNorm will need also unormUV on pixel shader
             lock (Device)
             {
+                curSRVs = new ID3D11ShaderResourceView[0]; // Prevent Draw if backbuffer not set yet (otherwise we see green screen on YUV)
+
                 srvDescR = new ShaderResourceViewDescription()
                 {
                     Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
@@ -532,7 +540,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     psBufferData.coefsIndex = 2;
 
                 context.UpdateSubresource(ref psBufferData, psBuffer);
-
+                
                 if (Control != null)
                     SetViewport();
                 else
@@ -633,9 +641,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         curSRVs     = new ID3D11ShaderResourceView[1];
                         curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
                     }
-
+                    
                     context.PSSetShaderResources(0, curSRVs);
-
                     context.OMSetRenderTargets(rtv);
                     context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
                     if (!DisableRendering) context.Draw(6, 0);
@@ -672,7 +679,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     do
                     {
-                        if (Device == null) return;
+                        if (Device == null)
+                            return;
 
                         if (Monitor.TryEnter(Device, 5))
                         {        
@@ -680,27 +688,32 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                             {
                                 long sleepMs = DateTime.UtcNow.Ticks - lastPresentAt;
                                 sleepMs = sleepMs < (long)( 1.0/Config.Player.IdleFps * 1000 * 10000) ? (long) (1.0/Config.Player.IdleFps * 1000) : 0;
-                                if (sleepMs > 2) Thread.Sleep((int)sleepMs);
+                                if (sleepMs > 2)
+                                    Thread.Sleep((int)sleepMs);
 
-                                if (rtv == null) return;
+                                if (rtv == null)
+                                    return;
 
                                 context.OMSetRenderTargets(rtv);
                                 context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
-                                if (!DisableRendering) context.Draw(6, 0);
+
+                                if (!DisableRendering && curSRVs == null) // Prevent Draw if backbuffer not set yet (otherwise we see green screen on YUV)
+                                    context.Draw(6, 0);
+
                                 swapChain.Present(Config.Video.VSync, PresentFlags.None);
                                 lastPresentAt = DateTime.UtcNow.Ticks;
 
                                 return;
+
                             } finally { Monitor.Exit(Device); }
+
                         } else { Log("Dropped Present - Lock timeout"); }
 
                     } while (lastPresentRequestAt > lastPresentAt);
 
                     return;
-                } finally
-                {
-                    isPresenting = false;
-                }
+
+                } finally { isPresenting = false; }
             });
         }
 

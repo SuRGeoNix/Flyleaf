@@ -10,6 +10,7 @@ namespace FlyleafPlayer__Custom_
     public partial class Form1 : Form
     {
         public Player Player { get; set; }
+        public Player Player2 { get; set; }
         public Config Config { get; set; }
 
         public static string SampleVideo { get; set; } = Utils.FileExistsBelow("Sample.mp4");
@@ -20,43 +21,79 @@ namespace FlyleafPlayer__Custom_
 
             // Prepares Player's Configuration
             Config = new Config();
-            Config.Demuxer.FormatOpt.Add("probesize",(50 * (long)1024 * 1024).ToString());
-            Config.Demuxer.FormatOpt.Add("analyzeduration",(10 * (long)1000 * 1000).ToString());
 
             // Initializes the Player
             Player = new Player(Config);
+            Player2 = new Player();
 
             InitializeComponent();
 
             // Parse the control to the Player
             Player.Control = flyleaf1;
-            Player.OpenCompleted += (o, x) => { if (x.Success && x.Type == MediaType.Video) Player.Play(); };
+            Player2.Control = flyleaf2;
+
+            isPlayer1View = true;
+            Player1View = Player;
+
+            Player.PropertyChanged += Player_PropertyChanged; // On Swap you should unsubscribe player 1 and subscribe to player 2
+            //Player.OpenCompleted += // To handle errors
+            //Player.BufferingStarted += // To handle buffering
+        }
+
+        private void Player_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            // No UI Invoke required
+
+            switch (e.PropertyName)
+            {
+                case "CurTime":
+                    label1.Text = Utils.TicksToTime(Player1View.CurTime);
+                    break;
+
+                case "BufferedDuration":
+                    label2.Text = Utils.TicksToTime(Player1View.BufferedDuration);
+                    break;
+
+                case "Status":
+                    label6.Text = Player1View.Status.ToString();
+                    break;
+            }
+        }
+
+        private void RefreshAfterSwap()
+        {
+            label1.Text = Utils.TicksToTime(Player1View.CurTime);
+            label2.Text = Utils.TicksToTime(Player1View.BufferedDuration);
+            label6.Text = Player1View.Status.ToString();
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            // Sample using a 'custom' IO stream
-            //Stream customInput = new FileStream(SampleVideo, FileMode.Open);
-            //Player.OpenAsync(customInput);
+            // Just to make sure that handles have been created before using the player (opening)
+            while (Player.Control.Handle == IntPtr.Zero || Player2.Control.Handle == IntPtr.Zero)
+                System.Threading.Thread.Sleep(20);
 
             Player.OpenAsync(SampleVideo);
-            //FullScreen();
+
+            // Sample using a 'custom' IO stream
+            Stream customInput = new FileStream(SampleVideo, FileMode.Open);
+            Player2.OpenAsync(customInput);
         }
 
-        public void FullScreen()
+        bool isPlayer1View;
+        Player Player1View;
+        private void btnSwap_Click(object sender, EventArgs e)
         {
-            var screen = Screen.FromControl(this).Bounds;
+            Player1View.PropertyChanged -= Player_PropertyChanged;
 
-            if (Width != screen.Width && Height != screen.Height)
-            {
-                FormBorderStyle = FormBorderStyle.None;
+            Player.SwitchPlayer(Player2);
+            Player2.SwitchPlayer(Player);
 
-                Location       = screen.Location;
-                Size           = screen.Size;
+            Player1View = isPlayer1View ? Player2 : Player;
+            Player1View.PropertyChanged += Player_PropertyChanged;
 
-                BringToFront();
-                Focus();
-            }
+            RefreshAfterSwap();
+            isPlayer1View = !isPlayer1View;
         }
     }
 }

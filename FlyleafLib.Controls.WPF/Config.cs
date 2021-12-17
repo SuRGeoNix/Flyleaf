@@ -13,8 +13,6 @@ namespace FlyleafLib.Controls.WPF
 {
     public class UIConfig
     {
-        public int          IdleTimeout     { get; set; }
-
         public string       SelectedTheme   { get; set; }
         public ObservableCollection<UITheme> 
                             UIThemes        { get; set; }
@@ -29,7 +27,6 @@ namespace FlyleafLib.Controls.WPF
                         XmlSerializer xmlSerializer = new XmlSerializer(typeof(UIConfig));
                         UIConfig uIConfig =  (UIConfig) xmlSerializer.Deserialize(fs);
 
-                        flyleaf.IdleTimeout         = uIConfig.IdleTimeout;
                         flyleaf.UIThemes            = uIConfig.UIThemes;
                         flyleaf.SelectedThemeStr    = uIConfig.SelectedTheme;
                     }
@@ -42,7 +39,6 @@ namespace FlyleafLib.Controls.WPF
             {
                 UIConfig uIConfig = new UIConfig()
                 {
-                    IdleTimeout     = flyleaf.IdleTimeout,
                     UIThemes        = flyleaf.UIThemes,
                     SelectedTheme   = flyleaf.SelectedThemeStr
                 };
