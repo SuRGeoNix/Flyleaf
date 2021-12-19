@@ -174,5 +174,10 @@ namespace FlyleafLib.MediaPlayer
         {
             Config.Video.Enabled = !Config.Video.Enabled;
         }
+
+        public void ToggleVideoAcceleration()
+        {
+            Config.Video.VideoAcceleration = !Config.Video.VideoAcceleration;
+        }
     }
 }

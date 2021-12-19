@@ -4,7 +4,7 @@ namespace FlyleafLib.MediaFramework.MediaInput
 {
     public class VideoInput : InputBase
     {
-        public double       Fps         { get; set; }
+        public double       FPS         { get; set; }
         public int          Height      { get; set; }
         public int          Width       { get; set; }
 
