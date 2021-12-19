@@ -298,14 +298,17 @@ namespace FlyleafLib.MediaPlayer
                     }
 
                     VideoDecoder.Frames.TryDequeue(out vFrame);
-                    if (vFrame != null) vFrame.timestamp = (long) (vFrame.timestamp / Speed);
+                    if (Speed != 1 && vFrame != null)
+                        vFrame.timestamp = (long) (vFrame.timestamp / Speed);
                 }
                 else if (vDistanceMs < -2)
                 {
                     Video.framesDropped++;
                     VideoDecoder.DisposeFrame(vFrame);
                     VideoDecoder.Frames.TryDequeue(out vFrame);
-                    if (vFrame != null) vFrame.timestamp = (long) (vFrame.timestamp / Speed);
+                    if (Speed != 1 && vFrame != null)
+                        vFrame.timestamp = (long) (vFrame.timestamp / Speed);
+
                     Log($"vDistanceMs 2 |-> {vDistanceMs}");
 
                     if (vDistanceMs < -10)
@@ -530,11 +533,11 @@ namespace FlyleafLib.MediaPlayer
 
                 if (aDistanceMs > 100)
                 {
-                    if (Master.UICurTimePerSecond && (
-                        (mainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) || 
+                    if (Master.UICurTimePerSecond &&  (
+                        (mainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
                         (mainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
-                        elapsedSec = elapsedTicks;
+                        elapsedSec  = elapsedTicks;
                         UI(() => UpdateCurTime());
                     }
 

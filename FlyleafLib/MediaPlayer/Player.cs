@@ -174,7 +174,10 @@ namespace FlyleafLib.MediaPlayer
             Set(ref _CurTime, curTime, true, nameof(CurTime));
 
             if (_BufferedDuration != mainDemuxer.BufferedDuration)
+            {
+                _BufferedDuration = mainDemuxer.BufferedDuration;
                 Raise(nameof(BufferedDuration));
+            }
         }
 
         /// <summary>

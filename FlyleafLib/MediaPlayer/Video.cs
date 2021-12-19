@@ -72,7 +72,7 @@ namespace FlyleafLib.MediaPlayer
         internal int    _Height, height;
 
         public bool                 VideoAcceleration
-                                                    { get => _VideoAcceleration;internal set => Set(ref _VideoAcceleration, value); }
+                                                    { get => videoAcceleration;internal set => Set(ref _VideoAcceleration, value); }
         internal bool   _VideoAcceleration, videoAcceleration;
 
         Action uiAction;
