@@ -12,16 +12,17 @@ namespace FlyleafLib.MediaPlayer
     partial class Player
     {
         /// <summary>
-        /// Fires on playback ended successfully
+        /// Fires on playback stopped by an error or completed / ended successfully
         /// </summary>
-        public event EventHandler PlaybackCompleted;
-        protected virtual void OnPlaybackCompleted() { PlaybackCompleted?.BeginInvoke(this, new EventArgs(), null, null); }
+        public event EventHandler<PlaybackCompletedArgs> PlaybackCompleted;
+        protected virtual void OnPlaybackCompleted(string error = null)
+        {
+            PlaybackCompleted?.BeginInvoke(this, new PlaybackCompletedArgs(error), null, null);
 
-        public event EventHandler BufferingStarted;
-        protected virtual void OnBufferingStarted() { BufferingStarted?.BeginInvoke(this, new EventArgs(), null, null); }
-
-        public event EventHandler BufferingCompleted;
-        protected virtual void OnBufferingCompleted() { BufferingCompleted?.BeginInvoke(this, new EventArgs(), null, null); }
+            #if DEBUG
+            Log($"OnPlaybackCompleted Error={error}");
+            #endif
+        }
 
         /// <summary>
         /// Plays AVS streams
@@ -46,6 +47,8 @@ namespace FlyleafLib.MediaPlayer
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
 
                         mainDemuxer = VideoDemuxer;
+                        onBufferingStarted   = 0;
+                        onBufferingCompleted = 0;
 
                         if (Config.Player.Usage == Usage.LowLatencyVideo)
                             ScreamerLowLatency();
@@ -80,22 +83,33 @@ namespace FlyleafLib.MediaPlayer
                         TimeEndPeriod(1);
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
 
-                        if (HasEnded)
+                        bool error = false;
+
+                        // Missed Buffering Completed means error
+                        if (onBufferingStarted - 1 == onBufferingCompleted)
                         {
-                            //curTime = Duration * Config.Player.Speed;
-                            status = Status.Ended;
-                            UI(() =>
-                            {
-                                Status = Status;
-                                UpdateCurTime();
-                            });
-                            OnPlaybackCompleted();
+                            error = IsPlaying;
+                            OnBufferingCompleted(error ? "Unknown" : null);
                         }
-                        else
+
+                        if (IsPlaying)
                         {
-                            status = Status.Paused;
-                            UI(() => Status = Status);
+                            if (!error)
+                                error = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
+
+                            if (HasEnded)
+                                status = Status.Ended;
+                            else
+                                status = Status.Paused;
+
+                            OnPlaybackCompleted(error ? "Unknown" : null);
                         }
+
+                        UI(() =>
+                        {
+                            Status = Status;
+                            UpdateCurTime();
+                        });
                     }
                 });
                 tPlay.Name = "Play";
@@ -250,6 +264,19 @@ namespace FlyleafLib.MediaPlayer
             }
         }
     }
+
+    public class PlaybackCompletedArgs : EventArgs
+    {
+        public string   Error       { get; }
+        public bool     Success     { get; }
+            
+        public PlaybackCompletedArgs(string error)
+        {
+            Error   = error;
+            Success = Error == null;
+        }
+    }
+
     class SeekData
     {
         public int  ms;

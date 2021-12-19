@@ -78,7 +78,7 @@ namespace FlyleafLib.MediaPlayer
 
                     ctrlWasDown = false;
 
-                    player.Log(binding.Action.ToString());
+                    //player.Log(binding.Action.ToString());
                     binding.ActionInternal?.Invoke();
 
                     return true;
@@ -99,7 +99,7 @@ namespace FlyleafLib.MediaPlayer
                         return false;
                     }
 
-                    player.Log(binding.Action.ToString());
+                    //player.Log(binding.Action.ToString());
                     binding.ActionInternal?.Invoke();
                     
                     return true;
@@ -112,14 +112,14 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!Config.Player.KeyBindings.Enabled || !Config.Player.KeyBindings.FlyleafWindow) return;
 
-            Log("WindowFront_KeyUp");
+            //Log("WindowFront_KeyUp");
             KeyUp(((FlyleafWindow)sender).VideoView.Player, e);
         }
         private void WindowFront_KeyDown(object sender, KeyEventArgs e)
         {
             if (!Config.Player.KeyBindings.Enabled || !Config.Player.KeyBindings.FlyleafWindow) return;
 
-            Log("WindowFront_KeyDown");
+            //Log("WindowFront_KeyDown");
             KeyDown(((FlyleafWindow)sender).VideoView.Player, e);
         }
 
@@ -127,14 +127,14 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!Config.Player.KeyBindings.Enabled) return;
 
-            Log("WinFormsHost_KeyUp");
+            //Log("WinFormsHost_KeyUp");
             KeyUp(((Flyleaf)((WindowsFormsHost)sender).Child).Player, e);
         }
         private void WinFormsHost_KeyDown(object sender, KeyEventArgs e)
         {
             if (!Config.Player.KeyBindings.Enabled) return;
 
-            Log("WinFormsHost_KeyDown");
+            //Log("WinFormsHost_KeyDown");
             KeyDown(((Flyleaf)((WindowsFormsHost)sender).Child).Player, e);
         }
 
@@ -142,14 +142,14 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!Config.Player.KeyBindings.Enabled) return;
 
-            Log("Control_KeyUp");
+            //Log("Control_KeyUp");
             KeyUp(((Flyleaf)sender).Player, e);
         }
         private void Control_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
             if (!Config.Player.KeyBindings.Enabled) return;
 
-            Log("Control_KeyDown");
+            //Log("Control_KeyDown");
             KeyDown(((Flyleaf)sender).Player, e);
         }
 

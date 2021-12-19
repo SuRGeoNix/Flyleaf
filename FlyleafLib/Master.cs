@@ -189,7 +189,6 @@ namespace FlyleafLib
                     lock (Players)
                         foreach (Player player in Players)
                         {
-
                             /* Every UIRefreshInterval */
                             if (player.Config.Player.ActivityMode)
                                 player.Activity.mode = player.Activity.Check();
@@ -252,12 +251,8 @@ namespace FlyleafLib
                                     }   
                                 }
 
-                                // Buffered Duration Refresh
-                                if (player.Duration != 0)
-                                    player.BufferedDuration = player.BufferedDuration;
-
-                                // CurTime
-                                if (!UICurTimePerSecond)
+                                // CurTime / Buffered Duration (+Duration for HLS)
+                                if (!UICurTimePerSecond || (!player.IsPlaying && player.CanPlay))
                                     player.UpdateCurTime();
 
                                 /* Every Second */

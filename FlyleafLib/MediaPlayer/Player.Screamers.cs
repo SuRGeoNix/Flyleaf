@@ -10,6 +10,40 @@ namespace FlyleafLib.MediaPlayer
 {
     unsafe partial class Player
     {
+        /// <summary>
+        /// Fires on buffering started
+        /// </summary>
+        public event EventHandler BufferingStarted;
+        protected virtual void OnBufferingStarted()
+        {
+            if (onBufferingStarted != onBufferingCompleted) return;
+            BufferingStarted?.BeginInvoke(this, new EventArgs(), null, null); 
+            onBufferingStarted++;
+
+            #if DEBUG
+            Log($"OnBufferingStarted");
+            #endif
+        }
+
+        /// <summary>
+        /// Fires on buffering completed (will fire also on failed buffering completed)
+        /// (BufferDration > Config.Player.MinBufferDuration)
+        /// </summary>
+        public event EventHandler<BufferingCompletedArgs> BufferingCompleted;
+        protected virtual void OnBufferingCompleted(string error = null)
+        {
+            if (onBufferingStarted - 1 != onBufferingCompleted) return;
+            BufferingCompleted?.BeginInvoke(this, new BufferingCompletedArgs(error), null, null);
+            onBufferingCompleted++;
+
+            #if DEBUG
+            Log($"OnBufferingCompleted Error={error}");
+            #endif
+        }
+
+        long onBufferingStarted;
+        long onBufferingCompleted;
+
         private void ShowOneFrame()
         {
             sFrame = null;
@@ -191,8 +225,8 @@ namespace FlyleafLib.MediaPlayer
                     elapsedSec = startedAtTicks;
                     requiresBuffering = false;
                     if (seeks.Count != 0) continue;
-                    OnBufferingCompleted();
                     if (vFrame == null) { Log("MediaBuffer() no video frame"); break; }
+                    OnBufferingCompleted();
                 }
 
                 if (vFrame == null)
@@ -216,10 +250,7 @@ namespace FlyleafLib.MediaPlayer
                 {
                     SubtitlesDecoder.Frames.TryPeek(out sFrame);
                     if (sFrame != null)
-                    {
-                        sFrame.timestamp = (long) (sFrame.timestamp / Speed);
-                        //sFrame.duration = sFrame.duration / Speed;
-                    }
+                        sFrame.timestamp = (long) (sFrame.timestamp / Speed); //sFrame.duration = sFrame.duration / Speed;
                 }
 
                 elapsedTicks    = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
@@ -239,7 +270,7 @@ namespace FlyleafLib.MediaPlayer
                     }
 
                     if (Master.UICurTimePerSecond &&  (
-                        (mainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) || 
+                        (mainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
                         (mainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
                         elapsedSec  = elapsedTicks;
@@ -258,8 +289,13 @@ namespace FlyleafLib.MediaPlayer
                     else
                         Video.framesDropped++;
 
-                    if (mainDemuxer.HLSPlaylist == null && seeks.Count == 0)
-                        curTime = (long) (elapsedTicks * Speed);
+                    if (seeks.Count == 0)
+                    {
+                        if (mainDemuxer.HLSPlaylist == null)
+                            curTime = (long) (elapsedTicks * Speed);
+                        else
+                            curTime = VideoDemuxer.CurTime;
+                    }
 
                     VideoDecoder.Frames.TryDequeue(out vFrame);
                     if (vFrame != null) vFrame.timestamp = (long) (vFrame.timestamp / Speed);
@@ -338,7 +374,7 @@ namespace FlyleafLib.MediaPlayer
                     }
                 }
             }
-            
+
             Log($"[SCREAMER] Finished -> {TicksToTime(CurTime)}");
         }
 
@@ -600,6 +636,18 @@ namespace FlyleafLib.MediaPlayer
                 if (vFrame != null)
                     vFrame.timestamp = (long) (vFrame.timestamp / Speed);
             }
+        }
+    }
+
+    public class BufferingCompletedArgs : EventArgs
+    {
+        public string   Error       { get; }
+        public bool     Success     { get; }
+            
+        public BufferingCompletedArgs(string error)
+        {
+            Error   = error;
+            Success = Error == null;
         }
     }
 }
