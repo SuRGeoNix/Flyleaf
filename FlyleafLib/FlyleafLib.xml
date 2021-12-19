@@ -84,6 +84,11 @@
             Fps while the player is not playing
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.ActivityTimeout">
+            <summary>
+            Idle Timeout (ms)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.PlayerConfig.AutoPlay">
             <summary>
             It will automatically start playing after open or seek after ended
@@ -843,7 +848,7 @@
         </member>
         <member name="E:FlyleafLib.MediaPlayer.Player.PlaybackCompleted">
             <summary>
-            Fires on playback ended successfully
+            Fires on playback stopped by an error or completed / ended successfully
             </summary>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Play">
@@ -866,6 +871,17 @@
         <member name="M:FlyleafLib.MediaPlayer.Player.Stop">
             <summary>
             Stops and Closes AVS streams
+            </summary>
+        </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.BufferingStarted">
+            <summary>
+            Fires on buffering started
+            </summary>
+        </member>
+        <member name="E:FlyleafLib.MediaPlayer.Player.BufferingCompleted">
+            <summary>
+            Fires on buffering completed (will fire also on failed buffering completed)
+            (BufferDration > Config.Player.MinBufferDuration)
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.KeysConfig.Enabled">
@@ -951,6 +967,36 @@
         <member name="T:FFmpeg.AutoGen.ffmpegEx">
             <summary>
             Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
+            </summary>
+        </member>
+        <member name="T:XamlGeneratedNamespace.GeneratedInternalTypeHelper">
+            <summary>
+            GeneratedInternalTypeHelper
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateInstance(System.Type,System.Globalization.CultureInfo)">
+            <summary>
+            CreateInstance
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.GetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            GetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.SetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            SetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateDelegate(System.Type,System.Object,System.String)">
+            <summary>
+            CreateDelegate
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.AddEventHandler(System.Reflection.EventInfo,System.Object,System.Delegate)">
+            <summary>
+            AddEventHandler
             </summary>
         </member>
     </members>
