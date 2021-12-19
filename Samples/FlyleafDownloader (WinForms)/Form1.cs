@@ -142,7 +142,7 @@ namespace FlyleafDownloader
             {
                 string dump;
                 if (input.Width > 0)
-                    dump = $"{input.Width}x{input.Height}@{input.Fps} ({input.Codec}) {input.BitRate} Kbps";
+                    dump = $"{input.Width}x{input.Height}@{input.FPS} ({input.Codec}) {input.BitRate} Kbps";
                 else
                     dump = input.Url;
 

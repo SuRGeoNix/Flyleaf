@@ -235,7 +235,7 @@ namespace FlyleafLib.Plugins
                             Language    = Language.Get(fmt.language),
                             Width       = (int) fmt.width,
                             Height      = (int) fmt.height,
-                            Fps         = fmt.fps
+                            FPS         = fmt.fps
                         });
                     }
 

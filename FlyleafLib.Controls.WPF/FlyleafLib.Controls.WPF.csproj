@@ -14,6 +14,10 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
+		Updates FlyleafLib to v3.4.0-pre and uses all the new embedded functionality
+		Code clean-up for Key/Mouse Bindings and Activity Mode
+		Uses FlyleafLib's MVVM for Properties/Converters/ICommands
+		Fixes an issue with Speed (and removes SpeedReverse)
 	</PackageReleaseNotes>
   </PropertyGroup>
 

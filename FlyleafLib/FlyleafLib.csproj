@@ -17,6 +17,56 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
+		-= Extends Media Player's Functionality (Adds WinForms Support) =-
+
+		1) Key Bindings (Config.Player.KeyBindings.Enabled - ON By Default)
+		Allows to Add/Remove any (Ctrl +) Key combination and assign an existing action or even a custom (can also be loaded/saved with config)
+		Uses by default all common bindings
+		(Pause/Play/Open/Seek Backward-Forward/FullScreen/Record/TakeSnapshot/Speed Up-Down/Delays/Prev-Next Frame/Pan Zoom In-Out-Reset/Toggle AVS On-Off/Volume Up-Down-Mute)
+
+		2) Mouse Bindings (Config.Player.MouseBindigns.Enabled - ON By Default)
+		OpenOnDragAndDrop (Drag &amp; Drop), PanMoveOnDragAndCtrl (Pan Move), PanZoomOnWheelAndCtrl (Pan Zomm In/Out), ToggleFullScreenOnDoubleClick (Toggle FullScreen)
+
+		3) Activity Mode (Config.Player.ActivityMode - ON By Default) | Master Thread required
+		Monitors user's actions based on Key/Mouse events and updates the mode to Idle / Active(keyboard only) / FullActive(mouse) based on Config.Player.ActivityTimeout
+		Exposes Player.Activity.ForceIdle / ForceActive / ForceFullActive for custom updates
+
+		4) Extends frequently used (Helper) methods for direct calls, Key Bindings assignments or ICommands usage (Player / Player.Audio / Player.Video / Player.Subtitles / Player.Commands)
+
+		5) Master Thread (Master.UIRefresh, UIRefreshInterval, UICurTimePerSecond - ON By Default)
+		Will monitor and refresh all players on single UI Invoke (CurTime/BufferedDuration/BitRate Stats etc.)
+		Allows updates even when the players/demuxers are not running
+		Allows more frequent update for CurTime (Master.UICurTimePerSecond = false) rather than on exact second change on timestamps
+
+		6) Additional Config.Player offsets added (for key/mouse bindings)
+		AudioDelayOffset, AudioDelayOffset2, SubtitlesDelayOffset, SubtitlesDelayOffset2
+		SeekOffset, VolumeOffset, ZoomOffset
+
+		7) Auto Play (Config.Player.AutoPlay - ON By Default)
+		Not required to subscribe on open completed events to start playing
+
+		8) Adds HLS Live cache support amp; uses accurate timestamps
+
+		9) Adds BufferingStarted / BufferingCompleted (with error support) events and success/fail to PlaybackCompleted
+
+		10) Updates (FFmpeg.AutoGen / Vortice)
+
+		[Issues]
+
+		1) Fixes a read timeout issue with live streams (while demuxing at the end of stream and waiting for new packets)
+		2) Fixes a dead lock with Audio Decoder during multiple ReSyncs
+		3) Fixes critical issues during swaping players new feature
+		4) Controls.WPF: Fixes an issues with comma/dot string to double convert issue based on system culture
+
+		[Breaking / Important Changes]
+
+		1) Config.Demuxer.FormatOpt["probesize"] amp; Config.Demuxer.FormatOpt["analyzeduration"] have been added by default which can cause an already exists exception
+		2) Config.Demuxer.BufferDuration changed from 5 minutes to 2 (to reduce RAM)
+		3) Config.Player.MinBufferDuration change from 1000ms to 500ms
+		4) Config.Decoder.MaxVideoFrames changed from Math.Max(10, Environment.ProcessorCount) to 4 (to reduce VRAM)
+		5) Config.Player.Speed amp; Config.Player.SpeedReverse moved to single Player.Speed (valid values 0.0 - 1.0 and 1,2,3,4)
+		6) VideoView.IsFullScreen / FullScreen / NormalScreen moved to Player and support also WinForms now
+		7) Check more changes and renames on Controls.WPF -> Flyleaf.xaml
 	</PackageReleaseNotes>
   </PropertyGroup>
 
