@@ -160,16 +160,21 @@ namespace FlyleafLib.MediaPlayer
         long _CurTime, curTime;
         internal void UpdateCurTime()
         {
-            if (seeks.Count != 0) return;
+            if (mainDemuxer == null || seeks.Count != 0) return;
+
+            mainDemuxer.UpdateCurTime();
 
             if (mainDemuxer.HLSPlaylist != null)
             {
+                curTime  = mainDemuxer.CurTime;
                 duration = mainDemuxer.Duration;
                 Duration = Duration;
-                curTime  = mainDemuxer.CurTime;
             }
 
             Set(ref _CurTime, curTime, true, nameof(CurTime));
+
+            if (_BufferedDuration != mainDemuxer.BufferedDuration)
+                Raise(nameof(BufferedDuration));
         }
 
         /// <summary>
@@ -181,7 +186,14 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// The current buffered duration in the demuxer
         /// </summary>
-        public long         BufferedDuration    { get => VideoDecoder.VideoStream != null || AudioDecoder.OnVideoDemuxer ? VideoDemuxer.BufferedDuration : AudioDemuxer.BufferedDuration;
+        public long         BufferedDuration    { get 
+            {
+                if (mainDemuxer == null)
+                    return 0;
+                
+                mainDemuxer.UpdateCurTime();
+                return mainDemuxer.BufferedDuration;
+            } 
                                                                             internal set => Set(ref _BufferedDuration, value); }
         long _BufferedDuration;
 
@@ -297,7 +309,7 @@ namespace FlyleafLib.MediaPlayer
                 _ReversePlayback = value;
                 UI(() => Set(ref _ReversePlayback, value, false));
 
-                if (!Video.IsOpened || !CanPlay)
+                if (!Video.IsOpened || !CanPlay | IsLive)
                     return;
 
                 lock (lockPlayPause)
@@ -335,25 +347,6 @@ namespace FlyleafLib.MediaPlayer
         #endregion
 
         #region Properties Internal
-        internal ConcurrentQueue<Action> UIActions { get; } = new ConcurrentQueue<Action>();
-        internal void UIAdd(Action action)
-        {
-            UIActions.Enqueue(action);
-        }
-        internal void UI()
-        {
-            while (UIActions.Count > 0)
-                if (UIActions.TryDequeue(out Action action))
-                    UI(action);
-        }
-        internal void UI(Action action)
-        {
-            if (System.Windows.Application.Current.Dispatcher.Thread == Thread.CurrentThread)
-                action();
-            else
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(action);
-        }
-
         Thread tSeek, tPlay;
         object lockOpen         = new object();
         object lockSeek         = new object();
@@ -363,6 +356,7 @@ namespace FlyleafLib.MediaPlayer
         ConcurrentStack<SeekData>       seeks       = new ConcurrentStack<SeekData>();
         ConcurrentStack<OpenData>       opens       = new ConcurrentStack<OpenData>();
         ConcurrentStack<OpenInputData>  inputopens  = new ConcurrentStack<OpenInputData>();
+        internal ConcurrentQueue<Action> UIActions  = new ConcurrentQueue<Action>();
 
         internal AudioFrame     aFrame;
         internal VideoFrame     vFrame;
@@ -754,6 +748,24 @@ namespace FlyleafLib.MediaPlayer
             }
         }
 
+        internal void UIAdd(Action action)
+        {
+            UIActions.Enqueue(action);
+        }
+        internal void UI()
+        {
+            while (UIActions.Count > 0)
+                if (UIActions.TryDequeue(out Action action))
+                    UI(action);
+        }
+        internal void UI(Action action)
+        {
+            if (System.Windows.Application.Current.Dispatcher.Thread == Thread.CurrentThread)
+                action();
+            else
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(action);
+        }
+
         private void TimeBeginPeriod(uint i)
         {
             if (Master.HighPerformaceTimers) return;
@@ -766,7 +778,6 @@ namespace FlyleafLib.MediaPlayer
 
             NativeMethods.TimeEndPeriod(i);
         }
-
         private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
     }
 

@@ -931,6 +931,12 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 if (!VideoDemuxer.EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
+                if (packet->dts != AV_NOPTS_VALUE)
+                {
+                    VideoDemuxer.lastPacketTs = (long)(packet->dts * VideoDemuxer.AVStreamToStream[packet->stream_index].Timebase);
+                    VideoDemuxer.UpdateHLSTime();
+                }
+
                 switch (VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type)
                 {
                     case AVMEDIA_TYPE_AUDIO:
@@ -952,9 +958,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                         if (ret != 0) return -1;
                         
+                        VideoDemuxer.UpdateCurTime();
+
                         while (!VideoDemuxer.Disposed && !Interrupt)
                         {
-                            VideoDemuxer.UpdateCurTime();
                             ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                             if (ret != 0) { av_frame_unref(frame); break; }
 
