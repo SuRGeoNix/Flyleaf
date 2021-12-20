@@ -175,6 +175,14 @@ namespace FlyleafLib.MediaPlayer
             Config.Video.Enabled = !Config.Video.Enabled;
         }
 
+        public void ToggleKeepRatio()
+        {
+            if (Config.Video.AspectRatio == AspectRatio.Keep)
+                Config.Video.AspectRatio = AspectRatio.Fill;
+            else if (Config.Video.AspectRatio == AspectRatio.Fill)
+                Config.Video.AspectRatio = AspectRatio.Keep;
+        }
+
         public void ToggleVideoAcceleration()
         {
             Config.Video.VideoAcceleration = !Config.Video.VideoAcceleration;
