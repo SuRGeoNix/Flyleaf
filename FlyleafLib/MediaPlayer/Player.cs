@@ -329,8 +329,6 @@ namespace FlyleafLib.MediaPlayer
                     if (value)
                     {
                         Speed = 1;
-                        if (Speed > 1)
-                            UI(() => Raise(nameof(Speed)));
                         VideoDemuxer.EnableReversePlayback(CurTime);
                     }
                     else

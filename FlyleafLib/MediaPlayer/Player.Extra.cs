@@ -96,6 +96,7 @@ namespace FlyleafLib.MediaPlayer
             lock (lockPlayPause)
             {
                 Pause();
+                ReversePlayback = false;
 
                 if (VideoDecoder.Frames.Count == 0)
                     vFrame = VideoDecoder.GetFrameNext();
@@ -121,8 +122,12 @@ namespace FlyleafLib.MediaPlayer
             lock (lockPlayPause)
             {
                 Pause();
+                ReversePlayback = true;
+                if (VideoDecoder.Frames.Count == 0)
+                    vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 1);
+                else
+                    VideoDecoder.Frames.TryDequeue(out vFrame);
 
-                vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 1);
                 if (vFrame == null) return;
 
                 long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
