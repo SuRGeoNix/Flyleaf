@@ -39,15 +39,16 @@ namespace FlyleafLib
         public static List<Player>                  Players                 { get; }
 
         /// <summary>
-        /// Allows monitoring and refreshing player's activity / buffered duration / stats / ui updates
+        /// Activates Master Thread to monitor all the players and perform the required updates
+        /// (Required for Activity Mode, Buffered Duration on Pause & Stats)
         /// </summary>
-        public static bool                          UIRefresh               { get; set; } = true;
+        public static bool                          UIRefresh               { get; set; } = false;
 
         /// <summary>
         /// How often should update the UI in ms (low values can cause performance issues)
-        /// (Should UIRefreshInterval < 1000ms and 1000 % UIRefreshInterval == 0)
+        /// (Should UIRefreshInterval < 1000ms and 1000 % UIRefreshInterval == 0 for accurate per second stats)
         /// </summary>
-        public static int                           UIRefreshInterval       { get ; set; } = 100;
+        public static int                           UIRefreshInterval       { get ; set; } = 250;
 
         /// <summary>
         /// Updates CurTime when the second changes otherwise every UIRefreshInterval
@@ -168,7 +169,6 @@ namespace FlyleafLib
             /* Check whether TimeBeginPeriod(1) is required
              */
 
-            int sleepMs = 100;
             int curLoop = 0;
             int secondLoops = 1000 / UIRefreshInterval; 
 
@@ -278,7 +278,7 @@ namespace FlyleafLib
                     };
 
                     System.Windows.Application.Current.Dispatcher.BeginInvoke(action);
-                    Thread.Sleep(sleepMs);
+                    Thread.Sleep(UIRefreshInterval);
 
                 } catch { curLoop = 0; }
 
