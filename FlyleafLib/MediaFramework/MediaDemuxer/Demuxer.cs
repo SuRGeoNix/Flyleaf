@@ -919,7 +919,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             int ret;
             long hevcTimePts = av_rescale_q((5 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
-                
+
             curReverseStopRequestedPts = av_rescale_q((StartTime + timestamp) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
 
             Interrupter.Request(Requester.Seek);
