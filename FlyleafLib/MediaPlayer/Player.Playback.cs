@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using System.Threading.Tasks;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 
@@ -13,14 +12,15 @@ namespace FlyleafLib.MediaPlayer
     {
         /// <summary>
         /// Fires on playback stopped by an error or completed / ended successfully
+        /// Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
         /// </summary>
         public event EventHandler<PlaybackCompletedArgs> PlaybackCompleted;
         protected virtual void OnPlaybackCompleted(string error = null)
         {
-            PlaybackCompleted?.BeginInvoke(this, new PlaybackCompletedArgs(error), null, null);
+            PlaybackCompleted?.Invoke(this, new PlaybackCompletedArgs(error));
 
             #if DEBUG
-            Log($"OnPlaybackCompleted Error={error}");
+            Log($"OnPlaybackCompleted {(error != null ? $"(Error: {error})" : "")}");
             #endif
         }
 
