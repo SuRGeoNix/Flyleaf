@@ -30,6 +30,9 @@ namespace FlyleafPlayer
             // Less power consumption (safe to use only for single player)
             Master.HighPerformaceTimers = false;
 
+            // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
+            Master.UIRefresh = true;
+
             // Registers FFmpeg Libraries
             Master.RegisterFFmpeg(":2");
 
