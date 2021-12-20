@@ -12,12 +12,13 @@ namespace FlyleafLib.MediaPlayer
     {
         /// <summary>
         /// Fires on buffering started
+        /// Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
         /// </summary>
         public event EventHandler BufferingStarted;
         protected virtual void OnBufferingStarted()
         {
             if (onBufferingStarted != onBufferingCompleted) return;
-            BufferingStarted?.BeginInvoke(this, new EventArgs(), null, null); 
+            BufferingStarted?.Invoke(this, new EventArgs()); 
             onBufferingStarted++;
 
             #if DEBUG
@@ -28,16 +29,17 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Fires on buffering completed (will fire also on failed buffering completed)
         /// (BufferDration > Config.Player.MinBufferDuration)
+        /// Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
         /// </summary>
         public event EventHandler<BufferingCompletedArgs> BufferingCompleted;
         protected virtual void OnBufferingCompleted(string error = null)
         {
             if (onBufferingStarted - 1 != onBufferingCompleted) return;
-            BufferingCompleted?.BeginInvoke(this, new BufferingCompletedArgs(error), null, null);
+            BufferingCompleted?.Invoke(this, new BufferingCompletedArgs(error));
             onBufferingCompleted++;
 
             #if DEBUG
-            Log($"OnBufferingCompleted Error={error}");
+            Log($"OnBufferingCompleted {(error != null ? $"(Error: {error})" : "")}");
             #endif
         }
 
