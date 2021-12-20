@@ -179,6 +179,8 @@ namespace FlyleafLib.MediaPlayer
 
                 case KeyBindingAction.ToggleVideo:
                     return Video.Toggle;
+                case KeyBindingAction.ToggleKeepRatio:
+                    return Video.ToggleKeepRatio;
                 case KeyBindingAction.ToggleVideoAcceleration:
                     return Video.ToggleVideoAcceleration;
 
@@ -273,6 +275,7 @@ namespace FlyleafLib.MediaPlayer
             { KeyBindingAction.ToggleFullScreen },
             { KeyBindingAction.ToggleAudio },
             { KeyBindingAction.ToggleVideo },
+            { KeyBindingAction.ToggleKeepRatio },
             { KeyBindingAction.ToggleVideoAcceleration },
             { KeyBindingAction.ToggleSubtitles },
             { KeyBindingAction.ToggleMute },
@@ -303,6 +306,7 @@ namespace FlyleafLib.MediaPlayer
 
         ToggleAudio, ToggleVideo, ToggleSubtitles,
 
+        ToggleKeepRatio,
         ToggleVideoAcceleration,
         ToggleRecording,
         ToggleReversePlayback,
@@ -465,6 +469,7 @@ namespace FlyleafLib.MediaPlayer
 
             Add(Key.T,                  KeyBindingAction.TakeSnapshot, true);
             Add(Key.R,                  KeyBindingAction.ToggleRecording, true);
+            Add(Key.R,                  KeyBindingAction.ToggleKeepRatio);
 
             Add(Key.OemComma,           KeyBindingAction.ShowPrevFrame);
             Add(Key.OemPeriod,          KeyBindingAction.ShowNextFrame);
