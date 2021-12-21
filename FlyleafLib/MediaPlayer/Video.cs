@@ -14,10 +14,6 @@ namespace FlyleafLib.MediaPlayer
         public Dictionary<string, IProvideVideo>
                                     Plugins         => decoder?.PluginsProvideVideo;
         public List<VideoStream>    Streams         => decoder?.VideoDemuxer.VideoStreams;
-        
-
-        public bool                 Exists          { get => exists;            internal set => Set(ref _Exists, value); }
-        internal bool   _Exists, exists;
 
         /// <summary>
         /// Whether the input has video and it is configured
@@ -72,7 +68,7 @@ namespace FlyleafLib.MediaPlayer
         internal int    _Height, height;
 
         public bool                 VideoAcceleration
-                                                    { get => videoAcceleration;internal set => Set(ref _VideoAcceleration, value); }
+                                                    { get => videoAcceleration; internal set => Set(ref _VideoAcceleration, value); }
         internal bool   _VideoAcceleration, videoAcceleration;
 
         Action uiAction;
@@ -86,7 +82,6 @@ namespace FlyleafLib.MediaPlayer
 
             uiAction = () =>
             {
-                Exists              = Exists;
                 IsOpened            = IsOpened;
                 Codec               = Codec;
                 //BitRate             = BitRate;
@@ -113,7 +108,6 @@ namespace FlyleafLib.MediaPlayer
             height             = 0;
             framesTotal        = 0;
             videoAcceleration  = false;
-            exists             = false;
             isOpened           = false;
             player.renderer.DisableRendering = true;
 
@@ -129,16 +123,12 @@ namespace FlyleafLib.MediaPlayer
             pixelFormat = decoder.VideoStream.PixelFormatStr;
             width       = decoder.VideoStream.Width;
             height      = decoder.VideoStream.Height;
-            exists      = decoder.VideoStream != null;
             framesTotal = decoder.VideoStream.TotalFrames;
+            videoAcceleration
+                        = decoder.VideoDecoder.VideoAccelerated;
+            isOpened    =!decoder.VideoDecoder.Disposed;
 
-            if (decoder.VideoDecoder != null)
-            {
-                player.renderer.DisableRendering = false;
-                videoAcceleration  = decoder.VideoDecoder.VideoAccelerated;
-                isOpened           = decoder.VideoDecoder.VideoStream != null;
-            }
-
+            player.renderer.DisableRendering = false;
             player.UIAdd(uiAction);
         }
 
@@ -174,7 +164,6 @@ namespace FlyleafLib.MediaPlayer
         {
             Config.Video.Enabled = !Config.Video.Enabled;
         }
-
         public void ToggleKeepRatio()
         {
             if (Config.Video.AspectRatio == AspectRatio.Keep)
@@ -182,7 +171,6 @@ namespace FlyleafLib.MediaPlayer
             else if (Config.Video.AspectRatio == AspectRatio.Fill)
                 Config.Video.AspectRatio = AspectRatio.Keep;
         }
-
         public void ToggleVideoAcceleration()
         {
             Config.Video.VideoAcceleration = !Config.Video.VideoAcceleration;

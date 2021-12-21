@@ -28,7 +28,7 @@ namespace FlyleafLib.Controls.WPF
         { 
             get => _Player;
             set
-            { 
+            {
                 var oldPlayer = _Player;
 
                 Set(ref _Player, value);
@@ -168,6 +168,11 @@ namespace FlyleafLib.Controls.WPF
         bool        isDesignMode = (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
         bool        prevActivityMode;
         bool        disposed;
+
+        static Flyleaf()
+        {
+            Master.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
+        }
 
         public Flyleaf()
         {
@@ -315,6 +320,10 @@ namespace FlyleafLib.Controls.WPF
         }
         private void InitializePlayer(Player oldPlayer = null)
         {
+            Config.Player.ActivityMode = true; // To allow Idle mode on flyleafBar
+            Config.Player.KeyBindings.FlyleafWindow = true; // To allow keybindings also on front window
+            Player.RefreshEvents();
+
             Player.OpenCompleted        += Player_OpenCompleted;
             Player.OpenInputCompleted   += Player_OpenInputCompleted;
 

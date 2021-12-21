@@ -42,7 +42,8 @@ namespace FlyleafLib
         /// Activates Master Thread to monitor all the players and perform the required updates
         /// (Required for Activity Mode, Buffered Duration on Pause & Stats)
         /// </summary>
-        public static bool                          UIRefresh               { get; set; } = false;
+        public static bool                          UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; StartThread(); } }
+        static bool _UIRefresh;
 
         /// <summary>
         /// How often should update the UI in ms (low values can cause performance issues)
@@ -85,12 +86,12 @@ namespace FlyleafLib
             RootPath        = null;
 
             if (absolutePath == ":1") 
-                RootPath = Environment.CurrentDirectory;
+                RootPath = Directory.GetCurrentDirectory();
             else if (absolutePath != ":2")
                 RootPath = absolutePath;
             else
             {
-                var current = Environment.CurrentDirectory;
+                var current = Directory.GetCurrentDirectory();
                 var probe   = Path.Combine("Libs", Environment.Is64BitProcess ? "x64" : "x86", "FFmpeg");
 
                 while (current != null)
@@ -122,10 +123,6 @@ namespace FlyleafLib
 
             if (System.Windows.Application.Current == null)
                 new System.Windows.Application();
-
-            // Currently Thread starts only when at least on Player will be added (possible will be used also for downloader)
-            if (tMaster == null && UIRefresh)
-                StartThread();
         }
         internal static int GetPlayerPos(int playerId)
         {
@@ -159,6 +156,9 @@ namespace FlyleafLib
 
         static void StartThread()
         {
+            if (tMaster != null && tMaster.IsAlive)
+                return;
+
             tMaster = new Thread(() => { MasterThread(); });
             tMaster.Name = "Master";
             tMaster.IsBackground = true;
@@ -166,8 +166,7 @@ namespace FlyleafLib
         }
         static void MasterThread()
         {
-            /* Check whether TimeBeginPeriod(1) is required
-             */
+            Log("MasterThread Started");
 
             int curLoop = 0;
             int secondLoops = 1000 / UIRefreshInterval; 
@@ -282,7 +281,9 @@ namespace FlyleafLib
 
                 } catch { curLoop = 0; }
 
-            } while (true);
+            } while (UIRefresh);
+
+            Log("MasterThread Stopped");
         }
         
         private static void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] {msg}"); }

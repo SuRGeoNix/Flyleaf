@@ -19,6 +19,8 @@ namespace FlyleafLib.MediaPlayer
     public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     {
         #region Properties
+        public bool                 IsDisposed          { get; private set; }
+
         /// <summary>
         /// Flyleaf Control (WinForms)
         /// (Normally you should not access this directly)
@@ -121,25 +123,13 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public Status       Status              { get => status;            private set => Set(ref _Status, value); }
         Status _Status = Status.Stopped, status = Status.Stopped;
+        public bool         IsPlaying           => Status == Status.Playing;
 
         /// <summary>
         /// Whether the player's status is capable of accepting playback commands
         /// </summary>
         public bool         CanPlay             { get => canPlay;           private set => Set(ref _CanPlay, value); }
         bool _CanPlay, canPlay;
-
-        /// <summary>
-        /// Whether playback has been completed
-        /// </summary>
-        public bool         HasEnded            => decoder != null && (VideoDecoder.Status == MediaFramework.Status.Ended || (VideoDecoder.Disposed && AudioDecoder.Status == MediaFramework.Status.Ended));
-
-        public bool         IsSeeking           { get; private set; }
-        public bool         IsSwaping           { get; private set; }
-        public bool         IsOpening           { get; private set; }
-        public bool         IsOpeningInput      { get; private set; }
-        public bool         IsPlaying           => Status == Status.Playing;
-        public bool         IsPlaylist          => decoder != null && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist;
-        public bool         IsDisposed          => disposed;
 
         /// <summary>
         /// Whether the player's state is in fullscreen mode
@@ -206,6 +196,9 @@ namespace FlyleafLib.MediaPlayer
         public bool         IsLive              { get => isLive;            private set => Set(ref _IsLive, value); }
         bool _IsLive, isLive;
 
+        public bool         IsPlaylist          { get => isPlaylist;        private set => Set(ref _IsPlaylist, value); }
+        bool _IsPlaylist, isPlaylist;
+
         ///// <summary>
         ///// Total bitrate (Kbps)
         ///// </summary>
@@ -231,12 +224,12 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Pan X Offset to change the X location
         /// </summary>
-        public int          PanXOffset          { get => renderer.PanXOffset; set => renderer.PanXOffset = value; }
+        public int          PanXOffset          { get => renderer.PanXOffset; set { renderer.PanXOffset = value; Raise(nameof(PanXOffset)); } }
 
         /// <summary>
         /// Pan Y Offset to change the Y location
         /// </summary>
-        public int          PanYOffset          { get => renderer.PanYOffset; set => renderer.PanYOffset = value; }
+        public int          PanYOffset          { get => renderer.PanYOffset; set { renderer.PanYOffset = value; Raise(nameof(PanYOffset)); } }
 
         /// <summary>
         /// Playback's speed (x1 - x4)
@@ -345,6 +338,17 @@ namespace FlyleafLib.MediaPlayer
             }
         }
         bool _ReversePlayback;
+
+        // TBR: No UI updates and some of them maybe should not be exposed
+
+        /// <summary>
+        /// Whether playback has been completed
+        /// </summary>
+        public bool         HasEnded            => decoder != null && (VideoDecoder.Status == MediaFramework.Status.Ended || (VideoDecoder.Disposed && AudioDecoder.Status == MediaFramework.Status.Ended));
+        public bool         IsSeeking           { get; private set; }
+        public bool         IsSwaping           { get; private set; }
+        public bool         IsOpening           { get; private set; }
+        public bool         IsOpeningInput      { get; private set; }
         #endregion
 
         #region Properties Internal
@@ -362,8 +366,7 @@ namespace FlyleafLib.MediaPlayer
         internal AudioFrame     aFrame;
         internal VideoFrame     vFrame;
         internal SubtitlesFrame sFrame, sFramePrev;
-        
-        bool disposed;
+
         bool reversePlaybackResync;
         bool requiresBuffering;
 
@@ -486,7 +489,7 @@ namespace FlyleafLib.MediaPlayer
 
             Log("Created");
         }
-        private void SubscribeEvents()
+        public void SubscribeEvents()
         {
             Log($"Subscribing Events to Player #{PlayerId}");
 
@@ -514,12 +517,12 @@ namespace FlyleafLib.MediaPlayer
                 if (VideoView != null)
                 {
                     if (Config.Player.KeyBindings.FlyleafWindow)
-                        VideoView.WindowFront.KeyUp     += WindowFront_KeyUp;
+                        VideoView.WindowFront.KeyUp += WindowFront_KeyUp;
 
                     VideoView.WinFormsHost.KeyUp    += WinFormsHost_KeyUp;
                 }
                 else
-                    _Control.KeyDown += Control_KeyUp;
+                    _Control.KeyUp += Control_KeyUp;
 
                 Config.Player.KeyBindings.Keys.Clear();
             }
@@ -551,7 +554,7 @@ namespace FlyleafLib.MediaPlayer
             
             Activity.ForceFullActive();
         }
-        private void UnsubscribeEvents()
+        public void UnsubscribeEvents()
         {
             Log($"Unsubscribing Events from Player #{PlayerId}");
 
@@ -576,6 +579,11 @@ namespace FlyleafLib.MediaPlayer
                 _Control.DragEnter  -= Control_DragEnter;
                 _Control.DragDrop   -= Control_DragDrop;
             }
+        }
+        public void RefreshEvents()
+        {
+            UnsubscribeEvents();
+            SubscribeEvents();
         }
 
         /// <summary>
@@ -656,7 +664,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (this)
             {
-                if (disposed) return;
+                if (IsDisposed) return;
 
                 try
                 {
@@ -669,7 +677,7 @@ namespace FlyleafLib.MediaPlayer
                     decoder = null;
                     Config = null;
 
-                    disposed = true;
+                    IsDisposed = true;
 
                     if (VideoView != null && VideoView.WindowFront != null && !VideoView.WindowFront.Disposing)
                     {
@@ -692,18 +700,20 @@ namespace FlyleafLib.MediaPlayer
                 renderer.Present();
             }
 
+            bitRate     = 0;
             curTime     = 0;
             duration    = 0;
             isLive      = false;
-            bitRate     = 0;
+            isPlaylist  = false;
             title       = "";
 
             UIAdd(() =>
             {
-                Duration = Duration;
-                IsLive = IsLive;
-                BitRate = BitRate;
-                Title = Title;
+                BitRate     = BitRate;
+                Duration    = Duration;
+                IsLive      = IsLive;
+                IsPlaylist  = IsPlaylist;
+                Title       = Title;
                 UpdateCurTime();
             });
         }

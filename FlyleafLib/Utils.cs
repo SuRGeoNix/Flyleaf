@@ -130,7 +130,7 @@ namespace FlyleafLib
 
         public static string FileExistsBelow(string filename)
         {
-            string current = Environment.CurrentDirectory;
+            string current = Directory.GetCurrentDirectory();
 
             while (current != null)
             {

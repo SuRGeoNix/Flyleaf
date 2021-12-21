@@ -240,6 +240,12 @@ namespace FlyleafLib.MediaPlayer
                 case KeyBindingAction.SeekForward:
                     return SeekForward;
 
+                case KeyBindingAction.SeekBackward2:
+                    return SeekBackward2;
+
+                case KeyBindingAction.SeekForward2:
+                    return SeekForward2;
+
                 case KeyBindingAction.SpeedAdd:
                     return SpeedUp;
 
@@ -310,7 +316,7 @@ namespace FlyleafLib.MediaPlayer
         ToggleVideoAcceleration,
         ToggleRecording,
         ToggleReversePlayback,
-        SeekForward, SeekBackward,
+        SeekForward, SeekBackward, SeekForward2, SeekBackward2,
         SpeedAdd, SpeedRemove,
         ShowNextFrame, ShowPrevFrame,
 

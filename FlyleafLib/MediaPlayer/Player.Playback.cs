@@ -256,7 +256,7 @@ namespace FlyleafLib.MediaPlayer
                 });
 
                 EnsureThreadDone(tPlay);
-                if (disposed || decoder == null) return;
+                if (IsDisposed || decoder == null) return;
                 decoder.Stop();
                 lock (lockSeek)
                     lock (lockOpen)

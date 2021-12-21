@@ -444,14 +444,16 @@ namespace FlyleafLib.MediaPlayer
                         title = e.Input.InputData.Title;
                     
                     var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
-                    duration= curDemuxer.Duration;
-                    isLive  = curDemuxer.IsLive;
+                    duration    = curDemuxer.Duration;
+                    isLive      = curDemuxer.IsLive;
+                    isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
 
                     UIAdd(() =>
                     {
-                        Title   = Title;
-                        Duration= Duration;
-                        IsLive  = IsLive;
+                        Title       = Title;
+                        Duration    = Duration;
+                        IsLive      = IsLive;
+                        IsPlaylist  = IsPlaylist;
                     });
                 }
                 else
@@ -460,8 +462,7 @@ namespace FlyleafLib.MediaPlayer
                     {
                         status = Status.Failed;
                         UIAdd(() => Status = Status);
-                    }
-                        
+                    }   
 
                     ResetMe();
                 }
@@ -484,14 +485,16 @@ namespace FlyleafLib.MediaPlayer
                 if (e.Input != null && e.Input.InputData != null)
                     title = e.Input.InputData.Title;
 
-                duration= VideoDemuxer.Duration;
-                isLive  = VideoDemuxer.IsLive;
+                duration    = VideoDemuxer.Duration;
+                isLive      = VideoDemuxer.IsLive;
+                isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
 
                 UIAdd(() =>
                 {
-                    Title   = Title;
-                    Duration= Duration;
-                    IsLive  = IsLive;
+                    Title       = Title;
+                    Duration    = Duration;
+                    IsLive      = IsLive;
+                    IsPlaylist  = IsPlaylist;
                 });
             }
             else
