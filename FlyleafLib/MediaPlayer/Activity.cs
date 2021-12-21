@@ -9,7 +9,7 @@ namespace FlyleafLib.MediaPlayer
          * Config.Player.ActivityMode
          * Config.Player.ActivityTimeout
          * 
-         * ActivityRefresh          (Control_MouseDown, Control_MouseMove)
+         * ActivityRefresh          (KeyUp, Control_MouseDown, Control_MouseMove)
          * ActivityCheck            (MasterThread)
          * 
          * TODO: FlyleafWindow.MouseMove and FlyleafWindow.MouseDown ?

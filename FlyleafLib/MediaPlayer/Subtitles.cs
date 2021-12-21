@@ -16,8 +16,6 @@ namespace FlyleafLib.MediaPlayer
         public List<SubtitlesStream>    Streams         => decoder?.VideoDemuxer.SubtitlesStreams;
         public List<SubtitlesStream>    ExternalStreams => decoder?.SubtitlesDemuxer.SubtitlesStreams;
 
-        public bool                     Exists          { get => exists;       internal set => Set(ref _Exists, value); }
-        internal bool   _Exists, exists;
 
         /// <summary>
         /// Whether the input has subtitles and it is configured
@@ -31,6 +29,9 @@ namespace FlyleafLib.MediaPlayer
         public double                   BitRate         { get => bitRate;      internal set => Set(ref _BitRate, value); }
         internal double _BitRate, bitRate;
 
+        /// <summary>
+        /// Subtitles Text (updates dynamically while playing based on the duration that it should be displayed)
+        /// </summary>
         public string                   SubsText        { get => subsText;     internal set => Set(ref _SubsText,  value); }
         internal string _SubsText = "", subsText = "";
 
@@ -46,7 +47,6 @@ namespace FlyleafLib.MediaPlayer
 
             uiAction = () =>
             {
-                Exists      = Exists;
                 IsOpened    = IsOpened;
                 Codec       = Codec;
                 BitRate     = BitRate;
@@ -57,7 +57,6 @@ namespace FlyleafLib.MediaPlayer
         {
             bitRate     = 0;
             codec       = null;
-            exists      = false;
             isOpened    = false;
             subsText    = "";
             disabledStream
@@ -70,12 +69,8 @@ namespace FlyleafLib.MediaPlayer
             if (decoder.SubtitlesStream == null) { Reset(); return; }
 
             codec       = decoder.SubtitlesStream.Codec;
-            exists      = decoder.SubtitlesStream != null;
-
+            isOpened    =!decoder.SubtitlesDecoder.Disposed;
             //disabledStream = decoder.SubtitlesStream;
-
-            if (decoder.SubtitlesDecoder != null)
-                isOpened    = decoder.SubtitlesDecoder.SubtitlesStream != null;
 
             player.UIAdd(uiAction);
         }

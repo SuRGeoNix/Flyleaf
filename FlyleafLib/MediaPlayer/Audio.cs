@@ -22,9 +22,6 @@ namespace FlyleafLib.MediaPlayer
         public List<AudioStream>    Streams         => decoder?.VideoDemuxer.AudioStreams;
         public List<AudioStream>    ExternalStreams => decoder?.AudioDemuxer.AudioStreams;
 
-        public bool                 Exists          { get => exists;        internal set => Set(ref _Exists, value); }
-        internal bool   _Exists, exists;
-
         /// <summary>
         /// Whether the input has audio and it is configured
         /// </summary>
@@ -168,7 +165,6 @@ namespace FlyleafLib.MediaPlayer
 
             uiAction = () =>
             {
-                Exists          = Exists;
                 IsOpened        = IsOpened;
                 Codec           = Codec;
                 BitRate         = BitRate;
@@ -264,7 +260,6 @@ namespace FlyleafLib.MediaPlayer
             channelLayout   = null;
             sampleFormat    = null;
             //sampleRate     = 0;
-            exists          = false;
             isOpened        = false;
 
             disabledStream  = null;
@@ -281,14 +276,10 @@ namespace FlyleafLib.MediaPlayer
             channels       = decoder.AudioStream.Channels;
             channelLayout  = decoder.AudioStream.ChannelLayoutStr;
             sampleFormat   = decoder.AudioStream.SampleFormatStr;
-            
+            isOpened       =!decoder.AudioDecoder.Disposed;
+
             //lastAudioStream= decoder.AudioStream;
             Initialize(decoder.AudioStream.SampleRate);
-            exists         = decoder.AudioStream != null;
-
-            if (decoder.AudioDecoder != null)
-                isOpened   = decoder.AudioDecoder == null || decoder.AudioDecoder.Disposed ? false : true;
-
             player.UIAdd(uiAction);
         }
         internal void Enable()
@@ -342,12 +333,10 @@ namespace FlyleafLib.MediaPlayer
         {
             Config.Audio.Delay -= Config.Player.AudioDelayOffset2;
         }
-
         public void Toggle()
         {
             Config.Audio.Enabled = !Config.Audio.Enabled;
         }
-
         public void ToggleMute()
         {
             Mute = !Mute;

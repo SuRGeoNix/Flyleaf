@@ -52,6 +52,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
         /// </summary>
         public bool                 RequiresResync      { get; set; }
 
+        public string               Extension           => VideoDemuxer.Disposed ? AudioDemuxer.Extension : VideoDemuxer.Extension;
+
         // Demuxers
         public Demuxer              AudioDemuxer        { get; private set; }
         public Demuxer              VideoDemuxer        { get; private set; }
@@ -1089,7 +1091,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
             oldMaxAudioFrames = -1;
             Log("Record Completed");
         }
-
         internal void RecordCompleted(MediaType type)
         {
             if (!recHasVideo || (recHasVideo && type == MediaType.Video))

@@ -95,6 +95,23 @@ namespace FlyleafLib
             internal Config config;
 
             /// <summary>
+            /// It will automatically start playing after open or seek after ended
+            /// </summary>
+            public bool     AutoPlay                    { get; set; } = true;
+
+            /// <summary>
+            /// Whether to use Activity Mode
+            /// </summary>
+            public bool     ActivityMode                { get => _ActivityMode; set { _ActivityMode = value; if (value) player?.Activity.ForceFullActive(); } }
+            bool _ActivityMode = false;
+
+            /// <summary>
+            /// Idle Timeout (ms)
+            /// </summary>
+            public int      ActivityTimeout             { get => _ActivityTimeout; set => Set(ref _ActivityTimeout, value); }
+            int _ActivityTimeout = 6000;
+
+            /// <summary>
             /// Required buffered duration ticks before playing
             /// </summary>
             public long     MinBufferDuration {
@@ -121,6 +138,11 @@ namespace FlyleafLib
                             MouseBindigns               { get; set; } = new MouseConfig();
 
             /// <summary>
+            /// Fps while the player is not playing
+            /// </summary>
+            public double   IdleFps                     { get; set; } = 60.0;
+
+            /// <summary>
             /// Limit before dropping frames. Lower value means lower latency (>=1)
             /// </summary>
             public int      LowLatencyMaxVideoFrames    { get; set; } = 4;
@@ -131,41 +153,48 @@ namespace FlyleafLib
             public int      LowLatencyMaxVideoPackets   { get; set; } = 2;
 
             /// <summary>
+            /// Folder to save recordings (when filename is not specified)
+            /// </summary>
+            public string   FolderRecordings               { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Recordings");
+
+            /// <summary>
+            /// Folder to save snapshots (when filename is not specified)
+            /// </summary>
+
+            public string   FolderSnapshots             { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Snapshots");
+
+            /// <summary>
+            /// Snapshot encoding will be used (valid formats bmp, png, jpg/jpeg)
+            /// </summary>
+            public string   SnapshotFormat              { get ;set; } = "bmp";
+
+            /// <summary>
             /// Whether to refresh statistics about bitrates/fps/drops etc.
             /// </summary>
             public bool     Stats                       { get => _Stats; set => Set(ref _Stats, value); }
             bool _Stats = false;
 
             /// <summary>
-            /// Fps while the player is not playing
+            /// The upper limit of the volume amplifier
             /// </summary>
-            public double   IdleFps                     { get; set; } = 60.0;
+            public int      VolumeMax                   { get => _VolumeMax; set => Set(ref _VolumeMax, value); }
+            int _VolumeMax = 150;
 
+            /// <summary>
+            /// The purpose of the player
+            /// </summary>
             public Usage    Usage                       { get; set; } = Usage.AVS;
 
-            public bool     ActivityMode                { get => _ActivityMode; set { _ActivityMode = value; if (value) player?.Activity.ForceFullActive(); } }
-            bool _ActivityMode = true;
+            // Offsets
 
-            /// <summary>
-            /// Idle Timeout (ms)
-            /// </summary>
-            public int      ActivityTimeout             { get => _ActivityTimeout; set => Set(ref _ActivityTimeout, value); }
-            int _ActivityTimeout = 6000;
-
-            
-            /// <summary>
-            /// It will automatically start playing after open or seek after ended
-            /// </summary>
-            public bool     AutoPlay                    { get; set; } = true;
-            public int      ZoomOffset                  { get; set; } = 50;
             public long     AudioDelayOffset            { get; set; } =  100 * 10000;
             public long     AudioDelayOffset2           { get; set; } = 1000 * 10000;
             public long     SubtitlesDelayOffset        { get; set; } =  100 * 10000;
             public long     SubtitlesDelayOffset2       { get; set; } = 1000 * 10000;
             public long     SeekOffset                  { get; set; } = 5 * (long)1000 * 10000;
+            public long     SeekOffset2                 { get; set; } = 15 * (long)1000 * 10000;
+            public int      ZoomOffset                  { get; set; } = 50;
             public int      VolumeOffset                { get; set; } = 5;
-            public int      VolumeMax                   { get => _VolumeMax; set => Set(ref _VolumeMax, value); }
-            int _VolumeMax = 150;
         }
         public class DemuxerConfig : NotifyPropertyChanged
         {

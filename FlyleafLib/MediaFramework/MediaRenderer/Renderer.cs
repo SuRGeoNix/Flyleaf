@@ -814,7 +814,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             return bitmap;
         }
 
-        public void TakeSnapshot(string fileName)
+        public void TakeSnapshot(string fileName, ImageFormat imageFormat = null)
         {
 	        ID3D11Texture2D snapshotTexture;
 
@@ -856,7 +856,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             Thread tmp = new Thread(() =>
             {
                 Bitmap snapshotBitmap = GetBitmap(snapshotTexture);
-                try { snapshotBitmap.Save(fileName, ImageFormat.Bmp); } catch (Exception) { }
+                try { snapshotBitmap.Save(fileName, imageFormat == null ? ImageFormat.Bmp : imageFormat); } catch (Exception) { }
                 snapshotBitmap.Dispose();
             });
             tmp.IsBackground = true;

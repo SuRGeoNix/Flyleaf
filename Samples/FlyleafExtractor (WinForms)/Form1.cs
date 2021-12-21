@@ -46,7 +46,7 @@ namespace FlyleafExtractor
             txtUrl.DragEnter += TxtUrl_DragEnter;
             txtUrl.DragDrop += TxtUrl_DragDrop;
 
-            txtSavePath.Text = Environment.CurrentDirectory;
+            txtSavePath.Text = Directory.GetCurrentDirectory();
         }
         private void TxtUrl_DragDrop(object sender, DragEventArgs e)
         {
