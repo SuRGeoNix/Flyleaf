@@ -810,8 +810,42 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if ((ret == AVERROR_EXIT && fmtCtx->pb != null && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF)
                         { 
                             // AVERROR_EXIT && fmtCtx->pb->eof_reached probably comes from Interrupts (should ensure we seek after that)
-                            Status = Status.Ended;
-                            break;
+
+                            if (curReverseVideoPackets.Count > 0)
+                            {
+                                AVPacket* drainPacket = av_packet_alloc();
+                                drainPacket->data = null;
+                                drainPacket->size = 0;
+                                curReverseVideoPackets.Add((IntPtr)drainPacket);
+                                curReverseVideoStack.Push(curReverseVideoPackets);
+                                curReverseVideoPackets = new List<IntPtr>();
+                            }
+
+                            if (curReverseVideoStack.Count > 0)
+                            {
+                                VideoPacketsReverse.Enqueue(curReverseVideoStack);
+                                curReverseVideoStack = new ConcurrentStack<List<IntPtr>>();
+                            }
+
+                            if (curReverseStartPts != AV_NOPTS_VALUE && curReverseStartPts <= VideoStream.StartTimePts)
+                            {
+                                Status = Status.Ended;
+                                break;
+                            }
+
+                            //Log($"[][][SEEK END] {curReverseStartPts} | {Utils.TicksToTime((long) (curReverseStartPts * VideoStream.Timebase))}");
+                            Interrupter.Request(Requester.Seek);
+                            ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, Math.Max(curReverseStartPts - curReverseSeekOffset, VideoStream.StartTimePts), AVSEEK_FLAG_BACKWARD);
+
+                            if (ret != 0)
+                            {
+                                Status = Status.Stopping;
+                                break;
+                            }
+
+                            curReverseStopPts = curReverseStartPts;
+                            curReverseStartPts = AV_NOPTS_VALUE;
+                            continue;
                         }
 
                         allowedErrors--;
@@ -847,7 +881,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     if (packet->pts != AV_NOPTS_VALUE && (
                         (curReverseStopRequestedPts != AV_NOPTS_VALUE && curReverseStopRequestedPts <= packet->pts)  ||
-                        (curReverseStopPts == AV_NOPTS_VALUE && (packet->flags & AV_PKT_FLAG_KEY) != 0)     ||
+                        (curReverseStopPts == AV_NOPTS_VALUE && (packet->flags & AV_PKT_FLAG_KEY) != 0 && packet->pts != curReverseStartPts)     ||
                         (packet->pts == curReverseStopPts)
                         ))
                     {
@@ -880,13 +914,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                         if (curReverseStartPts != AV_NOPTS_VALUE && curReverseStartPts <= VideoStream.StartTimePts)
                         {
-                            Status = Status.Stopping;
+                            Status = Status.Ended;
                             break;
                         }
 
                         //Log($"[][][SEEK] {curReverseStartPts} | {Utils.TicksToTime((long) (curReverseStartPts * VideoStream.Timebase))}");
                         Interrupter.Request(Requester.Seek);
-                        ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, curReverseStartPts - curReverseSeekOffset, AVSEEK_FLAG_BACKWARD);
+                        ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, Math.Max(curReverseStartPts - curReverseSeekOffset, VideoStream.StartTimePts), AVSEEK_FLAG_BACKWARD);
 
                         if (ret != 0)
                         {
@@ -918,14 +952,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             IsReversePlayback = true;
 
             int ret;
-            long hevcTimePts = av_rescale_q((5 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
 
+            //Log($"[SEEK <-] {Utils.TicksToTime(timestamp) }");
             curReverseStopRequestedPts = av_rescale_q((StartTime + timestamp) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
 
             Interrupter.Request(Requester.Seek);
-            ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, curReverseStopRequestedPts - curReverseSeekOffset, AVSEEK_FLAG_BACKWARD);
+            ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, curReverseStopRequestedPts, AVSEEK_FLAG_BACKWARD);
             lock (lockStatus) if (Status == Status.Ended) Status = Status.Stopped;
-
+            curReverseStartPts = AV_NOPTS_VALUE;
             return ret;
         }
         public int DisableReversePlayback()

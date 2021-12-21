@@ -92,14 +92,22 @@ namespace FlyleafLib.MediaPlayer
             lock (lockPlayPause)
             {
                 Pause();
+                sFrame = null;
+                Subtitles.subsText = "";
+                if (Subtitles._SubsText != "")
+                    UI(() => Subtitles.SubsText = Subtitles.SubsText);
+                decoder.Flush();
+                decoder.RequiresResync = true;
 
                 vFrame = VideoDecoder.GetFrame(frameIndex);
                 if (vFrame == null) return;
 
                 long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
+                #if DEBUG
                 Log($"SFI: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                #endif
                 renderer.Present(vFrame);
-                reversePlaybackResync = true;
+                reversePlaybackResync = true;                
                 vFrame = null;
                
                 curTime = tmpTimestamp;
@@ -129,7 +137,9 @@ namespace FlyleafLib.MediaPlayer
                 if (vFrame == null) return;
 
                 long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
+                #if DEBUG
                 Log($"SFN: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                #endif
                 renderer.Present(vFrame);
                 reversePlaybackResync = true;
                 vFrame = null;
@@ -171,7 +181,9 @@ namespace FlyleafLib.MediaPlayer
                 if (vFrame == null) return;
 
                 long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
+                #if DEBUG
                 Log($"SFB: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                #endif
                 renderer.Present(vFrame);
                 vFrame = null;
 

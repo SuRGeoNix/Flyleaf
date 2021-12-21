@@ -40,14 +40,14 @@ namespace FlyleafLib
 
         /// <summary>
         /// Activates Master Thread to monitor all the players and perform the required updates
-        /// (Required for Activity Mode, Buffered Duration on Pause & Stats)
+        /// (Required for Activity Mode, Buffered Duration on Pause &amp; Stats)
         /// </summary>
         public static bool                          UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; StartThread(); } }
         static bool _UIRefresh;
 
         /// <summary>
         /// How often should update the UI in ms (low values can cause performance issues)
-        /// (Should UIRefreshInterval < 1000ms and 1000 % UIRefreshInterval == 0 for accurate per second stats)
+        /// (Should UIRefreshInterval &lt; 1000ms and 1000 % UIRefreshInterval == 0 for accurate per second stats)
         /// </summary>
         public static int                           UIRefreshInterval       { get ; set; } = 250;
 
