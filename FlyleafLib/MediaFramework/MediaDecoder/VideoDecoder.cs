@@ -768,7 +768,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         /// </summary>
         /// <param name="index">Zero based frame index</param>
         /// <returns>The requested VideoFrame or null on failure</returns>
-        public VideoFrame GetFrame(int index) // Zero-based frame index
+        public VideoFrame GetFrame(int index)
         {
             int ret;
 

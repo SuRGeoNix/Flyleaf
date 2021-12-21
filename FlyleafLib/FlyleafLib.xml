@@ -49,6 +49,21 @@
             Player's main configuration
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.AutoPlay">
+            <summary>
+            It will automatically start playing after open or seek after ended
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.ActivityMode">
+            <summary>
+            Whether to use Activity Mode
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.ActivityTimeout">
+            <summary>
+            Idle Timeout (ms)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.PlayerConfig.MinBufferDuration">
             <summary>
             Required buffered duration ticks before playing
@@ -64,6 +79,11 @@
             Mouse bindings configuration
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.IdleFps">
+            <summary>
+            Fps while the player is not playing
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.PlayerConfig.LowLatencyMaxVideoFrames">
             <summary>
             Limit before dropping frames. Lower value means lower latency (>=1)
@@ -74,24 +94,34 @@
             Limit before dropping frames. Lower value means lower latency (>=0)
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.FolderRecordings">
+            <summary>
+            Folder to save recordings (when filename is not specified)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.FolderSnapshots">
+            <summary>
+            Folder to save snapshots (when filename is not specified)
+            </summary>
+        </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.SnapshotFormat">
+            <summary>
+            Snapshot encoding will be used (valid formats bmp, png, jpg/jpeg)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.PlayerConfig.Stats">
             <summary>
             Whether to refresh statistics about bitrates/fps/drops etc.
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.PlayerConfig.IdleFps">
+        <member name="P:FlyleafLib.Config.PlayerConfig.VolumeMax">
             <summary>
-            Fps while the player is not playing
+            The upper limit of the volume amplifier
             </summary>
         </member>
-        <member name="P:FlyleafLib.Config.PlayerConfig.ActivityTimeout">
+        <member name="P:FlyleafLib.Config.PlayerConfig.Usage">
             <summary>
-            Idle Timeout (ms)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.PlayerConfig.AutoPlay">
-            <summary>
-            It will automatically start playing after open or seek after ended
+            The purpose of the player
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.DemuxerConfig.AllowInterrupts">
@@ -352,10 +382,16 @@
         </member>
         <member name="P:FlyleafLib.Master.UIRefresh">
             <summary>
-            Allows monitoring and refreshing player's activity / buffered duration / stats / ui updates
+            Activates Master Thread to monitor all the players and perform the required updates
+            (Required for Activity Mode, Buffered Duration on Pause &amp; Stats)
             </summary>
         </member>
-        <!-- Badly formed XML comment ignored for member "P:FlyleafLib.Master.UIRefreshInterval" -->
+        <member name="P:FlyleafLib.Master.UIRefreshInterval">
+            <summary>
+            How often should update the UI in ms (low values can cause performance issues)
+            (Should UIRefreshInterval &lt; 1000ms and 1000 % UIRefreshInterval == 0 for accurate per second stats)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Master.UICurTimePerSecond">
             <summary>
             Updates CurTime when the second changes otherwise every UIRefreshInterval
@@ -610,11 +646,6 @@
             Whether the player's status is capable of accepting playback commands
             </summary>
         </member>
-        <member name="P:FlyleafLib.MediaPlayer.Player.HasEnded">
-            <summary>
-            Whether playback has been completed
-            </summary>
-        </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.IsFullScreen">
             <summary>
             Whether the player's state is in fullscreen mode
@@ -680,6 +711,11 @@
             Whether to use reverse playback mode
             </summary>
         </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.HasEnded">
+            <summary>
+            Whether playback has been completed
+            </summary>
+        </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.SwitchPlayer(FlyleafLib.MediaPlayer.Player)">
             <summary>
             Switch player with another's player control (WinForms only) - For WPF just set VideoView's Player
@@ -693,7 +729,7 @@
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.StartRecording">
             <summary>
-            Starts recording (uses current path and default filename)
+            Starts recording (uses Config.Player.FolderRecordings and default filename title_curTime)
             </summary>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.StartRecording(System.String@,System.Boolean)">
@@ -715,7 +751,8 @@
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.TakeSnapshot(System.String)">
             <summary>
-            Saves the current video frame to bitmap file
+            Saves the current video frame (encoding based on format extention)
+            If filename not specified will use Config.Player.FolderSnapshots and with default filename title_frameNumber.Config.Player.SnapshotFormat
             </summary>
             <param name="filename"></param>
         </member>
@@ -849,6 +886,7 @@
         <member name="E:FlyleafLib.MediaPlayer.Player.PlaybackCompleted">
             <summary>
             Fires on playback stopped by an error or completed / ended successfully
+            Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
             </summary>
         </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Play">
@@ -876,12 +914,14 @@
         <member name="E:FlyleafLib.MediaPlayer.Player.BufferingStarted">
             <summary>
             Fires on buffering started
+            Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
             </summary>
         </member>
         <member name="E:FlyleafLib.MediaPlayer.Player.BufferingCompleted">
             <summary>
             Fires on buffering completed (will fire also on failed buffering completed)
             (BufferDration > Config.Player.MinBufferDuration)
+            Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.KeysConfig.Enabled">
@@ -949,6 +989,11 @@
             Whether the input has subtitles and it is configured
             </summary>
         </member>
+        <member name="P:FlyleafLib.MediaPlayer.Subtitles.SubsText">
+            <summary>
+            Subtitles Text (updates dynamically while playing based on the duration that it should be displayed)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.MediaPlayer.Video.IsOpened">
             <summary>
             Whether the input has video and it is configured
@@ -967,36 +1012,6 @@
         <member name="T:FFmpeg.AutoGen.ffmpegEx">
             <summary>
             Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
-            </summary>
-        </member>
-        <member name="T:XamlGeneratedNamespace.GeneratedInternalTypeHelper">
-            <summary>
-            GeneratedInternalTypeHelper
-            </summary>
-        </member>
-        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateInstance(System.Type,System.Globalization.CultureInfo)">
-            <summary>
-            CreateInstance
-            </summary>
-        </member>
-        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.GetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Globalization.CultureInfo)">
-            <summary>
-            GetPropertyValue
-            </summary>
-        </member>
-        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.SetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Object,System.Globalization.CultureInfo)">
-            <summary>
-            SetPropertyValue
-            </summary>
-        </member>
-        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateDelegate(System.Type,System.Object,System.String)">
-            <summary>
-            CreateDelegate
-            </summary>
-        </member>
-        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.AddEventHandler(System.Reflection.EventInfo,System.Object,System.Delegate)">
-            <summary>
-            AddEventHandler
             </summary>
         </member>
     </members>

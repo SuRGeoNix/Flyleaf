@@ -330,6 +330,7 @@ namespace FlyleafLib.MediaPlayer
                         VideoFrame vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime));
                         VideoDecoder.DisposeFrame(vFrame);
                         vFrame = null;
+                        decoder.RequiresResync = true;
                     }
 
                     reversePlaybackResync = false;
