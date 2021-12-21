@@ -231,13 +231,15 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!CanPlay)
                 return;
+            try
+            {
+                if (!Directory.Exists(Config.Player.FolderRecordings))
+                    Directory.CreateDirectory(Config.Player.FolderRecordings);
 
-            if (!Directory.Exists(Config.Player.FolderRecordings))
-                Directory.CreateDirectory(Config.Player.FolderRecordings);
-
-            string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Record" : Title) + $"_{(new TimeSpan(curTime)).ToString("hhmmss")}." + decoder.Extension;
-            filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderRecordings, filename));
-            StartRecording(ref filename, false);
+                string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Record" : Title) + $"_{(new TimeSpan(curTime)).ToString("hhmmss")}." + decoder.Extension;
+                filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderRecordings, filename));
+                StartRecording(ref filename, false);
+            } catch { }
         }
 
         /// <summary>
@@ -280,13 +282,16 @@ namespace FlyleafLib.MediaPlayer
             if (!CanPlay)
                 return;
 
-            if (!Directory.Exists(Config.Player.FolderSnapshots))
-                Directory.CreateDirectory(Config.Player.FolderSnapshots);
+            try
+            {
+                if (!Directory.Exists(Config.Player.FolderSnapshots))
+                    Directory.CreateDirectory(Config.Player.FolderSnapshots);
 
-            string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Snapshot" : Title) + $"_{VideoDecoder.GetFrameNumber(curTime - Config.Audio.Latency)}.bmp";
-            filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
+                string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Snapshot" : Title) + $"_{VideoDecoder.GetFrameNumber(curTime - Config.Audio.Latency)}.bmp";
+                filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
 
-            TakeSnapshot(filename);
+                TakeSnapshot(filename);
+            } catch { }
         }
 
         /// <summary>

@@ -322,7 +322,7 @@ namespace FlyleafLib.Controls.WPF
         {
             Config.Player.ActivityMode = true; // To allow Idle mode on flyleafBar
             Config.Player.KeyBindings.FlyleafWindow = true; // To allow keybindings also on front window
-            Player.RefreshEvents();
+            Player.SubscribeEvents();
 
             Player.OpenCompleted        += Player_OpenCompleted;
             Player.OpenInputCompleted   += Player_OpenInputCompleted;

@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.0-pre</Version>
+	<Version>3.4.0-pre2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -27,20 +27,20 @@
 		2) Mouse Bindings (Config.Player.MouseBindigns.Enabled - ON By Default)
 		OpenOnDragAndDrop (Drag &amp; Drop), PanMoveOnDragAndCtrl (Pan Move), PanZoomOnWheelAndCtrl (Pan Zomm In/Out), ToggleFullScreenOnDoubleClick (Toggle FullScreen)
 
-		3) Activity Mode (Config.Player.ActivityMode - ON By Default) | Master Thread required
+		3) Activity Mode (Config.Player.ActivityMode) | Master Thread required
 		Monitors user's actions based on Key/Mouse events and updates the mode to Idle / Active(keyboard only) / FullActive(mouse) based on Config.Player.ActivityTimeout
 		Exposes Player.Activity.ForceIdle / ForceActive / ForceFullActive for custom updates
 
 		4) Extends frequently used (Helper) methods for direct calls, Key Bindings assignments or ICommands usage (Player / Player.Audio / Player.Video / Player.Subtitles / Player.Commands)
 
-		5) Master Thread (Master.UIRefresh, UIRefreshInterval, UICurTimePerSecond - ON By Default)
-		Will monitor and refresh all players on single UI Invoke (CurTime/BufferedDuration/BitRate Stats etc.)
+		5) Master Thread (Master.UIRefresh, UIRefreshInterval, UICurTimePerSecond)
+		Will monitor and refresh all players on single UI Invoke (CurTime if not per second/BufferedDuration on pause/BitRate Stats etc.)
 		Allows updates even when the players/demuxers are not running
 		Allows more frequent update for CurTime (Master.UICurTimePerSecond = false) rather than on exact second change on timestamps
 
 		6) Additional Config.Player offsets added (for key/mouse bindings)
 		AudioDelayOffset, AudioDelayOffset2, SubtitlesDelayOffset, SubtitlesDelayOffset2
-		SeekOffset, VolumeOffset, ZoomOffset
+		SeekOffset, SeekOffset2, VolumeOffset, ZoomOffset
 
 		7) Auto Play (Config.Player.AutoPlay - ON By Default)
 		Not required to subscribe on open completed events to start playing
@@ -49,6 +49,9 @@
 
 		9) Adds BufferingStarted / BufferingCompleted (with error support) events and success/fail to PlaybackCompleted
 
+		10) Default Directories and Filenames for TakeSnapshot (allows also more formats) and StartRecording if filenames are not specified
+		Config.Player.FolderSnapshots, Config.Player.SnapshotFormat, Config.Player.FolderRecordings
+
 		10) Updates (FFmpeg.AutoGen / Vortice)
 
 		[Issues]
@@ -56,6 +59,7 @@
 		1) Fixes a read timeout issue with live streams (while demuxing at the end of stream and waiting for new packets)
 		2) Fixes a dead lock with Audio Decoder during multiple ReSyncs
 		3) Fixes critical issues during swaping players new feature
+		3) Fixes ShowFrameNext/ShowFramePrev issues and improvements
 		4) Controls.WPF: Fixes an issues with comma/dot string to double convert issue based on system culture
 
 		[Breaking / Important Changes]
@@ -66,7 +70,7 @@
 		4) Config.Decoder.MaxVideoFrames changed from Math.Max(10, Environment.ProcessorCount) to 4 (to reduce VRAM)
 		5) Config.Player.Speed amp; Config.Player.SpeedReverse moved to single Player.Speed (valid values 0.0 - 1.0 and 1,2,3,4)
 		6) VideoView.IsFullScreen / FullScreen / NormalScreen moved to Player and support also WinForms now
-		7) Check more changes and renames on Controls.WPF -> Flyleaf.xaml
+		7) Check more changes and renames on Controls.WPF -&gt; Flyleaf.xaml
 	</PackageReleaseNotes>
   </PropertyGroup>
 
