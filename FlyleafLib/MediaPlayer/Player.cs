@@ -491,7 +491,11 @@ namespace FlyleafLib.MediaPlayer
         }
         public void SubscribeEvents()
         {
+            UnsubscribeEvents();
+
+            #if DEBUG
             Log($"Subscribing Events to Player #{PlayerId}");
+            #endif
 
             if (Config.Player.KeyBindings.Enabled)
             {
@@ -556,7 +560,9 @@ namespace FlyleafLib.MediaPlayer
         }
         public void UnsubscribeEvents()
         {
+            #if DEBUG
             Log($"Unsubscribing Events from Player #{PlayerId}");
+            #endif
 
             if (VideoView != null)
             {
@@ -579,11 +585,6 @@ namespace FlyleafLib.MediaPlayer
                 _Control.DragEnter  -= Control_DragEnter;
                 _Control.DragDrop   -= Control_DragDrop;
             }
-        }
-        public void RefreshEvents()
-        {
-            UnsubscribeEvents();
-            SubscribeEvents();
         }
 
         /// <summary>
