@@ -226,6 +226,7 @@ namespace FlyleafLib.MediaPlayer
 
                     if (!IsPlaying && resync)
                     {
+                        decoder.PauseDecoders();
                         decoder.GetVideoFrame();
                         ShowOneFrame();
                     }
@@ -294,6 +295,7 @@ namespace FlyleafLib.MediaPlayer
         {
             StreamOpenedArgs args = new StreamOpenedArgs();
 
+            long delay = DateTime.UtcNow.Ticks;
             long fromEnd = (Duration - CurTime);
 
             if (stream.Demuxer.Type == MediaType.Video) { isVideoSwitch = true; requiresBuffering = true; }
@@ -319,8 +321,7 @@ namespace FlyleafLib.MediaPlayer
                     while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3)
                         System.Threading.Thread.Sleep(20);
 
-                    ReSync(stream, (Duration - fromEnd) / 10000);
-
+                    ReSync(stream, ((Duration - fromEnd) - (DateTime.UtcNow.Ticks - delay))/ 10000);
                 }
                 else
                     ReSync(stream, CurTime / 10000, true);
@@ -365,7 +366,7 @@ namespace FlyleafLib.MediaPlayer
 
                 if (accurate && Video.IsOpened)
                 {
-                    VideoDecoder.Pause();
+                    decoder.PauseDecoders();
                     decoder.Seek(syncMs, false, false);
                     decoder.GetVideoFrame(syncMs * 10000);
                 }
@@ -380,6 +381,7 @@ namespace FlyleafLib.MediaPlayer
 
                 if (!IsPlaying)
                 {
+                    decoder.PauseDecoders();
                     decoder.GetVideoFrame();
                     ShowOneFrame();
                 }

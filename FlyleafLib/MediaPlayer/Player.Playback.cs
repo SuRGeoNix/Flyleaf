@@ -163,7 +163,12 @@ namespace FlyleafLib.MediaPlayer
         /// <param name="ms"></param>
         public void SeekAccurate(int ms)
         {
-            Seek(ms, false, true);
+            Seek(ms, false, !IsLive);
+        }
+
+        public void ToggleSeekAccurate()
+        {
+            Config.Player.SeekAccurate = !Config.Player.SeekAccurate;
         }
 
         private void Seek(int ms, bool forward, bool accurate)
@@ -215,7 +220,7 @@ namespace FlyleafLib.MediaPlayer
                         }
                         else
                         {
-                            VideoDecoder.Pause();
+                            decoder.PauseDecoders();
                             if (decoder.Seek(seekData.ms, seekData.forward, !seekData.accurate) >= 0)
                             {
                                 if (!ReversePlayback && CanPlay)

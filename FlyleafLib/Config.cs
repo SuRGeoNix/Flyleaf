@@ -164,6 +164,12 @@ namespace FlyleafLib
             public string   FolderSnapshots             { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Snapshots");
 
             /// <summary>
+            /// Forces CurTime to seek accurate on video
+            /// </summary>
+            public bool     SeekAccurate                { get => _SeekAccurate; set => Set(ref _SeekAccurate, value); }
+            bool _SeekAccurate;
+
+            /// <summary>
             /// Snapshot encoding will be used (valid formats bmp, png, jpg/jpeg)
             /// </summary>
             public string   SnapshotFormat              { get ;set; } = "bmp";

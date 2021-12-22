@@ -10,6 +10,26 @@ namespace FlyleafLib.MediaPlayer
     {
         public bool IsOpenFileDialogOpen    { get; private set; }
 
+        public void SeekBackward()
+        {
+            if (!CanPlay) return;
+
+            if (Config.Player.SeekAccurate)
+                SeekAccurate(Math.Max((int) ((CurTime - Config.Player.SeekOffset) / 10000), 0));
+            else
+                Seek(Math.Max((int) ((CurTime - Config.Player.SeekOffset) / 10000), 0), false);
+            
+        }
+        public void SeekBackward2()
+        {
+            if (!CanPlay) return;
+
+            if (Config.Player.SeekAccurate)
+                SeekAccurate(Math.Max((int) ((CurTime - Config.Player.SeekOffset2) / 10000), 0));
+            else
+                Seek(Math.Max((int) ((CurTime - Config.Player.SeekOffset2) / 10000), 0), false);
+            
+        }
         public void SeekForward()
         {
             if (!CanPlay) return;
@@ -17,7 +37,12 @@ namespace FlyleafLib.MediaPlayer
             long seekTs = CurTime + Config.Player.SeekOffset;
 
             if (seekTs <= Duration || isLive)
-                Seek((int)(seekTs / 10000), true);
+            {
+                if (Config.Player.SeekAccurate)
+                    SeekAccurate((int)(seekTs / 10000));
+                else
+                    Seek((int)(seekTs / 10000), true);
+            }
         }
         public void SeekForward2()
         {
@@ -26,21 +51,12 @@ namespace FlyleafLib.MediaPlayer
             long seekTs = CurTime + Config.Player.SeekOffset2;
 
             if (seekTs <= Duration || isLive)
-                Seek((int)(seekTs / 10000), true);
-        }
-        public void SeekBackward()
-        {
-            if (!CanPlay) return;
-
-            Seek(Math.Max((int) ((CurTime - Config.Player.SeekOffset) / 10000), 0), false);
-            
-        }
-        public void SeekBackward2()
-        {
-            if (!CanPlay) return;
-
-            Seek(Math.Max((int) ((CurTime - Config.Player.SeekOffset2) / 10000), 0), false);
-            
+            {
+                if (Config.Player.SeekAccurate)
+                    SeekAccurate((int)(seekTs / 10000));
+                else
+                    Seek((int)(seekTs / 10000), true);
+            }
         }
 
         public void SeekToChapter(Demuxer.Chapter chapter)
