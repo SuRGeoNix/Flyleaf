@@ -90,6 +90,12 @@ namespace FlyleafLib.MediaPlayer
         public SubtitlesDecoder     SubtitlesDecoder    => decoder.SubtitlesDecoder;
 
         /// <summary>
+        /// Main Demuxer (if video disabled or audio only can be AudioDemuxer instead of VideoDemuxer)
+        /// (Normally you should not access this directly)
+        /// </summary>
+        public Demuxer              MainDemuxer         { get; private set; }
+
+        /// <summary>
         /// Audio Demuxer
         /// (Normally you should not access this directly)
         /// </summary>
@@ -150,22 +156,22 @@ namespace FlyleafLib.MediaPlayer
         long _CurTime, curTime;
         internal void UpdateCurTime()
         {
-            if (mainDemuxer == null || seeks.Count != 0) return;
+            if (MainDemuxer == null || seeks.Count != 0) return;
 
-            mainDemuxer.UpdateCurTime();
+            MainDemuxer.UpdateCurTime();
 
-            if (mainDemuxer.HLSPlaylist != null)
+            if (MainDemuxer.HLSPlaylist != null)
             {
-                curTime  = mainDemuxer.CurTime;
-                duration = mainDemuxer.Duration;
+                curTime  = MainDemuxer.CurTime;
+                duration = MainDemuxer.Duration;
                 Duration = Duration;
             }
 
             Set(ref _CurTime, curTime, true, nameof(CurTime));
 
-            if (_BufferedDuration != mainDemuxer.BufferedDuration)
+            if (_BufferedDuration != MainDemuxer.BufferedDuration)
             {
-                _BufferedDuration = mainDemuxer.BufferedDuration;
+                _BufferedDuration = MainDemuxer.BufferedDuration;
                 Raise(nameof(BufferedDuration));
             }
         }
@@ -181,11 +187,11 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public long         BufferedDuration    { get 
             {
-                if (mainDemuxer == null)
+                if (MainDemuxer == null)
                     return 0;
                 
-                mainDemuxer.UpdateCurTime();
-                return mainDemuxer.BufferedDuration;
+                MainDemuxer.UpdateCurTime();
+                return MainDemuxer.BufferedDuration;
             } 
                                                                             internal set => Set(ref _BufferedDuration, value); }
         long _BufferedDuration;
@@ -379,7 +385,6 @@ namespace FlyleafLib.MediaPlayer
         long startedAtTicks;
         long videoStartTicks;
 
-        Demuxer mainDemuxer; // if video disabled can be audiodemuxer instead of videodemuxer
         Flyleaf swap_Control; // Required for swap in WinForms
         bool swap_WasPlaying;
         #endregion
@@ -482,7 +487,7 @@ namespace FlyleafLib.MediaPlayer
             VideoDecoder.CodecChanged        = Decoder_VideoCodecChanged;
             decoder.RecordingCompleted += (o, e) => { IsRecording = false; };
 
-            mainDemuxer = VideoDemuxer;
+            MainDemuxer = VideoDemuxer;
             Reset();
 
             if (Config.Player.Usage != Usage.Audio)

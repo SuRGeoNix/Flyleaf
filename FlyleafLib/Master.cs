@@ -251,7 +251,7 @@ namespace FlyleafLib
                                 }
 
                                 // CurTime / Buffered Duration (+Duration for HLS)
-                                if (!UICurTimePerSecond || (!player.IsPlaying && player.CanPlay))
+                                if (!UICurTimePerSecond || (!player.IsPlaying && player.MainDemuxer.IsRunning && player.CanPlay))
                                     player.UpdateCurTime();
 
                                 /* Every Second */
