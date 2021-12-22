@@ -653,7 +653,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     VideoDemuxer.Interrupter.ForceInterrupt = 1;
                     OpenedPlugin.OnBuffering();
                     lock (VideoDemuxer.lockFmtCtx)
-                    {    
+                    {
                         if (VideoDemuxer.Disposed) { VideoDemuxer.Interrupter.ForceInterrupt = 0; return -1; }
                         ret = VideoDemuxer.Seek(seekTimestamp, forward);
                     }
@@ -909,8 +909,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             //if (wasRunning) Start();
         }
-        public long GetVideoFrame()
+        public long GetVideoFrame(long timestamp = -1)
         {
+            // TBR: Between seek and GetVideoFrame lockCodecCtx is lost and if VideoDecoder is running will already have decoded some frames (Currently ensure you pause VideDecoder before seek)
+
             int ret;
             AVPacket* packet = av_packet_alloc();
             AVFrame*  frame  = av_frame_alloc();
@@ -970,15 +972,24 @@ namespace FlyleafLib.MediaFramework.MediaContext
                             frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
                             if (frame->pts == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
 
-                            if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
+                            if (VideoDecoder.keyFrameRequired && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
                             {
                                 Log($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                                 av_frame_unref(frame);
                                 continue;
                             }
 
-                            VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
                             VideoDecoder.keyFrameRequired = false;
+
+                            // Accurate seek with +- half frame distance
+                            if (timestamp != -1 && (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime + ((1000 * 10000 / 2) / VideoStream.FPS) < timestamp)
+                            {
+                                av_frame_unref(frame);
+                                continue;
+                            }
+
+                            //Log($"Asked for {Utils.TicksToTime(timestamp)} and got {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime)} | Diff {Utils.TicksToTime(timestamp - ((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime))}");
+                            VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
 
                             VideoFrame mFrame = VideoDecoder.ProcessVideoFrame(frame);
                             if (mFrame == null) return -1;

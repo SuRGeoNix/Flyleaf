@@ -29,10 +29,14 @@ namespace FlyleafLib.MediaPlayer
         public ICommand Stop                    { get; set; }
         public ICommand TogglePlayPause         { get; set; }
 
+        public ICommand SeekBackward            { get; set; }
+        public ICommand SeekBackward2           { get; set; }
+        public ICommand SeekForward             { get; set; }
+        public ICommand SeekForward2            { get; set; }
         public ICommand SeekToChapter           { get; set; }
 
-        public ICommand ShowFrameNext           { get; set; }
         public ICommand ShowFramePrev           { get; set; }
+        public ICommand ShowFrameNext           { get; set; }
 
         public ICommand NormalScreen            { get; set; }
         public ICommand FullScreen              { get; set; }
@@ -62,29 +66,19 @@ namespace FlyleafLib.MediaPlayer
         {
             this.player = player;
 
-            AudioDelaySet           = new RelayCommand(AudioDelaySetAction);
-            AudioDelaySet2          = new RelayCommand(AudioDelaySetAction2);
-            AudioDelayAdd           = new RelayCommandSimple(player.Audio.DelayAdd);
-            AudioDelayAdd2          = new RelayCommandSimple(player.Audio.DelayAdd2);
-            AudioDelayRemove        = new RelayCommandSimple(player.Audio.DelayRemove);
-            AudioDelayRemove2       = new RelayCommandSimple(player.Audio.DelayRemove2);
-
-            SubtitlesDelaySet       = new RelayCommand(SubtitlesDelaySetAction);
-            SubtitlesDelaySet2      = new RelayCommand(SubtitlesDelaySetAction2);
-            SubtitlesDelayAdd       = new RelayCommandSimple(player.Subtitles.DelayAdd);
-            SubtitlesDelayAdd2      = new RelayCommandSimple(player.Subtitles.DelayAdd2);
-            SubtitlesDelayRemove    = new RelayCommandSimple(player.Subtitles.DelayRemove);
-            SubtitlesDelayRemove2   = new RelayCommandSimple(player.Subtitles.DelayRemove2);
-
             Open                    = new RelayCommand(OpenAction);
             OpenFromClipboard       = new RelayCommandSimple(player.OpenFromClipboard);
             OpenFromFileDialog      = new RelayCommandSimple(player.OpenFromFileDialog);
 
             Play                    = new RelayCommandSimple(player.Play);
             Pause                   = new RelayCommandSimple(player.Pause);
-            Stop                    = new RelayCommandSimple(player.Stop);
             TogglePlayPause         = new RelayCommandSimple(player.TogglePlayPause);
+            Stop                    = new RelayCommandSimple(player.Stop);
 
+            SeekBackward            = new RelayCommandSimple(player.SeekBackward);
+            SeekBackward2           = new RelayCommandSimple(player.SeekBackward2);
+            SeekForward             = new RelayCommandSimple(player.SeekForward);
+            SeekForward2            = new RelayCommandSimple(player.SeekForward2);
             SeekToChapter           = new RelayCommand(SeekToChapterAction);
 
             ShowFrameNext           = new RelayCommandSimple(player.ShowFrameNext);
@@ -111,11 +105,24 @@ namespace FlyleafLib.MediaPlayer
             VolumeUp                = new RelayCommandSimple(player.Audio.VolumeUp);
             VolumeDown              = new RelayCommandSimple(player.Audio.VolumeDown);
             ToggleMute              = new RelayCommandSimple(player.Audio.ToggleMute);
+
+            AudioDelaySet           = new RelayCommand(AudioDelaySetAction);
+            AudioDelaySet2          = new RelayCommand(AudioDelaySetAction2);
+            AudioDelayAdd           = new RelayCommandSimple(player.Audio.DelayAdd);
+            AudioDelayAdd2          = new RelayCommandSimple(player.Audio.DelayAdd2);
+            AudioDelayRemove        = new RelayCommandSimple(player.Audio.DelayRemove);
+            AudioDelayRemove2       = new RelayCommandSimple(player.Audio.DelayRemove2);
+
+            SubtitlesDelaySet       = new RelayCommand(SubtitlesDelaySetAction);
+            SubtitlesDelaySet2      = new RelayCommand(SubtitlesDelaySetAction2);
+            SubtitlesDelayAdd       = new RelayCommandSimple(player.Subtitles.DelayAdd);
+            SubtitlesDelayAdd2      = new RelayCommandSimple(player.Subtitles.DelayAdd2);
+            SubtitlesDelayRemove    = new RelayCommandSimple(player.Subtitles.DelayRemove);
+            SubtitlesDelayRemove2   = new RelayCommandSimple(player.Subtitles.DelayRemove2);
         }
 
         public void SpeedSetAction(object speed)
         {
-            //player.Speed = int.Parse(speed.ToString());
             string speedstr = speed.ToString().Replace(',', '.');
             if (double.TryParse(speedstr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double value))
                 player.Speed = value;

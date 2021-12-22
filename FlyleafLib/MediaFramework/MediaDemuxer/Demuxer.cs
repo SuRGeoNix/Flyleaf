@@ -553,10 +553,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     Interrupter.ForceInterrupt = 0;
 
                     // Flush required because of the interrupt
-                    if (fmtCtx->pb != null) avio_flush(fmtCtx->pb);
+                    if (fmtCtx->pb != null)
+                        avio_flush(fmtCtx->pb);
                     avformat_flush(fmtCtx);
 
-                    if (hlsCtx != null) fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
+                    // Forces seekable HLS
+                    if (hlsCtx != null)
+                        fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
+
                     Interrupter.Request(Requester.Seek);
                     if (VideoStream != null)
                     {
@@ -564,7 +568,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         ret = av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
 
                         curReverseStopPts = AV_NOPTS_VALUE;
-                        curReverseStartPts = AV_NOPTS_VALUE;
+                        curReverseStartPts= AV_NOPTS_VALUE;
                     }
                     else
                     {
@@ -586,7 +590,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                                 avformat_seek_file(fmtCtx, -1, Int64.MinValue   , ticks / 10, ticks / 10    , AVSEEK_FLAG_ANY):
                                 avformat_seek_file(fmtCtx, -1, ticks / 10       , ticks / 10, Int64.MaxValue, AVSEEK_FLAG_ANY);
 
-                        if (ret < 0) Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                        if (ret < 0)
+                            Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                        else
+                            CurTime = ticks;
                     }
                     else
                         CurTime = ticks;
@@ -595,7 +602,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     lock (lockStatus) if (Status == Status.Ended) Status = Status.Stopped;
                 }
 
-                return ret;  // >= 0 for success
+                return ret; // >= 0 for success
             }
         }
 
@@ -1134,7 +1141,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 firstPacketTs = (long) (((AVPacket*)firstPacketPtr)->dts * AVStreamToStream[((AVPacket*)firstPacketPtr)->stream_index].Timebase);
 
             if (firstPacketTs == AV_NOPTS_VALUE)
-                return;
+            {
+                if (lastPacketTs == AV_NOPTS_VALUE)
+                    return;
+
+                firstPacketTs = lastPacketTs;
+            }
 
             long bufferedDuration = lastPacketTs - firstPacketTs;
             if (bufferedDuration >= 0)
@@ -1145,7 +1157,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             else
                 CurTime = lastPacketTs - hlsStartTime - BufferedDuration; //CurTime = firstPacketTs - hlsStartTime; We can't trust firstPacketTs might changed timestamps                
 
-            //Log($"[S: {HLSPlaylist->start_seq_no} C: {HLSPlaylist->cur_seq_no} L: {HLSPlaylist->last_seq_no} T:{HLSPlaylist->n_segments} BD: {Utils.TicksToTime(BufferedDuration)} SD: {Utils.TicksToTime(segmentsDuration)}] [ST: {Utils.TicksToTime(hlsStartTime)} FP: {Utils.TicksToTime(firstPacketTs)} CP: {Utils.TicksToTime(lastPacketTs)} <> {Utils.TicksToTime(lastPacketTs-firstPacketTs)} | CT: {Utils.TicksToTime(CurTime)}]");
+            //Log($"[S: {HLSPlaylist->start_seq_no} C: {HLSPlaylist->cur_seq_no} L: {HLSPlaylist->last_seq_no} T:{HLSPlaylist->n_segments} BD: {Utils.TicksToTime(BufferedDuration)} SD: {Utils.TicksToTime(hlsCurDuration)}] [ST: {Utils.TicksToTime(hlsStartTime)} FP: {Utils.TicksToTime(firstPacketTs)} CP: {Utils.TicksToTime(lastPacketTs)} <> {Utils.TicksToTime(lastPacketTs-firstPacketTs)} | CT: {Utils.TicksToTime(CurTime)}]");
         }
         internal void UpdateHLSTime()
         {

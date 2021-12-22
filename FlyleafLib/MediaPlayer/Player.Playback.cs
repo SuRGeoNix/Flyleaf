@@ -154,6 +154,20 @@ namespace FlyleafLib.MediaPlayer
         /// <param name="forward"></param>
         public void Seek(int ms, bool forward = false)
         {
+            Seek(ms, forward, false);
+        }
+
+        /// <summary>
+        /// Seeks at the exact timestamp (with half frame distance accuracy)
+        /// </summary>
+        /// <param name="ms"></param>
+        public void SeekAccurate(int ms)
+        {
+            Seek(ms, false, true);
+        }
+
+        private void Seek(int ms, bool forward, bool accurate)
+        {
             if (!CanPlay) return;
 
             // We consider already in UI thread
@@ -161,7 +175,7 @@ namespace FlyleafLib.MediaPlayer
             Raise(nameof(CurTime));
             //Set(ref _CurTime, curTime, false, nameof(CurTime));
             //UpdateCurTime();
-            seeks.Push(new SeekData(ms, forward));
+            seeks.Push(new SeekData(ms, forward, accurate));
 
             decoder.OpenedPlugin?.OnBuffering();
 
@@ -202,10 +216,10 @@ namespace FlyleafLib.MediaPlayer
                         else
                         {
                             VideoDecoder.Pause();
-                            if (decoder.Seek(seekData.ms, seekData.forward) >= 0)
+                            if (decoder.Seek(seekData.ms, seekData.forward, !seekData.accurate) >= 0)
                             {
                                 if (!ReversePlayback && CanPlay)
-                                    decoder.GetVideoFrame();
+                                    decoder.GetVideoFrame(seekData.accurate ? seekData.ms * (long)10000 : -1);
                                 if (!ReversePlayback && CanPlay)
                                 {
                                     ShowOneFrame();
@@ -281,8 +295,9 @@ namespace FlyleafLib.MediaPlayer
     {
         public int  ms;
         public bool forward;
-        public SeekData(int ms, bool forward)
-            { this.ms = ms; this.forward = forward; }
+        public bool accurate;
+        public SeekData(int ms, bool forward, bool accurate)
+            { this.ms = ms; this.forward = forward && !accurate; this.accurate = accurate; }
     }
 
 }
