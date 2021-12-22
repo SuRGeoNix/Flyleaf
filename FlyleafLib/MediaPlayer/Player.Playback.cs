@@ -46,7 +46,7 @@ namespace FlyleafLib.MediaPlayer
                         TimeBeginPeriod(1);
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
 
-                        mainDemuxer = VideoDemuxer;
+                        MainDemuxer = VideoDemuxer;
                         onBufferingStarted   = 0;
                         onBufferingCompleted = 0;
 
@@ -54,7 +54,7 @@ namespace FlyleafLib.MediaPlayer
                             ScreamerLowLatency();
                         else if (Config.Player.Usage == Usage.Audio || !Video.IsOpened)
                         {
-                            mainDemuxer = AudioDecoder.OnVideoDemuxer ? VideoDemuxer : AudioDemuxer;
+                            MainDemuxer = AudioDecoder.OnVideoDemuxer ? VideoDemuxer : AudioDemuxer;
                             ScreamerAudioOnly();
                         }
                         else

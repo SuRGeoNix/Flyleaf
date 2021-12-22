@@ -12,7 +12,7 @@ using static FlyleafLib.Utils;
 
 namespace FlyleafLib.MediaPlayer
 {
-    partial class Player
+    unsafe partial class Player
     {
         /// <summary>
         /// Fires on open completed of new media input (success or failure)
@@ -293,7 +293,8 @@ namespace FlyleafLib.MediaPlayer
         public OpenStreamCompletedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
         {
             StreamOpenedArgs args = new StreamOpenedArgs();
-            long syncMs = decoder.GetCurTimeMs();
+
+            long fromEnd = (Duration - CurTime);
 
             if (stream.Demuxer.Type == MediaType.Video) { isVideoSwitch = true; requiresBuffering = true; }
 
@@ -310,7 +311,22 @@ namespace FlyleafLib.MediaPlayer
                 args = decoder.OpenSubtitlesStream((SubtitlesStream)stream);
             }
 
-            if (resync) ReSync(stream, syncMs); else isVideoSwitch = false;
+            if (resync)
+            {
+                // Wait for at least on package before seek to update the HLS context first_time
+                if (stream.Demuxer.HLSPlaylist != null)
+                {
+                    while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3)
+                        System.Threading.Thread.Sleep(20);
+
+                    ReSync(stream, (Duration - fromEnd) / 10000);
+
+                }
+                else
+                    ReSync(stream, CurTime / 10000, true);
+            }
+            else
+                isVideoSwitch = false;
 
             return new OpenStreamCompletedArgs(stream.Type, args.Stream, args.OldStream, args.Error);
         }
@@ -330,7 +346,7 @@ namespace FlyleafLib.MediaPlayer
             });
         }
 
-        internal void ReSync(StreamBase stream, long syncMs = -1)
+        internal void ReSync(StreamBase stream, long syncMs = -1, bool accurate = false)
         {
             /* TODO
              * 
@@ -347,7 +363,14 @@ namespace FlyleafLib.MediaPlayer
                 isSubsSwitch = true;
                 requiresBuffering = true;
 
-                decoder.Seek(syncMs, false, false);
+                if (accurate && Video.IsOpened)
+                {
+                    VideoDecoder.Pause();
+                    decoder.Seek(syncMs, false, false);
+                    decoder.GetVideoFrame(syncMs * 10000);
+                }
+                else
+                    decoder.Seek(syncMs, false, false);
 
                 aFrame = null;
                 isAudioSwitch = false;

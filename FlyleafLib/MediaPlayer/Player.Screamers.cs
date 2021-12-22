@@ -278,8 +278,8 @@ namespace FlyleafLib.MediaPlayer
                     }
 
                     if (Master.UICurTimePerSecond &&  (
-                        (mainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
-                        (mainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
+                        (MainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
+                        (MainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
                         elapsedSec  = elapsedTicks;
                         UI(() => UpdateCurTime());
@@ -299,7 +299,7 @@ namespace FlyleafLib.MediaPlayer
 
                     if (seeks.Count == 0)
                     {
-                        if (mainDemuxer.HLSPlaylist == null)
+                        if (MainDemuxer.HLSPlaylist == null)
                             curTime = (long) (elapsedTicks * Speed);
                         else
                             curTime = VideoDemuxer.CurTime;
@@ -466,7 +466,7 @@ namespace FlyleafLib.MediaPlayer
 
             if (seeks.Count == 0)
             {
-                if (mainDemuxer.HLSPlaylist == null)
+                if (MainDemuxer.HLSPlaylist == null)
                     curTime = aFrame.timestamp;
                 UI(() => UpdateCurTime());
             }
@@ -542,8 +542,8 @@ namespace FlyleafLib.MediaPlayer
                 if (aDistanceMs > 100)
                 {
                     if (Master.UICurTimePerSecond &&  (
-                        (mainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
-                        (mainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
+                        (MainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
+                        (MainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
                         elapsedSec  = elapsedTicks;
                         UI(() => UpdateCurTime());
@@ -552,7 +552,7 @@ namespace FlyleafLib.MediaPlayer
                     Thread.Sleep(aDistanceMs-15);
                 }
 
-                if (mainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
                     curTime = elapsedTicks;
 
                 Audio.AddSamples(aFrame.audioData, false);
@@ -597,7 +597,7 @@ namespace FlyleafLib.MediaPlayer
                     elapsedTicks = videoStartTicks;
                     elapsedSec = startedAtTicks;
 
-                    if (mainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                    if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
                         curTime = (long) (elapsedTicks * Speed);
                     UI(() => UpdateCurTime());
                 }
@@ -630,8 +630,8 @@ namespace FlyleafLib.MediaPlayer
 
                     // Every seconds informs the application with CurTime / Bitrates (invokes UI thread to ensure the updates will actually happen)
                     if (Master.UICurTimePerSecond && (
-                        (mainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) || 
-                        (mainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
+                        (MainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) || 
+                        (MainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
                         elapsedSec  = elapsedTicks;
                         UI(() => UpdateCurTime());
@@ -641,7 +641,7 @@ namespace FlyleafLib.MediaPlayer
                 }
 
                 decoder.VideoDecoder.Renderer.Present(vFrame);
-                if (mainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
                     curTime = (long) (elapsedTicks * Speed);
                 VideoDecoder.Frames.TryDequeue(out vFrame);
                 if (vFrame != null)
