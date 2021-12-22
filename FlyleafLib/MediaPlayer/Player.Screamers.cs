@@ -57,7 +57,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 VideoDecoder.Frames.TryDequeue(out vFrame);
                 renderer.Present(vFrame);
-                
+
                 if (seeks.Count == 0)
                 {
                     if (VideoDemuxer.HLSPlaylist == null)
@@ -216,8 +216,14 @@ namespace FlyleafLib.MediaPlayer
                 {
                     seeks.Clear();
                     requiresBuffering = true;
-                    if (decoder.Seek(seekData.ms, seekData.forward) < 0)
+
+                    if (seekData.accurate)
+                        VideoDecoder.Pause(); // To avoid decode packets from keyframe
+
+                    if (decoder.Seek(seekData.ms, seekData.forward, !seekData.accurate) < 0)
                         Log("[SCREAMER] Seek failed");
+                    else if (seekData.accurate)
+                        decoder.GetVideoFrame(seekData.ms * (long)10000);
                 }
 
                 if (requiresBuffering)
