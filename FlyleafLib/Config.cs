@@ -155,7 +155,7 @@ namespace FlyleafLib
             /// <summary>
             /// Folder to save recordings (when filename is not specified)
             /// </summary>
-            public string   FolderRecordings               { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Recordings");
+            public string   FolderRecordings            { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Recordings");
 
             /// <summary>
             /// Folder to save snapshots (when filename is not specified)
@@ -164,7 +164,7 @@ namespace FlyleafLib
             public string   FolderSnapshots             { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Snapshots");
 
             /// <summary>
-            /// Forces CurTime to seek accurate on video
+            /// Forces CurTime/SeekBackward/SeekForward to seek accurate on video
             /// </summary>
             public bool     SeekAccurate                { get => _SeekAccurate; set => Set(ref _SeekAccurate, value); }
             bool _SeekAccurate;

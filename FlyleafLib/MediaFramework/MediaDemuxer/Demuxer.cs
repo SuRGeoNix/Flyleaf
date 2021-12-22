@@ -1157,9 +1157,19 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             if (HLSPlaylist == null)
                 CurTime = lastPacketTs - StartTime - BufferedDuration;
             else
-                CurTime = lastPacketTs - hlsStartTime - BufferedDuration; //CurTime = firstPacketTs - hlsStartTime; We can't trust firstPacketTs might changed timestamps                
+            {
+                // If we pause we can find ourselves (first packet) behind the current first segment
+                if (firstPacketTs < hlsStartTime)
+                {
+                    CurTime = 0;
+                    Duration += hlsStartTime - firstPacketTs;
+                    hlsStartTime = firstPacketTs;
+                }
+                else
+                    CurTime = lastPacketTs - hlsStartTime - BufferedDuration; //CurTime = firstPacketTs - hlsStartTime; We can't trust firstPacketTs might changed timestamps                
+            }
 
-            //Log($"[S: {HLSPlaylist->start_seq_no} C: {HLSPlaylist->cur_seq_no} L: {HLSPlaylist->last_seq_no} T:{HLSPlaylist->n_segments} BD: {Utils.TicksToTime(BufferedDuration)} SD: {Utils.TicksToTime(hlsCurDuration)}] [FT: {Utils.TicksToTime(hlsCtx->first_timestamp * 10)} ST: {Utils.TicksToTime(hlsStartTime)} FP: {Utils.TicksToTime(firstPacketTs)} CP: {Utils.TicksToTime(lastPacketTs)} <> {Utils.TicksToTime(lastPacketTs-firstPacketTs)} | CT: {Utils.TicksToTime(CurTime)}]");
+            //Log($"[S: {HLSPlaylist->start_seq_no} C: {HLSPlaylist->cur_seq_no} L: {HLSPlaylist->last_seq_no} T:{HLSPlaylist->n_segments} BD: {Utils.TicksToTime(BufferedDuration)} SD: {Utils.TicksToTime(hlsCurDuration)} DUR: {Utils.TicksToTime(Duration)}] [FT: {Utils.TicksToTime(hlsCtx->first_timestamp * 10)} ST: {Utils.TicksToTime(hlsStartTime)} FP: {Utils.TicksToTime(firstPacketTs)} CP: {Utils.TicksToTime(lastPacketTs)} <> {Utils.TicksToTime(lastPacketTs-firstPacketTs)} | CT: {Utils.TicksToTime(CurTime)}]");
         }
         internal void UpdateHLSTime()
         {
