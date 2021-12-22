@@ -217,8 +217,8 @@ namespace FlyleafLib.MediaPlayer
                     seeks.Clear();
                     requiresBuffering = true;
 
-                    if (seekData.accurate)
-                        VideoDecoder.Pause(); // To avoid decode packets from keyframe
+                    decoder.PauseDecoders(); // TBR: Required to avoid gettings packets between Seek and ShowFrame which causes resync issues
+
 
                     if (decoder.Seek(seekData.ms, seekData.forward, !seekData.accurate) < 0)
                         Log("[SCREAMER] Seek failed");

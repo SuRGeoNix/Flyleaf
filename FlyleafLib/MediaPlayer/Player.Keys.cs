@@ -234,6 +234,9 @@ namespace FlyleafLib.MediaPlayer
                 case KeyBindingAction.ToggleReversePlayback:
                     return ToggleReversePlayback;
 
+                case KeyBindingAction.ToggleSeekAccurate:
+                    return ToggleSeekAccurate;
+
                 case KeyBindingAction.SeekBackward:
                     return SeekBackward;
 
@@ -291,6 +294,7 @@ namespace FlyleafLib.MediaPlayer
             { KeyBindingAction.Play },
             { KeyBindingAction.Pause },
             { KeyBindingAction.Stop },
+            { KeyBindingAction.ToggleSeekAccurate },
             { KeyBindingAction.SpeedAdd },
             { KeyBindingAction.SpeedRemove },
             { KeyBindingAction.ActivityForceIdle }
@@ -316,7 +320,7 @@ namespace FlyleafLib.MediaPlayer
         ToggleVideoAcceleration,
         ToggleRecording,
         ToggleReversePlayback,
-        SeekForward, SeekBackward, SeekForward2, SeekBackward2,
+        ToggleSeekAccurate, SeekForward, SeekBackward, SeekForward2, SeekBackward2,
         SpeedAdd, SpeedRemove,
         ShowNextFrame, ShowPrevFrame,
 
@@ -456,6 +460,8 @@ namespace FlyleafLib.MediaPlayer
             Add(Key.V,                  KeyBindingAction.OpenFromClipboard, true);
             Add(Key.O,                  KeyBindingAction.OpenFromFileDialog);
             Add(Key.C,                  KeyBindingAction.CopyToClipboard, true);
+
+            Add(Key.LeftShift,          KeyBindingAction.ToggleSeekAccurate, true);
 
             Add(Key.Left,               KeyBindingAction.SeekBackward);
             Add(Key.Right,              KeyBindingAction.SeekForward);

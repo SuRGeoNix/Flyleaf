@@ -150,9 +150,9 @@ namespace FlyleafLib.MediaPlayer
                             Chapters            => VideoDemuxer?.Chapters;
 
         /// <summary>
-        /// Player's current time or user's current seek time (uses backward/forward direction based on previous time)
+        /// Player's current time or user's current seek time (uses backward/forward direction based on previous time or accurate seek based on Config.Player.SeekAccurate)
         /// </summary>
-        public long         CurTime             { get => curTime;           set => Seek((int) (value/10000), value > curTime); }
+        public long         CurTime             { get => curTime;           set { if (Config.Player.SeekAccurate) SeekAccurate((int) (value/10000)); else Seek((int) (value/10000), value > curTime); } }
         long _CurTime, curTime;
         internal void UpdateCurTime()
         {

@@ -524,6 +524,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     if (found)
                     {
                         Log("[SEEK] Found in Queue");
+                        //CurTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
                         UpdateCurTime();
                         return 0;
                     }
@@ -593,10 +594,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (ret < 0)
                             Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
                         else
-                            CurTime = ticks;
+                            CurTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
                     }
                     else
-                        CurTime = ticks;
+                        CurTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
 
                     DisposePackets();
                     lock (lockStatus) if (Status == Status.Ended) Status = Status.Stopped;
