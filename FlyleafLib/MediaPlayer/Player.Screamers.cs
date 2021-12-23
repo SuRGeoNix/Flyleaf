@@ -61,7 +61,7 @@ namespace FlyleafLib.MediaPlayer
                 if (seeks.Count == 0)
                 {
                     if (VideoDemuxer.HLSPlaylist == null)
-                        curTime = vFrame.timestamp;
+                        curTime = vFrame.timestamp - Config.Audio.Latency;
                     UIAdd(() => UpdateCurTime());
                     UI();
                 }
@@ -290,7 +290,7 @@ namespace FlyleafLib.MediaPlayer
 
                 if (Math.Abs(vDistanceMs - sleepMs) <= 2)
                 {
-                    //Log($"[V] Presenting {TicksToTime(vFrame.timestamp)}");
+                    //Log($"[V] Presenting {TicksToTime(vFrame.timestamp - Config.Audio.Latency)}");
 
                     if (decoder.VideoDecoder.Renderer.Present(vFrame))
                         Video.framesDisplayed++;
@@ -300,9 +300,12 @@ namespace FlyleafLib.MediaPlayer
                     if (seeks.Count == 0)
                     {
                         if (MainDemuxer.HLSPlaylist == null)
-                            curTime = (long) (elapsedTicks * Speed);
+                            curTime = (long) ((vFrame.timestamp - Config.Audio.Latency) * Speed);
                         else
                             curTime = VideoDemuxer.CurTime;
+
+                        if (Config.Player.UICurTimePerFrame)
+                            UI(() => UpdateCurTime());
                     }
 
                     VideoDecoder.Frames.TryDequeue(out vFrame);
@@ -391,9 +394,8 @@ namespace FlyleafLib.MediaPlayer
 
         private void ScreamerLowLatency()
         {
-            int     actualFps  = 0;
             long    secondTime = DateTime.UtcNow.Ticks;
-            long    avgFrameDuration = (int) (10000000.0 / 25.0);
+            long    avgFrameDuration = VideoDecoder.VideoStream.FrameDuration > 0 ? VideoDecoder.VideoStream.FrameDuration : (int) (10000000.0 / 25.0);
             long    lastPresentTime = 0;
 
             VideoDecoder.DisposeFrame(vFrame);
@@ -404,20 +406,15 @@ namespace FlyleafLib.MediaPlayer
             VideoDemuxer.Start();
             VideoDecoder.Start();
 
-            if (FFmpeg.AutoGen.ffmpeg.av_q2d(VideoDemuxer.FormatContext->streams[VideoDecoder.VideoStream.StreamIndex]->avg_frame_rate) > 0)
-                avgFrameDuration = (long) (10000000 / FFmpeg.AutoGen.ffmpeg.av_q2d(VideoDemuxer.FormatContext->streams[VideoDecoder.VideoStream.StreamIndex]->avg_frame_rate));
-            else if (VideoDecoder.VideoStream.FPS > 0)
-                avgFrameDuration = (int) (10000000 / VideoDecoder.VideoStream.FPS);
-
             if (Config.Player.LowLatencyMaxVideoFrames < 1) Config.Player.LowLatencyMaxVideoFrames = 1;
 
             while (Status == Status.Playing)
             {
                 if (vFrame == null)
                 {
-                    OnBufferingStarted();
+                    //OnBufferingStarted();
                     while (VideoDecoder.Frames.Count == 0 && Status == Status.Playing) Thread.Sleep(20);
-                    OnBufferingCompleted();
+                    //OnBufferingCompleted();
                     if (Status != Status.Playing) break;
 
                     while (VideoDecoder.Frames.Count >= Config.Player.LowLatencyMaxVideoFrames && VideoDemuxer.VideoPackets.Count >= Config.Player.LowLatencyMaxVideoPackets)
@@ -432,7 +429,6 @@ namespace FlyleafLib.MediaPlayer
                 else
                 {
                     long curTime = DateTime.UtcNow.Ticks;
-                    //RefreshCurTime();
 
                     if (Master.UICurTimePerSecond && curTime - secondTime > 10000000 - avgFrameDuration)
                     {
@@ -442,7 +438,14 @@ namespace FlyleafLib.MediaPlayer
 
                     int sleepMs = (int) ((avgFrameDuration - (curTime - lastPresentTime)) / 10000);
                     if (sleepMs < 11000 && sleepMs > 2) Thread.Sleep(sleepMs);
-                    if (renderer.Present(vFrame)) actualFps++; else Video.FramesDropped++;
+                    renderer.Present(vFrame);
+                    if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                    {
+                        this.curTime = (long) ((vFrame.timestamp - Config.Audio.Latency) * Speed);
+
+                        if (Config.Player.UICurTimePerFrame)
+                            UI(() => UpdateCurTime());
+                    }
                     lastPresentTime = DateTime.UtcNow.Ticks;
                     vFrame = null;
                 }
@@ -553,7 +556,12 @@ namespace FlyleafLib.MediaPlayer
                 }
 
                 if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
-                    curTime = elapsedTicks;
+                {
+                    curTime = aFrame.timestamp;
+
+                    if (Config.Player.UICurTimePerFrame)
+                        UI(() => UpdateCurTime());
+                }
 
                 Audio.AddSamples(aFrame.audioData, false);
                 AudioDecoder.Frames.TryDequeue(out aFrame);
@@ -577,6 +585,9 @@ namespace FlyleafLib.MediaPlayer
 
                 if (vFrame == null)
                 {
+                    if (VideoDecoder.Status == MediaFramework.Status.Ended)
+                        break;
+
                     OnBufferingStarted();
                     if (reversePlaybackResync)
                     {
@@ -598,7 +609,7 @@ namespace FlyleafLib.MediaPlayer
                     elapsedSec = startedAtTicks;
 
                     if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
-                        curTime = (long) (elapsedTicks * Speed);
+                        curTime = (long) ((vFrame.timestamp - Config.Audio.Latency) * Speed);
                     UI(() => UpdateCurTime());
                 }
 
@@ -642,7 +653,13 @@ namespace FlyleafLib.MediaPlayer
 
                 decoder.VideoDecoder.Renderer.Present(vFrame);
                 if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
-                    curTime = (long) (elapsedTicks * Speed);
+                {
+                    curTime = (long) ((vFrame.timestamp - Config.Audio.Latency) * Speed);
+
+                    if (Config.Player.UICurTimePerFrame)
+                        UI(() => UpdateCurTime());
+                }
+                    
                 VideoDecoder.Frames.TryDequeue(out vFrame);
                 if (vFrame != null)
                     vFrame.timestamp = (long) (vFrame.timestamp / Speed);

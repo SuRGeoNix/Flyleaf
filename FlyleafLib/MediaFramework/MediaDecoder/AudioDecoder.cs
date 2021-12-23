@@ -233,6 +233,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             mFrame = new AudioFrame();
             mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+
+            // TODO: based on VideoStream's StartTime and not Demuxer's
+            //mFrame.timestamp = (long)(frame->pts * AudioStream.Timebase) - AudioStream.StartTime - (VideoDecoder.VideoStream.StartTime - AudioStream.StartTime) + Config.Audio.Delay;
+
             //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)} | {Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase))}");
 
             // Resync with VideoDecoder if required (drop early timestamps)

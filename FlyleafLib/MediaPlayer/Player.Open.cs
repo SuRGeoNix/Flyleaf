@@ -505,15 +505,29 @@ namespace FlyleafLib.MediaPlayer
         }
         private void Decoder_VideoInputOpened(object sender, VideoInputOpenedArgs e)
         {
+            MediaType curMedia = MediaType.Video;
+
             if (e.Success)
             {
+                // We can get audio only here
+                if (VideoDemuxer.VideoStream == null)
+                    curMedia = MediaType.Audio;
+
                 if (e.Input != null && e.Input.InputData != null)
                     title = e.Input.InputData.Title;
 
-                duration    = VideoDemuxer.Duration;
                 isLive      = VideoDemuxer.IsLive;
                 isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
 
+                // Demuxer's duration calculates also last frames duration that we don't care
+
+                if (curMedia == MediaType.Video)
+                    duration    = VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration;
+                else
+                    duration    = VideoDemuxer.Duration;
+
+                // TODO: Now we start from timestamps from Demuxer's StartTime which means that we can have X initial duration without video (requires to change all the design with timestamps)
+                //duration    = isLive || VideoDemuxer.VideoStream.Duration == 0 ? VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration : Math.Min(VideoDemuxer.Duration, VideoDemuxer.VideoStream.Duration) - VideoDemuxer.VideoStream.FrameDuration;
                 UIAdd(() =>
                 {
                     Title       = Title;
@@ -539,9 +553,9 @@ namespace FlyleafLib.MediaPlayer
                 Play();
 
             if (e.IsUserInput)
-                OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Video, e.Input, e.OldInput, e.Error, e.IsUserInput));
+                OnOpenCompleted(new OpenInputCompletedArgs(curMedia, e.Input, e.OldInput, e.Error, e.IsUserInput));
             else
-                OnOpenInputCompleted(MediaType.Video, e.Input, e.OldInput, e.Error, e.IsUserInput);
+                OnOpenInputCompleted(curMedia, e.Input, e.OldInput, e.Error, e.IsUserInput);
         }
         private void Decoder_SubtitlesInputOpened(object sender, SubtitlesInputOpenedArgs e)
         {

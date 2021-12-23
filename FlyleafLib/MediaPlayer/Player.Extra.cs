@@ -264,7 +264,7 @@ namespace FlyleafLib.MediaPlayer
                 if (!Directory.Exists(Config.Player.FolderRecordings))
                     Directory.CreateDirectory(Config.Player.FolderRecordings);
 
-                string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Record" : Title) + $"_{(new TimeSpan(curTime)).ToString("hhmmss")}." + decoder.Extension;
+                string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Record" : Title) + $"_{(new TimeSpan(CurTime)).ToString("hhmmss")}." + decoder.Extension;
                 filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderRecordings, filename));
                 StartRecording(ref filename, false);
             } catch { }
@@ -303,26 +303,6 @@ namespace FlyleafLib.MediaPlayer
         }
 
         /// <summary>
-        /// Saves the current video frame to bitmap file (uses current path and default filename)
-        /// </summary>
-        public void TakeSnapshot()
-        {
-            if (!CanPlay)
-                return;
-
-            try
-            {
-                if (!Directory.Exists(Config.Player.FolderSnapshots))
-                    Directory.CreateDirectory(Config.Player.FolderSnapshots);
-
-                string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Snapshot" : Title) + $"_{VideoDecoder.GetFrameNumber(curTime - Config.Audio.Latency)}.bmp";
-                filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
-
-                TakeSnapshot(filename);
-            } catch { }
-        }
-
-        /// <summary>
         /// Saves the current video frame (encoding based on format extention)
         /// If filename not specified will use Config.Player.FolderSnapshots and with default filename title_frameNumber.Config.Player.SnapshotFormat
         /// </summary>
@@ -333,16 +313,17 @@ namespace FlyleafLib.MediaPlayer
 
             if (filename == null)
             {
-                if (!Directory.Exists(Config.Player.FolderSnapshots))
-                    Directory.CreateDirectory(Config.Player.FolderSnapshots);
+                try
+                {
+                    if (!Directory.Exists(Config.Player.FolderSnapshots))
+                        Directory.CreateDirectory(Config.Player.FolderSnapshots);
 
-                filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Snapshot" : Title) + $"_{VideoDecoder.GetFrameNumber(curTime - Config.Audio.Latency)}.{Config.Player.SnapshotFormat}";
-                filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
+                    filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Snapshot" : Title) + $"_{VideoDecoder.GetFrameNumber(CurTime)}.{Config.Player.SnapshotFormat}";
+                    filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
+                } catch { return; }
             }
-            
+
             string ext = Utils.GetUrlExtention(filename).ToLower();
-            if (ext != "bmp" || ext != "png" || ext != "jpeg" || ext != "jpg")
-                throw new Exception($"Invalid snapshot extention '{ext}' (valid .bmp, .png, .jpeg, .jpg");
 
             switch (ext)
             {
@@ -358,6 +339,9 @@ namespace FlyleafLib.MediaPlayer
                 case "jpeg":
                     renderer?.TakeSnapshot(filename, System.Drawing.Imaging.ImageFormat.Jpeg);
                     break;
+
+                default:
+                    throw new Exception($"Invalid snapshot extention '{ext}' (valid .bmp, .png, .jpeg, .jpg");
             }
         }
 

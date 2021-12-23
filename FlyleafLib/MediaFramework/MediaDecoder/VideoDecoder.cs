@@ -626,7 +626,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 
                 mFrame = new VideoFrame();
                 mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
-                //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)}");
+
+                // TODO
+                //mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoStream.StartTime + Config.Audio.Latency;
+                //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp - Config.Audio.Latency)}");
 
                 if (!HDRDataSent && frame->side_data != null && *frame->side_data != null)
                 {
@@ -760,7 +763,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public int GetFrameNumber(long timestamp)
         {
             // offset 2ms
-            return (int) ((timestamp + 20000) / (10000000 / VideoStream.FPS));
+            return (int) ((timestamp + 20000) / VideoStream.FrameDuration);
         }
 
         /// <summary>
@@ -773,7 +776,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int ret;
 
             // Calculation of FrameX timestamp (based on fps/avgFrameDuration) | offset 2ms
-            long frameTimestamp = VideoStream.StartTime + (long) (index * (10000000 / VideoStream.FPS)) - 20000;
+            long frameTimestamp = VideoStream.StartTime + (long) (index * VideoStream.FrameDuration) - 20000;
             //Log($"Searching for {Utils.TicksToTime(frameTimestamp)}");
 
             // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC

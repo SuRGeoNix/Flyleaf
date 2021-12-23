@@ -21,16 +21,18 @@ namespace FlyleafLib.Controls.WPF
         {
             try
             {
-                if (path != null)
-                    using (FileStream fs = new FileStream(path, FileMode.Open))
-                    {
-                        XmlSerializer xmlSerializer = new XmlSerializer(typeof(UIConfig));
-                        UIConfig uIConfig =  (UIConfig) xmlSerializer.Deserialize(fs);
+                if (!File.Exists(path))
+                    return;
 
-                        flyleaf.UIThemes            = uIConfig.UIThemes;
-                        flyleaf.SelectedThemeStr    = uIConfig.SelectedTheme;
-                    }
-            } catch (Exception) { }
+                using (FileStream fs = new FileStream(path, FileMode.Open))
+                {
+                    XmlSerializer xmlSerializer = new XmlSerializer(typeof(UIConfig));
+                    UIConfig uIConfig =  (UIConfig) xmlSerializer.Deserialize(fs);
+
+                    flyleaf.UIThemes            = uIConfig.UIThemes;
+                    flyleaf.SelectedThemeStr    = uIConfig.SelectedTheme;
+                }
+            } catch (Exception e) { System.Diagnostics.Debug.WriteLine(e.Message); }
         }
 
         public static void Save(Flyleaf flyleaf, string uiConfigPath, string configPath)
@@ -52,7 +54,7 @@ namespace FlyleafLib.Controls.WPF
 
                 if (configPath != null)
                     flyleaf.Config.Save(configPath);
-            } catch (Exception) { }
+            } catch (Exception e) { System.Diagnostics.Debug.WriteLine(e.Message); }
         }
     }
 

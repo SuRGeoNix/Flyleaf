@@ -47,11 +47,11 @@ namespace FlyleafPlayer__Custom_
             switch (e.PropertyName)
             {
                 case "CurTime":
-                    label1.Text = Utils.TicksToTime(Player1View.CurTime);
+                    label1.Text = (new TimeSpan(Player1View.CurTime)).ToString(@"hh\:mm\:ss\.fff");
                     break;
 
                 case "BufferedDuration":
-                    label2.Text = Utils.TicksToTime(Player1View.BufferedDuration);
+                    label2.Text =  (new TimeSpan(Player1View.BufferedDuration)).ToString(@"hh\:mm\:ss\.fff");
                     break;
 
                 case "Status":
@@ -62,8 +62,8 @@ namespace FlyleafPlayer__Custom_
 
         private void RefreshAfterSwap()
         {
-            label1.Text = Utils.TicksToTime(Player1View.CurTime);
-            label2.Text = Utils.TicksToTime(Player1View.BufferedDuration);
+            label1.Text = (new TimeSpan(Player1View.CurTime)).ToString(@"hh\:mm\:ss\.fff");
+            label2.Text = (new TimeSpan(Player1View.BufferedDuration)).ToString(@"hh\:mm\:ss\.fff");
             label6.Text = Player1View.Status.ToString();
         }
 

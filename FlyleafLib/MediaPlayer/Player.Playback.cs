@@ -95,7 +95,12 @@ namespace FlyleafLib.MediaPlayer
                         if (IsPlaying)
                         {
                             if (!error)
-                                error = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
+                            {
+                                if (!ReversePlayback)
+                                    error = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
+                                else
+                                    error = CurTime > 3 * 1000 * 10000;
+                            }
 
                             if (HasEnded)
                                 status = Status.Ended;
@@ -256,6 +261,15 @@ namespace FlyleafLib.MediaPlayer
             tSeek.Name = "Seek";
             tSeek.IsBackground = true;
             tSeek.Start();
+        }
+
+        /// <summary>
+        /// Flushes the buffer (demuxers (packets) and decoders (frames))
+        /// This is useful mainly for live streams to push the playback at very end (low latency)
+        /// </summary>
+        public void Flush()
+        {
+            decoder.Flush();
         }
 
         /// <summary>

@@ -23,33 +23,13 @@ namespace FlyleafLib.MediaPlayer
          */
 
         /// <summary>
-        /// Can be used to route KeyUp events (WPF)
-        /// </summary>
-        /// <param name="player"></param>
-        /// <param name="e"></param>
-        public void KeyUp(Player player, KeyEventArgs e)
-        {
-            e.Handled = KeyUp(player, e.Key);
-        }
-
-        /// <summary>
         /// Can be used to route KeyDown events (WPF)
         /// </summary>
         /// <param name="player"></param>
         /// <param name="e"></param>
         public void KeyDown(Player player, KeyEventArgs e)
         {
-            e.Handled = KeyDown(player, e.Key);
-        }
-
-        /// <summary>
-        /// Can be used to route KeyUp events (WinForms)
-        /// </summary>
-        /// <param name="player"></param>
-        /// <param name="e"></param>
-        public void KeyUp(Player player, System.Windows.Forms.KeyEventArgs e)
-        {
-            e.Handled = KeyUp(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
+            e.Handled = KeyDown(player, e.Key == Key.System ? e.SystemKey : e.Key);
         }
 
         /// <summary>
@@ -62,46 +42,64 @@ namespace FlyleafLib.MediaPlayer
             e.Handled = KeyDown(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
         }
 
-        private static bool ctrlWasDown;
-        private static bool KeyUp(Player player, Key key)
+        /// <summary>
+        /// Can be used to route KeyUp events (WPF)
+        /// </summary>
+        /// <param name="player"></param>
+        /// <param name="e"></param>
+        public void KeyUp(Player player, KeyEventArgs e)
         {
-            if (key == Key.LeftCtrl || key == Key.RightCtrl) return false;
+            e.Handled = KeyUp(player, e.Key == Key.System ? e.SystemKey : e.Key);
+        }
 
-            if (player.Config.Player.ActivityMode)
-                player.Activity.KeyboardTimestmap = DateTime.UtcNow.Ticks;
+        /// <summary>
+        /// Can be used to route KeyUp events (WinForms)
+        /// </summary>
+        /// <param name="player"></param>
+        /// <param name="e"></param>
+        public void KeyUp(Player player, System.Windows.Forms.KeyEventArgs e)
+        {
+            e.Handled = KeyUp(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
+        }
 
-            foreach (var binding in player.Config.Player.KeyBindings.Keys)
-                if (binding.Key == key && binding.Ctrl == ctrlWasDown)
+        private static bool KeyDown(Player player, Key key)
+        {
+            if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
+                return false;
+
+            foreach(var binding in player.Config.Player.KeyBindings.Keys)
+                if (binding.Key     == key && !binding.IsKeyUp &&
+                    binding.Alt     == (Keyboard.IsKeyDown(Key.LeftAlt)     || Keyboard.IsKeyDown(Key.RightAlt)) &&
+                    binding.Ctrl    == (Keyboard.IsKeyDown(Key.LeftCtrl)    || Keyboard.IsKeyDown(Key.RightCtrl)) &&
+                    binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
+                    )
                 {
-                    if (!isKeyUpBinding.Contains(binding.Action))
-                        return false;
-
-                    ctrlWasDown = false;
-
-                    //player.Log(binding.Action.ToString());
+                    //player.Log("Down | " + binding.Action.ToString());
                     binding.ActionInternal?.Invoke();
-
+                    
                     return true;
                 }
 
             return false;
         }
-        private static bool KeyDown(Player player, Key key)
-        {
-            if (key == Key.LeftCtrl || key == Key.RightCtrl) return false;
+        private static bool KeyUp(Player player, Key key)
+        {    
+            if (player.Config.Player.ActivityMode)
+                player.Activity.KeyboardTimestmap = DateTime.UtcNow.Ticks;
 
-            foreach(var binding in player.Config.Player.KeyBindings.Keys)
-                if (binding.Key == key && binding.Ctrl == (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
+            if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
+                return false;
+
+            foreach (var binding in player.Config.Player.KeyBindings.Keys)
+                if (binding.Key     == key && binding.IsKeyUp &&
+                    binding.Alt     == (Keyboard.IsKeyDown(Key.LeftAlt)     || Keyboard.IsKeyDown(Key.RightAlt)) &&
+                    binding.Ctrl    == (Keyboard.IsKeyDown(Key.LeftCtrl)    || Keyboard.IsKeyDown(Key.RightCtrl)) &&
+                    binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
+                    )
                 {
-                    if (isKeyUpBinding.Contains(binding.Action))
-                    {
-                        ctrlWasDown = binding.Ctrl;
-                        return false;
-                    }
-
-                    //player.Log(binding.Action.ToString());
+                    //player.Log("Up | " + binding.Action.ToString());
                     binding.ActionInternal?.Invoke();
-                    
+
                     return true;
                 }
 
@@ -152,180 +150,6 @@ namespace FlyleafLib.MediaPlayer
             //Log("Control_KeyDown");
             KeyDown(((Flyleaf)sender).Player, e);
         }
-
-        internal Action GetKeyBindingAction(KeyBindingAction action)
-        {
-            switch (action)
-            {
-                case KeyBindingAction.ActivityForceIdle:
-                    return Activity.ForceIdle;
-
-                case KeyBindingAction.AudioDelayAdd:
-                    return Audio.DelayAdd;
-                case KeyBindingAction.AudioDelayRemove:
-                    return Audio.DelayRemove;
-                case KeyBindingAction.AudioDelayAdd2:
-                    return Audio.DelayAdd2;
-                case KeyBindingAction.AudioDelayRemove2:
-                    return Audio.DelayRemove2;
-                case KeyBindingAction.ToggleAudio:
-                    return Audio.Toggle;
-                case KeyBindingAction.ToggleMute:
-                    return Audio.ToggleMute;
-                case KeyBindingAction.VolumeUp:
-                    return Audio.VolumeUp;
-                case KeyBindingAction.VolumeDown:
-                    return Audio.VolumeDown;
-
-                case KeyBindingAction.ToggleVideo:
-                    return Video.Toggle;
-                case KeyBindingAction.ToggleKeepRatio:
-                    return Video.ToggleKeepRatio;
-                case KeyBindingAction.ToggleVideoAcceleration:
-                    return Video.ToggleVideoAcceleration;
-
-                case KeyBindingAction.SubtitlesDelayAdd:
-                    return Subtitles.DelayAdd;
-                case KeyBindingAction.SubtitlesDelayRemove:
-                    return Subtitles.DelayRemove;
-                case KeyBindingAction.SubtitlesDelayAdd2:
-                    return Subtitles.DelayAdd2;
-                case KeyBindingAction.SubtitlesDelayRemove2:
-                    return Subtitles.DelayRemove2;
-                case KeyBindingAction.ToggleSubtitles:
-                    return Subtitles.Toggle;
-
-                case KeyBindingAction.OpenFromClipboard:
-                    return OpenFromClipboard;
-
-                case KeyBindingAction.OpenFromFileDialog:
-                    return OpenFromFileDialog;
-
-                case KeyBindingAction.CopyToClipboard:
-                    return CopyToClipboard;
-
-                case KeyBindingAction.Stop:
-                    return Stop;
-
-                case KeyBindingAction.Pause:
-                    return Pause;
-
-                case KeyBindingAction.Play:
-                    return Play;
-
-                case KeyBindingAction.TogglePlayPause:
-                    return TogglePlayPause;
-
-                case KeyBindingAction.TakeSnapshot:
-                    return TakeSnapshot;
-
-                case KeyBindingAction.NormalScreen:
-                    return NormalScreen;
-
-                case KeyBindingAction.FullScreen:
-                    return FullScreen;
-
-                case KeyBindingAction.ToggleFullScreen:
-                    return ToggleFullScreen;
-
-                case KeyBindingAction.ToggleRecording:
-                    return ToggleRecording;
-
-                case KeyBindingAction.ToggleReversePlayback:
-                    return ToggleReversePlayback;
-
-                case KeyBindingAction.ToggleSeekAccurate:
-                    return ToggleSeekAccurate;
-
-                case KeyBindingAction.SeekBackward:
-                    return SeekBackward;
-
-                case KeyBindingAction.SeekForward:
-                    return SeekForward;
-
-                case KeyBindingAction.SeekBackward2:
-                    return SeekBackward2;
-
-                case KeyBindingAction.SeekForward2:
-                    return SeekForward2;
-
-                case KeyBindingAction.SpeedAdd:
-                    return SpeedUp;
-
-                case KeyBindingAction.SpeedRemove:
-                    return SpeedDown;
-
-                case KeyBindingAction.ShowPrevFrame:
-                    return ShowFramePrev;
-
-                case KeyBindingAction.ShowNextFrame:
-                    return ShowFrameNext;
-
-                case KeyBindingAction.ZoomIn:
-                    return ZoomIn;
-
-                case KeyBindingAction.ZoomOut:
-                    return ZoomOut;
-
-                case KeyBindingAction.ResetAll:
-                    return ResetAll;
-            }
-
-            return null;
-        }
-        private static HashSet<KeyBindingAction> isKeyUpBinding = new HashSet<KeyBindingAction>
-        {
-            { KeyBindingAction.OpenFromClipboard },
-            { KeyBindingAction.OpenFromFileDialog },
-            { KeyBindingAction.CopyToClipboard },
-            { KeyBindingAction.TakeSnapshot },
-            { KeyBindingAction.NormalScreen },
-            { KeyBindingAction.FullScreen },
-            { KeyBindingAction.ToggleFullScreen },
-            { KeyBindingAction.ToggleAudio },
-            { KeyBindingAction.ToggleVideo },
-            { KeyBindingAction.ToggleKeepRatio },
-            { KeyBindingAction.ToggleVideoAcceleration },
-            { KeyBindingAction.ToggleSubtitles },
-            { KeyBindingAction.ToggleMute },
-            { KeyBindingAction.TogglePlayPause },
-            { KeyBindingAction.ToggleRecording },
-            { KeyBindingAction.ToggleReversePlayback },
-            { KeyBindingAction.Play },
-            { KeyBindingAction.Pause },
-            { KeyBindingAction.Stop },
-            { KeyBindingAction.ToggleSeekAccurate },
-            { KeyBindingAction.SpeedAdd },
-            { KeyBindingAction.SpeedRemove },
-            { KeyBindingAction.ActivityForceIdle }
-        };
-    }
-
-    public enum KeyBindingAction
-    {
-        Custom,
-        ActivityForceIdle,
-
-        AudioDelayAdd, AudioDelayAdd2, AudioDelayRemove, AudioDelayRemove2, ToggleMute, VolumeUp, VolumeDown,
-        SubtitlesDelayAdd, SubtitlesDelayAdd2, SubtitlesDelayRemove, SubtitlesDelayRemove2,
-
-        CopyToClipboard, OpenFromClipboard, OpenFromFileDialog,
-        Stop, Pause, Play, TogglePlayPause,
-        TakeSnapshot,
-        NormalScreen, FullScreen, ToggleFullScreen,
-
-        ToggleAudio, ToggleVideo, ToggleSubtitles,
-
-        ToggleKeepRatio,
-        ToggleVideoAcceleration,
-        ToggleRecording,
-        ToggleReversePlayback,
-        ToggleSeekAccurate, SeekForward, SeekBackward, SeekForward2, SeekBackward2,
-        SpeedAdd, SpeedRemove,
-        ShowNextFrame, ShowPrevFrame,
-
-        ResetAll,
-        ZoomIn, ZoomOut,
     }
 
     public class KeysConfig
@@ -355,7 +179,7 @@ namespace FlyleafLib.MediaPlayer
             if (Keys == null)
                 Keys = new List<KeyBinding>();
 
-            if (Enabled && Keys.Count == 0)
+            if (Enabled && !player.Config.Loaded && Keys.Count == 0)
                 LoadDefault();
 
             this.player = player;
@@ -363,46 +187,53 @@ namespace FlyleafLib.MediaPlayer
             foreach(var binding in Keys)
             {
                 if (binding.Action != KeyBindingAction.Custom)
-                    binding.ActionInternal = player.GetKeyBindingAction(binding.Action);
+                    binding.ActionInternal = GetKeyBindingAction(binding.Action);
             }
         }
 
         /// <summary>
-        /// Gets a read-only copy of the currently assigned key bindings
+        /// Adds a custom keybinding
         /// </summary>
-        /// <returns></returns>
-        public ReadOnlyCollection<KeyBinding> Get()
+        /// <param name="key">The key to bind</param>
+        /// <param name="isKeyUp">If should fire on each keydown or just on keyup</param>
+        /// <param name="action">The action to execute</param>
+        /// <param name="actionName">A unique name to be able to identify it</param>
+        /// <param name="alt">If Alt should be pressed</param>
+        /// <param name="ctrl">If Ctrl should be pressed</param>
+        /// <param name="shift">If Shift should be pressed</param>
+        /// <exception cref="Exception">Keybinding already exists</exception>
+        public void AddCustom(Key key, bool isKeyUp, Action action, string actionName, bool alt = false, bool ctrl = false, bool shift = false)
         {
-            return Keys.AsReadOnly();
+            for (int i=0; i<Keys.Count; i++)
+                if (Keys[i].Key == key && Keys[i].Alt == alt && Keys[i].Ctrl == ctrl && Keys[i].Shift == shift)
+                    throw new Exception($"Keybinding {(alt ? "Alt + " : "")}{(ctrl ? "Ctrl + " : "")}{(shift ? "Shift + " : "")}{key} already assigned");
+
+            Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, Key = key, IsKeyUp = isKeyUp, Action = KeyBindingAction.Custom, ActionName = actionName, ActionInternal = action });
         }
 
-        public void AddCustom(Key key, Action action, string actionName, bool ctrl = false)
-        {
-            foreach(var keyBinding in Keys)
-                if (keyBinding.Ctrl == ctrl && keyBinding.Key == key)
-                    throw new Exception($"Keybinding {(ctrl ? "Ctrl + " : "")}{key} already assigned");
+        
 
-            Keys.Add(new KeyBinding() { Ctrl = ctrl, Key = key, Action = KeyBindingAction.Custom, Custom = actionName, ActionInternal = action });
-        }
 
         /// <summary>
-        /// Adds a new key binding 
+        /// Adds a new key binding
         /// </summary>
         /// <param name="key">The key to bind</param>
         /// <param name="action">Which action from the available to assign</param>
+        /// <param name="alt">If Alt should be pressed</param>
         /// <param name="ctrl">If Ctrl should be pressed</param>
-        /// <exception cref="Exception"></exception>
-        public void Add(Key key, KeyBindingAction action, bool ctrl = false)
+        /// <param name="shift">If Shift should be pressed</param>
+        /// <exception cref="Exception">Keybinding already exists</exception>
+        public void Add(Key key, KeyBindingAction action, bool alt = false, bool ctrl = false, bool shift = false)
         {
-            foreach(var keyBinding in Keys)
-                if (keyBinding.Ctrl == ctrl && keyBinding.Key == key)
-                    throw new Exception($"Keybinding {(ctrl ? "Ctrl + " : "")}{key} already assigned");
+            for (int i=0; i<Keys.Count; i++)
+                if (Keys[i].Key == key && Keys[i].Alt == alt && Keys[i].Ctrl == ctrl && Keys[i].Shift == shift)
+                    throw new Exception($"Keybinding {(alt ? "Alt + " : "")}{(ctrl ? "Ctrl + " : "")}{(shift ? "Shift + " : "")}{key} already assigned");
 
             if (player == null)
-                Keys.Add(new KeyBinding() { Ctrl = ctrl, Key = key, Action = action });
+                Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, Key = key, IsKeyUp = isKeyUpBinding.Contains(action), Action = action });
             else
             {
-                Keys.Add(new KeyBinding() { Ctrl = ctrl, Key = key, Action = action, ActionInternal = player.GetKeyBindingAction(action) });
+                Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, IsKeyUp = isKeyUpBinding.Contains(action), Action = action, ActionInternal = GetKeyBindingAction(action) });
             }
         }
 
@@ -410,11 +241,13 @@ namespace FlyleafLib.MediaPlayer
         /// Removes a binding based on Key/Ctrl combination
         /// </summary>
         /// <param name="key">The assigned key</param>
-        /// <param name="ctrl">The assigned state of Ctrl</param>
-        public void Remove(Key key, bool ctrl = false)
+        /// <param name="alt">If Alt is assigned</param>
+        /// <param name="ctrl">If Ctrl is assigned</param>
+        /// <param name="shift">If Shift is assigned</param>
+        public void Remove(Key key, bool alt = false, bool ctrl = false, bool shift = false)
         {
             for (int i=Keys.Count-1; i >=0; i--)
-                if (Keys[i].Ctrl == ctrl && Keys[i].Key == key)
+                if (Keys[i].Key == key && Keys[i].Alt == alt && Keys[i].Ctrl == ctrl && Keys[i].Shift == shift)
                     Keys.RemoveAt(i);
         }
 
@@ -426,6 +259,17 @@ namespace FlyleafLib.MediaPlayer
         {
             for (int i=Keys.Count-1; i >=0; i--)
                 if (Keys[i].Action == action)
+                    Keys.RemoveAt(i);
+        }
+
+        /// <summary>
+        /// Removes a binding based on assigned action's name
+        /// </summary>
+        /// <param name="actionName">The assigned action's name</param>
+        public void Remove(string actionName)
+        {
+            for (int i=Keys.Count-1; i >=0; i--)
+                if (Keys[i].ActionName == actionName)
                     Keys.RemoveAt(i);
         }
 
@@ -448,73 +292,266 @@ namespace FlyleafLib.MediaPlayer
                 Keys.Clear();
 
             Add(Key.OemOpenBrackets,    KeyBindingAction.AudioDelayRemove);
-            Add(Key.OemOpenBrackets,    KeyBindingAction.AudioDelayRemove2, true);
+            Add(Key.OemOpenBrackets,    KeyBindingAction.AudioDelayRemove2, false, true);
             Add(Key.OemCloseBrackets,   KeyBindingAction.AudioDelayAdd);
-            Add(Key.OemCloseBrackets,   KeyBindingAction.AudioDelayAdd2, true);
+            Add(Key.OemCloseBrackets,   KeyBindingAction.AudioDelayAdd2, false, true);
 
             Add(Key.OemSemicolon,       KeyBindingAction.SubtitlesDelayRemove);
-            Add(Key.OemSemicolon,       KeyBindingAction.SubtitlesDelayRemove2, true);
+            Add(Key.OemSemicolon,       KeyBindingAction.SubtitlesDelayRemove2, false, true);
             Add(Key.OemQuotes,          KeyBindingAction.SubtitlesDelayAdd);
-            Add(Key.OemQuotes,          KeyBindingAction.SubtitlesDelayAdd2, true);
+            Add(Key.OemQuotes,          KeyBindingAction.SubtitlesDelayAdd2, false, true);
 
-            Add(Key.V,                  KeyBindingAction.OpenFromClipboard, true);
+            Add(Key.V,                  KeyBindingAction.OpenFromClipboard, false, true);
             Add(Key.O,                  KeyBindingAction.OpenFromFileDialog);
-            Add(Key.C,                  KeyBindingAction.CopyToClipboard, true);
-
-            Add(Key.LeftShift,          KeyBindingAction.ToggleSeekAccurate, true);
+            Add(Key.C,                  KeyBindingAction.CopyToClipboard, false, true);
 
             Add(Key.Left,               KeyBindingAction.SeekBackward);
+            Add(Key.Left,               KeyBindingAction.SeekBackward2, false, true);
             Add(Key.Right,              KeyBindingAction.SeekForward);
+            Add(Key.Right,              KeyBindingAction.SeekForward2, false, true);
+            Add(Key.Left,               KeyBindingAction.ShowPrevFrame, false, false, true);
+            Add(Key.Right,              KeyBindingAction.ShowNextFrame, false, false, true);
+
+            Add(Key.Back,               KeyBindingAction.ToggleReversePlayback);
+            Add(Key.S,                  KeyBindingAction.ToggleSeekAccurate, false, true);
 
             Add(Key.OemPlus,            KeyBindingAction.SpeedAdd);
             Add(Key.OemMinus,           KeyBindingAction.SpeedRemove);
 
             Add(Key.F,                  KeyBindingAction.ToggleFullScreen);
-            Add(Key.M,                  KeyBindingAction.ToggleMute);
+
             Add(Key.P,                  KeyBindingAction.TogglePlayPause);
             Add(Key.Space,              KeyBindingAction.TogglePlayPause);
+            Add(Key.MediaPlayPause,     KeyBindingAction.TogglePlayPause);
+            Add(Key.Play,               KeyBindingAction.TogglePlayPause);
 
-            Add(Key.A,                  KeyBindingAction.ToggleAudio, true);
-            Add(Key.S,                  KeyBindingAction.ToggleSubtitles, true);
-            Add(Key.D,                  KeyBindingAction.ToggleVideo, true);
-            Add(Key.H,                  KeyBindingAction.ToggleVideoAcceleration, true);
+            Add(Key.A,                  KeyBindingAction.ToggleAudio, false, false, true);
+            Add(Key.S,                  KeyBindingAction.ToggleSubtitles, false, false, true);
+            Add(Key.V,                  KeyBindingAction.ToggleVideo, false, false, true);
+            Add(Key.H,                  KeyBindingAction.ToggleVideoAcceleration, false, true);
 
-            Add(Key.T,                  KeyBindingAction.TakeSnapshot, true);
-            Add(Key.R,                  KeyBindingAction.ToggleRecording, true);
+            Add(Key.T,                  KeyBindingAction.TakeSnapshot, false, true);
+            Add(Key.R,                  KeyBindingAction.ToggleRecording, false, true);
             Add(Key.R,                  KeyBindingAction.ToggleKeepRatio);
 
-            Add(Key.OemComma,           KeyBindingAction.ShowPrevFrame);
-            Add(Key.OemPeriod,          KeyBindingAction.ShowNextFrame);
-            Add(Key.Back,               KeyBindingAction.ToggleReversePlayback, true);
-
+            Add(Key.M,                  KeyBindingAction.ToggleMute);
             Add(Key.Up,                 KeyBindingAction.VolumeUp);
             Add(Key.Down,               KeyBindingAction.VolumeDown);
 
-            Add(Key.OemPlus,            KeyBindingAction.ZoomIn, true);
-            Add(Key.OemMinus,           KeyBindingAction.ZoomOut, true);
+            // Affects master volume
+            //Add(Key.VolumeMute,         KeyBindingAction.ToggleMute);
+            //Add(Key.VolumeUp,           KeyBindingAction.VolumeUp);
+            //Add(Key.VolumeDown,         KeyBindingAction.VolumeDown);
 
-            Add(Key.D0,                 KeyBindingAction.ResetAll, true);
+            Add(Key.OemPlus,            KeyBindingAction.ZoomIn, false, true);
+            Add(Key.OemMinus,           KeyBindingAction.ZoomOut, false, true);
+
+            Add(Key.D0,                 KeyBindingAction.ResetAll);
+            Add(Key.X,                  KeyBindingAction.Flush, false, true);
 
             Add(Key.I,                  KeyBindingAction.ActivityForceIdle);
             Add(Key.Escape,             KeyBindingAction.NormalScreen);
         }
+
+        private Action GetKeyBindingAction(KeyBindingAction action)
+        {
+            switch (action)
+            {
+                case KeyBindingAction.ActivityForceIdle:
+                    return player.Activity.ForceIdle;
+
+                case KeyBindingAction.AudioDelayAdd:
+                    return player.Audio.DelayAdd;
+                case KeyBindingAction.AudioDelayRemove:
+                    return player.Audio.DelayRemove;
+                case KeyBindingAction.AudioDelayAdd2:
+                    return player.Audio.DelayAdd2;
+                case KeyBindingAction.AudioDelayRemove2:
+                    return player.Audio.DelayRemove2;
+                case KeyBindingAction.ToggleAudio:
+                    return player.Audio.Toggle;
+                case KeyBindingAction.ToggleMute:
+                    return player.Audio.ToggleMute;
+                case KeyBindingAction.VolumeUp:
+                    return player.Audio.VolumeUp;
+                case KeyBindingAction.VolumeDown:
+                    return player.Audio.VolumeDown;
+
+                case KeyBindingAction.ToggleVideo:
+                    return player.Video.Toggle;
+                case KeyBindingAction.ToggleKeepRatio:
+                    return player.Video.ToggleKeepRatio;
+                case KeyBindingAction.ToggleVideoAcceleration:
+                    return player.Video.ToggleVideoAcceleration;
+
+                case KeyBindingAction.SubtitlesDelayAdd:
+                    return player.Subtitles.DelayAdd;
+                case KeyBindingAction.SubtitlesDelayRemove:
+                    return player.Subtitles.DelayRemove;
+                case KeyBindingAction.SubtitlesDelayAdd2:
+                    return player.Subtitles.DelayAdd2;
+                case KeyBindingAction.SubtitlesDelayRemove2:
+                    return player.Subtitles.DelayRemove2;
+                case KeyBindingAction.ToggleSubtitles:
+                    return player.Subtitles.Toggle;
+
+                case KeyBindingAction.OpenFromClipboard:
+                    return player.OpenFromClipboard;
+
+                case KeyBindingAction.OpenFromFileDialog:
+                    return player.OpenFromFileDialog;
+
+                case KeyBindingAction.CopyToClipboard:
+                    return player.CopyToClipboard;
+
+                case KeyBindingAction.Flush:
+                    return player.Flush;
+
+                case KeyBindingAction.Stop:
+                    return player.Stop;
+
+                case KeyBindingAction.Pause:
+                    return player.Pause;
+
+                case KeyBindingAction.Play:
+                    return player.Play;
+
+                case KeyBindingAction.TogglePlayPause:
+                    return player.TogglePlayPause;
+
+                case KeyBindingAction.TakeSnapshot:
+                    return player.Commands.TakeSnapshotAction;
+
+                case KeyBindingAction.NormalScreen:
+                    return player.NormalScreen;
+
+                case KeyBindingAction.FullScreen:
+                    return player.FullScreen;
+
+                case KeyBindingAction.ToggleFullScreen:
+                    return player.ToggleFullScreen;
+
+                case KeyBindingAction.ToggleRecording:
+                    return player.ToggleRecording;
+
+                case KeyBindingAction.ToggleReversePlayback:
+                    return player.ToggleReversePlayback;
+
+                case KeyBindingAction.ToggleSeekAccurate:
+                    return player.ToggleSeekAccurate;
+
+                case KeyBindingAction.SeekBackward:
+                    return player.SeekBackward;
+
+                case KeyBindingAction.SeekForward:
+                    return player.SeekForward;
+
+                case KeyBindingAction.SeekBackward2:
+                    return player.SeekBackward2;
+
+                case KeyBindingAction.SeekForward2:
+                    return player.SeekForward2;
+
+                case KeyBindingAction.SpeedAdd:
+                    return player.SpeedUp;
+
+                case KeyBindingAction.SpeedRemove:
+                    return player.SpeedDown;
+
+                case KeyBindingAction.ShowPrevFrame:
+                    return player.ShowFramePrev;
+
+                case KeyBindingAction.ShowNextFrame:
+                    return player.ShowFrameNext;
+
+                case KeyBindingAction.ZoomIn:
+                    return player.ZoomIn;
+
+                case KeyBindingAction.ZoomOut:
+                    return player.ZoomOut;
+
+                case KeyBindingAction.ResetAll:
+                    return player.ResetAll;
+            }
+
+            return null;
+        }
+        private static HashSet<KeyBindingAction> isKeyUpBinding = new HashSet<KeyBindingAction>
+        {
+            { KeyBindingAction.OpenFromClipboard },
+            { KeyBindingAction.OpenFromFileDialog },
+            { KeyBindingAction.CopyToClipboard },
+            { KeyBindingAction.TakeSnapshot },
+            { KeyBindingAction.NormalScreen },
+            { KeyBindingAction.FullScreen },
+            { KeyBindingAction.ToggleFullScreen },
+            { KeyBindingAction.ToggleAudio },
+            { KeyBindingAction.ToggleVideo },
+            { KeyBindingAction.ToggleKeepRatio },
+            { KeyBindingAction.ToggleVideoAcceleration },
+            { KeyBindingAction.ToggleSubtitles },
+            { KeyBindingAction.ToggleMute },
+            { KeyBindingAction.TogglePlayPause },
+            { KeyBindingAction.ToggleRecording },
+            { KeyBindingAction.ToggleReversePlayback },
+            { KeyBindingAction.Play },
+            { KeyBindingAction.Pause },
+            { KeyBindingAction.Stop },
+            { KeyBindingAction.Flush },
+            { KeyBindingAction.ToggleSeekAccurate },
+            { KeyBindingAction.SpeedAdd },
+            { KeyBindingAction.SpeedRemove },
+            { KeyBindingAction.ActivityForceIdle }
+        };
     }
     public class KeyBinding
     {
-        public bool             Ctrl    { get; set; }
-        public Key              Key     { get; set; }
-        public KeyBindingAction Action  { get; set; }
-        public string           Custom  { get; set; }
+        public bool             Alt             { get; set; }
+        public bool             Ctrl            { get; set; }
+        public bool             Shift           { get; set; }
+        public Key              Key             { get; set; }
+        public KeyBindingAction Action          { get; set; }
+        public string           ActionName      { get => Action == KeyBindingAction.Custom ? actionName : Action.ToString(); set => actionName = value; }
+        string actionName;
+        public bool             IsKeyUp         { get; set; }
 
         /// <summary>
         /// Sets action for custom key binding
         /// </summary>
         /// <param name="action"></param>
-        public void SetAction(Action action)
+        /// <param name="isKeyUp"></param>
+        public void SetAction(Action action, bool isKeyUp)
         {
-            ActionInternal = action;
+            ActionInternal  = action;
+            IsKeyUp = isKeyUp;
         }
 
         internal Action ActionInternal;
+    }
+
+    public enum KeyBindingAction
+    {
+        Custom,
+        ActivityForceIdle,
+
+        AudioDelayAdd, AudioDelayAdd2, AudioDelayRemove, AudioDelayRemove2, ToggleMute, VolumeUp, VolumeDown,
+        SubtitlesDelayAdd, SubtitlesDelayAdd2, SubtitlesDelayRemove, SubtitlesDelayRemove2,
+
+        CopyToClipboard, OpenFromClipboard, OpenFromFileDialog,
+        Stop, Pause, Play, TogglePlayPause, ToggleReversePlayback, Flush,
+        TakeSnapshot,
+        NormalScreen, FullScreen, ToggleFullScreen,
+
+        ToggleAudio, ToggleVideo, ToggleSubtitles,
+
+        ToggleKeepRatio,
+        ToggleVideoAcceleration,
+        ToggleRecording,
+        ToggleSeekAccurate, SeekForward, SeekBackward, SeekForward2, SeekBackward2,
+        SpeedAdd, SpeedRemove,
+        ShowNextFrame, ShowPrevFrame,
+
+        ResetAll,
+        ZoomIn, ZoomOut,
     }
 }

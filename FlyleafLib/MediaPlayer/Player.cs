@@ -271,11 +271,15 @@ namespace FlyleafLib.MediaPlayer
                     SubtitlesDecoder.Speed  = 1;
                 }
 
+                Subtitles.subsText = "";
+                _Speed = newValue;
 
+                UI(() =>
+                {
+                    Subtitles.SubsText = Subtitles.SubsText;
+                    Raise(nameof(Speed));
+                });
 
-                Set(ref _Speed, newValue, false);
-
-                Subtitles.SubsText = "";
                 aFrame = null;
                 sFrame = null;
                 sFramePrev = null;
