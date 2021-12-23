@@ -536,13 +536,13 @@ namespace FlyleafLib.MediaPlayer
                 elapsedTicks = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
                 aDistanceMs  = (int) ((aFrame.timestamp - elapsedTicks) / 10000);
 
-                if (aDistanceMs > 1000 || aDistanceMs < -100)
+                if (aDistanceMs > 1000 || aDistanceMs < -10)
                 {
                     requiresBuffering = true;
                     continue;
                 }
 
-                if (aDistanceMs > 100)
+                if (aDistanceMs > 5)
                 {
                     if (Master.UICurTimePerSecond &&  (
                         (MainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
@@ -552,7 +552,14 @@ namespace FlyleafLib.MediaPlayer
                         UI(() => UpdateCurTime());
                     }
 
-                    Thread.Sleep(aDistanceMs-15);
+                    Thread.Sleep(aDistanceMs - 2);
+                }
+
+                if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                {
+                    
+                    if (curTime / 10000000 != _CurTime / 10000000)
+                        UI(() => UpdateCurTime());
                 }
 
                 if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
@@ -563,7 +570,7 @@ namespace FlyleafLib.MediaPlayer
                         UI(() => UpdateCurTime());
                 }
 
-                Audio.AddSamples(aFrame.audioData, false);
+                Audio.AddSamples(aFrame.audioData);
                 AudioDecoder.Frames.TryDequeue(out aFrame);
             }
         }
