@@ -19,6 +19,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public int                          Comp1Step           { get; set; }
         public int                          Comp2Step           { get; set; }
         public double                       FPS                 { get; set; }
+        public long                         FrameDuration       { get ;set; }
         public int                          Height              { get; set; }
         public bool                         IsPlanar            { get; set; }
         public bool                         IsRGB               { get; set; }
@@ -42,7 +43,8 @@ namespace FlyleafLib.MediaFramework.MediaStream
             Width           = st->codecpar->width;
             Height          = st->codecpar->height;
             FPS             = av_q2d(st->avg_frame_rate) > 0 ? av_q2d(st->avg_frame_rate) : av_q2d(st->r_frame_rate);
-            TotalFrames     = st->duration > 0 ? (int) (st->duration * Timebase / (10000000 / FPS)) : (int) (demuxer.Duration / (10000000 / FPS));
+            FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
+            TotalFrames     = st->duration > 0 && FrameDuration > 0 ? (int) (st->duration * Timebase / FrameDuration) : (int) (demuxer.Duration / FrameDuration);
 
             var gcd = Utils.GCD(Width, Height);
             if (gcd != 0)

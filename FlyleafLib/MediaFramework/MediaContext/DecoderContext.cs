@@ -410,7 +410,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (result != null) OnAudioInputOpened(result);
             }
 
-            AudioInput audioInput = SuggestAudio();
+            AudioInput audioInput = SuggestAudio(); // TBR: No default plugins currently suggest audio inputs (should we identify by file extension?)
             if (audioInput != null)
                 return OpenAudioInput(audioInput, defaultAudio, true);
             else
@@ -984,7 +984,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                             VideoDecoder.keyFrameRequired = false;
 
                             // Accurate seek with +- half frame distance
-                            if (timestamp != -1 && (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime + ((1000 * 10000 / 2) / VideoStream.FPS) < timestamp)
+                            if (timestamp != -1 && (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime + VideoStream.FrameDuration / 2 < timestamp)
                             {
                                 av_frame_unref(frame);
                                 continue;

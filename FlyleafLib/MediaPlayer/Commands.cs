@@ -93,7 +93,7 @@ namespace FlyleafLib.MediaPlayer
             StopRecording           = new RelayCommandSimple(player.StopRecording);
             ToggleRecording         = new RelayCommandSimple(player.ToggleRecording);
 
-            TakeSnapshot            = new RelayCommandSimple(player.TakeSnapshot);
+            TakeSnapshot            = new RelayCommandSimple(TakeSnapshotAction);
             ZoomIn                  = new RelayCommandSimple(player.ZoomIn);
             ZoomOut                 = new RelayCommandSimple(player.ZoomOut);
             ResetAll                = new RelayCommandSimple(player.ResetAll);
@@ -143,6 +143,11 @@ namespace FlyleafLib.MediaPlayer
         public void SubtitlesDelaySetAction2(object delay)
         {
             player.Config.Subtitles.Delay += (int.Parse(delay.ToString())) * (long)10000;
+        }
+
+        public void TakeSnapshotAction()
+        {
+            player.TakeSnapshot();
         }
 
         public void SeekToChapterAction(object chapter)

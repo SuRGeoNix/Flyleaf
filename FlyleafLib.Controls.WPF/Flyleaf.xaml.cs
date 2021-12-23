@@ -352,45 +352,49 @@ namespace FlyleafLib.Controls.WPF
                 Action aSubsFontIncrease =  () => { Subtitles.FontSize += 2; };
                 Action aSubsFontDecrease =  () => { Subtitles.FontSize -= 2; };
 
-                // Update Actions if loaded from Config file
+                // Update Actions if loaded from Config file (TBR: possible also on swap?)
                 foreach (var binding in Config.Player.KeyBindings.Keys)
                 {
-                    if (binding.Action != KeyBindingAction.Custom || binding.Custom == null)
+                    if (binding.Action != KeyBindingAction.Custom || string.IsNullOrEmpty(binding.ActionName))
                         continue; 
 
-                    switch (binding.Custom)
+                    switch (binding.ActionName)
                     {
                         case "SubsYUp":
-                            binding.SetAction(aSubsYUp);
+                            binding.SetAction(aSubsYUp, false);
                             SubsYUp = true;
                             break;
 
                         case "SubsYDown":
-                            binding.SetAction(aSubsYDown);
+                            binding.SetAction(aSubsYDown, false);
                             SubsYDown = true;
                             break;
 
                         case "SubsFontIncrease":
-                            binding.SetAction(aSubsFontIncrease);
+                            binding.SetAction(aSubsFontIncrease, false);
                             SubsFontIncrease = true;
                             break;
 
                         case "SubsFontDecrease":
-                            binding.SetAction(aSubsFontDecrease);
+                            binding.SetAction(aSubsFontDecrease, false);
                             SubsFontDecrease = true;
                             break;
                     }
                 }
                     
                 // Add Actions if not already loaded
-                if (!SubsYUp)
-                    Config.Player.KeyBindings.AddCustom(Key.Up,     aSubsYUp,           "SubsYUp",          true);
-                if (!SubsYDown)
-                    Config.Player.KeyBindings.AddCustom(Key.Down,   aSubsYDown,         "SubsYDown",        true);
-                if (!SubsFontIncrease)
-                    Config.Player.KeyBindings.AddCustom(Key.Right,  aSubsFontIncrease,  "SubsFontIncrease", true);
-                if (!SubsFontDecrease)
-                    Config.Player.KeyBindings.AddCustom(Key.Left,   aSubsFontDecrease,  "SubsFontDecrease", true);
+                if (!Config.Loaded)
+                {
+                    if (!SubsYUp)
+                        Config.Player.KeyBindings.AddCustom(Key.Up,     false, aSubsYUp,           "SubsYUp",          true);
+                    if (!SubsYDown)
+                        Config.Player.KeyBindings.AddCustom(Key.Down,   false, aSubsYDown,         "SubsYDown",        true);
+                    if (!SubsFontIncrease)
+                        Config.Player.KeyBindings.AddCustom(Key.Right,  false, aSubsFontIncrease,  "SubsFontIncrease", true);
+                    if (!SubsFontDecrease)
+                        Config.Player.KeyBindings.AddCustom(Key.Left,   false, aSubsFontDecrease,  "SubsFontDecrease", true);
+                }
+                
             }
 
             Raise(null);

@@ -500,7 +500,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         AVPacket* packet = (AVPacket*)packetPtr;
                         if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * AudioStream.Timebase)
                         {
-                            if (Type == MediaType.Audio) found = true;
+                            if (Type == MediaType.Audio || VideoStream == null) found = true;
                             break;
                         }
                         av_packet_free(&packet);

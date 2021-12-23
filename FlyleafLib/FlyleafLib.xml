@@ -104,6 +104,11 @@
             Folder to save snapshots (when filename is not specified)
             </summary>
         </member>
+        <member name="P:FlyleafLib.Config.PlayerConfig.SeekAccurate">
+            <summary>
+            Forces CurTime/SeekBackward/SeekForward to seek accurate on video
+            </summary>
+        </member>
         <member name="P:FlyleafLib.Config.PlayerConfig.SnapshotFormat">
             <summary>
             Snapshot encoding will be used (valid formats bmp, png, jpg/jpeg)
@@ -608,6 +613,12 @@
             (Normally you should not access this directly)
             </summary>
         </member>
+        <member name="P:FlyleafLib.MediaPlayer.Player.MainDemuxer">
+            <summary>
+            Main Demuxer (if video disabled or audio only can be AudioDemuxer instead of VideoDemuxer)
+            (Normally you should not access this directly)
+            </summary>
+        </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.AudioDemuxer">
             <summary>
             Audio Demuxer
@@ -658,7 +669,7 @@
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.CurTime">
             <summary>
-            Player's current time or user's current seek time (uses backward/forward direction based on previous time)
+            Player's current time or user's current seek time (uses backward/forward direction based on previous time or accurate seek based on Config.Player.SeekAccurate)
             </summary>
         </member>
         <member name="P:FlyleafLib.MediaPlayer.Player.Duration">
@@ -906,6 +917,12 @@
             <param name="ms"></param>
             <param name="forward"></param>
         </member>
+        <member name="M:FlyleafLib.MediaPlayer.Player.SeekAccurate(System.Int32)">
+            <summary>
+            Seeks at the exact timestamp (with half frame distance accuracy)
+            </summary>
+            <param name="ms"></param>
+        </member>
         <member name="M:FlyleafLib.MediaPlayer.Player.Stop">
             <summary>
             Stops and Closes AVS streams
@@ -1012,6 +1029,36 @@
         <member name="T:FFmpeg.AutoGen.ffmpegEx">
             <summary>
             Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
+            </summary>
+        </member>
+        <member name="T:XamlGeneratedNamespace.GeneratedInternalTypeHelper">
+            <summary>
+            GeneratedInternalTypeHelper
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateInstance(System.Type,System.Globalization.CultureInfo)">
+            <summary>
+            CreateInstance
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.GetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            GetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.SetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            SetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateDelegate(System.Type,System.Object,System.String)">
+            <summary>
+            CreateDelegate
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.AddEventHandler(System.Reflection.EventInfo,System.Object,System.Delegate)">
+            <summary>
+            AddEventHandler
             </summary>
         </member>
     </members>

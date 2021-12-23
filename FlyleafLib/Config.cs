@@ -50,7 +50,10 @@ namespace FlyleafLib
             using (FileStream fs = new FileStream(path, FileMode.Open))
             {
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(Config));
-                return (Config) xmlSerializer.Deserialize(fs);
+                Config config = (Config) xmlSerializer.Deserialize(fs);
+                config.Loaded = true;
+
+                return config;
             }
         }
         public void Save(string path)
@@ -71,8 +74,13 @@ namespace FlyleafLib
             Audio.player    = player;
             Video.player    = player;
             Subtitles.player= player;
-            
         }
+
+        /// <summary>
+        /// Whether configuration has been loaded from file
+        /// </summary>
+        [XmlIgnore]
+        public bool             Loaded      { get; private set; }
 
         public PlayerConfig     Player      { get; set; } = new PlayerConfig();
         public DemuxerConfig    Demuxer     { get; set; } = new DemuxerConfig();
@@ -95,11 +103,6 @@ namespace FlyleafLib
             internal Config config;
 
             /// <summary>
-            /// It will automatically start playing after open or seek after ended
-            /// </summary>
-            public bool     AutoPlay                    { get; set; } = true;
-
-            /// <summary>
             /// Whether to use Activity Mode
             /// </summary>
             public bool     ActivityMode                { get => _ActivityMode; set { _ActivityMode = value; if (value) player?.Activity.ForceFullActive(); } }
@@ -110,6 +113,11 @@ namespace FlyleafLib
             /// </summary>
             public int      ActivityTimeout             { get => _ActivityTimeout; set => Set(ref _ActivityTimeout, value); }
             int _ActivityTimeout = 6000;
+
+            /// <summary>
+            /// It will automatically start playing after open or seek after ended
+            /// </summary>
+            public bool     AutoPlay                    { get; set; } = true;
 
             /// <summary>
             /// Required buffered duration ticks before playing
@@ -145,7 +153,7 @@ namespace FlyleafLib
             /// <summary>
             /// Limit before dropping frames. Lower value means lower latency (>=1)
             /// </summary>
-            public int      LowLatencyMaxVideoFrames    { get; set; } = 4;
+            public int      LowLatencyMaxVideoFrames    { get; set; } = 2;
 
             /// <summary>
             /// Limit before dropping frames. Lower value means lower latency (>=0)
@@ -179,6 +187,11 @@ namespace FlyleafLib
             /// </summary>
             public bool     Stats                       { get => _Stats; set => Set(ref _Stats, value); }
             bool _Stats = false;
+
+            /// <summary>
+            /// Refreshes CurTime in UI on every frame (can cause performance issues)
+            /// </summary>
+            public bool     UICurTimePerFrame           { get; set; } = false;
 
             /// <summary>
             /// The upper limit of the volume amplifier
@@ -345,7 +358,7 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum audio frames to be decoded and processed for playback
             /// </summary>
-            public int              MaxAudioFrames  { get; set; } = 30;
+            public int              MaxAudioFrames  { get; set; } = 5;
 
             /// <summary>
             /// Maximum subtitle frames to be decoded

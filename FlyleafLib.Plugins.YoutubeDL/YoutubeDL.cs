@@ -59,7 +59,9 @@ namespace FlyleafLib.Plugins
         public override SerializableDictionary<string, string> GetDefaultOptions()
         {
             SerializableDictionary<string, string> defaultOptions = new SerializableDictionary<string, string>();
-            defaultOptions.Add("ExtraArguments", defaultBrowser == null ? "" : $"--cookies-from-browser {defaultBrowser}");
+
+            // 1.Default Browser/Profile 2.Forces also ipv4 (ipv6 causes delays for some reason)
+            defaultOptions.Add("ExtraArguments", defaultBrowser == null ? "" : $"-4 --cookies-from-browser {defaultBrowser}");
 
             return defaultOptions;
         }

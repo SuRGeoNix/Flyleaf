@@ -36,8 +36,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             if (demuxer.Config.AllowTimeouts)
             {
-                //demuxer.Interrupter.TimedOut = false; // Currently not used
-
                 long curTimeout = 0;
                 switch (demuxer.Interrupter.Requester)
                 {
@@ -65,11 +63,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     #endif
 
                     // Prevent Live Streams from Timeout (while demuxer is at the end)
-                    if (demuxer.Duration == 0 || (demuxer.HLSPlaylist != null && demuxer.HLSPlaylist->cur_seq_no > demuxer.HLSPlaylist->last_seq_no - 2))
+                    if (demuxer.Interrupter.Requester == Requester.Read && (demuxer.Duration == 0 || (demuxer.HLSPlaylist != null && demuxer.HLSPlaylist->cur_seq_no > demuxer.HLSPlaylist->last_seq_no - 2)))
                     {
                         #if DEBUG
                         demuxer.Log($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms | Live HLS Excluded");
                         #endif
+
+                        demuxer.Interrupter.Request(Requester.Read);
 
                         return demuxer.Interrupter.Interrupted = 0;
                     }
