@@ -335,6 +335,7 @@
             </MenuItem>
             <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Config.Video.VideoAcceleration}"/>
             <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording, Mode=OneWay}" Command="{Binding Player.Commands.ToggleRecording}"/>
+            <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
             <MenuItem Header="{Binding Player.Speed}" HeaderStringFormat="Speed ({0})">
                 <MenuItem Header=" x 4"   CommandParameter="4" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 3"   CommandParameter="3" Command="{Binding Player.Commands.SpeedSet}"/>
@@ -344,7 +345,6 @@
                 <MenuItem Header=" x 0.50"   CommandParameter="0.50" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 0.25"   CommandParameter="0.25" Command="{Binding Player.Commands.SpeedSet}"/>
             </MenuItem>
-            <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
             <MenuItem Header="Streams">
                 <MenuItem Header="Embedded" ItemsSource="{Binding Player.Video.Streams}">
                     <MenuItem.ItemContainerStyle>
