@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.0-pre2</Version>
+	<Version>3.4.0</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,60 +17,39 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		-= Extends Media Player's Functionality (Adds WinForms Support) =-
+		[New Features]
 
-		1) Key Bindings (Config.Player.KeyBindings.Enabled - ON By Default)
-		Allows to Add/Remove any (Ctrl +) Key combination and assign an existing action or even a custom (can also be loaded/saved with config)
-		Uses by default all common bindings
-		(Pause/Play/Open/Seek Backward-Forward/FullScreen/Record/TakeSnapshot/Speed Up-Down/Delays/Prev-Next Frame/Pan Zoom In-Out-Reset/Toggle AVS On-Off/Volume Up-Down-Mute)
-
-		2) Mouse Bindings (Config.Player.MouseBindigns.Enabled - ON By Default)
-		OpenOnDragAndDrop (Drag &amp; Drop), PanMoveOnDragAndCtrl (Pan Move), PanZoomOnWheelAndCtrl (Pan Zomm In/Out), ToggleFullScreenOnDoubleClick (Toggle FullScreen)
-
-		3) Activity Mode (Config.Player.ActivityMode) | Master Thread required
-		Monitors user's actions based on Key/Mouse events and updates the mode to Idle / Active(keyboard only) / FullActive(mouse) based on Config.Player.ActivityTimeout
-		Exposes Player.Activity.ForceIdle / ForceActive / ForceFullActive for custom updates
-
-		4) Extends frequently used (Helper) methods for direct calls, Key Bindings assignments or ICommands usage (Player / Player.Audio / Player.Video / Player.Subtitles / Player.Commands)
-
-		5) Master Thread (Master.UIRefresh, UIRefreshInterval, UICurTimePerSecond)
-		Will monitor and refresh all players on single UI Invoke (CurTime if not per second/BufferedDuration on pause/BitRate Stats etc.)
-		Allows updates even when the players/demuxers are not running
-		Allows more frequent update for CurTime (Master.UICurTimePerSecond = false) rather than on exact second change on timestamps
-
-		6) Additional Config.Player offsets added (for key/mouse bindings)
-		AudioDelayOffset, AudioDelayOffset2, SubtitlesDelayOffset, SubtitlesDelayOffset2
-		SeekOffset, SeekOffset2, VolumeOffset, ZoomOffset
-
-		7) Auto Play (Config.Player.AutoPlay - ON By Default)
-		Not required to subscribe on open completed events to start playing
-
-		8) Adds HLS Live cache support amp; uses accurate timestamps
-
-		9) Adds BufferingStarted / BufferingCompleted (with error support) events and success/fail to PlaybackCompleted
-
-		10) Default Directories and Filenames for TakeSnapshot (allows also more formats) and StartRecording if filenames are not specified
-		Config.Player.FolderSnapshots, Config.Player.SnapshotFormat, Config.Player.FolderRecordings
-
-		10) Updates (FFmpeg.AutoGen / Vortice)
+		* Helpers: Extended config and player with a number of new methods/properties/events/icommands to help the front-end development
+		* Key/Mouse Bindings: Adds and enables by default all the commonly used key and mouse bindings (check github wiki)
+		* Activity Mode: Monitors user's activity and notifies for Idle/Active/FullActive activity status changes
+		* Master Thread: Monitors and updates players activity mode, buffered duration and other stats
+		* Accurate Timestamps: Improves timestamps (including HLS live streams) accuracy and ensures UI refresh
+		* Accurate Seeking: Adds accurate seeking support to the additional keyframe seeking functionallity
+		* HLS Live: Adds seek in queue support
+		* Config: Timing adjustments to improve performance and use less resources
 
 		[Issues]
 
-		1) Fixes a read timeout issue with live streams (while demuxing at the end of stream and waiting for new packets)
-		2) Fixes a dead lock with Audio Decoder during multiple ReSyncs
-		3) Fixes critical issues during swaping players new feature
-		3) Fixes ShowFrameNext/ShowFramePrev issues and improvements
-		4) Controls.WPF: Fixes an issues with comma/dot string to double convert issue based on system culture
+		* Fixes critical issues with swaping
+		* Fixes critical read timeout issue with live streams
+		* Fixes critical yt-dlp plugin delay issue with ipv6
+		* Fixes a dead lock issue on multiple resyncs with audiodecoder
+		* Fixes and improves reverse playback and show frame (prev/next/x)
+		* Fixes and improves audio (only) player
 
-		[Breaking / Important Changes]
+		[Important/Breaking Changes]
 
-		1) Config.Demuxer.FormatOpt["probesize"] amp; Config.Demuxer.FormatOpt["analyzeduration"] have been added by default which can cause an already exists exception
-		2) Config.Demuxer.BufferDuration changed from 5 minutes to 2 (to reduce RAM)
-		3) Config.Player.MinBufferDuration change from 1000ms to 500ms
-		4) Config.Decoder.MaxVideoFrames changed from Math.Max(10, Environment.ProcessorCount) to 4 (to reduce VRAM)
-		5) Config.Player.Speed amp; Config.Player.SpeedReverse moved to single Player.Speed (valid values 0.0 - 1.0 and 1,2,3,4)
-		6) VideoView.IsFullScreen / FullScreen / NormalScreen moved to Player and support also WinForms now
-		7) Check more changes and renames on Controls.WPF -&gt; Flyleaf.xaml
+		* Config.Demuxer.FormatOpt["probesize"] and Config.Demuxer.FormatOpt["analyzeduration"] have been added by default which can cause an already exists exception
+		* Config.Decoder.MaxAudioFrames changed from 30 to 10
+		* Config.Decoder.MaxVideoFrames changed from Math.Max(10, Environment.ProcessorCount) to 4
+		* Config.Demuxer.BufferDuration changed from 5 minutes to 2
+		* Config.Player.MinBufferDuration change from 1000ms to 500ms
+		* Config.Player.LowLatencyMaxVideoFrames changed from 4 to 2
+		* Config.Player.Speed and Config.Player.SpeedReverse moved to single Player.Speed (valid values 0.0 - 1.0 and 1,2,3,4)
+		* VideoView.IsFullScreen / FullScreen / NormalScreen moved to Player and support also WinForms now
+		* Set Config.Player.KeyBindings.Enabled = false if you don't need them
+		* Set Config.Player.MouseBindings.Enabled = false if you don't need them
+		* Set Config.Player.AutoPlay = false if you don't need it
 	</PackageReleaseNotes>
   </PropertyGroup>
 

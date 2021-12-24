@@ -4,7 +4,7 @@
     <TargetFrameworks>net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.15-pre</Version>
+    <Version>1.1.15</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2021</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,7 +14,7 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		Updates FlyleafLib to v3.4.0-pre and uses all the new embedded functionality
+		Updates FlyleafLib to v3.4.0 and uses all the new embedded functionality
 		Code clean-up for Key/Mouse Bindings and Activity Mode
 		Uses FlyleafLib's MVVM for Properties/Converters/ICommands
 		Fixes an issue with Speed (and removes SpeedReverse)

@@ -358,7 +358,7 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum audio frames to be decoded and processed for playback
             /// </summary>
-            public int              MaxAudioFrames  { get; set; } = 5;
+            public int              MaxAudioFrames  { get; set; } = 10;
 
             /// <summary>
             /// Maximum subtitle frames to be decoded
