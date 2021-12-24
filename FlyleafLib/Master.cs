@@ -195,8 +195,6 @@ namespace FlyleafLib
                             /* Every Second */
                             if (curLoop == secondLoops)
                             {
-                                curLoop = 0;
-
                                 if (player.Config.Player.Stats)
                                 {
                                     if (!stats.ContainsKey(player.PlayerId))
@@ -224,6 +222,9 @@ namespace FlyleafLib
                                 }
                             }
                         }
+
+                    if (curLoop == secondLoops)
+                        curLoop = 0;
 
                     Action action = () =>
                     {

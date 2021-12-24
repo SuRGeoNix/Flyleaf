@@ -419,7 +419,6 @@ namespace FlyleafLib.MediaPlayer
 
                     while (VideoDecoder.Frames.Count >= Config.Player.LowLatencyMaxVideoFrames && VideoDemuxer.VideoPackets.Count >= Config.Player.LowLatencyMaxVideoPackets)
                     {
-                        Video.FramesDropped++;
                         VideoDecoder.DisposeFrame(vFrame);
                         VideoDecoder.Frames.TryDequeue(out vFrame);
                     }
