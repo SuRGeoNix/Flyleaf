@@ -391,7 +391,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 {
                     case AVMEDIA_TYPE_AUDIO:
                         AudioStreams.Add(new AudioStream(this, fmtCtx->streams[i]));
-                        AVStreamToStream.Add(i, AudioStreams[AudioStreams.Count-1]);
+                        AVStreamToStream.Add(fmtCtx->streams[i]->index, AudioStreams[AudioStreams.Count-1]);
                         if (AudioStreams[AudioStreams.Count-1].Language == Language.Get("eng")) audioHasEng = true;
                         break;
 
@@ -400,13 +400,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             { Log($"Excluding image stream #{i}"); continue; }
 
                         VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
-                        AVStreamToStream.Add(i, VideoStreams[VideoStreams.Count-1]);
+                        AVStreamToStream.Add(fmtCtx->streams[i]->index, VideoStreams[VideoStreams.Count-1]);
                         if (VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE) hasVideo = true;
                         break;
 
                     case AVMEDIA_TYPE_SUBTITLE:
                         SubtitlesStreams.Add(new SubtitlesStream(this, fmtCtx->streams[i]));
-                        AVStreamToStream.Add(i, SubtitlesStreams[SubtitlesStreams.Count-1]);
+                        AVStreamToStream.Add(fmtCtx->streams[i]->index, SubtitlesStreams[SubtitlesStreams.Count-1]);
                         if (SubtitlesStreams[SubtitlesStreams.Count-1].Language == Language.Get("eng")) subsHasEng = true;
                         break;
 
@@ -683,7 +683,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     TotalBytes += packet->size;
 
-                    // Skip Disabled Streams
+                    // Skip Disabled Streams | TODO: It's possible that the streams will changed (add/remove or even update/change of codecs)
                     if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
                     if (packet->dts != AV_NOPTS_VALUE)
@@ -1140,7 +1140,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
 
             if (CurPackets.TryPeek(out IntPtr firstPacketPtr) && ((AVPacket*)firstPacketPtr)->dts != AV_NOPTS_VALUE)
-                firstPacketTs = (long) (((AVPacket*)firstPacketPtr)->dts * AVStreamToStream[((AVPacket*)firstPacketPtr)->stream_index].Timebase);
+            {
+                try
+                {
+                    firstPacketTs = (long) (((AVPacket*)firstPacketPtr)->dts * AVStreamToStream[((AVPacket*)firstPacketPtr)->stream_index].Timebase);
+                } catch { return; } // TBR: Race condition with the decoder av_packet_free(&packet);
+            }    
 
             if (firstPacketTs == AV_NOPTS_VALUE)
             {
