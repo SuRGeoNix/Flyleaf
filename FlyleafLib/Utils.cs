@@ -29,6 +29,65 @@ namespace FlyleafLib
         private static int uniqueId;
         public static int GetUniqueId() { Interlocked.Increment(ref uniqueId); return uniqueId; }
 
+        /// <summary>
+        /// Adds a windows firewall rule if not already exists for the specified program path
+        /// </summary>
+        /// <param name="ruleName">Default value is Flyleaf</param>
+        /// <param name="path">Default value is current executable path</param>
+        public static void AddFirewallRule(string ruleName = null, string path = null)
+        {
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                if (string.IsNullOrEmpty(ruleName))
+                    ruleName = "Flyleaf";
+
+                if (string.IsNullOrEmpty(path))
+                    path = Process.GetCurrentProcess().MainModule.FileName;
+
+                path = $"\"{path}\"";
+
+                // Check if rule already exists
+                Process proc = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName        = "cmd",
+                        Arguments       = $"/C netsh advfirewall firewall show rule name={ruleName} verbose | findstr {path}",
+                        CreateNoWindow  = true,
+                        UseShellExecute = false,
+                        RedirectStandardOutput 
+                                        = true,
+                        WindowStyle     = ProcessWindowStyle.Hidden
+                    }
+                };
+
+                proc.Start();
+                proc.WaitForExit();
+
+                if (proc.StandardOutput.Read() > 0)
+                    return;
+
+                // Add rule with admin rights
+                proc = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName        = "cmd",
+                        Arguments       = $"/C netsh advfirewall firewall add rule name={ruleName} dir=in  action=allow enable=yes program={path} profile=any &" +
+                                             $"netsh advfirewall firewall add rule name={ruleName} dir=out action=allow enable=yes program={path} profile=any",
+                        Verb            = "runas",
+                        CreateNoWindow  = true,
+                        UseShellExecute = true,
+                        WindowStyle     = ProcessWindowStyle.Hidden
+                    }
+                };
+
+                proc.Start();
+
+                Log($"Firewall rule \"{ruleName}\" added for {path}");
+            });
+        }
+
         // We can't trust those
         //public static private bool    IsDesignMode=> (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
         //public static bool            IsDesignMode    = LicenseManager.UsageMode == LicenseUsageMode.Designtime; // Will not work properly (need to be called from non-static class constructor)

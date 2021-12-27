@@ -40,7 +40,11 @@ namespace FlyleafPlayer
             if (File.Exists("Flyleaf.Config.xml"))
                 Config = Config.Load("Flyleaf.Config.xml");
             else
+            {
+                Utils.AddFirewallRule();
                 Config = new Config();
+            }
+                
             #endif
 
             // Initializes the Player

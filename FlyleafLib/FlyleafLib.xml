@@ -1055,6 +1055,13 @@
             Actual Frames rendered per second (FPS)
             </summary>
         </member>
+        <member name="M:FlyleafLib.Utils.AddFirewallRule(System.String,System.String)">
+            <summary>
+            Adds a windows firewall rule if not already exists for the specified program path
+            </summary>
+            <param name="ruleName">Default value is Flyleaf</param>
+            <param name="path">Default value is current executable path</param>
+        </member>
         <member name="T:FFmpeg.AutoGen.ffmpegEx">
             <summary>
             Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
