@@ -340,6 +340,7 @@ healthchecksdb
 # Plugins
 /Plugins.NET4/
 /Plugins.NET5/
+/Plugins.NET6/
 
 # NuGet Pack
 *.nuspec
