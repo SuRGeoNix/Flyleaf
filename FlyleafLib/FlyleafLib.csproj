@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.0</Version>
+	<Version>3.4.1</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,39 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		[New Features]
-
-		* Helpers: Extended config and player with a number of new methods/properties/events/icommands to help the front-end development
-		* Key/Mouse Bindings: Adds and enables by default all the commonly used key and mouse bindings (check github wiki)
-		* Activity Mode: Monitors user's activity and notifies for Idle/Active/FullActive activity status changes
-		* Master Thread: Monitors and updates players activity mode, buffered duration and other stats
-		* Accurate Timestamps: Improves timestamps (including HLS live streams) accuracy and ensures UI refresh
-		* Accurate Seeking: Adds accurate seeking support to the additional keyframe seeking functionallity
-		* HLS Live: Adds seek in queue support
-		* Config: Timing adjustments to improve performance and use less resources
-
-		[Issues]
-
-		* Fixes critical issues with swaping
-		* Fixes critical read timeout issue with live streams
-		* Fixes critical yt-dlp plugin delay issue with ipv6
-		* Fixes a dead lock issue on multiple resyncs with audiodecoder
-		* Fixes and improves reverse playback and show frame (prev/next/x)
-		* Fixes and improves audio (only) player
-
-		[Important/Breaking Changes]
-
-		* Config.Demuxer.FormatOpt["probesize"] and Config.Demuxer.FormatOpt["analyzeduration"] have been added by default which can cause an already exists exception
-		* Config.Decoder.MaxAudioFrames changed from 30 to 10
-		* Config.Decoder.MaxVideoFrames changed from Math.Max(10, Environment.ProcessorCount) to 4
-		* Config.Demuxer.BufferDuration changed from 5 minutes to 2
-		* Config.Player.MinBufferDuration change from 1000ms to 500ms
-		* Config.Player.LowLatencyMaxVideoFrames changed from 4 to 2
-		* Config.Player.Speed and Config.Player.SpeedReverse moved to single Player.Speed (valid values 0.0 - 1.0 and 1,2,3,4)
-		* VideoView.IsFullScreen / FullScreen / NormalScreen moved to Player and support also WinForms now
-		* Set Config.Player.KeyBindings.Enabled = false if you don't need them
-		* Set Config.Player.MouseBindings.Enabled = false if you don't need them
-		* Set Config.Player.AutoPlay = false if you don't need it
+		Adds .NET 6 support
+		Improves performance of the Custom AVIO Context
+		Fixes a possible race condition between demuxer and decoder
 	</PackageReleaseNotes>
   </PropertyGroup>
 
