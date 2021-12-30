@@ -184,11 +184,8 @@
                             <TextBlock Grid.Row="1" Text="Delay (ms)" VerticalAlignment="Center"/>
                             <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Audio.Delay, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                            <TextBlock Grid.Row="2" Text="Latency (ms)" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Audio.Latency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
-
-                            <TextBlock Grid.Row="3" Text="Device" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" x:Name="cmbAudioDevice" Tag="_save" ItemsSource="{Binding AudioMaster.Devices}" SelectedItem="{Binding Player.Audio.Device, UpdateSourceTrigger=Explicit}" />
+                            <TextBlock Grid.Row="2" Text="Device" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="cmbAudioDevice" Tag="_save" ItemsSource="{Binding AudioMaster.Devices}" SelectedItem="{Binding Player.Audio.Device, UpdateSourceTrigger=Explicit}" />
                         </Grid>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <Button Style="{StaticResource SaveButton}"/>

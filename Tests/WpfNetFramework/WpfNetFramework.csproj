@@ -96,11 +96,11 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj">
+    <ProjectReference Include="..\..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj" AdditionalProperties="TargetFramework=net472">
       <Project>{17d6a6e9-7b7a-45ea-98cf-4e381383617f}</Project>
       <Name>FlyleafLib.Controls.WPF</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj">
+    <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" AdditionalProperties="TargetFramework=net472">
       <Project>{d262ba82-2306-4ab9-93e2-84d99869093a}</Project>
       <Name>FlyleafLib</Name>
     </ProjectReference>

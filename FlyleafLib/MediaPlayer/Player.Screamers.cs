@@ -61,7 +61,7 @@ namespace FlyleafLib.MediaPlayer
                 if (seeks.Count == 0)
                 {
                     if (VideoDemuxer.HLSPlaylist == null)
-                        curTime = vFrame.timestamp - Config.Audio.Latency;
+                        curTime = vFrame.timestamp;
                     UIAdd(() => UpdateCurTime());
                     UI();
                 }
@@ -78,7 +78,11 @@ namespace FlyleafLib.MediaPlayer
 
         private bool MediaBuffer()
         {
+
+#if DEBUG
             Log("[SCREAMER] Buffering ...");
+#endif
+
             while (isVideoSwitch && IsPlaying) Thread.Sleep(10);
 
             Audio.ClearBuffer();
@@ -153,7 +157,7 @@ namespace FlyleafLib.MediaPlayer
                     {
                         for (int i=0; i<Math.Min(20, AudioDecoder.Frames.Count); i++)
                         {
-                            if (aFrame == null || vFrame.timestamp - aFrame.timestamp < Config.Audio.Latency) { gotAudio = true; break; }
+                            if (aFrame == null || vFrame.timestamp + 20000 > aFrame.timestamp) { gotAudio = true; break; }
 
                             Log("Drop AFrame  " + TicksToTime(aFrame.timestamp));
                             AudioDecoder.Frames.TryDequeue(out aFrame);
@@ -181,23 +185,16 @@ namespace FlyleafLib.MediaPlayer
 
             while(VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
 
-            Log("[SCREAMER] Buffering Done");
-
-            if (aFrame != null && aFrame.timestamp < vFrame.timestamp) 
-                videoStartTicks = Math.Max(aFrame.timestamp, vFrame.timestamp - Config.Audio.Latency);
-            else
-                videoStartTicks = vFrame.timestamp - Config.Audio.Latency;
-
             startedAtTicks  = DateTime.UtcNow.Ticks;
-
-            videoStartTicks = (long) (videoStartTicks / Speed);
-            vFrame.timestamp = (long) (vFrame.timestamp / Speed);
+            vFrame.timestamp= (long) (vFrame.timestamp / Speed);
+            videoStartTicks = vFrame.timestamp;
             if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed);
             if (sFrame != null) sFrame.timestamp = (long) (sFrame.timestamp / Speed);
 
             decoder.OpenedPlugin.OnBufferingCompleted();
+#if DEBUG
             Log($"[SCREAMER] Started -> {TicksToTime(videoStartTicks)} | [V: {TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {TicksToTime(aFrame.timestamp)}]"));
-
+#endif
             return true;
         }    
         private void Screamer()
@@ -219,7 +216,6 @@ namespace FlyleafLib.MediaPlayer
 
                     decoder.PauseDecoders(); // TBR: Required to avoid gettings packets between Seek and ShowFrame which causes resync issues
 
-
                     if (decoder.Seek(seekData.ms, seekData.forward, !seekData.accurate) < 0)
                         Log("[SCREAMER] Seek failed");
                     else if (seekData.accurate)
@@ -235,6 +231,12 @@ namespace FlyleafLib.MediaPlayer
                     if (seeks.Count != 0) continue;
                     if (vFrame == null) { Log("MediaBuffer() no video frame"); break; }
                     OnBufferingCompleted();
+
+                    if (aFrame != null && Math.Abs(vFrame.timestamp - aFrame.timestamp) < 2)
+                    {
+                        Audio.AddSamples(aFrame);
+                        AudioDecoder.Frames.TryDequeue(out aFrame);
+                    }
                 }
 
                 if (vFrame == null)
@@ -263,8 +265,19 @@ namespace FlyleafLib.MediaPlayer
 
                 elapsedTicks    = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
                 vDistanceMs     = (int) ((vFrame.timestamp - elapsedTicks) / 10000);
-                aDistanceMs     = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
-                sDistanceMs     = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
+
+                if (aFrame != null)
+                {
+                    aDistanceMs = (int) ((aFrame.timestamp - elapsedTicks) / 10000);
+
+                    // On zero we resync
+                    if (Audio.BuffersQueued != 0 && Audio.BuffersQueued < 3 && aDistanceMs > 2)
+                        aDistanceMs /= 2;
+                }
+                else
+                    aDistanceMs = int.MaxValue;
+
+                sDistanceMs     = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : int.MaxValue;
                 sleepMs         = Math.Min(vDistanceMs, aDistanceMs) - 1;
 
                 if (sleepMs < 0) sleepMs = 0;
@@ -300,7 +313,7 @@ namespace FlyleafLib.MediaPlayer
                     if (seeks.Count == 0)
                     {
                         if (MainDemuxer.HLSPlaylist == null)
-                            curTime = (long) ((vFrame.timestamp - Config.Audio.Latency) * Speed);
+                            curTime = (long) (vFrame.timestamp * Speed);
                         else
                             curTime = VideoDemuxer.CurTime;
 
@@ -329,10 +342,10 @@ namespace FlyleafLib.MediaPlayer
 
                 if (aFrame != null) // Should use different thread for better accurancy (renderer might delay it on high fps) | also on high offset we will have silence between samples
                 {
-                    if (Math.Abs(aDistanceMs - sleepMs) <= 10)
+                    if (Math.Abs(aDistanceMs - sleepMs) <= 2)
                     {
                         //Log($"[A] Presenting {TicksToTime(aFrame.timestamp)}");
-                        Audio.AddSamples(aFrame.audioData);
+                        Audio.AddSamples(aFrame);
                         AudioDecoder.Frames.TryDequeue(out aFrame);
                         if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed);
                     }
@@ -440,7 +453,7 @@ namespace FlyleafLib.MediaPlayer
                     renderer.Present(vFrame);
                     if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
                     {
-                        this.curTime = (long) ((vFrame.timestamp - Config.Audio.Latency) * Speed);
+                        this.curTime = (long) (vFrame.timestamp * Speed);
 
                         if (Config.Player.UICurTimePerFrame)
                             UI(() => UpdateCurTime());
@@ -518,6 +531,9 @@ namespace FlyleafLib.MediaPlayer
                     if (seeks.Count != 0) continue;
                     OnBufferingCompleted();
                     if (aFrame == null) { Log("MediaBuffer() no audio frame"); break; }
+
+                    Audio.AddSamples(aFrame);
+                    AudioDecoder.Frames.TryDequeue(out aFrame);
                 }
 
                 if (aFrame == null)
@@ -541,24 +557,22 @@ namespace FlyleafLib.MediaPlayer
                     continue;
                 }
 
-                if (aDistanceMs > 5)
+                if (aDistanceMs > 2)
                 {
-                    if (Master.UICurTimePerSecond &&  (
+                    if (Master.UICurTimePerSecond && (
                         (MainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
                         (MainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
-                        elapsedSec  = elapsedTicks;
+                        elapsedSec = elapsedTicks;
                         UI(() => UpdateCurTime());
                     }
 
-                    Thread.Sleep(aDistanceMs - 2);
-                }
-
-                if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
-                {
-                    
-                    if (curTime / 10000000 != _CurTime / 10000000)
-                        UI(() => UpdateCurTime());
+                    if (Audio.BuffersQueued == 0)
+                        Thread.Sleep(aDistanceMs);
+                    else if (Audio.BuffersQueued < 4)
+                        Thread.Sleep(aDistanceMs / 2);
+                    else
+                        Thread.Sleep(aDistanceMs);
                 }
 
                 if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
@@ -569,7 +583,8 @@ namespace FlyleafLib.MediaPlayer
                         UI(() => UpdateCurTime());
                 }
 
-                Audio.AddSamples(aFrame.audioData);
+                //Log($"{Utils.TicksToTime(aFrame.timestamp)}");
+                Audio.AddSamples(aFrame);
                 AudioDecoder.Frames.TryDequeue(out aFrame);
             }
         }
@@ -615,7 +630,7 @@ namespace FlyleafLib.MediaPlayer
                     elapsedSec = startedAtTicks;
 
                     if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
-                        curTime = (long) ((vFrame.timestamp - Config.Audio.Latency) * Speed);
+                        curTime = (long) (vFrame.timestamp * Speed);
                     UI(() => UpdateCurTime());
                 }
 
@@ -660,7 +675,7 @@ namespace FlyleafLib.MediaPlayer
                 decoder.VideoDecoder.Renderer.Present(vFrame);
                 if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
                 {
-                    curTime = (long) ((vFrame.timestamp - Config.Audio.Latency) * Speed);
+                    curTime = (long) (vFrame.timestamp * Speed);
 
                     if (Config.Player.UICurTimePerFrame)
                         UI(() => UpdateCurTime());

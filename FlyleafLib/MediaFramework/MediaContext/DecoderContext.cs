@@ -752,7 +752,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             long startTime = demuxer.hlsCtx == null ? demuxer.StartTime : demuxer.hlsCtx->first_timestamp * 10;
             long ticks = (ms * 10000) + startTime;
 
-            if (demuxer.Type == MediaType.Audio) ticks -= Config.Audio.Delay + Config.Audio.Latency;
+            if (demuxer.Type == MediaType.Audio) ticks -= Config.Audio.Delay;
             if (demuxer.Type == MediaType.Subs ) ticks -= Config.Subtitles.Delay + (2 * 1000 * 10000); // We even want the previous subtitles
 
             if (ticks < startTime) 

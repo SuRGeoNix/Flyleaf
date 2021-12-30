@@ -1,256 +1,171 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 
-using NAudio.Wave;
-using NAudio.CoreAudioApi;
-using NAudio.CoreAudioApi.Interfaces;
+using Vortice.MediaFoundation;
 
 namespace FlyleafLib
 {
-    public class AudioMaster : NotifyPropertyChanged, IMMNotificationClient, IAudioSessionEventsHandler
+    public class AudioMaster //: CallbackBase, IMMNotificationClient//, INotifyPropertyChanged
     {
+        /* TODO
+         * 
+         * 1) IMMNotificationClient probably not required
+         *      XAudio2 handles just fine the default audio device change and device removal if we use the specific device goes back to default
+         * 
+         * 2) Master/Session Volume/Mute probably not required
+         *      Possible only to ensure that we have session's volume unmuted and to 1? (probably the defaults?)
+         *      
+         * 3) Property changed notifications / or IMMNotificationClient forward events (Devices changed)?
+         */
+
         #region Properties (Public)
         /// <summary>
         /// Default audio device name
         /// </summary>
-        public string       DefaultDeviceName   { get; private set; }
+        public string       DefaultDeviceName   { get; private set; } = "Default";
 
         /// <summary>
-        /// List with the names of the available audio devices (use these names to change current Device for all the players or for each player seperately)
+        /// Default audio device id
         /// </summary>
-        public List<string> Devices
-        {
-            get
-            {
-                List<string> devices = new List<string>();
-                foreach (var device in DirectSoundOut.Devices.ToList()) devices.Add(device.Description);
-                return devices;
-            }
-        }
-
-        /// <summary>
-        /// Audio device name which will be used for all the audio players (see Devices for valid input names)
-        /// </summary>
-        public string       Device
-        {
-            get => _Device;
-            set
-            {
-                bool found = false;
-                foreach (var device in DirectSoundOut.Devices.ToList())
-                    if (device.Description == value)
-                    {
-                        _Device = value;
-                        DeviceIdNaudio = device.Guid;
-                        DeviceId = device.ModuleName;
-                        found = true;
-
-                        Initialize();
-                    }
-
-                if (!found) throw new Exception("The specified audio device doesn't exist");
-            }
-        }
+        public string       DefaultDeviceId     { get; private set; } = "0";
 
         /// <summary>
         /// Whether no audio devices were found or audio failed to initialize
         /// </summary>
         public bool         Failed              { get; private set; }
 
-        /// <summary>
-        /// Gets or sets the master's volume (valid values 0 - 100)
-        /// </summary>
-        public int          VolumeMaster        { get { return GetVolumeMaster();   }   set { SetVolumeMaster(value);   } }
+        //public string       CurrentDeviceName   { get; private set; } = "Default";
+        //public string       CurrentDeviceId     { get; private set; } = "0";
 
         /// <summary>
-        /// Gets or sets the master's volume mute
+        /// List with of the available audio devices
         /// </summary>
-        public bool         MuteMaster          { get { return GetMuteMaster();     }   set { SetMuteMaster(value);     } }
+        public List<string> Devices
+        {
+            get
+            {
+                List<string> devices = new List<string>();
 
-        /// <summary>
-        /// Gets or sets the session's volume (valid values 0 - 100)
-        /// </summary>
-        public int          VolumeSession       { get { return GetVolumeSession();  }   set { SetVolumeSession(value);  } }
+                devices.Add(DefaultDeviceName);
 
-        /// <summary>
-        /// Gets or sets the session's volume mute
-        /// </summary>
-        public bool         MuteSession         { get { return GetMuteSession();    }   set { SetMuteSession(value);    } }
+                foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+                    devices.Add(device.FriendlyName);
+
+                return devices;
+            }
+        }
+
+        public string GetDeviceId(string deviceName)
+        {
+            if (deviceName == DefaultDeviceName)
+                return DefaultDeviceId;
+
+            foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+            {
+                if (device.FriendlyName.ToLower() != deviceName.ToLower())
+                    continue;
+
+                return device.Id;
+            }
+
+            throw new Exception("The specified audio device doesn't exist");
+        }
+        public string GetDeviceName(string deviceId)
+        {
+            if (deviceId == DefaultDeviceId)
+                return DefaultDeviceName;
+
+            foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+            {
+                if (device.Id.ToLower() != deviceId.ToLower())
+                    continue;
+
+                return device.FriendlyName;
+            }
+
+            throw new Exception("The specified audio device doesn't exist");
+        }
         #endregion
 
-        #region Declaration
-        string _Device;
-        string  DeviceId;
-        internal Guid       DeviceIdNaudio;
-        MMDeviceEnumerator  deviceEnum;
-        MMDevice            device;     // Current Master  Audio
-        AudioSessionControl session;    // Current Session Audio
-        readonly object     locker = new object();
-        #endregion
-
-        #region Initialize / Dispose
+        IMMDeviceEnumerator  deviceEnum;
+        //private object locker = new object();
         public AudioMaster()
         {
-            DefaultDeviceName = DirectSoundOut.Devices.ToList()[0].Description;
-            _Device = DefaultDeviceName;
-
-            deviceEnum = new MMDeviceEnumerator();
-            deviceEnum.RegisterEndpointNotificationCallback(this);
-            
-            #if DEBUG
-            string dump = "Audio devices ...\r\n";
-            foreach(var device in deviceEnum.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
-                dump += $"{device.ID} | {device.FriendlyName}\r\n";
-
-            Log(dump);
-            #endif
-
-            Initialize();
-        }
-        public void Initialize()
-        {
-            lock (locker)
+            try
             {
-                if (device != null) device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
-
-                foreach(var player in Master.Players)
-                    player.Audio.Initialize();
-
-                try
-                {
-                    if (Device == DefaultDeviceName)
-                        device = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                    else
-                        device = deviceEnum.GetDevice(DeviceId);
-                } catch (Exception)
+                deviceEnum = new IMMDeviceEnumerator();
+                //deviceEnum.RegisterEndpointNotificationCallback(this);
+            
+                var defaultDevice =  deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                if (defaultDevice == null)
                 {
                     Failed = true;
                     return;
                 }
 
-                device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
-                device.AudioSessionManager.OnSessionCreated += (o, newSession) =>
-                {
-                    try
-                    {
-                        var tmpSession = new AudioSessionControl(newSession);
-                        if (tmpSession == null || tmpSession.GetProcessID != Process.GetCurrentProcess().Id) return;
-                        if (session != null) { session.UnRegisterEventClient(this); session.Dispose(); }
-                        session = tmpSession;
-                        session.RegisterEventClient(this);
-                        session.SimpleAudioVolume.Volume = 1;
-                    } catch (Exception) { }
+                //CurrentDeviceId = defaultDevice.Id;
 
-                    Raise(nameof(VolumeSession));
-                    Raise(nameof(MuteSession));
-                };
+                #if DEBUG
+                string dump = "Audio devices ...\r\n";
+                foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+                    dump += $"{device.Id} | {device.FriendlyName} {(defaultDevice.Id == device.Id ? "*" : "")}\r\n";
 
-                Raise(nameof(VolumeMaster));
-                Raise(nameof(MuteMaster));
-            }
-        }
-        #endregion
-
-        #region Volume / Mute
-        private int  GetVolumeMaster()
-        {
-            lock (locker) return (int)(device.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
-        }
-        private int  GetVolumeSession()
-        {
-            lock (locker) return session == null ? 100 : (int)(session.SimpleAudioVolume.Volume * 100);                
-        }
-        private void SetVolumeMaster(int volume)
-        {
-            volume = volume > 100 ? 100 : (volume < 0 ? 0 : volume);
-
-            lock (locker)
-            {
-                device.AudioEndpointVolume.OnVolumeNotification -= OnMasterVolumeChanged;
-                device.AudioEndpointVolume.MasterVolumeLevelScalar = volume / 100f;
-                device.AudioEndpointVolume.OnVolumeNotification += OnMasterVolumeChanged;
-            }
-
-            if (MuteMaster) { MuteMaster = false; Raise(nameof(MuteMaster)); }
-
-            Raise(nameof(VolumeMaster));
-        }
-        private void SetVolumeSession(int volume)
-        {
-            volume = volume > 100 ? 100 : (volume < 0 ? 0 : volume);
-
-            lock (locker) session.SimpleAudioVolume.Volume = volume / 100f;
-
-            if (MuteSession) { MuteSession = false; Raise(nameof(MuteSession)); }
-
-            Raise(nameof(VolumeSession));
-        }
-        private bool GetMuteMaster()
-        {
-            lock (locker) return device.AudioEndpointVolume.Mute;
+                Log(dump);
+                #endif
+            } catch { Failed = true; }
         }
 
-        private bool GetMuteSession()
-        {
-            lock (locker) return session == null ? false : session.SimpleAudioVolume.Mute;
-        }
-        private void SetMuteMaster(bool value)
-        {
-            lock (locker) device.AudioEndpointVolume.Mute = value;
+        //public void OnDeviceStateChanged(string pwstrDeviceId, int newState) { }
+        //public void OnDeviceAdded(string pwstrDeviceId)
+        //{
+        //    Log($"OnDeviceAdded | {GetDeviceName(pwstrDeviceId)}");
+        //}
+        //public void OnDeviceRemoved(string pwstrDeviceId)
+        //{
+        //    Log($"OnDeviceRemoved | {GetDeviceName(pwstrDeviceId)}");
 
-            if (!value && VolumeMaster == 0) VolumeMaster = 15;
+        //    // XAudio2 will handle this automatically
+        //    //Task.Run(() =>
+        //    //{
+        //    //    lock (locker)
+        //    //        foreach(var player in Master.Players)
+        //    //        {
+        //    //            if (player.Audio.DeviceId != pwstrDeviceId)
+        //    //                continue;
 
-            Raise(nameof(MuteMaster));
-        }
-        private void SetMuteSession(bool value)
-        {
-            lock (locker) session.SimpleAudioVolume.Mute = value;
+        //    //            player.Audio.DeviceId = DefaultDeviceId;
+        //    //        }
 
-            if (!value && VolumeSession == 0) VolumeSession = 15;
+        //    //    System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => Raise(null)));
+        //    //});
+        //}
+        //public void OnDefaultDeviceChanged(DataFlow flow, Role role, string pwstrDefaultDeviceId)
+        //{
+        //    if (CurrentDeviceId == pwstrDefaultDeviceId)
+        //        return;
 
-            Raise(nameof(MuteSession));
-        }
-        #endregion
+        //    Log($"OnDefaultDeviceChanged | {GetDeviceName(CurrentDeviceId)} => {GetDeviceName(pwstrDefaultDeviceId)}");
+            
+        //    CurrentDeviceId = pwstrDefaultDeviceId;
+        //    CurrentDeviceName = GetDeviceName(CurrentDeviceId);
 
-        #region Master Audio Events | MMDeviceEnumerator
-        public void OnMasterVolumeChanged(AudioVolumeNotificationData data)
-        {
-            Raise(nameof(VolumeMaster));
-            Raise(nameof(MuteMaster));
-        }
-        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string newDeviceId)
-        {
-            if (DeviceId == newDeviceId) return;
-            Log($"OnDefaultDeviceChanged {newDeviceId}");
-            Initialize();
-        }
-        public void OnDeviceRemoved(string deviceId)
-        {
-            if (DeviceId != DefaultDeviceName && DeviceId != deviceId) return;
-            Log($"OnDeviceRemoved {deviceId}");
-            Initialize();
-        }
-        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { /*Log($"OnPropertyValueChanged {pwstrDeviceId} - {key.formatId}");*/ }
-        public void OnDeviceStateChanged(string deviceId, DeviceState newState) { /*Log($"OnDeviceStateChanged {newState.ToString()}");*/ }
-        public void OnDeviceAdded(string pwstrDeviceId) { /*Log($"OnDeviceAdded {pwstrDeviceId}");*/ }
-        #endregion
+        //    return;
 
-        #region Application (Session) Audio Events | AudioSessionControl
-        public void OnVolumeChanged(float volume2, bool isMuted2)
-        {
-            Raise(nameof(VolumeSession));
-            Raise(nameof(MuteSession));
-        }
-        public void OnDisplayNameChanged(string displayName) { }
-        public void OnIconPathChanged(string iconPath) { }
-        public void OnChannelVolumeChanged(uint channelCount, IntPtr newVolumes, uint channelIndex) { }
-        public void OnGroupingParamChanged(ref Guid groupingId) { }
-        public void OnStateChanged(AudioSessionState state) { /*Log("OnStateChanged");*/ }
-        public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason) { /*Log("OnSessionDisconnected");*/ }
-        #endregion
+        //    // XAudio2 will handle this automatically
+        //    //Task.Run(() =>
+        //    //{
+        //    //    lock (locker)
+        //    //        foreach(var player in Master.Players)
+        //    //        {
+        //    //            if (player.Audio.DeviceId != DefaultDeviceId)
+        //    //                continue;
 
-        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] [AudioMaster] {msg}"); }
+        //    //            player.Audio.Initialize();
+        //    //        }
+        //    //});
+        //}
+        //public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
+
+        private void Log(string msg) { Utils.Log($"[AudioMaster] {msg}"); }
     }
 }

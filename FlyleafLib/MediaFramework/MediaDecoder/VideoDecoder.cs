@@ -614,7 +614,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             try
             {
-                VideoFrame mFrame;
                 if (Speed != 1)
                 {
                     curSpeedFrame++;
@@ -624,8 +623,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     curSpeedFrame = 0;                    
                 }
                 
-                mFrame = new VideoFrame();
-                mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime + Config.Audio.Latency;
+                VideoFrame mFrame = new VideoFrame();
+                mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
 
                 // TODO
                 //mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoStream.StartTime + Config.Audio.Latency;

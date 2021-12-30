@@ -4,6 +4,7 @@ namespace FlyleafLib.MediaFramework.MediaFrame
 {
     public class AudioFrame : FrameBase
     {
-        public byte[]       audioData;
+        public IntPtr   dataPtr;
+        public int      dataLen;
     }
 }

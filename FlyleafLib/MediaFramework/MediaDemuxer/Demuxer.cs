@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Threading;
 
 using FFmpeg.AutoGen;
@@ -1131,6 +1132,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         #endregion
 
         #region Misc
+        [SecurityCritical]
         public void UpdateCurTime()
         {
             if (CurPackets.Count == 0)
@@ -1139,13 +1141,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 return;
             }
 
-            if (CurPackets.TryPeek(out IntPtr firstPacketPtr) && ((AVPacket*)firstPacketPtr)->dts != AV_NOPTS_VALUE)
+            try
             {
-                try
+                if (CurPackets.TryPeek(out IntPtr firstPacketPtr) && ((AVPacket*)firstPacketPtr)->dts != AV_NOPTS_VALUE)
                 {
-                    firstPacketTs = (long) (((AVPacket*)firstPacketPtr)->dts * AVStreamToStream[((AVPacket*)firstPacketPtr)->stream_index].Timebase);
-                } catch { return; } // TBR: Race condition with the decoder av_packet_free(&packet);
-            }    
+                
+                        firstPacketTs = (long) (((AVPacket*)firstPacketPtr)->dts * AVStreamToStream[((AVPacket*)firstPacketPtr)->stream_index].Timebase);
+                
+                }
+            } catch { return; } // TBR: Race condition with the decoder av_packet_free(&packet); 
 
             if (firstPacketTs == AV_NOPTS_VALUE)
             {

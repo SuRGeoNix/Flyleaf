@@ -118,15 +118,15 @@ namespace FlyleafLib.MediaPlayer
                 vFrame = VideoDecoder.GetFrame(frameIndex);
                 if (vFrame == null) return;
 
-                long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
                 #if DEBUG
-                Log($"SFI: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                Log($"SFI: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
                 #endif
+
+                curTime = vFrame.timestamp;
                 renderer.Present(vFrame);
                 reversePlaybackResync = true;                
                 vFrame = null;
-               
-                curTime = tmpTimestamp;
+
                 UI(() => UpdateCurTime());
             }
         }
@@ -152,15 +152,15 @@ namespace FlyleafLib.MediaPlayer
 
                 if (vFrame == null) return;
 
-                long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
                 #if DEBUG
-                Log($"SFN: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                Log($"SFN: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
                 #endif
+
+                curTime = curTime = vFrame.timestamp;
                 renderer.Present(vFrame);
                 reversePlaybackResync = true;
                 vFrame = null;
-                
-                curTime = tmpTimestamp;
+
                 UI(() => UpdateCurTime());
             }
         }
@@ -196,14 +196,13 @@ namespace FlyleafLib.MediaPlayer
 
                 if (vFrame == null) return;
 
-                long tmpTimestamp = vFrame.timestamp - Config.Audio.Latency;
                 #if DEBUG
-                Log($"SFB: {VideoDecoder.GetFrameNumber(tmpTimestamp)}");
+                Log($"SFB: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
                 #endif
+
+                curTime = vFrame.timestamp;
                 renderer.Present(vFrame);
                 vFrame = null;
-
-                curTime = tmpTimestamp;
                 UI(() => UpdateCurTime()); // For some strange reason this will not be updated on KeyDown (only on KeyUp) which doesn't happen on ShowFrameNext (GPU overload? / Thread.Sleep underlying in UI thread?)
             }
         }
