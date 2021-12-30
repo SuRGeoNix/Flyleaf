@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 
-using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
+using Vortice.Multimedia;
+using Vortice.XAudio2;
+
+using static Vortice.XAudio2.XAudio2;
 
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaInput;
+using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.Plugins;
 
@@ -65,12 +67,29 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public int Volume
         {
-            get => volumeSampleProvider == null ? 50 : (int) (volumeSampleProvider.Volume * 100);
+            get
+            {
+                lock (locker)
+                {
+                    if (sourceVoice == null)
+                        return _Volume;
+
+                    return (int) (sourceVoice.Volume * 100);
+                }
+            }
             set
             {
-                if (volumeSampleProvider == null) return;
+                lock (locker)
+                {
+                    if (value > Config.Player.VolumeMax || value < 0)
+                        return;
 
-                volumeSampleProvider.Volume = Math.Max(0, value / 100.0f);
+                    if (sourceVoice != null)
+                        sourceVoice.Volume = Math.Max(0, value / 100.0f);
+                }
+
+                _Volume = value;
+
                 Raise(nameof(Volume));
 
                 if (value == 0)
@@ -85,6 +104,7 @@ namespace FlyleafLib.MediaPlayer
                 }
             }
         }
+        int _Volume;
         private float prevVolume = 0.5f;
 
         /// <summary>
@@ -95,16 +115,14 @@ namespace FlyleafLib.MediaPlayer
             get => mute;
             set
             {
-                if (volumeSampleProvider == null) return;
-
                 if (value)
                 {
-                    prevVolume = volumeSampleProvider.Volume;
-                    volumeSampleProvider.Volume = 0; // no raise
+                    prevVolume = sourceVoice.Volume;
+                    sourceVoice.Volume = 0; // no raise
                 }
                 else
                 {
-                    volumeSampleProvider.Volume = prevVolume;
+                    sourceVoice.Volume = prevVolume;
                     Raise(nameof(Volume));
                 }
 
@@ -119,46 +137,65 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public string Device
         {
-            get => _Device == null ? Master.AudioMaster.Device : _Device;
+            get => _Device;
             set
             {
-                if (value == null) { _Device = null; Initialize(); return; } // Let the user to change back to AudioMaster's Device
+                if (_Device == value)
+                    return;
 
-                bool found = false;
-                foreach (var device in DirectSoundOut.Devices.ToList())
-                    if (device.Description == value)
-                    {
-                        _Device = value;
-                        DeviceIdNaudio = device.Guid;
-                        //DeviceId = device.ModuleName;
-                        found = true;
+                _Device     = value;
+                _DeviceId   = Master.AudioMaster.GetDeviceId(value);
 
-                        Initialize();
-                    }
+                Initialize();
 
-                if (!found) throw new Exception("The specified audio device doesn't exist");
+                player.UI(() => Raise(nameof(Device)));
             }
         }
-        string _Device;
-        internal Guid DeviceIdNaudio;
+        string _Device = Master.AudioMaster.DefaultDeviceName;
+
+        public string DeviceId
+        {
+            get => _DeviceId;
+            set
+            {
+                _DeviceId   = value;
+                _Device     = Master.AudioMaster.GetDeviceName(value);
+
+                Initialize();
+
+                player.UI(() => Raise(nameof(DeviceId)));
+            }
+        }
+        string _DeviceId = Master.AudioMaster.DefaultDeviceId;
+
+        public int BuffersQueued {
+            get
+            {                
+                lock (locker)
+                {
+                    if (sourceVoice == null)
+                        return 0;
+
+                    return sourceVoice.State.BuffersQueued;
+                }
+            }
+        }
         #endregion
 
         #region Declaration
-        Player player;
-        Config Config => player.Config;
-        DecoderContext decoder => player?.decoder;
-        AudioStream     disabledStream;
+        Player                  player;
+        Config                  Config => player.Config;
+        DecoderContext          decoder => player?.decoder;
+        AudioStream             disabledStream;
 
-        Action uiAction;
+        Action                  uiAction;
+        readonly object         locker = new object();
 
-        DirectSoundOut          directSoundOut;
-        WaveFormat              audioWaveFormat;
-        BufferedWaveProvider    audioBuffer;
-        VolumeSampleProvider    volumeSampleProvider;
-
-        readonly object         lockerAudioPlayer = new object();
+        IXAudio2                xaudio2;
+        IXAudio2MasteringVoice  masteringVoice;
+        IXAudio2SourceVoice     sourceVoice;
+        WaveFormat              waveFormat = new WaveFormat(48000, 16, 2);
         #endregion
-
         public Audio(Player player)
         {
             this.player = player;
@@ -175,8 +212,10 @@ namespace FlyleafLib.MediaPlayer
                 SampleRate      = SampleRate;
             };
 
+            Volume = Config.Player.VolumeMax / 2;
             Initialize();
         }
+
         internal void Initialize(int sampleRate = -1)
         {
             if (Master.AudioMaster.Failed)
@@ -185,70 +224,50 @@ namespace FlyleafLib.MediaPlayer
                 return;
             }
 
-            lock (lockerAudioPlayer)
+            if (SampleRate == sampleRate)
+                return;
+
+            if (sampleRate != -1)
+                this.sampleRate = sampleRate;
+
+            lock (locker)
             {
-                if (sampleRate != -1)
-                {
-                    if (SampleRate == sampleRate)
-                    {
-                        ClearBuffer();
-                        return;
-                    }
+                Log($"Initializing {Device} at {SampleRate}Hz");
 
-                    this.sampleRate = sampleRate;
-                }
-
-                prevVolume = volumeSampleProvider == null ? 0.5f : volumeSampleProvider.Volume;
                 Dispose();
-                Log($"Initializing at {SampleRate}Hz");
 
-                audioWaveFormat = WaveFormatExtensible.CreateIeeeFloatWaveFormat(SampleRate, ChannelsOut);
-                audioBuffer = new BufferedWaveProvider(audioWaveFormat);
-                audioBuffer.BufferLength = 1000 * 1024;
-                volumeSampleProvider= new VolumeSampleProvider(audioBuffer.ToSampleProvider());
-
-                directSoundOut = new DirectSoundOut(_Device == null ? Master.AudioMaster.DeviceIdNaudio : DeviceIdNaudio, -30 + (int)(Config.Audio.Latency / 10000));
-
-                directSoundOut.Init(volumeSampleProvider);
-                directSoundOut.Play();
-                volumeSampleProvider.Volume = prevVolume;
+                xaudio2         = XAudio2Create();
+                masteringVoice  = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Master.AudioMaster.DefaultDeviceName ? null : Master.AudioMaster.GetDeviceId(_Device));
+                sourceVoice     = xaudio2.CreateSourceVoice(waveFormat, true);
+                sourceVoice.SetSourceSampleRate(SampleRate);
+                sourceVoice.Start();
+                Volume = _Volume;
             }
         }
         internal void Dispose()
         {
-            lock (lockerAudioPlayer)
+            lock (locker)
             {
-                directSoundOut?.Dispose();
-                volumeSampleProvider = null;
-                directSoundOut = null;
-                audioBuffer = null;
-                Log("Disposed");
+                if (xaudio2 == null)
+                    return;
+
+                xaudio2.        Dispose();
+                sourceVoice?.   Dispose();
+                masteringVoice?.Dispose();
+                xaudio2         = null;
+                sourceVoice     = null;
+                masteringVoice  = null;
             }
         }
-
-        internal void AddSamples(byte[] data, bool checkSync = true)
+        internal void AddSamples(AudioFrame aFrame)
         {
-            lock (lockerAudioPlayer)
-            {
-                try
-                {
-                    if (checkSync && audioBuffer.BufferedDuration.Milliseconds > (Config.Audio.Latency / 10000) + 150) // We will see this happen on HLS streams that change source (eg. ads - like two streams playing audio in parallel)
-                    {
-                        Log("Resynch !!! | " + audioBuffer.BufferedBytes + " | " + audioBuffer.BufferedDuration);
-                        audioBuffer.ClearBuffer();
-                    }
-
-                    audioBuffer.AddSamples(data, 0, data.Length);
-                }
-                catch (Exception e)
-                {
-                    Log(e.Message + " " + e.StackTrace);
-                }
-            }
+            lock (locker)
+                sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
         }
         internal void ClearBuffer()
         {
-            lock (lockerAudioPlayer) audioBuffer?.ClearBuffer();
+            lock (locker)
+                sourceVoice?.FlushSourceBuffers();
         }
 
         internal void Reset()
@@ -259,9 +278,7 @@ namespace FlyleafLib.MediaPlayer
             channels        = 0;
             channelLayout   = null;
             sampleFormat    = null;
-            //sampleRate     = 0;
             isOpened        = false;
-
             disabledStream  = null;
 
             ClearBuffer();
@@ -278,7 +295,6 @@ namespace FlyleafLib.MediaPlayer
             sampleFormat   = decoder.AudioStream.SampleFormatStr;
             isOpened       =!decoder.AudioDecoder.Disposed;
 
-            //lastAudioStream= decoder.AudioStream;
             Initialize(decoder.AudioStream.SampleRate);
             player.UIAdd(uiAction);
         }

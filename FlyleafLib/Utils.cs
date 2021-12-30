@@ -308,7 +308,7 @@ namespace FlyleafLib
                 var line = Marshal.PtrToStringAnsi((IntPtr)buffer);
                 Log(line.Trim());
             };
-            private static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [FFmpeg] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
+            private static void Log(string msg) { Utils.Log($"[FFmpeg] {msg}"); }
         }
 
         public static class NativeMethods

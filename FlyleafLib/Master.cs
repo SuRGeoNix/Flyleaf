@@ -287,7 +287,7 @@ namespace FlyleafLib
             Log("MasterThread Stopped");
         }
         
-        private static void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [Master] {msg}"); }
+        private static void Log(string msg) { Utils.Log($"[Master] {msg}"); }
 
         public static readonly List<Language> Languages = new List<Language>
         {

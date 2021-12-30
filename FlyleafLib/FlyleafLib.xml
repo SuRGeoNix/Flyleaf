@@ -9,14 +9,9 @@
             Default audio device name
             </summary>
         </member>
-        <member name="P:FlyleafLib.AudioMaster.Devices">
+        <member name="P:FlyleafLib.AudioMaster.DefaultDeviceId">
             <summary>
-            List with the names of the available audio devices (use these names to change current Device for all the players or for each player seperately)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.AudioMaster.Device">
-            <summary>
-            Audio device name which will be used for all the audio players (see Devices for valid input names)
+            Default audio device id
             </summary>
         </member>
         <member name="P:FlyleafLib.AudioMaster.Failed">
@@ -24,24 +19,9 @@
             Whether no audio devices were found or audio failed to initialize
             </summary>
         </member>
-        <member name="P:FlyleafLib.AudioMaster.VolumeMaster">
+        <member name="P:FlyleafLib.AudioMaster.Devices">
             <summary>
-            Gets or sets the master's volume (valid values 0 - 100)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.AudioMaster.MuteMaster">
-            <summary>
-            Gets or sets the master's volume mute
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.AudioMaster.VolumeSession">
-            <summary>
-            Gets or sets the session's volume (valid values 0 - 100)
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.AudioMaster.MuteSession">
-            <summary>
-            Gets or sets the session's volume mute
+            List with of the available audio devices
             </summary>
         </member>
         <member name="T:FlyleafLib.Config">
@@ -320,11 +300,6 @@
         <member name="P:FlyleafLib.Config.AudioConfig.Languages">
             <summary>
             Audio languages preference by priority
-            </summary>
-        </member>
-        <member name="P:FlyleafLib.Config.AudioConfig.Latency">
-            <summary>
-            NAudio's latency ticks (required buffered duration before playing)
             </summary>
         </member>
         <member name="P:FlyleafLib.Config.SubtitlesConfig.Delay">

@@ -155,7 +155,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             SubtitlesFrame mFrame;
             mFrame = new SubtitlesFrame();
-            mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Audio.Latency + Config.Subtitles.Delay;
+            mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Subtitles.Delay;
 
             try
             {

@@ -488,11 +488,6 @@ namespace FlyleafLib
             /// </summary>
             public List<Language>   Languages           { get { if (_Languages == null) _Languages = Utils.GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
             List<Language> _Languages;
-
-            /// <summary>
-            /// NAudio's latency ticks (required buffered duration before playing)
-            /// </summary>
-            public long             Latency             { get; set; } = 70 * 10000;
         }
         public class SubtitlesConfig : NotifyPropertyChanged
         {

@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.1</Version>
+	<Version>3.4.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2021</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,19 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Adds .NET 6 support
-		Improves performance of the Custom AVIO Context
-		Fixes a possible race condition between demuxer and decoder
+		-= Re-design audio implementation from the decoder's to the player's layer =-
+
+		* Replaces NAudio's Core/Wasapi with Vortice's XAudio2/MediaFoundation (Direct COM Interops)
+		* Performance and memory improvements for audio processing by using a single custom circular buffer
+		* Better audio/video sync and more accurate timestamps as now audio plays with zero latency
+		* More clear sound with no gaps between audio frames (it was happening at the beginning and after seeking)
+		* Possible fixes for audio bluetooth devices and few other NAudio issues with dead locks and threading
+
+		[Important/Breaking Changes]
+
+		* Audio output format changed from 32-bit to 16-bit (faster processing/less memory as currenlty 32-bit not required)
+		* AudioMaster handles only the audio devices now (everything else has been removed, e.g. master/session's volume/mute etc.)
+		* Config.Audio.Latency has been removed
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -44,11 +54,11 @@
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
-    <PackageReference Include="NAudio.Core" Version="2.0.0" />
-    <PackageReference Include="NAudio.Wasapi" Version="2.0.0" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.0-beta8" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.1.0-beta8" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.3.22" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.0-beta10" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.1.0-beta10" />
+    <PackageReference Include="Vortice.Mathematics" Version="1.3.24" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.0-beta10" />
+    <PackageReference Include="Vortice.XAudio2" Version="2.1.0-beta10" />
   </ItemGroup>
   
   <ItemGroup>
