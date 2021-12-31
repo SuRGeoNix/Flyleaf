@@ -38,7 +38,7 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
             sliderVolume.Maximum        = Config.Player.VolumeMax;
             Player.Audio.Volume         = 75;
             Config.Player.VolumeOffset  = 5;
-            btnMute.Click       += (o, e) => { Player.Audio.ToggleMute(); };
+            btnMute.Click += (o, e) => { Player.Audio.ToggleMute(); };
 
             // Prepare Seek Offsets and Commands
             Config.Player.SeekOffset    = TimeSpan.FromSeconds( 5).Ticks;
@@ -77,9 +77,34 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
                 e.Handled = true;
             };
 
+            // Open / OpenCompleted / BufferingStarted / BufferingCompleted / Stop / IsLive (+Messages)
+            Player.OpenCompleted += (o, e) =>
+            {
+                Utils.UI(() =>
+                {
+                    lblMsgs.Text    = !e.Success ? e.Error.Replace("\r\n", "") : (Player.IsLive ? "Live" : "");
+                    btnStop.Enabled = e.Success;
+                });
+            };
+
+            lstPlaylist.MouseDoubleClick += (o, e) =>
+            {
+                if (lstPlaylist.SelectedItem != null)
+                {
+                    lblMsgs.Text = "Opening ...";
+                    Player.OpenAsync(((PlaylistItem)lstPlaylist.SelectedItem).Url);
+                }
+            };
+
+            Player.BufferingStarted     += (o, e) => { Utils.UI(() => lblMsgs.Text = "Buffering ..."); };
+            Player.BufferingCompleted   += (o, e) => { Utils.UI(() => lblMsgs.Text = !e.Success ? "Failed" : (Player.IsLive ? "Live" : "")); };
+
+            btnStop.Click   += (o, e) => { btnStop.Enabled = false; };
+            btnStop.Enabled = false;
+            lblMsgs.Text    = "";
+
             // Prepare Playlist and Open on double click
-            lstPlaylist.MouseDoubleClick += (o, e) => { if (lstPlaylist.SelectedItem != null) Player.OpenAsync(((PlaylistItem)lstPlaylist.SelectedItem).Url); };
-            lstPlaylist.Items.Add(new PlaylistItem(Utils.FileExistsBelow("Sample.mp4"), "(Local File Test)"));
+            lstPlaylist.Items.Add(new PlaylistItem(Utils.FindFileBelow("Sample.mp4"), "(Local File Test)"));
             lstPlaylist.Items.Add(new PlaylistItem("https://www.youtube.com/watch?v=cnVPm1dGQJc", "(Youtube) Deep House Mix 2020 Vol.1 | Mixed By TSG"));
             lstPlaylist.Items.Add(new PlaylistItem("http://62.212.82.197:8000/;", "(Live Radio) Rainbow 89.0 - Greece"));
             lstPlaylist.Items.Add(new PlaylistItem("http://kvhs.smrn.com:5561/live", "(Live Radio) KVHS 90.5 - California"));

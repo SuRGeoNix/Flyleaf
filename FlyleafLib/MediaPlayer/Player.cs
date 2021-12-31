@@ -734,7 +734,7 @@ namespace FlyleafLib.MediaPlayer
             Video.Reset();
             Audio.Reset();
             Subtitles.Reset();
-            UI();
+            UIAll();
         }
         private void Initialize()
         {
@@ -774,18 +774,11 @@ namespace FlyleafLib.MediaPlayer
         {
             UIActions.Enqueue(action);
         }
-        internal void UI()
+        internal void UIAll()
         {
             while (UIActions.Count > 0)
                 if (UIActions.TryDequeue(out Action action))
                     UI(action);
-        }
-        internal void UI(Action action)
-        {
-            if (System.Windows.Application.Current.Dispatcher.Thread == Thread.CurrentThread)
-                action();
-            else
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(action);
         }
 
         private void TimeBeginPeriod(uint i)

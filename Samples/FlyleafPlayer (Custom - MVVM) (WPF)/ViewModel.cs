@@ -69,7 +69,7 @@ namespace FlyleafPlayer__Custom___MVVM_
         #endregion
 
         #region Initialize
-        public static string    SampleVideo     { get; set; } = Utils.FileExistsBelow("Sample.mp4");
+        public static string    SampleVideo     { get; set; } = Utils.FindFileBelow("Sample.mp4");
 
         /// <summary>
         /// ViewMode's Constructor

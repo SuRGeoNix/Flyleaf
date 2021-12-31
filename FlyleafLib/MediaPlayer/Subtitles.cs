@@ -94,7 +94,7 @@ namespace FlyleafLib.MediaPlayer
                 player.Open(suggestedInput);
 
             Refresh();
-            player.UI();
+            player.UIAll();
         }
         internal void Disable()
         {
@@ -105,7 +105,7 @@ namespace FlyleafLib.MediaPlayer
 
             player.sFrame = null;
             Reset();
-            player.UI();
+            player.UIAll();
         }
 
         public void DelayRemove()

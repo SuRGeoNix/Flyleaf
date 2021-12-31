@@ -41,6 +41,12 @@ namespace FlyleafLib.MediaPlayer
 
             try
             {
+                if (url_iostream == null)
+                {
+                    decoder.OpenVideo((string)null);
+                    return new OpenInputCompletedArgs(MediaType.Video, null, null, "Null input", true);
+                }
+
                 Log($"Opening {url_iostream.ToString()}");
 
                 if ((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString())))
@@ -438,7 +444,7 @@ namespace FlyleafLib.MediaPlayer
             canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
 
             UIAdd(() => CanPlay = CanPlay);
-            UI();
+            UIAll();
             OnOpenStreamCompleted(MediaType.Audio, e.Stream, e.OldStream, e.Error);
         }
         private void Decoder_VideoStreamOpened(object sender, VideoStreamOpenedArgs e)
@@ -447,7 +453,7 @@ namespace FlyleafLib.MediaPlayer
             canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
 
             UIAdd(() => CanPlay = CanPlay);
-            UI();
+            UIAll();
             OnOpenStreamCompleted(MediaType.Video, e.Stream, e.OldStream, e.Error);
         }
         private void Decoder_SubtitlesStreamOpened(object sender, SubtitlesStreamOpenedArgs e)
@@ -455,7 +461,7 @@ namespace FlyleafLib.MediaPlayer
             Config.Subtitles.SetDelay(0);
             Subtitles.Refresh();
 
-            UI();
+            UIAll();
             OnOpenStreamCompleted(MediaType.Subs, e.Stream, e.OldStream, e.Error);
         }
 
@@ -493,7 +499,7 @@ namespace FlyleafLib.MediaPlayer
                 }
             }
 
-            UI();
+            UIAll();
 
             if (CanPlay && Config.Player.AutoPlay)
                 Play();
@@ -547,7 +553,7 @@ namespace FlyleafLib.MediaPlayer
                 ResetMe();
             }
 
-            UI();
+            UIAll();
 
             if (CanPlay && Config.Player.AutoPlay)
                 Play();

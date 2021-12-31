@@ -296,6 +296,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             try
             {
+                if (input == null)
+                    return result = new VideoInputOpenedArgs(null, null, $"Null input", true);
+
                 Log($"Opening {input.ToString()}");
 
                 OpenResults res;

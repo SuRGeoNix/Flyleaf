@@ -13,7 +13,7 @@ namespace FlyleafPlayer__Custom_
         public Player Player2 { get; set; }
         public Config Config { get; set; }
 
-        public static string SampleVideo { get; set; } = Utils.FileExistsBelow("Sample.mp4");
+        public static string SampleVideo { get; set; } = Utils.FindFileBelow("Sample.mp4");
         public Form1()
         {
             // Registers FFmpeg Libraries
