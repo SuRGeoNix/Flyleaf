@@ -38,7 +38,6 @@
 
 * ***[FFmpeg](http://ffmpeg.org/)***
 * ***[FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen/)***
-* ***[NAudio](https://github.com/naudio/NAudio)***
 * ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
 * Major open source media players ***[VLC](https://github.com/videolan/vlc)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***
 * For plugins thanks to ***[YT-DLP](https://github.com/yt-dlp/yt-dlp)*** and ***[OpenSubtitles.org](https://www.opensubtitles.org/)***

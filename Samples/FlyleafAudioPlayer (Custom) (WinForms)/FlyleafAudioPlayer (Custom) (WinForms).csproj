@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <RootNamespace>FlyleafAudioPlayer__Custom___WinForms_</RootNamespace>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy &quot;$(SolutionDir)Plugins.NET6\YoutubeDL\&quot; &quot;$(TargetDir)Plugins\YoutubeDL\&quot; /E /Y&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins.NET6\SharedLibs\Newtonsoft.Json.dll&quot; &quot;$(TargetDir)Plugins\SharedLibs\&quot; /E /Y" />
+  </Target>
+
+</Project>

@@ -33,7 +33,7 @@
   </Target>
 
   <Target Name="PostPublish" AfterTargets="Publish">
-    <Exec Command="del /S /F /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;del /S /F /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;del &quot;$(PublishDir)*.pdb&quot;&#xD;&#xA;del &quot;$(PublishDir)*.xml&quot;&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(PublishDir)Plugins&quot; mkdir &quot;$(PublishDir)Plugins&quot;&#xD;&#xA;if not exist &quot;$(PublishDir)Libs&quot; mkdir &quot;$(PublishDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;xcopy &quot;$(TargetDir)Libs\*&quot; &quot;$(PublishDir)Libs&quot; /E /Y&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins.NET5\*&quot; &quot;$(PublishDir)Plugins&quot; /E /Y" />
+    <Exec Command="del /S /F /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;del /S /F /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Libs\&quot;&#xD;&#xA;del &quot;$(PublishDir)*.pdb&quot;&#xD;&#xA;del &quot;$(PublishDir)*.xml&quot;&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(PublishDir)Plugins&quot; mkdir &quot;$(PublishDir)Plugins&quot;&#xD;&#xA;if not exist &quot;$(PublishDir)Libs&quot; mkdir &quot;$(PublishDir)Libs&quot;&#xD;&#xA;&#xD;&#xA;xcopy &quot;$(TargetDir)Libs\*&quot; &quot;$(PublishDir)Libs&quot; /E /Y&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins.NET6\*&quot; &quot;$(PublishDir)Plugins&quot; /E /Y" />
   </Target>
 
 </Project>

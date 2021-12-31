@@ -62,6 +62,9 @@ namespace FlyleafLib
 
         static Master()
         {
+            if (System.Windows.Application.Current == null)
+                new System.Windows.Application();
+
             Players     = new List<Player>();
 
             AudioMaster = new AudioMaster();
@@ -120,9 +123,6 @@ namespace FlyleafLib
         {
             lock (Players)
                 Players.Add(player);
-
-            if (System.Windows.Application.Current == null)
-                new System.Windows.Application();
         }
         internal static int GetPlayerPos(int playerId)
         {

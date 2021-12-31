@@ -74,7 +74,7 @@ namespace FlyleafLib.MediaPlayer
                     if (sourceVoice == null)
                         return _Volume;
 
-                    return (int) (sourceVoice.Volume * 100);
+                    return (int) ((decimal)sourceVoice.Volume * 100);
                 }
             }
             set
@@ -90,7 +90,7 @@ namespace FlyleafLib.MediaPlayer
 
                 _Volume = value;
 
-                Raise(nameof(Volume));
+                player.UI(() => Raise(nameof(Volume)));
 
                 if (value == 0)
                 {
@@ -100,7 +100,7 @@ namespace FlyleafLib.MediaPlayer
                 else if (mute)
                 {
                     mute = false;
-                    Raise(nameof(Mute));
+                    player.UI(() => Raise(nameof(Volume)));
                 }
             }
         }
@@ -123,7 +123,7 @@ namespace FlyleafLib.MediaPlayer
                 else
                 {
                     sourceVoice.Volume = prevVolume;
-                    Raise(nameof(Volume));
+                    player.UI(() => Raise(nameof(Volume)));
                 }
 
                 Set(ref mute, value);
@@ -192,7 +192,7 @@ namespace FlyleafLib.MediaPlayer
         readonly object         locker = new object();
 
         IXAudio2                xaudio2;
-        IXAudio2MasteringVoice  masteringVoice;
+        internal IXAudio2MasteringVoice  masteringVoice;
         IXAudio2SourceVoice     sourceVoice;
         WaveFormat              waveFormat = new WaveFormat(48000, 16, 2);
         #endregion
@@ -241,6 +241,8 @@ namespace FlyleafLib.MediaPlayer
                 sourceVoice     = xaudio2.CreateSourceVoice(waveFormat, true);
                 sourceVoice.SetSourceSampleRate(SampleRate);
                 sourceVoice.Start();
+
+                masteringVoice.Volume = Config.Player.VolumeMax / 100.0f;
                 Volume = _Volume;
             }
         }
