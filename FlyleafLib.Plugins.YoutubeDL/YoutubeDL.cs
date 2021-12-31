@@ -142,7 +142,20 @@ namespace FlyleafLib.Plugins
             try
             {
                 Uri uri = new Uri(url);
-                if ((uri.Scheme.ToLower() != "http" && uri.Scheme.ToLower() != "https") || Utils.GetUrlExtention(uri.AbsolutePath).ToLower() == "m3u8") return false;
+                string scheme = uri.Scheme.ToLower();
+                
+                if (scheme != "http" && scheme != "https")
+                    return false;
+
+                string ext = Utils.GetUrlExtention(uri.AbsolutePath).ToLower();
+
+                if (ext == "m3u8" || ext == "mp3" || ext == "m3u" || ext == "pls")
+                    return false;
+
+                // TBR: try to avoid processing radio stations
+                if (string.IsNullOrEmpty(uri.PathAndQuery) || uri.PathAndQuery.Length < 5)
+                    return false;
+
             } catch (Exception) { return false; }
 
             return true;

@@ -196,7 +196,7 @@ namespace FlyleafLib
             /// <summary>
             /// The upper limit of the volume amplifier
             /// </summary>
-            public int      VolumeMax                   { get => _VolumeMax; set => Set(ref _VolumeMax, value); }
+            public int      VolumeMax                   { get => _VolumeMax; set { Set(ref _VolumeMax, value); if (player != null && player.Audio.masteringVoice != null) player.Audio.masteringVoice.Volume = value / 100f;  } }
             int _VolumeMax = 150;
 
             /// <summary>

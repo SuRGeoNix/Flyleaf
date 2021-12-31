@@ -293,7 +293,10 @@ namespace FlyleafLib.MediaPlayer
                 decoder.Stop();
                 lock (lockSeek)
                     lock (lockOpen)
+                    {
                         Initialize();
+                        decoder.Interrupt = true;
+                    }
             }
         }
     }

@@ -38,53 +38,57 @@ namespace FlyleafLib
         {
             System.Threading.Tasks.Task.Run(() =>
             {
-                if (string.IsNullOrEmpty(ruleName))
-                    ruleName = "Flyleaf";
-
-                if (string.IsNullOrEmpty(path))
-                    path = Process.GetCurrentProcess().MainModule.FileName;
-
-                path = $"\"{path}\"";
-
-                // Check if rule already exists
-                Process proc = new Process
+                try
                 {
-                    StartInfo = new ProcessStartInfo
+                    if (string.IsNullOrEmpty(ruleName))
+                        ruleName = "Flyleaf";
+
+                    if (string.IsNullOrEmpty(path))
+                        path = Process.GetCurrentProcess().MainModule.FileName;
+
+                    path = $"\"{path}\"";
+
+                    // Check if rule already exists
+                    Process proc = new Process
                     {
-                        FileName        = "cmd",
-                        Arguments       = $"/C netsh advfirewall firewall show rule name={ruleName} verbose | findstr {path}",
-                        CreateNoWindow  = true,
-                        UseShellExecute = false,
-                        RedirectStandardOutput 
-                                        = true,
-                        WindowStyle     = ProcessWindowStyle.Hidden
-                    }
-                };
+                        StartInfo = new ProcessStartInfo
+                        {
+                            FileName        = "cmd",
+                            Arguments       = $"/C netsh advfirewall firewall show rule name={ruleName} verbose | findstr /L {path}",
+                            CreateNoWindow  = true,
+                            UseShellExecute = false,
+                            RedirectStandardOutput 
+                                            = true,
+                            WindowStyle     = ProcessWindowStyle.Hidden
+                        }
+                    };
 
-                proc.Start();
-                proc.WaitForExit();
+                    proc.Start();
+                    proc.WaitForExit();
 
-                if (proc.StandardOutput.Read() > 0)
-                    return;
+                    if (proc.StandardOutput.Read() > 0)
+                        return;
 
-                // Add rule with admin rights
-                proc = new Process
-                {
-                    StartInfo = new ProcessStartInfo
+                    // Add rule with admin rights
+                    proc = new Process
                     {
-                        FileName        = "cmd",
-                        Arguments       = $"/C netsh advfirewall firewall add rule name={ruleName} dir=in  action=allow enable=yes program={path} profile=any &" +
-                                             $"netsh advfirewall firewall add rule name={ruleName} dir=out action=allow enable=yes program={path} profile=any",
-                        Verb            = "runas",
-                        CreateNoWindow  = true,
-                        UseShellExecute = true,
-                        WindowStyle     = ProcessWindowStyle.Hidden
-                    }
-                };
+                        StartInfo = new ProcessStartInfo
+                        {
+                            FileName        = "cmd",
+                            Arguments       = $"/C netsh advfirewall firewall add rule name={ruleName} dir=in  action=allow enable=yes program={path} profile=any &" +
+                                                 $"netsh advfirewall firewall add rule name={ruleName} dir=out action=allow enable=yes program={path} profile=any",
+                            Verb            = "runas",
+                            CreateNoWindow  = true,
+                            UseShellExecute = true,
+                            WindowStyle     = ProcessWindowStyle.Hidden
+                        }
+                    };
 
-                proc.Start();
+                    proc.Start();
+                    proc.WaitForExit();
 
-                Log($"Firewall rule \"{ruleName}\" added for {path}");
+                    Log($"Firewall rule \"{ruleName}\" added for {path}");
+                } catch { }
             });
         }
 
