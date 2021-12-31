@@ -1030,6 +1030,12 @@
             Actual Frames rendered per second (FPS)
             </summary>
         </member>
+        <member name="M:FlyleafLib.Utils.UI(System.Action)">
+            <summary>
+            Invokes the UI thread if required to execute the specified action
+            </summary>
+            <param name="action"></param>
+        </member>
         <member name="M:FlyleafLib.Utils.AddFirewallRule(System.String,System.String)">
             <summary>
             Adds a windows firewall rule if not already exists for the specified program path
@@ -1040,6 +1046,36 @@
         <member name="T:FFmpeg.AutoGen.ffmpegEx">
             <summary>
             Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
+            </summary>
+        </member>
+        <member name="T:XamlGeneratedNamespace.GeneratedInternalTypeHelper">
+            <summary>
+            GeneratedInternalTypeHelper
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateInstance(System.Type,System.Globalization.CultureInfo)">
+            <summary>
+            CreateInstance
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.GetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            GetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.SetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            SetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateDelegate(System.Type,System.Object,System.String)">
+            <summary>
+            CreateDelegate
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.AddEventHandler(System.Reflection.EventInfo,System.Object,System.Delegate)">
+            <summary>
+            AddEventHandler
             </summary>
         </member>
     </members>

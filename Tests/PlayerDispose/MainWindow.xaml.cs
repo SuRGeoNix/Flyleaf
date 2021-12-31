@@ -19,7 +19,7 @@ namespace DisposePlayer
         public Player           Player          { get; set; }
         public Config           Config          { get; set; }
 
-        public static string    SampleVideo     { get; set; } = Utils.FileExistsBelow("Sample.mp4");
+        public static string    SampleVideo     { get; set; } = Utils.FindFileBelow("Sample.mp4");
 
         public MainWindow()
         {

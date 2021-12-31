@@ -30,6 +30,18 @@ namespace FlyleafLib
         public static int GetUniqueId() { Interlocked.Increment(ref uniqueId); return uniqueId; }
 
         /// <summary>
+        /// Invokes the UI thread if required to execute the specified action
+        /// </summary>
+        /// <param name="action"></param>
+        public static void UI(Action action)
+        {
+            if (System.Windows.Application.Current.Dispatcher.Thread == Thread.CurrentThread)
+                action();
+            else
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(action);
+        }
+
+        /// <summary>
         /// Adds a windows firewall rule if not already exists for the specified program path
         /// </summary>
         /// <param name="ruleName">Default value is Flyleaf</param>
@@ -191,7 +203,7 @@ namespace FlyleafLib
         }
         public static string GetValidFileName(string name)  { return string.Join("_", name.Split(Path.GetInvalidFileNameChars())); }
 
-        public static string FileExistsBelow(string filename)
+        public static string FindFileBelow(string filename)
         {
             string current = Directory.GetCurrentDirectory();
 

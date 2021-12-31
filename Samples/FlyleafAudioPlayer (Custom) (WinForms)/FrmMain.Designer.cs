@@ -42,6 +42,7 @@
             this.chkRepeat = new System.Windows.Forms.CheckBox();
             this.btnStop = new System.Windows.Forms.Button();
             this.btnMute = new System.Windows.Forms.Button();
+            this.lblMsgs = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.sliderCurTime)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.sliderVolume)).BeginInit();
             this.SuspendLayout();
@@ -58,7 +59,7 @@
             // sliderCurTime
             // 
             this.sliderCurTime.AutoSize = false;
-            this.sliderCurTime.Location = new System.Drawing.Point(60, 117);
+            this.sliderCurTime.Location = new System.Drawing.Point(60, 124);
             this.sliderCurTime.Maximum = 0;
             this.sliderCurTime.Name = "sliderCurTime";
             this.sliderCurTime.Size = new System.Drawing.Size(426, 26);
@@ -71,7 +72,7 @@
             // lblCurTime
             // 
             this.lblCurTime.AutoSize = true;
-            this.lblCurTime.Location = new System.Drawing.Point(5, 121);
+            this.lblCurTime.Location = new System.Drawing.Point(5, 128);
             this.lblCurTime.Name = "lblCurTime";
             this.lblCurTime.Size = new System.Drawing.Size(49, 15);
             this.lblCurTime.TabIndex = 2;
@@ -80,7 +81,7 @@
             // lblDuration
             // 
             this.lblDuration.AutoSize = true;
-            this.lblDuration.Location = new System.Drawing.Point(492, 121);
+            this.lblDuration.Location = new System.Drawing.Point(492, 128);
             this.lblDuration.Name = "lblDuration";
             this.lblDuration.Size = new System.Drawing.Size(49, 15);
             this.lblDuration.TabIndex = 3;
@@ -88,7 +89,7 @@
             // 
             // btnPlayPause
             // 
-            this.btnPlayPause.Location = new System.Drawing.Point(183, 144);
+            this.btnPlayPause.Location = new System.Drawing.Point(183, 151);
             this.btnPlayPause.Name = "btnPlayPause";
             this.btnPlayPause.Size = new System.Drawing.Size(75, 23);
             this.btnPlayPause.TabIndex = 4;
@@ -97,7 +98,7 @@
             // 
             // btnForward
             // 
-            this.btnForward.Location = new System.Drawing.Point(345, 144);
+            this.btnForward.Location = new System.Drawing.Point(345, 151);
             this.btnForward.Name = "btnForward";
             this.btnForward.Size = new System.Drawing.Size(33, 23);
             this.btnForward.TabIndex = 5;
@@ -106,7 +107,7 @@
             // 
             // btnForward2
             // 
-            this.btnForward2.Location = new System.Drawing.Point(384, 144);
+            this.btnForward2.Location = new System.Drawing.Point(384, 151);
             this.btnForward2.Name = "btnForward2";
             this.btnForward2.Size = new System.Drawing.Size(33, 23);
             this.btnForward2.TabIndex = 6;
@@ -115,7 +116,7 @@
             // 
             // btnBackward
             // 
-            this.btnBackward.Location = new System.Drawing.Point(144, 144);
+            this.btnBackward.Location = new System.Drawing.Point(144, 151);
             this.btnBackward.Name = "btnBackward";
             this.btnBackward.Size = new System.Drawing.Size(33, 23);
             this.btnBackward.TabIndex = 7;
@@ -124,7 +125,7 @@
             // 
             // btnBackward2
             // 
-            this.btnBackward2.Location = new System.Drawing.Point(105, 144);
+            this.btnBackward2.Location = new System.Drawing.Point(105, 151);
             this.btnBackward2.Name = "btnBackward2";
             this.btnBackward2.Size = new System.Drawing.Size(33, 23);
             this.btnBackward2.TabIndex = 8;
@@ -159,7 +160,7 @@
             this.chkRepeat.AutoSize = true;
             this.chkRepeat.Checked = true;
             this.chkRepeat.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkRepeat.Location = new System.Drawing.Point(5, 148);
+            this.chkRepeat.Location = new System.Drawing.Point(5, 155);
             this.chkRepeat.Name = "chkRepeat";
             this.chkRepeat.Size = new System.Drawing.Size(62, 19);
             this.chkRepeat.TabIndex = 11;
@@ -168,7 +169,7 @@
             // 
             // btnStop
             // 
-            this.btnStop.Location = new System.Drawing.Point(264, 144);
+            this.btnStop.Location = new System.Drawing.Point(264, 151);
             this.btnStop.Name = "btnStop";
             this.btnStop.Size = new System.Drawing.Size(75, 23);
             this.btnStop.TabIndex = 12;
@@ -177,18 +178,28 @@
             // 
             // btnMute
             // 
-            this.btnMute.Location = new System.Drawing.Point(483, 144);
+            this.btnMute.Location = new System.Drawing.Point(483, 151);
             this.btnMute.Name = "btnMute";
             this.btnMute.Size = new System.Drawing.Size(58, 23);
             this.btnMute.TabIndex = 13;
             this.btnMute.Text = "Mute";
             this.btnMute.UseVisualStyleBackColor = true;
             // 
+            // lblOpenMsg
+            // 
+            this.lblMsgs.AutoSize = true;
+            this.lblMsgs.Location = new System.Drawing.Point(5, 107);
+            this.lblMsgs.Name = "lblOpenMsg";
+            this.lblMsgs.Size = new System.Drawing.Size(65, 15);
+            this.lblMsgs.TabIndex = 14;
+            this.lblMsgs.Text = "Opening ...";
+            // 
             // FrmMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(544, 174);
+            this.ClientSize = new System.Drawing.Size(544, 182);
+            this.Controls.Add(this.lblMsgs);
             this.Controls.Add(this.btnMute);
             this.Controls.Add(this.btnStop);
             this.Controls.Add(this.chkRepeat);
@@ -230,5 +241,6 @@
         private CheckBox chkRepeat;
         private Button btnStop;
         private Button btnMute;
+        private Label lblMsgs;
     }
 }

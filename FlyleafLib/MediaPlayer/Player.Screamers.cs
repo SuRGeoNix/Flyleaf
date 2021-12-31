@@ -63,7 +63,7 @@ namespace FlyleafLib.MediaPlayer
                     if (VideoDemuxer.HLSPlaylist == null)
                         curTime = vFrame.timestamp;
                     UIAdd(() => UpdateCurTime());
-                    UI();
+                    UIAll();
                 }
 
                 // Required for buffering on paused
@@ -73,7 +73,7 @@ namespace FlyleafLib.MediaPlayer
                 vFrame = null;
             }
 
-            UI();
+            UIAll();
         }
 
         private bool MediaBuffer()

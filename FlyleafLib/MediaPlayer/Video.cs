@@ -141,7 +141,7 @@ namespace FlyleafLib.MediaPlayer
             player.Pause();
             decoder.OpenSuggestedVideo();
             Refresh();
-            player.UI();
+            player.UIAll();
             decoder.Seek(curTime, false, false);
             if (wasPlaying) player.Play();
         }
@@ -156,7 +156,7 @@ namespace FlyleafLib.MediaPlayer
             player.Subtitles.subsText = "";
             player.UIAdd(() => player.Subtitles.SubsText = player.Subtitles.SubsText);
             Refresh();
-            player.UI();
+            player.UIAll();
             if (wasPlaying) player.Play();
         }
 

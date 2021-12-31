@@ -90,7 +90,7 @@ namespace FlyleafLib.MediaPlayer
 
                 _Volume = value;
 
-                player.UI(() => Raise(nameof(Volume)));
+                Utils.UI(() => Raise(nameof(Volume)));
 
                 if (value == 0)
                 {
@@ -100,7 +100,7 @@ namespace FlyleafLib.MediaPlayer
                 else if (mute)
                 {
                     mute = false;
-                    player.UI(() => Raise(nameof(Volume)));
+                    Utils.UI(() => Raise(nameof(Volume)));
                 }
             }
         }
@@ -123,7 +123,7 @@ namespace FlyleafLib.MediaPlayer
                 else
                 {
                     sourceVoice.Volume = prevVolume;
-                    player.UI(() => Raise(nameof(Volume)));
+                    Utils.UI(() => Raise(nameof(Volume)));
                 }
 
                 Set(ref mute, value);
@@ -148,7 +148,7 @@ namespace FlyleafLib.MediaPlayer
 
                 Initialize();
 
-                player.UI(() => Raise(nameof(Device)));
+                Utils.UI(() => Raise(nameof(Device)));
             }
         }
         string _Device = Master.AudioMaster.DefaultDeviceName;
@@ -163,7 +163,7 @@ namespace FlyleafLib.MediaPlayer
 
                 Initialize();
 
-                player.UI(() => Raise(nameof(DeviceId)));
+                Utils.UI(() => Raise(nameof(DeviceId)));
             }
         }
         string _DeviceId = Master.AudioMaster.DefaultDeviceId;
@@ -320,7 +320,7 @@ namespace FlyleafLib.MediaPlayer
                 player.Open(suggestedInput);
 
             Refresh();
-            player.UI();
+            player.UIAll();
         }
         internal void Disable()
         {
@@ -332,7 +332,7 @@ namespace FlyleafLib.MediaPlayer
             player.aFrame = null;
 
             Reset();
-            player.UI();
+            player.UIAll();
         }
 
         public void DelayAdd()
