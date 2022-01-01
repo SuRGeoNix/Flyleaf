@@ -157,7 +157,7 @@ namespace FlyleafLib.MediaPlayer
                     {
                         for (int i=0; i<Math.Min(20, AudioDecoder.Frames.Count); i++)
                         {
-                            if (aFrame == null || vFrame.timestamp + 20000 > aFrame.timestamp) { gotAudio = true; break; }
+                            if (aFrame == null || aFrame.timestamp + 20000 > vFrame.timestamp) { gotAudio = true; break; }
 
                             Log("Drop AFrame  " + TicksToTime(aFrame.timestamp));
                             AudioDecoder.Frames.TryDequeue(out aFrame);
