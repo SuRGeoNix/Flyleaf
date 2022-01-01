@@ -337,6 +337,9 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 
+# XML Documentation
+FlyleafLib/FlyleafLib.xml
+
 # Plugins
 /Plugins.NET4/
 /Plugins.NET5/
