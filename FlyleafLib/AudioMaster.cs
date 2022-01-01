@@ -1,21 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
+using SharpGen.Runtime;
+using SharpGen.Runtime.Win32;
 
 using Vortice.MediaFoundation;
 
 namespace FlyleafLib
 {
-    public class AudioMaster //: CallbackBase, IMMNotificationClient//, INotifyPropertyChanged
+    public class AudioMaster : CallbackBase, IMMNotificationClient//, INotifyPropertyChanged
     {
         /* TODO
          * 
-         * 1) IMMNotificationClient probably not required
-         *      XAudio2 handles just fine the default audio device change and device removal if we use the specific device goes back to default
-         * 
-         * 2) Master/Session Volume/Mute probably not required
+         * 1) Master/Session Volume/Mute probably not required
          *      Possible only to ensure that we have session's volume unmuted and to 1? (probably the defaults?)
-         *      
-         * 3) Property changed notifications / or IMMNotificationClient forward events (Devices changed)?
          */
 
         #region Properties (Public)
@@ -34,26 +32,13 @@ namespace FlyleafLib
         /// </summary>
         public bool         Failed              { get; private set; }
 
-        //public string       CurrentDeviceName   { get; private set; } = "Default";
-        //public string       CurrentDeviceId     { get; private set; } = "0";
+        public string       CurrentDeviceName   { get; private set; } = "Default";
+        public string       CurrentDeviceId     { get; private set; } = "0";
 
         /// <summary>
-        /// List with of the available audio devices
+        /// List with of the active audio devices
         /// </summary>
-        public List<string> Devices
-        {
-            get
-            {
-                List<string> devices = new List<string>();
-
-                devices.Add(DefaultDeviceName);
-
-                foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
-                    devices.Add(device.FriendlyName);
-
-                return devices;
-            }
-        }
+        public ObservableCollection<string> Devices { get; private set; } = new ObservableCollection<string>();
 
         public string GetDeviceId(string deviceName)
         {
@@ -88,83 +73,77 @@ namespace FlyleafLib
         #endregion
 
         IMMDeviceEnumerator  deviceEnum;
-        //private object locker = new object();
+        private object locker = new object();
         public AudioMaster()
         {
             try
             {
                 deviceEnum = new IMMDeviceEnumerator();
-                //deviceEnum.RegisterEndpointNotificationCallback(this);
             
-                var defaultDevice =  deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                var defaultDevice = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
                 if (defaultDevice == null)
                 {
                     Failed = true;
                     return;
                 }
 
-                //CurrentDeviceId = defaultDevice.Id;
+                Devices.Clear();
+                Devices.Add(DefaultDeviceName);
+                foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+                    Devices.Add(device.FriendlyName);
+
+                CurrentDeviceId     = defaultDevice.Id;
+                CurrentDeviceName   = defaultDevice.FriendlyName;
 
                 #if DEBUG
                 string dump = "Audio devices ...\r\n";
                 foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
                     dump += $"{device.Id} | {device.FriendlyName} {(defaultDevice.Id == device.Id ? "*" : "")}\r\n";
-
                 Log(dump);
                 #endif
+
+                deviceEnum.RegisterEndpointNotificationCallback(this);
+
             } catch { Failed = true; }
         }
 
-        //public void OnDeviceStateChanged(string pwstrDeviceId, int newState) { }
-        //public void OnDeviceAdded(string pwstrDeviceId)
-        //{
-        //    Log($"OnDeviceAdded | {GetDeviceName(pwstrDeviceId)}");
-        //}
-        //public void OnDeviceRemoved(string pwstrDeviceId)
-        //{
-        //    Log($"OnDeviceRemoved | {GetDeviceName(pwstrDeviceId)}");
+        private void RefreshDevices()
+        {
+            // Refresh Devices and initialize audio players if requried
 
-        //    // XAudio2 will handle this automatically
-        //    //Task.Run(() =>
-        //    //{
-        //    //    lock (locker)
-        //    //        foreach(var player in Master.Players)
-        //    //        {
-        //    //            if (player.Audio.DeviceId != pwstrDeviceId)
-        //    //                continue;
+            lock (locker)
+            {
 
-        //    //            player.Audio.DeviceId = DefaultDeviceId;
-        //    //        }
+                Utils.UI(() =>
+                {
+                    Devices.Clear();
+                    Devices.Add(DefaultDeviceName);
+                    foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+                        Devices.Add(device.FriendlyName);
 
-        //    //    System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => Raise(null)));
-        //    //});
-        //}
-        //public void OnDefaultDeviceChanged(DataFlow flow, Role role, string pwstrDefaultDeviceId)
-        //{
-        //    if (CurrentDeviceId == pwstrDefaultDeviceId)
-        //        return;
+                    foreach(var player in Master.Players)
+                    {
+                        if (!Devices.Contains(player.Audio.Device))
+                            player.Audio.Device = DefaultDeviceName;
+                        else
+                            player.Audio.RaiseDevice();
+                    }
+                });
 
-        //    Log($"OnDefaultDeviceChanged | {GetDeviceName(CurrentDeviceId)} => {GetDeviceName(pwstrDefaultDeviceId)}");
-            
-        //    CurrentDeviceId = pwstrDefaultDeviceId;
-        //    CurrentDeviceName = GetDeviceName(CurrentDeviceId);
+                var defaultDevice =  deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                if (defaultDevice != null)
+                {
+                    CurrentDeviceId     = defaultDevice.Id;
+                    CurrentDeviceName   = defaultDevice.FriendlyName;
+                }
+            }
+        }
 
-        //    return;
-
-        //    // XAudio2 will handle this automatically
-        //    //Task.Run(() =>
-        //    //{
-        //    //    lock (locker)
-        //    //        foreach(var player in Master.Players)
-        //    //        {
-        //    //            if (player.Audio.DeviceId != DefaultDeviceId)
-        //    //                continue;
-
-        //    //            player.Audio.Initialize();
-        //    //        }
-        //    //});
-        //}
-        //public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
+        public void OnDeviceStateChanged(string pwstrDeviceId, int newState) { RefreshDevices(); }
+        public void OnDeviceAdded(string pwstrDeviceId) { RefreshDevices(); }
+        public void OnDeviceRemoved(string pwstrDeviceId) { RefreshDevices(); }
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string pwstrDefaultDeviceId) { RefreshDevices(); }
+        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
 
         private void Log(string msg) { Utils.Log($"[AudioMaster] {msg}"); }
     }
