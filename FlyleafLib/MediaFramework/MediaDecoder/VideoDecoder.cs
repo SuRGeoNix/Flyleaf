@@ -187,13 +187,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         AVBufferRef* hwframes;
         private unsafe AVPixelFormat get_format(AVCodecContext* avctx, AVPixelFormat* pix_fmts)
         {
-            Log("get_format");
-
-            //if (codecCtx->hw_frames_ctx == null)
-            //    return AVPixelFormat.AV_PIX_FMT_NONE;
-
-            if (AllocateHWFrames() != 0)
-                Log("Hmmm...");
+            AllocateHWFrames();
 
             return AVPixelFormat.AV_PIX_FMT_D3D11;
         }
@@ -205,10 +199,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             var t2 = (AVHWFramesContext*) hwframes->data;
 
-            if (codecCtx->width != t2->width)
+            if (codecCtx->coded_width != t2->width)
                 return true;
 
-            if (codecCtx->height != t2->height)
+            if (codecCtx->coded_height != t2->height)
                 return true;
 
             var fmt = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : AVPixelFormat.AV_PIX_FMT_NV12;
@@ -222,18 +216,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (!ShouldAllocateNew())
             {
                 if (hwframes != null && codecCtx->hw_frames_ctx == null)
-                {
                     codecCtx->hw_frames_ctx = av_buffer_ref(hwframes);
-                    Log("Already allocated 1");
-                }
-                else    
-                    Log("Already allocated 2");
 
                 textDesc.Format = textureFFmpeg.Description.Format;
+
                 return 0;
             }
-
-            Log("Allocating ...");
 
             if (hwframes != null)
                 fixed(AVBufferRef** ptr = &hwframes) av_buffer_unref(ptr);
@@ -248,8 +236,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             var t2 = (AVHWFramesContext*)(codecCtx->hw_frames_ctx->data);
             t2->format      = AVPixelFormat.AV_PIX_FMT_D3D11;
             t2->sw_format   = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : AVPixelFormat.AV_PIX_FMT_NV12;
-            t2->width       = codecCtx->width;
-            t2->height      = codecCtx->height;
+            t2->width       = codecCtx->coded_width;
+            t2->height      = codecCtx->coded_height;
             t2->initial_pool_size = 20;
 
             AVD3D11VAFramesContext *t3 = (AVD3D11VAFramesContext *)t2->hwctx;
@@ -261,8 +249,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             int ret = av_hwframe_ctx_init(codecCtx->hw_frames_ctx);
             if (ret == 0)
             {
-                textureFFmpeg = new ID3D11Texture2D((IntPtr) t3->texture);
-                textDesc.Format     = textureFFmpeg.Description.Format;
+                textureFFmpeg   = new ID3D11Texture2D((IntPtr) t3->texture);
+                textDesc.Format = textureFFmpeg.Description.Format;
             }
 
             return ret;
