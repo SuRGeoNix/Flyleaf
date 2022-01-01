@@ -35,6 +35,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         // Hardware & Software_Handled (Y_UV | Y_U_V)
         Texture2DDescription    textDesc, textDescUV;
+        ID3D11Texture2D         textureFFmpeg;
+        AVCodecContext_get_format getHWformat;
 
         // Software_Sws (RGBA)
         const AVPixelFormat     VOutPixelFormat = AVPixelFormat.AV_PIX_FMT_RGBA;
@@ -107,9 +109,15 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             if (Renderer == null) return;
 
-            fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
-            hw_device_ctx = null;
+            if (hw_device_ctx != null)
+                fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
 
+            if (hwframes != null)
+                fixed(AVBufferRef** ptr = &hwframes) av_buffer_unref(ptr);
+
+            hw_device_ctx = null;
+            hwframes = null;
+            
             Renderer.Dispose();
         }
         public void Swap(VideoDecoder videoDecoder)
@@ -170,8 +178,94 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public VideoDecoder(Config config, Control control = null, int uniqueId = -1, bool initVA = true) : base(config, uniqueId)
         {
+            getHWformat = new AVCodecContext_get_format(get_format);
+
             if (initVA)
                 InitVA(control);
+        }
+
+        AVBufferRef* hwframes;
+        private unsafe AVPixelFormat get_format(AVCodecContext* avctx, AVPixelFormat* pix_fmts)
+        {
+            Log("get_format");
+
+            //if (codecCtx->hw_frames_ctx == null)
+            //    return AVPixelFormat.AV_PIX_FMT_NONE;
+
+            if (AllocateHWFrames() != 0)
+                Log("Hmmm...");
+
+            return AVPixelFormat.AV_PIX_FMT_D3D11;
+        }
+
+        private bool ShouldAllocateNew()
+        {
+            if (hwframes == null)
+                return true;
+
+            var t2 = (AVHWFramesContext*) hwframes->data;
+
+            if (codecCtx->width != t2->width)
+                return true;
+
+            if (codecCtx->height != t2->height)
+                return true;
+
+            var fmt = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : AVPixelFormat.AV_PIX_FMT_NV12;
+            if (fmt != t2->sw_format)
+                return true;
+
+            return false;
+        }
+        private int AllocateHWFrames()
+        {
+            if (!ShouldAllocateNew())
+            {
+                if (hwframes != null && codecCtx->hw_frames_ctx == null)
+                {
+                    codecCtx->hw_frames_ctx = av_buffer_ref(hwframes);
+                    Log("Already allocated 1");
+                }
+                else    
+                    Log("Already allocated 2");
+
+                textDesc.Format = textureFFmpeg.Description.Format;
+                return 0;
+            }
+
+            Log("Allocating ...");
+
+            if (hwframes != null)
+                fixed(AVBufferRef** ptr = &hwframes) av_buffer_unref(ptr);
+
+            codecCtx->hw_frames_ctx = av_hwframe_ctx_alloc(codecCtx->hw_device_ctx);
+            if (codecCtx->hw_frames_ctx == null)
+                return -1;
+
+            codecCtx->hwaccel_context = null;
+            codecCtx->hwaccel_flags |= 2; //AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX
+
+            var t2 = (AVHWFramesContext*)(codecCtx->hw_frames_ctx->data);
+            t2->format      = AVPixelFormat.AV_PIX_FMT_D3D11;
+            t2->sw_format   = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : AVPixelFormat.AV_PIX_FMT_NV12;
+            t2->width       = codecCtx->width;
+            t2->height      = codecCtx->height;
+            t2->initial_pool_size = 20;
+
+            AVD3D11VAFramesContext *t3 = (AVD3D11VAFramesContext *)t2->hwctx;
+            t3->texture     = null;
+            t3->BindFlags  |= (uint)BindFlags.Decoder;
+
+            hwframes = av_buffer_ref(codecCtx->hw_frames_ctx);
+
+            int ret = av_hwframe_ctx_init(codecCtx->hw_frames_ctx);
+            if (ret == 0)
+            {
+                textureFFmpeg = new ID3D11Texture2D((IntPtr) t3->texture);
+                textDesc.Format     = textureFFmpeg.Description.Format;
+            }
+
+            return ret;
         }
 
         protected override int Setup(AVCodec* codec)
@@ -199,6 +293,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
             codecCtx->thread_type  = 0;
+
+            if (VideoAccelerated)
+            {
+                codecCtx->pix_fmt = AVPixelFormat.AV_PIX_FMT_D3D11;
+                codecCtx->get_format = getHWformat;
+            }
 
             int bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
 
@@ -647,11 +747,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         VideoAccelerated = false;
                         Renderer?.FrameResized();
                         CodecChanged?.Invoke(this);
+                        codecCtx->get_format = null;
+
                         return ProcessVideoFrame(frame);
                     }
-
-                    ID3D11Texture2D textureFFmpeg = new ID3D11Texture2D((IntPtr) frame->data.ToArray()[0]);
-                    textDesc.Format     = textureFFmpeg.Description.Format;
+                    
+                    //Log($"{(IntPtr) frame->data.ToArray()[0]} | {(int) frame->data.ToArray()[1]} | {(IntPtr) (((AVD3D11VAFramesContext *)((AVHWFramesContext*)(codecCtx->hw_frames_ctx->data))->hwctx)->texture)}");
                     mFrame.textures     = new ID3D11Texture2D[1];
                     mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc);
                     Renderer.Device.ImmediateContext.CopySubresourceRegion(mFrame.textures[0], 0, 0, 0, 0, textureFFmpeg, (int) frame->data.ToArray()[1], new Vortice.Mathematics.Box(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1));

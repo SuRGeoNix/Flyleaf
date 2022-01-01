@@ -947,14 +947,14 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 switch (VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type)
                 {
                     case AVMEDIA_TYPE_AUDIO:
-                        if (timestamp == -1 || (long)(frame->pts * AudioStream.Timebase) - VideoDemuxer.StartTime > timestamp)
+                        if (!VideoDecoder.keyFrameRequired && (timestamp == -1 || (long)(frame->pts * AudioStream.Timebase) - VideoDemuxer.StartTime > timestamp))
                             VideoDemuxer.AudioPackets.Enqueue((IntPtr)packet);
                         packet = av_packet_alloc();
 
                         continue;
 
                     case AVMEDIA_TYPE_SUBTITLE:
-                        if (timestamp == -1 || (long)(frame->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime > timestamp)
+                        if (!VideoDecoder.keyFrameRequired && (timestamp == -1 || (long)(frame->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime > timestamp))
                             VideoDemuxer.SubtitlesPackets.Enqueue((IntPtr)packet);
                         packet = av_packet_alloc();
 
