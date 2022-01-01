@@ -140,8 +140,8 @@ namespace FlyleafLib.MediaPlayer
             get => _Device;
             set
             {
-                if (_Device == value)
-                    return;
+                if (value == null || _Device == value)
+                    return; 
 
                 _Device     = value;
                 _DeviceId   = Master.AudioMaster.GetDeviceId(value);
@@ -151,7 +151,8 @@ namespace FlyleafLib.MediaPlayer
                 Utils.UI(() => Raise(nameof(Device)));
             }
         }
-        string _Device = Master.AudioMaster.DefaultDeviceName;
+        internal string _Device = Master.AudioMaster.DefaultDeviceName;
+        internal void RaiseDevice() { Utils.UI(() => Raise(nameof(Device))); } // Required for Selected Items on the Devices observation list (as we clear it everytime)
 
         public string DeviceId
         {
@@ -166,7 +167,7 @@ namespace FlyleafLib.MediaPlayer
                 Utils.UI(() => Raise(nameof(DeviceId)));
             }
         }
-        string _DeviceId = Master.AudioMaster.DefaultDeviceId;
+        internal string _DeviceId = Master.AudioMaster.DefaultDeviceId;
 
         public int BuffersQueued {
             get
@@ -263,8 +264,10 @@ namespace FlyleafLib.MediaPlayer
         }
         internal void AddSamples(AudioFrame aFrame)
         {
-            lock (locker)
+            try
+            {
                 sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
+            } catch { } // Happens on audio device changed/removed
         }
         internal void ClearBuffer()
         {
