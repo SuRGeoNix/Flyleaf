@@ -429,7 +429,8 @@ namespace FlyleafLib.MediaPlayer
         #region Decoder Events
         private void Decoder_AudioCodecChanged(DecoderBase x)
         {
-            //Audio.Initialize(AudioDecoder.CodecCtx->sample_rate);
+            Audio.Refresh();
+            UIAll();
         }
         private void Decoder_VideoCodecChanged(DecoderBase x)
         {

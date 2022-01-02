@@ -24,6 +24,14 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public AudioStream() { }
         public AudioStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         {
+            Refresh(demuxer, st, true);
+        }
+
+        public void Refresh(Demuxer demuxer, AVStream* st, bool nobase = false)
+        {
+            if (!nobase)
+                base.Refresh(demuxer, st);
+
             Type            = MediaType.Audio;
             SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), st->codecpar->format);
             SampleFormatStr = SampleFormat.ToString().Replace("AV_SAMPLE_FMT_","").ToLower();

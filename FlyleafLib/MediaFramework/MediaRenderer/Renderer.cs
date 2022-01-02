@@ -449,7 +449,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     for(int i=0; i<backBuffer2.Length-1; i++)
                         backBuffer2[i].Dispose();
 
-                if (curSRVs != null) { for (int i=0; i<curSRVs.Length; i++) { curSRVs[i].Dispose(); curSRVs = null; } }
+                if (curSRVs != null)
+                {
+                    for (int i=0; i<curSRVs.Length; i++)
+                        curSRVs[i].Dispose();
+
+                    curSRVs = null;
+                }
 
                 context?.ClearState();
                 context?.Flush();
@@ -503,24 +509,45 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 srvDescR = new ShaderResourceViewDescription()
                 {
                     Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
-                    ViewDimension = ShaderResourceViewDimension.Texture2D,
-                    Texture2D = new Texture2DShaderResourceView()
-                    {
-                        MipLevels = 1,
-                        MostDetailedMip = 0
-                    }
                 };
 
                 srvDescRG = new ShaderResourceViewDescription()
                 {
                     Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16G16_UNorm : Format.R8G8_UNorm,
-                    ViewDimension = ShaderResourceViewDimension.Texture2D,
-                    Texture2D = new Texture2DShaderResourceView()
+                };
+
+                if (Config.Decoder.ZeroCopy)
+                {
+                    srvDescR.ViewDimension = ShaderResourceViewDimension.Texture2DArray;
+                    srvDescR.Texture2DArray = new Texture2DArrayShaderResourceView()
+                    {
+                        ArraySize = 1,
+                        MipLevels = 1
+                    };
+
+                    srvDescRG.ViewDimension = ShaderResourceViewDimension.Texture2DArray;
+                    srvDescRG.Texture2DArray = new Texture2DArrayShaderResourceView()
+                    {
+                        ArraySize = 1,
+                        MipLevels = 1
+                    };
+                }
+                else
+                {
+                    srvDescR.ViewDimension = ShaderResourceViewDimension.Texture2D;
+                    srvDescR.Texture2D = new Texture2DShaderResourceView()
                     {
                         MipLevels = 1,
                         MostDetailedMip = 0
-                    }
-                };
+                    };
+
+                    srvDescRG.ViewDimension = ShaderResourceViewDimension.Texture2D;
+                    srvDescRG.Texture2D = new Texture2DShaderResourceView()
+                    {
+                        MipLevels = 1,
+                        MostDetailedMip = 0
+                    };
+                }
 
                 psBufferData.format = VideoDecoder.VideoAccelerated ? PSFormat.Y_UV : ((VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled ? PSFormat.Y_U_V : PSFormat.RGB));
 
@@ -626,8 +653,20 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (VideoDecoder.VideoAccelerated)
                     {
                         curSRVs     = new ID3D11ShaderResourceView[2];
-                        curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
-                        curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
+
+                        if (frame.bufRef != null) // Config.Decoder.ZeroCopy
+                        {
+                            //Log($"Presenting {frame.subresource}");
+                            srvDescR. Texture2DArray.FirstArraySlice = frame.subresource;
+                            srvDescRG.Texture2DArray.FirstArraySlice = frame.subresource;
+                            curSRVs[0]  = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescR);
+                            curSRVs[1]  = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescRG);
+                        }
+                        else
+                        {
+                            curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
+                            curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
+                        }
                     }
                     else if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
                     {
@@ -648,8 +687,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (!DisableRendering) context.Draw(6, 0);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
 
-                    if (frame.textures  != null)   for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose();
-                    if (curSRVs         != null) { for (int i=0; i<curSRVs.Length; i++)      { curSRVs[i].Dispose(); } curSRVs = null; }
+                    VideoDecoder.DisposeFrame(frame);
+
+                    if (curSRVs != null)
+                    {
+                        for (int i=0; i<curSRVs.Length; i++)
+                            curSRVs[i].Dispose();
+
+                        curSRVs = null;
+                    }
 
                 } catch (Exception e) { Log($"Error {e.Message}"); // Currently seen on video switch when vframe (last frame of previous session) has different config from the new codec (eg. HW accel.)
                 } finally { Monitor.Exit(Device); }
@@ -755,8 +801,19 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (VideoDecoder.VideoAccelerated)
                 {
                     curSRVs     = new ID3D11ShaderResourceView[2];
-                    curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
-                    curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
+
+                    if (frame.bufRef != null) // Config.Decoder.ZeroCopy
+                    {
+                        srvDescR. Texture2DArray.FirstArraySlice = frame.subresource;
+                        srvDescRG.Texture2DArray.FirstArraySlice = frame.subresource;
+                        curSRVs[0]  = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescR);
+                        curSRVs[1]  = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescRG);
+                    }
+                    else
+                    {
+                        curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
+                        curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
+                    }
                 }
                 else if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
                 {
@@ -776,8 +833,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 //context.ClearRenderTargetView(rtv2[subresource], Config.video._ClearColor);
                 context.Draw(6, 0);
 
-                for (int i=0; i<frame.textures.Length; i++) frame.textures[i].Dispose();
-                for (int i=0; i<curSRVs.Length; i++)      { curSRVs[i].Dispose(); } curSRVs = null;
+                VideoDecoder.DisposeFrame(frame);
+
+                if (curSRVs != null)
+                {
+                    for (int i=0; i<curSRVs.Length; i++)
+                        curSRVs[i].Dispose();
+
+                    curSRVs = null;
+                }
 
                 context.CopyResource(stageTexture, backBuffer2[subresource]);
                 backBuffer2busy[subresource] = false;
