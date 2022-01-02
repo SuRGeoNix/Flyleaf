@@ -244,6 +244,27 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         [SecurityCritical]
         private AudioFrame ProcessAudioFrame(AVFrame* frame)
         {
+            // TBR: AVStream doesn't refresh, we can get the updated info only from codecCtx (what about timebase, what about re-opening the codec?)
+            if (AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.CodecID != codecCtx->codec_id || AudioStream.Channels != codecCtx->channels)
+            {
+                if (Disposed)
+                    return null;
+
+                Log($"Codec changed {AudioStream.CodecID} {AudioStream.SampleRate} => {codecCtx->codec_id} {codecCtx->sample_rate}");
+
+                DisposeInternal();
+                
+                AudioStream.SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), codecCtx->sample_fmt);
+                AudioStream.SampleFormatStr = AudioStream.SampleFormat.ToString().Replace("AV_SAMPLE_FMT_","").ToLower();
+                AudioStream.SampleRate      = codecCtx->sample_rate;
+                AudioStream.ChannelLayout   = codecCtx->channel_layout;
+                AudioStream.Channels        = codecCtx->channels;
+                AudioStream.Bits            = codecCtx->bits_per_coded_sample;
+
+                Setup(codecCtx->codec);
+                CodecChanged?.Invoke(this);
+            }
+
             if (Speed != 1)
             {
                 curSpeedFrame++;

@@ -346,14 +346,13 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum video frames to be decoded and processed for rendering
             /// </summary>
-            public int              MaxVideoFrames  { get; set; } = 4;
+            public int              MaxVideoFrames  { get => _MaxVideoFrames; set { if (Set(ref _MaxVideoFrames, value)) { player?.Video?.Disable(); player?.Video?.Enable(); } } }
+            int _MaxVideoFrames = 4;
 
             /// <summary>
-            /// Maximum video frames to be decoded and processed for rendering (reverse playback)
-            /// Larger values will reduce GPU/CPU and increase VRAM/RAM
+            /// Initial hardware frames pool size for the decoder (MaxVideoFrames will be added to this)
             /// </summary>
-            public int              MaxVideoFramesReverse
-                                                    { get; set; } = Math.Max(30, Environment.ProcessorCount * 3);
+            public int              VAPoolSize      { get; set; } = 15;
 
             /// <summary>
             /// Maximum audio frames to be decoded and processed for playback
@@ -369,6 +368,13 @@ namespace FlyleafLib
             /// Maximum allowed errors before stopping
             /// </summary>
             public int              MaxErrors       { get; set; } = 200;
+
+            /// <summary>
+            /// Whether or not to use decoder's textures directly as shader resources
+            /// (TBR: Better performance but might need to be disabled while video input has padding or not supported by older Direct3D versions)
+            /// </summary>
+            public bool             ZeroCopy        { get => _ZeroCopy; set { if (Set(ref _ZeroCopy, value)) player?.renderer?.FrameResized(); } }
+            bool _ZeroCopy = true;
         }
         public class VideoConfig : NotifyPropertyChanged
         {

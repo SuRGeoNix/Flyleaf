@@ -263,6 +263,7 @@
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Text="Aspect Ratio" VerticalAlignment="Center"/>
@@ -301,20 +302,23 @@
                             <TextBlock Grid.Row="3" Text="Video Acceleration" VerticalAlignment="Center"/>
                             <ToggleButton Grid.Row="3" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.VideoAcceleration, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
-                            <TextBlock Grid.Row="4" Text="Decoder Threads" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
+                            <TextBlock Grid.Row="4" Text="Zero Copy" VerticalAlignment="Center"/>
+                            <ToggleButton Grid.Row="4" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Decoder.ZeroCopy, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
-                            <TextBlock Grid.Row="5" Text="HDR to SDR Method" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="5" x:Name="cmbHDRtoSDRMethod" Grid.Column="1" ItemsSource="{Binding Source={StaticResource dataFromEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
+                            <TextBlock Grid.Row="5" Text="Decoder Threads" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="5" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="6" Text="HDR to SDR Tone" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="6" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.HDRtoSDRTone, UpdateSourceTrigger=LostFocus}"/>
+                            <TextBlock Grid.Row="6" Text="HDR to SDR Method" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Row="6" x:Name="cmbHDRtoSDRMethod" Grid.Column="1" ItemsSource="{Binding Source={StaticResource dataFromEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
 
-                            <TextBlock Grid.Row="7" Text="Brightness" Margin="0,10,0,0"  VerticalAlignment="Center"/>
-                            <Slider Grid.Row="7" Grid.Column="2" Margin="-78,10,0,0" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.Brightness, Mode=TwoWay}" Minimum="0" Maximum="100"/>
+                            <TextBlock Grid.Row="7" Text="HDR to SDR Tone" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="7" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.HDRtoSDRTone, UpdateSourceTrigger=LostFocus}"/>
 
-                            <TextBlock Grid.Row="8" Text="Contrast" Margin="0,10,0,0" VerticalAlignment="Center"/>
-                            <Slider Grid.Row="8" Grid.Column="2" Margin="-78,10,0,0" Style="{StaticResource MaterialDesignDiscreteSlider}" HorizontalAlignment="Stretch" Value="{Binding Config.Video.Contrast, Mode=TwoWay}" Minimum="0" Maximum="100"/>
+                            <TextBlock Grid.Row="8" Text="Brightness" Margin="0,10,0,0"  VerticalAlignment="Center"/>
+                            <Slider Grid.Row="8" Grid.Column="2" Margin="-78,10,0,0" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.Brightness, Mode=TwoWay}" Minimum="0" Maximum="100"/>
+
+                            <TextBlock Grid.Row="9" Text="Contrast" Margin="0,10,0,0" VerticalAlignment="Center"/>
+                            <Slider Grid.Row="9" Grid.Column="2" Margin="-78,10,0,0" Style="{StaticResource MaterialDesignDiscreteSlider}" HorizontalAlignment="Stretch" Value="{Binding Config.Video.Contrast, Mode=TwoWay}" Minimum="0" Maximum="100"/>
 
                         </Grid>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
@@ -343,7 +347,6 @@
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Text="Buffer Duration Min.  (ms)" VerticalAlignment="Center"/>
@@ -357,9 +360,6 @@
 
                             <TextBlock Grid.Row="3" Text="Video Frames Max." VerticalAlignment="Center"/>
                             <TextBox Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
-
-                            <TextBlock Grid.Row="4" Text="Reverse Frames Max." VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFramesReverse, UpdateSourceTrigger=Explicit}"/>
                         </Grid>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <Button Style="{StaticResource SaveButton}"/>

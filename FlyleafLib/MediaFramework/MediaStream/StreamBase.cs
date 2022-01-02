@@ -28,12 +28,17 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public long                         StartTime           { get; internal set; }
         public long                         StartTimePts        { get; internal set; }
         public long                         Duration            { get; internal set; }
-        public Dictionary<string, string>   Metadata            { get; internal set; }
+        public Dictionary<string, string>   Metadata            { get; internal set; } = new Dictionary<string, string>();
         public MediaType                    Type                { get; internal set; }
 
         public abstract string GetDump();
         public StreamBase() { }
         public StreamBase(Demuxer demuxer, AVStream* st)
+        {
+            Refresh(demuxer, st);
+        }
+
+        public void Refresh(Demuxer demuxer, AVStream* st)
         {
             Demuxer     = demuxer;
             AVStream    = st;
@@ -56,7 +61,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
                             break;
                         }
 
-            Metadata    = new Dictionary<string, string>();
+            Metadata.Clear();
 
             AVDictionaryEntry* b = null;
             while (true)
