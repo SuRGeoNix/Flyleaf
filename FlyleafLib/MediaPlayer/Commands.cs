@@ -152,15 +152,26 @@ namespace FlyleafLib.MediaPlayer
 
         public void SeekToChapterAction(object chapter)
         {
-            player.SeekToChapter((MediaFramework.MediaDemuxer.Demuxer.Chapter)chapter);
+            if (player.Chapters == null || player.Chapters.Count == 0)
+                return;
+
+            if (chapter is MediaFramework.MediaDemuxer.Demuxer.Chapter)
+                player.SeekToChapter((MediaFramework.MediaDemuxer.Demuxer.Chapter)chapter);
+            else if (int.TryParse(chapter.ToString(), out int chapterId) && chapterId < player.Chapters.Count)
+                player.SeekToChapter(player.Chapters[chapterId]);
         }
 
         public void OpenAction(object input)
         {
+            if (input == null)
+                return;
+
             if (input is MediaFramework.MediaStream.StreamBase)
                 player.OpenAsync((MediaFramework.MediaStream.StreamBase)input);
             else if (input is MediaFramework.MediaInput.InputBase)
                 player.OpenAsync((MediaFramework.MediaInput.InputBase)input);
+            else
+                player.OpenAsync(input.ToString());
         }
     }
 }

@@ -63,12 +63,6 @@ namespace FlyleafLib.Controls.WPF
         public Brush        SubtitlesFontColor  { get => _SubtitlesFontColor; set => Set(ref _SubtitlesFontColor, value); }
         Brush _SubtitlesFontColor;
 
-        public bool         ShowGPUUsage        { get => _ShowGPUUsage; set { Set(ref _ShowGPUUsage, value); if (value) StartGPUUsage(); else GPUUsage = ""; } }
-        bool _ShowGPUUsage;
-
-        public string       GPUUsage            { get => _GPUUsage; set => Set(ref _GPUUsage, value); }
-        string _GPUUsage;
-
         public TextBlock    Subtitles           { get; set; }
 
         public string SelectedThemeStr
@@ -163,7 +157,6 @@ namespace FlyleafLib.Controls.WPF
         string      dialogSettingsIdentifier;
 
         Thickness   subsInitialMargin;
-        Thread      gpuThread;
 
         bool        isDesignMode = (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
         bool        prevActivityMode;
@@ -324,9 +317,6 @@ namespace FlyleafLib.Controls.WPF
             Config.Player.KeyBindings.FlyleafWindow = true; // To allow keybindings also on front window
             Player.SubscribeEvents();
 
-            Player.OpenCompleted        += Player_OpenCompleted;
-            Player.OpenInputCompleted   += Player_OpenInputCompleted;
-
             // Ensure Player Events will re-subscribed / No need to re-subscribe on VideoView/Control as it will be the same (Possible also Raise(null); / settings?.Raise(null);)
             if (oldPlayer != null)
                 return;
@@ -404,9 +394,6 @@ namespace FlyleafLib.Controls.WPF
         {
             if (Player == null)
                 return;
-
-            Player.OpenCompleted        -= Player_OpenCompleted;
-            Player.OpenInputCompleted   -= Player_OpenInputCompleted;
         }
         public void Dispose()
         {
@@ -569,25 +556,6 @@ namespace FlyleafLib.Controls.WPF
         #endregion
 
         #region TODO
-        private void Player_OpenCompleted(object sender, OpenCompletedArgs e)
-        {
-            //if (e.Type == MediaType.Video || (!Player.Video.IsOpened && e.Type == MediaType.Audio))
-            //{
-            //    ErrorMsg = e.Success ? "" : e.Error;
-            //    Player.Play();
-            //    //Raise(null); // Ensures fast UI update
-            //}
-        }
-        private void Player_OpenInputCompleted(object sender, OpenInputCompletedArgs e)
-        {
-            //if (e.Type == MediaType.Video || (!Player.Video.IsOpened && e.Type == MediaType.Audio))
-            //{
-            //    ErrorMsg = e.Success ? "" : e.Error;
-            //    if (Player.IsPlaylist) Player.Play();
-            //    //Raise(null); // Ensures fast UI update
-            //}
-        }
-
         private async void DialogAspectRatio()
         {
             if (dialogSettingsIdentifier == null) return;
@@ -628,16 +596,6 @@ namespace FlyleafLib.Controls.WPF
                 else
                     ((MenuItem)item).IsChecked = false;
             }
-        }
-        private void StartGPUUsage()
-        {
-            if (gpuThread != null && gpuThread.IsAlive) { ShowGPUUsage = false; return; }
-            gpuThread = new Thread(() =>
-            {
-                while (_ShowGPUUsage) GPUUsage = Utils.GetGPUUsage().ToString("0.00") + "%";
-                ShowGPUUsage = false;
-            });
-            gpuThread.IsBackground = true; gpuThread.Start();
         }
         #endregion
 

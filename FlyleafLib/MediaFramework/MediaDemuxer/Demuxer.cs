@@ -615,7 +615,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 RunInternalReverse();
                 return;
             }
-                
+
             int ret = 0;
             int allowedErrors = Config.MaxErrors;
             bool gotAVERROR_EXIT = false;
@@ -1050,6 +1050,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         }
 
                         UpdateCurTime();
+
                         break;
 
                     case MediaType.Video:
@@ -1060,10 +1061,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         UpdateCurTime();
 
                         curReverseSeekOffset = av_rescale_q((3 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+
                         break;
 
                     case MediaType.Subs:
                         SubtitlesStream = (SubtitlesStream) stream;
+
                         break;
                 }
 
@@ -1095,15 +1098,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     case MediaType.Audio:
                         AudioStream = null;
                         if (VideoStream != null) HLSPlaylist = VideoStream.HLSPlaylist;
+
                         break;
 
                     case MediaType.Video:
                         VideoStream = null;
                         if (AudioStream != null) HLSPlaylist = AudioStream.HLSPlaylist;
+
                         break;
 
                     case MediaType.Subs:
                         SubtitlesStream = null;
+
                         break;
                 }
 
@@ -1144,13 +1150,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             try
             {
                 if (CurPackets.TryPeek(out IntPtr firstPacketPtr) && ((AVPacket*)firstPacketPtr)->dts != AV_NOPTS_VALUE)
-                {
-                
-                        firstPacketTs = (long) (((AVPacket*)firstPacketPtr)->dts * AVStreamToStream[((AVPacket*)firstPacketPtr)->stream_index].Timebase);
-                
-                }
+                    firstPacketTs = (long) (((AVPacket*)firstPacketPtr)->dts * AVStreamToStream[((AVPacket*)firstPacketPtr)->stream_index].Timebase);
             } catch { return; } // TBR: Race condition with the decoder av_packet_free(&packet); 
-
+            
             if (firstPacketTs == AV_NOPTS_VALUE)
             {
                 if (lastPacketTs == AV_NOPTS_VALUE)

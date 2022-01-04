@@ -12,7 +12,8 @@ namespace FlyleafLib.Plugins
 {
     public class PluginHandler
     {
-        public static Dictionary<string, PluginType> PluginTypes        { get; private set; }
+        public static Dictionary<string, PluginType> PluginTypes        { get; private set; } = new Dictionary<string, PluginType>();
+        public static string            PluginsFolder                   { get; private set; } = "Plugins";
 
         public Config                   Config                          { get ; private set; }
         public int                      UniqueId                        { get; set; }
@@ -116,12 +117,17 @@ namespace FlyleafLib.Plugins
             foreach (var plugin in Plugins.Values)
                 LoadPluginInterfaces(plugin);
         }
-        internal static void LoadAssemblies()
+        internal static void LoadAssemblies(string path = null)
         {
+            if (path == null)
+                path = PluginsFolder;
+                
+
             // Load .dll Assemblies
-            if (Directory.Exists("Plugins"))
+            if (Directory.Exists(path))
             {
-                string[] dirs = Directory.GetDirectories("Plugins");
+                string[] dirs = Directory.GetDirectories(path);
+
                 foreach(string dir in dirs)
                     foreach(string file in Directory.GetFiles(dir, "*.dll"))
                         try { Assembly.LoadFrom(Path.GetFullPath(file));}
@@ -129,7 +135,6 @@ namespace FlyleafLib.Plugins
             }
 
             // Load PluginBase Types
-            PluginTypes = new Dictionary<string, PluginType>();
             Type pluginBaseType = typeof(PluginBase);
             Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
@@ -143,10 +148,17 @@ namespace FlyleafLib.Plugins
                             // Force static constructors to execute (For early load, will be useful with c# 8.0 and static properties for interfaces eg. DefaultOptions)
                             // System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
 
-                            PluginTypes.Add(type.Name, new PluginType() { Name = type.Name, Type = type, Version = assembly.GetName().Version});
-                            Utils.Log($"[PluginHandler] Loaded {type.Name} [{assembly.GetName().Version}]");
+                            if (!PluginTypes.ContainsKey(type.Name))
+                            {
+                                PluginTypes.Add(type.Name, new PluginType() { Name = type.Name, Type = type, Version = assembly.GetName().Version});
+                                Utils.Log($"[PluginHandler] Loaded {type.Name} [{assembly.GetName().Version}]");
+                            }
+                            else
+                                Utils.Log($"[PluginHandler] Already exists {type.Name} [{assembly.GetName().Version}]");
                         }
                 } catch (Exception e) { Utils.Log($"[PluginHandler] Failed to load plugin type ({e.Message})"); }
+
+            PluginsFolder = path;
         }
         private void LoadPluginInterfaces(PluginBase plugin)
         {
@@ -169,7 +181,7 @@ namespace FlyleafLib.Plugins
             if (plugin is IDownloadSubtitles) PluginsDownloadSubtitles.Add(plugin.Name, (IDownloadSubtitles)plugin);
         }
 
-        #region Events
+#region Events
         public void OnInitializing()
         {
             foreach(var plugin in Plugins.Values)
@@ -260,9 +272,9 @@ namespace FlyleafLib.Plugins
             foreach(var plugin in Plugins.Values)
                 plugin.Dispose();
         }
-        #endregion
+#endregion
 
-        #region Audio / Video
+#region Audio / Video
         public OpenResults Open(Stream iostream)
         {
             var plugins = (from plugin in PluginsOpen.Values orderby plugin.Priority select plugin).ToList();
@@ -403,9 +415,9 @@ namespace FlyleafLib.Plugins
             input = SuggestAudio();
             if (input != null) return;
         }
-        #endregion
+#endregion
 
-        #region Subtitles
+#region Subtitles
         public OpenResults OpenSubtitles(string url)
         {
             var plugins = (from plugin in PluginsOpenSubtitles.Values orderby plugin.Priority select plugin).ToList();
@@ -517,7 +529,7 @@ namespace FlyleafLib.Plugins
 
             return null;
         }
-        #endregion
+#endregion
 
         private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [PluginHandler] {msg}"); }
     }

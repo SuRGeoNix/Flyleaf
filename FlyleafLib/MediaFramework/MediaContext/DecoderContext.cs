@@ -922,7 +922,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             lock (VideoDemuxer.lockFmtCtx)
             lock (VideoDecoder.lockCodecCtx)
-            while (!VideoDemuxer.Disposed && !Interrupt && VideoDemuxer.EnabledStreams.Count != 0)
+            while (VideoDemuxer.VideoStream != null && !Interrupt)
             {
                 if (VideoDemuxer.VideoPackets.Count == 0)
                 {
@@ -969,7 +969,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                         
                         VideoDemuxer.UpdateCurTime();
 
-                        while (!VideoDemuxer.Disposed && !Interrupt)
+                        while (VideoDemuxer.VideoStream != null && !Interrupt)
                         {
                             ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                             if (ret != 0) { av_frame_unref(frame); break; }

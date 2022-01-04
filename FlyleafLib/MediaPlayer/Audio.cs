@@ -70,42 +70,31 @@ namespace FlyleafLib.MediaPlayer
             get
             {
                 lock (locker)
-                {
-                    if (sourceVoice == null)
-                        return _Volume;
-
-                    return (int) ((decimal)sourceVoice.Volume * 100);
-                }
+                    return sourceVoice == null || Mute ? _Volume : (int) ((decimal)sourceVoice.Volume * 100);
             }
             set
             {
-                lock (locker)
-                {
-                    if (value > Config.Player.VolumeMax || value < 0)
-                        return;
-
-                    if (sourceVoice != null)
-                        sourceVoice.Volume = Math.Max(0, value / 100.0f);
-                }
-
-                _Volume = value;
-
-                Utils.UI(() => Raise(nameof(Volume)));
+                if (value > Config.Player.VolumeMax || value < 0)
+                    return;
 
                 if (value == 0)
-                {
                     Mute = true;
-                    prevVolume = 0.15f;
-                }
-                else if (mute)
+                else if (Mute)
                 {
-                    mute = false;
-                    Utils.UI(() => Raise(nameof(Volume)));
+                    _Volume = value;
+                    Mute = false;
                 }
+                else
+                {
+                    lock (locker)
+                        if (sourceVoice != null)
+                            sourceVoice.Volume = Math.Max(0, value / 100.0f);
+                }
+
+                Set(ref _Volume, value, false);
             }
         }
         int _Volume;
-        private float prevVolume = 0.5f;
 
         /// <summary>
         /// Audio player's mute
@@ -116,17 +105,11 @@ namespace FlyleafLib.MediaPlayer
             set
             {
                 if (value)
-                {
-                    prevVolume = sourceVoice.Volume;
-                    sourceVoice.Volume = 0; // no raise
-                }
+                    sourceVoice.Volume = 0;
                 else
-                {
-                    sourceVoice.Volume = prevVolume;
-                    Utils.UI(() => Raise(nameof(Volume)));
-                }
+                    sourceVoice.Volume = _Volume / 100.0f;
 
-                Set(ref mute, value);
+                Set(ref mute, value, false);
             }
         }
         private bool mute = false;
@@ -275,16 +258,19 @@ namespace FlyleafLib.MediaPlayer
                 sourceVoice?.FlushSourceBuffers();
         }
 
-        internal void Reset()
+        internal void Reset(bool andDisabledStream = true)
         {
             codec           = null;
             bitRate         = 0;
             bits            = 0;
             channels        = 0;
             channelLayout   = null;
+            sampleRate      = 0;
             sampleFormat    = null;
             isOpened        = false;
-            disabledStream  = null;
+
+            if (andDisabledStream)
+                disabledStream  = null;
 
             ClearBuffer();
             player.UIAdd(uiAction);
@@ -305,9 +291,11 @@ namespace FlyleafLib.MediaPlayer
         }
         internal void Enable()
         {
-            if (!player.CanPlay) return;
+            if (disabledStream == null || (player.VideoDemuxer.Disposed && player.AudioDemuxer.Disposed))
+                return;
 
             AudioInput suggestedInput = null;
+            bool wasPlaying = player.IsPlaying;
 
             if (disabledStream == null)
                 decoder.SuggestAudio(out disabledStream, out suggestedInput, player.VideoDemuxer.AudioStreams);
@@ -324,6 +312,9 @@ namespace FlyleafLib.MediaPlayer
 
             Refresh();
             player.UIAll();
+
+            if (wasPlaying || Config.Player.AutoPlay)
+                player.Play();
         }
         internal void Disable()
         {
@@ -334,7 +325,13 @@ namespace FlyleafLib.MediaPlayer
 
             player.aFrame = null;
 
-            Reset();
+            if (!player.Video.IsOpened)
+            {
+                player.canPlay = false;
+                player.UIAdd(() => player.CanPlay = player.CanPlay);
+            }
+
+            Reset(false);
             player.UIAll();
         }
 

@@ -209,7 +209,24 @@ namespace FlyleafLib
 
             while (current != null)
             {
-                if (File.Exists(Path.Combine(current, filename))) return Path.Combine(current, filename);
+                if (File.Exists(Path.Combine(current, filename)))
+                    return Path.Combine(current, filename);
+
+                current = Directory.GetParent(current)?.FullName;
+            }
+
+            return null;
+        }
+
+        public static string FindFolderBelow(string folder)
+        {
+            string current = Directory.GetCurrentDirectory();
+
+            while (current != null)
+            {
+                if (Directory.Exists(Path.Combine(current, folder)))
+                    return Path.Combine(current, folder);
+
                 current = Directory.GetParent(current)?.FullName;
             }
 
