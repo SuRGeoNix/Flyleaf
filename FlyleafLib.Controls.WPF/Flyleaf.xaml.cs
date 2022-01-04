@@ -10,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 using WpfColorFontDialog;
 using MaterialDesignThemes.Wpf;
@@ -386,6 +387,8 @@ namespace FlyleafLib.Controls.WPF
                 }
                 
             }
+
+            Timeline.DesiredFrameRateProperty.OverrideMetadata(typeof(Timeline), new FrameworkPropertyMetadata { DefaultValue = (int) Config.Player.IdleFps });
 
             Raise(null);
             settings?.Raise(null);

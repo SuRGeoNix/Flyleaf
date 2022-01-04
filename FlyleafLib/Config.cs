@@ -148,7 +148,7 @@ namespace FlyleafLib
             /// <summary>
             /// Fps while the player is not playing
             /// </summary>
-            public double   IdleFps                     { get; set; } = 60.0;
+            public double   IdleFps                     { get; set; } = 30.0;
 
             /// <summary>
             /// Limit before dropping frames. Lower value means lower latency (>=1)
