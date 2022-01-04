@@ -28,6 +28,7 @@ namespace FlyleafLib.Plugins
                                     jsonSettings    = new JsonSerializerSettings();
         static string               defaultBrowser;
 
+        int retries;
         YoutubeDLJson               ytdl;
 
         static YoutubeDL()
@@ -72,6 +73,12 @@ namespace FlyleafLib.Plugins
             VideoInputs.Clear();
             SubtitlesInputs.Clear();
             ytdl = null;
+            retries = 0;
+        }
+
+        public override void OnInitializingSwitch()
+        {
+            retries = 0;
         }
 
         public override OpenResults OnOpenVideo(VideoInput input)
@@ -188,6 +195,8 @@ namespace FlyleafLib.Plugins
                         Arguments       = $"{Options["ExtraArguments"]} --no-playlist --no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -o \"{tmpFile}\" \"{url}\"",
                         CreateNoWindow  = true,
                         UseShellExecute = false,
+                        RedirectStandardError = true,
+                        RedirectStandardOutput = true,
                         WindowStyle     = ProcessWindowStyle.Hidden
                     }
                 };
@@ -199,12 +208,28 @@ namespace FlyleafLib.Plugins
 
                 if (Handler.Interrupt)
                 {
+                    Log("Interrupted");
                     if (!proc.HasExited) proc.Kill();
                     return null;
                 }
 
                 if (!File.Exists($"{tmpFile}.info.json"))
+                {
+#if DEBUG
+                    try { Log($"[StandardOutput]\r\n{proc.StandardOutput.ReadToEnd()}"); } catch { }
+                    try { Log($"[StandardError] \r\n{proc.StandardError.ReadToEnd()}" ); } catch { }              
+#endif
+                    Log("Couldn't find info json tmp file");
+
+                    if (retries == 0 && !Handler.Interrupt)
+                    {
+                        retries++;
+                        Log("Retry");
+                        return Open(url);
+                    }
+
                     return null;
+                }
 
                 // Parse Json Object
                 string json = File.ReadAllText($"{tmpFile}.info.json");
@@ -243,6 +268,7 @@ namespace FlyleafLib.Plugins
                             InputData   = inputData,
                             Tag         = fmt,
                             Url         = fmt.url,
+                            UrlFallback = string.IsNullOrEmpty(fmt.manifest_url) ? ytdl.manifest_url : fmt.manifest_url,
                             Protocol    = fmt.protocol,
                             HasAudio    = hasAudio,
                             BitRate     = (long) fmt.vbr,
@@ -261,6 +287,7 @@ namespace FlyleafLib.Plugins
                             InputData   = inputData,
                             Tag         = fmt,
                             Url         = fmt.url,
+                            UrlFallback = string.IsNullOrEmpty(fmt.manifest_url) ? ytdl.manifest_url : fmt.manifest_url,
                             Protocol    = fmt.protocol,
                             HasVideo    = hasVideo,
                             BitRate     = (long) fmt.abr,
@@ -291,9 +318,13 @@ namespace FlyleafLib.Plugins
                     
                 }
 
-                if (GetBestMatch() == null && GetAudioOnly() == null) return null;
+                if (GetBestMatch() == null && GetAudioOnly() == null)
+                {
+                    Log("No streams found");
+                    return null;
+                }
             }
-            catch (Exception e) { Debug.WriteLine($"[Youtube-DL] Error ... {e.Message}"); return new OpenResults(e.Message); }
+            catch (Exception e) { Log($"Error ... {e.Message}"); return new OpenResults(e.Message); }
 
             return new OpenResults();
         }
