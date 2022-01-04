@@ -100,6 +100,7 @@ namespace FlyleafLib.Plugins
         public int      quality     { get; set; }
         public double   tbr         { get; set; }
         public string   url         { get; set; }
+        public string   manifest_url{ get; set; }
         public string   language    { get; set; }
         public int      language_preference 
                                     { get; set; }

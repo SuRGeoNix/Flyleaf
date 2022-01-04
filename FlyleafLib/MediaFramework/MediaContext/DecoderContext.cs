@@ -517,7 +517,14 @@ namespace FlyleafLib.MediaFramework.MediaContext
             if (input.IOStream != null)
                 res = demuxer.Open(input.IOStream);
             else
+            {
                 res = demuxer.Open(input.Url);
+                if (res != null && !string.IsNullOrEmpty(input.UrlFallback))
+                {
+                    Log($"Fallback to {input.UrlFallback}");
+                    res = demuxer.Open(input.UrlFallback);
+                }
+            }
 
             return res;
         }

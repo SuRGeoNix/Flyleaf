@@ -477,9 +477,9 @@ namespace FlyleafLib.MediaPlayer
         }
         private static HashSet<KeyBindingAction> isKeyUpBinding = new HashSet<KeyBindingAction>
         {
-            { KeyBindingAction.OpenFromClipboard },
+            //{ KeyBindingAction.OpenFromClipboard },
             { KeyBindingAction.OpenFromFileDialog },
-            { KeyBindingAction.CopyToClipboard },
+            //{ KeyBindingAction.CopyToClipboard },
             { KeyBindingAction.TakeSnapshot },
             { KeyBindingAction.NormalScreen },
             { KeyBindingAction.FullScreen },

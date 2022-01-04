@@ -24,6 +24,8 @@ namespace FlyleafLib.MediaPlayer
             #endif
         }
 
+        bool stoppedWithError;
+
         /// <summary>
         /// Plays AVS streams
         /// </summary>
@@ -83,23 +85,23 @@ namespace FlyleafLib.MediaPlayer
                         TimeEndPeriod(1);
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
 
-                        bool error = false;
+                        stoppedWithError = false;
 
                         // Missed Buffering Completed means error
                         if (onBufferingStarted - 1 == onBufferingCompleted)
                         {
-                            error = IsPlaying;
-                            OnBufferingCompleted(error ? "Unknown" : null);
+                            stoppedWithError = IsPlaying;
+                            OnBufferingCompleted(stoppedWithError ? "Unknown" : null);
                         }
 
                         if (IsPlaying)
                         {
-                            if (!error)
+                            if (!stoppedWithError)
                             {
                                 if (!ReversePlayback)
-                                    error = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
+                                    stoppedWithError = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
                                 else
-                                    error = CurTime > 3 * 1000 * 10000;
+                                    stoppedWithError = CurTime > 3 * 1000 * 10000;
                             }
 
                             if (HasEnded)
@@ -107,7 +109,7 @@ namespace FlyleafLib.MediaPlayer
                             else
                                 status = Status.Paused;
 
-                            OnPlaybackCompleted(error ? "Unknown" : null);
+                            OnPlaybackCompleted(stoppedWithError ? "Unknown" : null);
                         }
 
                         UI(() =>
@@ -253,7 +255,7 @@ namespace FlyleafLib.MediaPlayer
                     decoder.OpenedPlugin?.OnBufferingCompleted();
                     TimeEndPeriod(1);
                     lock (lockSeek) IsSeeking = false;
-                    if (Status == Status.Ended && Config.Player.AutoPlay)
+                    if ((Status == Status.Ended && Config.Player.AutoPlay) || stoppedWithError)
                         Play();
                 }
             });

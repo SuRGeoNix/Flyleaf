@@ -747,6 +747,7 @@ namespace FlyleafLib.MediaPlayer
                 status = Status.Stopped;
                 canPlay = false;
                 ReversePlayback = false;
+                isVideoSwitch = false;
                 seeks.Clear();
                 EnsureThreadDone(tSeek);
                 EnsureThreadDone(tPlay);
