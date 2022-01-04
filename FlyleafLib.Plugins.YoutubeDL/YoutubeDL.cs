@@ -22,7 +22,7 @@ namespace FlyleafLib.Plugins
         public bool                 IsPlaylist      => false;
         public new int              Priority        { get; set; } = 1999;
 
-        static string               plugin_path     = "Plugins\\YoutubeDL\\yt-dlp.exe";
+        static string               plugin_path     = "yt-dlp.exe";
 
         static JsonSerializerSettings
                                     jsonSettings    = new JsonSerializerSettings();
@@ -184,7 +184,7 @@ namespace FlyleafLib.Plugins
                 {
                     StartInfo = new ProcessStartInfo
                     {
-                        FileName        = plugin_path,
+                        FileName        = Path.Combine(PluginHandler.PluginsFolder, Name, plugin_path),
                         Arguments       = $"{Options["ExtraArguments"]} --no-playlist --no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -o \"{tmpFile}\" \"{url}\"",
                         CreateNoWindow  = true,
                         UseShellExecute = false,

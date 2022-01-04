@@ -8,42 +8,110 @@
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         
         mc:Ignorable="d"
-        Title="Flyleaf Player (Custom - MVVM)" Height="450" Width="800">
-
-    <Window.Resources>
-        <!-- Using main converters from the flyleaf's library -->
-        <fl:TicksToTimeConverter x:Key="TicksToTime"/>
-        <fl:TicksToSecondsConverter x:Key="TicksToSeconds" />
-        <fl:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
-    </Window.Resources>
+        Title="Flyleaf Player (Custom - MVVM)" Height="650" Width="800" Background="Black">
     
     <Grid>
-        <fl:VideoView x:Name="flview" Player="{Binding Player}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="auto"/>
-                    <RowDefinition Height="auto"/>
-                    <RowDefinition Height="auto"/>
-                </Grid.RowDefinitions>
+        <fl:VideoView Player="{Binding Player}">
+            <Grid Margin="50">
+                
+                <!-- NOTE: Window resources will not be within the videoview as it will be on different window -->
+                <Grid.Resources>
+                    <ResourceDictionary>
+                        <Style TargetType="{x:Type fl:PlayerDebug}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowDebug}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ResourceDictionary>
+                </Grid.Resources>
+                
+                <!-- Keep track of error messages -->
+                <TextBlock Text="{Binding LastError}" FontSize="20" Foreground="Red" Margin="-40"/>
+                
+                <!-- Show/Hide Player's Debug Information -->
+                <Button Content="Show/Hide Debug" Command="{Binding ToggleDebug}" Height="20" Width="110" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="-40"/>
+                
+                <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" 
+                               Player="{Binding Player}"
+                               BoxColor="#A0000000"
+                               HeaderColor="DarkOrange" 
+                               InfoColor="White" 
+                               ValueColor="LightSteelBlue"
+                               />
+                <StackPanel Width="450" VerticalAlignment="Bottom" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Open" Command="{Binding Player.Commands.Open}" CommandParameter="{Binding Source={x:Reference OpenUrl}, Path=Text}"/>
+                        <TextBox x:Name="OpenUrl" Width="400" Text="{Binding SampleVideo, Mode=OneTime}"/>
+                    </StackPanel>
 
-                <TextBox Margin="10" Width="200" Text="{Binding UserInput}"/>
-                <TextBlock Grid.Column="1" Margin="10" TextAlignment="Right" Text="{Binding Player.Status}" FontSize="22" Foreground="Red"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="OpenFromClipboard" Command="{Binding Player.Commands.OpenFromClipboard}"/>
+                        <Button Content="OpenFromFileDialog" Command="{Binding Player.Commands.OpenFromFileDialog}"/>
+                    </StackPanel>
 
-                <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="10" Orientation="Horizontal">
-                    <Button Margin="10,0,0,0" Content="Open"    Command="{Binding OpenVideo}"/>
-                    <Button Margin="10,0,0,0" Content="Play"    Command="{Binding PlayVideo}"/>
-                    <Button Margin="10,0,0,0" Content="Pause"   Command="{Binding PauseVideo}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Play" Command="{Binding Player.Commands.Play}"/>
+                        <Button Content="Pause" Command="{Binding Player.Commands.Pause}"/>
+                        <Button Content="Stop" Command="{Binding Player.Commands.Stop}"/>
+                        <Button Content="TogglePlayPause" Command="{Binding Player.Commands.TogglePlayPause}"/>
+                        <Button Content="ToggleReversePlayback" Command="{Binding Player.Commands.ToggleReversePlayback}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="SeekBackward" Command="{Binding Player.Commands.SeekBackward}"/>
+                        <Button Content="SeekBackward2" Command="{Binding Player.Commands.SeekBackward2}"/>
+                        <Button Content="SeekForward" Command="{Binding Player.Commands.SeekForward}"/>
+                        <Button Content="SeekForward2" Command="{Binding Player.Commands.SeekForward2}"/>
+                        <Button Content="SeekToChapter" Command="{Binding Player.Commands.SeekToChapter}" CommandParameter="{Binding Source={x:Reference Chapter}, Path=Text}"/>
+                        <TextBox x:Name="Chapter" Width="35"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="ShowFramePrev" Command="{Binding Player.Commands.ShowFramePrev}"/>
+                        <Button Content="ShowFrameNext" Command="{Binding Player.Commands.ShowFrameNext}"/>
+                    </StackPanel>
                 </StackPanel>
 
-                <Slider Grid.Row="2" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Player.Duration, Converter={StaticResource TicksToSeconds}}" IsMoveToPointEnabled="True"/>
+                <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="SpeedUp" Command="{Binding Player.Commands.SpeedUp}"/>
+                        <Button Content="SpeedDown" Command="{Binding Player.Commands.SpeedDown}"/>
+                        <Button Content="SpeedSet" Command="{Binding Player.Commands.SpeedSet}" CommandParameter="{Binding Source={x:Reference SpeedValue}, Path=Text}"/>
+                        <TextBox x:Name="SpeedValue" Width="30"/>
+                    </StackPanel>
 
-                <StackPanel Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
-                    <TextBlock Margin="10" TextAlignment="Right" Text="{Binding Player.CurTime, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Green"/>
-                    <TextBlock Margin="10" TextAlignment="Right" Text="{Binding Player.Duration, Converter={StaticResource TicksToTime}}" FontSize="22" Foreground="Orange"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="ZoomIn" Command="{Binding Player.Commands.ZoomIn}"/>
+                        <Button Content="ZoomOut" Command="{Binding Player.Commands.ZoomOut}"/>
+                        <Slider Minimum="-500" Maximum="500" Value="{Binding Player.Zoom}" Width="100"/>
+                        <Button Content="ResetAll" Command="{Binding Player.Commands.ResetAll}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="TakeSnapshot" Command="{Binding Player.Commands.TakeSnapshot}"/>
+                        <Button Content="StartRecording" Command="{Binding Player.Commands.StartRecording}"/>
+                        <Button Content="StopRecording" Command="{Binding Player.Commands.StopRecording}"/>
+                        <Button Content="ToggleRecording" Command="{Binding Player.Commands.ToggleRecording}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="VolumeUp" Command="{Binding Player.Commands.VolumeUp}"/>
+                        <Button Content="VolumeDown" Command="{Binding Player.Commands.VolumeDown}"/>
+                        <Button Content="ToggleMute" Command="{Binding Player.Commands.ToggleMute}"/>
+                        <Slider Maximum="{Binding Player.Config.Player.VolumeMax}" Value="{Binding Player.Audio.Volume}" Width="100"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="NormalScreen" Command="{Binding Player.Commands.NormalScreen}"/>
+                        <Button Content="FullScreen" Command="{Binding Player.Commands.FullScreen}"/>
+                        <Button Content="ToggleFullScreen" Command="{Binding Player.Commands.ToggleFullScreen}"/>
+                    </StackPanel>
+                </StackPanel>
+                
+                <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center">
+                    <Slider Width="400" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Player.SeekOffset}" LargeChange="{Binding Player.Config.Player.SeekOffset2}"/>
                 </StackPanel>
             </Grid>
         </fl:VideoView>

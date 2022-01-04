@@ -134,8 +134,8 @@ namespace FlyleafLib.MediaPlayer
         /// <summary>
         /// Whether the player's status is capable of accepting playback commands
         /// </summary>
-        public bool         CanPlay             { get => canPlay;           private set => Set(ref _CanPlay, value); }
-        bool _CanPlay, canPlay;
+        public bool         CanPlay             { get => canPlay;           internal set => Set(ref _CanPlay, value); }
+        internal bool _CanPlay, canPlay;
 
         /// <summary>
         /// Whether the player's state is in fullscreen mode

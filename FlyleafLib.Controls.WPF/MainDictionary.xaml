@@ -473,10 +473,7 @@
         </MenuItem>
 
         <Separator />
-        <MenuItem Header="Misc" Icon="{materialDesign:PackIcon Kind=SettingsOutline}">
-            <MenuItem Header="Show Debug" IsCheckable="True" IsChecked="{Binding ShowDebug}"/>
-            <MenuItem Header="Show GPU Usage"  IsCheckable="True" IsChecked="{Binding ShowGPUUsage}"/>
-        </MenuItem>
+        <MenuItem Header="Show Debug" IsCheckable="True" IsChecked="{Binding ShowDebug}"/>
 
         <Separator />
         <MenuItem Header="Exit" Icon="{materialDesign:PackIcon ExitToApp}" Command="{Binding ExitApplication}"/>

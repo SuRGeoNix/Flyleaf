@@ -6,6 +6,7 @@
              
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:local="clr-namespace:FlyleafLib.Controls.WPF"
+             xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              
              mc:Ignorable="d" d:DesignHeight="300" d:DesignWidth="600"
@@ -17,6 +18,15 @@
                 <ResourceDictionary Source="MainDictionary.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
+            <Style TargetType="{x:Type fl:PlayerDebug}">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding ShowDebug}" Value="True">
+                        <Setter Property="Visibility" Value="Visible"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            
             <Style TargetType="local:Flyleaf">
                 <Setter Property="Template">
                     <Setter.Value>
@@ -42,36 +52,9 @@
                                 <!-- Error Message -->
                                 <TextBlock Margin="20" VerticalAlignment="top" HorizontalAlignment="Left" TextAlignment="Left" TextWrapping="Wrap" FontSize="16" Background="{Binding Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}" Foreground="{DynamicResource PrimaryHueMidBrush}" FontWeight="Bold" Text="{Binding ErrorMsg}"/>
 
-                                <!--Media Info-->
-                                <TextBlock Margin="0 20 20 0" VerticalAlignment="top" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap" FontSize="16" Background="{Binding Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}" Foreground="{DynamicResource PrimaryHueMidBrush}" FontWeight="Bold">
-                                    <TextBlock.Style>
-                                        <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding ShowDebug}" Value="True">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                    <TextBlock.Text>
-                                        <MultiBinding StringFormat=" {0}p @{1} {2}/{3} [hw: {4}|{5}] &#x0d;&#x0a; [tbr: {6:#,#.00}] [vbr: {7:#,#.00}] [abr: {8:#,#.00}] &#x0d;&#x0a; [rec: {9}] [drops: {10}] [gpu: {11}]">
-                                            <Binding Path="Player.Video.Height"/>
-                                            <Binding Path="Player.Video.FPSCurrent"/>
-                                            <Binding Path="Player.Video.Codec"/>
-                                            <Binding Path="Player.Video.PixelFormat"/>
-                                            <Binding Path="Config.Video.VideoAcceleration"/>
-                                            <Binding Path="Player.Video.VideoAcceleration"/>
-                                            <Binding Path="Player.BitRate"/>
-                                            <Binding Path="Player.Video.BitRate"/>
-                                            <Binding Path="Player.Audio.BitRate"/>
-                                            <Binding Path="Player.IsRecording"/>
-                                            <Binding Path="Player.Video.FramesDropped"/>
-                                            <Binding Path="GPUUsage"/>
-                                        </MultiBinding>
-                                    </TextBlock.Text>
-                                </TextBlock>
-
+                                <!--Debug Info-->
+                                <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="{DynamicResource SecondaryHueMidBrush}" InfoColor="White" ValueColor="{DynamicResource PrimaryHueMidBrush}"/>
+                                
                                 <!--Subtitles-->
                                 <TextBlock x:Name="PART_Subtitles" Margin="0 0 0 50" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="33" Foreground="White" FontWeight="Bold" Text="{Binding Player.Subtitles.SubsText}">
                                     <TextBlock.Effect>

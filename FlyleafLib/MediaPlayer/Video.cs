@@ -74,6 +74,7 @@ namespace FlyleafLib.MediaPlayer
         Action uiAction;
         Player player;
         DecoderContext decoder => player.decoder;
+        VideoStream disabledStream;
         Config Config => player.Config;
 
         public Video(Player player)
@@ -97,10 +98,10 @@ namespace FlyleafLib.MediaPlayer
             };
         }
 
-        internal void Reset()
+        internal void Reset(bool andDisabledStream = true)
         {
             codec              = null;
-            //AspectRatio        = ;
+            AspectRatio        = new AspectRatio(0, 0);
             bitRate            = 0;
             fps                = 0;
             pixelFormat        = null;
@@ -110,6 +111,9 @@ namespace FlyleafLib.MediaPlayer
             videoAcceleration  = false;
             isOpened           = false;
             player.renderer.DisableRendering = true;
+
+            if (andDisabledStream)
+                disabledStream = null;
 
             player.UIAdd(uiAction);
         }
@@ -134,30 +138,50 @@ namespace FlyleafLib.MediaPlayer
 
         internal void Enable()
         {
-            if (!player.CanPlay || Config.Player.Usage == Usage.Audio) return;
+            if (player.VideoDemuxer.Disposed || Config.Player.Usage == Usage.Audio)
+                return;
+
+            if (disabledStream == null)
+                disabledStream = decoder.SuggestVideo(decoder.VideoDemuxer.VideoStreams);
+
+            if (disabledStream == null)
+                return;
 
             bool wasPlaying = player.IsPlaying;
-            int curTime = decoder.GetCurTimeMs();
+
             player.Pause();
-            decoder.OpenSuggestedVideo();
+            player.Open(disabledStream);
+
             Refresh();
             player.UIAll();
-            decoder.Seek(curTime, false, false);
-            if (wasPlaying) player.Play();
+
+            if (wasPlaying || Config.Player.AutoPlay)
+                player.Play();
         }
         internal void Disable()
         {
-            if (!IsOpened || Config.Player.Usage == Usage.Audio) return;
+            if (!IsOpened || Config.Player.Usage == Usage.Audio)
+                return;
 
             bool wasPlaying = player.IsPlaying;
+
+            disabledStream = decoder.VideoStream;
             player.Pause();
             player.VideoDecoder.Dispose(true);
-            if (!player.AudioDecoder.OnVideoDemuxer) player.VideoDemuxer.Dispose();
             player.Subtitles.subsText = "";
             player.UIAdd(() => player.Subtitles.SubsText = player.Subtitles.SubsText);
-            Refresh();
+
+            if (!player.Audio.IsOpened)
+            {
+                player.canPlay = false;
+                player.UIAdd(() => player.CanPlay = player.CanPlay);
+            }
+
+            Reset(false);
             player.UIAll();
-            if (wasPlaying) player.Play();
+
+            if (wasPlaying || Config.Player.AutoPlay)
+                player.Play();
         }
 
         public void Toggle()

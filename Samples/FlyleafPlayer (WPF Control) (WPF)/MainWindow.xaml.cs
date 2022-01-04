@@ -43,6 +43,7 @@ namespace FlyleafPlayer
             {
                 Utils.AddFirewallRule();
                 Config = new Config();
+                Config.Save("Flyleaf.Config.xml");
             }
                 
             #endif

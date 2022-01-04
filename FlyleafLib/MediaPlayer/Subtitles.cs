@@ -26,9 +26,6 @@ namespace FlyleafLib.MediaPlayer
         public string                   Codec           { get => codec;        internal set => Set(ref _Codec, value); }
         internal string _Codec, codec;
 
-        public double                   BitRate         { get => bitRate;      internal set => Set(ref _BitRate, value); }
-        internal double _BitRate, bitRate;
-
         /// <summary>
         /// Subtitles Text (updates dynamically while playing based on the duration that it should be displayed)
         /// </summary>
@@ -49,13 +46,11 @@ namespace FlyleafLib.MediaPlayer
             {
                 IsOpened    = IsOpened;
                 Codec       = Codec;
-                BitRate     = BitRate;
                 SubsText    = SubsText;
             };
         }
         internal void Reset()
         {
-            bitRate     = 0;
             codec       = null;
             isOpened    = false;
             subsText    = "";

@@ -4,6 +4,12 @@ using System.Windows.Data;
 
 namespace FlyleafLib.Controls.WPF
 {
+    public class TicksToTimeSpanConverter : IValueConverter
+    {
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)     { return new TimeSpan((long)value); }
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { return ((TimeSpan)value).Ticks; }
+	}
+
     public class TicksToTimeConverter : IValueConverter
     {
 		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)     { return (string) new TimeSpan((long)value).ToString(@"hh\:mm\:ss"); }
