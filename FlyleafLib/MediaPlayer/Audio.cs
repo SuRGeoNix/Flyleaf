@@ -220,7 +220,7 @@ namespace FlyleafLib.MediaPlayer
 
                 Dispose();
 
-                xaudio2         = XAudio2Create();
+                xaudio2         = XAudio2Create(ProcessorSpecifier.AnyProcessor);
                 masteringVoice  = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Master.AudioMaster.DefaultDeviceName ? null : Master.AudioMaster.GetDeviceId(_Device));
                 sourceVoice     = xaudio2.CreateSourceVoice(waveFormat, true);
                 sourceVoice.SetSourceSampleRate(SampleRate);
