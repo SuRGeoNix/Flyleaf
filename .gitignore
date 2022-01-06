@@ -344,6 +344,7 @@ FlyleafLib/FlyleafLib.xml
 /Plugins.NET4/
 /Plugins.NET5/
 /Plugins.NET6/
+/Plugins/
 
 # NuGet Pack
 *.nuspec

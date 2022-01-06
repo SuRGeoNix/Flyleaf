@@ -65,22 +65,14 @@ namespace FlyleafMultiPlayer__WPF_
         {
             // Clockwise rotation
 
-            // User should unsubscribe from all Player events before swaping
-            flyleafControl1.UnsubscribePlayer();
-            flyleafControl2.UnsubscribePlayer();
-            flyleafControl3.UnsubscribePlayer();
-            flyleafControl4.UnsubscribePlayer();
+            // User should review and possible unsubscribe from player/control events
 
-            Player old1 = PlayerView1;
-            Player old2 = PlayerView2;
-            Player old3 = PlayerView3;
+            // Can use Player on VideoView1 as temporary
+            Player.SwapPlayers(VideoView1.Player, VideoView2.Player);
+            Player.SwapPlayers(VideoView1.Player, VideoView3.Player);
+            Player.SwapPlayers(VideoView1.Player, VideoView4.Player);
 
-            PlayerView1 = PlayerView4;
-            PlayerView2 = old1;
-            PlayerView3 = old2;
-            PlayerView4 = old3;
-
-            // User should subscribe to all Player events after swaping and possible Raise(null) (Flyleaf WPF Control will handle the re-subscribe to the new player automatically)
+            // User should review and possible re-subscribe from player/control events
         }
     }
 }

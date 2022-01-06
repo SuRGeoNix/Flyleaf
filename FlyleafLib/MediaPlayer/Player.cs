@@ -350,6 +350,8 @@ namespace FlyleafLib.MediaPlayer
         }
         bool _ReversePlayback;
 
+        public object               Tag                 { get; set; }
+
         // TBR: No UI updates and some of them maybe should not be exposed
 
         /// <summary>
@@ -389,8 +391,6 @@ namespace FlyleafLib.MediaPlayer
         long startedAtTicks;
         long videoStartTicks;
 
-        Flyleaf swap_Control; // Required for swap in WinForms
-        bool swap_WasPlaying;
         #endregion
 		public Player(Config config = null)
         {
@@ -468,7 +468,6 @@ namespace FlyleafLib.MediaPlayer
                 else
                 {
                     VideoDecoder.Dispose();
-                    VideoDecoder.DisposeVA();
                     decoder.VideoDecoder = new VideoDecoder(decoder.Config, Control, decoder.UniqueId);
                     VideoDecoder.CodecChanged = Decoder_VideoCodecChanged;
 
@@ -598,76 +597,6 @@ namespace FlyleafLib.MediaPlayer
         }
 
         /// <summary>
-        /// Switch player with another's player control (WinForms only) - For WPF just set VideoView's Player
-        /// </summary>
-        /// <param name="player">Specify the Player that has the required control</param>
-        public void SwitchPlayer(Player player)
-        {
-            SwapPlayer(player, null);
-        }
-        internal void SwapPlayer(Player player, VideoView videoView)
-        {
-            lock(this)
-                lock(player)
-                {
-                    Log($"Swaping Player {PlayerId} with Player {player.PlayerId}");
-
-                    bool swapCompleted = false;
-
-                    if (!IsSwaping)
-                    {
-                        UnsubscribeEvents();
-                        IsSwaping = true;
-                        swap_WasPlaying = IsPlaying;
-                        Pause();
-                        decoder.Pause();
-                        decoder.VideoDecoder.DisposeFrames();
-                        canPlay = false;
-                        UI(() => CanPlay = CanPlay);
-                        if (VideoView == null)
-                            swap_Control = _Control;
-                    }
-                    else
-                        swapCompleted = true;
-
-                    if (!player.IsSwaping)
-                    {
-                        player.UnsubscribeEvents();
-                        player.IsSwaping = true;
-                        player.swap_WasPlaying = player.IsPlaying;
-                        player.Pause();
-                        player.decoder.Pause();
-                        player.decoder.VideoDecoder.DisposeFrames();
-                        player.canPlay = false;
-                        UI(() => player.CanPlay = player.CanPlay);
-                    }
-                    else
-                        player.IsSwaping = false;
-
-                    if (VideoView != null)
-                    {
-                        VideoView = videoView;
-                        Control = VideoView.FlyleafWF;
-                    }
-                    else
-                    {
-                        _Control = player.swap_Control != null ? player.swap_Control : player._Control;
-                        player.swap_Control = null;
-                    }
-
-                    VideoDecoder.Swap(player.VideoDecoder);
-                    _Control.Player = this; // Changes the renderer to the control
-                    SubscribeEvents();
-
-                    IsSwaping = !swapCompleted;
-                    canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
-                    UI(() => CanPlay = CanPlay);
-                    ReSync(VideoDecoder.VideoStream);
-                    if (swap_WasPlaying) Play();
-                }
-        }
-        
-        /// <summary>
         /// Disposes the Player and the hosted VideoView if any
         /// </summary>
         public void Dispose() { Master.DisposePlayer(this); }
@@ -707,6 +636,7 @@ namespace FlyleafLib.MediaPlayer
         {
             if (renderer != null)
             {
+                // TBR: Probably we just need to clear the screen with config's backcolor sometimes but render can be disposed
                 renderer.DisableRendering = true;
                 renderer.Present();
             }
@@ -758,7 +688,6 @@ namespace FlyleafLib.MediaPlayer
                     CanPlay = CanPlay;
                 });
                 Reset();
-
                 Log($"[Initialized]");
 
             } catch (Exception e)
@@ -795,6 +724,22 @@ namespace FlyleafLib.MediaPlayer
             NativeMethods.TimeEndPeriod(i);
         }
         private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{PlayerId}] [Player] {msg}"); }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || !(obj is Player))
+                return false;
+
+            if (((Player)obj).PlayerId == PlayerId)
+                return true;
+
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return PlayerId.GetHashCode();
+        }
     }
 
     public enum Status

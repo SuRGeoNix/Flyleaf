@@ -16,8 +16,11 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
         {
             InitializeComponent();
 
-            // Load FFmpeg libs
+            // Registers FFmpeg Libraries
             Master.RegisterFFmpeg(":2");
+
+            // Registers Plugins
+            Master.RegisterPlugins(":2");
 
             // Create new config
             Config = new Config();

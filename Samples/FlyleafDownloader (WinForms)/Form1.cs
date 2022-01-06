@@ -22,6 +22,9 @@ namespace FlyleafDownloader
             // Registers FFmpeg Libraries
             Master.RegisterFFmpeg(":2");
 
+            // Registers Plugins
+            Master.RegisterPlugins(":2");
+
             // Prepares Player's Configuration
             Config = new Config();
 

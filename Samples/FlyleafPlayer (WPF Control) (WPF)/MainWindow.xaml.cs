@@ -33,6 +33,9 @@ namespace FlyleafPlayer
             // Registers FFmpeg Libraries
             Master.RegisterFFmpeg(":2");
 
+            // Registers Plugins
+            Master.RegisterPlugins(":2");
+
             // Prepares Player's Configuration (Load from file if already exists, Flyleaf WPF Control will save at this path)
             #if DEBUG
             Config = new Config();
@@ -60,7 +63,19 @@ namespace FlyleafPlayer
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
             flyleafControl.ConfigPath = "Flyleaf.Config.xml";
             flyleafControl.UIConfigPath = "Flyleaf.UIConfig.xml";
+
+            // If the user requests reverse playback allocate more frames once
+            Player.PropertyChanged += (o, e) =>
+            {
+                if (e.PropertyName == "ReversePlayback" && !ReversePlaybackChecked)
+                {
+                    ReversePlaybackChecked = true;
+                    if (Config.Decoder.MaxVideoFrames < 40)
+                        Config.Decoder.MaxVideoFrames = 40;
+                }
+            };
         }
+        bool ReversePlaybackChecked;
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {

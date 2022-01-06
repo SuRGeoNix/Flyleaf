@@ -79,7 +79,7 @@ namespace FlyleafLib.MediaPlayer
                         args = decoder.OpenVideo(url_iostream.ToString(), defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
 
                     // TBR: Video Fails try Audio Input (this is wrong, works on every failure. Should do that only for No Video Stream error and maybe back to the decoder with general Open instead of OpenAV?)
-                    if (!args.Success && defaultInput && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist == false)
+                    if (!args.Success && defaultInput && decoder != null && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist == false)
                     {
                         if (url_iostream is Stream)
                             args = (InputOpenedArgs) decoder.OpenAudio((Stream)url_iostream, defaultInput, defaultAudio);
@@ -434,8 +434,8 @@ namespace FlyleafLib.MediaPlayer
         }
         private void Decoder_VideoCodecChanged(DecoderBase x)
         {
-            Video.videoAcceleration = VideoDecoder.VideoAccelerated;
-            UI(() => { Video.VideoAcceleration = Video.VideoAcceleration; });
+            Video.Refresh();
+            UIAll();
         }
 
         private void Decoder_AudioStreamOpened(object sender, AudioStreamOpenedArgs e)
@@ -468,18 +468,84 @@ namespace FlyleafLib.MediaPlayer
 
         private void Decoder_AudioInputOpened(object sender, AudioInputOpenedArgs e)
         {
-            if (decoder.VideoStream == null)
+            lock (this)
             {
+                if (IsDisposed)
+                    return;
+
+                if (decoder.VideoStream == null)
+                {
+                    if (e.Success)
+                    {
+                        if (e.Input != null && e.Input.InputData != null)
+                            title = e.Input.InputData.Title;
+                    
+                        var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
+                        duration    = curDemuxer.Duration;
+                        isLive      = curDemuxer.IsLive;
+                        isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
+
+                        UIAdd(() =>
+                        {
+                            Title       = Title;
+                            Duration    = Duration;
+                            IsLive      = IsLive;
+                            IsPlaylist  = IsPlaylist;
+                        });
+                    }
+                    else
+                    {
+                        if (!CanPlay)
+                        {
+                            status = Status.Failed;
+                            UIAdd(() => Status = Status);
+                        }   
+
+                        ResetMe();
+                    }
+                }
+
+                UIAll();
+
+                if (CanPlay && Config.Player.AutoPlay)
+                    Play();
+
+                if (e.IsUserInput)
+                    OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Audio, e.Input, e.OldInput, e.Error, e.IsUserInput));
+                else
+                    OnOpenInputCompleted(MediaType.Audio, e.Input, e.OldInput, e.Error, e.IsUserInput);
+            }
+        }
+        private void Decoder_VideoInputOpened(object sender, VideoInputOpenedArgs e)
+        {
+            lock (this)
+            {
+                if (IsDisposed)
+                    return;
+
+                MediaType curMedia = MediaType.Video;
+
                 if (e.Success)
                 {
+                    // We can get audio only here
+                    if (VideoDemuxer.VideoStream == null)
+                        curMedia = MediaType.Audio;
+
                     if (e.Input != null && e.Input.InputData != null)
                         title = e.Input.InputData.Title;
-                    
-                    var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
-                    duration    = curDemuxer.Duration;
-                    isLive      = curDemuxer.IsLive;
+
+                    isLive      = VideoDemuxer.IsLive;
                     isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
 
+                    // Demuxer's duration calculates also last frames duration that we don't care
+
+                    if (curMedia == MediaType.Video)
+                        duration    = VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration;
+                    else
+                        duration    = VideoDemuxer.Duration;
+
+                    // TODO: Now we start from timestamps from Demuxer's StartTime which means that we can have X initial duration without video (requires to change all the design with timestamps)
+                    //duration    = isLive || VideoDemuxer.VideoStream.Duration == 0 ? VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration : Math.Min(VideoDemuxer.Duration, VideoDemuxer.VideoStream.Duration) - VideoDemuxer.VideoStream.FrameDuration;
                     UIAdd(() =>
                     {
                         Title       = Title;
@@ -494,75 +560,21 @@ namespace FlyleafLib.MediaPlayer
                     {
                         status = Status.Failed;
                         UIAdd(() => Status = Status);
-                    }   
+                    }
 
                     ResetMe();
                 }
-            }
 
-            UIAll();
+                UIAll();
 
-            if (CanPlay && Config.Player.AutoPlay)
-                Play();
+                if (CanPlay && Config.Player.AutoPlay)
+                    Play();
 
-            if (e.IsUserInput)
-                OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Audio, e.Input, e.OldInput, e.Error, e.IsUserInput));
-            else
-                OnOpenInputCompleted(MediaType.Audio, e.Input, e.OldInput, e.Error, e.IsUserInput);
-        }
-        private void Decoder_VideoInputOpened(object sender, VideoInputOpenedArgs e)
-        {
-            MediaType curMedia = MediaType.Video;
-
-            if (e.Success)
-            {
-                // We can get audio only here
-                if (VideoDemuxer.VideoStream == null)
-                    curMedia = MediaType.Audio;
-
-                if (e.Input != null && e.Input.InputData != null)
-                    title = e.Input.InputData.Title;
-
-                isLive      = VideoDemuxer.IsLive;
-                isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
-
-                // Demuxer's duration calculates also last frames duration that we don't care
-
-                if (curMedia == MediaType.Video)
-                    duration    = VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration;
+                if (e.IsUserInput)
+                    OnOpenCompleted(new OpenInputCompletedArgs(curMedia, e.Input, e.OldInput, e.Error, e.IsUserInput));
                 else
-                    duration    = VideoDemuxer.Duration;
-
-                // TODO: Now we start from timestamps from Demuxer's StartTime which means that we can have X initial duration without video (requires to change all the design with timestamps)
-                //duration    = isLive || VideoDemuxer.VideoStream.Duration == 0 ? VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration : Math.Min(VideoDemuxer.Duration, VideoDemuxer.VideoStream.Duration) - VideoDemuxer.VideoStream.FrameDuration;
-                UIAdd(() =>
-                {
-                    Title       = Title;
-                    Duration    = Duration;
-                    IsLive      = IsLive;
-                    IsPlaylist  = IsPlaylist;
-                });
+                    OnOpenInputCompleted(curMedia, e.Input, e.OldInput, e.Error, e.IsUserInput);
             }
-            else
-            {
-                if (!CanPlay)
-                {
-                    status = Status.Failed;
-                    UIAdd(() => Status = Status);
-                }
-
-                ResetMe();
-            }
-
-            UIAll();
-
-            if (CanPlay && Config.Player.AutoPlay)
-                Play();
-
-            if (e.IsUserInput)
-                OnOpenCompleted(new OpenInputCompletedArgs(curMedia, e.Input, e.OldInput, e.Error, e.IsUserInput));
-            else
-                OnOpenInputCompleted(curMedia, e.Input, e.OldInput, e.Error, e.IsUserInput);
         }
         private void Decoder_SubtitlesInputOpened(object sender, SubtitlesInputOpenedArgs e)
         {

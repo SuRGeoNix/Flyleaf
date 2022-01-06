@@ -71,6 +71,9 @@ namespace FlyleafLib.MediaPlayer
                                                     { get => videoAcceleration; internal set => Set(ref _VideoAcceleration, value); }
         internal bool   _VideoAcceleration, videoAcceleration;
 
+        public bool                 ZeroCopy        { get => zeroCopy;          internal set => Set(ref _ZeroCopy, value); }
+        internal bool   _ZeroCopy, zeroCopy;
+
         Action uiAction;
         Player player;
         DecoderContext decoder => player.decoder;
@@ -95,6 +98,7 @@ namespace FlyleafLib.MediaPlayer
                 Width               = Width;
                 Height              = Height;
                 VideoAcceleration   = VideoAcceleration;
+                ZeroCopy            = ZeroCopy;
             };
         }
 
@@ -109,6 +113,7 @@ namespace FlyleafLib.MediaPlayer
             height             = 0;
             framesTotal        = 0;
             videoAcceleration  = false;
+            zeroCopy           = false;
             isOpened           = false;
             player.renderer.DisableRendering = true;
 
@@ -130,6 +135,7 @@ namespace FlyleafLib.MediaPlayer
             framesTotal = decoder.VideoStream.TotalFrames;
             videoAcceleration
                         = decoder.VideoDecoder.VideoAccelerated;
+            zeroCopy    = decoder.VideoDecoder.ZeroCopy;
             isOpened    =!decoder.VideoDecoder.Disposed;
 
             player.renderer.DisableRendering = false;

@@ -261,10 +261,16 @@
                     <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesTotal, StringFormat={}{0:N0}}"/>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
+                <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource TextInfo}" Text="VideoAcceleration"/>
                     <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.VideoAcceleration}"/>
                 </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
+                    <TextBlock Style="{StaticResource TextInfo}" Text="ZeroCopy"/>
+                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.ZeroCopy}"/>
+                </StackPanel>
+                
             </StackPanel>
 
             <!-- Subtitles -->

@@ -2,6 +2,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms.Integration;
@@ -23,6 +24,7 @@ namespace FlyleafLib.Controls.WPF
         private IVideoView      ControlRequiresPlayer; // kind of dependency injection (used for WPF control)
         private bool            IsUpdatingContent;
 
+        public int              UniqueId        { get; set; }
         private bool            IsDesignMode    => (bool)DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
         public WindowsFormsHost WinFormsHost    { get; set; }   // Airspace: catch back events (key events working, mouse event not working ... the rest not tested)
         public FlyleafWindow    WindowFront     { get; set; }   // Airspace: catch any front events
@@ -54,19 +56,21 @@ namespace FlyleafLib.Controls.WPF
 
             VideoView.lastPlayer = Player;
 
-            if (oldPlayer != null && oldPlayer.PlayerId == Player.PlayerId)
-                return;
-
             if (oldPlayer == null)
             {
+                VideoView.UniqueId = Player.PlayerId;
+                VideoView.Log($"Assinged Player {Player.PlayerId}");
+
                 Player.VideoView= VideoView;
                 Player.Control  = VideoView.FlyleafWF;
+
+                if (VideoView.ControlRequiresPlayer != null)
+                    VideoView.ControlRequiresPlayer.Player = Player;
             }
             else
-                Player.SwapPlayer(oldPlayer, VideoView);
-
-            if (VideoView.ControlRequiresPlayer != null)
-                VideoView.ControlRequiresPlayer.Player = Player;
+            {
+                VideoView.Log($"Swaped Player {oldPlayer.PlayerId} with {Player.PlayerId}");
+            }
         }
         public VideoView() { DefaultStyleKey = typeof(VideoView); }
 
@@ -95,6 +99,9 @@ namespace FlyleafLib.Controls.WPF
 
             if (Player != null && Player.VideoView == null)
             {
+                UniqueId = Player.PlayerId;
+                Log($"Assinged Player {Player.PlayerId}");
+
                 Player.VideoView= this;
                 Player.Control  = FlyleafWF;
                 lastPlayer = Player;
@@ -239,5 +246,7 @@ namespace FlyleafLib.Controls.WPF
                 disposed = true;
             }
         }
+
+        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [VideoView] {msg}"); }
     }
 }

@@ -102,11 +102,18 @@
                 <EventSetter Event="PreviewTextInput" Handler="ValidationNumeric"/>
             </Style>
             
-            <ObjectDataProvider x:Key="dataFromEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider x:Key="HDRtoSDRMethodEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
                 <ObjectDataProvider.MethodParameters>
                     <x:Type TypeName="fl:HDRtoSDRMethod"/>
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
+
+            <ObjectDataProvider x:Key="ZeroCopyEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="fl:ZeroCopy"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -303,13 +310,13 @@
                             <ToggleButton Grid.Row="3" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.VideoAcceleration, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                             <TextBlock Grid.Row="4" Text="Zero Copy" VerticalAlignment="Center"/>
-                            <ToggleButton Grid.Row="4" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Decoder.ZeroCopy, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                            <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Source={StaticResource ZeroCopyEnum}}" SelectedItem="{Binding Config.Decoder.ZeroCopy}"/>
 
                             <TextBlock Grid.Row="5" Text="Decoder Threads" VerticalAlignment="Center"/>
                             <TextBox Grid.Row="5" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
 
                             <TextBlock Grid.Row="6" Text="HDR to SDR Method" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="6" x:Name="cmbHDRtoSDRMethod" Grid.Column="1" ItemsSource="{Binding Source={StaticResource dataFromEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
+                            <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
 
                             <TextBlock Grid.Row="7" Text="HDR to SDR Tone" VerticalAlignment="Center"/>
                             <TextBox Grid.Row="7" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.HDRtoSDRTone, UpdateSourceTrigger=LostFocus}"/>

@@ -30,15 +30,30 @@ namespace FlyleafLib
         public static int GetUniqueId() { Interlocked.Increment(ref uniqueId); return uniqueId; }
 
         /// <summary>
-        /// Invokes the UI thread if required to execute the specified action
+        /// Begin invokes the UI thread if required to execute the specified action
         /// </summary>
         /// <param name="action"></param>
         public static void UI(Action action)
         {
-            if (System.Windows.Application.Current.Dispatcher.Thread == Thread.CurrentThread)
-                action();
-            else
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(action);
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(action, System.Windows.Threading.DispatcherPriority.DataBind);
+        }
+
+        /// <summary>
+        /// Invokes the UI thread if required to execute the specified action
+        /// </summary>
+        /// <param name="action"></param>
+        public static void UIInvoke(Action action)
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(action);
+        }
+
+        public static int Align(int num, int align)
+        {
+            int mod = num % align;
+            if (mod == 0)
+                return num;
+
+            return num + (align - num % align);
         }
 
         /// <summary>
@@ -320,7 +335,7 @@ namespace FlyleafLib
         }
         public static int GCD(int a, int b) { return b == 0 ? a : GCD(b, a % b); }
         public static string TicksToTime(long ticks) { return new TimeSpan(ticks).ToString(); }
-        internal static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
+        public static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
         #endregion
 
         public unsafe static class FFmpeg

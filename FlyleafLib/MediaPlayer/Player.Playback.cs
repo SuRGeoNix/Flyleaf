@@ -71,6 +71,9 @@ namespace FlyleafLib.MediaPlayer
 
                     finally
                     {
+                        VideoDecoder.DisposeFrame(vFrame);
+                        vFrame = null;
+
                         if (Status == Status.Stopped)
                             decoder?.Stop();
                         else if (decoder != null) 
@@ -80,8 +83,6 @@ namespace FlyleafLib.MediaPlayer
                         } 
 
                         Audio.ClearBuffer();
-                        VideoDecoder.DisposeFrame(vFrame);
-                        vFrame = null;
                         TimeEndPeriod(1);
                         SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
 
@@ -182,11 +183,8 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!CanPlay) return;
 
-            // We consider already in UI thread
             curTime = ms * (long)10000;
             Raise(nameof(CurTime));
-            //Set(ref _CurTime, curTime, false, nameof(CurTime));
-            //UpdateCurTime();
             seeks.Push(new SeekData(ms, forward, accurate));
 
             decoder.OpenedPlugin?.OnBuffering();
@@ -197,7 +195,6 @@ namespace FlyleafLib.MediaPlayer
 
             tSeek = new Thread(() =>
             {
-                //bool wasEnded = Status == Status.Ended || HasEnded;
                 try
                 {
                     TimeBeginPeriod(1);

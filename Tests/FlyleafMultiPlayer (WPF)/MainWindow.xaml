@@ -25,28 +25,28 @@
                 <RowDefinition/>
                 <RowDefinition/>
             </Grid.RowDefinitions>
-            <fl:VideoView Grid.Row="0"  Grid.Column="0" Player="{Binding PlayerView1}">
+            <fl:VideoView x:Name="VideoView1" Grid.Row="0"  Grid.Column="0" Player="{Binding PlayerView1}">
                 <Grid>
                     <flwpf:Flyleaf x:Name="flyleafControl1"/>
-                    <TextBlock Text="{Binding PlayerView1.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding PlayerView1.VideoView.Player.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
                 </Grid>
             </fl:VideoView>
-            <fl:VideoView Grid.Row="0"  Grid.Column="1" Player="{Binding PlayerView2}">
+            <fl:VideoView x:Name="VideoView2" Grid.Row="0"  Grid.Column="1" Player="{Binding PlayerView2}">
                 <Grid>
                     <flwpf:Flyleaf x:Name="flyleafControl2"/>
-                    <TextBlock Text="{Binding PlayerView2.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding PlayerView2.VideoView.Player.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
                 </Grid>
             </fl:VideoView>
-            <fl:VideoView Grid.Row="1"  Grid.Column="1" Player="{Binding PlayerView3}">
+            <fl:VideoView x:Name="VideoView3" Grid.Row="1"  Grid.Column="1" Player="{Binding PlayerView3}">
                 <Grid>
                     <flwpf:Flyleaf x:Name="flyleafControl3"/>
-                    <TextBlock Text="{Binding PlayerView3.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding PlayerView3.VideoView.Player.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
                 </Grid>
             </fl:VideoView>
-            <fl:VideoView Grid.Row="1"  Grid.Column="0" Player="{Binding PlayerView4}">
+            <fl:VideoView x:Name="VideoView4" Grid.Row="1"  Grid.Column="0" Player="{Binding PlayerView4}">
                 <Grid>
                     <flwpf:Flyleaf x:Name="flyleafControl4"/>
-                    <TextBlock Text="{Binding PlayerView4.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding PlayerView4.VideoView.Player.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
                 </Grid>
             </fl:VideoView>
         </Grid>
