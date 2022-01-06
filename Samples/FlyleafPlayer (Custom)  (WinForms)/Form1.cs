@@ -86,8 +86,7 @@ namespace FlyleafPlayer__Custom_
         {
             Player1View.PropertyChanged -= Player_PropertyChanged;
 
-            Player.SwitchPlayer(Player2);
-            Player2.SwitchPlayer(Player);
+            Player.SwapPlayers(Player, Player2);
 
             Player1View = isPlayer1View ? Player2 : Player;
             Player1View.PropertyChanged += Player_PropertyChanged;

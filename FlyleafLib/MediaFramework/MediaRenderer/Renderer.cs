@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -13,26 +11,22 @@ using System.Windows.Forms;
 using SharpGen.Runtime;
 
 using Vortice.DXGI;
-using Vortice.DXGI.Debug;
 using Vortice.D3DCompiler;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.Mathematics;
-
-using static Vortice.Direct3D11.D3D11;
-using static Vortice.DXGI.DXGI;
 
 using FlyleafLib.MediaFramework.MediaFrame;
 using VideoDecoder = FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
-    public unsafe class Renderer : IDisposable
+    public unsafe partial class Renderer : IDisposable
     {
         public Config           Config          => VideoDecoder?.Config;
-        public int              UniqueId        { get; private set; }
-
         public Control          Control         { get; private set; }
+        internal IntPtr ControlHandle; // When we re-created the swapchain so we don't access the control (which requires UI thread)
+
         public ID3D11Device     Device          { get; private set; }
         public bool             DisableRendering{ get; set; }
         public bool             Disposed        { get; private set; } = true;
@@ -49,11 +43,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         int panYOffset;
         public int              Zoom            { get => zoom;       set { zoom       = value; SetViewport(); } }
         int zoom;
+        public int              UniqueId        { get; private set; }
 
-        //DeviceDebug                       deviceDbg;
-        
-        IDXGIFactory2                           factory;
-        ID3D11DeviceContext1                    context;
+        ID3D11DeviceContext                     context;
         IDXGISwapChain1                         swapChain;
 
         ID3D11RenderTargetView                  rtv;
@@ -75,357 +67,197 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         ID3D11ShaderResourceView[]              curSRVs;
         ShaderResourceViewDescription           srvDescR, srvDescRG;
 
-        static  InputElementDescription[]       inputElements =
-            {
-                new InputElementDescription("POSITION", 0, Format.R32G32B32_Float,     0),
-                new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float,        0),
-            };
+        object  lockPresentTask     = new object();
+        object  lockDevice          = new object();
 
-        static float[]                          vertexBufferData =
-            {
-                -1.0f,  -1.0f,  0,      0.0f, 1.0f,
-                -1.0f,   1.0f,  0,      0.0f, 0.0f,
-                 1.0f,  -1.0f,  0,      1.0f, 1.0f,
-                
-                 1.0f,  -1.0f,  0,      1.0f, 1.0f,
-                -1.0f,   1.0f,  0,      0.0f, 0.0f,
-                 1.0f,   1.0f,  0,      1.0f, 0.0f
-            };
-
-        static Renderer()
-        {
-            List<FeatureLevel> features = new List<FeatureLevel>();
-            List<FeatureLevel> featuresAll = new List<FeatureLevel>();
-
-            featuresAll.Add(FeatureLevel.Level_12_1);
-            featuresAll.Add(FeatureLevel.Level_12_0);
-            featuresAll.Add(FeatureLevel.Level_11_1);
-
-            features.Add(FeatureLevel.Level_11_0);
-            features.Add(FeatureLevel.Level_10_1);
-            features.Add(FeatureLevel.Level_10_0);
-            features.Add(FeatureLevel.Level_9_3);
-            features.Add(FeatureLevel.Level_9_2);
-            features.Add(FeatureLevel.Level_9_1);
-
-            featureLevels = new FeatureLevel[features.Count];
-            featureLevelsAll = new FeatureLevel[features.Count + featuresAll.Count];
-
-            for (int i=0; i<featuresAll.Count; i++)
-                featureLevelsAll[i] = featuresAll[i];
-
-            for (int i=0; i<features.Count; i++)
-            {
-                featureLevels[i] = features[i];
-                featureLevelsAll[i + featuresAll.Count] = features[i];
-            }
-                
-        }
-
-        static FeatureLevel[] featureLevels;
-        static FeatureLevel[] featureLevelsAll;
-
-        FeatureLevel FeatureLevel;
-
-        static Blob vsBlob;
-        static Blob psBlob;
-
-        // Idle Fps (Frame == null)
-        object      lockPresentTask = new object();
-        bool        isPresenting;
-        long        lastPresentAt = 0;
-        long        lastPresentRequestAt = 0;
-
-        #region HDR to SDR
-        ID3D11Buffer psBuffer;
-        PSBufferType psBufferData = new PSBufferType();
-        float lastLumin;
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct PSBufferType
-        {
-            // size needs to be multiple of 16
-
-            public PSFormat format;
-            public int coefsIndex;
-            public HDRtoSDRMethod hdrmethod;
-
-            public float brightness;
-            public float contrast;
-
-            public float g_luminance;
-            public float g_toneP1;
-            public float g_toneP2;
-        }
-        enum PSFormat : int
-        {
-            RGB     = 1,
-            Y_UV    = 2,
-            Y_U_V   = 3
-        }
-        public void UpdateContrast()
-        {
-            psBufferData.contrast = Config.Video.Contrast / 100.0f;
-            context.UpdateSubresource(ref psBufferData, psBuffer);
-            Present();
-        }
-        public void UpdateBrightness()
-        {
-            psBufferData.brightness = Config.Video.Brightness / 100.0f;
-            context.UpdateSubresource(ref psBufferData, psBuffer);
-            Present();
-        }
-        public void UpdateHDRtoSDR(FFmpeg.AutoGen.AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
-        {
-            if (VideoDecoder.VideoStream == null || VideoDecoder.VideoStream.ColorSpace != "BT2020") return;
-
-            float lumin = displayData == null || displayData->has_luminance == 0 ? lastLumin : displayData->max_luminance.num / (float)displayData->max_luminance.den;
-            lastLumin = lumin;
-
-            psBufferData.hdrmethod = Config.Video.HDRtoSDRMethod;
-
-            if (psBufferData.hdrmethod == HDRtoSDRMethod.Reinhard)
-            {
-                psBufferData.g_toneP1 = lastLumin > 0 ? (float)(Math.Log10(100) / Math.Log10(lastLumin)) : 0.72f;
-                if (psBufferData.g_toneP1 < 0.1f || psBufferData.g_toneP1 > 5.0f)
-                    psBufferData.g_toneP1 = 0.72f;
-            }
-            else if (psBufferData.hdrmethod == HDRtoSDRMethod.Aces)
-            {
-                psBufferData.g_luminance = lastLumin > 0 ? lastLumin : 400.0f;
-                psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
-            }
-            else if (psBufferData.hdrmethod == HDRtoSDRMethod.Hable)
-            {
-                psBufferData.g_luminance = lastLumin > 0 ? lastLumin : 400.0f;
-                psBufferData.g_toneP1 = 10000.0f / psBufferData.g_luminance * (2.0f / Config.Video.HDRtoSDRTone);
-                psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
-            }
-
-            context.UpdateSubresource(ref psBufferData, psBuffer);
-
-            if (Control != null) Present();
-        }
-        #endregion
+        bool    isPresenting;
+        long    lastPresentAt       = 0;
+        long    lastPresentRequestAt= 0;
 
         public Renderer(VideoDecoder videoDecoder, Control control = null, int uniqueId = -1)
         {
-            Control     = control;
-            UniqueId    = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
-            VideoDecoder= videoDecoder;
-
-            if (CreateDXGIFactory1(out factory).Failure)
-                throw new InvalidOperationException("Cannot create IDXGIFactory1");
-
-            IDXGIAdapter1 adapter = null;
-
-            if (Config.Video.GPUAdapteLuid != -1)
+            if (control != null)
             {
-                for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
-                {
-                    if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
-                       break;
-
-                    adapter.Dispose();
-                }
-
-                if (adapter == null)
-                    throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
+                Control         = control;
+                ControlHandle   = control.Handle; // Requires UI Access
             }
-
-            DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
-
-            #if DEBUG
-            if (SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
-            #endif
-
-            // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
-            if (D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out ID3D11Device tempDevice, out FeatureLevel, out ID3D11DeviceContext tempContext).Failure)
-                if (D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).Failure)
-                    D3D11CreateDevice(null,    DriverType.Warp,     creationFlags, featureLevels, out tempDevice, out FeatureLevel, out tempContext).CheckError();
-
-            Device = tempDevice. QueryInterface<ID3D11Device1>();
-            context= tempContext.QueryInterface<ID3D11DeviceContext1>();
-
-            // Gets the default adapter from the D3D11 Device
-            if (adapter == null)
-            {
-                using (var deviceTmp = Device.QueryInterface<IDXGIDevice1>())
-                using (var adapterTmp = deviceTmp.GetAdapter())
-                    adapter = adapterTmp.QueryInterface<IDXGIAdapter1>();
-            }
-
-            RendererInfo.Fill(this, adapter);
-            Log("\r\n" + Info.ToString());
-
-            tempContext.Dispose();
-            tempDevice.Dispose();
-            adapter.Dispose();
             
-            using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
-            using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
-
-            if (Control != null)
-            {
-                Control.Resize += ResizeBuffers;
-
-                SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
-                {
-                    Format      = Format.B8G8R8A8_UNorm,
-                    //Format      = Format.R10G10B10A2_UNorm,
-                    Width       = Control.Width,
-                    Height      = Control.Height,
-                    AlphaMode   = AlphaMode.Ignore,
-                    BufferUsage = Usage.RenderTargetOutput,
-
-                    SampleDescription = new SampleDescription(1, 0)
-                };
-
-                SwapChainFullscreenDescription fullscreenDescription = new SwapChainFullscreenDescription
-                {
-                    Windowed = true
-                };
-
-                swapChainDescription.BufferCount = 1;
-                swapChainDescription.SwapEffect  = SwapEffect.Discard;
-
-                swapChain   = factory.CreateSwapChainForHwnd(Device, Control.Handle, swapChainDescription, fullscreenDescription);
-                backBuffer  = swapChain.GetBuffer<ID3D11Texture2D>(0);
-                rtv         = Device.CreateRenderTargetView(backBuffer);
-
-                GetViewport = new Viewport(0, 0, Control.Width, Control.Height);
-                context.RSSetViewport(GetViewport);
-            }
-
-            vertexBuffer  = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
-
-            samplerLinear = Device.CreateSamplerState(new SamplerDescription()
-            {
-                AddressU = TextureAddressMode.Clamp,
-                AddressV = TextureAddressMode.Clamp,
-                AddressW = TextureAddressMode.Clamp,
-                Filter   = Filter.MinMagMipLinear,
-                MinLOD   = 0,
-                MaxLOD   = float.MaxValue, // Required from Win7/8?
-                MaxAnisotropy = 1
-            });
-
-            // Compile VS/PS Embedded Resource Shaders (lock any static) | level_9_3 required from Win7/8 can't use level_9_1 for ps instruction limits
-            lock (vertexBufferData)
-            {
-                Assembly assembly = null;
-                string profileExt = FeatureLevel >= FeatureLevel.Level_11_0 ? "_5_0" : "_4_0_level_9_3";
-
-                if (vsBlob == null)
-                {
-                    assembly = Assembly.GetExecutingAssembly();
-                    using (Stream stream = assembly.GetManifestResourceStream(@"FlyleafLib.MediaFramework.MediaRenderer.Shaders.FlyleafVS.hlsl"))
-                    {
-                        byte[] bytes = new byte[stream.Length];
-                        stream.Read(bytes, 0, bytes.Length);
-                        Compiler.Compile(bytes, null, null, "main", null, $"vs{profileExt}", ShaderFlags.OptimizationLevel3, out vsBlob, out Blob vsError);
-                        if (vsError != null) Log(vsError.ConvertToString());
-                    }
-                }
-
-                if (psBlob == null)
-                {
-                    if (assembly == null) assembly = Assembly.GetExecutingAssembly();
-
-                    using (Stream stream = assembly.GetManifestResourceStream(@"FlyleafLib.MediaFramework.MediaRenderer.Shaders.FlyleafPS.hlsl"))
-                    {
-                        byte[] bytes = new byte[stream.Length];
-                        stream.Read(bytes, 0, bytes.Length);
-                        Compiler.Compile(bytes, null, null, "main", null, $"ps{profileExt}", ShaderFlags.OptimizationLevel3, out psBlob, out Blob psError);
-                        if (psError != null) Log(psError.ConvertToString());
-                    }
-                }
-            }
-
-            pixelShader  = Device.CreatePixelShader(psBlob);
-            vertexLayout = Device.CreateInputLayout(inputElements, vsBlob);
-            vertexShader = Device.CreateVertexShader(vsBlob);
-
-            context.IASetInputLayout(vertexLayout);
-            context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-            context.IASetVertexBuffers(0, new VertexBufferView[] { new VertexBufferView(vertexBuffer, sizeof(float) * 5, 0) });
-
-            context.VSSetShader(vertexShader);
-            context.PSSetShader(pixelShader);
-            context.PSSetSampler(0, samplerLinear);
-
-            psBuffer = Device.CreateBuffer(new BufferDescription() 
-            {
-                Usage           = ResourceUsage.Default,
-                BindFlags       = BindFlags.ConstantBuffer,
-                CpuAccessFlags  = CpuAccessFlags.None,
-                SizeInBytes     = sizeof(PSBufferType)
-            });
-            context.PSSetConstantBuffer(0, psBuffer);
-
-            psBufferData.hdrmethod  = HDRtoSDRMethod.None;
-            psBufferData.brightness = Config.Video.Brightness / 100.0f;
-            psBufferData.contrast   = Config.Video.Contrast / 100.0f;
-
-            context.UpdateSubresource(ref psBufferData, psBuffer);
-
-            if (Control != null)
-                SetViewport();
-
-            Disposed = false;
+            UniqueId        = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+            VideoDecoder    = videoDecoder;
         }
-        public static Dictionary<long, GPUAdapter> GetAdapters()
+
+        public void Initialize()
         {
-            Dictionary<long, GPUAdapter> adapters = new Dictionary<long, GPUAdapter>();
-
-            if (CreateDXGIFactory1(out IDXGIFactory2 factory).Failure)
-                throw new InvalidOperationException("Cannot create IDXGIFactory1");
-
-            #if DEBUG
-            Utils.Log("GPU Adapters ...");
-            #endif
-
-            for (int adapterIndex = 0; factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1 adapter).Success; adapterIndex++)
+            lock (lockDevice)
             {
+                Log("Initializing");
+
+                IDXGIAdapter1 adapter = null;
+
+                if (Config.Video.GPUAdapteLuid != -1)
+                {
+                    for (int adapterIndex = 0; Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                    {
+                        if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
+                            break;
+
+                        adapter.Dispose();
+                    }
+
+                    if (adapter == null)
+                        throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
+                }
+
+                DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+
                 #if DEBUG
-                Utils.Log($"[#{adapterIndex+1}] {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {adapter.Description1.DedicatedVideoMemory}");
+                if (D3D11.SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
                 #endif
 
-                if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
+                // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
+                if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out ID3D11Device tempDevice).Failure)
+                    if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice).Failure)
+                        D3D11.D3D11CreateDevice(null, DriverType.Warp, creationFlags, featureLevels, out tempDevice).CheckError();
+
+                Device = tempDevice. QueryInterface<ID3D11Device1>();
+                context= Device.ImmediateContext;
+
+                // Gets the default adapter from the D3D11 Device
+                if (adapter == null)
                 {
-                    adapter.Dispose();
-                    continue;
+                    using (var deviceTmp = Device.QueryInterface<IDXGIDevice1>())
+                    using (var adapterTmp = deviceTmp.GetAdapter())
+                        adapter = adapterTmp.QueryInterface<IDXGIAdapter1>();
                 }
 
-                //Utils.Log($"[#{adapterIndex+1}] {adapter.Description.Description} ({adapter.Description.DeviceId} | {adapter.Description1.AdapterLuid} | {adapter.Description.AdapterLuid}) | {adapter.Description1.DedicatedVideoMemory}");
+                RendererInfo.Fill(this, adapter);
+                Log("\r\n" + Info.ToString());
 
-                bool hasOutput = false;
-                adapter.EnumOutputs(0, out IDXGIOutput output);
-                if (output != null)
-                {
-                    hasOutput = true;
-                    output.Dispose();
-                }
-
-                adapters[adapter.Description1.Luid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.Luid, HasOutput = hasOutput };
-
+                tempDevice.Dispose();
                 adapter.Dispose();
-                adapter = null;
+            
+                using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
+                using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
+
+                if (Control != null)
+                    InitializeSwapChain();
+
+                vertexBuffer  = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
+
+                samplerLinear = Device.CreateSamplerState(new SamplerDescription()
+                {
+                    AddressU = TextureAddressMode.Clamp,
+                    AddressV = TextureAddressMode.Clamp,
+                    AddressW = TextureAddressMode.Clamp,
+                    Filter   = Filter.MinMagMipLinear,
+                    MinLOD   = 0,
+                    MaxLOD   = float.MaxValue, // Required from Win7/8?
+                    MaxAnisotropy = 1
+                });
+
+                // Compile VS/PS Embedded Resource Shaders (lock any static) | level_9_3 required from Win7/8 can't use level_9_1 for ps instruction limits
+                lock (vertexBufferData)
+                {
+                    Assembly assembly = null;
+                    string profileExt = Device.FeatureLevel >= FeatureLevel.Level_11_0 ? "_5_0" : "_4_0_level_9_3";
+
+                    if (vsBlob == null)
+                    {
+                        assembly = Assembly.GetExecutingAssembly();
+                        using (Stream stream = assembly.GetManifestResourceStream(@"FlyleafLib.MediaFramework.MediaRenderer.Shaders.FlyleafVS.hlsl"))
+                        {
+                            byte[] bytes = new byte[stream.Length];
+                            stream.Read(bytes, 0, bytes.Length);
+                            Compiler.Compile(bytes, null, null, "main", null, $"vs{profileExt}", ShaderFlags.OptimizationLevel3, out vsBlob, out Blob vsError);
+                            if (vsError != null) Log(vsError.ConvertToString());
+                        }
+                    }
+
+                    if (psBlob == null)
+                    {
+                        if (assembly == null) assembly = Assembly.GetExecutingAssembly();
+
+                        using (Stream stream = assembly.GetManifestResourceStream(@"FlyleafLib.MediaFramework.MediaRenderer.Shaders.FlyleafPS.hlsl"))
+                        {
+                            byte[] bytes = new byte[stream.Length];
+                            stream.Read(bytes, 0, bytes.Length);
+                            Compiler.Compile(bytes, null, null, "main", null, $"ps{profileExt}", ShaderFlags.OptimizationLevel3, out psBlob, out Blob psError);
+                            if (psError != null) Log(psError.ConvertToString());
+                        }
+                    }
+                }
+
+                pixelShader  = Device.CreatePixelShader(psBlob);
+                vertexLayout = Device.CreateInputLayout(inputElements, vsBlob);
+                vertexShader = Device.CreateVertexShader(vsBlob);
+
+                context.IASetInputLayout(vertexLayout);
+                context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
+                context.IASetVertexBuffers(0, new VertexBufferView[] { new VertexBufferView(vertexBuffer, sizeof(float) * 5, 0) });
+
+                context.VSSetShader(vertexShader);
+                context.PSSetShader(pixelShader);
+                context.PSSetSampler(0, samplerLinear);
+
+                psBuffer = Device.CreateBuffer(new BufferDescription() 
+                {
+                    Usage           = ResourceUsage.Default,
+                    BindFlags       = BindFlags.ConstantBuffer,
+                    CpuAccessFlags  = CpuAccessFlags.None,
+                    SizeInBytes     = sizeof(PSBufferType)
+                });
+                context.PSSetConstantBuffer(0, psBuffer);
+
+                psBufferData.hdrmethod  = HDRtoSDRMethod.None;
+                psBufferData.brightness = Config.Video.Brightness / 100.0f;
+                psBufferData.contrast   = Config.Video.Contrast / 100.0f;
+
+                context.UpdateSubresource(ref psBufferData, psBuffer);
+
+                Disposed = false;
+
+                Log("Initialized");
             }
-
-            factory.Dispose();
-
-            return adapters;
         }
+        public void InitializeSwapChain()
+        {
+            Control.Resize += ResizeBuffers;
+
+            SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+            {
+                Format      = Format.B8G8R8A8_UNorm,
+                //Format      = Format.R10G10B10A2_UNorm,
+                Width       = Control.Width,
+                Height      = Control.Height,
+                AlphaMode   = AlphaMode.Ignore,
+                BufferUsage = Usage.RenderTargetOutput,
+
+                SampleDescription = new SampleDescription(1, 0)
+            };
+
+            SwapChainFullscreenDescription fullscreenDescription = new SwapChainFullscreenDescription
+            {
+                Windowed = true
+            };
+
+            swapChainDescription.BufferCount= 2;
+            swapChainDescription.SwapEffect = SwapEffect.FlipDiscard;
+            swapChain   = Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, fullscreenDescription);
+            backBuffer  = swapChain.GetBuffer<ID3D11Texture2D>(0);
+            rtv         = Device.CreateRenderTargetView(backBuffer);
+        }
+        
         public void Dispose()
         {
-            if (Device == null) return;
-
-            lock (Device)
+            lock (lockDevice)
             {
-                if (Disposed) return;
+                if (Disposed)
+                    return;
 
-                if (Control != null) Control.Resize -= ResizeBuffers;
+                Log("Disposing");
+
+                if (Control != null)
+                    Control.Resize -= ResizeBuffers;
 
                 pixelShader?.Dispose();
                 psBuffer?.Dispose();
@@ -435,7 +267,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 vertexBuffer?.Dispose();
                 backBuffer?.Dispose();
                 rtv?.Dispose();
-                rtv = null;
+                swapChain?.Dispose();
 
                 if (rtv2 != null)
                 {
@@ -447,51 +279,44 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (backBuffer2 != null)
                     for(int i=0; i<backBuffer2.Length-1; i++)
-                        backBuffer2[i].Dispose();
+                        backBuffer2[i]?.Dispose();
 
                 if (curSRVs != null)
                 {
                     for (int i=0; i<curSRVs.Length; i++)
-                        curSRVs[i].Dispose();
+                        curSRVs[i]?.Dispose();
 
                     curSRVs = null;
                 }
 
-                context?.ClearState();
-                context?.Flush();
-                context?.Dispose();
-                context = null;
+                if (Device != null)
+                {
+                    context.ClearState();
+                    context.Flush();
+                    context.Dispose();
+                    Device.Dispose();
+                    Device = null;
+                }
 
-                Device?.ImmediateContext?.Dispose();
-                swapChain?.Dispose();
-                factory?.Dispose();
-                
+                #if DEBUG
+                ReportLiveObjects();
+                #endif
+
                 Disposed = true;
+                
+                Log("Disposed");
             }
-
-            vertexShader = null;
-            vertexLayout = null;
-            Device.Dispose();
-            Device = null;
-
-            #if DEBUG
-            if (DXGIGetDebugInterface1(out IDXGIDebug1 dxgiDebug).Success)
-            {
-                dxgiDebug.ReportLiveObjects(DebugAll, ReportLiveObjectFlags.Summary | ReportLiveObjectFlags.IgnoreInternal);
-                dxgiDebug.Dispose();
-            }
-            #endif
         }
 
-        private void ResizeBuffers(object sender, EventArgs e)
-        {
-            if (Device == null) return;
-            
-            lock (Device)
+        internal void ResizeBuffers(object sender, EventArgs e)
+        {   
+            lock (lockDevice)
             {
+                if (Disposed)
+                    return;
+
                 rtv.Dispose();
                 backBuffer.Dispose();
-
                 swapChain.ResizeBuffers(0, Control.Width, Control.Height, Format.Unknown, SwapChainFlags.None);
                 backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 rtv = Device.CreateRenderTargetView(backBuffer);
@@ -502,8 +327,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         internal void FrameResized()
         {
             // TODO: Win7 doesn't support R8G8_UNorm so use SNorm will need also unormUV on pixel shader
-            lock (Device)
+            lock (lockDevice)
             {
+                if (Disposed)
+                    return;
+
                 curSRVs = new ID3D11ShaderResourceView[0]; // Prevent Draw if backbuffer not set yet (otherwise we see green screen on YUV)
 
                 srvDescR = new ShaderResourceViewDescription()
@@ -516,7 +344,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16G16_UNorm : Format.R8G8_UNorm,
                 };
 
-                if (Config.Decoder.ZeroCopy)
+                if (VideoDecoder.ZeroCopy)
                 {
                     srvDescR.ViewDimension = ShaderResourceViewDimension.Texture2DArray;
                     srvDescR.Texture2DArray = new Texture2DArrayShaderResourceView()
@@ -606,7 +434,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
             }
         }
-
         public void SetViewport()
         {
             float ratio;
@@ -640,19 +467,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public bool Present(VideoFrame frame)
         {
-            // NOTE: Will not validate Fps while not playing (eg. from seek / showOneFrame)
-
-            if (Device == null) return false;
-
-            if (Monitor.TryEnter(Device, 5))
+            if (Monitor.TryEnter(lockDevice, 5))
             {
                 try
                 {
-                    if (rtv == null) return false;
-
                     if (VideoDecoder.VideoAccelerated)
                     {
-                        curSRVs     = new ID3D11ShaderResourceView[2];
+                        curSRVs = new ID3D11ShaderResourceView[2];
 
                         if (frame.bufRef != null) // Config.Decoder.ZeroCopy
                         {
@@ -687,18 +508,19 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (!DisableRendering) context.Draw(6, 0);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
 
-                    VideoDecoder.DisposeFrame(frame);
+                } catch (Exception e) { Log($"Error {e.Message}"); } // Currently seen on video switch when vframe (last frame of previous session) has different config from the new codec (eg. HW accel.)
 
-                    if (curSRVs != null)
-                    {
-                        for (int i=0; i<curSRVs.Length; i++)
-                            curSRVs[i].Dispose();
+                if (curSRVs != null)
+                {
+                    for (int i=0; i<curSRVs.Length; i++)
+                        curSRVs[i]?.Dispose();
 
-                        curSRVs = null;
-                    }
+                    curSRVs = null;
+                }
 
-                } catch (Exception e) { Log($"Error {e.Message}"); // Currently seen on video switch when vframe (last frame of previous session) has different config from the new codec (eg. HW accel.)
-                } finally { Monitor.Exit(Device); }
+                VideoDecoder.DisposeFrame(frame);
+
+                Monitor.Exit(lockDevice);
 
                 return true;
 
@@ -706,7 +528,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             return false;
         }
-
         public void Present()
         {
             // NOTE: We don't have TimeBeginPeriod, FpsForIdle will not be accurate
@@ -725,11 +546,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     do
                     {
-                        if (Device == null)
-                            return;
-
-                        if (Monitor.TryEnter(Device, 5))
-                        {        
+                        if (Monitor.TryEnter(lockDevice, 5))
+                        {
                             try
                             {
                                 long sleepMs = DateTime.UtcNow.Ticks - lastPresentAt;
@@ -737,7 +555,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                                 if (sleepMs > 2)
                                     Thread.Sleep((int)sleepMs);
 
-                                if (rtv == null)
+                                if (Disposed)
                                     return;
 
                                 context.OMSetRenderTargets(rtv);
@@ -751,7 +569,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                                 return;
 
-                            } finally { Monitor.Exit(Device); }
+                            } finally { Monitor.Exit(lockDevice); }
 
                         } else { Log("Dropped Present - Lock timeout"); }
 
@@ -783,7 +601,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 	            SampleDescription = new SampleDescription(1, 0)
             });
 
-            lock (Device)
+            lock (lockDevice)
             {
                 while (true)
                 {
@@ -800,7 +618,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (VideoDecoder.VideoAccelerated)
                 {
-                    curSRVs     = new ID3D11ShaderResourceView[2];
+                    curSRVs = new ID3D11ShaderResourceView[2];
 
                     if (frame.bufRef != null) // Config.Decoder.ZeroCopy
                     {
@@ -838,7 +656,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (curSRVs != null)
                 {
                     for (int i=0; i<curSRVs.Length; i++)
-                        curSRVs[i].Dispose();
+                        curSRVs[i]?.Dispose();
 
                     curSRVs = null;
                 }
@@ -882,7 +700,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
 	        ID3D11Texture2D snapshotTexture;
 
-	        lock (Device)
+	        lock (lockDevice)
             {
                 rtv.Dispose();
                 backBuffer.Dispose();

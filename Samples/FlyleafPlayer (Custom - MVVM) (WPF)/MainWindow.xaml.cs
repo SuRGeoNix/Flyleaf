@@ -28,20 +28,17 @@ namespace FlyleafPlayer__Custom___MVVM_
 
         public MainWindow()
         {
-            // Register FFmpeg Libraries
+            // Registers FFmpeg Libraries
             Master.RegisterFFmpeg(":2");
+
+            // Registers Plugins
+            Master.RegisterPlugins(":2");
 
             // Use UIRefresh to update Stats/BufferDuration (and CurTime more frequently than a second)
             Master.UIRefresh = true;
             Master.UIRefreshInterval = 100;
             Master.UICurTimePerSecond = false; // If set to true it updates when the actual timestamps second change rather than a fixed interval
 
-#if DEBUG
-            // To avoid copying plugins to output dir everytime
-            string plugins = Utils.FindFolderBelow("plugins.net6");
-            if (plugins != null)
-                Master.LoadPlugins(plugins);
-#endif
             ToggleDebug = new RelayCommandSimple(new Action(() => { ShowDebug = !ShowDebug; }));
 
             InitializeComponent();

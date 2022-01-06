@@ -21,7 +21,7 @@ namespace FlyleafLib.Plugins
         public OpenResults Open(string url)
         {
             foreach(var input in VideoInputs)
-                if (input.Url.ToLower() == url.ToLower()) 
+                if (input.Url != null && input.Url.ToLower() == url.ToLower()) 
                     { curSuggestInput = input; return new OpenResults(); }
 
             VideoInput videoInput = new VideoInput();

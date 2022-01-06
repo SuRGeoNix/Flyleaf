@@ -8,34 +8,33 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.3</Version>
+	<Version>3.4.4</Version>
 	<Authors>SuRGeoNix</Authors>
-	<Copyright>SuRGeoNix © 2021</Copyright>
+	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
 	<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework download extract ffmpeg vortice directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		-= Video Acceleration Performance Improvements =-
+		-= Video Acceleration, Disposal and Swaping Improvements =-
 
-		* Introduces Config.Decoder.ZeroCopy (enabled by default) to use the decoder's texture directly to the renderer's pipeline
-		* Introduces Config.Decoder.VAPoolSize to pre-allocate the hardware frames on the ffmpeg decoder (it was re-allocating them on every flush causing serious performance issues)
-		* Adds support for streams that change codecs live/dynamically (still in progress)
-		* Improves Player.Stop() with interrupt while opening
+		* Re-designs and improves Video Acceleration with custom hardware frame pool allocation, zero-copy, proper width/height alignments
+		* Re-designs and improves VideoDecoder's and MediaRenderer's disposal which resolves major memory leaks
+		* Re-designs of player's swap implementation with better perfomance (Uses the new static Player.SwapPlayers from now on for both WPF/WinForms)
+		* Renderer: Changes from Discard to FlipDiscard and from single backbuffer to two (for better performance and avoid memory leaks)
+		* Adds Master.RegisterPlugins to allow different path for plugins than default
 
 		[Issues]
 
-		* Fixes a crashing issue during renderer's disposal
-		* Fixes an issue on audio device removal (by resetting players' with this device to default)
-		* Fixes an issue with VolumeMax
-		* Fixes an issue with Volume's value accuracy on get
-		* Fixes UI update issues with Volume and Mute
-		* Fixes an issue with AddFirewallRule and findstr (uses literal strings now)
+		* Fixes memory leaks caused by FFmpeg and VA by reseting the renderer on every new input
+		* Fixes an issue with Volume/Mute
+		* Fixes an issue with Enable/Disable Streams
 
 		[Important/Breaking Changes]
 
-		* Drops support for MaxVideoFramesReverse, will use MaxVideoFrames instead
+		* ZeroCopy automatically detects padding and will be disabled (changes Config.Decoder.ZeroCopy from bool to enum with Auto/Enabled/Disabled)
+		* FlipDiscard with two backbufffers can cause issues with win7/8
 	</PackageReleaseNotes>
   </PropertyGroup>
 

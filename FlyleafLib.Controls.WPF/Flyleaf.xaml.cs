@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
@@ -10,7 +11,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 
 using WpfColorFontDialog;
 using MaterialDesignThemes.Wpf;
@@ -65,6 +65,7 @@ namespace FlyleafLib.Controls.WPF
         Brush _SubtitlesFontColor;
 
         public TextBlock    Subtitles           { get; set; }
+        public int          UniqueId            { get; set; }
 
         public string SelectedThemeStr
         {
@@ -92,7 +93,7 @@ namespace FlyleafLib.Controls.WPF
                 theme.SetSecondaryColor(value.SecondaryColor);
                 theme.Paper = value.PaperColor;
                 Resources.SetTheme(theme);
-                settings.Resources.SetTheme(theme);
+                settings?.Resources.SetTheme(theme);
 
                 if (Config != null && Config.Video != null)
                     Config.Video.BackgroundColor = value.VideoView;
@@ -166,8 +167,25 @@ namespace FlyleafLib.Controls.WPF
         static Flyleaf()
         {
             Master.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
-        }
 
+            Player.SwapCompleted += (o, e) =>
+            {
+                var flyleaf1 = (Flyleaf)e.Player1.Tag;
+                var flyleaf2 = (Flyleaf)e.Player2.Tag;
+
+                var saveMargin  = flyleaf1.Subtitles.Margin;
+                var saveFontSize= flyleaf1.Subtitles.FontSize;
+
+                flyleaf1.Subtitles.Margin   = flyleaf2.Subtitles.Margin;
+                flyleaf1.Subtitles.FontSize = flyleaf2.Subtitles.FontSize;
+
+                flyleaf2.Subtitles.Margin   = saveMargin;
+                flyleaf2.Subtitles.FontSize = saveFontSize;
+
+                flyleaf1.Player = e.Player2;
+                flyleaf2.Player = e.Player1;
+            };
+        }
         public Flyleaf()
         {
             InitializeComponent();
@@ -286,8 +304,6 @@ namespace FlyleafLib.Controls.WPF
                 SubtitlesFontColor  = Subtitles.Foreground;
             }
 
-            settings = new Settings(this);
-
             ITheme theme = Resources.GetTheme();
             defaultTheme = new UITheme(this, defaultTheme) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, PaperColor = theme.Paper, VideoView = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};
 
@@ -310,39 +326,22 @@ namespace FlyleafLib.Controls.WPF
                 SelectedTheme = UIThemes[3];
             
             Raise(null);
-            settings.Raise(null);
+            settings?.Raise(null);
         }
         private void InitializePlayer(Player oldPlayer = null)
         {
+            // Updates the key binding actions with the new instances in case of swap or initial load
+            bool SubsYUp = false, SubsYDown = false, SubsFontIncrease = false, SubsFontDecrease = false;
+            Action aSubsYUp =           () => { Thickness t = Subtitles.Margin; t.Bottom += 2; Subtitles.Margin = t; Raise(nameof(Subtitles)); };
+            Action aSubsYDown =         () => { Thickness t = Subtitles.Margin; t.Bottom -= 2; Subtitles.Margin = t; Raise(nameof(Subtitles)); };
+            Action aSubsFontIncrease =  () => { Subtitles.FontSize += 2; };
+            Action aSubsFontDecrease =  () => { Subtitles.FontSize -= 2; };
+
             Config.Player.ActivityMode = true; // To allow Idle mode on flyleafBar
             Config.Player.KeyBindings.FlyleafWindow = true; // To allow keybindings also on front window
-            Player.SubscribeEvents();
 
-            // Ensure Player Events will re-subscribed / No need to re-subscribe on VideoView/Control as it will be the same (Possible also Raise(null); / settings?.Raise(null);)
-            if (oldPlayer != null)
-                return;
-
-            Unloaded += (o, e) => { Dispose(); };
-            Player.Control.MouseClick   += (o, e) => { if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true; };
-            MouseDown += (o, e) => { Player?.Activity.ForceFullActive(); };
-            MouseMove += (o, e) => { Player?.Activity.ForceFullActive(); };
-
-            if (defaultTheme != null)
-                defaultTheme.VideoView = Config.Video.BackgroundColor;
-
-            if (SelectedTheme != null)
-                Config.Video.BackgroundColor = SelectedTheme.VideoView;
-
-            // Additional Key Bindings for Subtitles
             if (Config.Player.KeyBindings.Enabled)
             {
-                bool SubsYUp = false, SubsYDown = false, SubsFontIncrease = false, SubsFontDecrease = false;
-
-                Action aSubsYUp =           () => { Thickness t = Subtitles.Margin; t.Bottom += 2; Subtitles.Margin = t; Raise(nameof(Subtitles)); };
-                Action aSubsYDown =         () => { Thickness t = Subtitles.Margin; t.Bottom -= 2; Subtitles.Margin = t; Raise(nameof(Subtitles)); };
-                Action aSubsFontIncrease =  () => { Subtitles.FontSize += 2; };
-                Action aSubsFontDecrease =  () => { Subtitles.FontSize -= 2; };
-
                 // Update Actions if loaded from Config file (TBR: possible also on swap?)
                 foreach (var binding in Config.Player.KeyBindings.Keys)
                 {
@@ -372,23 +371,42 @@ namespace FlyleafLib.Controls.WPF
                             break;
                     }
                 }
-                    
-                // Add Actions if not already loaded
-                if (!Config.Loaded)
-                {
-                    if (!SubsYUp)
-                        Config.Player.KeyBindings.AddCustom(Key.Up,     false, aSubsYUp,           "SubsYUp",          true);
-                    if (!SubsYDown)
-                        Config.Player.KeyBindings.AddCustom(Key.Down,   false, aSubsYDown,         "SubsYDown",        true);
-                    if (!SubsFontIncrease)
-                        Config.Player.KeyBindings.AddCustom(Key.Right,  false, aSubsFontIncrease,  "SubsFontIncrease", true);
-                    if (!SubsFontDecrease)
-                        Config.Player.KeyBindings.AddCustom(Key.Left,   false, aSubsFontDecrease,  "SubsFontDecrease", true);
-                }
-                
             }
 
-            Timeline.DesiredFrameRateProperty.OverrideMetadata(typeof(Timeline), new FrameworkPropertyMetadata { DefaultValue = (int) Config.Player.IdleFps });
+            Player.Tag = this;
+
+            if (oldPlayer != null)
+            {
+                Log($"Assigning {Player.PlayerId} | {(oldPlayer != null ? $"Old {oldPlayer.PlayerId}" : "")}"); 
+                return;
+            }
+
+            UniqueId = Player.PlayerId;
+            Log($"Assigning {Player.PlayerId} | {(oldPlayer != null ? $"Old {oldPlayer.PlayerId}" : "")}"); 
+
+            Unloaded += (o, e) => { Dispose(); };
+            Player.Control.MouseClick   += (o, e) => { if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true; };
+            MouseDown += (o, e) => { Player?.Activity.ForceFullActive(); };
+            MouseMove += (o, e) => { Player?.Activity.ForceFullActive(); };
+
+            if (defaultTheme != null)
+                defaultTheme.VideoView = Config.Video.BackgroundColor;
+
+            if (SelectedTheme != null)
+                Config.Video.BackgroundColor = SelectedTheme.VideoView;
+
+            // Additional Key Bindings for Subtitles
+            if (Config.Player.KeyBindings.Enabled && !Config.Loaded)
+            {
+                if (!SubsYUp)
+                    Config.Player.KeyBindings.AddCustom(Key.Up,     false, aSubsYUp,           "SubsYUp",          true);
+                if (!SubsYDown)
+                    Config.Player.KeyBindings.AddCustom(Key.Down,   false, aSubsYDown,         "SubsYDown",        true);
+                if (!SubsFontIncrease)
+                    Config.Player.KeyBindings.AddCustom(Key.Right,  false, aSubsFontIncrease,  "SubsFontIncrease", true);
+                if (!SubsFontDecrease)
+                    Config.Player.KeyBindings.AddCustom(Key.Left,   false, aSubsFontDecrease,  "SubsFontDecrease", true);
+            }
 
             Raise(null);
             settings?.Raise(null);
@@ -409,7 +427,7 @@ namespace FlyleafLib.Controls.WPF
 
                 //VideoView?.WindowFront?.Close();
                 Player?.Dispose();
-                settings.Dispose();
+                settings?.Dispose();
                 settings = null;
 
                 popUpMenu?.Resources?.MergedDictionaries.Clear();
@@ -460,13 +478,17 @@ namespace FlyleafLib.Controls.WPF
         public ICommand OpenSettings        { get; set; }
         public async void OpenSettingsAction(object obj = null)
         {
-            if (Config == null || dialogSettingsIdentifier == null) return;
+            if (Config == null || dialogSettingsIdentifier == null)
+                return;
 
             if (DialogHost.IsDialogOpen(dialogSettingsIdentifier))
             {
                 DialogHost.Close(dialogSettingsIdentifier, "cancel");
                 return;
             }
+
+            if (settings == null)
+                settings = new Settings(this);
 
             Config.Player.ActivityMode = false;
             Config.Player.KeyBindings.Enabled = false;
@@ -617,5 +639,7 @@ namespace FlyleafLib.Controls.WPF
             }
         }
         #endregion
+
+        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Player] {msg}"); }
     }
 }

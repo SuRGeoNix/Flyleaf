@@ -62,6 +62,7 @@ namespace FlyleafLib
 
         static Master()
         {
+            // Create a UI dispatcher if not already exists (mainly for Winforms)
             if (System.Windows.Application.Current == null)
                 new System.Windows.Application();
 
@@ -74,12 +75,20 @@ namespace FlyleafLib
         }
 
         /// <summary>
-        /// Manually load plugins in case of different from default path
+        /// Registers Plugins (ensure you provide x86 or x64 and the right framework based on your project)
         /// </summary>
-        /// <param name="path"></param>
-        public static void LoadPlugins(string path)
+        /// <param name="absolutePath">Provide your custom absolute path or :1 for current\Plugins\ or :2 for Plugins\ from current to base</param>
+        public static void RegisterPlugins(string absolutePath = ":1")
         {
-            PluginHandler.LoadAssemblies(path);
+            if (absolutePath == ":1")
+                absolutePath = Path.Combine(Directory.GetCurrentDirectory(), "Plugins");
+            else if (absolutePath == ":2")
+                absolutePath = Utils.FindFolderBelow("Plugins");
+
+            if (string.IsNullOrEmpty(absolutePath))
+                return;
+
+            PluginHandler.LoadAssemblies(absolutePath);
         }
 
         /// <summary>
@@ -286,7 +295,7 @@ namespace FlyleafLib
                         } catch { }
                     };
 
-                    System.Windows.Application.Current.Dispatcher.BeginInvoke(action);
+                    Utils.UI(action);
                     Thread.Sleep(UIRefreshInterval);
 
                 } catch { curLoop = 0; }

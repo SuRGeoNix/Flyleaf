@@ -148,7 +148,7 @@ namespace FlyleafLib
             /// <summary>
             /// Fps while the player is not playing
             /// </summary>
-            public double   IdleFps                     { get; set; } = 30.0;
+            public double   IdleFps                     { get; set; } = 60.0;
 
             /// <summary>
             /// Limit before dropping frames. Lower value means lower latency (>=1)
@@ -373,8 +373,8 @@ namespace FlyleafLib
             /// Whether or not to use decoder's textures directly as shader resources
             /// (TBR: Better performance but might need to be disabled while video input has padding or not supported by older Direct3D versions)
             /// </summary>
-            public bool             ZeroCopy        { get => _ZeroCopy; set { if (Set(ref _ZeroCopy, value)) player?.renderer?.FrameResized(); } }
-            bool _ZeroCopy = true;
+            public ZeroCopy         ZeroCopy        { get => _ZeroCopy; set { if (Set(ref _ZeroCopy, value) && player != null && player.Video.isOpened) player?.VideoDecoder?.RecalculateZeroCopy(); } }
+            ZeroCopy _ZeroCopy = ZeroCopy.Auto;
         }
         public class VideoConfig : NotifyPropertyChanged
         {

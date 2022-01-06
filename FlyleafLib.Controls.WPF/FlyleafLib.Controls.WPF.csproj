@@ -4,9 +4,9 @@
     <TargetFrameworks>net6.0-windows;net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.17</Version>
+    <Version>1.1.18</Version>
     <Authors>SuRGeoNix</Authors>
-    <Copyright>SuRGeoNix © 2021</Copyright>
+    <Copyright>SuRGeoNix © 2022</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
     <PackageIcon>Flyleaf.png</PackageIcon>
@@ -14,7 +14,10 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		Updates FlyleafLib to v3.4.3
+		* Adds PlayerDebug with all Player's properties
+		* Adds ZeroCopy to Video Settings
+		* Removes GPU Usage
+		* Updates FlyleafLib and MaterialDesign
 	</PackageReleaseNotes>
   </PropertyGroup>
 

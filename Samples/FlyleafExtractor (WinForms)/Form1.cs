@@ -28,6 +28,9 @@ namespace FlyleafExtractor
             // Registers FFmpeg Libraries
             Master.RegisterFFmpeg(":2");
 
+            // Registers Plugins
+            Master.RegisterPlugins(":2");
+
             // Prepares Decoder Context's Configuration
             Config = new Config();
             //Config.Demuxer.AllowInterrupts = false;

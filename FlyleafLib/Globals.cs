@@ -20,10 +20,17 @@ namespace FlyleafLib
     }
     public enum HDRtoSDRMethod : int
     {
-        None    = 0,
-        Aces    = 1,
-        Hable   = 2,
-        Reinhard= 3
+        None        = 0,
+        Aces        = 1,
+        Hable       = 2,
+        Reinhard    = 3
+    }
+
+    public enum ZeroCopy : int
+    {
+        Auto        = 0,
+        Enabled     = 1,
+        Disabled    = 2
     }
 
     public struct GPUAdapter

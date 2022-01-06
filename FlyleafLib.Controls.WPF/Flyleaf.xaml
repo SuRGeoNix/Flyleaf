@@ -33,11 +33,11 @@
                         <ControlTemplate TargetType="local:Flyleaf">
                             <ControlTemplate.Resources>
                                 <ResourceDictionary>
-                                    <Storyboard x:Key="fadeIn">
+                                    <Storyboard x:Key="fadeIn" Timeline.DesiredFrameRate="10">
                                         <DoubleAnimation BeginTime="0:0:0" Storyboard.TargetProperty="Opacity"  To="1" Duration="0:0:0.5" AutoReverse="False"/>
                                     </Storyboard>
 
-                                    <Storyboard x:Key="fadeOut">
+                                    <Storyboard x:Key="fadeOut" Timeline.DesiredFrameRate="10">
                                         <DoubleAnimation BeginTime="0:0:0" Storyboard.TargetProperty="Opacity"  To="0" Duration="0:0:2.0" AutoReverse="False"/>
                                     </Storyboard>
                                 </ResourceDictionary>

@@ -12,6 +12,7 @@ using static FFmpeg.AutoGen.AVCodecID;
 using Vortice;
 using Vortice.DXGI;
 using Vortice.Direct3D11;
+using Vortice.Mathematics;
 
 using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
@@ -28,6 +29,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 Frames              { get; protected set; } = new ConcurrentQueue<VideoFrame>();
         public Renderer         Renderer            { get; private set; }
         public bool             VideoAccelerated    { get; internal set; }
+        public bool             ZeroCopy            { get; internal set; }
+        
         public VideoStream      VideoStream         => (VideoStream) Stream;
 
         public long             StartTime           { get; internal set; } = AV_NOPTS_VALUE;
@@ -61,7 +64,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             getHWformat = new AVCodecContext_get_format(get_format);
 
             if (initVA)
-                InitVA(control);
+            {
+                Renderer = new Renderer(this, control, UniqueId);
+                Renderer.Initialize();
+                Disposed = false;
+            }
         }
 
         #region Video Acceleration (Should be disposed seperately)
@@ -74,8 +81,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 getHWformat;
         AVBufferRef*            hwframes;
         AVBufferRef*            hw_device_ctx;
-        AVBufferRef*            swap_hw_device_ctx;
-        Renderer                swap_renderer;
 
         internal static bool CheckCodecSupport(AVCodec* codec)
         {
@@ -90,108 +95,46 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             return false;
         }
-        internal int InitVA(Control control = null)
+        internal int InitVA()
         {
             int ret;
-
-            Renderer = new Renderer(this, control, UniqueId);
+            AVHWDeviceContext*      device_ctx;
+            AVD3D11VADeviceContext* d3d11va_device_ctx;
 
             if (Renderer.Device == null || hw_device_ctx != null) return -1;
 
             hw_device_ctx  = av_hwdevice_ctx_alloc(HW_DEVICE);
 
-            AVHWDeviceContext* device_ctx = (AVHWDeviceContext*) hw_device_ctx->data;
-            AVD3D11VADeviceContext* d3d11va_device_ctx = (AVD3D11VADeviceContext*) device_ctx->hwctx;
-            d3d11va_device_ctx->device = (FFmpeg.AutoGen.ID3D11Device*) Renderer.Device.NativePointer;
-            
+            device_ctx          = (AVHWDeviceContext*) hw_device_ctx->data;
+            d3d11va_device_ctx  = (AVD3D11VADeviceContext*) device_ctx->hwctx;
+            d3d11va_device_ctx->device
+                                = (FFmpeg.AutoGen.ID3D11Device*) Renderer.Device.NativePointer;
+
             ret = av_hwdevice_ctx_init(hw_device_ctx);
             if (ret != 0)
             {
                 Log($"[ERROR-1]{Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
                 
-                fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
+                fixed(AVBufferRef** ptr = &hw_device_ctx)
+                    av_buffer_unref(ptr);
+
                 hw_device_ctx = null;
-                return ret;
             }
+
+            Renderer.Device.AddRef(); // Important to give another reference for FFmpeg so we can dispose without issues
 
             return ret;
         }
-        public void DisposeVA()
-        {
-            if (Renderer == null) return;
-
-            if (hw_device_ctx != null)
-                fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
-
-            if (hwframes != null)
-                fixed(AVBufferRef** ptr = &hwframes) av_buffer_unref(ptr);
-
-            hw_device_ctx = null;
-            hwframes = null;
-            
-            Renderer.Dispose();
-        }
-        public void Swap(VideoDecoder videoDecoder)
-        {
-            if (swap_renderer == null && hw_device_ctx != null)
-            {
-                swap_renderer = Renderer;
-                swap_hw_device_ctx = av_buffer_ref(hw_device_ctx);
-                fixed(AVBufferRef** ptr = &hw_device_ctx) av_buffer_unref(ptr);
-            }
-
-            if (videoDecoder.swap_renderer != null)
-            {
-                Renderer = videoDecoder.swap_renderer;
-                videoDecoder.swap_renderer = null;
-                hw_device_ctx = av_buffer_ref(videoDecoder.swap_hw_device_ctx);
-                fixed(AVBufferRef** ptr = &videoDecoder.swap_hw_device_ctx) av_buffer_unref(ptr);
-            }
-            else if (videoDecoder.Renderer != null)
-            {
-                videoDecoder.Renderer.DisableRendering = true;
-                videoDecoder.Renderer.Present();
-                Renderer = videoDecoder.Renderer;
-                videoDecoder.Renderer = null;
-                hw_device_ctx = av_buffer_ref(videoDecoder.hw_device_ctx);
-                fixed(AVBufferRef** ptr = &videoDecoder.hw_device_ctx) av_buffer_unref(ptr);
-
-                if (videoDecoder.codecCtx != null && videoDecoder.codecCtx->hw_device_ctx != null) av_buffer_unref(&videoDecoder.codecCtx->hw_device_ctx);
-            }
-
-            if (videoDecoder.codecCtx != null && videoDecoder.codecCtx->hw_device_ctx != null)
-            {
-                av_buffer_unref(&videoDecoder.codecCtx->hw_device_ctx);
-                videoDecoder.codecCtx->hw_device_ctx = av_buffer_ref(videoDecoder.hw_device_ctx);
-            }
-            
-            if (codecCtx != null)
-            {
-                if (codecCtx->hw_device_ctx != null) av_buffer_unref(&codecCtx->hw_device_ctx);
-                if (VideoAccelerated) codecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
-            }
-            
-            Renderer.VideoDecoder = this;
-
-            if (!Disposed)
-            {
-                Renderer.DisableRendering = false;
-                //Renderer.FrameResized();
-                Open(VideoStream);
-                //Setup(codecCtx->codec);
-            }
-            else
-                Renderer.DisableRendering = true;
-
-            Renderer.Present();
-        }
+        
         private AVPixelFormat get_format(AVCodecContext* avctx, AVPixelFormat* pix_fmts)
         {
             bool foundHWformat = false;
 
             while (*pix_fmts != AVPixelFormat.AV_PIX_FMT_NONE)
             {
+                #if DEBUG
                 Log($"{*pix_fmts}");
+                #endif
 
                 if (*pix_fmts == AVPixelFormat.AV_PIX_FMT_D3D11)
                 {
@@ -204,22 +147,34 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             lock (lockCodecCtx)
             {
-                if (!foundHWformat) // TODO check failed
+                if (!VideoAccelerated)
                 {
-                    Log("[HW] Format not found. Fallback to sw format");
-
-                    VideoAccelerated        = false;
-                    codecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx); 
-                    codecCtx->hw_device_ctx = null; 
-                    textDesc.Format = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth > 8 ? Format.R16_UNorm : Format.R8_UNorm;
-                    CodecChanged?.Invoke(this);
-                    Renderer?.FrameResized();
+                    Log("[HW] WARNING: Format found after falling back to sw format!");
 
                     return avcodec_default_get_format(avctx, pix_fmts);
                 }
-                else if (!VideoAccelerated)
+
+                if (!foundHWformat) // TODO check failed
                 {
-                    Log("[HW] WARNING: Format found after falling back to sw format!");
+                    #if DEBUG
+                    Log("[HW] Format not found. Fallback to sw format");
+                    #endif
+
+                    VideoAccelerated        = false;
+
+                    if (hw_device_ctx != null)
+                    fixed(AVBufferRef** ptr = &hw_device_ctx)
+                        av_buffer_unref(ptr);
+
+                    if (codecCtx->hw_device_ctx != null)
+                        av_buffer_unref(&codecCtx->hw_device_ctx);
+
+                    hw_device_ctx = null;
+                    codecCtx->hw_device_ctx = null;
+                    textDesc.Format = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth > 8 ? Format.R16_UNorm : Format.R8_UNorm;
+                    ZeroCopy = false;
+                    CodecChanged?.Invoke(this);
+                    Renderer?.FrameResized();
 
                     return avcodec_default_get_format(avctx, pix_fmts);
                 }
@@ -227,7 +182,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 int ret = ShouldAllocateNew();
                 if (ret == 0)
                 {
+                    #if DEBUG
                     Log("[HW] Frames already allocated");
+                    #endif
 
                     if (hwframes != null && codecCtx->hw_frames_ctx == null)
                         codecCtx->hw_frames_ctx = av_buffer_ref(hwframes);
@@ -244,8 +201,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     VideoStream.Width   = codecCtx->width;
                     VideoStream.Height  = codecCtx->height;
-                    CodecChanged?.Invoke(this);
-                    Renderer?.FrameResized();
                 }
 
                 if (AllocateHWFrames(Config.Decoder.VAPoolSize + Config.Decoder.MaxVideoFrames + codecCtx->thread_count) == 0)
@@ -276,7 +231,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (codecCtx->coded_height != t2->height)
                 return 2;
 
-            var fmt = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : AVPixelFormat.AV_PIX_FMT_NV12;
+            var fmt = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : (codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_P010BE ? AVPixelFormat.AV_PIX_FMT_P010BE : AVPixelFormat.AV_PIX_FMT_NV12);
             if (fmt != t2->sw_format)
                 return 2;
 
@@ -296,19 +251,49 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             codecCtx->hw_frames_ctx = av_hwframe_ctx_alloc(codecCtx->hw_device_ctx);
             if (codecCtx->hw_frames_ctx == null)
                 return -1;
-            
+
             //codecCtx->hwaccel_context = null;
             //codecCtx->hwaccel_flags |= 2; //AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX
 
+            // (Surface alignment & Number of Surfaces) | https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/dxva2.c
+            
+            int surface_alignment, num_surfaces;
+
+            /* decoding MPEG-2 requires additional alignment on some Intel GPUs,
+            but it causes issues for H.264 on certain AMD GPUs..... */
+            if (codecCtx->codec_id == AV_CODEC_ID_MPEG2VIDEO)
+                surface_alignment = 32;
+
+            /* the HEVC DXVA2 spec asks for 128 pixel aligned surfaces to ensure
+            all coding features have enough room to work with */
+            else if (codecCtx->codec_id == AV_CODEC_ID_HEVC || codecCtx->codec_id == AV_CODEC_ID_AV1)
+                surface_alignment = 128;
+            else
+                surface_alignment = 16;
+
+            /* 1 base work surface */
+            num_surfaces = 1;
+
+            /* add surfaces based on number of possible refs */
+            if (codecCtx->codec_id == AV_CODEC_ID_H264 || codecCtx->codec_id == AV_CODEC_ID_HEVC)
+                num_surfaces += 16;
+            else if (codecCtx->codec_id == AV_CODEC_ID_VP9 || codecCtx->codec_id == AV_CODEC_ID_AV1)
+                num_surfaces += 8;
+            else
+                num_surfaces += 2;
+
+            // We guarantee 4 base work surfaces. The function above guarantees 1
+            // (the absolute minimum), so add the missing count.
+            num_surfaces += 3;
+
             var t2 = (AVHWFramesContext*)(codecCtx->hw_frames_ctx->data);
             t2->format      = AVPixelFormat.AV_PIX_FMT_D3D11;
-            t2->sw_format   = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : AVPixelFormat.AV_PIX_FMT_NV12;
-            t2->width       = codecCtx->coded_width;
-            t2->height      = codecCtx->coded_height;
-            t2->initial_pool_size = poolsize;
+            t2->sw_format   = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : (codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_P010BE ? AVPixelFormat.AV_PIX_FMT_P010BE : AVPixelFormat.AV_PIX_FMT_NV12);
+            t2->width       = Utils.Align(codecCtx->coded_width,  surface_alignment);
+            t2->height      = Utils.Align(codecCtx->coded_height, surface_alignment);
+            t2->initial_pool_size = Math.Max(num_surfaces, poolsize);
 
             AVD3D11VAFramesContext *t3 = (AVD3D11VAFramesContext *)t2->hwctx;
-            t3->texture     = null;
             t3->BindFlags  |= (uint)BindFlags.Decoder | (uint)BindFlags.ShaderResource;
             
             hwframes = av_buffer_ref(codecCtx->hw_frames_ctx);
@@ -318,46 +303,54 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 textureFFmpeg   = new ID3D11Texture2D((IntPtr) t3->texture);
                 textDesc.Format = textureFFmpeg.Description.Format;
+                ZeroCopy = Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Enabled || (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto && codecCtx->width == textureFFmpeg.Description.Width && codecCtx->height == textureFFmpeg.Description.Height);
+                Renderer?.FrameResized();
+                CodecChanged?.Invoke(this);
             }
 
             return ret;
+        }
+        internal void RecalculateZeroCopy()
+        {
+            bool save = ZeroCopy;
+            ZeroCopy = Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Enabled || (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto && codecCtx->width == textureFFmpeg.Description.Width && codecCtx->height == textureFFmpeg.Description.Height);
+            if (save != ZeroCopy)
+            {
+                Renderer?.FrameResized();
+                CodecChanged?.Invoke(this);
+            }
         }
         #endregion
 
         protected override int Setup(AVCodec* codec)
         {
+            Renderer?.Initialize();
             VideoAccelerated = false;
 
             if (Config.Video.VideoAcceleration)
             {
                 if (CheckCodecSupport(codec))
                 {
-                    if (hw_device_ctx != null)
+                    if (InitVA() == 0)
                     {
                         codecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
                         VideoAccelerated = true;
                         Log("[VA] Success");
                     }
                     else
-                        Log("[VA] Failed");
+                        Log("[VA] Init failed");
                 }
                 else
-                    Log("[VA] Failed");
+                    Log("[VA] Codec not supported");
             }
             else
                 Log("[VA] Disabled");
 
-            // TBR: Is this only for non-hwaccel? when trying FF_THREAD_FRAME causes ffmpeg to create new frame hw pool
-            codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
-            codecCtx->thread_type  = 0;
-
-            if (VideoAccelerated)
+            int bits = 0;
+            try
             {
-                codecCtx->pix_fmt = AVPixelFormat.AV_PIX_FMT_D3D11;
-                codecCtx->get_format = getHWformat;
-            }
-
-            int bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
+                bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
+            } catch { }
 
             textDesc = new Texture2DDescription()
             {
@@ -392,9 +385,22 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
 
             HDRDataSent = false;
-            Renderer?.FrameResized();
-
             keyFrameRequired = true;
+            ZeroCopy = false;
+
+            // TBR: Is this only for non-hwaccel? when trying FF_THREAD_FRAME causes ffmpeg to create new frame hw pool
+            codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
+            codecCtx->thread_type  = 0;
+
+            if (VideoAccelerated)
+            {
+                codecCtx->pix_fmt = AVPixelFormat.AV_PIX_FMT_D3D11;
+                codecCtx->get_format = getHWformat;
+            }
+            else
+            {
+                Renderer?.FrameResized();
+            }
 
             return 0;
         }
@@ -795,23 +801,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 // Hardware Frame (NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)
                 if (VideoAccelerated)
                 {
-                    // TBR: Will be notified in get_format
-                    //if (frame->hw_frames_ctx == null)
-                    //{
-                    //    Log("[VA] Failed 2");
-                    //    VideoAccelerated = false;
-                    //    Renderer?.FrameResized();
-                    //    CodecChanged?.Invoke(this);
-                    //    codecCtx->get_format = null;
-
-                    //    return ProcessVideoFrame(frame);
-                    //}
 
                     // TBR: It is possible that FFmpeg will decide to re-create a new hw frames pool (if we provide wrong threads/initial pool size etc?)
                     //if ((IntPtr) frame->data.ToArray()[0] != (IntPtr) (((AVD3D11VAFramesContext *)((AVHWFramesContext*)hwframes->data)->hwctx)->texture))
                         //textureFFmpeg = new ID3D11Texture2D((IntPtr) frame->data.ToArray()[0]);
 
-                    if (Config.Decoder.ZeroCopy)
+                    if (ZeroCopy)
                     {
                         mFrame.bufRef       = av_buffer_ref(frame->buf.ToArray()[0]);
                         mFrame.subresource  = (int) frame->data.ToArray()[1];
@@ -823,7 +818,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         Renderer.Device.ImmediateContext.CopySubresourceRegion(
                             mFrame.textures[0], 0, 0, 0, 0, // dst
                             textureFFmpeg, (int)frame->data.ToArray()[1],  // src
-                            new Vortice.Mathematics.Box(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1));
+                            new Box(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1)); // crop decoder's padding
                     }
                 }
 
@@ -1126,23 +1121,38 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         }
         protected override void DisposeInternal()
         {
-            if (codecCtx->hw_device_ctx != null)
-                av_buffer_unref(&codecCtx->hw_device_ctx);
+            lock (lockCodecCtx)
+            {
+                DisposeFrames();
+                Renderer.Dispose();
 
-            if (codecCtx->hw_frames_ctx != null)
-                av_buffer_unref(&codecCtx->hw_frames_ctx);
+                if (codecCtx != null)
+                {
+                    avcodec_close(codecCtx);
+                    fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
 
-            if (swsCtx != null)
-                sws_freeContext(swsCtx);
+                    codecCtx = null;
+                }
 
-            if (hwframes != null)
+                if (hwframes != null)
                 fixed(AVBufferRef** ptr = &hwframes)
                     av_buffer_unref(ptr);
+                
+                if (hw_device_ctx != null)
+                    fixed(AVBufferRef** ptr = &hw_device_ctx)
+                        av_buffer_unref(ptr);
 
-            hwframes    = null;
-            swsCtx      = null;
-            StartTime   = AV_NOPTS_VALUE;
-            DisposeFrames();
+                if (swsCtx != null)
+                    sws_freeContext(swsCtx);
+                
+                hwframes    = null;
+                swsCtx      = null;
+                StartTime   = AV_NOPTS_VALUE;
+
+                #if DEBUG
+                Renderer.ReportLiveObjects();
+                #endif
+            }
         }
 
         internal Action<MediaType> recCompleted;
