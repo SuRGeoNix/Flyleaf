@@ -12,7 +12,7 @@ namespace FlyleafLib.Controls
 
         public Flyleaf()
         {
-            BackColor   = Color.Black;
+            BackColor   = Color.Yellow;
         }
 
         Point oldLocation = Point.Empty;
@@ -58,7 +58,13 @@ namespace FlyleafLib.Controls
         }
 
         protected override bool IsInputKey(Keys keyData) { return Player != null && Player.VideoView == null; } // Required to allow keybindings such as arrows etc.
-        protected override void OnPaintBackground(PaintEventArgs pe) { if (Player != null && Player.renderer != null) Player?.renderer?.Present(); else base.OnPaintBackground(pe); }
-        protected override void OnPaint(PaintEventArgs pe) { Player?.renderer?.Present(); }
+        protected override void OnPaintBackground(PaintEventArgs pe)
+        {
+            if (Player != null && Player.renderer != null)
+                Player?.renderer?.Present(); 
+            else
+                base.OnPaintBackground(pe);
+        }            
+        protected override void OnPaint(PaintEventArgs pe) { }
     }
 }

@@ -185,7 +185,6 @@ namespace FlyleafLib.MediaPlayer
 
             while(VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
 
-            startedAtTicks  = DateTime.UtcNow.Ticks;
             vFrame.timestamp= (long) (vFrame.timestamp / Speed);
             videoStartTicks = vFrame.timestamp;
             if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed);
@@ -237,6 +236,8 @@ namespace FlyleafLib.MediaPlayer
                         Audio.AddSamples(aFrame);
                         AudioDecoder.Frames.TryDequeue(out aFrame);
                     }
+
+                    startedAtTicks  = DateTime.UtcNow.Ticks;
                 }
 
                 if (vFrame == null)

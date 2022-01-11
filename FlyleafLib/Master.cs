@@ -187,9 +187,8 @@ namespace FlyleafLib
             Log("MasterThread Started");
 
             int curLoop = 0;
-            int secondLoops = 1000 / UIRefreshInterval; 
-
-            Dictionary<int, PlayerStats> stats = new Dictionary<int, PlayerStats>();
+            int secondLoops = 1000 / UIRefreshInterval;
+            long secondCorrection = DateTime.UtcNow.Ticks;
 
             do
             {
@@ -215,11 +214,10 @@ namespace FlyleafLib
                             {
                                 if (player.Config.Player.Stats)
                                 {
-                                    if (!stats.ContainsKey(player.PlayerId))
-                                        stats.Add(player.PlayerId, new PlayerStats());
+                                    var now = DateTime.UtcNow.Ticks;
+                                    secondCorrection = DateTime.UtcNow.Ticks - secondCorrection;
 
-                                    var curStats = stats[player.PlayerId];
-
+                                    var curStats = player.stats;
                                     long curTotalBytes  = player.VideoDemuxer.TotalBytes + player.AudioDemuxer.TotalBytes + player.SubtitlesDemuxer.TotalBytes;
                                     long curVideoBytes  = player.VideoDemuxer.VideoBytes + player.AudioDemuxer.VideoBytes + player.SubtitlesDemuxer.VideoBytes;
                                     long curAudioBytes  = player.VideoDemuxer.AudioBytes + player.AudioDemuxer.AudioBytes + player.SubtitlesDemuxer.AudioBytes;
@@ -234,9 +232,11 @@ namespace FlyleafLib
 
                                     if (player.IsPlaying)
                                     {
-                                        player.Video.fpsCurrent = player.Video.FramesDisplayed - curStats.FramesDisplayed;
+                                        player.Video.fpsCurrent = (player.Video.FramesDisplayed - curStats.FramesDisplayed) / (secondCorrection / 10000000.0);
                                         curStats.FramesDisplayed = player.Video.FramesDisplayed;
                                     }
+
+                                    secondCorrection = now;
                                 }
                             }
                         }

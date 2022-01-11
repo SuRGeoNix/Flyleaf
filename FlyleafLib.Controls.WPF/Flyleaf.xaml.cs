@@ -493,6 +493,10 @@ namespace FlyleafLib.Controls.WPF
             Config.Player.ActivityMode = false;
             Config.Player.KeyBindings.Enabled = false;
 
+            Dictionary<VideoFilters, int> saveFilterValues = new Dictionary<VideoFilters, int>();
+            foreach(var filter in Config.Video.Filters.Values)
+                saveFilterValues.Add(filter.Filter, filter.Value);
+
             var prevConfig = Config.Video.Clone();
             var result = await DialogHost.Show(settings, dialogSettingsIdentifier);
 
@@ -505,8 +509,9 @@ namespace FlyleafLib.Controls.WPF
             {
                 Config.Video.HDRtoSDRMethod  = prevConfig.HDRtoSDRMethod;
                 Config.Video.HDRtoSDRTone    = prevConfig.HDRtoSDRTone;
-                Config.Video.Contrast        = prevConfig.Contrast;
-                Config.Video.Brightness      = prevConfig.Brightness;
+
+                foreach(var filter in saveFilterValues)
+                    Config.Video.Filters[filter.Key].Value = filter.Value;
             }
             else
             {

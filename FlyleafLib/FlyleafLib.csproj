@@ -49,21 +49,23 @@
 
   <ItemGroup>
     <None Remove="MediaFramework\MediaRenderer\Shaders\FlyleafPS.hlsl" />
-    <None Remove="MediaFramework\MediaRenderer\Shaders\FlyleafVS.hlsl" />
+    <None Remove="MediaFramework\MediaRenderer\Shaders\PSSimple.hlsl" />
+    <None Remove="MediaFramework\MediaRenderer\Shaders\VSSimple.hlsl" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\FlyleafPS.hlsl" />
-    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\FlyleafVS.hlsl" />
+    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\PSSimple.hlsl" />
+    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\VSSimple.hlsl" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.0" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.1.0" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.1-beta4" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.1.1-beta4" />
     <PackageReference Include="Vortice.Mathematics" Version="1.3.24" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.0" />
-    <PackageReference Include="Vortice.XAudio2" Version="2.1.0" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.1-beta4" />
+    <PackageReference Include="Vortice.XAudio2" Version="2.1.1-beta4" />
   </ItemGroup>
   
   <ItemGroup>

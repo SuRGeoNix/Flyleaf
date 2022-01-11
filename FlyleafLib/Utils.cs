@@ -56,6 +56,11 @@ namespace FlyleafLib
             return num + (align - num % align);
         }
 
+        public static float Scale(float value, float inMin, float inMax, float outMin, float outMax)
+        {
+            return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+        }
+
         /// <summary>
         /// Adds a windows firewall rule if not already exists for the specified program path
         /// </summary>

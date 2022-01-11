@@ -25,7 +25,12 @@ namespace FlyleafLib
         Hable       = 2,
         Reinhard    = 3
     }
-
+    public enum VideoProcessors
+    {
+        Auto,
+        D3D11,
+        Flyleaf,
+    }
     public enum ZeroCopy : int
     {
         Auto        = 0,
@@ -39,7 +44,20 @@ namespace FlyleafLib
         public long     Luid        { get; internal set; }
         public bool     HasOutput   { get; internal set; }
     }
+    public enum VideoFilters
+    {
+        // Ensure we have the same values with Vortice.Direct3D11.VideoProcessorFilterCaps (d3d11.h) | we can extended if needed with other values
 
+        Brightness          = 0x01,
+        Contrast            = 0x02,
+        Hue                 = 0x04,
+        Saturation          = 0x08,
+        NoiseReduction      = 0x10,
+        EdgeEnhancement     = 0x20,
+        AnamorphicScaling   = 0x40,
+        StereoAdjustment    = 0x80
+    }
+    
     public struct AspectRatio
     {
         public static readonly AspectRatio Keep     = new AspectRatio(-1, 1);
@@ -156,10 +174,31 @@ namespace FlyleafLib
 
             return false;
         }
+
+        protected bool SetUI<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
+        {
+            if (!check || (field == null && value != null) || (field != null && !field.Equals(value)))
+            {
+                field = value;
+
+                if (!DisableNotifications)
+                    Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+
+                return true;
+            }
+
+            return false;
+        }
         protected void Raise([CallerMemberName] string propertyName = "")
         {
             if (!DisableNotifications)
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        protected void RaiseUI([CallerMemberName] string propertyName = "")
+        {
+            if (!DisableNotifications)
+                Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
         }
     }
 }
