@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 
+using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins;
 
@@ -50,14 +51,23 @@ namespace FlyleafLib
             using (FileStream fs = new FileStream(path, FileMode.Open))
             {
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(Config));
-                Config config = (Config) xmlSerializer.Deserialize(fs);
-                config.Loaded = true;
+                Config config       = (Config) xmlSerializer.Deserialize(fs);
+                config.Loaded       = true;
+                config.LoadedPath   = path;
 
                 return config;
             }
         }
-        public void Save(string path)
+        public void Save(string path = null)
         {
+            if (path == null)
+            {
+                if (string.IsNullOrEmpty(LoadedPath))
+                    return;
+
+                path = LoadedPath;
+            }
+
             using (FileStream fs = new FileStream(path, FileMode.Create))
             {
                 XmlSerializer xmlSerializer = new XmlSerializer(GetType());
@@ -74,6 +84,12 @@ namespace FlyleafLib
             Audio.player    = player;
             Video.player    = player;
             Subtitles.player= player;
+
+            if (Video.Filters != null)
+            {
+                foreach(var filter in Video.Filters.Values)
+                    filter.player = player;
+            }
         }
 
         /// <summary>
@@ -81,6 +97,12 @@ namespace FlyleafLib
         /// </summary>
         [XmlIgnore]
         public bool             Loaded      { get; private set; }
+
+        /// <summary>
+        /// The path that this configuration has been loaded from
+        /// </summary>
+        [XmlIgnore]
+        public string           LoadedPath  { get; private set; }
 
         public PlayerConfig     Player      { get; set; } = new PlayerConfig();
         public DemuxerConfig    Demuxer     { get; set; } = new DemuxerConfig();
@@ -373,7 +395,7 @@ namespace FlyleafLib
             /// Whether or not to use decoder's textures directly as shader resources
             /// (TBR: Better performance but might need to be disabled while video input has padding or not supported by older Direct3D versions)
             /// </summary>
-            public ZeroCopy         ZeroCopy        { get => _ZeroCopy; set { if (Set(ref _ZeroCopy, value) && player != null && player.Video.isOpened) player?.VideoDecoder?.RecalculateZeroCopy(); } }
+            public ZeroCopy         ZeroCopy        { get => _ZeroCopy; set { if (SetUI(ref _ZeroCopy, value) && player != null && player.Video.isOpened) player.VideoDecoder?.RecalculateZeroCopy(); } }
             ZeroCopy _ZeroCopy = ZeroCopy.Auto;
         }
         public class VideoConfig : NotifyPropertyChanged
@@ -391,7 +413,7 @@ namespace FlyleafLib
             /// <summary>
             /// Video aspect ratio
             /// </summary>
-            public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value)) player?.renderer?.SetViewport(); } }
+            public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value)) player?.renderer?.SetViewport(); player?.renderer?.Present(); } }
             AspectRatio    _AspectRatio = AspectRatio.Keep;
 
             /// <summary>
@@ -404,7 +426,7 @@ namespace FlyleafLib
             /// Background color of the player's control
             /// </summary>
             public System.Windows.Media.Color
-                                    BackgroundColor             { get => Utils.WinFormsToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, Utils.WPFToWinFormsColor(value)); player?.renderer?.Present(); } }
+                                    BackgroundColor             { get => Utils.WinFormsToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, Utils.WPFToWinFormsColor(value)); player?.renderer?.UpdateBackgroundColor(); } }
             internal System.Drawing.Color _BackgroundColor = System.Drawing.Color.Black;
 
             /// <summary>
@@ -441,21 +463,30 @@ namespace FlyleafLib
             public bool             VideoAcceleration           { get; set; } = true;
 
             /// <summary>
+            /// Whether to use embedded video processor with custom pixel shaders or D3D11
+            /// (Currently D3D11 works only on video accelerated / hardware surfaces)
+            /// * FLVP supports HDR to SDR, D3D11 does not
+            /// * FLVP supports Pan Move/Zoom, D3D11 does not
+            /// * D3D11 possible performs better with color conversion and filters, FLVP supports only brightness/contrast filters
+            /// * D3D11 supports deinterlace (bob)
+            /// </summary>
+            public VideoProcessors  VideoProcessor              { get => _VideoProcessor; set { if (Set(ref _VideoProcessor, value)) player?.renderer?.UpdateVideoProcessor(); } }
+            VideoProcessors _VideoProcessor = VideoProcessors.Auto;
+
+            /// <summary>
             /// Whether Vsync should be enabled (0: Disabled, 1: Enabled)
             /// </summary>
             public short            VSync                       { get; set; }
 
             /// <summary>
-            /// Sets the Contrast
+            /// Enables the video processor to perform post process deinterlacing
+            /// (D3D11 video processor should be enabled and support bob deinterlace method)
             /// </summary>
-            public int              Contrast                    { get=> _Contrast; set { if (Set(ref _Contrast, value)) player?.renderer?.UpdateContrast(); } }
-            int _Contrast = 50;
+            public bool             Deinterlace                 { get=> _Deinterlace;   set { if (Set(ref _Deinterlace, value)) player?.renderer?.UpdateDeinterlace(); } }
+            bool _Deinterlace;
 
-            /// <summary>
-            /// Sets the Brightness
-            /// </summary>
-            public int              Brightness                  { get=> _Brightness; set { if (Set(ref _Brightness, value)) player?.renderer?.UpdateBrightness(); } }
-            int _Brightness = 50;
+            public bool             DeinterlaceBottomFirst      { get=> _DeinterlaceBottomFirst; set { if (Set(ref _DeinterlaceBottomFirst, value)) player?.renderer?.UpdateDeinterlace(); } }
+            bool _DeinterlaceBottomFirst;
 
             /// <summary>
             /// The HDR to SDR method that will be used by the pixel shader
@@ -468,6 +499,20 @@ namespace FlyleafLib
             /// </summary>
             public float            HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value)) player?.renderer?.UpdateHDRtoSDR(); } }
             float _HDRtoSDRTone = 1.4f;
+
+            public SerializableDictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
+
+            public static SerializableDictionary<VideoFilters, VideoFilter> DefaultFilters()
+            {
+                var filters = new SerializableDictionary<VideoFilters, VideoFilter>();
+
+                var available = Enum.GetValues(typeof(VideoFilters));
+
+                foreach(var filter in available)
+                    filters.Add((VideoFilters)filter, new VideoFilter((VideoFilters)filter));
+
+                return filters;
+            }
         }
         public class AudioConfig : NotifyPropertyChanged
         {

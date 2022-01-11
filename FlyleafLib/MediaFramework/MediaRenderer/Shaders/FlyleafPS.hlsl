@@ -9,10 +9,10 @@ cbuffer         Config 		    : register(b0)
     int format;
     int coefsIndex;
     int hdrmethod;
-    
+
     float brightness;
     float contrast;
-    
+
     float g_luminance;
     float g_toneP1;
     float g_toneP2;
@@ -21,7 +21,7 @@ cbuffer         Config 		    : register(b0)
 struct PixelShaderInput
 {
     float4 Position : SV_POSITION;
-    float2 Texture  : TEXCOORD0;
+    float2 Texture  : TEXCOORD;
 };
 
 // format enum
@@ -115,7 +115,7 @@ float reinhard(float x)
 float4 main(PixelShaderInput input) : SV_TARGET
 {
     float4 color;
-    
+
     if (format == Y_UV)
     {
         color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).r, TextureU_UV.Sample(Sampler, input.Texture).rg, 1.0);
@@ -130,14 +130,14 @@ float4 main(PixelShaderInput input) : SV_TARGET
     {
         color = TextureRGB_Y.Sample(Sampler, input.Texture);
     }
-    
+
     if (hdrmethod != 0)
     {
         // BT2020 -> BT709
         color.rgb = pow(max(0.0, color.rgb), 2.4f);
         color.rgb = max(0.0, mul(color, bt2020tobt709color).rgb);
         color.rgb = pow(color.rgb, 1.0f / 2.2f);
-        
+
         if (hdrmethod == Aces)
         {
             color.rgb = inversePQ(color.rgb);
@@ -159,10 +159,10 @@ float4 main(PixelShaderInput input) : SV_TARGET
             color.rgb *= reinhard(luma) / luma;
         }
     }
-    
+
     color *= contrast * 2.0f;
     color += brightness - 0.5f;
-    
+
     color.a = 1;
     return color;
 }

@@ -109,6 +109,8 @@
     <fl:TicksToTimeConverter x:Key="TicksToTime"/>
     <fl:TicksToSecondsConverter x:Key="TicksToSeconds" />
     <fl:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
+    <fl:BooleanToVisibilityConverter x:Key="BooleanToVisibility"/>
+    
     <flwpf:VolumeToLevelsConverter x:Key="VolumeToLevels"/>
     <flwpf:QualityToLevelsConverter x:Key="QualityToLevels"/>
     <flwpf:CheckNullConverter x:Key="CheckNull"/>
@@ -870,8 +872,8 @@
             <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording, Mode=OneWay}" Command="{Binding Player.Commands.ToggleRecording}"/>
             <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
             <MenuItem Header="{Binding Player.Speed}" HeaderStringFormat="Speed ({0})">
+                <MenuItem Header=" x 8"   CommandParameter="8" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 4"   CommandParameter="4" Command="{Binding Player.Commands.SpeedSet}"/>
-                <MenuItem Header=" x 3"   CommandParameter="3" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 2"   CommandParameter="2" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 1"   CommandParameter="1" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 0.75"   CommandParameter="0.75" Command="{Binding Player.Commands.SpeedSet}"/>

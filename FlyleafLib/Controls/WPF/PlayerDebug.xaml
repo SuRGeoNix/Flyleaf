@@ -266,6 +266,11 @@
                     <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.VideoAcceleration}"/>
                 </StackPanel>
 
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource TextInfo}" Text="VideoProcessor"/>
+                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.renderer.VideoProcessor}"/>
+                </StackPanel>
+
                 <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
                     <TextBlock Style="{StaticResource TextInfo}" Text="ZeroCopy"/>
                     <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.ZeroCopy}"/>
@@ -308,8 +313,13 @@
                 <TextBlock Style="{StaticResource TextHeader}" Text="Stats"/>
 
                 <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource TextInfo}" Text="FramesDisplayed"/>
+                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesDisplayed}"/>
+                </StackPanel>
+                
+                <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource TextInfo}" Text="FPSCurrent"/>
-                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FPSCurrent}"/>
+                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FPSCurrent, StringFormat={}{0:F2}}"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal">

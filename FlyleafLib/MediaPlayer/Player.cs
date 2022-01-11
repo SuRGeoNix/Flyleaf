@@ -247,8 +247,8 @@ namespace FlyleafLib.MediaPlayer
                 double newValue = value;
                 if (value <= 0 )
                     newValue = 0.25;
-                else if (value > 4)
-                    newValue = 4;
+                else if (value > 16)
+                    newValue = 16;
                 else if (value > 1)
                     newValue = (int) value;
 
@@ -379,6 +379,7 @@ namespace FlyleafLib.MediaPlayer
         internal AudioFrame     aFrame;
         internal VideoFrame     vFrame;
         internal SubtitlesFrame sFrame, sFramePrev;
+        internal PlayerStats    stats = new PlayerStats();
 
         bool reversePlaybackResync;
         bool requiresBuffering;

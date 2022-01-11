@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 
+using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
 using static FlyleafLib.Utils;
@@ -189,8 +190,20 @@ namespace FlyleafLib.MediaPlayer
                         
                 if (VideoDecoder.Frames.Count == 0)
                 {
+                    // Temp fix for previous timestamps until we seperate GetFrame for Extractor and the Player
                     reversePlaybackResync = true;
-                    vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 1);
+                    int askedFrame = VideoDecoder.GetFrameNumber(CurTime) - 1;
+                    vFrame = VideoDecoder.GetFrame(askedFrame);
+                    int recvFrame = VideoDecoder.GetFrameNumber(vFrame.timestamp);
+                    if (askedFrame != recvFrame)
+                    {
+                        VideoDecoder.DisposeFrame(vFrame);
+                        vFrame = null;
+                        if (askedFrame > recvFrame)
+                            vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime));
+                        else
+                            vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 2);
+                    }
                 }
                 else
                     VideoDecoder.Frames.TryDequeue(out vFrame);
@@ -217,7 +230,7 @@ namespace FlyleafLib.MediaPlayer
                 if (ReversePlayback)
                     return;
 
-                Speed = Speed + 1 > 4 ? 4 : Speed + 1;
+                Speed = Speed + 1 > 16 ? 16 : Speed + 1;
             }
         }
         public void SpeedDown()

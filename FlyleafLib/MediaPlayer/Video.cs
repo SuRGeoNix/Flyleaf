@@ -88,17 +88,17 @@ namespace FlyleafLib.MediaPlayer
             {
                 IsOpened            = IsOpened;
                 Codec               = Codec;
-                //BitRate             = BitRate;
                 AspectRatio         = AspectRatio;
-                //DroppedFrames       = DroppedFrames;
                 FramesTotal         = FramesTotal;
                 FPS                 = FPS;
-                //CurrentFps          = CurrentFps;
                 PixelFormat         = PixelFormat;
                 Width               = Width;
                 Height              = Height;
                 VideoAcceleration   = VideoAcceleration;
                 ZeroCopy            = ZeroCopy;
+
+                FramesDisplayed     = FramesDisplayed;
+                FramesDropped       = FramesDropped;
             };
         }
 
@@ -137,6 +137,9 @@ namespace FlyleafLib.MediaPlayer
                         = decoder.VideoDecoder.VideoAccelerated;
             zeroCopy    = decoder.VideoDecoder.ZeroCopy;
             isOpened    =!decoder.VideoDecoder.Disposed;
+
+            framesDisplayed = 0;
+            framesDropped   = 0;
 
             player.renderer.DisableRendering = false;
             player.UIAdd(uiAction);

@@ -33,6 +33,8 @@ namespace FlyleafExtractor
 
             // Prepares Decoder Context's Configuration
             Config = new Config();
+            //Config.Video.VideoProcessor = VideoProcessors.Flyleaf;
+
             //Config.Demuxer.AllowInterrupts = false;
             Config.Demuxer.AllowTimeouts = false;
 
@@ -161,6 +163,9 @@ namespace FlyleafExtractor
 
         private void btnOpen_Click(object sender, EventArgs e)
         {
+            if (!Directory.Exists(txtSavePath.Text))
+                Directory.CreateDirectory(txtSavePath.Text);
+
             DecCtx.Stop();
 
             var res = DecCtx.OpenVideo(txtUrl.Text, true, true, false, false);

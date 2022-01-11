@@ -35,18 +35,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             Y_UV    = 2,
             Y_U_V   = 3
         }
-        public void UpdateContrast()
-        {
-            psBufferData.contrast = Config.Video.Contrast / 100.0f;
-            context.UpdateSubresource(ref psBufferData, psBuffer);
-            Present();
-        }
-        public void UpdateBrightness()
-        {
-            psBufferData.brightness = Config.Video.Brightness / 100.0f;
-            context.UpdateSubresource(ref psBufferData, psBuffer);
-            Present();
-        }
         public void UpdateHDRtoSDR(AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
         {
             if (VideoDecoder.VideoStream == null || VideoDecoder.VideoStream.ColorSpace != "BT2020") return;
@@ -77,6 +65,36 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             context.UpdateSubresource(ref psBufferData, psBuffer);
 
             if (Control != null) Present();
+
+
+            /* TODO
+             * 
+             * https://github.com/xbmc/xbmc/blob/1d0dc77d43b4730f3b8708a84d931ce3c161d2d0/xbmc/cores/VideoPlayer/VideoRenderers/HwDecRender/DXVAHD.cpp
+             * 
+                var sc4 = swapChain.QueryInterface<IDXGISwapChain4>();
+                var t1 = new HdrMetadataHdr10();
+                t1.RedPrimary[0]   = 34000; // Display P3 primaries
+                t1.RedPrimary[1]   = 16000;
+                t1.GreenPrimary[0] = 13250;
+                t1.GreenPrimary[1] = 34500;
+                t1.BluePrimary[0]  = 7500;
+                t1.BluePrimary[1]  = 3000;
+                t1.WhitePoint[0]   = 15635;
+                t1.WhitePoint[1]   = 16450;
+                t1.MaxMasteringLuminance = 1000 * 10000; // 1000 nits
+                t1.MinMasteringLuminance = 100;          // 0.01 nits
+
+                sc4.SetHDRMetaData(HdrMetadataType.Hdr10, t1);
+                sc4.Dispose();
+
+
+                vc1.VideoProcessorSetStreamColorSpace1(vp, 0, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020);
+                vc1.VideoProcessorSetStreamColorSpace1(vp, 0, ColorSpaceType.YcbcrStudioG2084LeftP2020);
+
+                // HDR output?
+                pVideoContext1->VideoProcessorSetOutputColorSpace1(m_pVideoProcessor, DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
+             * 
+             */
         }
     }
 }
