@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.4</Version>
+	<Version>3.4.5</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,24 +17,28 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		-= Video Acceleration, Disposal and Swaping Improvements =-
+		-= D3D11 Video Processor Support &amp; Media Renderer Improvements =-
 
-		* Re-designs and improves Video Acceleration with custom hardware frame pool allocation, zero-copy, proper width/height alignments
-		* Re-designs and improves VideoDecoder's and MediaRenderer's disposal which resolves major memory leaks
-		* Re-designs of player's swap implementation with better perfomance (Uses the new static Player.SwapPlayers from now on for both WPF/WinForms)
-		* Renderer: Changes from Discard to FlipDiscard and from single backbuffer to two (for better performance and avoid memory leaks)
-		* Adds Master.RegisterPlugins to allow different path for plugins than default
+		Extends the current embedded video processor (FLVP pixel shaders) with the D3D11VP to support more filters, alternative color conversions, basic bob deinterlace and preparing others including HDR native.
+		Use Config.Video.VideoProcessor to choose which one to use. By default "Auto" is recommended to allow the library to switch when it requires.
+		* FLVP supports HDR to SDR, D3D11 does not
+		* FLVP supports Pan Move/Zoom, D3D11 does not
+		* D3D11 possible performs better with color conversion and filters, FLVP supports only brightness/contrast filters
+		* D3D11 supports deinterlace (bob)
+		* D3D11 currently performs only with video accelerated (hardware) frames
 
-		[Issues]
+		Adds Config.Video.Deinterlace to enable/disable deinterlace
+		Adds Config.Video.Filters to set filters (ensure that is actually available and supported by the VPs)
+		Adds Player.LastError to keep track of open/playback/buffering errors in the UI
 
-		* Fixes memory leaks caused by FFmpeg and VA by reseting the renderer on every new input
-		* Fixes an issue with Volume/Mute
-		* Fixes an issue with Enable/Disable Streams
+		Renderer: Code clean up and improvements
+		Renderer: TakeSnapshot now works more efficiently
 
-		[Important/Breaking Changes]
+		Audio: Fixes a critical backwards compatibility issue with XAudio by updating Vortice libraries
+		Renderer: Possible brings back the broken backwards compatibility (Win7/Win8) from the previous 3.4.4 (not tested)
+		VideoDecoder: Fixes few performance issues with the new get_format / hardware frames allocation
 
-		* ZeroCopy automatically detects padding and will be disabled (changes Config.Decoder.ZeroCopy from bool to enum with Auto/Enabled/Disabled)
-		* FlipDiscard with two backbufffers can cause issues with win7/8
+		Updates Vortice (you might need to update System.Runtime.CompilerServices.Unsafe to Version&gt;=6.0.0.0)
 	</PackageReleaseNotes>
   </PropertyGroup>
 

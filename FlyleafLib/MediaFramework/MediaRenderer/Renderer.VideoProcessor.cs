@@ -245,10 +245,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     continue;
 
                 var cfgFilter = Config.Video.Filters[filter.Filter];
+                cfgFilter.Available = true;
 
                 if (!configLoadedChecked && !Config.Loaded)
                 {
-                    cfgFilter.Available = true;
                     cfgFilter.Minimum   = filter.Minimum;
                     cfgFilter.Maximum   = filter.Maximum;
                     cfgFilter.Value     = filter.Value;

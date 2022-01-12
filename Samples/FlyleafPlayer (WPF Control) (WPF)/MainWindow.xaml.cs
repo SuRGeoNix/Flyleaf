@@ -40,14 +40,9 @@ namespace FlyleafPlayer
             Config = new Config();
 
             #if RELEASE
+            // Loads the configuration file before initializing the player (if exists)
             if (File.Exists("Flyleaf.Config.xml"))
-                Config = Config.Load("Flyleaf.Config.xml");
-            else
-            {
-                Utils.AddFirewallRule();
-                Config.Player.KeyBindings.LoadDefault();
-                Config.Save("Flyleaf.Config.xml");
-            }
+                try { Config = Config.Load("Flyleaf.Config.xml"); } catch { }
             #endif
 
             // Initializes the Player
@@ -77,8 +72,20 @@ namespace FlyleafPlayer
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Giving access to keyboard events on start up
+            // Gives access to keyboard events on start up
             Player.VideoView.WinFormsHost.Focus();
+
+            #if RELEASE
+            // Ensures that the Control's handle has been created and the renderer has been fully initialized (so we can save also the filters parsed by the library)
+            if (!Config.Loaded)
+            {
+                try
+                {
+                    Utils.AddFirewallRule();
+                    Config.Save("Flyleaf.Config.xml");
+                } catch { }
+            }
+            #endif
         }
 
         #region Dark Theme
