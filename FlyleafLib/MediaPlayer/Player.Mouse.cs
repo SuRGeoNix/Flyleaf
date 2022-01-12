@@ -71,6 +71,7 @@ namespace FlyleafLib.MediaPlayer
         private void Control_MouseUp(object sender, System.Windows.Forms.MouseEventArgs e)
         {
             panClickX = -1; panClickY = -1;
+            mouseDownPoint = new System.Drawing.Point(-1, -1);
         }
         private void Control_MouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
         {
@@ -85,7 +86,7 @@ namespace FlyleafLib.MediaPlayer
                     PanXOffset = panPrevX + e.X - panClickX;
                     PanYOffset = panPrevY + e.Y - panClickY;
                 }
-                else if (Config.Player.MouseBindings.WinMoveOnDrag)
+                else if (Config.Player.MouseBindings.WinMoveOnDrag && mouseDownPoint.X != -1)
                 {
                     if (VideoView != null && VideoView.WindowBack != null)
                     {

@@ -17,6 +17,12 @@ namespace FlyleafLib.MediaPlayer
         public event EventHandler<PlaybackCompletedArgs> PlaybackCompleted;
         protected virtual void OnPlaybackCompleted(string error = null)
         {
+            if (error != null && LastError == null)
+            {
+                lastError = error;
+                UI(() => LastError = LastError);
+            }
+
             PlaybackCompleted?.Invoke(this, new PlaybackCompletedArgs(error));
 
             #if DEBUG
@@ -51,6 +57,12 @@ namespace FlyleafLib.MediaPlayer
                         MainDemuxer = VideoDemuxer;
                         onBufferingStarted   = 0;
                         onBufferingCompleted = 0;
+
+                        if (LastError != null)
+                        {
+                            lastError = null;
+                            UI(() => LastError = LastError);
+                        }
 
                         if (Config.Player.Usage == Usage.LowLatencyVideo)
                             ScreamerLowLatency();
@@ -92,7 +104,7 @@ namespace FlyleafLib.MediaPlayer
                         if (onBufferingStarted - 1 == onBufferingCompleted)
                         {
                             stoppedWithError = IsPlaying;
-                            OnBufferingCompleted(stoppedWithError ? "Unknown" : null);
+                            OnBufferingCompleted(stoppedWithError ? "Buffering failed" : null);
                         }
 
                         if (IsPlaying)
@@ -110,7 +122,7 @@ namespace FlyleafLib.MediaPlayer
                             else
                                 status = Status.Paused;
 
-                            OnPlaybackCompleted(stoppedWithError ? "Unknown" : null);
+                            OnPlaybackCompleted(stoppedWithError ? "Playback stopped unexpectedly" : null);
                         }
 
                         UI(() =>

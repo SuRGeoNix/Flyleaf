@@ -12,7 +12,25 @@
         Title="Flyleaf v3.4.4" Height="450" Width="800" Background="Black" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
     <Grid>
         <fl:VideoView Player="{Binding Player}">
-            <flwpf:Flyleaf x:Name="flyleafControl"/>
+            <Grid>
+                <flwpf:Flyleaf x:Name="flyleafControl"/>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox  Margin="10" FontSize="16" IsReadOnly="True" BorderThickness="0" Text="{Binding Player.LastError}" Foreground="Red" Background="#AA000000" TextWrapping="Wrap" MaxWidth="1000">
+                            <TextBox.Style>
+                                <Style TargetType="{x:Type TextBox}">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Player.LastError}" Value="{x:Null}" >
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
         </fl:VideoView>
     </Grid>
 </Window>
