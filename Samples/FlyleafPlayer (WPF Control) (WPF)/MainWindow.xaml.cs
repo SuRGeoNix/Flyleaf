@@ -81,6 +81,7 @@ namespace FlyleafPlayer
             Player.VideoView.WinFormsHost.Focus();
         }
 
+        #region Dark Theme
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -144,5 +145,6 @@ namespace FlyleafPlayer
                 }
             }
         }
+        #endregion
     }
 }

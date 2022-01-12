@@ -35,6 +35,13 @@ namespace FlyleafLib.MediaPlayer
         protected virtual void OnBufferingCompleted(string error = null)
         {
             if (onBufferingStarted - 1 != onBufferingCompleted) return;
+
+            if (error != null && LastError == null)
+            {
+                lastError = error;
+                UI(() => LastError = LastError);
+            }
+
             BufferingCompleted?.Invoke(this, new BufferingCompletedArgs(error));
             onBufferingCompleted++;
 
@@ -56,7 +63,8 @@ namespace FlyleafLib.MediaPlayer
             if (VideoDecoder.Frames.Count > 0)
             {
                 VideoDecoder.Frames.TryDequeue(out vFrame);
-                renderer.Present(vFrame);
+                if (vFrame != null) // might come from video input switch interrupt
+                    renderer.Present(vFrame);
 
                 if (seeks.Count == 0)
                 {

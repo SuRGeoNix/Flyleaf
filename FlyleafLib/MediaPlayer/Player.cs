@@ -350,7 +350,9 @@ namespace FlyleafLib.MediaPlayer
         }
         bool _ReversePlayback;
 
-        public object               Tag                 { get; set; }
+        public object       Tag                 { get; set; }
+        public string       LastError           { get => lastError; set => Set(ref _LastError, value); } 
+        string _LastError, lastError;
 
         // TBR: No UI updates and some of them maybe should not be exposed
 

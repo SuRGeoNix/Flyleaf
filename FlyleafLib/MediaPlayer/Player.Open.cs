@@ -62,7 +62,15 @@ namespace FlyleafLib.MediaPlayer
                 VideoDemuxer.DisableReversePlayback();
                 ReversePlayback = false;
                 status = Status.Opening;
-                UI(() => Status = Status);
+
+                if (LastError != null)
+                {
+                    lastError = null;
+                    UIAdd(() => LastError = LastError);
+                }
+
+                UIAdd(() => Status = Status);
+                UIAll();
 
                 if (Config.Player.Usage == Usage.Audio)
                 {
@@ -194,16 +202,39 @@ namespace FlyleafLib.MediaPlayer
         /// <returns></returns>
         public OpenInputCompletedArgs Open(InputBase input, bool resync = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         {
+            /* TODO
+             * 
+             * Decoder.Stop() should not be called on video input switch as it will close the other inputs as well (audio/subs)
+             * If the input is from different plugin we don't dispose the current plugin (eg.  switching between recent/history plugin with torrents) (?)
+             */
+
             InputOpenedArgs args;
             long syncMs = decoder.GetCurTimeMs();
 
+            if (LastError != null)
+            {
+                lastError = null;
+                UI(() => LastError = LastError);
+            }
+
             if (input is AudioInput)
             {
-                if (decoder.VideoStream == null) requiresBuffering = true;
+                if (decoder.VideoStream == null)
+                    requiresBuffering = true;
+
                 isAudioSwitch = true;
                 Config.Audio.SetEnabled(true);
                 args = decoder.OpenAudioInput((AudioInput)input, defaultAudio);
-                if (resync) ReSync(decoder.AudioStream, syncMs);
+
+                if (!args.Success)
+                {
+                    isAudioSwitch = false;
+                    return new OpenInputCompletedArgs(MediaType.Video, input, args.OldInput, args.Error, args.IsUserInput);
+                }
+
+                if (resync)
+                    ReSync(decoder.AudioStream, syncMs);
+
                 isAudioSwitch = false;
             }
             else if (input is VideoInput)
@@ -218,9 +249,22 @@ namespace FlyleafLib.MediaPlayer
 
                 isVideoSwitch = true;
                 requiresBuffering = true;
+                canPlay = false;
 
+                // TBR: eg. for non playlists subtitles should be remain (possible not thread safe)
                 decoder.Stop();
+                Audio.Reset();
+                Subtitles.Reset();
                 args = decoder.OpenVideoInput((VideoInput)input, defaultVideo, defaultAudio, defaultSubtitles);
+
+                if (!args.Success)
+                {
+                    UI(() => CanPlay = CanPlay);
+                    isVideoSwitch = false;
+                    return new OpenInputCompletedArgs(MediaType.Video, input, args.OldInput, args.Error, args.IsUserInput);
+                }
+
+                canPlay = true;
 
                 if (!((IOpen)input.Plugin).IsPlaylist)
                 {
@@ -242,7 +286,9 @@ namespace FlyleafLib.MediaPlayer
             }
             else
             {
-                if (!Video.IsOpened) return new OpenInputCompletedArgs(MediaType.Subs, input, null, "Subtitles require opened video stream", false); // Could be closed?
+                if (!Video.IsOpened)
+                    return new OpenInputCompletedArgs(MediaType.Subs, input, null, "Subtitles require opened video stream", false); // Could be closed?
+
                 Config.Subtitles.SetEnabled(true);
                 args = decoder.OpenSubtitlesInput((SubtitlesInput)input, defaultSubtitles);
             }
@@ -268,7 +314,7 @@ namespace FlyleafLib.MediaPlayer
                     inputopens.Push(new OpenInputData(input, resync, defaultVideo, defaultAudio, defaultSubtitles));
                     if (IsOpening || IsOpeningInput)
                     {
-                        // Interrupt only subs?
+                        // TBR: This is not thread safe - related to decoder.Stop()
                         if (!(input is SubtitlesInput))
                             decoder.Interrupt = true;
 
@@ -480,6 +526,7 @@ namespace FlyleafLib.MediaPlayer
                         if (e.Input != null && e.Input.InputData != null)
                             title = e.Input.InputData.Title;
                     
+                        lastError   = null;
                         var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
                         duration    = curDemuxer.Duration;
                         isLive      = curDemuxer.IsLive;
@@ -487,6 +534,7 @@ namespace FlyleafLib.MediaPlayer
 
                         UIAdd(() =>
                         {
+                            LastError   = LastError;
                             Title       = Title;
                             Duration    = Duration;
                             IsLive      = IsLive;
@@ -495,13 +543,18 @@ namespace FlyleafLib.MediaPlayer
                     }
                     else
                     {
+                        Audio.Reset();
+                        canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+                        UIAdd(() => CanPlay = CanPlay);
+
                         if (!CanPlay)
                         {
                             status = Status.Failed;
                             UIAdd(() => Status = Status);
-                        }   
+                        }
 
-                        ResetMe();
+                        lastError = e.Error;
+                        UIAdd(() => LastError = LastError);
                     }
                 }
 
@@ -534,6 +587,7 @@ namespace FlyleafLib.MediaPlayer
                     if (e.Input != null && e.Input.InputData != null)
                         title = e.Input.InputData.Title;
 
+                    lastError   = null;
                     isLive      = VideoDemuxer.IsLive;
                     isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
 
@@ -546,8 +600,10 @@ namespace FlyleafLib.MediaPlayer
 
                     // TODO: Now we start from timestamps from Demuxer's StartTime which means that we can have X initial duration without video (requires to change all the design with timestamps)
                     //duration    = isLive || VideoDemuxer.VideoStream.Duration == 0 ? VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration : Math.Min(VideoDemuxer.Duration, VideoDemuxer.VideoStream.Duration) - VideoDemuxer.VideoStream.FrameDuration;
+
                     UIAdd(() =>
                     {
+                        LastError   = LastError;
                         Title       = Title;
                         Duration    = Duration;
                         IsLive      = IsLive;
@@ -556,13 +612,18 @@ namespace FlyleafLib.MediaPlayer
                 }
                 else
                 {
+                    Video.Reset();
+                    canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+                    UIAdd(() => CanPlay = CanPlay);
+
                     if (!CanPlay)
                     {
                         status = Status.Failed;
                         UIAdd(() => Status = Status);
                     }
 
-                    ResetMe();
+                    lastError = e.Error;
+                    UIAdd(() => LastError = LastError);
                 }
 
                 UIAll();

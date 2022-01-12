@@ -561,7 +561,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 } catch (Exception e)
                 {
-                    Log($"Error {e.Message} | {Device.DeviceRemovedReason}");
+                    #if DEBUG
+                    Log($"Error {e.Message} | {Device?.DeviceRemovedReason}");
+                    #endif
                     VideoDecoder.DisposeFrame(frame);
 
                     return false;
