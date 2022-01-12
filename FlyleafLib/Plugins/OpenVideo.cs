@@ -7,6 +7,11 @@ namespace FlyleafLib.Plugins
 {
     public class OpenVideo : PluginBase, IOpen, IProvideVideo, ISuggestVideoInput
     {
+        /* TODO
+         * Should be replace the history by a new plugin with different a new IProvideUserInputs for recent/history
+         * Currently audio inputs come as video inputs and can cause issues, should review decoder context and provide also AudioInputs
+         */
+
         public bool             IsPlaylist  => true;
         public new int          Priority    { get; set; } = 3000;
         public List<VideoInput> VideoInputs { get; set; } = new List<VideoInput>();
@@ -36,10 +41,8 @@ namespace FlyleafLib.Plugins
             }
             else
             {
-                Uri uri;
-                try { uri = new Uri(url); inputData.Title = Path.GetFileName(uri.LocalPath); } catch (Exception) { }
+                try { Uri uri = new Uri(url); inputData.Title = Path.GetFileName(uri.LocalPath); } catch { }
 
-                //inputData.Title = url;
                 inputData.Folder = Path.GetTempPath();
             }
 

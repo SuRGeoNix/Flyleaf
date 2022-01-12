@@ -25,6 +25,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         //public Demuxer      Demuxer             { get; private set; }
 
         public DecoderContext DecCtx { get; private set; }
+        internal Demuxer AudioDemuxer => DecCtx.AudioDemuxer;
 
         /// <summary>
         /// The backend remuxer. Normally you shouldn't access this
@@ -166,7 +167,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             // Don't allow audio to change our duration without video (TBR: requires timestamp of videodemuxer to wait)
             long resetBufferDuration = -1;
-            if (!DecCtx.VideoDemuxer.Disposed && !DecCtx.AudioDemuxer.Disposed)
+            bool hasAVDemuxers = !DecCtx.VideoDemuxer.Disposed && !DecCtx.AudioDemuxer.Disposed;
+            if (hasAVDemuxers)
             {
                 resetBufferDuration = DecCtx.AudioDemuxer.Config.BufferDuration;
                 DecCtx.AudioDemuxer.Config.BufferDuration = 100 * 10000;
@@ -181,10 +183,14 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             long startedAt = DateTime.UtcNow.Ticks;
             long secondTicks = startedAt;
+            bool isAudioDemuxer = false;
+            IntPtr pktPtr = IntPtr.Zero;
+            AVPacket* packet = null;
+            AVPacket* packet2 = null;
 
             do
             {
-                if (Demuxer.Packets.Count == 0 && DecCtx.AudioDemuxer.Packets.Count == 0)
+                if (Demuxer.Packets.Count == 0 && AudioDemuxer.Packets.Count == 0 || (hasAVDemuxers && (Demuxer.Packets.Count == 0 || AudioDemuxer.Packets.Count == 0)))
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueEmpty;
@@ -222,6 +228,12 @@ namespace FlyleafLib.MediaFramework.MediaContext
                         Thread.Sleep(20);
                     }
 
+                    if (hasAVDemuxers && Status == Status.QueueEmpty && AudioDemuxer.Packets.Count == 0)
+                    {
+                        while (AudioDemuxer.Packets.Count == 0 && Status == Status.QueueEmpty && AudioDemuxer.IsRunning)
+                            Thread.Sleep(20);
+                    }
+
                     lock (lockStatus)
                     {
                         if (Status != Status.QueueEmpty) break;
@@ -229,28 +241,53 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     }
                 }
 
-                bool isAudio = false;
-                IntPtr pktPtr;
-
-                if (Demuxer.Type == MediaType.Video)
+                if (hasAVDemuxers)
                 {
-                    Demuxer.Packets.TryDequeue(out pktPtr);
-                    if (pktPtr == IntPtr.Zero)
+                    if (AudioDemuxer.Packets.Count == 0)
                     {
-                        DecCtx.AudioDemuxer.Packets.TryDequeue(out pktPtr);
-                        isAudio = true;
+                        Demuxer.Packets.TryDequeue(out pktPtr);
+                        packet = (AVPacket*) pktPtr;
+                        isAudioDemuxer = false;
+                    }
+                    else if (Demuxer.Packets.Count == 0)
+                    {
+                        AudioDemuxer.Packets.TryDequeue(out pktPtr);
+                        packet = (AVPacket*) pktPtr;
+                        isAudioDemuxer = true;
+                    }
+                    else
+                    {
+                        Demuxer.Packets.TryPeek(out pktPtr);
+                        AudioDemuxer.Packets.TryPeek(out IntPtr pktPtr2);
+                        packet  = (AVPacket*) pktPtr;
+                        packet2 = (AVPacket*) pktPtr2;
+
+                        long ts1 = (long) ((packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - Demuxer.StartTime);
+                        long ts2 = (long) ((packet2->dts * AudioDemuxer.AVStreamToStream[packet2->stream_index].Timebase) - AudioDemuxer.StartTime);
+
+                        if (ts2 <= ts1)
+                        {
+                            AudioDemuxer.Packets.TryDequeue(out IntPtr devnull);
+                            isAudioDemuxer = true;
+                            packet = packet2;
+                        }
+                        else
+                        {
+                            Demuxer.Packets.TryDequeue(out IntPtr devnull);
+                            isAudioDemuxer = false;
+                        }
+
+                        //Log($"[{isAudioDemuxer}] {Utils.TicksToTime(ts1)} | {Utils.TicksToTime(ts2)}");
                     }
                 }
                 else
                 {
                     Demuxer.Packets.TryDequeue(out pktPtr);
-                    isAudio = true;
+                    packet = (AVPacket*) pktPtr;
                 }
 
-                AVPacket* packet = (AVPacket*) pktPtr;
-
                 long curDT = DateTime.UtcNow.Ticks;
-                if (curDT - secondTicks > 1000 * 10000 && (!isAudio || DecCtx.VideoDemuxer.Disposed))
+                if (curDT - secondTicks > 1000 * 10000 && (!isAudioDemuxer || DecCtx.VideoDemuxer.Disposed))
                 {
                     secondTicks = curDT;
 
@@ -262,7 +299,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     if (_Duration > 0) DownloadPercentage = CurTime / downPercentageFactor;
                 }
 
-                Remuxer.Write(packet, isAudio);
+                Remuxer.Write(packet, isAudioDemuxer);
 
             } while (Status == Status.Running);
 

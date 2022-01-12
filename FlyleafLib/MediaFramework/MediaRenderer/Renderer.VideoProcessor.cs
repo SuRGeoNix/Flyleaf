@@ -42,6 +42,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 Texture2D       = new Texture2DVideoProcessorInputView() { MipSlice = 0, ArraySlice = 0 }
             };
 
+        bool configLoadedChecked;
+
         internal void InitializeVideoProcessor()
         {
             try
@@ -243,18 +245,20 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     continue;
 
                 var cfgFilter = Config.Video.Filters[filter.Filter];
-                cfgFilter.Available = true;
-                if (!Config.Loaded)
+
+                if (!configLoadedChecked && !Config.Loaded)
                 {
+                    cfgFilter.Available = true;
                     cfgFilter.Minimum   = filter.Minimum;
                     cfgFilter.Maximum   = filter.Maximum;
                     cfgFilter.Value     = filter.Value;
                     cfgFilter.Step      = filter.Step;
                 }
 
-                UpdateFilterValue(filter);
+                UpdateFilterValue(cfgFilter);
             }
 
+            configLoadedChecked = true;
             UpdateBackgroundColor();
 
             vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
@@ -262,27 +266,25 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         internal void UpdateFilterValue(VideoFilter filter)
         {
-            int scaledValue = filter.Value;
-
             // D3D11VP
-            if (Filters.ContainsKey(filter.Filter))
+            if (Filters.ContainsKey(filter.Filter) && vc != null)
             {
-                scaledValue = (int)Utils.Scale(filter.Value, filter.Minimum, filter.Maximum, Filters[filter.Filter].Minimum, Filters[filter.Filter].Maximum);
-                vc?.VideoProcessorSetStreamFilter(vp, 0, ConvertFromVideoProcessorFilterCaps((VideoProcessorFilterCaps)filter.Filter), true, scaledValue);
+                int scaledValue = (int)Utils.Scale(filter.Value, filter.Minimum, filter.Maximum, Filters[filter.Filter].Minimum, Filters[filter.Filter].Maximum);
+                vc.VideoProcessorSetStreamFilter(vp, 0, ConvertFromVideoProcessorFilterCaps((VideoProcessorFilterCaps)filter.Filter), true, scaledValue);
             }
 
             // FLVP
-            scaledValue = (int)Utils.Scale(filter.Value, filter.Minimum, filter.Maximum, 0, 100);
-
             switch (filter.Filter)
             {
                 case VideoFilters.Brightness:
+                    int scaledValue = (int)Utils.Scale(filter.Value, filter.Minimum, filter.Maximum, 0, 100);
                     psBufferData.brightness = scaledValue / 100.0f;
                     context.UpdateSubresource(ref psBufferData, psBuffer);
 
                     break;
 
                 case VideoFilters.Contrast:
+                    scaledValue = (int)Utils.Scale(filter.Value, filter.Minimum, filter.Maximum, 0, 100);
                     psBufferData.contrast = scaledValue / 100.0f;
                     context.UpdateSubresource(ref psBufferData, psBuffer);
 

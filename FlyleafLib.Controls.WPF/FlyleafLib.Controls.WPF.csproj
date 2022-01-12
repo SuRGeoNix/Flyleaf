@@ -23,8 +23,8 @@
 
   <ItemGroup>
     <PackageReference Include="Dragablz" Version="0.0.3.223" />
-    <PackageReference Include="MaterialDesignColors" Version="2.0.5-ci43" />
-    <PackageReference Include="MaterialDesignThemes" Version="4.4.0-ci43" />
+    <PackageReference Include="MaterialDesignColors" Version="2.0.5-ci45" />
+    <PackageReference Include="MaterialDesignThemes" Version="4.4.0-ci45" />
     <PackageReference Include="WpfColorFontDialog" Version="1.0.8" />
   </ItemGroup>
 
