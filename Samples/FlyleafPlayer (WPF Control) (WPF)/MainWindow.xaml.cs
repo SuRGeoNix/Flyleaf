@@ -37,19 +37,17 @@ namespace FlyleafPlayer
             Master.RegisterPlugins(":2");
 
             // Prepares Player's Configuration (Load from file if already exists, Flyleaf WPF Control will save at this path)
-            #if DEBUG
             Config = new Config();
-            #else
+
+            #if RELEASE
             if (File.Exists("Flyleaf.Config.xml"))
                 Config = Config.Load("Flyleaf.Config.xml");
             else
             {
                 Utils.AddFirewallRule();
-                Config = new Config();
                 Config.Player.KeyBindings.LoadDefault();
                 Config.Save("Flyleaf.Config.xml");
             }
-                
             #endif
 
             // Initializes the Player

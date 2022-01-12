@@ -257,7 +257,7 @@ namespace FlyleafLib
                                 {
                                     player.Activity.Mode = player.Activity.Mode;
 
-                                    if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle && player.Config.Player.MouseBindigns.HideCursorOnFullScreenIdle)
+                                    if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle && player.Config.Player.MouseBindings.HideCursorOnFullScreenIdle)
                                     {
                                         while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
                                         isCursorHidden = true;

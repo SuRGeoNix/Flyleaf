@@ -541,17 +541,17 @@ namespace FlyleafLib.MediaPlayer
                 Config.Player.KeyBindings.Keys.Clear();
             }
 
-            if (Config.Player.MouseBindigns.OpenOnDragAndDrop)
+            if (Config.Player.MouseBindings.OpenOnDragAndDrop)
             {
                 _Control.AllowDrop  = true;
                 _Control.DragEnter += Control_DragEnter;
                 _Control.DragDrop  += Control_DragDrop;
             }
 
-            if (Config.Player.MouseBindigns.ToggleFullScreenOnDoubleClick)
+            if (Config.Player.MouseBindings.ToggleFullScreenOnDoubleClick)
                 _Control.DoubleClick+= Control_DoubleClick;
 
-            if (Config.Player.MouseBindigns.PanMoveOnDragAndCtrl)
+            if (Config.Player.MouseBindings.PanMoveOnDragAndCtrl)
             {
                 _Control.MouseDown  += Control_MouseDown;
                 _Control.MouseUp    += Control_MouseUp;
@@ -563,7 +563,7 @@ namespace FlyleafLib.MediaPlayer
                 _Control.MouseDown  += Control_MouseDown;
             }
 
-            if (Config.Player.MouseBindigns.PanZoomOnWheelAndCtrl)
+            if (Config.Player.MouseBindings.PanZoomOnWheelAndCtrl)
                 _Control.MouseWheel += Control_MouseWheel;
             
             Activity.ForceFullActive();

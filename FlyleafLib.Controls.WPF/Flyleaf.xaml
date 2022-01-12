@@ -416,7 +416,7 @@
                                                         </Style>
                                                     </Button.Style>
                                                 </Button>
-                                                <Button Content="{materialDesign:PackIcon Kind=VideoInputAntenna}" Foreground="{DynamicResource SecondaryHueMidBrush}" Visibility="{Binding Player.IsLive, Converter={StaticResource BooleanToVisibility}}"/>
+                                                <materialDesign:PackIcon Kind="VideoInputAntenna" Height="20" Width="20" Foreground="{DynamicResource SecondaryHueMidBrush}" VerticalAlignment="Center" Visibility="{Binding Player.IsLive, Converter={StaticResource BooleanToVisibility}}"/>
                                                 <TextBlock VerticalAlignment="Center" FontStyle="Italic" Margin="5,0,0,0" Text="{Binding Player.Title}"/>
                                             </StackPanel>
 

@@ -165,7 +165,7 @@ namespace FlyleafLib
             /// Mouse bindings configuration
             /// </summary>
             public MouseConfig  
-                            MouseBindigns               { get; set; } = new MouseConfig();
+                            MouseBindings               { get; set; } = new MouseConfig();
 
             /// <summary>
             /// Fps while the player is not playing
