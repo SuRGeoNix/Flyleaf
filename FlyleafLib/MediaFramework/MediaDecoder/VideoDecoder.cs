@@ -132,6 +132,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (disableGetFormat)
                 return avcodec_default_get_format(avctx, pix_fmts);
 
+            #if DEBUG
+            Log($"Codec profile {avcodec_profile_name(codecCtx->codec_id, codecCtx->profile)}");
+            #endif
+
             int  ret = 0;
             bool foundHWformat = false;
             
@@ -168,7 +172,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             lock (lockCodecCtx)
             {
-                if (!foundHWformat || !VideoAccelerated) // TODO check failed
+                if (!foundHWformat || !VideoAccelerated || AllocateHWFrames() != 0)
                 {
                     #if DEBUG
                     Log("[HW] Format not found. Fallback to sw format");
@@ -186,6 +190,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         if (codecCtx->hw_device_ctx != null)
                             av_buffer_unref(&codecCtx->hw_device_ctx);
 
+                        if (codecCtx->hw_frames_ctx != null)
+                            av_buffer_unref(&codecCtx->hw_frames_ctx);
+
                         hw_device_ctx = null;
                         codecCtx->hw_device_ctx = null;
                         textDesc.Format = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth > 8 ? Format.R16_UNorm : Format.R8_UNorm;
@@ -197,6 +204,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     return avcodec_default_get_format(avctx, pix_fmts);
                 }
+                
+                Log("[HW] Frame allocation completed");
 
                 // TBR: Catch codec changed on live streams (check codec/profiles and check even on sw frames)
                 if (ret == 2)
@@ -205,15 +214,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     VideoStream.Width   = codecCtx->width;
                     VideoStream.Height  = codecCtx->height;
-                }
-
-                if (AllocateHWFrames(Config.Decoder.VAPoolSize + Config.Decoder.MaxVideoFrames + codecCtx->thread_count) == 0)
-                    Log("[HW] Frame allocation completed");
-                else
-                {
-                    Log("[HW] WARNING: Frame allocation failed");
-
-                    return AVPixelFormat.AV_PIX_FMT_NONE;
                 }
 
                 return AVPixelFormat.AV_PIX_FMT_D3D11;
@@ -241,7 +241,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             return 0;
         }
-        private int AllocateHWFrames(int poolsize)
+        private int AllocateHWFrames()
         {
             if (hwframes != null)
                 fixed(AVBufferRef** ptr = &hwframes)
@@ -252,53 +252,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (codecCtx->hw_frames_ctx != null)
                 av_buffer_unref(&codecCtx->hw_frames_ctx);
 
-            codecCtx->hw_frames_ctx = av_hwframe_ctx_alloc(codecCtx->hw_device_ctx);
-            if (codecCtx->hw_frames_ctx == null)
+            if (avcodec_get_hw_frames_parameters(codecCtx, codecCtx->hw_device_ctx, AVPixelFormat.AV_PIX_FMT_D3D11, &codecCtx->hw_frames_ctx) != 0)
                 return -1;
 
-            //codecCtx->hwaccel_context = null;
-            //codecCtx->hwaccel_flags |= 2; //AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX
+            AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)(codecCtx->hw_frames_ctx->data);
+            hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames;
 
-            // (Surface alignment & Number of Surfaces) | https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/dxva2.c
-            
-            int surface_alignment, num_surfaces;
-
-            /* decoding MPEG-2 requires additional alignment on some Intel GPUs,
-            but it causes issues for H.264 on certain AMD GPUs..... */
-            if (codecCtx->codec_id == AV_CODEC_ID_MPEG2VIDEO)
-                surface_alignment = 32;
-
-            /* the HEVC DXVA2 spec asks for 128 pixel aligned surfaces to ensure
-            all coding features have enough room to work with */
-            else if (codecCtx->codec_id == AV_CODEC_ID_HEVC || codecCtx->codec_id == AV_CODEC_ID_AV1)
-                surface_alignment = 128;
-            else
-                surface_alignment = 16;
-
-            /* 1 base work surface */
-            num_surfaces = 1;
-
-            /* add surfaces based on number of possible refs */
-            if (codecCtx->codec_id == AV_CODEC_ID_H264 || codecCtx->codec_id == AV_CODEC_ID_HEVC)
-                num_surfaces += 16;
-            else if (codecCtx->codec_id == AV_CODEC_ID_VP9 || codecCtx->codec_id == AV_CODEC_ID_AV1)
-                num_surfaces += 8;
-            else
-                num_surfaces += 2;
-
-            // We guarantee 4 base work surfaces. The function above guarantees 1
-            // (the absolute minimum), so add the missing count.
-            num_surfaces += 3;
-
-            var t2 = (AVHWFramesContext*)(codecCtx->hw_frames_ctx->data);
-            t2->format      = AVPixelFormat.AV_PIX_FMT_D3D11;
-            t2->sw_format   = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : (codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_P010BE ? AVPixelFormat.AV_PIX_FMT_P010BE : AVPixelFormat.AV_PIX_FMT_NV12);
-            t2->width       = Utils.Align(codecCtx->coded_width,  surface_alignment);
-            t2->height      = Utils.Align(codecCtx->coded_height, surface_alignment);
-            t2->initial_pool_size = Math.Max(num_surfaces, poolsize);
-
-            AVD3D11VAFramesContext *t3 = (AVD3D11VAFramesContext *)t2->hwctx;
-            t3->BindFlags  |= (uint)BindFlags.Decoder | (uint)BindFlags.ShaderResource;
+            AVD3D11VAFramesContext *va_frames_ctx = (AVD3D11VAFramesContext *)hw_frames_ctx->hwctx;
+            va_frames_ctx->BindFlags  |= (uint)BindFlags.Decoder | (uint)BindFlags.ShaderResource;
             
             hwframes = av_buffer_ref(codecCtx->hw_frames_ctx);
 
@@ -307,7 +268,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 lock (Renderer.lockDevice)
                 {
-                    textureFFmpeg   = new ID3D11Texture2D((IntPtr) t3->texture);
+                    textureFFmpeg   = new ID3D11Texture2D((IntPtr) va_frames_ctx->texture);
                     textDesc.Format = textureFFmpeg.Description.Format;
                     ZeroCopy = Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Enabled || (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto && codecCtx->width == textureFFmpeg.Description.Width && codecCtx->height == textureFFmpeg.Description.Height);
                     Renderer?.FrameResized();
@@ -398,18 +359,21 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             keyFrameRequired = true;
             ZeroCopy = false;
 
-            // TBR: Is this only for non-hwaccel? when trying FF_THREAD_FRAME causes ffmpeg to create new frame hw pool
-            codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
-            codecCtx->thread_type  = 0;
-
             if (VideoAccelerated)
             {
+                codecCtx->thread_count = 1;
+                codecCtx->hwaccel_flags |= AV_HWACCEL_FLAG_IGNORE_LEVEL;
+                if (Config.Decoder.AllowProfileMismatch)
+                    codecCtx->hwaccel_flags |= AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH;
+
                 codecCtx->pix_fmt = AVPixelFormat.AV_PIX_FMT_D3D11;
                 codecCtx->get_format = getHWformat;
                 disableGetFormat = false;
             }
             else
             {
+                codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
+                codecCtx->thread_type  = 0;
                 Renderer?.FrameResized();
             }
 
@@ -851,7 +815,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         db.DataPointer      = (IntPtr)frame->data.ToArray()[0];
                         db.RowPitch         = frame->linesize.ToArray()[0];
                         mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc, new SubresourceData[] { db });
-
+                        
                         db                  = new SubresourceData();
                         db.DataPointer      = (IntPtr)frame->data.ToArray()[1];
                         db.RowPitch         = frame->linesize.ToArray()[1];

@@ -198,7 +198,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             for (int adapterIndex = 0; Factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1 adapter).Success; adapterIndex++)
             {
                 #if DEBUG
-                Utils.Log($"[#{adapterIndex+1}] {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {adapter.Description1.DedicatedVideoMemory}");
+                Utils.Log($"[#{adapterIndex+1}] {RendererInfo.VendorIdStr(adapter.Description1.VendorId)} {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {RendererInfo.GetBytesReadable(adapter.Description1.DedicatedVideoMemory)}");
                 #endif
 
                 if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)

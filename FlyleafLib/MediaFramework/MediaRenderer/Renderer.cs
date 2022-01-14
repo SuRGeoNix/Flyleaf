@@ -47,6 +47,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public Dictionary<VideoFilters, VideoFilter> 
                                 Filters         { get; set; }
         public VideoFrame       LastFrame       { get; set; }
+        public RawRect          VideoRect       { get; set; }
 
 
         ID3D11DeviceContext                     context;
@@ -457,6 +458,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     };
                 }
 
+                VideoRect = new RawRect(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height);
+
                 if (Control != null)
                     SetViewport();
                 else
@@ -722,8 +725,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (videoProcessor == VideoProcessors.D3D11) // TODO: VideoProcessorBlt
                 {
                     vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out ID3D11VideoProcessorOutputView vpov);
-                    vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height));
-                    vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height));
+                    vc.VideoProcessorSetStreamDestRect(vp, 0, true, VideoRect);
+                    vc.VideoProcessorSetOutputTargetRect(vp, true, VideoRect);
 
                     if (frame.bufRef != null)
                     {
@@ -825,44 +828,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
 
                 backBuffer2busy[subresource] = true;
-
-                //if (VideoDecoder.VideoAccelerated)
-                //{
-                //    curSRVs = new ID3D11ShaderResourceView[2];
-
-                //    if (frame.bufRef != null) // Config.Decoder.ZeroCopy
-                //    {
-                //        srvDescR. Texture2DArray.FirstArraySlice = frame.subresource;
-                //        srvDescRG.Texture2DArray.FirstArraySlice = frame.subresource;
-                //        curSRVs[0]  = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescR);
-                //        curSRVs[1]  = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescRG);
-                //    }
-                //    else
-                //    {
-                //        curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
-                //        curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
-                //    }
-                //}
-                //else if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
-                //{
-                //    curSRVs     = new ID3D11ShaderResourceView[3];
-                //    curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
-                //    curSRVs[1]  = Device.CreateShaderResourceView(frame.textures[1]);
-                //    curSRVs[2]  = Device.CreateShaderResourceView(frame.textures[2]);
-                //}
-                //else
-                //{
-                //    curSRVs     = new ID3D11ShaderResourceView[1];
-                //    curSRVs[0]  = Device.CreateShaderResourceView(frame.textures[0]);
-                //}
-
                 PresentOffline(frame, rtv2[subresource], new Viewport(backBuffer2[subresource].Description.Width, backBuffer2[subresource].Description.Height));
-
-                //context.PSSetShaderResources(0, curSRVs);
-                //context.OMSetRenderTargets(rtv2[subresource]);
-                ////context.ClearRenderTargetView(rtv2[subresource], Config.video._ClearColor);
-                //context.Draw(6, 0);
-
                 VideoDecoder.DisposeFrame(frame);
 
                 if (curSRVs != null)

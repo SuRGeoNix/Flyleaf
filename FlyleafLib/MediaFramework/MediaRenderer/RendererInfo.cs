@@ -15,17 +15,19 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public string   OutputName      { get; set; }
         public int      ScreenWidth     { get; set; }
         public int      ScreenHeight    { get; set; }
+        public string   Vendor          { get; set; }
         public System.Drawing.Rectangle ScreenBounds { get; set; }
 
         public static void Fill(Renderer renderer, IDXGIAdapter1 adapter)
         {
             RendererInfo ri = new RendererInfo();
-
+            
             ri.AdapterLuid  = adapter.Description1.Luid;
             ri.AdapterDesc  = adapter.Description1.Description;
             ri.SystemMemory = adapter.Description1.DedicatedSystemMemory;
             ri.VideoMemory  = adapter.Description1.DedicatedVideoMemory;
             ri.SharedMemory = adapter.Description1.SharedSystemMemory;
+            ri.Vendor       = VendorIdStr(adapter.Description1.VendorId);
 
             int maxVerticalResolution = 0;
             for(int i=0; ; i++)
@@ -52,7 +54,28 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             renderer.Info = ri;
         }
 
-        public string GetBytesReadable(long i)
+        public static string VendorIdStr(int vendorId)
+        {
+            switch (vendorId)
+            {
+                case 0x1002:
+                    return "ATI";
+                case 0x10DE:
+                    return "NVIDIA";
+                case 0x1106:
+                    return "VIA";
+                case 0x8086:
+                    return "Intel";
+                case 0x5333:
+                    return "S3 Graphics";
+                case 0x4D4F4351:
+                    return "Qualcomm";
+                default:
+                    return "Unknown";
+            }
+        }
+
+        public static string GetBytesReadable(long i)
         {
             // Determine the suffix and readable value
             string suffix;
@@ -94,7 +117,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             // Divide by 1024 to get fractional value
             readable = (readable / 1024);
             // Return formatted number with suffix
-            return readable.ToString("0.### ") + suffix;
+            return readable.ToString("0.## ") + suffix;
         }
 
         public override string ToString()
