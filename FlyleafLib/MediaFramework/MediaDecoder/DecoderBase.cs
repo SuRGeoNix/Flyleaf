@@ -63,7 +63,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         Stream  = stream;
                         demuxer = stream.Demuxer;
 
-                        AVCodec* codec = avcodec_find_decoder(stream.AVStream->codecpar->codec_id);
+                        AVCodec* codec = avcodec_find_decoder(stream.CodecID);
                         if (codec == null)
                             return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
 
