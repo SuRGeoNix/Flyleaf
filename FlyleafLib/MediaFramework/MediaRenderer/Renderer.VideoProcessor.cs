@@ -87,12 +87,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                         return;
                     }
-                
-                    vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
 
                     // if (!VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex != -1)
                     vd1.CreateVideoProcessor(vpe, VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex, out vp);
-                    
                     InitializeFilters();
 
                     return;

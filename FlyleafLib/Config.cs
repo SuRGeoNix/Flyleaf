@@ -397,6 +397,11 @@ namespace FlyleafLib
             /// </summary>
             public ZeroCopy         ZeroCopy        { get => _ZeroCopy; set { if (SetUI(ref _ZeroCopy, value) && player != null && player.Video.isOpened) player.VideoDecoder?.RecalculateZeroCopy(); } }
             ZeroCopy _ZeroCopy = ZeroCopy.Auto;
+
+            /// <summary>
+            /// Allows video accceleration even in codec's profile mismatch
+            /// </summary>
+            public bool             AllowProfileMismatch { get; set; } = true;
         }
         public class VideoConfig : NotifyPropertyChanged
         {
