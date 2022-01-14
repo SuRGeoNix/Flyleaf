@@ -617,7 +617,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                             {
                                 context.OMSetRenderTargets(backBufferRtv);
                                 context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                                context.RSSetViewport(new Viewport(Control.Bounds));
+                                context.RSSetViewport(new Viewport());
                                 context.PSSetShader(PSShaders["PSSimple"]);
                                 context.PSSetSampler(0, samplerLinear);
                                 context.PSSetShaderResources(0, new ID3D11ShaderResourceView[0]);
