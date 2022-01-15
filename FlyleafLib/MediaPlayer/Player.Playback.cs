@@ -302,6 +302,7 @@ namespace FlyleafLib.MediaPlayer
                 EnsureThreadDone(tPlay);
                 if (IsDisposed || decoder == null) return;
                 decoder.Stop();
+                VideoDecoder.DisposeVA();
                 lock (lockSeek)
                     lock (lockOpen)
                     {

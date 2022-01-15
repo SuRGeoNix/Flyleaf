@@ -40,9 +40,9 @@ namespace FlyleafLib.MediaFramework.MediaStream
             Channels        = st->codecpar->channels;
             Bits            = st->codecpar->bits_per_coded_sample;
 
-            // TBR: Expose in config black/white lists codecs?
+            // https://trac.ffmpeg.org/ticket/7321
             if (CodecID == AVCodecID.AV_CODEC_ID_MP2 && SampleFormat == AVSampleFormat.AV_SAMPLE_FMT_FLTP)
-                CodecID = AVCodecID.AV_CODEC_ID_MP3;
+                CodecID = AVCodecID.AV_CODEC_ID_MP3; // OR? st->codecpar->format = (int) AVSampleFormat.AV_SAMPLE_FMT_S16P;
 
             byte[] buf = new byte[50];
             fixed (byte* bufPtr = buf)

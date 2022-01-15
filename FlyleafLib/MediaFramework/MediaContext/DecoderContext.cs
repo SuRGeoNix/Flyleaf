@@ -1037,6 +1037,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         public new void Dispose()
         {
+            VideoDecoder.DisposeVA();
             VideoDecoder.Dispose(true);
             AudioDecoder.Dispose(true);
             SubtitlesDecoder.Dispose(true);

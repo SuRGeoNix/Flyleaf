@@ -126,7 +126,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             return ret;
         }
-        
+
         private AVPixelFormat get_format(AVCodecContext* avctx, AVPixelFormat* pix_fmts)
         {
             if (disableGetFormat)
@@ -295,7 +295,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected override int Setup(AVCodec* codec)
         {
-            Renderer?.Initialize();
+            // We allow public DisposeVA so we re-initialize here if required
+            if (Renderer != null && Renderer.Disposed)
+                Renderer.Initialize();
+            
             VideoAccelerated = false;
 
             if (Config.Video.VideoAcceleration)
@@ -1049,6 +1052,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             }
         }
 
+        public void DisposeVA()
+        {
+            Renderer?.Dispose();
+        }
         public void DisposeFrames()
         {
             while (!Frames.IsEmpty)
@@ -1107,7 +1114,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             lock (lockCodecCtx)
             {
                 DisposeFrames();
-                Renderer.Dispose();
+
+                if (Renderer != null)
+                    DisposeFrame(Renderer.LastFrame);
 
                 if (codecCtx != null)
                 {
