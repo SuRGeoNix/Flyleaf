@@ -350,6 +350,7 @@ namespace FlyleafLib.MediaPlayer
 
             Add(Key.I,                  KeyBindingAction.ActivityForceIdle);
             Add(Key.Escape,             KeyBindingAction.NormalScreen);
+            Add(Key.Q,                  KeyBindingAction.Stop, false, true, false);
         }
 
         private Action GetKeyBindingAction(KeyBindingAction action)
@@ -495,7 +496,7 @@ namespace FlyleafLib.MediaPlayer
             { KeyBindingAction.ToggleReversePlayback },
             { KeyBindingAction.Play },
             { KeyBindingAction.Pause },
-            { KeyBindingAction.Stop },
+            //{ KeyBindingAction.Stop },
             { KeyBindingAction.Flush },
             { KeyBindingAction.ToggleSeekAccurate },
             { KeyBindingAction.SpeedAdd },

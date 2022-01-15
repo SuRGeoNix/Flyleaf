@@ -302,6 +302,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 Log("Disposing");
 
+                try { ClearBackBuffer(); } catch { }
+
                 DisposeVideoProcessor();
 
                 foreach(var shader in PSShaders.Values)
@@ -612,20 +614,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                             if (Disposed)
                             {
                                 if (Control != null)
-                                    Control.BackColor = Utils.WPFToWinFormsColor(Config.Video.BackgroundColor);
+                                    Control.BackColor = Utils.WPFToWinFormsColor(Config.Video.BackgroundColor);return;
                             }   
-                            else if (LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
+                            else if (!DisableRendering && LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
                                 PresentInternal(LastFrame);
                             else
                             {
-                                context.OMSetRenderTargets(backBufferRtv);
-                                context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                                context.RSSetViewport(new Viewport());
-                                context.PSSetShader(PSShaders["PSSimple"]);
-                                context.PSSetSampler(0, samplerLinear);
-                                context.PSSetShaderResources(0, new ID3D11ShaderResourceView[0]);
-                                context.Draw(6, 0);
-                                swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                                ClearBackBuffer();
                             }
                         } catch (Exception e)
                         {
@@ -797,6 +792,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 for (int i=0; i<curSRVs.Length; i++)
                     curSRVs[i].Dispose();
             }
+        }
+
+        private void ClearBackBuffer()
+        {
+            context.OMSetRenderTargets(backBufferRtv);
+            context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+            context.RSSetViewport(new Viewport());
+            context.PSSetShader(PSShaders["PSSimple"]);
+            context.PSSetSampler(0, samplerLinear);
+            context.PSSetShaderResources(0, new ID3D11ShaderResourceView[0]);
+            context.Draw(6, 0);
+            swapChain.Present(Config.Video.VSync, PresentFlags.None);
         }
 
         /// <summary>

@@ -573,7 +573,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (this)
             {
-                if (IsDisposed)
+                if (IsDisposed || VideoDecoder.Disposed)
                     return;
 
                 MediaType curMedia = MediaType.Video;

@@ -86,7 +86,9 @@ namespace FlyleafLib.Controls.WPF
             get => _SelectedTheme;
             set
             {
-                if (_SelectedTheme != null && _SelectedTheme.Name == value.Name) return;
+                if (_SelectedTheme != null && _SelectedTheme.Name == value.Name)
+                    return;
+
                 Set(ref _SelectedTheme, value);
                 ITheme theme = Resources.GetTheme();
                 theme.SetPrimaryColor(value.PrimaryColor);
@@ -175,12 +177,15 @@ namespace FlyleafLib.Controls.WPF
 
                 var saveMargin  = flyleaf1.Subtitles.Margin;
                 var saveFontSize= flyleaf1.Subtitles.FontSize;
+                var saveColor   = flyleaf1.Config.Video.BackgroundColor;
 
                 flyleaf1.Subtitles.Margin   = flyleaf2.Subtitles.Margin;
                 flyleaf1.Subtitles.FontSize = flyleaf2.Subtitles.FontSize;
+                flyleaf1.Config.Video.BackgroundColor = flyleaf2.Config.Video.BackgroundColor;
 
                 flyleaf2.Subtitles.Margin   = saveMargin;
                 flyleaf2.Subtitles.FontSize = saveFontSize;
+                flyleaf2.Config.Video.BackgroundColor = saveColor;
 
                 flyleaf1.Player = e.Player2;
                 flyleaf2.Player = e.Player1;
