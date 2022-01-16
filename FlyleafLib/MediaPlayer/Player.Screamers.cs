@@ -332,21 +332,24 @@ namespace FlyleafLib.MediaPlayer
 
                     VideoDecoder.Frames.TryDequeue(out vFrame);
                     if (Speed != 1 && vFrame != null)
-                        vFrame.timestamp = (long) (vFrame.timestamp / Speed);
+                        vFrame.timestamp = (long)(vFrame.timestamp / Speed);
                 }
                 else if (vDistanceMs < -2)
                 {
+                    Log($"vDistanceMs 2 |-> {vDistanceMs}");
+
+                    if (vDistanceMs < -10 || VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
+                    {
+                        requiresBuffering = true;
+                        continue;
+                    }
+
                     Video.framesDropped++;
                     VideoDecoder.DisposeFrame(vFrame);
                     VideoDecoder.Frames.TryDequeue(out vFrame);
+
                     if (Speed != 1 && vFrame != null)
-                        vFrame.timestamp = (long) (vFrame.timestamp / Speed);
-
-                    Log($"vDistanceMs 2 |-> {vDistanceMs}");
-
-                    if (vDistanceMs < -10)
-                        requiresBuffering = true;
-                    continue;
+                        vFrame.timestamp = (long)(vFrame.timestamp / Speed);
                 }
 
                 if (aFrame != null) // Should use different thread for better accurancy (renderer might delay it on high fps) | also on high offset we will have silence between samples
@@ -356,10 +359,17 @@ namespace FlyleafLib.MediaPlayer
                         //Log($"[A] Presenting {TicksToTime(aFrame.timestamp)}");
                         Audio.AddSamples(aFrame);
                         AudioDecoder.Frames.TryDequeue(out aFrame);
-                        if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed);
+                        if (aFrame != null)
+                            aFrame.timestamp = (long)(aFrame.timestamp / Speed);
                     }
-                    else if (aDistanceMs < -10) // Will be transfered back to decoder to drop invalid timestamps
+                    else if (aDistanceMs < -2) // Will be transfered back to decoder to drop invalid timestamps
                     {
+                        if (VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
+                        {
+                            requiresBuffering = true;
+                            continue;
+                        }
+
                         if (aDistanceMs < -600)
                         {
                             Log($"aDistanceMs 2 |-> {aDistanceMs} | All audio frames disposed");
@@ -374,9 +384,12 @@ namespace FlyleafLib.MediaPlayer
                             {
                                 Log($"aDistanceMs 2 |-> {aDistanceMs}");
                                 AudioDecoder.Frames.TryDequeue(out aFrame);
-                                if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed);
+                                if (aFrame != null)
+                                    aFrame.timestamp = (long)(aFrame.timestamp / Speed);
                                 aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
-                                if (aDistanceMs > -7) break;
+
+                                if (aDistanceMs > 0)
+                                    break;
                             }
                         }
                     }

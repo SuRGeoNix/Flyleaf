@@ -372,11 +372,6 @@ namespace FlyleafLib
             int _MaxVideoFrames = 4;
 
             /// <summary>
-            /// Initial hardware frames pool size for the decoder (MaxVideoFrames will be added to this)
-            /// </summary>
-            public int              VAPoolSize      { get; set; } = 15;
-
-            /// <summary>
             /// Maximum audio frames to be decoded and processed for playback
             /// </summary>
             public int              MaxAudioFrames  { get; set; } = 10;
