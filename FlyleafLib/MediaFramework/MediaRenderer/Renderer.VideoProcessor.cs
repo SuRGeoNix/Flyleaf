@@ -288,7 +288,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     break;
 
                 default:
-                    return;
+                    break;
             }
 
             Present();

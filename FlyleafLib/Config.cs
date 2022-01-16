@@ -418,7 +418,7 @@ namespace FlyleafLib
             /// <summary>
             /// Video aspect ratio
             /// </summary>
-            public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value)) player?.renderer?.SetViewport(); player?.renderer?.Present(); } }
+            public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value)) player?.renderer?.SetViewport(); } }
             AspectRatio    _AspectRatio = AspectRatio.Keep;
 
             /// <summary>

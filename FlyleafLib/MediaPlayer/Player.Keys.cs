@@ -478,22 +478,24 @@ namespace FlyleafLib.MediaPlayer
         }
         private static HashSet<KeyBindingAction> isKeyUpBinding = new HashSet<KeyBindingAction>
         {
+            // Having issues with alt/ctrl/shift (should save state of alt/ctrl/shift on keydown and not checked on keyup)
+
             //{ KeyBindingAction.OpenFromClipboard },
             { KeyBindingAction.OpenFromFileDialog },
             //{ KeyBindingAction.CopyToClipboard },
-            { KeyBindingAction.TakeSnapshot },
+            //{ KeyBindingAction.TakeSnapshot },
             { KeyBindingAction.NormalScreen },
             { KeyBindingAction.FullScreen },
             { KeyBindingAction.ToggleFullScreen },
-            { KeyBindingAction.ToggleAudio },
-            { KeyBindingAction.ToggleVideo },
+            //{ KeyBindingAction.ToggleAudio },
+            //{ KeyBindingAction.ToggleVideo },
             { KeyBindingAction.ToggleKeepRatio },
             { KeyBindingAction.ToggleVideoAcceleration },
-            { KeyBindingAction.ToggleSubtitles },
+            //{ KeyBindingAction.ToggleSubtitles },
             { KeyBindingAction.ToggleMute },
             { KeyBindingAction.TogglePlayPause },
-            { KeyBindingAction.ToggleRecording },
-            { KeyBindingAction.ToggleReversePlayback },
+            //{ KeyBindingAction.ToggleRecording },
+            //{ KeyBindingAction.ToggleReversePlayback },
             { KeyBindingAction.Play },
             { KeyBindingAction.Pause },
             //{ KeyBindingAction.Stop },

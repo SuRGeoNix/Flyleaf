@@ -36,11 +36,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public Viewport         GetViewport     { get; private set; }
 
-        public int              PanXOffset      { get => panXOffset; set { panXOffset = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); SetViewport(); Present(); } }
+        public int              PanXOffset      { get => panXOffset; set { panXOffset = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); else SetViewport(); } }
         int panXOffset;
-        public int              PanYOffset      { get => panYOffset; set { panYOffset = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); SetViewport(); Present(); } }
+        public int              PanYOffset      { get => panYOffset; set { panYOffset = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); else SetViewport(); } }
         int panYOffset;
-        public int              Zoom            { get => zoom;       set { zoom       = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); SetViewport(); Present(); } }
+        public int              Zoom            { get => zoom;       set { zoom       = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); else SetViewport(); } }
         int zoom;
         public int              UniqueId        { get; private set; }
 
@@ -255,7 +255,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 Height      = Control.Height,
                 AlphaMode   = AlphaMode.Ignore,
                 BufferUsage = Usage.RenderTargetOutput,
-                Scaling     = Scaling.None, // We should re-draw the source texture for proper render
+                Scaling     = IsWin8OrGreater ? Scaling.None : Scaling.Stretch, // We should re-draw the source texture for proper render
                 SampleDescription = new SampleDescription(1, 0)
             };
 
@@ -302,7 +302,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 Log("Disposing");
 
-                try { ClearBackBuffer(); } catch { }
+                RefreshLayout();
 
                 DisposeVideoProcessor();
 
@@ -550,6 +550,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect((int)GetViewport.X, (int)GetViewport.Y, (int)GetViewport.Width + (int)GetViewport.X, (int)GetViewport.Height + (int)GetViewport.Y));
                 vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
             }
+
+            Present();
         }
         
         public bool Present(VideoFrame frame)
@@ -607,29 +609,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (sleepMs > 2)
                         Thread.Sleep((int)sleepMs);
 
-                    if (Monitor.TryEnter(lockDevice, 5))
-                    {
-                        try
-                        {
-                            if (Disposed)
-                            {
-                                if (Control != null)
-                                    Control.BackColor = Utils.WPFToWinFormsColor(Config.Video.BackgroundColor);return;
-                            }   
-                            else if (!DisableRendering && LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
-                                PresentInternal(LastFrame);
-                            else
-                            {
-                                ClearBackBuffer();
-                            }
-                        } catch (Exception e)
-                        {
-                            Log($"[Present] Error {e.Message} | {Device.DeviceRemovedReason}");
-                        } finally
-                        {
-                            Monitor.Exit(lockDevice);
-                        }
-                    }
+                    RefreshLayout();
 
                     lastPresentAt = DateTime.UtcNow.Ticks;
 
@@ -794,16 +774,34 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
         }
 
-        private void ClearBackBuffer()
+        public void RefreshLayout()
         {
-            context.OMSetRenderTargets(backBufferRtv);
-            context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-            context.RSSetViewport(new Viewport());
-            context.PSSetShader(PSShaders["PSSimple"]);
-            context.PSSetSampler(0, samplerLinear);
-            context.PSSetShaderResources(0, new ID3D11ShaderResourceView[0]);
-            context.Draw(6, 0);
-            swapChain.Present(Config.Video.VSync, PresentFlags.None);
+            if (Monitor.TryEnter(lockDevice, 5))
+            {
+                try
+                {
+                    if (Disposed)
+                    {
+                        if (Control != null)
+                            Control.BackColor = Utils.WPFToWinFormsColor(Config.Video.BackgroundColor);
+                    }
+                    else if (!DisableRendering && LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
+                        PresentInternal(LastFrame);
+                    else
+                    {
+                        context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                        swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log($"[Present] Error {e.Message} | {Device.DeviceRemovedReason}");
+                }
+                finally
+                {
+                    Monitor.Exit(lockDevice);
+                }
+            }
         }
 
         /// <summary>
