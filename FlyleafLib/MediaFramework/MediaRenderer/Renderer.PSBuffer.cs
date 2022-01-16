@@ -64,7 +64,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             context.UpdateSubresource(ref psBufferData, psBuffer);
 
-            if (Control != null) Present();
+            Present();
 
 
             /* TODO
