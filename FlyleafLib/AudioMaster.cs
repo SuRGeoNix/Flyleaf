@@ -5,6 +5,7 @@ using SharpGen.Runtime;
 using SharpGen.Runtime.Win32;
 
 using Vortice.MediaFoundation;
+using static Vortice.XAudio2.XAudio2;
 
 namespace FlyleafLib
 {
@@ -103,6 +104,11 @@ namespace FlyleafLib
                 #endif
 
                 deviceEnum.RegisterEndpointNotificationCallback(this);
+
+                var xaudio2 = XAudio2Create();
+                if (xaudio2 == null)
+                    Failed = true;
+                xaudio2.Dispose();
 
             } catch { Failed = true; }
         }
