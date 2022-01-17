@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.5</Version>
+	<Version>3.4.6</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,28 +17,18 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		-= D3D11 Video Processor Support &amp; Media Renderer Improvements =-
+		Uses the ffmpeg's default hw frames parameters to ensure alignments and initial pool size
+		Adds VA support for more formats (Config.Decoder.AllowProfileMismatch)
+		Prevents renderer's disposal on every new video input but it will dispose it on Player.Stop or Dispose
+		Adds Ctrl+Q key binding for Player.Stop
 
-		Extends the current embedded video processor (FLVP pixel shaders) with the D3D11VP to support more filters, alternative color conversions, basic bob deinterlace and preparing others including HDR native.
-		Use Config.Video.VideoProcessor to choose which one to use. By default "Auto" is recommended to allow the library to switch when it requires.
-		* FLVP supports HDR to SDR, D3D11 does not
-		* FLVP supports Pan Move/Zoom, D3D11 does not
-		* D3D11 possible performs better with color conversion and filters, FLVP supports only brightness/contrast filters
-		* D3D11 supports deinterlace (bob)
-		* D3D11 currently performs only with video accelerated (hardware) frames
-
-		Adds Config.Video.Deinterlace to enable/disable deinterlace
-		Adds Config.Video.Filters to set filters (ensure that is actually available and supported by the VPs)
-		Adds Player.LastError to keep track of open/playback/buffering errors in the UI
-
-		Renderer: Code clean up and improvements
-		Renderer: TakeSnapshot now works more efficiently
-
-		Audio: Fixes a critical backwards compatibility issue with XAudio by updating Vortice libraries
-		Renderer: Possible brings back the broken backwards compatibility (Win7/Win8) from the previous 3.4.4 (not tested)
-		VideoDecoder: Fixes few performance issues with the new get_format / hardware frames allocation
-
-		Updates Vortice (you might need to update System.Runtime.CompilerServices.Unsafe to Version&gt;=6.0.0.0)
+		Fixes an issue with the audio / video sync that it could happen on live streams with no buffer (0 duration)
+		Fixes critical issues with the Idle Renderer
+		Fixes a possible critical null reference on video processor that could cause issues with brightness
+		Fixes an issue with MP2 audio codecs (flat formats) and switches to MP3 when required
+		Fixes a proper fallback to sw format in case of hw failure
+		Fixes backwards compatibility with &lt; Win8 (however XAudio seems to still have an issue)
+		Fixes an issue in case of initially audio fails to be able to continue play video
 	</PackageReleaseNotes>
   </PropertyGroup>
 

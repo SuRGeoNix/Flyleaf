@@ -41,7 +41,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
             Bits            = st->codecpar->bits_per_coded_sample;
 
             // https://trac.ffmpeg.org/ticket/7321
-            if (CodecID == AVCodecID.AV_CODEC_ID_MP2 && SampleFormat == AVSampleFormat.AV_SAMPLE_FMT_FLTP)
+            if (CodecID == AVCodecID.AV_CODEC_ID_MP2 && (SampleFormat == AVSampleFormat.AV_SAMPLE_FMT_FLTP || SampleFormat == AVSampleFormat.AV_SAMPLE_FMT_FLT))
                 CodecID = AVCodecID.AV_CODEC_ID_MP3; // OR? st->codecpar->format = (int) AVSampleFormat.AV_SAMPLE_FMT_S16P;
 
             byte[] buf = new byte[50];

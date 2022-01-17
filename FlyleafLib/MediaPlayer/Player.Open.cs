@@ -573,7 +573,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (this)
             {
-                if (IsDisposed || VideoDecoder.Disposed)
+                if (IsDisposed || decoder.OpenedPlugin == null) // TBR
                     return;
 
                 MediaType curMedia = MediaType.Video;
@@ -592,7 +592,6 @@ namespace FlyleafLib.MediaPlayer
                     isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
 
                     // Demuxer's duration calculates also last frames duration that we don't care
-
                     if (curMedia == MediaType.Video)
                         duration    = VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration;
                     else
