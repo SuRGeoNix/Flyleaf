@@ -1,6 +1,4 @@
-﻿using System;
-
-using Vortice.DXGI;
+﻿using Vortice.DXGI;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
@@ -51,7 +49,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
             renderer.Config.Video.MaxVerticalResolutionAuto = maxVerticalResolution;
 
-            renderer.Info = ri;
+            renderer.AdapterInfo = ri;
         }
 
         public static string VendorIdStr(int vendorId)

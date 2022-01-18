@@ -59,17 +59,11 @@ namespace FlyleafLib.Controls.WPF
             if (oldPlayer == null)
             {
                 VideoView.UniqueId = Player.PlayerId;
-                VideoView.Log($"Assinged Player {Player.PlayerId}");
-
                 Player.VideoView= VideoView;
                 Player.Control  = VideoView.FlyleafWF;
 
                 if (VideoView.ControlRequiresPlayer != null)
                     VideoView.ControlRequiresPlayer.Player = Player;
-            }
-            else
-            {
-                VideoView.Log($"Swaped Player {oldPlayer.PlayerId} with {Player.PlayerId}");
             }
         }
         public VideoView() { DefaultStyleKey = typeof(VideoView); }
@@ -100,8 +94,6 @@ namespace FlyleafLib.Controls.WPF
             if (Player != null && Player.VideoView == null)
             {
                 UniqueId = Player.PlayerId;
-                Log($"Assinged Player {Player.PlayerId}");
-
                 Player.VideoView= this;
                 Player.Control  = FlyleafWF;
                 lastPlayer = Player;
@@ -246,7 +238,5 @@ namespace FlyleafLib.Controls.WPF
                 disposed = true;
             }
         }
-
-        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [VideoView] {msg}"); }
     }
 }

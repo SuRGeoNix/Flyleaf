@@ -191,7 +191,7 @@ namespace FlyleafLib.Plugins
                 {
                     StartInfo = new ProcessStartInfo
                     {
-                        FileName        = Path.Combine(PluginHandler.PluginsFolder, Name, plugin_path),
+                        FileName        = Path.Combine(Engine.Plugins.Folder, Name, plugin_path),
                         Arguments       = $"{Options["ExtraArguments"]} --no-playlist --no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -o \"{tmpFile}\" \"{url}\"",
                         CreateNoWindow  = true,
                         UseShellExecute = false,
@@ -208,23 +208,25 @@ namespace FlyleafLib.Plugins
 
                 if (Handler.Interrupt)
                 {
-                    Log("Interrupted");
+                    Log.Info("Interrupted");
                     if (!proc.HasExited) proc.Kill();
                     return null;
                 }
 
                 if (!File.Exists($"{tmpFile}.info.json"))
                 {
-#if DEBUG
-                    try { Log($"[StandardOutput]\r\n{proc.StandardOutput.ReadToEnd()}"); } catch { }
-                    try { Log($"[StandardError] \r\n{proc.StandardError.ReadToEnd()}" ); } catch { }              
-#endif
-                    Log("Couldn't find info json tmp file");
+                    if (Logger.CanDebug)
+                    {
+                        try { Log.Debug($"[StandardOutput]\r\n{proc.StandardOutput.ReadToEnd()}"); } catch { }
+                        try { Log.Debug($"[StandardError] \r\n{proc.StandardError. ReadToEnd()}"); } catch { }
+                    }
+
+                    Log.Warn("Couldn't find info json tmp file");
 
                     if (retries == 0 && !Handler.Interrupt)
                     {
                         retries++;
-                        Log("Retry");
+                        Log.Info("Retry");
                         return Open(url);
                     }
 
@@ -320,11 +322,11 @@ namespace FlyleafLib.Plugins
 
                 if (GetBestMatch() == null && GetAudioOnly() == null)
                 {
-                    Log("No streams found");
+                    Log.Warn("No streams found");
                     return null;
                 }
             }
-            catch (Exception e) { Log($"Error ... {e.Message}"); return new OpenResults(e.Message); }
+            catch (Exception e) { Log.Error($"Open ({e.Message})"); return new OpenResults(e.Message); }
 
             return new OpenResults();
         }

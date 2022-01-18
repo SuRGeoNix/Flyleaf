@@ -9,6 +9,7 @@ using FlyleafLib.Plugins;
 
 using static FlyleafLib.MediaFramework.MediaContext.DecoderContext;
 using static FlyleafLib.Utils;
+using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -47,7 +48,7 @@ namespace FlyleafLib.MediaPlayer
                     return new OpenInputCompletedArgs(MediaType.Video, null, null, "Null input", true);
                 }
 
-                Log($"Opening {url_iostream.ToString()}");
+                if (CanInfo) Log.Info($"Opening {url_iostream.ToString()}");
 
                 if ((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString())))
                 {
@@ -98,7 +99,7 @@ namespace FlyleafLib.MediaPlayer
 
             } catch (Exception e)
             {
-                Log($"[OPEN] Error {e.Message}");
+                Log.Error($"Open failed ({e.Message})");
                 return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, e.Message + "\r\n" + args.Error, args.IsUserInput);
             }
 

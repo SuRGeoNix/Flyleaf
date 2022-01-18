@@ -124,7 +124,7 @@ namespace FlyleafLib.Plugins
                 VideoInputs.Clear();
             } catch(Exception e)
             {
-                Log("Error ... " + e.Message);
+                Log.Error("Dispose - " + e.Message);
             }
 
             Disposed = true;
@@ -147,7 +147,7 @@ namespace FlyleafLib.Plugins
                 bitSwarm.OnFinishing        += OnFinishing;
 
                 bitSwarm.Open(url);
-                Log("Starting");
+                Log.Info("Starting");
                 bitSwarm.Start();
 
                 while (!torrentReceived && !Handler.Interrupt) { Thread.Sleep(35); }
@@ -165,7 +165,7 @@ namespace FlyleafLib.Plugins
                     return new OpenResults();
                 }
 
-                Log("Error ... " + e.Message);
+                Log.Error("Error ... " + e.Message);
                 return new OpenResults(e.Message);
             }
         }
@@ -196,7 +196,7 @@ namespace FlyleafLib.Plugins
                 TorrentStream = torrent.GetTorrentStream(FileName);
                 input.IOStream  = TorrentStream;
                 bitSwarm.IncludeFiles(new List<string>() { FileName });
-                if (!bitSwarm.isRunning) { Log("Starting"); bitSwarm.Start(); }
+                if (!bitSwarm.isRunning) { Log.Info("Starting"); bitSwarm.Start(); }
 
                 // Prepare for subs (add interrupt!)
                 bool threadDone = false;
@@ -227,7 +227,7 @@ namespace FlyleafLib.Plugins
                 input.IOStream = null;
                 input.Url = Path.Combine(FolderComplete, FileName);
 
-                if (!DownloadNext()) { Log("Pausing"); bitSwarm.Pause(); }
+                if (!DownloadNext()) { Log.Info("Pausing"); bitSwarm.Pause(); }
             }
             else
                 return null;
@@ -240,7 +240,7 @@ namespace FlyleafLib.Plugins
 
         private void OnFinishing(object source, FinishingArgs e)
         {
-            Log("Download of " + torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log("Stopped");
+            Log.Info("Download of " + torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log.Info("Stopped");
         }
         private void MetadataReceived(object source, MetadataReceivedArgs e)
         {
@@ -262,7 +262,7 @@ namespace FlyleafLib.Plugins
             }
             catch (Exception e2)
             {
-                Log("Error ... " + e2.Message);
+                Log.Error("MetadataReceived - " + e2.Message);
             }
 
             torrentReceived = true;
@@ -279,11 +279,11 @@ namespace FlyleafLib.Plugins
                 var fileIndex2 = torrent.file.paths.IndexOf(sortedPaths[fileIndex]);
                 if (fileIndex2 == -1 || torrent.data.files[fileIndex2] == null || torrent.data.files[fileIndex2].Created) return false;
 
-                Log("Downloading next " + torrent.file.paths[fileIndex2]);
+                Log.Info("Downloading next " + torrent.file.paths[fileIndex2]);
 
                 bitSwarm.IncludeFiles(new List<string>() { torrent.file.paths[fileIndex2] });
 
-                if (!bitSwarm.isRunning) { Log("Starting"); bitSwarm.Start(); }
+                if (!bitSwarm.isRunning) { Log.Info("Starting"); bitSwarm.Start(); }
 
                 fileIndexNext = fileIndex2;
 

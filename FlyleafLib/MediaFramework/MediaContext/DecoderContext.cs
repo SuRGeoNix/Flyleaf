@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -16,6 +15,7 @@ using FlyleafLib.MediaFramework.MediaRemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.Plugins;
 
+using static FlyleafLib.Logger;
 using static FlyleafLib.Utils;
 
 namespace FlyleafLib.MediaFramework.MediaContext
@@ -73,9 +73,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
         #endregion
 
         #region Initialize
+        LogHandler Log;
         public DecoderContext(Config config = null, Control control = null, int uniqueId = -1, bool enableDecoding = true) : base(config, uniqueId)
         {
-            Master.RegisterFFmpeg();
+            Log = new LogHandler($"[#{UniqueId}] [DecoderContext] ");
 
             EnableDecoding      = enableDecoding;
 
@@ -86,7 +87,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             Recorder            = new Remuxer(UniqueId);
 
             // TBR: Dont initialize them if Decoding is not enabled (ensure all instances are safe - checked for not null)
-            VideoDecoder        = new VideoDecoder(Config, control, UniqueId, EnableDecoding);
+            VideoDecoder        = new VideoDecoder(Config, control, UniqueId, EnableDecoding && config.Player.Usage != MediaPlayer.Usage.Audio);
             AudioDecoder        = new AudioDecoder(Config, UniqueId, VideoDecoder);
             SubtitlesDecoder    = new SubtitlesDecoder(Config, UniqueId);
 
@@ -161,32 +162,32 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         private void OnAudioInputOpened(AudioInputOpenedArgs args = null)
         {
-            Log($"[AudioInput] {(args.OldInput != null ? args.OldInput.Url : "None")} => {(args.Input != null ? args.Input.Url : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
+            if (CanInfo) Log.Info($"[AudioInput] {(args.OldInput != null ? args.OldInput.Url : "None")} => {(args.Input != null ? args.Input.Url : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             AudioInputOpened?.Invoke(this, args);
         }
         private void OnVideoInputOpened(VideoInputOpenedArgs args = null)
         {
-            Log($"[VideoInput] {(args.OldInput != null ? args.OldInput.Url : "None")} => {(args.Input != null ? args.Input.Url : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
+            if (CanInfo) Log.Info($"[VideoInput] {(args.OldInput != null ? args.OldInput.Url : "None")} => {(args.Input != null ? args.Input.Url : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             VideoInputOpened?.Invoke(this, args);
         }
         private void OnSubtitlesInputOpened(SubtitlesInputOpenedArgs args = null)
         {
-            Log($"[SubtitlesInput] {(args.OldInput != null ? args.OldInput.Url : "None")} => {(args.Input != null ? args.Input.Url : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
+            if (CanInfo) Log.Info($"[SubtitlesInput] {(args.OldInput != null ? args.OldInput.Url : "None")} => {(args.Input != null ? args.Input.Url : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             SubtitlesInputOpened?.Invoke(this, args);
         }
         private void OnAudioStreamOpened(AudioStreamOpenedArgs args = null)
         {
-            if (args != null) Log($"[AudioStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
+            if (args != null) if (CanInfo) Log.Info($"[AudioStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             AudioStreamOpened?.Invoke(this, args);
         }
         private void OnVideoStreamOpened(VideoStreamOpenedArgs args = null)
         {
-            if (args != null) Log($"[VideoStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
+            if (args != null) if (CanInfo) Log.Info($"[VideoStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             VideoStreamOpened?.Invoke(this, args);
         }
         private void OnSubtitlesStreamOpened(SubtitlesStreamOpenedArgs args = null)
         {
-            if (args != null) Log($"[SubtitlesStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
+            if (args != null) if (CanInfo) Log.Info($"[SubtitlesStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             SubtitlesStreamOpened?.Invoke(this, args);
         }
         #endregion
@@ -202,7 +203,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             try
             {
-                Log($"Opening subs {url}");
+                if (CanInfo) Log.Info($"Opening subs {url}");
 
                 OpenResults res = base.OpenSubtitles(url);
 
@@ -299,7 +300,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (input == null)
                     return result = new VideoInputOpenedArgs(null, null, $"Null input", true);
 
-                Log($"Opening {input.ToString()}");
+                if (CanInfo) Log.Info($"Opening {input.ToString()}");
 
                 OpenResults res;
                 if (input is Stream)
@@ -388,7 +389,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             try
             {
-                Log($"Opening {input.ToString()}");
+                if (CanInfo) Log.Info($"Opening {input.ToString()}");
 
                 OpenResults res;
                 if (input is Stream)
@@ -521,7 +522,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 res = demuxer.Open(input.Url);
                 if (res != null && !string.IsNullOrEmpty(input.UrlFallback))
                 {
-                    Log($"Fallback to {input.UrlFallback}");
+                    Log.Warn($"Fallback to {input.UrlFallback}");
                     res = demuxer.Open(input.UrlFallback);
                 }
             }
@@ -602,7 +603,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                             if (audioStream != null && (VideoDemuxer.AudioStream == null || audioStream.StreamIndex != VideoDemuxer.AudioStream.StreamIndex)) 
                                 Open(audioStream, true);
                             else if (audioStream != null)
-                                Log($"Audio no need to follow video");
+                                if (CanDebug) Log.Debug($"Audio no need to follow video");
                         }
                     }
 
@@ -860,7 +861,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             if (AudioStream != null && AudioStream.Demuxer.Type != MediaType.Video && Config.Audio.Enabled)
             {
                 if (timestamp == -1) timestamp = VideoDemuxer.CurTime;
-                Log($"Resync audio to {TicksToTime(timestamp)}");
+                if (CanInfo) Log.Info($"Resync audio to {TicksToTime(timestamp)}");
 
                 SeekAudio(timestamp / 10000);
                 if (isRunning)
@@ -873,7 +874,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             if (SubtitlesStream != null && SubtitlesStream.Demuxer.Type != MediaType.Video && Config.Subtitles.Enabled)
             {
                 if (timestamp == -1) timestamp = VideoDemuxer.CurTime;
-                Log($"Resync subs to {TicksToTime(timestamp)}");
+                if (CanInfo) Log.Info($"Resync subs to {TicksToTime(timestamp)}");
 
                 SeekSubtitles(timestamp / 10000);
                 if (isRunning)
@@ -891,7 +892,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             if (SubtitlesStream != null && Config.Subtitles.Enabled)
             {
                 if (timestamp == -1) timestamp = VideoDemuxer.CurTime;
-                Log($"Resync subs to {TicksToTime(timestamp)}");
+                if (CanInfo) Log.Info($"Resync subs to {TicksToTime(timestamp)}");
 
                 if (SubtitlesStream.Demuxer.Type != MediaType.Video)
                     SeekSubtitles(timestamp / 10000);
@@ -986,7 +987,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                             if (VideoDecoder.keyFrameRequired && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
                             {
-                                Log($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
+                                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                                 av_frame_unref(frame);
                                 continue;
                             }
@@ -1000,7 +1001,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                                 continue;
                             }
 
-                            //Log($"Asked for {Utils.TicksToTime(timestamp)} and got {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime)} | Diff {Utils.TicksToTime(timestamp - ((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime))}");
+                            //if (CanInfo) Info($"Asked for {Utils.TicksToTime(timestamp)} and got {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime)} | Diff {Utils.TicksToTime(timestamp - ((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime))}");
                             VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
 
                             VideoFrame mFrame = VideoDecoder.ProcessVideoFrame(frame);
@@ -1060,7 +1061,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             dump += $"\r\n Audio Frames         : {AudioDecoder.Frames.Count}";
             dump += $"\r\n Subtitles Frames     : {SubtitlesDecoder.Frames.Count}";
 
-            Log(dump);
+            if (CanInfo) Log.Info(dump);
         }
 
         #region Recorder
@@ -1080,7 +1081,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             oldMaxAudioFrames = -1;
             recHasVideo = false;
 
-            Log("Record Start");
+            if (CanInfo) Log.Info("Record Start");
 
             recHasVideo = !VideoDecoder.Disposed && VideoDecoder.Stream != null;
 
@@ -1089,10 +1090,10 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             Recorder.Open(filename);
             if (recHasVideo)
-                Log(Recorder.AddStream(VideoDecoder.Stream.AVStream).ToString());
+                if (CanInfo) Log.Info(Recorder.AddStream(VideoDecoder.Stream.AVStream) != 0 ? "Failed to add video stream" : "Video stream added to the recorder");
                 
             if (!AudioDecoder.Disposed && AudioDecoder.Stream != null)
-                Log(Recorder.AddStream(AudioDecoder.Stream.AVStream, !AudioDecoder.OnVideoDemuxer).ToString());
+                if (CanInfo) Log.Info(Recorder.AddStream(AudioDecoder.Stream.AVStream, !AudioDecoder.OnVideoDemuxer) != 0 ? "Failed to add audio stream" : "Audio stream added to the recorder");
 
             if (!Recorder.HasStreams || Recorder.WriteHeader() != 0) return; //throw new Exception("Invalid remuxer configuration");
 
@@ -1112,7 +1113,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             AudioDecoder.StopRecording();
             Recorder.Dispose();
             oldMaxAudioFrames = -1;
-            Log("Record Completed");
+            if (CanInfo) Log.Info("Record Completed");
         }
         internal void RecordCompleted(MediaType type)
         {
@@ -1123,7 +1124,5 @@ namespace FlyleafLib.MediaFramework.MediaContext
             }
         }
         #endregion
-
-        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [DecoderContext] {msg}"); }
     }
 }

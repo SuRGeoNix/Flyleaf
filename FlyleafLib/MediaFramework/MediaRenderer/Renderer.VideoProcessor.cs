@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Reflection;
 using System.Xml.Serialization;
 
 using Vortice.DXGI;
 using Vortice.Direct3D11;
 
 using FlyleafLib.MediaPlayer;
+
+using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
@@ -82,6 +85,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     if (vpe == null)
                     {
+                        Log.Error($"D3D11 Video Processor Initialization Failed");
                         DisposeVideoProcessor();
                         InitializeFilters();
 
@@ -105,6 +109,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (vpe == null)
                 {
+                    Log.Error($"D3D11 Video Processor Initialization Failed");
                     DisposeVideoProcessor();
                     InitializeFilters();
 
@@ -116,55 +121,46 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 bool supportHDR10Limited = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioG2084TopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbStudioG2084NoneP2020);
 
                 VideoProcessorCaps vpCaps = vpe.VideoProcessorCaps;
+                string dump = "";
 
-                Log($"[Video Processor Caps]");
-                Log($"RateConversionCapsCount   {vpCaps.RateConversionCapsCount}");
-                Log($"FeatureCaps               {vpCaps.FeatureCaps}");
-                Log($"DeviceCaps                {vpCaps.DeviceCaps}");
-                Log($"InputFormatCaps           {vpCaps.InputFormatCaps}");
-                Log($"MaxInputStream            {vpCaps.MaxInputStreams}");
-                Log($"MaxStreamStates           {vpCaps.MaxStreamStates}");
+                dump += $"=====================================================\r\n";
+                dump += $"MaxInputStreams           {vpCaps.MaxInputStreams}\r\n";
+                dump += $"MaxStreamStates           {vpCaps.MaxStreamStates}\r\n";
+                dump += $"HDR10 Limited             {(supportHDR10Limited ? "yes" : "no")}\r\n";
+                dump += $"HLG                       {(supportHLG ? "yes" : "no")}\r\n";
 
-                Log($"YCbCr matrix conversion   {(vpCaps.DeviceCaps     & VideoProcessorDeviceCaps.YCbCrMatrixConversion) != 0}");
-                Log($"YUV nominal range         {(vpCaps.DeviceCaps     & VideoProcessorDeviceCaps.NominalRange) != 0}");
+                dump += $"\n[Video Processor Device Caps]\r\n";
+                foreach (VideoProcessorDeviceCaps cap in Enum.GetValues(typeof(VideoProcessorDeviceCaps)))
+                    dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.DeviceCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
-                Log($"Shader Usage              {(vpCaps.FeatureCaps    & VideoProcessorFeatureCaps.ShaderUsage) != 0}");
-                Log($"HDR10                     {(vpCaps.FeatureCaps    & VideoProcessorFeatureCaps.MetadataHdr10) != 0}");
-                Log($"HDR10 Limited             {supportHDR10Limited}");
-                Log($"HLG                       {supportHLG}");
-                Log($"Legacy                    {(vpCaps.FeatureCaps    & VideoProcessorFeatureCaps.Legacy) != 0}");
+                dump += $"\n[Video Processor Feature Caps]\r\n";
+                foreach (VideoProcessorFeatureCaps cap in Enum.GetValues(typeof(VideoProcessorFeatureCaps)))
+                    dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.FeatureCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
-                VideoProcessorFilterRange range;
-                var available = Enum.GetValues(typeof(VideoProcessorFilterCaps));
+                dump += $"\n[Video Processor Stereo Caps]\r\n";
+                foreach (VideoProcessorStereoCaps cap in Enum.GetValues(typeof(VideoProcessorStereoCaps)))
+                    dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.StereoCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
-                foreach (VideoProcessorFilterCaps filter in available)
+                dump += $"\n[Video Processor Input Format Caps]\r\n";
+                foreach (VideoProcessorFormatCaps cap in Enum.GetValues(typeof(VideoProcessorFormatCaps)))
+                    dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.InputFormatCaps & cap) != 0 ? "yes" : "no")}\r\n";
+
+                dump += $"\n[Video Processor Filter Caps]\r\n";
+                foreach (VideoProcessorFilterCaps filter in Enum.GetValues(typeof(VideoProcessorFilterCaps)))
                     if ((vpCaps.FilterCaps & filter) != 0)
                     {
-                        vpe.GetVideoProcessorFilterRange(ConvertFromVideoProcessorFilterCaps(filter), out range);
-                        Log($"{filter.ToString().PadRight(25, ' ')} [{range.Minimum} - {range.Maximum}] | x{range.Multiplier} | *{range.Default}");
+                        vpe1.GetVideoProcessorFilterRange(ConvertFromVideoProcessorFilterCaps(filter), out VideoProcessorFilterRange range);
+                        dump += $"{filter.ToString().PadRight(25, ' ')} [{range.Minimum.ToString().PadLeft(6, ' ')} - {range.Maximum.ToString().PadLeft(4, ' ')}] | x{range.Multiplier.ToString().PadLeft(4, ' ')} | *{range.Default}\r\n";
                         VideoFilter vf = ConvertFromVideoProcessorFilterRange(range);
                         vf.Filter = (VideoFilters)filter;
                         cache.Filters.Add((VideoFilters)filter, vf);
                     }
+                    else
+                        dump += $"{filter.ToString().PadRight(25, ' ')} no\r\n";
 
-                Log($"PaletteInterlaced         {(vpCaps.InputFormatCaps& VideoProcessorFormatCaps.PaletteInterlaced) != 0}");
-                Log($"RgbInterlaced             {(vpCaps.InputFormatCaps& VideoProcessorFormatCaps.RgbInterlaced) != 0}");
-                Log($"RgbLumaKey                {(vpCaps.InputFormatCaps& VideoProcessorFormatCaps.RgbLumaKey) != 0}");
-                Log($"RgbProcamp                {(vpCaps.InputFormatCaps& VideoProcessorFormatCaps.RgbProcamp) != 0}");
-            
-                var asCaps = vpCaps.AutoStreamCaps;
-                if (asCaps > 0)
-                {
-                    Log("... AutoStreamCaps ...");
-                    Log($"Denoise               {(asCaps & VideoProcessorAutoStreamCaps.Denoise) != 0}");
-                    Log($"Deringing             {(asCaps & VideoProcessorAutoStreamCaps.Deringing) != 0}");
-                    Log($"EdgeEnhancement       {(asCaps & VideoProcessorAutoStreamCaps.EdgeEnhancement) != 0}");
-                    Log($"ColorCorrection       {(asCaps & VideoProcessorAutoStreamCaps.ColorCorrection) != 0}");
-                    Log($"FleshToneMapping      {(asCaps & VideoProcessorAutoStreamCaps.FleshToneMapping) != 0}");
-                    Log($"ImageStabilization    {(asCaps & VideoProcessorAutoStreamCaps.ImageStabilization) != 0}");
-                    Log($"SuperResolution       {(asCaps & VideoProcessorAutoStreamCaps.SuperResolution) != 0}");
-                    Log($"AnamorphicScaling     {(asCaps & VideoProcessorAutoStreamCaps.AnamorphicScaling) != 0}");
-                }
+                dump += $"\n[Video Processor Input Format Caps]\r\n";
+                foreach (VideoProcessorAutoStreamCaps cap in Enum.GetValues(typeof(VideoProcessorAutoStreamCaps)))
+                    dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.AutoStreamCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
                 int typeIndex = -1;
                 VideoProcessorRateConversionCaps rcCap = new VideoProcessorRateConversionCaps();
@@ -172,23 +168,26 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     vpe.GetVideoProcessorRateConversionCaps(i, out rcCap);
                     VideoProcessorProcessorCaps pCaps = (VideoProcessorProcessorCaps) rcCap.ProcessorCaps;
-                    Log($"[Video Processor #{i+1} Caps]");
-                    Log($"CustomRateCount           {rcCap.CustomRateCount}");
-                    Log($"PastFrames                {rcCap.PastFrames}");
-                    Log($"FutureFrames              {rcCap.FutureFrames}");
-                    Log($"DeinterlaceBlend          {(pCaps & VideoProcessorProcessorCaps.DeinterlaceBlend) != 0}");
-                    Log($"DeinterlaceBob            {(pCaps & VideoProcessorProcessorCaps.DeinterlaceBob) != 0}");
-                    Log($"DeinterlaceAdaptive       {(pCaps & VideoProcessorProcessorCaps.DeinterlaceAdaptive) != 0}");
-                    Log($"DeinterlaceMotion         {(pCaps & VideoProcessorProcessorCaps.DeinterlaceMotionCompensation) != 0}");
-                    Log($"FrameRateConversion       {(pCaps & VideoProcessorProcessorCaps.FrameRateConversion) != 0}");
-                    Log($"InverseTelecine           {(pCaps & VideoProcessorProcessorCaps.InverseErseTelecine) != 0}");
+
+                    dump += $"\n[Video Processor Rate Conversion Caps #{i}]\r\n";
+
+                    dump += $"\n\t[Video Processor Rate Conversion Caps]\r\n";
+                    FieldInfo[] fields = typeof(VideoProcessorRateConversionCaps).GetFields();
+                    foreach (FieldInfo field in fields)
+                        dump += $"\t{field.Name.PadRight(35, ' ')} {field.GetValue(rcCap)}\r\n";
+
+                    dump += $"\n\t[Video Processor Processor Caps]\r\n";
+                    foreach (VideoProcessorProcessorCaps cap in Enum.GetValues(typeof(VideoProcessorProcessorCaps)))
+                        dump += $"\t{cap.ToString().PadRight(35, ' ')} {(((VideoProcessorProcessorCaps)rcCap.ProcessorCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
                     typeIndex = i;
 
-                    if ((pCaps & VideoProcessorProcessorCaps.DeinterlaceBob) != 0)
+                    if (((VideoProcessorProcessorCaps)rcCap.ProcessorCaps & VideoProcessorProcessorCaps.DeinterlaceBob) != 0)
                         break; // TBR: When we add past/future frames support
                 }
                 vpe1.Dispose();
+
+                if (CanDebug) Log.Debug($"D3D11 Video Processor\r\n{dump}");
 
                 cache.TypeIndex = typeIndex;
                 cache.HLG = supportHLG;
@@ -200,6 +199,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 vd1.CreateVideoProcessor(vpe, typeIndex, out vp);
                 if (vp == null)
                 {
+                    Log.Error($"D3D11 Video Processor Initialization Failed");
                     DisposeVideoProcessor();
                     InitializeFilters();
 
@@ -208,8 +208,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
 
                 cache.Failed = false;
+                Log.Info($"D3D11 Video Processor Initialized (Rate Caps #{typeIndex})");
 
-            } catch { DisposeVideoProcessor(); }
+            } catch { DisposeVideoProcessor(); Log.Error($"D3D11 Video Processor Initialization Failed"); }
 
             InitializeFilters();
         }

@@ -56,7 +56,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
                     for (int l=0; l<demuxer.hlsCtx->playlists[i]->n_main_streams; l++)
                         if (demuxer.hlsCtx->playlists[i]->main_streams[l]->index == StreamIndex)
                         {
-                            Debug.WriteLine($"Stream #{StreamIndex} Found in playlist {i}");
+                            demuxer.Log.Debug($"Stream #{StreamIndex} Found in playlist {i}");
                             HLSPlaylist = demuxer.hlsCtx->playlists[i];
                             break;
                         }

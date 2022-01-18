@@ -1,0 +1,267 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
+
+using FlyleafLib.MediaFramework.MediaRenderer;
+using FlyleafLib.MediaPlayer;
+
+namespace FlyleafLib
+{
+    /// <summary>
+    /// Flyleaf Engine
+    /// </summary>
+    public static class Engine
+    {
+        /// <summary>
+        /// Engine has been started and is ready for use
+        /// </summary>
+        public static bool              Started         { get; private set; }
+
+        /// <summary>
+        /// Engine's configuration
+        /// </summary>
+        public static EngineConfig      Config          { get; private set; }
+
+        /// <summary>
+        /// Audio Engine
+        /// </summary>
+        public static AudioEngine       Audio           { get; private set; }
+
+        /// <summary>
+        /// Video Engine
+        /// </summary>
+        public static VideoEngine       Video           { get; private set; }
+
+        /// <summary>
+        /// Plugins Engine
+        /// </summary>
+        public static PluginsEngine     Plugins         { get; private set; }
+
+        /// <summary>
+        /// FFmpeg Engine
+        /// </summary>
+        public static FFmpegEngine      FFmpeg          { get; private set; }
+
+        /// <summary>
+        /// List of active Players
+        /// </summary>
+        public static List<Player>      Players         { get; private set; }
+
+        internal static LogHandler Log;
+
+        static Thread   tMaster;
+        static bool     isCursorHidden;
+        static object   lockEngine      = new object();
+
+        /// <summary>
+        /// Initializes Flyleaf's Engine
+        /// </summary>
+        /// <param name="config">Engine's configuration</param>
+        public static void Start(EngineConfig config = null)
+        {
+            lock (lockEngine)
+            {
+                if (Started)
+                    throw new Exception("Engine has already been started");
+
+                if (System.Windows.Application.Current == null)
+                    new System.Windows.Application();
+
+                Config = config == null ? new EngineConfig() : config;
+
+                if (Config.HighPerformaceTimers)
+                    Utils.NativeMethods.TimeBeginPeriod(1);
+
+                Logger.SetOutput();
+
+                Log     = new LogHandler("[FlyleafEngine      ] ");
+                FFmpeg  = new FFmpegEngine();
+                Video   = new VideoEngine();
+                Audio   = new AudioEngine();
+                Plugins = new PluginsEngine();
+                Players = new List<Player>();
+
+                Renderer.Start();
+
+                Started = true;
+
+                if (Config.UIRefresh)
+                    StartThread();
+            }
+        }
+
+        internal static void AddPlayer(Player player)
+        {
+            lock (Players)
+                Players.Add(player);
+        }
+        internal static int  GetPlayerPos(int playerId)
+        {
+            for (int i=0; i<Players.Count; i++)
+                if (Players[i].PlayerId == playerId)
+                    return i;
+
+            return -1;
+        }
+        internal static void DisposePlayer(Player player)
+        {
+            if (player == null) return;
+
+            DisposePlayer(player.PlayerId);
+        }
+        internal static void DisposePlayer(int playerId)
+        {
+            lock (Players)
+            {
+                Log.Trace($"Disposing {playerId}");
+                int pos = GetPlayerPos(playerId);
+                if (pos == -1) return;
+
+                Player player = Players[pos];
+                player.DisposeInternal();
+                Players.RemoveAt(pos);
+                Log.Trace($"Disposed {playerId}");
+            }
+        }
+
+        internal static void StartThread()
+        {
+            if (!Config.UIRefresh || (tMaster != null && tMaster.IsAlive))
+                return;
+
+            tMaster = new Thread(() => { MasterThread(); });
+            tMaster.Name = "FlyleafEngine";
+            tMaster.IsBackground = true;
+            tMaster.Start();
+        }
+        internal static void MasterThread()
+        {
+            Log.Info("Thread started");
+
+            int curLoop = 0;
+            int secondLoops = 1000 / Config.UIRefreshInterval;
+            long secondCorrection = DateTime.UtcNow.Ticks;
+
+            do
+            {
+                try
+                {
+                    if (Players.Count == 0)
+                    {
+                        Thread.Sleep(Config.UIRefreshInterval);
+                        continue;
+                    }
+
+                    curLoop++;
+
+                    lock (Players)
+                        foreach (Player player in Players)
+                        {
+                            /* Every UIRefreshInterval */
+                            if (player.Config.Player.ActivityMode)
+                                player.Activity.mode = player.Activity.Check();
+
+                            /* Every Second */
+                            if (curLoop == secondLoops)
+                            {
+                                if (player.Config.Player.Stats)
+                                {
+                                    var now = DateTime.UtcNow.Ticks;
+                                    secondCorrection = DateTime.UtcNow.Ticks - secondCorrection;
+
+                                    var curStats = player.stats;
+                                    long curTotalBytes  = player.VideoDemuxer.TotalBytes + player.AudioDemuxer.TotalBytes + player.SubtitlesDemuxer.TotalBytes;
+                                    long curVideoBytes  = player.VideoDemuxer.VideoBytes + player.AudioDemuxer.VideoBytes + player.SubtitlesDemuxer.VideoBytes;
+                                    long curAudioBytes  = player.VideoDemuxer.AudioBytes + player.AudioDemuxer.AudioBytes + player.SubtitlesDemuxer.AudioBytes;
+
+                                    player.bitRate      = (curTotalBytes - curStats.TotalBytes) * 8 / 1000.0;
+                                    player.Video.bitRate= (curVideoBytes - curStats.VideoBytes) * 8 / 1000.0;
+                                    player.Audio.bitRate= (curAudioBytes - curStats.AudioBytes) * 8 / 1000.0;
+
+                                    curStats.TotalBytes = curTotalBytes;
+                                    curStats.VideoBytes = curVideoBytes;
+                                    curStats.AudioBytes = curAudioBytes;
+
+                                    if (player.IsPlaying)
+                                    {
+                                        player.Video.fpsCurrent = (player.Video.FramesDisplayed - curStats.FramesDisplayed) / (secondCorrection / 10000000.0);
+                                        curStats.FramesDisplayed = player.Video.FramesDisplayed;
+                                    }
+
+                                    secondCorrection = now;
+                                }
+                            }
+                        }
+
+                    if (curLoop == secondLoops)
+                        curLoop = 0;
+
+                    Action action = () =>
+                    {
+                        try
+                        {
+                            foreach (Player player in Players)
+                            {
+                                /* Every UIRefreshInterval */
+
+                                // Activity Mode Refresh & Hide Mouse Cursor (FullScreen only)
+                                if (player.Activity.mode != player.Activity._Mode && (player.Config.Player.ActivityMode || isCursorHidden))
+                                {
+                                    player.Activity.Mode = player.Activity.Mode;
+
+                                    if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle && player.Config.Player.MouseBindings.HideCursorOnFullScreenIdle)
+                                    {
+                                        while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
+                                        isCursorHidden = true;
+                                    }    
+                                    else if (isCursorHidden && player.Activity.Mode == ActivityMode.FullActive)
+                                    {
+                                        while (Utils.NativeMethods.ShowCursor(true) < 0) { }
+                                        isCursorHidden = false;
+                                    }   
+                                }
+
+                                // CurTime / Buffered Duration (+Duration for HLS)
+                                if (!Config.UICurTimePerSecond)
+                                    player.UpdateCurTime();
+                                else if (player.Status == Status.Paused)
+                                {
+                                    if (player.MainDemuxer.IsRunning)
+                                        player.UpdateCurTime();
+                                    else
+                                        player.UpdateBufferedDuration();
+                                }
+
+                                /* Every Second */
+                                if (curLoop == 0)
+                                {
+                                    // Stats Refresh (BitRates / FrameDisplayed / FramesDropped / FPS)
+                                    if (player.Config.Player.Stats)
+                                    {
+                                        player.BitRate = player.BitRate;
+                                        player.Video.BitRate = player.Video.BitRate;
+                                        player.Audio.BitRate = player.Audio.BitRate;
+
+                                        if (player.IsPlaying)
+                                        {
+                                            player.Video.FramesDisplayed= player.Video.FramesDisplayed;
+                                            player.Video.FramesDropped  = player.Video.FramesDropped;
+                                            player.Video.FPSCurrent     = player.Video.FPSCurrent;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch { }
+                    };
+
+                    Utils.UI(action);
+                    Thread.Sleep(Config.UIRefreshInterval);
+
+                } catch { curLoop = 0; }
+
+            } while (Config.UIRefresh);
+
+            Log.Info("Thread stopped");
+        }
+    }
+}

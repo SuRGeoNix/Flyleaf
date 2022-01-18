@@ -5,6 +5,7 @@ using FlyleafLib.MediaFramework.MediaDecoder;
 
 using static FlyleafLib.Utils;
 using static FlyleafLib.Utils.NativeMethods;
+using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -24,10 +25,6 @@ namespace FlyleafLib.MediaPlayer
             }
 
             PlaybackCompleted?.Invoke(this, new PlaybackCompletedArgs(error));
-
-            #if DEBUG
-            Log($"OnPlaybackCompleted {(error != null ? $"(Error: {error})" : "")}");
-            #endif
         }
 
         bool stoppedWithError;
@@ -79,8 +76,10 @@ namespace FlyleafLib.MediaPlayer
                                 Screamer();
                         }
 
-                    } catch (Exception e) { Log(e.Message + " - " + e.StackTrace); }
-
+                    } catch (Exception e)
+                    {
+                        Log.Error($"Playback failed ({e.Message})");
+                    }
                     finally
                     {
                         VideoDecoder.DisposeFrame(vFrame);
@@ -121,9 +120,10 @@ namespace FlyleafLib.MediaPlayer
                                 status = Status.Ended;
                             else
                                 status = Status.Paused;
-
-                            OnPlaybackCompleted(stoppedWithError ? "Playback stopped unexpectedly" : null);
                         }
+
+                        OnPlaybackCompleted(stoppedWithError ? "Playback stopped unexpectedly" : null);
+                        if (CanDebug) Log.Debug($"[SCREAMER] Finished (Status: {Status}, Error: {(stoppedWithError ? "Playback stopped unexpectedly" : "")})");
 
                         UI(() =>
                         {
@@ -209,6 +209,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 try
                 {
+                    int ret;
                     TimeBeginPeriod(1);
                     
                     while (seeks.TryPop(out SeekData seekData) && CanPlay && !IsPlaying)
@@ -219,15 +220,17 @@ namespace FlyleafLib.MediaPlayer
                         {
                             if (AudioDecoder.OnVideoDemuxer)
                             {
-                                if (decoder.Seek(seekData.ms, seekData.forward) < 0)
-                                    Log("[SEEK] Failed 2");
+                                ret = decoder.Seek(seekData.ms, seekData.forward);
+                                if (CanWarn && ret < 0)
+                                    Log.Warn("Seek failed 2");
 
                                 VideoDemuxer.Start();
                             }
                             else
                             {
-                                if (decoder.SeekAudio(seekData.ms, seekData.forward) < 0)
-                                    Log("[SEEK] Failed 3");
+                                ret = decoder.SeekAudio(seekData.ms, seekData.forward);
+                                if (CanWarn && ret < 0)
+                                    Log.Warn("Seek failed 3");
 
                                 AudioDemuxer.Start();
                             }
@@ -237,7 +240,12 @@ namespace FlyleafLib.MediaPlayer
                         else
                         {
                             decoder.PauseDecoders();
-                            if (decoder.Seek(seekData.ms, seekData.forward, !seekData.accurate) >= 0)
+                            ret = decoder.Seek(seekData.ms, seekData.forward, !seekData.accurate);
+                            if (ret < 0)
+                            {
+                                if (CanWarn) Log.Warn("Seek failed");
+                            }
+                            else
                             {
                                 if (!ReversePlayback && CanPlay)
                                     decoder.GetVideoFrame(seekData.accurate ? seekData.ms * (long)10000 : -1);
@@ -250,15 +258,13 @@ namespace FlyleafLib.MediaPlayer
                                     decoder.PauseOnQueueFull();
                                 }
                             }
-                            else
-                                Log("[SEEK] Failed");
                         }
 
                         Thread.Sleep(20);
                     }
                 } catch (Exception e)
                 {
-                    Log($"[SEEK] Error {e.Message}");
+                    Log.Error($"Seek failed ({e.Message})");
                 } finally
                 {
                     decoder.OpenedPlugin?.OnBufferingCompleted();

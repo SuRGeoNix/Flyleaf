@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 using Vortice.Multimedia;
 using Vortice.XAudio2;
@@ -12,6 +11,8 @@ using FlyleafLib.MediaFramework.MediaInput;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.Plugins;
+
+using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -115,8 +116,7 @@ namespace FlyleafLib.MediaPlayer
         private bool mute = false;
 
         /// <summary>
-        /// Audio player's current device (see Master.AudioMaster.Devices for valid input names)
-        /// Set to null to use AudioMaster's Device which handles all instances (Default)
+        /// <para>Audio player's current device (available devices can be found on Engine.Audio.Devices)/></para>
         /// </summary>
         public string Device
         {
@@ -127,14 +127,14 @@ namespace FlyleafLib.MediaPlayer
                     return; 
 
                 _Device     = value;
-                _DeviceId   = Master.AudioMaster.GetDeviceId(value);
+                _DeviceId   = Engine.Audio.GetDeviceId(value);
 
                 Initialize();
 
                 Utils.UI(() => Raise(nameof(Device)));
             }
         }
-        internal string _Device = Master.AudioMaster.DefaultDeviceName;
+        internal string _Device = Engine.Audio.DefaultDeviceName;
         internal void RaiseDevice() { Utils.UI(() => Raise(nameof(Device))); } // Required for Selected Items on the Devices observation list (as we clear it everytime)
 
         public string DeviceId
@@ -143,14 +143,14 @@ namespace FlyleafLib.MediaPlayer
             set
             {
                 _DeviceId   = value;
-                _Device     = Master.AudioMaster.GetDeviceName(value);
+                _Device     = Engine.Audio.GetDeviceName(value);
 
                 Initialize();
 
                 Utils.UI(() => Raise(nameof(DeviceId)));
             }
         }
-        internal string _DeviceId = Master.AudioMaster.DefaultDeviceId;
+        internal string _DeviceId = Engine.Audio.DefaultDeviceId;
 
         public int BuffersQueued {
             get
@@ -202,7 +202,7 @@ namespace FlyleafLib.MediaPlayer
 
         internal void Initialize(int sampleRate = -1)
         {
-            if (Master.AudioMaster.Failed)
+            if (Engine.Audio.Failed)
             {
                 Config.Audio.Enabled = false;
                 return;
@@ -216,12 +216,12 @@ namespace FlyleafLib.MediaPlayer
 
             lock (locker)
             {
-                Log($"Initializing {Device} at {SampleRate}Hz");
+                player.Log.Info($"Initialiazing audio ({Device} @ {SampleRate}Hz)");
 
                 Dispose();
 
                 xaudio2         = XAudio2Create();
-                masteringVoice  = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Master.AudioMaster.DefaultDeviceName ? null : Master.AudioMaster.GetDeviceId(_Device));
+                masteringVoice  = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : Engine.Audio.GetDeviceId(_Device));
                 sourceVoice     = xaudio2.CreateSourceVoice(waveFormat, true);
                 sourceVoice.SetSourceSampleRate(SampleRate);
                 sourceVoice.Start();
@@ -250,7 +250,10 @@ namespace FlyleafLib.MediaPlayer
             try
             {
                 sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
-            } catch { } // Happens on audio device changed/removed
+            } catch (Exception e) // Happens on audio device changed/removed
+            {
+                if (CanDebug) player.Log.Debug($"[Audio] Add samples failed ({e.Message})");
+            }
         }
         internal void ClearBuffer()
         {
@@ -369,7 +372,5 @@ namespace FlyleafLib.MediaPlayer
             if (Volume == 0) return;
             Volume = Math.Max(Volume - Config.Player.VolumeOffset, 0);
         }
-
-        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{player.PlayerId}] [Audio] {msg}"); }
     }
 }

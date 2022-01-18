@@ -6,6 +6,8 @@ using System.Windows.Input;
 using FlyleafLib.Controls;
 using FlyleafLib.Controls.WPF;
 
+using static FlyleafLib.Logger;
+
 namespace FlyleafLib.MediaPlayer
 {
     partial class Player
@@ -73,7 +75,7 @@ namespace FlyleafLib.MediaPlayer
                     binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
                     )
                 {
-                    //player.Log("Down | " + binding.Action.ToString());
+                    if (CanDebug) player.Log.Debug($"[Keys|Down] {binding.Action.ToString()}");
                     binding.ActionInternal?.Invoke();
                     
                     return true;
@@ -96,7 +98,7 @@ namespace FlyleafLib.MediaPlayer
                     binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
                     )
                 {
-                    //player.Log("Up | " + binding.Action.ToString());
+                    if (CanDebug) player.Log.Debug($"[Keys|Up] {binding.Action.ToString()}");
                     binding.ActionInternal?.Invoke();
 
                     return true;

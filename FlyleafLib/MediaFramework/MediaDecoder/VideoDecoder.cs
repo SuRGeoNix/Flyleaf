@@ -21,6 +21,8 @@ using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaFramework.MediaRemuxer;
 
+using static FlyleafLib.Logger;
+
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
     public unsafe class VideoDecoder : DecoderBase
@@ -114,7 +116,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             ret = av_hwdevice_ctx_init(hw_device_ctx);
             if (ret != 0)
             {
-                Log($"[ERROR-1]{Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                Log.Error($"VA Failed - {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
                 
                 fixed(AVBufferRef** ptr = &hw_device_ctx)
                     av_buffer_unref(ptr);
@@ -132,18 +134,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (disableGetFormat)
                 return avcodec_default_get_format(avctx, pix_fmts);
 
-            #if DEBUG
-            Log($"Codec profile {avcodec_profile_name(codecCtx->codec_id, codecCtx->profile)}");
-            #endif
+            if (CanDebug) Log.Debug($"Codec profile {avcodec_profile_name(codecCtx->codec_id, codecCtx->profile)}");
 
             int  ret = 0;
             bool foundHWformat = false;
             
             while (*pix_fmts != AVPixelFormat.AV_PIX_FMT_NONE)
             {
-                #if DEBUG
-                Log($"{*pix_fmts}");
-                #endif
+                if (CanTrace) Log.Trace($"{*pix_fmts}");
 
                 if (*pix_fmts == AVPixelFormat.AV_PIX_FMT_D3D11)
                 {
@@ -158,9 +156,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             if (foundHWformat && ret == 0)
             {
-                #if DEBUG
-                Log("[HW] Frames already allocated");
-                #endif
+                if (CanTrace) Log.Trace("HW frames already allocated");
 
                 if (hwframes != null && codecCtx->hw_frames_ctx == null)
                     codecCtx->hw_frames_ctx = av_buffer_ref(hwframes);
@@ -174,9 +170,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 if (!foundHWformat || !VideoAccelerated || AllocateHWFrames() != 0)
                 {
-                    #if DEBUG
-                    Log("[HW] Format not found. Fallback to sw format");
-                    #endif
+                    if (CanWarn) Log.Warn("HW format not found. Fallback to sw format");
 
                     lock (Renderer.lockDevice)
                     {
@@ -205,12 +199,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     return avcodec_default_get_format(avctx, pix_fmts);
                 }
                 
-                Log("[HW] Frame allocation completed");
+                if (CanDebug) Log.Debug("HW frame allocation completed");
 
                 // TBR: Catch codec changed on live streams (check codec/profiles and check even on sw frames)
                 if (ret == 2)
                 {
-                    Log($"Codec changed {VideoStream.CodecID} {VideoStream.Width}x{VideoStream.Height} => {codecCtx->codec_id} {codecCtx->width}x{codecCtx->height}");
+                    Log.Warn($"Codec changed {VideoStream.CodecID} {VideoStream.Width}x{VideoStream.Height} => {codecCtx->codec_id} {codecCtx->width}x{codecCtx->height}");
 
                     VideoStream.Width   = codecCtx->width;
                     VideoStream.Height  = codecCtx->height;
@@ -309,16 +303,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     {
                         codecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
                         VideoAccelerated = true;
-                        Log("[VA] Success");
+                        Log.Debug("VA Success");
                     }
-                    else
-                        Log("[VA] Init failed");
                 }
                 else
-                    Log("[VA] Codec not supported");
+                    Log.Info($"VA {codec->id} not supported");
             }
             else
-                Log("[VA] Disabled");
+                Log.Debug("VA Disabled");
 
             int bits = 0;
             try
@@ -445,7 +437,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             lock (lockStatus)
                             {
                                 // TODO: let the demuxer push the draining packet
-                                Log("Draining...");
+                                Log.Debug("Draining");
                                 Status = Status.Draining;
                                 AVPacket* drainPacket = av_packet_alloc();
                                 drainPacket->data = null;
@@ -457,7 +449,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         }
                         else if (!demuxer.IsRunning)
                         {
-                            Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
+                            if (CanDebug) Log.Debug($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
 
                             int retries = 5;
 
@@ -526,9 +518,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         else
                         {
                             allowedErrors--;
-                            Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                            if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                            if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
+                            if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
                             continue;
                         }
@@ -546,7 +538,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         {
                             if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
                             {
-                                Log($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
+                                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                                 av_frame_unref(frame);
                                 continue;
                             }
@@ -596,7 +588,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         }
                         else if (!demuxer.IsRunning)
                         {
-                            Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
+                            if (CanDebug) Log.Debug($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
 
                             int retries = 5;
 
@@ -674,11 +666,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         if (ret != 0 && ret != AVERROR(EAGAIN))
                         {
                             if (ret == AVERROR_EOF) { Status = Status.Ended; break; }
-                            
-                            Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+
+                            if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
                             allowedErrors--;
-                            if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
+                            if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
                             for (int i=curReverseVideoPackets.Count-1; i>=curReversePacketPos-1; i--)
                             {
@@ -761,12 +753,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     curSpeedFrame = 0;                    
                 }
                 
-                VideoFrame mFrame = new VideoFrame();
-                mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
-
                 // TODO
                 //mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoStream.StartTime;
-                //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)}");
+
+                VideoFrame mFrame = new VideoFrame();
+                mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
+                if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
                 if (!HDRDataSent && frame->side_data != null && *frame->side_data != null)
                 {
@@ -885,7 +877,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         
                         int vSwsOptFlags= Config.Video.SwsHighQuality ? SCALING_HQ : SCALING_LQ;
                         swsCtx          = sws_getContext(codecCtx->coded_width, codecCtx->coded_height, codecCtx->pix_fmt, codecCtx->width, codecCtx->height, VOutPixelFormat, vSwsOptFlags, null, null, null);
-                        if (swsCtx == null) { Log($"[ProcessVideoFrame] [Error] Failed to allocate SwsContext"); return null; }
+                        if (swsCtx == null) { Log.Error($"Failed to allocate SwsContext"); return null; }
                     }
 
                     sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
@@ -903,7 +895,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             } catch (Exception e)
             {
-                Log("[ProcessVideoFrame] [Error] " + e.Message + " - " + e.StackTrace);
+                Log.Error($"Failed to process frame ({e.Message})");
                 av_frame_unref(frame);
 
                 return null; 

@@ -19,9 +19,9 @@ namespace FlyleafLib.Plugins
         
         public DecoderContext           decoder         => (DecoderContext) Handler;
 
-        
         public PluginHandler            Handler         { get; internal set; }
-        public bool                     Disposed        { get; protected set; }
+        public LogHandler               Log             { get; internal set; }
+        public bool                     Disposed        { get; protected set;}
         public int                      Priority        { get; set; } = 1000;
 
 
@@ -45,7 +45,6 @@ namespace FlyleafLib.Plugins
         {
             return new SerializableDictionary<string, string>();
         }
-        public void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{Handler.UniqueId}] [Plugin: {Name}] {msg}"); }
     }
     public class PluginType
     {

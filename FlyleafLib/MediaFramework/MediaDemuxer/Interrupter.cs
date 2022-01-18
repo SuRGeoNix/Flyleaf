@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 
 using FFmpeg.AutoGen;
+using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
@@ -28,9 +29,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         {
             if (demuxer.Status == Status.Stopping)
             {
-                #if DEBUG
-                demuxer.Log($"{demuxer.Interrupter.Requester} Interrupt (Stopping) !!!");
-                #endif
+                if (CanDebug) demuxer.Log.Debug($"{demuxer.Interrupter.Requester} Interrupt (Stopping) !!!");
+                
                 return demuxer.Interrupter.Interrupted = 1;
             }
 
@@ -58,23 +58,20 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 if (DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested > curTimeout)
                 {
-                    #if DEBUG
-                    demuxer.Log($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms");
-                    #endif
+                    demuxer.OnTimedOut();
 
                     // Prevent Live Streams from Timeout (while demuxer is at the end)
                     if (demuxer.Interrupter.Requester == Requester.Read && (demuxer.Duration == 0 || (demuxer.HLSPlaylist != null && demuxer.HLSPlaylist->cur_seq_no > demuxer.HLSPlaylist->last_seq_no - 2)))
                     {
                         // TBR: Add retries (per input? per thread start?) as it can actually ended and keep reading forever
-
-                        #if DEBUG
-                        demuxer.Log($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms | Live HLS Excluded");
-                        #endif
+                        if (CanTrace) demuxer.Log.Trace($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms | Live HLS Excluded");
 
                         demuxer.Interrupter.Request(Requester.Read);
 
                         return demuxer.Interrupter.Interrupted = 0;
                     }
+
+                    if (CanWarn) demuxer.Log.Warn($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms");
 
                     return demuxer.Interrupter.Interrupted = 1;
                 }
@@ -84,9 +81,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             if (demuxer.Interrupter.ForceInterrupt != 0 && demuxer.allowReadInterrupts)
             {
-                #if DEBUG
-                demuxer.Log($"{demuxer.Interrupter.Requester} Interrupt !!!");
-                #endif
+                if (CanTrace) demuxer.Log.Trace($"{demuxer.Interrupter.Requester} Interrupt !!!");
                 return demuxer.Interrupter.Interrupted = 1;
             }
 

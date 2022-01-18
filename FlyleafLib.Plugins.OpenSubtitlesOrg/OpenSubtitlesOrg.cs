@@ -60,17 +60,17 @@ namespace FlyleafLib.Plugins
                     File.Delete(zipPath);
                     File.Delete(zipPath.Substring(0, zipPath.Length - 3));
 
-                    Log($"Downloading {zipPath}");
+                    Log.Debug($"Downloading {zipPath}");
                     client.DownloadFile(new Uri(subDownloadLinkEnc), zipPath);
 
-                    Log($"Unzipping {zipPath}");
+                    Log.Debug($"Unzipping {zipPath}");
                     string unzipPath = Utils.GZipDecompress(zipPath);
-                    Log($"Unzipped at {unzipPath}");
+                    Log.Debug($"Unzipped at {unzipPath}");
 
                     sub.AvailableAt = unzipPath;
                 }
             }
-            catch (Exception e) { sub.AvailableAt = null; Log($"Failed to download subtitle {sub.SubFileName} - {e.Message}"); return false; }
+            catch (Exception e) { sub.AvailableAt = null; Log.Debug($"Failed to download subtitle {sub.SubFileName} - {e.Message}"); return false; }
 
             input.Url = sub.AvailableAt;
 
@@ -176,14 +176,14 @@ namespace FlyleafLib.Plugins
 
                 try
                 {
-                    Log($"Searching for /moviebytesize-{length}/moviehash-{hash}");
+                    Log.Debug($"Searching for /moviebytesize-{length}/moviehash-{hash}");
                     resp = client.PostAsync($"{restUrl}/moviebytesize-{length}/moviehash-{hash}", null).Result.Content.ReadAsStringAsync().Result;
                     subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
-                    Log($"Search Results {subs.Count}");
+                    Log.Debug($"Search Results {subs.Count}");
                     cache.Add(hash + "|" + length, subs);
                     foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
                 }
-                catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+                catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
 
                 return subsCopy;
             }
@@ -214,15 +214,15 @@ namespace FlyleafLib.Plugins
                     string qEpisode = episode != null ? $"/episode-{episode}" : "";
                     string query = $"{qEpisode}/imdbid-{imdbid}{qSeason}/sublanguageid-{lang.IdSubLanguage}";
 
-                    Log($"Searching for {query}");
+                    Log.Debug($"Searching for {query}");
                     resp = client.PostAsync($"{restUrl}{query}", null).Result.Content.ReadAsStringAsync().Result;
                     subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
-                    Log($"Search Results {subs.Count}");
+                    Log.Debug($"Search Results {subs.Count}");
 
                     cache.Add(imdbid + "|" + season + "|" + episode + lang.IdSubLanguage, subs);
                     foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
                 }
-                catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+                catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
 
                 return subsCopy;
             }
@@ -249,15 +249,15 @@ namespace FlyleafLib.Plugins
 
                 try
                 {
-                    Log($"Searching for /query-{HttpUtility.UrlEncode(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}");
+                    Log.Debug($"Searching for /query-{HttpUtility.UrlEncode(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}");
                     resp = client.PostAsync($"{restUrl}/query-{HttpUtility.UrlEncode(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}", null).Result.Content.ReadAsStringAsync().Result;
                     subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
-                    Log($"Search Results {subs.Count}");
+                    Log.Debug($"Search Results {subs.Count}");
 
                     cache.Add(name + "|" + lang.IdSubLanguage, subs);
                     foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
                 }
-                catch (Exception e) { Log($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+                catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
 
                 return subsCopy;
             }

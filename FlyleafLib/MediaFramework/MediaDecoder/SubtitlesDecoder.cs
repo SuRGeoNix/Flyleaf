@@ -12,6 +12,8 @@ using static FFmpeg.AutoGen.AVCodecID;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 
+using static FlyleafLib.Logger;
+
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
     public unsafe class SubtitlesDecoder : DecoderBase
@@ -85,7 +87,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         }
                         else if (!demuxer.IsRunning)
                         {
-                            Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
+                            if (CanDebug) Log.Debug($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
 
                             int retries = 5;
 
@@ -132,9 +134,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     if (ret < 0)
                     {
                         allowedErrors--;
-                        Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                        if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                        if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
+                        if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
                         continue;
                     }
@@ -156,6 +158,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             SubtitlesFrame mFrame;
             mFrame = new SubtitlesFrame();
             mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Subtitles.Delay;
+            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
             try
             {
@@ -177,16 +180,17 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                         break;
 
-                    case AVSubtitleType.SUBTITLE_BITMAP:
-                        Log("Subtitles BITMAP -> Not Implemented yet");
+                    //case AVSubtitleType.SUBTITLE_BITMAP:
+                        //Log("Subtitles BITMAP -> Not Implemented yet");
 
+                    default:
                         return null;
                 }
 
                 mFrame.text         = SSAtoSubStyles(line, out List<SubStyle> subStyles);
                 mFrame.subStyles    = subStyles;
                 mFrame.duration     = (int) (sub->end_display_time - sub->start_display_time);
-            } catch (Exception e) {  Log("[ProcessSubtitlesFrame] [Error] " + e.Message + " - " + e.StackTrace); return null; }
+            } catch (Exception e) { Log.Error($"Failed to process frame ({e.Message})"); return null; }
 
             return mFrame;
         }

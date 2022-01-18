@@ -73,7 +73,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                         ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
                         if (ret < 0)
-                            return error = $"[{Type} avcodec_parameters_to_context] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})";
+                            return error = $"[{Type} avcodec_parameters_to_context] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
 
                         codecCtx->pkt_timebase  = stream.AVStream->time_base;
                         codecCtx->codec_id      = codec->id;
@@ -84,7 +84,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                         ret = avcodec_open2(codecCtx, codec, null);
                         if (ret < 0)
-                            return error = $"[{Type} avcodec_open2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})";
+                            return error = $"[{Type} avcodec_open2] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
 
                         frame = av_frame_alloc();
 
@@ -123,11 +123,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public void Dispose(bool closeStream = false)
         {
-            if (Disposed) return;
+            if (Disposed)
+                return;
 
             lock (lockActions)
             {
-                if (Disposed) return;
+                if (Disposed)
+                    return;
 
                 Stop();
                 DisposeInternal();
@@ -156,7 +158,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 curSpeedFrame = Speed;
 
                 Disposed = true;
-                Log("Disposed");
+                Log.Info("Disposed");
             }
         }
         protected abstract void DisposeInternal();

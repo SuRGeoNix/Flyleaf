@@ -15,23 +15,23 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
     public partial class Renderer
     {
         static bool IsWin8OrGreater;
-        static IDXGIFactory2 Factory;
         
         static InputElementDescription[] inputElements =
-            {
-                new InputElementDescription("POSITION", 0, Format.R32G32B32_Float,     0),
-                new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float,        0),
-            };
+        {
+            new InputElementDescription("POSITION", 0, Format.R32G32B32_Float,     0),
+            new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float,        0),
+        };
+
         static float[] vertexBufferData =
-            {
-                -1.0f,  -1.0f,  0,      0.0f, 1.0f,
-                -1.0f,   1.0f,  0,      0.0f, 0.0f,
-                 1.0f,  -1.0f,  0,      1.0f, 1.0f,
+        {
+            -1.0f,  -1.0f,  0,      0.0f, 1.0f,
+            -1.0f,   1.0f,  0,      0.0f, 0.0f,
+             1.0f,  -1.0f,  0,      1.0f, 1.0f,
                 
-                 1.0f,  -1.0f,  0,      1.0f, 1.0f,
-                -1.0f,   1.0f,  0,      0.0f, 0.0f,
-                 1.0f,   1.0f,  0,      1.0f, 0.0f
-            };
+             1.0f,  -1.0f,  0,      1.0f, 1.0f,
+            -1.0f,   1.0f,  0,      0.0f, 0.0f,
+             1.0f,   1.0f,  0,      1.0f, 0.0f
+        };
 
         static FeatureLevel[] featureLevels;
         static FeatureLevel[] featureLevelsAll;
@@ -113,11 +113,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             };
         }
 
-        static Renderer()
+        internal static void Start()
         {
-            if (DXGI.CreateDXGIFactory1(out Factory).Failure)
-                throw new InvalidOperationException("Cannot create IDXGIFactory1");
-
             Version osVer = Environment.OSVersion.Version;
             IsWin8OrGreater = osVer.Major > 6 || (osVer.Major == 6 && osVer.Minor > 1);
 
@@ -180,50 +177,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Compiler.Compile(bytes, null, null, "main", null, $"{psOrvs}{profileExt}", 
                         ShaderFlags.OptimizationLevel3, out Blob shaderBlob, out Blob psError);
 
+                    #if DEBUG
                     if (psError != null)
-                        Utils.Log($"Shader ({shaderName}) [Warnings/Errors]:\r\n {psError.ConvertToString()}");
+                        Utils.Log($"Shader ({shaderName}) [Warnings/Errors]:\r\n{psError.ConvertToString()}");
+                    #endif
 
                     if (shaderBlob != null)
                         curShaders.Add(shaderName, shaderBlob);
                 }
-        }
-        public static Dictionary<long, GPUAdapter> GetAdapters()
-        {
-            Dictionary<long, GPUAdapter> adapters = new Dictionary<long, GPUAdapter>();
-
-            #if DEBUG
-            Utils.Log("GPU Adapters ...");
-            #endif
-
-            for (int adapterIndex = 0; Factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1 adapter).Success; adapterIndex++)
-            {
-                #if DEBUG
-                Utils.Log($"[#{adapterIndex+1}] {RendererInfo.VendorIdStr(adapter.Description1.VendorId)} {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {RendererInfo.GetBytesReadable(adapter.Description1.DedicatedVideoMemory)}");
-                #endif
-
-                if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
-                {
-                    adapter.Dispose();
-                    continue;
-                }
-
-                //Utils.Log($"[#{adapterIndex+1}] {adapter.Description.Description} ({adapter.Description.DeviceId} | {adapter.Description1.AdapterLuid} | {adapter.Description.AdapterLuid}) | {adapter.Description1.DedicatedVideoMemory}");
-
-                bool hasOutput = false;
-                adapter.EnumOutputs(0, out IDXGIOutput output);
-                if (output != null)
-                {
-                    hasOutput = true;
-                    output.Dispose();
-                }
-
-                adapters[adapter.Description1.Luid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.Luid, HasOutput = hasOutput };
-
-                adapter.Dispose();
-                adapter = null;
-            }
-
-            return adapters;
         }
         #if DEBUG
         public static void ReportLiveObjects()

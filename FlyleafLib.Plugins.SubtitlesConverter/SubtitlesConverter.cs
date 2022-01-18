@@ -80,13 +80,13 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 
             if (subsEnc == null)
             {
-                Log($"Could not detect input");
+                Log.Info($"Could not detect input");
                 subsEnc = Encoding.UTF8;
             }
 
             if (subsEnc != Encoding.UTF8)
             {
-                Log($"Converting from {subsEnc} | Folder: {Handler.VideoInput.InputData.Folder} | Detector: {foundFrom}");
+                Log.Info($"Converting from {subsEnc} | Folder: {Handler.VideoInput.InputData.Folder} | Detector: {foundFrom}");
 
                 try
                 {
@@ -96,7 +96,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
                     Convert(input.Url, newUrl, subsEnc, new UTF8Encoding(false));
                     input.Url = newUrl;
                 }
-                catch (Exception e) { Log($"Convert Error: {e.Message}"); }
+                catch (Exception e) { Log.Error($"Convert Error: {e.Message}"); }
             }
 
             input.Converted = true;
@@ -116,7 +116,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
                 sr.Close();
                 sw.Close();
             }
-            catch (Exception e) { Log($"Convert Error: {e.Message}"); return false; }
+            catch (Exception e) { Log.Error($"Convert Error: {e.Message}"); return false; }
 
             return true;
         }

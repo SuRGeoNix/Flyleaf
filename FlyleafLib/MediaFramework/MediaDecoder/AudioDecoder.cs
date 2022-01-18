@@ -10,6 +10,8 @@ using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRemuxer;
 
+using static FlyleafLib.Logger;
+
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
     public unsafe class AudioDecoder : DecoderBase
@@ -57,7 +59,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             ret = swr_init(swrCtx);
             if (ret < 0)
-                Log($"[AudioSetup] [ERROR-1] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                Log.Error($"Swr setup failed {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
             keyFrameRequired = !VideoDecoder.Disposed;
 
@@ -149,7 +151,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         }
                         else if (!demuxer.IsRunning)
                         {
-                            Log($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
+                            if (CanDebug) Log.Debug($"Demuxer is not running [Demuxer Status: {demuxer.Status}]");
 
                             int retries = 5;
 
@@ -213,9 +215,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         else
                         {
                             allowedErrors--;
-                            Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                            if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                            if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
+                            if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
                             
                             continue;
                         }
@@ -250,7 +252,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (Disposed)
                     return null;
 
-                Log($"Codec changed {AudioStream.CodecID} {AudioStream.SampleRate} => {codecCtx->codec_id} {codecCtx->sample_rate}");
+                Log.Warn($"Codec changed {AudioStream.CodecID} {AudioStream.SampleRate} => {codecCtx->codec_id} {codecCtx->sample_rate}");
 
                 DisposeInternal();
                 
@@ -272,13 +274,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 curSpeedFrame = 0;    
             }
 
-            AudioFrame mFrame = new AudioFrame();
-            mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
-
             // TODO: based on VideoStream's StartTime and not Demuxer's
             //mFrame.timestamp = (long)(frame->pts * AudioStream.Timebase) - AudioStream.StartTime - (VideoDecoder.VideoStream.StartTime - AudioStream.StartTime) + Config.Audio.Delay;
 
-            //Log($"Decoding {Utils.TicksToTime(mFrame.timestamp)} | {Utils.TicksToTime((long)(mFrame.pts * AudioStream.Timebase))}");
+            AudioFrame mFrame = new AudioFrame();
+            mFrame.timestamp = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
             // Resync with VideoDecoder if required (drop early timestamps)
             if (keyFrameRequired)
@@ -288,7 +289,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 {
                     // TODO: in case of long distance will spin (CPU issue), possible reseek?
 
-                    //Log($"Droping {Utils.TicksToTime(mFrame.timestamp)} < {Utils.TicksToTime(VideoDecoder.StartTime)}");
+                    if (CanTrace) Log.Trace($"Drops {Utils.TicksToTime(mFrame.timestamp)} (< V: {Utils.TicksToTime(VideoDecoder.StartTime)})");
                     return null;
                 }
                 else
@@ -322,7 +323,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (circularBufferPos > circularBuffer.Length / 2)
                     circularBufferPos = 0;
 
-            } catch (Exception e) {  Log("[ProcessAudioFrame] [Error] " + e.Message + " - " + e.StackTrace); return null; }
+            } catch (Exception e) { Log.Error($"Failed to process frame ({e.Message})"); return null; }
 
             return mFrame;
         }

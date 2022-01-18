@@ -63,12 +63,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             if (demuxer.Interrupter.ShouldInterrupt(demuxer) != 0) return AVERROR_EXIT;
 #if NETFRAMEWORK
             ret = demuxer.CustomIOContext.stream.Read(demuxer.CustomIOContext.buffer, 0, bufferSize);
-            if (ret < 0) { demuxer.Log("CustomIOContext Interrupted"); return AVERROR_EXIT; }
+            if (ret < 0) { demuxer.Log.Warn("CustomIOContext Interrupted"); return AVERROR_EXIT; }
             Marshal.Copy(demuxer.CustomIOContext.buffer, 0, (IntPtr) buffer, ret);
 #else
             ret = demuxer.CustomIOContext.stream.Read(new Span<byte>(buffer, bufferSize));
 #endif
-            if (ret < 0) { demuxer.Log("CustomIOContext Interrupted"); return AVERROR_EXIT; }
+            if (ret < 0) { demuxer.Log.Warn("CustomIOContext Interrupted"); return AVERROR_EXIT; }
             return ret;
         };
 

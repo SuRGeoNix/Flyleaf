@@ -28,16 +28,23 @@ namespace FlyleafPlayer__Custom___MVVM_
 
         public MainWindow()
         {
-            // Registers FFmpeg Libraries
-            Master.RegisterFFmpeg(":2");
+            // Initializes Engine (Specifies FFmpeg libraries path which is required)
+            Engine.Start(new EngineConfig()
+            {
+                #if DEBUG
+                LogOutput       = ":debug",
+                LogLevel        = LogLevel.Debug,
+                FFmpegLogLevel  = FFmpegLogLevel.Warning,
+                #endif
+                
+                PluginsPath     = ":Plugins",
+                FFmpegPath      = ":FFmpeg",
 
-            // Registers Plugins
-            Master.RegisterPlugins(":2");
-
-            // Use UIRefresh to update Stats/BufferDuration (and CurTime more frequently than a second)
-            Master.UIRefresh = true;
-            Master.UIRefreshInterval = 100;
-            Master.UICurTimePerSecond = false; // If set to true it updates when the actual timestamps second change rather than a fixed interval
+                // Use UIRefresh to update Stats/BufferDuration (and CurTime more frequently than a second)
+                UIRefresh       = true,
+                UIRefreshInterval= 100,
+                UICurTimePerSecond = false // If set to true it updates when the actual timestamps second change rather than a fixed interval
+            });
 
             ToggleDebug = new RelayCommandSimple(new Action(() => { ShowDebug = !ShowDebug; }));
 

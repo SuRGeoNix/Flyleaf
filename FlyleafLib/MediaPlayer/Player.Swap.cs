@@ -8,6 +8,7 @@ namespace FlyleafLib.MediaPlayer
     {
         public static void SwapPlayers(Player player1, Player player2)
         {
+            player1.Log.Debug($"Swaping {player1.PlayerId} with {player2.PlayerId}");
             SwapStarted?.Invoke(null, new SwapStartedArgs(player1, player2));
 
             player1.UnsubscribeEvents();
@@ -36,6 +37,7 @@ namespace FlyleafLib.MediaPlayer
             player1.SubscribeEvents();
             player2.SubscribeEvents();
 
+            player1.Log.Debug($"Swap finished {player1.PlayerId} with {player2.PlayerId}");
             SwapCompleted?.Invoke(null, new SwapCompletedArgs(player1, player2));
         }
 
