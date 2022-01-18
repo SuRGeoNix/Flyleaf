@@ -7,6 +7,8 @@ using FFmpeg.AutoGen;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaRemuxer;
 
+using static FlyleafLib.Logger;
+
 /* TODO
  * Don't let audio go further than video (because of large duration without video)?
  * 
@@ -137,7 +139,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         {
             for(int i=0; i<demuxer.EnabledStreams.Count; i++)
                 if (Remuxer.AddStream(demuxer.AVStreamToStream[demuxer.EnabledStreams[i]].AVStream, demuxer.Type == MediaType.Audio) != 0)
-                    Log($"Failed to add stream {demuxer.AVStreamToStream[demuxer.EnabledStreams[i]].Type} {demuxer.AVStreamToStream[demuxer.EnabledStreams[i]].StreamIndex}");
+                    Log.Warn($"Failed to add stream {demuxer.AVStreamToStream[demuxer.EnabledStreams[i]].Type} {demuxer.AVStreamToStream[demuxer.EnabledStreams[i]].StreamIndex}");
         }
 
         /// <summary>
@@ -209,7 +211,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                         }
                         else if (!Demuxer.IsRunning)
                         {
-                            Log($"Demuxer is not running [Demuxer Status: {Demuxer.Status}]");
+                            if (CanDebug) Log.Debug($"Demuxer is not running [Demuxer Status: {Demuxer.Status}]");
 
                             lock (Demuxer.lockStatus)
                             lock (lockStatus)

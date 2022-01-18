@@ -23,7 +23,7 @@ namespace FlyleafLib.Plugins
                         {
                             if (stream.Demuxer.Programs.Length < 2)
                             {
-                                Log($"[Audio] based on language");
+                                Log.Info($"Audio based on language");
                                 return stream;
                             }
 
@@ -38,7 +38,7 @@ namespace FlyleafLib.Plugins
 
                                 if (aExists && vExists)
                                 {
-                                    Log($"[Audio] based on language and same program #{i}");
+                                    Log.Info($"Audio based on language and same program #{i}");
                                     return stream;
                                 }
                             }
@@ -52,7 +52,7 @@ namespace FlyleafLib.Plugins
                 foreach (var stream in streams)
                     if (stream.StreamIndex == streamIndex)
                     {
-                        Log($"[Audio] based on av_find_best_stream");
+                        Log.Info($"Audio based on av_find_best_stream");
                         return stream;
                     }
 

@@ -31,7 +31,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public int                          TotalFrames         { get; set; }
         public int                          Width               { get; set; }
 
-        public override string GetDump() { return $"[{Type} #{StreamIndex}] {Codec} {PixelFormatStr} {Width}x{Height} @ {FPS.ToString("#.###")} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
+        public override string GetDump() { return $"[{Type} #{StreamIndex}] {Codec} {PixelFormatStr} {Width}x{Height} @ {FPS.ToString("#.###")} | [Color: {ColorSpace}] [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
         public VideoStream() { }
         public VideoStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         {

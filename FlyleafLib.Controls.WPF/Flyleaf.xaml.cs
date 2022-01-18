@@ -41,7 +41,8 @@ namespace FlyleafLib.Controls.WPF
 
         public Config       Config              => Player?.Config;
 
-        public AudioMaster  AudioMaster         => Master.AudioMaster;
+        public AudioEngine  AudioEngine         => Engine.Audio;
+        public EngineConfig ConfigEngine        => Engine.Config;
 
         public SerializableDictionary<string, SerializableDictionary<string, string>>
                             PluginsConfig       => Config?.Plugins;
@@ -168,8 +169,6 @@ namespace FlyleafLib.Controls.WPF
 
         static Flyleaf()
         {
-            Master.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
-
             Player.SwapCompleted += (o, e) =>
             {
                 var flyleaf1 = (Flyleaf)e.Player1.Tag;
@@ -197,6 +196,9 @@ namespace FlyleafLib.Controls.WPF
             if (isDesignMode) return;
 
             DataContext = this;
+
+            // Ensure that the engine has been started
+            Engine.Config.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
         }
         public override void OnApplyTemplate()
         {
@@ -382,12 +384,12 @@ namespace FlyleafLib.Controls.WPF
 
             if (oldPlayer != null)
             {
-                Log($"Assigning {Player.PlayerId} | {(oldPlayer != null ? $"Old {oldPlayer.PlayerId}" : "")}"); 
+                //Log($"Assigning {Player.PlayerId} | {(oldPlayer != null ? $"Old {oldPlayer.PlayerId}" : "")}"); 
                 return;
             }
 
             UniqueId = Player.PlayerId;
-            Log($"Assigning {Player.PlayerId} | {(oldPlayer != null ? $"Old {oldPlayer.PlayerId}" : "")}"); 
+            //Log($"Assigning {Player.PlayerId} | {(oldPlayer != null ? $"Old {oldPlayer.PlayerId}" : "")}"); 
 
             Unloaded += (o, e) => { Dispose(); };
             Player.Control.MouseClick   += (o, e) => { if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true; };

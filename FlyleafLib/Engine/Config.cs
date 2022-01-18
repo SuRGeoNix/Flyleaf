@@ -10,14 +10,14 @@ using FlyleafLib.Plugins;
 namespace FlyleafLib
 {
     /// <summary>
-    /// Player's main configuration
+    /// Player's configuration
     /// </summary>
-    public unsafe class Config : NotifyPropertyChanged
+    public class Config : NotifyPropertyChanged
     {
         public Config()
         {
             // Parse default plugin options to Config.Plugins (Creates instances until fix with statics in interfaces)
-            foreach (var plugin in PluginHandler.PluginTypes.Values)
+            foreach (var plugin in Engine.Plugins.Types.Values)
             {
                 var tmpPlugin = PluginHandler.CreatePluginInstance(plugin);
                 var defaultOptions = tmpPlugin.GetDefaultOptions();
@@ -405,8 +405,8 @@ namespace FlyleafLib
             public VideoConfig Clone() { return (VideoConfig) MemberwiseClone(); }
 
             /// <summary>
-            /// Forces the decoder/renderer to use the specified GPU adapter / device luid <see cref="Master.GPUAdapters"/>
-            /// Should be set before the decoder's initialization and it cannot be changed after
+            /// <para>Forces the decoder/renderer to use the specified GPU adapter / device luid (available GPU adapters can be found on Engine.Video.GPUAdapters)/></para>
+            /// <para>Should be set before the decoder's initialization and it cannot be changed after</para>
             /// </summary>
             public long             GPUAdapteLuid               { get; set; } = -1;
 
@@ -491,13 +491,13 @@ namespace FlyleafLib
             /// <summary>
             /// The HDR to SDR method that will be used by the pixel shader
             /// </summary>
-            public HDRtoSDRMethod   HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value)) player?.renderer?.UpdateHDRtoSDR(); }}
+            public unsafe HDRtoSDRMethod   HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value)) player?.renderer?.UpdateHDRtoSDR(); }}
             HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
 
             /// <summary>
             /// The HDR to SDR Tone float correnction (not used by Reinhard) 
             /// </summary>
-            public float            HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value)) player?.renderer?.UpdateHDRtoSDR(); } }
+            public unsafe float            HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value)) player?.renderer?.UpdateHDRtoSDR(); } }
             float _HDRtoSDRTone = 1.4f;
 
             public SerializableDictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
@@ -586,6 +586,122 @@ namespace FlyleafLib
             /// </summary>
             public bool             UseOnlineDatabases  { get => _UseOnlineDatabases;set { Set(ref _UseOnlineDatabases, value); } }
             bool    _UseOnlineDatabases = false;
+        }
+    }
+
+    /// <summary>
+    /// Engine's configuration
+    /// </summary>
+    public class EngineConfig
+    {
+        /// <summary>
+        /// <para>Required to register ffmpeg libraries. Make sure you provide x86 or x64 based on your project.</para>
+        /// <para>:&lt;path&gt; for relative path from current folder or any below</para>
+        /// <para>&lt;path&gt; for absolute or relative path</para>
+        /// </summary>
+        public string   FFmpegPath              { get; set; } = "FFmpeg";
+
+        /// <summary>
+        /// Sets FFmpeg logger's level
+        /// </summary>
+        public FFmpegLogLevel 
+                        FFmpegLogLevel          { get => _FFmpegLogLevel; set { _FFmpegLogLevel = value; if (Engine.Started) Engine.FFmpeg.SetLogLevel(); } }
+        FFmpegLogLevel _FFmpegLogLevel = FFmpegLogLevel.Quiet;
+
+        /// <summary>
+        /// <para>Disable this to use high performance timers only when required (useful for single player)</para>
+        /// <para>Must be set before calling RegisterFFmpeg</para>
+        /// </summary>
+        public bool     HighPerformaceTimers    { get; set; } = true;
+
+        /// <summary>
+        /// Whether configuration has been loaded from file
+        /// </summary>
+        [XmlIgnore]
+        public bool     Loaded                  { get; private set; }
+
+        /// <summary>
+        /// The path that this configuration has been loaded from
+        /// </summary>
+        [XmlIgnore]
+        public string   LoadedPath              { get; private set; }
+
+        /// <summary>
+        /// <para>Sets loggers output</para>
+        /// <para>:&lt;debug&gt; -> System.Diagnostics.Debug</para>
+        /// <para>:&lt;debug&gt; -> System.Console</para>
+        /// <para>&lt;path&gt; -> Absolute or relative file path</para>
+        /// </summary>
+        public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.Started) Logger.SetOutput(); } }
+        string _LogOutput = "";
+        
+        /// <summary>
+        /// Sets logger's level
+        /// </summary>
+        public LogLevel LogLevel                { get; set; } = LogLevel.Quiet;
+
+        /// <summary>
+        /// <para>Required to register plugins. Make sure you provide x86 or x64 based on your project and same .NET framework.</para>
+        /// <para>:&lt;path&gt; for relative path from current folder or any below</para>
+        /// <para>&lt;path&gt; for absolute or relative path</para>
+        /// </summary>
+        public string   PluginsPath             { get; set; } = "Plugins";
+
+        /// <summary>
+        /// Updates Player.CurTime when the second changes otherwise on every UIRefreshInterval
+        /// </summary>
+        public bool     UICurTimePerSecond      { get; set; } = true;
+
+        /// <summary>
+        /// <para>Activates Master Thread to monitor all the players and perform the required updates</para>
+        /// <para>Required for Activity Mode, Stats &amp; Buffered Duration on Pause</para>
+        /// </summary>
+        public bool     UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; if (value && Engine.Started) Engine.StartThread(); } }
+        static bool _UIRefresh;
+
+        /// <summary>
+        /// <para>How often should update the UI in ms (low values can cause performance issues)</para>
+        /// <para>Should UIRefreshInterval &lt; 1000ms and 1000 % UIRefreshInterval == 0 for accurate per second stats</para>
+        /// </summary>
+        public int      UIRefreshInterval       { get; set; } = 250;
+
+        /// <summary>
+        /// Loads engine's configuration
+        /// </summary>
+        /// <param name="path">Absolute or relative path to load the configuraiton</param>
+        /// <returns></returns>
+        public static EngineConfig Load(string path)
+        {
+            using (FileStream fs = new FileStream(path, FileMode.Open))
+            {
+                XmlSerializer xmlSerializer = new XmlSerializer(typeof(EngineConfig));
+                EngineConfig config = (EngineConfig)xmlSerializer.Deserialize(fs);
+                config.Loaded = true;
+                config.LoadedPath = path;
+
+                return config;
+            }
+        }
+
+        /// <summary>
+        /// Saves engine's current configuration
+        /// </summary>
+        /// <param name="path">Absolute or relative path to save the configuration</param>
+        public void Save(string path = null)
+        {
+            if (path == null)
+            {
+                if (string.IsNullOrEmpty(LoadedPath))
+                    return;
+
+                path = LoadedPath;
+            }
+
+            using (FileStream fs = new FileStream(path, FileMode.Create))
+            {
+                XmlSerializer xmlSerializer = new XmlSerializer(GetType());
+                xmlSerializer.Serialize(fs, this);
+            }
         }
     }
 }

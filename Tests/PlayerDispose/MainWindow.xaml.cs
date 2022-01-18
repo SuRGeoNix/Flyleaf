@@ -23,7 +23,18 @@ namespace DisposePlayer
 
         public MainWindow()
         {
-            Master.RegisterFFmpeg(":2");
+            // Initializes Engine (Specifies FFmpeg libraries path which is required)
+            Engine.Start(new EngineConfig()
+            {
+                #if DEBUG
+                LogOutput       = ":debug",
+                LogLevel        = LogLevel.Debug,
+                FFmpegLogLevel  = FFmpegLogLevel.Warning,
+                #endif
+                
+                PluginsPath     = ":Plugins",
+                FFmpegPath      = ":FFmpeg",
+            });
 
             InitializeComponent();
         }

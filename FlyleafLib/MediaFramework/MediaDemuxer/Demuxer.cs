@@ -14,6 +14,7 @@ using static FFmpeg.AutoGen.ffmpegEx;
 using FlyleafLib.MediaFramework.MediaStream;
 
 using static FlyleafLib.Config;
+using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
@@ -96,6 +97,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             public long     EndTime     { get; set; }
             public string   Title       { get; set; }
         }
+
+        public event EventHandler<EventArgs> TimedOut;
+        internal void OnTimedOut()
+        {
+            System.Threading.Tasks.Task.Run(() => TimedOut?.Invoke(this, new EventArgs()));
+        }
         #endregion
 
         #region Constructor / Declaration
@@ -138,7 +145,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Interrupter     = new Interrupter(this);
             CustomIOContext = new CustomIOContext(this);
 
-            threadName = $"Demuxer: {Type.ToString().PadLeft(5, ' ')}";
+            string typeStr = Type == MediaType.Video ? "Main" : Type.ToString();
+            threadName = $"Demuxer: {typeStr.PadLeft(5, ' ')}";
         }
         #endregion
 
@@ -245,7 +253,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 Status = Status.Stopped;
                 Disposed = true;
 
-                Log("Disposed");
+                Log.Info("Disposed");
             }
         }
         #endregion
@@ -304,12 +312,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         ret = avformat_open_input(&fmtCtxPtr, stream == null ? url : null, null, &avopt);
 
                         if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { fmtCtx = null; return error = "Cancelled"; }
-                        if (ret < 0) { fmtCtx = null; return error = $"[avformat_open_input] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})"; }
+                        if (ret < 0) { fmtCtx = null; return error = $"[avformat_open_input] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})"; }
 
                         // Find Streams Info
                         ret = avformat_find_stream_info(fmtCtx, null);
                         if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) return error = "Cancelled";
-                        if (ret < 0) return error = $"[avformat_find_stream_info] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})";
+                        if (ret < 0) return error = $"[avformat_find_stream_info] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
                     }
 
                     bool hasVideo = FillInfo();
@@ -356,6 +364,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             AVStreamToStream = new Dictionary<int, StreamBase>();
 
             Chapters.Clear();
+            string dump = "";
             for (int i=0; i<fmtCtx->nb_chapters; i++)
             {
                 var chp = fmtCtx->chapters[i];
@@ -371,7 +380,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         title = Utils.BytePtrToStringUTF8(b->value);
                 }
 
-                Log($"[Chapter {i+1}] {Utils.TicksToTime((long)(chp->start * tb) - StartTime)} - {Utils.TicksToTime((long)(chp->end * tb) - StartTime)} | {title}");
+                if (CanDebug)
+                    dump += $"[Chapter {(i+1).ToString().PadRight(2, ' ')}] {Utils.TicksToTime((long)(chp->start * tb) - StartTime)} - {Utils.TicksToTime((long)(chp->end * tb) - StartTime)} | {title}\r\n";
 
                 Chapters.Add(new Chapter()
                 {
@@ -380,6 +390,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     Title       = title
                 });
             }
+
+            if (CanDebug && dump != "") Log.Debug($"Chapters\r\n\r\n{dump}");
 
             bool audioHasEng = false;
             bool subsHasEng = false;
@@ -398,7 +410,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     case AVMEDIA_TYPE_VIDEO:
                         if ((fmtCtx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0) 
-                            { Log($"Excluding image stream #{i}"); continue; }
+                            { Log.Info($"Excluding image stream #{i}"); continue; }
 
                         VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
                         AVStreamToStream.Add(fmtCtx->streams[i]->index, VideoStreams[VideoStreams.Count-1]);
@@ -412,7 +424,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         break;
 
                     default:
-                        Log($"#[Unknown #{i}] {fmtCtx->streams[i]->codecpar->codec_type}");
+                        Log.Info($"#[Unknown #{i}] {fmtCtx->streams[i]->codecpar->codec_type}");
                         break;
                 }
             }
@@ -524,7 +536,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     if (found)
                     {
-                        Log("[SEEK] Found in Queue");
+                        Log.Debug("[Seek] Found in Queue");
                         //CurTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
                         UpdateCurTime();
                         return 0;
@@ -566,7 +578,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     Interrupter.Request(Requester.Seek);
                     if (VideoStream != null)
                     {
-                        Log($"[SEEK({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
+                        if (CanDebug) Log.Debug($"[Seek({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
                         ret = av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
 
                         curReverseStopPts = AV_NOPTS_VALUE;
@@ -574,7 +586,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     }
                     else
                     {
-                        Log($"[SEEK({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)} | ANY");
+                        if (CanDebug) Log.Debug($"[Seek({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)} | ANY");
                         ret = forward ?
                             avformat_seek_file(fmtCtx, -1, ticks / 10,     ticks / 10, Int64.MaxValue,  AVSEEK_FLAG_ANY):
                             avformat_seek_file(fmtCtx, -1, Int64.MinValue, ticks / 10, ticks / 10,      AVSEEK_FLAG_ANY);
@@ -583,7 +595,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     if (ret < 0)
                     {
                         if (hlsCtx != null) fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
-                        Log($"[SEEK] Failed 1/2 (retrying) {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                        Log.Info($"Seek failed 1/2 (retrying) {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
                         if (VideoStream != null)
                             ret = av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME);
@@ -593,7 +605,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                                 avformat_seek_file(fmtCtx, -1, ticks / 10       , ticks / 10, Int64.MaxValue, AVSEEK_FLAG_ANY);
 
                         if (ret < 0)
-                            Log($"[SEEK] Failed 2/2 {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                            Log.Warn($"Seek failed 2/2 {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
                         else
                             CurTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
                     }
@@ -674,9 +686,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         }
 
                         allowedErrors--;
-                        Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                        if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                        if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
+                        if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
                         gotAVERROR_EXIT = true;
                         continue;
@@ -692,6 +704,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         //Log($"dts: {Utils.TicksToTime((long)(packet->dts * AVStreamToStream[packet->stream_index].Timebase))} pts: {Utils.TicksToTime(lastPacketTs)}");
                         lastPacketTs = (long)(packet->dts * AVStreamToStream[packet->stream_index].Timebase);
                         UpdateHLSTime();
+                    }
+
+                    if (CanTrace)
+                    {
+                        StreamBase stream = AVStreamToStream[packet->stream_index];
+                        long dts = packet->dts == AV_NOPTS_VALUE ? -1 : (long)(packet->dts * stream.Timebase);
+                        long pts = packet->pts == AV_NOPTS_VALUE ? -1 : (long)(packet->pts * stream.Timebase);
+                        Log.Trace($"[{stream.Type}] DTS: {(dts == -1 ? "-" : Utils.TicksToTime(dts))} PTS: {(pts == -1 ? "-" : Utils.TicksToTime(pts))} | FLPTS: {(pts == -1 ? "-" : Utils.TicksToTime(pts - StartTime))} | CurTime: {Utils.TicksToTime(CurTime)} | Buffered: {Utils.TicksToTime(BufferedDuration)}");
                     }
 
                     // Enqueue Packet (AVS Queue or Single Queue)
@@ -858,16 +878,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         }
 
                         allowedErrors--;
-                        Log($"[ERROR-2] {Utils.FFmpeg.ErrorCodeToMsg(ret)} ({ret})");
+                        if (CanWarn) Log.Warn($"{ FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                        if (allowedErrors == 0) { Log("[ERROR-0] Too many errors!"); Status = Status.Stopping; break; }
+                        if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
                         gotAVERROR_EXIT = true;
                         continue;
                     }
 
                     if (VideoStream.StreamIndex != packet->stream_index) { av_packet_unref(packet); continue; }
-
 
                     if (packet->pts != AV_NOPTS_VALUE)
                         CurTime = (long) ((packet->pts * VideoStream.Timebase) - StartTime);
@@ -992,7 +1011,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         {
             if (IsProgramEnabled(stream))
             {
-                Log($"[Stream #{stream.StreamIndex}] Program already enabled");
+                if (CanDebug) Log.Debug($"[Stream #{stream.StreamIndex}] Program already enabled");
                 return;
             }
 
@@ -1000,7 +1019,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 for (int l=0; l<Programs[i].Length; l++)
                     if (Programs[i][l] == stream.StreamIndex)
                     {
-                        Log($"[Stream #{stream.StreamIndex}] Enables program #{i}");
+                        if (CanDebug) Log.Debug($"[Stream #{stream.StreamIndex}] Enables program #{i}");
                         fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_DEFAULT;
                         return;
                     }
@@ -1020,11 +1039,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                         if (!isNeeded)
                         {
-                            Log($"[Stream #{stream.StreamIndex}] Disables program #{i}");
+                            if (CanDebug) Log.Debug($"[Stream #{stream.StreamIndex}] Disables program #{i}");
                             fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_ALL;
                         }
-                        else
-                            Log($"[Stream #{stream.StreamIndex}] Program #{i} is needed");
+                        else if (CanDebug)
+                            Log.Debug($"[Stream #{stream.StreamIndex}] Program #{i} is needed");
                     }
         }
 
@@ -1073,7 +1092,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 if (UseAVSPackets)
                     CurPackets = VideoStream != null ? VideoPackets : (AudioStream != null ? AudioPackets : SubtitlesPackets);
 
-                Log($"[{stream.Type} #{stream.StreamIndex}] Enabled");
+                if (CanInfo) Log.Info($"[{stream.Type} #{stream.StreamIndex}] Enabled");
             }
         }
         public void DisableStream(StreamBase stream)
@@ -1118,7 +1137,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 if (UseAVSPackets)
                     CurPackets = VideoStream != null ? VideoPackets : (AudioStream != null ? AudioPackets : SubtitlesPackets);
 
-                Log($"[{stream.Type} #{stream.StreamIndex}] Disabled");
+                if (CanInfo) Log.Info($"[{stream.Type} #{stream.StreamIndex}] Disabled");
             }
         }
         public void SwitchStream(StreamBase stream)
@@ -1279,7 +1298,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     dump = dump.Substring(0, dump.Length - 1);
             }
 
-            Log(dump);
+            if (CanInfo) Log.Info($"Format Context Info {dump}\r\n");
         }
 
         /// <summary>

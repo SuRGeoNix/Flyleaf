@@ -9,7 +9,7 @@ using static Vortice.XAudio2.XAudio2;
 
 namespace FlyleafLib
 {
-    public class AudioMaster : CallbackBase, IMMNotificationClient//, INotifyPropertyChanged
+    public class AudioEngine : CallbackBase, IMMNotificationClient//, INotifyPropertyChanged
     {
         /* TODO
          * 
@@ -37,7 +37,7 @@ namespace FlyleafLib
         public string       CurrentDeviceId     { get; private set; } = "0";
 
         /// <summary>
-        /// List with of the active audio devices
+        /// List of Audio Devices
         /// </summary>
         public ObservableCollection<string> Devices { get; private set; } = new ObservableCollection<string>();
 
@@ -75,7 +75,7 @@ namespace FlyleafLib
 
         IMMDeviceEnumerator  deviceEnum;
         private object locker = new object();
-        public AudioMaster()
+        public AudioEngine()
         {
             try
             {
@@ -96,19 +96,22 @@ namespace FlyleafLib
                 CurrentDeviceId     = defaultDevice.Id;
                 CurrentDeviceName   = defaultDevice.FriendlyName;
 
-                #if DEBUG
-                string dump = "Audio devices ...\r\n";
-                foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
-                    dump += $"{device.Id} | {device.FriendlyName} {(defaultDevice.Id == device.Id ? "*" : "")}\r\n";
-                Log(dump);
-                #endif
-
-                deviceEnum.RegisterEndpointNotificationCallback(this);
+                if (Logger.CanInfo)
+                {
+                    string dump = "";
+                    foreach (var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+                        dump += $"{device.Id} | {device.FriendlyName} {(defaultDevice.Id == device.Id ? "*" : "")}\r\n";
+                    Engine.Log.Info($"Audio Devices\r\n{dump}");
+                }
 
                 var xaudio2 = XAudio2Create();
+
                 if (xaudio2 == null)
                     Failed = true;
-                xaudio2.Dispose();
+                else
+                    xaudio2.Dispose();
+
+                deviceEnum.RegisterEndpointNotificationCallback(this);
 
             } catch { Failed = true; }
         }
@@ -116,7 +119,6 @@ namespace FlyleafLib
         private void RefreshDevices()
         {
             // Refresh Devices and initialize audio players if requried
-
             lock (locker)
             {
 
@@ -127,7 +129,7 @@ namespace FlyleafLib
                     foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
                         Devices.Add(device.FriendlyName);
 
-                    foreach(var player in Master.Players)
+                    foreach(var player in Engine.Players)
                     {
                         if (!Devices.Contains(player.Audio.Device))
                             player.Audio.Device = DefaultDeviceName;
@@ -150,7 +152,5 @@ namespace FlyleafLib
         public void OnDeviceRemoved(string pwstrDeviceId) { RefreshDevices(); }
         public void OnDefaultDeviceChanged(DataFlow flow, Role role, string pwstrDefaultDeviceId) { RefreshDevices(); }
         public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
-
-        private void Log(string msg) { Utils.Log($"[AudioMaster] {msg}"); }
     }
 }

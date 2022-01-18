@@ -115,7 +115,9 @@ namespace FlyleafLib.MediaPlayer
             videoAcceleration  = false;
             zeroCopy           = false;
             isOpened           = false;
-            player.renderer.DisableRendering = true;
+
+            if (player.renderer != null)
+                player.renderer.DisableRendering = true;
 
             if (andDisabledStream)
                 disabledStream = null;
@@ -141,7 +143,8 @@ namespace FlyleafLib.MediaPlayer
             framesDisplayed = 0;
             framesDropped   = 0;
 
-            player.renderer.DisableRendering = false;
+            if (player.renderer != null)
+                player.renderer.DisableRendering = false;
             player.UIAdd(uiAction);
         }
 

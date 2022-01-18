@@ -120,6 +120,18 @@
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
 
+            <ObjectDataProvider x:Key="LogLevelEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="fl:LogLevel"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+
+            <ObjectDataProvider x:Key="FFmpegLogLevelEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="fl:FFmpegLogLevel"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -164,12 +176,71 @@
                 </StackPanel>
             </materialDesign:DialogHost.DialogContent>
 
-            <dragablz:TabablzControl Width="525" Height="390" x:Name="tabRoot" FixedHeaderCount="10" Style="{StaticResource mdTabControl}" ItemContainerStyle="{StaticResource NormalTabItemStyle}">
+            <dragablz:TabablzControl Width="504" Height="390" x:Name="tabRoot" FixedHeaderCount="10" Style="{StaticResource mdTabControl}" ItemContainerStyle="{StaticResource NormalTabItemStyle}">
                 <TabControl.Resources>
                     <Style TargetType="TabItem">
                         <Setter Property="TextElement.Foreground" Value="{DynamicResource MaterialDesignBody}"/>
                     </Style>
                 </TabControl.Resources>
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
+                            <materialDesign:PackIcon Kind="PlayBoxMultipleOutline" Margin="0 6 4 6"/>
+                            <TextBlock Text="Player" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 8 0"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <Grid>
+                        <Grid Margin="20" VerticalAlignment="Top">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Read Timeout (ms)" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.ReadTimeout, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                            
+                            <TextBlock Grid.Row="1" Text="Buffer Duration Min.  (ms)" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Player.MinBufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+
+                            <TextBlock Grid.Row="2" Text="Buffer Duration Max. (ms)" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.BufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+
+                            <TextBlock Grid.Row="3" Text="Audio Frames Max." VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxAudioFrames, UpdateSourceTrigger=Explicit}"/>
+
+                            <TextBlock Grid.Row="4" Text="Video Frames Max." VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
+
+                            <Separator Grid.Row="5" Grid.ColumnSpan="3"/>
+
+                            <TextBlock Grid.Row="6" Text="Log File" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Width="260" TextAlignment="Left" Style="{StaticResource FLTextbox}" Text="{Binding ConfigEngine.LogOutput, UpdateSourceTrigger=Explicit}"/>
+
+                            <TextBlock Grid.Row="7" Text="Log Level" VerticalAlignment="Center"/>
+                            <ComboBox  Grid.Row="7" Grid.Column="1" ItemsSource="{Binding Source={StaticResource LogLevelEnum}}" SelectedItem="{Binding ConfigEngine.LogLevel}"/>
+
+                            <TextBlock Grid.Row="8" Text="Log Level (FFmpeg)" VerticalAlignment="Center"/>
+                            <ComboBox  Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Source={StaticResource FFmpegLogLevelEnum}}" SelectedItem="{Binding ConfigEngine.FFmpegLogLevel}"/>
+                        </Grid>
+                        <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
+                            <Button Style="{StaticResource SaveButton}"/>
+                            <Button Content="Apply" FontWeight="ExtraBold" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="apply"/>
+                            <Button Margin="10 0" Content="Cancel" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="cancel" />
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
@@ -198,7 +269,7 @@
                             <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Audio.Delay, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
                             <TextBlock Grid.Row="2" Text="Device" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="cmbAudioDevice" Tag="_save" ItemsSource="{Binding AudioMaster.Devices}" SelectedItem="{Binding Player.Audio.Device, UpdateSourceTrigger=Explicit}" />
+                            <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="cmbAudioDevice" Tag="_save" ItemsSource="{Binding AudioEngine.Devices}" SelectedItem="{Binding Player.Audio.Device, UpdateSourceTrigger=Explicit}" />
                         </Grid>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <Button Style="{StaticResource SaveButton}"/>
@@ -313,7 +384,7 @@
 
                                 <TextBlock Grid.Row="2" Text="Deinterlace" VerticalAlignment="Center"/>
                                 <ToggleButton Grid.Row="2" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.Deinterlace, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
-                                
+
                                 <TextBlock Grid.Row="3" Text="V. Sync" VerticalAlignment="Center"/>
                                 <ToggleButton Grid.Row="3" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.VSync, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
@@ -334,7 +405,7 @@
 
                                 <TextBlock Grid.Row="9" Text="HDR to SDR Tone" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="9" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.HDRtoSDRTone, UpdateSourceTrigger=LostFocus}"/>
-                                
+
                                 <StackPanel Orientation="Vertical" Grid.Row="10" Grid.ColumnSpan="3" Margin="0 10 0 0">
                                     <ItemsControl ItemsSource="{Binding Config.Video.Filters.Values}">
                                         <ItemsControl.ItemTemplate>
@@ -350,46 +421,6 @@
 
                             </Grid>
                         </ScrollViewer>
-                        <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
-                            <Button Style="{StaticResource SaveButton}"/>
-                            <Button Content="Apply" FontWeight="ExtraBold" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="apply"/>
-                            <Button Margin="10 0" Content="Cancel" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="cancel" />
-                        </StackPanel>
-                    </Grid>
-                </TabItem>
-                <TabItem>
-                    <TabItem.Header>
-                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
-                            <materialDesign:PackIcon Kind="ProgressDownload" Margin="4 6 4 6"/>
-                            <TextBlock Text="Buffering" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 8 0"/>
-                        </StackPanel>
-                    </TabItem.Header>
-                    <Grid>
-                        <Grid Margin="20" VerticalAlignment="Top">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="200"/>
-                                <ColumnDefinition Width="auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Text="Buffer Duration Min.  (ms)" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Player.MinBufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
-
-                            <TextBlock Grid.Row="1" Text="Buffer Duration Max. (ms)" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.BufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
-
-                            <TextBlock Grid.Row="2" Text="Audio Frames Max." VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxAudioFrames, UpdateSourceTrigger=Explicit}"/>
-
-                            <TextBlock Grid.Row="3" Text="Video Frames Max." VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
-                        </Grid>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <Button Style="{StaticResource SaveButton}"/>
                             <Button Content="Apply" FontWeight="ExtraBold" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="apply"/>
@@ -504,7 +535,7 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
-                            <materialDesign:PackIcon Kind="PluginOutline" Margin="4 6 4 6"/>
+                            <materialDesign:PackIcon Kind="PluginOutline" Margin="0 6 4 6"/>
                             <TextBlock Text="Plugins" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 4 0"/>
                         </StackPanel>
                     </TabItem.Header>
@@ -534,7 +565,7 @@
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Key, Mode=OneWay}" VerticalAlignment="Center" Width="150"/>
-                                            <TextBox Text="{Binding Value, Mode=OneWay}" VerticalAlignment="Center" Width="320" LostFocus="PluginValueChanged"/>
+                                            <TextBox Text="{Binding Value, Mode=OneWay}" VerticalAlignment="Center" Width="310" LostFocus="PluginValueChanged"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

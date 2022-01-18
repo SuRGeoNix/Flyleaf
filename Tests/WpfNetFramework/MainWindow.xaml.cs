@@ -24,8 +24,18 @@ namespace WpfNetFramework
             ThreadPool.GetMinThreads(out int workers, out int ports);
             ThreadPool.SetMinThreads(workers + 6, ports + 6);
 
-            // Registers FFmpeg Libraries
-            Master.RegisterFFmpeg(":2");
+            // Initializes Engine (Specifies FFmpeg libraries path which is required)
+            Engine.Start(new EngineConfig()
+            {
+                #if DEBUG
+                LogOutput       = ":debug",
+                LogLevel        = LogLevel.Debug,
+                FFmpegLogLevel  = FFmpegLogLevel.Warning,
+                #endif
+                
+                PluginsPath     = ":Plugins",
+                FFmpegPath      = ":FFmpeg",
+            });
 
             // Prepares Player's Configuration
             Config = new Config();

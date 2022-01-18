@@ -27,16 +27,20 @@ namespace FlyleafPlayer
             ThreadPool.GetMinThreads(out int workers, out int ports);
             ThreadPool.SetMinThreads(workers + 6, ports + 6);
 
-            // Less power consumption (safe to use only for single player)
-            Master.HighPerformaceTimers = false;
+            // Initializes Engine (Specifies FFmpeg libraries path which is required)
+            Engine.Start(new EngineConfig()
+            {
+                #if DEBUG
+                LogOutput           = ":debug",
+                LogLevel            = LogLevel.Debug,
+                FFmpegLogLevel      = FFmpegLogLevel.Warning,
+                #endif
+                
+                PluginsPath         = ":Plugins",
+                FFmpegPath          = ":FFmpeg",
+                HighPerformaceTimers= false // Less power consumption (safe to use only for single player)
+            });
 
-            // Registers FFmpeg Libraries
-            Master.RegisterFFmpeg(":2");
-
-            // Registers Plugins
-            Master.RegisterPlugins(":2");
-
-            // Prepares Player's Configuration (Load from file if already exists, Flyleaf WPF Control will save at this path)
             Config = new Config();
 
             #if RELEASE

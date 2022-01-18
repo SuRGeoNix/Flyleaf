@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Threading;
@@ -18,6 +17,8 @@ using Vortice.Mathematics;
 using FlyleafLib.MediaFramework.MediaFrame;
 using VideoDecoder = FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder;
 
+using static FlyleafLib.Logger;
+
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public unsafe partial class Renderer : NotifyPropertyChanged, IDisposable
@@ -29,7 +30,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public ID3D11Device     Device          { get; private set; }
         public bool             DisableRendering{ get; set; }
         public bool             Disposed        { get; private set; } = true;
-        public RendererInfo     Info            { get; internal set; }
+        public RendererInfo     AdapterInfo     { get; internal set; }
         public int              MaxOffScreenTextures
                                                 { get; set; } = 20;
         public VideoDecoder     VideoDecoder    { get; internal set; }
@@ -48,7 +49,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                                 Filters         { get; set; }
         public VideoFrame       LastFrame       { get; set; }
         public RawRect          VideoRect       { get; set; }
-
 
         ID3D11DeviceContext                     context;
         IDXGISwapChain1                         swapChain;
@@ -80,6 +80,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         VideoProcessorColorSpace                inputColorSpace;
         VideoProcessorColorSpace                outputColorSpace;
 
+        LogHandler Log;
         internal object  lockDevice = new object();
         object  lockPresentTask     = new object();
         bool    isPresenting;
@@ -97,20 +98,21 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             
             UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder = videoDecoder;
+            Log = new LogHandler($"[#{UniqueId}] [Renderer      ] ");
         }
 
         public void Initialize()
         {
             lock (lockDevice)
             {
-                Log("Initializing");
+                if (CanDebug) Log.Debug("Initializing");
                 Disposed = false;
 
                 IDXGIAdapter1 adapter = null;
 
                 if (Config.Video.GPUAdapteLuid != -1)
                 {
-                    for (int adapterIndex = 0; Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                    for (int adapterIndex = 0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                     {
                         if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
                             break;
@@ -148,7 +150,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Device.Tag = adapter.Description.Luid.ToString();
 
                 RendererInfo.Fill(this, adapter);
-                Log("\r\n" + Info.ToString());
+                if (CanDebug) Log.Debug($"Adapter Info\r\n{AdapterInfo}\r\n");
 
                 tempDevice.Dispose();
                 adapter.Dispose();
@@ -159,7 +161,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (Control != null)
                     InitializeSwapChain();
 
-                vertexBuffer  = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
+                vertexBuffer = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
                 context.IASetVertexBuffers(0, new VertexBufferView[] { new VertexBufferView(vertexBuffer, sizeof(float) * 5, 0) });
 
                 samplerLinear = Device.CreateSamplerState(new SamplerDescription()
@@ -240,7 +242,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 // TBR: Device Removal Event
                 //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
 
-                Log($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{(int)Device.FeatureLevel >> 8 & 0xf}");
+                if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{(int)Device.FeatureLevel >> 8 & 0xf}");
             }
         }
         public void InitializeSwapChain()
@@ -275,7 +277,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 swapChainDescription.SwapEffect = SwapEffect.Discard;
             }
 
-            swapChain    = Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, fullscreenDescription);
+            swapChain    = Engine.Video.Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, fullscreenDescription);
             backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
             backBufferRtv= Device.CreateRenderTargetView(backBuffer);
         }
@@ -300,7 +302,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (Disposed)
                     return;
 
-                Log("Disposing");
+                if (CanDebug) Log.Debug("Disposing");
 
                 RefreshLayout();
 
@@ -360,7 +362,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 Disposed = true;
                 curRatio = 1.0f;
-                Log("Disposed");
+                if (CanInfo) Log.Info("Disposed");
             }
         }
 
@@ -568,9 +570,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 } catch (Exception e)
                 {
-                    #if DEBUG
-                    Log($"Error {e.Message} | {Device?.DeviceRemovedReason}");
-                    #endif
+                    if (CanWarn) Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
                     VideoDecoder.DisposeFrame(frame);
 
                     return false;
@@ -581,7 +581,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
             }
 
-            Log("Dropped Frame - Lock timeout " + (frame != null ? Utils.TicksToTime(frame.timestamp) : ""));
+            if (CanDebug) Log.Debug("Dropped Frame - Lock timeout " + (frame != null ? Utils.TicksToTime(frame.timestamp) : ""));
             VideoDecoder.DisposeFrame(frame);
 
             return false;
@@ -795,7 +795,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
                 catch (Exception e)
                 {
-                    Log($"[Present] Error {e.Message} | {Device.DeviceRemovedReason}");
+                    if (CanWarn) Log.Warn($"Present idle failed {e.Message} | {Device.DeviceRemovedReason}");
                 }
                 finally
                 {
@@ -920,7 +920,5 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 } catch { }
             });
         }
-
-        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Renderer] {msg}"); }
     }
 }

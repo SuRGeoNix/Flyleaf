@@ -5,6 +5,7 @@ using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
 using static FlyleafLib.Utils;
+using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -120,9 +121,7 @@ namespace FlyleafLib.MediaPlayer
                 vFrame = VideoDecoder.GetFrame(frameIndex);
                 if (vFrame == null) return;
 
-                #if DEBUG
-                Log($"SFI: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
-                #endif
+                if (CanDebug) Log.Debug($"SFI: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
 
                 curTime = vFrame.timestamp;
                 renderer.Present(vFrame);
@@ -154,9 +153,7 @@ namespace FlyleafLib.MediaPlayer
 
                 if (vFrame == null) return;
 
-                #if DEBUG
-                Log($"SFN: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
-                #endif
+                if (CanDebug) Log.Debug($"SFN: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
 
                 curTime = curTime = vFrame.timestamp;
                 renderer.Present(vFrame);
@@ -210,9 +207,7 @@ namespace FlyleafLib.MediaPlayer
 
                 if (vFrame == null) return;
 
-                #if DEBUG
-                Log($"SFB: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
-                #endif
+                if (CanDebug) Log.Debug($"SFB: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
 
                 curTime = vFrame.timestamp;
                 renderer.Present(vFrame);

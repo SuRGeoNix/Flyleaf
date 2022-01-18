@@ -33,7 +33,18 @@ namespace FlyleafMultiPlayer__WPF_
 
         public MainWindow()
         {
-            Master.RegisterFFmpeg(":2");
+            // Initializes Engine (Specifies FFmpeg libraries path which is required)
+            Engine.Start(new EngineConfig()
+            {
+                #if DEBUG
+                LogOutput       = ":debug",
+                LogLevel        = LogLevel.Debug,
+                FFmpegLogLevel  = FFmpegLogLevel.Warning,
+                #endif
+                
+                PluginsPath     = ":Plugins",
+                FFmpegPath      = ":FFmpeg",
+            });
 
             // Creates 4 Players and adds them in the PlayerViews
             for (int i=0; i<4; i++)

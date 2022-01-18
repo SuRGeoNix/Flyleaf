@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -8,13 +7,12 @@ using System.Reflection;
 using FlyleafLib.MediaFramework.MediaInput;
 using FlyleafLib.MediaFramework.MediaStream;
 
+using static FlyleafLib.Logger;
+
 namespace FlyleafLib.Plugins
 {
     public class PluginHandler
     {
-        public static Dictionary<string, PluginType> PluginTypes        { get; private set; } = new Dictionary<string, PluginType>();
-        public static string            PluginsFolder                   { get; private set; } = "Plugins";
-
         public Config                   Config                          { get ; private set; }
         public int                      UniqueId                        { get; set; }
 
@@ -62,11 +60,13 @@ namespace FlyleafLib.Plugins
         public bool                     Interrupt                       { get; set; }
 
         bool searchedForSubtitles;
+        LogHandler Log;
 
         public PluginHandler(Config config, int uniqueId = -1)
         {
             Config = config;
             UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+            Log = new LogHandler($"[#{UniqueId}] [PluginHandler ] ");
             LoadPlugins();
         }
 
@@ -87,13 +87,14 @@ namespace FlyleafLib.Plugins
         {
             Plugins = new Dictionary<string, PluginBase>();
 
-            foreach (var type in PluginTypes.Values)
+            foreach (var type in Engine.Plugins.Types.Values)
             {
                 try
                 {
                     PluginBase plugin = CreatePluginInstance(type, this);
+                    plugin.Log = new LogHandler($"[#{UniqueId}] [{plugin.Name.PadRight(14, ' ')}] ");
                     Plugins.Add(plugin.Name, plugin);
-                } catch (Exception e) { Log($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
+                } catch (Exception e) { Log.Error($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
             }
 
             PluginsOpen                     = new Dictionary<string, IOpen>();
@@ -117,49 +118,7 @@ namespace FlyleafLib.Plugins
             foreach (var plugin in Plugins.Values)
                 LoadPluginInterfaces(plugin);
         }
-        internal static void LoadAssemblies(string path = null)
-        {
-            if (path == null)
-                path = PluginsFolder;
-                
 
-            // Load .dll Assemblies
-            if (Directory.Exists(path))
-            {
-                string[] dirs = Directory.GetDirectories(path);
-
-                foreach(string dir in dirs)
-                    foreach(string file in Directory.GetFiles(dir, "*.dll"))
-                        try { Assembly.LoadFrom(Path.GetFullPath(file));}
-                        catch (Exception e) { Utils.Log($"[PluginHandler] [Error] Failed to load assembly ({e.Message} {Utils.GetRecInnerException(e)})"); }
-            }
-
-            // Load PluginBase Types
-            Type pluginBaseType = typeof(PluginBase);
-            Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-            foreach (var assembly in assemblies)
-                try
-                {
-                    Type[] types = assembly.GetTypes();
-                    foreach (var type in types)
-                        if (pluginBaseType.IsAssignableFrom(type) && type.IsClass && !type.IsAbstract)
-                        {
-                            // Force static constructors to execute (For early load, will be useful with c# 8.0 and static properties for interfaces eg. DefaultOptions)
-                            // System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
-
-                            if (!PluginTypes.ContainsKey(type.Name))
-                            {
-                                PluginTypes.Add(type.Name, new PluginType() { Name = type.Name, Type = type, Version = assembly.GetName().Version});
-                                Utils.Log($"[PluginHandler] Loaded {type.Name} [{assembly.GetName().Version}]");
-                            }
-                            else
-                                Utils.Log($"[PluginHandler] Already exists {type.Name} [{assembly.GetName().Version}]");
-                        }
-                } catch (Exception e) { Utils.Log($"[PluginHandler] Failed to load plugin type ({e.Message})"); }
-
-            PluginsFolder = path;
-        }
         private void LoadPluginInterfaces(PluginBase plugin)
         {
             if (plugin is IOpen) PluginsOpen.Add(plugin.Name, (IOpen)plugin);
@@ -299,7 +258,7 @@ namespace FlyleafLib.Plugins
                         input.Plugin = plugin;
 
                 OpenedPlugin = plugin;
-                Log($"Current plugin {plugin.Name}");
+                Log.Info($"*{plugin.Name} (Open Plugin)");
 
                 return res;
             }
@@ -334,7 +293,7 @@ namespace FlyleafLib.Plugins
                         input.Plugin = plugin;
 
                 OpenedPlugin = plugin;
-                Log($"Current plugin {plugin.Name}");
+                Log.Info($"*{plugin.Name} (Open Plugin)");
 
                 return res;
             }
@@ -350,7 +309,7 @@ namespace FlyleafLib.Plugins
                 if (Interrupt) return null;
 
                 var input = plugin.SuggestVideo();
-                if (input != null) { Log($"SuggestVideoInput {(input.InputData.Title != null ? input.InputData.Title : "Null Title")}"); return input; }
+                if (input != null) { Log.Info($"SuggestVideoInput {(input.InputData.Title != null ? input.InputData.Title : "Null Title")}"); return input; }
             }
 
             return null;
@@ -363,7 +322,7 @@ namespace FlyleafLib.Plugins
                 if (Interrupt) return null;
 
                 var input = plugin.SuggestAudio();
-                if (input != null) { Log($"SuggestAudioInput {(input.InputData.Title != null ? input.InputData.Title : "Null Title")}"); return input; }
+                if (input != null) { Log.Info($"SuggestAudioInput {(input.InputData.Title != null ? input.InputData.Title : "Null Title")}"); return input; }
             }
 
             return null;
@@ -530,7 +489,5 @@ namespace FlyleafLib.Plugins
             return null;
         }
 #endregion
-
-        private void Log(string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [PluginHandler] {msg}"); }
     }
 }

@@ -189,7 +189,8 @@ namespace FlyleafLib
             if (t == null || !t.IsAlive) return;
 
             if (t.ManagedThreadId == Thread.CurrentThread.ManagedThreadId)
-                { Log($"Thread {t.Name} is not allowed to suicide!"); return; }
+                return;
+                //{ Log($"Thread {t.Name} is not allowed to suicide!"); return; }
 
             long escapeInfinity = maxMS / minMS;
 
@@ -236,6 +237,19 @@ namespace FlyleafLib
             }
 
             return null;
+        }
+        public static string GetFolderPath(string folder)
+        {
+            if (folder.StartsWith(":"))
+            {
+                folder = folder.Substring(1);
+                return FindFolderBelow(folder);
+            }
+
+            if (Path.IsPathRooted(folder))
+                return folder;
+
+            return Path.GetFullPath(folder);
         }
 
         public static string FindFolderBelow(string folder)
@@ -343,27 +357,6 @@ namespace FlyleafLib
         public static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } } // System.ArgumentOutOfRangeException ???
         #endregion
 
-        public unsafe static class FFmpeg
-        {
-            public static string ErrorCodeToMsg(int error)
-            {
-                byte* buffer = stackalloc byte[10240];
-                av_strerror(error, buffer, 10240);
-                return Marshal.PtrToStringAnsi((IntPtr)buffer);
-            }
-            public static av_log_set_callback_callback ffmpegLogCallback = (p0, level, format, vl) =>
-            {
-                if (level > av_log_get_level()) return;
-
-                var buffer = stackalloc byte[10240];
-                var printPrefix = 1;
-                av_log_format_line(p0, level, format, vl, buffer, 10240, &printPrefix);
-                var line = Marshal.PtrToStringAnsi((IntPtr)buffer);
-                Log(line.Trim());
-            };
-            private static void Log(string msg) { Utils.Log($"[FFmpeg] {msg}"); }
-        }
-
         public static class NativeMethods
         {
             [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
@@ -416,7 +409,7 @@ namespace FlyleafLib
                 public ushort atomWindowType;
                 public ushort wCreatorVersion;
 
-                public WINDOWINFO(Boolean ?   filler)   :   this()   // Allows automatic initialization of "cbSize" with "new WINDOWINFO(null/true/false)".
+                public WINDOWINFO(Boolean? filler) : this()   // Allows automatic initialization of "cbSize" with "new WINDOWINFO(null/true/false)".
                 {
                     cbSize = (UInt32)(Marshal.SizeOf(typeof( WINDOWINFO )));
                 }

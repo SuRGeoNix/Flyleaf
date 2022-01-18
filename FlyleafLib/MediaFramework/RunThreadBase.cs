@@ -1,6 +1,7 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Threading;
+
+using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework
 {
@@ -13,9 +14,9 @@ namespace FlyleafLib.MediaFramework
             { 
                 lock (lockStatus)
                 {
-                    #if DEBUG
-                    if (_Status != Status.QueueFull && value != Status.QueueFull && _Status != Status.QueueEmpty && value != Status.QueueEmpty) Log($"{_Status} -> {value}");
-                    #endif
+                    if (CanDebug && _Status != Status.QueueFull && value != Status.QueueFull && _Status != Status.QueueEmpty && value != Status.QueueEmpty)
+                        Log.Debug($"{_Status} -> {value}");
+
                     _Status = value;
                 }
             } 
@@ -36,14 +37,23 @@ namespace FlyleafLib.MediaFramework
 
         protected Thread            thread;
         protected AutoResetEvent    threadARE       = new AutoResetEvent(false);
-        protected string            threadName      = "";
+        protected string            threadName      { 
+            get => _threadName;
+            set
+            {
+                _threadName = value;
+                Log = new LogHandler($"[#{UniqueId}] [{threadName}] ");
+            }
+        }
+        string _threadName;
 
+        internal LogHandler         Log;
         internal object             lockActions     = new object();
         internal object             lockStatus      = new object();
 
         public RunThreadBase(int uniqueId = -1)
         {
-            UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+            UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
         }
 
         public void Pause()
@@ -67,7 +77,7 @@ namespace FlyleafLib.MediaFramework
                 int retries = 1;
                 while (thread != null && thread.IsAlive && CriticalArea)
                 {
-                    Log($"Start Retry {retries}/5");
+                    if (CanTrace) Log.Trace($"Start Retry {retries}/5");
                     Thread.Sleep(20);
                     retries++;
                     if (retries > 5) return;
@@ -98,7 +108,7 @@ namespace FlyleafLib.MediaFramework
                     Status = Status.Running;
 
                     thread.Name = $"[#{UniqueId}] [{threadName}]"; thread.IsBackground= true; thread.Start();
-                    while (!thread.IsAlive) { Log("Waiting thread to come up"); Thread.Sleep(3); }
+                    while (!thread.IsAlive) { if (CanTrace) Log.Trace("Waiting thread to come up"); Thread.Sleep(3); }
                 }
             }
         }
@@ -122,7 +132,7 @@ namespace FlyleafLib.MediaFramework
 
         protected void Run()
         {
-            Log($"[Thread] Started ({Status})");
+            if (CanDebug) Log.Debug($"Thread started ({Status})");
 
             do
             {
@@ -135,9 +145,7 @@ namespace FlyleafLib.MediaFramework
                     threadARE.WaitOne();
                     if (Status == Status.Paused)
                     {
-                        #if DEBUG
-                        Log($"{_Status} -> {Status.Running}");
-                        #endif
+                        if (CanDebug) Log.Debug($"{_Status} -> {Status.Running}");
                         _Status = Status.Running;
                     }
                 }
@@ -146,11 +154,9 @@ namespace FlyleafLib.MediaFramework
 
             if (Status != Status.Ended) Status = Status.Stopped;
 
-            Log($"[Thread] Stopped ({Status})");
+            if (CanDebug) Log.Debug($"Thread stopped ({Status})");
         }
         protected abstract void RunInternal();
-
-        internal void Log (string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [{threadName}] {msg}"); }
     }
 
     public enum Status
