@@ -54,6 +54,7 @@ namespace FlyleafLib
     {
         public string   Description { get; internal set; }
         public long     Luid        { get; internal set; }
+        public bool     HasOutput   { get; internal set; }
         public List<GPUOutput> 
                         Outputs     { get; internal set; }
     }
