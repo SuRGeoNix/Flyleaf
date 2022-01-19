@@ -38,11 +38,24 @@ namespace FlyleafLib
         Disabled    = 2
     }
 
+    public struct GPUOutput
+    {
+        public string   DeviceName  { get; internal set; }
+        public long     Left        { get; internal set; }
+        public long     Top         { get; internal set; }
+        public long     Right       { get; internal set; }
+        public long     Bottom      { get; internal set; }
+        public bool     IsAttached  { get; internal set; }
+        public int      Rotation    { get; internal set; }
+
+    }
+
     public struct GPUAdapter
     {
         public string   Description { get; internal set; }
         public long     Luid        { get; internal set; }
-        public bool     HasOutput   { get; internal set; }
+        public List<GPUOutput> 
+                        Outputs     { get; internal set; }
     }
     public enum VideoFilters
     {
