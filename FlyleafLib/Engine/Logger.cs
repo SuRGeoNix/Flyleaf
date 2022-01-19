@@ -57,11 +57,16 @@ namespace FlyleafLib
                 lock (lockFileStream)
                 {
                     fileStream?.Dispose();
+
                     string dir = Path.GetDirectoryName(output);
-                    if (string.IsNullOrEmpty(dir))
+                    if (!string.IsNullOrEmpty(dir))
+                    {
+                        if (string.IsNullOrEmpty(dir))
                         throw new Exception("Invalid path");
 
-                    Directory.CreateDirectory(dir);
+                        Directory.CreateDirectory(dir);
+                    }
+
                     fileStream = new FileStream(output, FileMode.Append, FileAccess.Write);
                     if (lastOutput != ":file")
                     {

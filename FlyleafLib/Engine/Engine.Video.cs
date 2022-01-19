@@ -40,7 +40,10 @@ namespace FlyleafLib
                 }
 
                 int idx = 0;
+                bool hasOutput = false;
+
                 List<GPUOutput> outputs = new List<GPUOutput>();
+
                 while (adapter.EnumOutputs(idx, out IDXGIOutput output).Success)
                 {
                     GPUOutput gpout = new GPUOutput();
@@ -54,12 +57,16 @@ namespace FlyleafLib
                     gpout.Rotation  = (int)output.Description.Rotation;
 
                     outputs.Add(gpout);
+
+                    if (gpout.IsAttached)
+                        hasOutput = true;
+
                     output.Dispose();
 
                     idx++;
                 }
 
-                adapters[adapter.Description1.Luid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.Luid, Outputs = outputs };
+                adapters[adapter.Description1.Luid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.Luid, HasOutput = hasOutput, Outputs = outputs };
 
                 adapter.Dispose();
             }
