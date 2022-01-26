@@ -36,7 +36,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockPlayPause)
             {
-                if (!CanPlay || Status == Status.Playing)
+                if (!CanPlay || Status == Status.Playing || Status == Status.Ended)
                     return;
 
                 status = Status.Playing;
@@ -207,14 +207,23 @@ namespace FlyleafLib.MediaPlayer
 
             tSeek = new Thread(() =>
             {
+                int ret;
+                bool wasEnded = false;
+
                 try
                 {
-                    int ret;
                     TimeBeginPeriod(1);
                     
                     while (seeks.TryPop(out SeekData seekData) && CanPlay && !IsPlaying)
                     {
                         seeks.Clear();
+
+                        if (Status == Status.Ended)
+                        {
+                            wasEnded = true;
+                            status = Status.Paused;
+                            UI(() => Status = Status);
+                        }
 
                         if (!Video.IsOpened)
                         {
@@ -270,7 +279,7 @@ namespace FlyleafLib.MediaPlayer
                     decoder.OpenedPlugin?.OnBufferingCompleted();
                     TimeEndPeriod(1);
                     lock (lockSeek) IsSeeking = false;
-                    if ((Status == Status.Ended && Config.Player.AutoPlay) || stoppedWithError)
+                    if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError)
                         Play();
                 }
             });

@@ -1,0 +1,62 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    >
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="MaterialDesign.xaml"/>
+        <ResourceDictionary Source="Sliders.xaml"/>
+        <ResourceDictionary Source="Converters.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <Storyboard x:Key="fadeIn" Timeline.DesiredFrameRate="10">
+        <DoubleAnimation BeginTime="0:0:0" Storyboard.TargetProperty="Opacity"  To="1" Duration="0:0:0.5" AutoReverse="False"/>
+    </Storyboard>
+
+    <Storyboard x:Key="fadeOut" Timeline.DesiredFrameRate="10">
+        <DoubleAnimation BeginTime="0:0:0" Storyboard.TargetProperty="Opacity"  To="0" Duration="0:0:2.0" AutoReverse="False"/>
+    </Storyboard>
+
+    <Style TargetType="{x:Type FrameworkElement}" x:Key="FadeActivity">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
+                <DataTrigger.EnterActions>
+                    <RemoveStoryboard BeginStoryboardName="fadeInN" />
+                    <BeginStoryboard x:Name="fadeOutN" Storyboard="{StaticResource fadeOut}" />
+                </DataTrigger.EnterActions>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="FullActive">
+                <DataTrigger.EnterActions>
+                    <RemoveStoryboard BeginStoryboardName="fadeOutN" />
+                    <BeginStoryboard x:Name="fadeInN" Storyboard="{StaticResource fadeIn}" />
+                </DataTrigger.EnterActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="{x:Type FrameworkElement}" x:Key="FadeActivity2">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
+                <DataTrigger.EnterActions>
+                    <RemoveStoryboard BeginStoryboardName="fadeInN2" />
+                    <RemoveStoryboard BeginStoryboardName="fadeInN3" />
+                    <BeginStoryboard x:Name="fadeOutN2" Storyboard="{StaticResource fadeOut}" />
+                </DataTrigger.EnterActions>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Active">
+                <DataTrigger.EnterActions>
+                    <RemoveStoryboard BeginStoryboardName="fadeOutN2" />
+                    <RemoveStoryboard BeginStoryboardName="fadeInN3" />
+                    <BeginStoryboard x:Name="fadeInN2" Storyboard="{StaticResource fadeIn}" />
+                </DataTrigger.EnterActions>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="FullActive">
+                <DataTrigger.EnterActions>
+                    <RemoveStoryboard BeginStoryboardName="fadeOutN2" />
+                    <RemoveStoryboard BeginStoryboardName="fadeInN2" />
+                    <BeginStoryboard x:Name="fadeInN3" Storyboard="{StaticResource fadeIn}" />
+                </DataTrigger.EnterActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>

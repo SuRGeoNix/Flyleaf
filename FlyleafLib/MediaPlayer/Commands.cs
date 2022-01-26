@@ -60,6 +60,9 @@ namespace FlyleafLib.MediaPlayer
         public ICommand VolumeDown              { get; set; }
         public ICommand ToggleMute              { get; set; }
 
+        public ICommand ForceFullActive         { get; set; }
+        public ICommand ResetFilter             { get; set; }
+
         Player player;
 
         public Commands(Player player)
@@ -119,6 +122,14 @@ namespace FlyleafLib.MediaPlayer
             SubtitlesDelayAdd2      = new RelayCommandSimple(player.Subtitles.DelayAdd2);
             SubtitlesDelayRemove    = new RelayCommandSimple(player.Subtitles.DelayRemove);
             SubtitlesDelayRemove2   = new RelayCommandSimple(player.Subtitles.DelayRemove2);
+
+            ForceFullActive         = new RelayCommandSimple(player.Activity.ForceFullActive);
+            ResetFilter             = new RelayCommand(ResetFilterAction);
+        }
+
+        private void ResetFilterAction(object filter)
+        {
+            player.Config.Video.Filters[(VideoFilters)filter].Value = player.Config.Video.Filters[(VideoFilters)filter].DefaultValue;
         }
 
         public void SpeedSetAction(object speed)

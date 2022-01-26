@@ -10,7 +10,7 @@ namespace FlyleafLib.MediaPlayer
 {
     public class Video : NotifyPropertyChanged
     {
-        public List<VideoInput>     Inputs          => ((IProvideVideo)decoder?.OpenedPlugin)?.VideoInputs;
+        public List<VideoInput>     Inputs          => decoder?.UserInput?.VideoInputs;
         public Dictionary<string, IProvideVideo>
                                     Plugins         => decoder?.PluginsProvideVideo;
         public List<VideoStream>    Streams         => decoder?.VideoDemuxer.VideoStreams;

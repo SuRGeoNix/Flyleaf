@@ -17,11 +17,11 @@ namespace FlyleafLib.Plugins
     // TODO: Config + Interrupt for WebClient / HttpClient
     public class OpenSubtitlesOrg : PluginBase, IProvideSubtitles, ISearchSubtitles, IDownloadSubtitles, ISuggestSubtitlesInput
     {
-        public new int  Priority     { get; set; } = 2000;
+        public new int  Priority        { get; set; } = 2000;
         public int      TimeoutSeconds  { get; set; } = 15;
         public bool     IsSearching     { get; set; }
         public List<SubtitlesInput> 
-                        SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
+                        SubtitlesInputs => Handler.UserInput.SubtitlesInputs;
 
         static Dictionary<string, List<OpenSubtitlesOrgJson>> cache = new Dictionary<string, List<OpenSubtitlesOrgJson>>();
         static readonly string restUrl = "https://rest.opensubtitles.org/search";
@@ -30,7 +30,6 @@ namespace FlyleafLib.Plugins
         bool searchOnceTmp;
         public override void OnInitialized()
         {
-            SubtitlesInputs.Clear();
             searchOnceTmp = false;
             IsSearching = false;
         }

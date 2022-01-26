@@ -115,9 +115,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         internal static void Start()
         {
-            Version osVer = Environment.OSVersion.Version;
-            IsWin8OrGreater = osVer.Major > 6 || (osVer.Major == 6 && osVer.Minor > 1);
-
             CompileEmbeddedShaders();
 
             List<FeatureLevel> features = new List<FeatureLevel>();
@@ -151,7 +148,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             string[] shaders = assembly.GetManifestResourceNames().Where(x => Utils.GetUrlExtention(x) == "hlsl").ToArray();
-            string profileExt = "_4_0";
+            string profileExt = "_4_0_level_9_3";
 
             foreach (string shader in shaders)
                 using (Stream stream = assembly.GetManifestResourceStream(shader))

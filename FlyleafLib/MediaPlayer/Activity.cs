@@ -37,7 +37,7 @@ namespace FlyleafLib.MediaPlayer
             if ((DateTime.UtcNow.Ticks - MouseTimestamp  ) / 10000 < Config.Player.ActivityTimeout)
                 return ActivityMode.FullActive;
 
-            if ((DateTime.UtcNow.Ticks - KeyboardTimestmap ) / 10000 < Config.Player.ActivityTimeout)
+            if (player.isAnyKeyDown || (DateTime.UtcNow.Ticks - KeyboardTimestmap ) / 10000 < Config.Player.ActivityTimeout)
                 return ActivityMode.Active;
 
             return ActivityMode.Idle;

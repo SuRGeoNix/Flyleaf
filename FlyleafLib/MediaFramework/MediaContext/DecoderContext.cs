@@ -213,8 +213,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (res.Error != null)
                     return result = new SubtitlesInputOpenedArgs(null, null, res.Error, true);
 
-                foreach(var input in ((IProvideSubtitles)OpenedSubtitlesPlugin).SubtitlesInputs)
-                    if (input.Url == url) curInput = input;
+                foreach(var input in UserInput.SubtitlesInputs)
+                    if (input.Url == url)
+                        curInput = input;
 
             } catch (Exception e)
             {
@@ -300,7 +301,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (input == null)
                     return result = new VideoInputOpenedArgs(null, null, $"Null input", true);
 
-                if (CanInfo) Log.Info($"Opening {input.ToString()}");
+                if (CanInfo)
+                    Log.Info($"Opening {input.ToString()}");
 
                 OpenResults res;
                 if (input is Stream)
@@ -333,7 +335,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         private VideoInputOpenedArgs OpenVideoInput(VideoInput input, bool defaultVideo, bool defaultAudio, bool defaultSubtitles, bool isUserInput)
         {
-            if (!isUserInput && VideoInput != null && EnableDecoding) InitializeSwitch(); // EnableDecoding required cause it disposes the decoders/demuxers (TBR)
+            if (!isUserInput && VideoInput != null && EnableDecoding) // EnableDecoding required cause it disposes the decoders/demuxers (TBR)
+                InitializeSwitch();
 
             VideoInputOpenedArgs result = null;
             VideoInput oldInput = VideoInput;

@@ -69,7 +69,7 @@ namespace FlyleafLib.MediaPlayer
         /// Player's Decoder Context
         /// (Normally you should not access this directly)
         /// </summary>
-        public DecoderContext       decoder;
+        public DecoderContext       decoder             { get; private set; }
 
         /// <summary>
         /// Audio Decoder

@@ -13,7 +13,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public partial class Renderer
     {
-        public bool             D3D11VPFailed       => vc == null; //Device == null || VideoProcessorsCapsCache == null || !VideoProcessorsCapsCache.ContainsKey(Device.Tag.ToString()) || VideoProcessorsCapsCache[Device.Tag.ToString()].Failed;
+        public bool             D3D11VPFailed       => vc == null;
         public VideoProcessors  VideoProcessor      { get => videoProcessor;    private set { SetUI(ref _VideoProcessor, value); videoProcessor = value; } }
         VideoProcessors _VideoProcessor = VideoProcessors.Flyleaf, videoProcessor = VideoProcessors.Flyleaf;
 
@@ -85,10 +85,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     if (vpe == null)
                     {
-                        Log.Error($"D3D11 Video Processor Initialization Failed");
-                        DisposeVideoProcessor();
-                        InitializeFilters();
-
+                        VPFailed();
                         return;
                     }
 
@@ -107,12 +104,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
 
-                if (vpe == null)
+                if (vpe == null || Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0)
                 {
-                    Log.Error($"D3D11 Video Processor Initialization Failed");
-                    DisposeVideoProcessor();
-                    InitializeFilters();
-
+                    VPFailed();
                     return;
                 }
 
@@ -199,12 +193,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 vd1.CreateVideoProcessor(vpe, typeIndex, out vp);
                 if (vp == null)
                 {
-                    Log.Error($"D3D11 Video Processor Initialization Failed");
-                    DisposeVideoProcessor();
-                    InitializeFilters();
-
+                    VPFailed();
                     return;
-
                 }
 
                 cache.Failed = false;
@@ -212,6 +202,20 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             } catch { DisposeVideoProcessor(); Log.Error($"D3D11 Video Processor Initialization Failed"); }
 
+            InitializeFilters();
+        }
+        internal void VPFailed()
+        {
+            Log.Error($"D3D11 Video Processor Initialization Failed");
+
+            if (!VideoProcessorsCapsCache.ContainsKey(Device.Tag.ToString()))
+                VideoProcessorsCapsCache.Add(Device.Tag.ToString(), new VideoProcessorCapsCache());
+            VideoProcessorsCapsCache[Device.Tag.ToString()].Failed = true;
+
+            VideoProcessorsCapsCache[Device.Tag.ToString()].Filters.Add(VideoFilters.Brightness, new VideoFilter()  {  Filter = VideoFilters.Brightness });
+            VideoProcessorsCapsCache[Device.Tag.ToString()].Filters.Add(VideoFilters.Contrast, new VideoFilter()    {  Filter = VideoFilters.Contrast });
+
+            DisposeVideoProcessor();
             InitializeFilters();
         }
         internal void DisposeVideoProcessor()
@@ -247,10 +251,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (!configLoadedChecked && !Config.Loaded)
                 {
-                    cfgFilter.Minimum   = filter.Minimum;
-                    cfgFilter.Maximum   = filter.Maximum;
-                    cfgFilter.Value     = filter.Value;
-                    cfgFilter.Step      = filter.Step;
+                    cfgFilter.Minimum       = filter.Minimum;
+                    cfgFilter.Maximum       = filter.Maximum;
+                    cfgFilter.DefaultValue  = filter.Value;
+                    cfgFilter.Value         = filter.Value;
+                    cfgFilter.Step          = filter.Step;
                 }
 
                 UpdateFilterValue(cfgFilter);
@@ -258,9 +263,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             configLoadedChecked = true;
             UpdateBackgroundColor();
-
-            vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
-            vc.VideoProcessorSetStreamFrameFormat(vp, 0, !Config.Video.Deinterlace ? VideoFrameFormat.Progressive : (Config.Video.DeinterlaceBottomFirst ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
+            if (vc != null)
+            {
+                vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
+                vc.VideoProcessorSetStreamFrameFormat(vp, 0, !Config.Video.Deinterlace ? VideoFrameFormat.Progressive : (Config.Video.DeinterlaceBottomFirst ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
+            }            
         }
         internal void UpdateFilterValue(VideoFilter filter)
         {
@@ -350,16 +357,28 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
     {
         internal Player player;
 
-        public VideoFilters Filter      { get => _Filter;   set => SetUI(ref _Filter, value); }
+        [XmlIgnore]
+        public bool         Available   { get => _Available;set => SetUI(ref _Available, value); }
+        bool _Available;
+
+        public VideoFilters Filter      { get => _Filter;       set => SetUI(ref _Filter, value); }
         VideoFilters _Filter = VideoFilters.Brightness;
-        public int          Minimum     { get => _Minimum;  set => SetUI(ref _Minimum, value); }
+
+        public int          Minimum     { get => _Minimum;      set => SetUI(ref _Minimum, value); }
         int _Minimum = 0;
-        public int          Maximum     { get => _Maximum;  set => SetUI(ref _Maximum, value); }
+
+        public int          Maximum     { get => _Maximum;      set => SetUI(ref _Maximum, value); }
         int _Maximum = 100;
-        public float        Step        { get => _Step;     set => SetUI(ref _Step, value); }
+
+        public float        Step        { get => _Step;         set => SetUI(ref _Step, value); }
         float _Step = 1;
-        public int          Value       { get => _Value;    set { if (Set(ref _Value, value)) player?.renderer?.UpdateFilterValue(this); } }
+
+        public int          DefaultValue{ get => _DefaultValue; set => SetUI(ref _DefaultValue, value); }
+        int _DefaultValue = 50;
+
+        public int          Value       { get => _Value;        set { if (Set(ref _Value, value)) player?.renderer?.UpdateFilterValue(this); } }
         int _Value = 50;
+
         internal void SetValue(int value)
         {
             if (_Value == value)
@@ -369,10 +388,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             RaiseUI(nameof(Value));
         }
-
-        [XmlIgnore]
-        public bool         Available   { get => _Available;set => SetUI(ref _Available, value); }
-        bool _Available;
 
         public VideoFilter() { }
         public VideoFilter(VideoFilters filter, Player player = null) { Filter = filter; }

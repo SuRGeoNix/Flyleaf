@@ -148,7 +148,7 @@ namespace FlyleafDownloader
 
             if (!(Downloader.DecCtx.OpenedPlugin is IProvideVideo)) return;
 
-            foreach (var input in ((IProvideVideo)Downloader.DecCtx.OpenedPlugin).VideoInputs)
+            foreach (var input in Downloader.DecCtx.UserInput.VideoInputs)
             {
                 string dump;
                 if (input.Width > 0)
@@ -171,7 +171,7 @@ namespace FlyleafDownloader
 
             if (!(Downloader.DecCtx.OpenedPlugin is IProvideAudio)) return;
 
-            foreach (var input in ((IProvideAudio)Downloader.DecCtx.OpenedPlugin).AudioInputs)
+            foreach (var input in Downloader.DecCtx.UserInput.AudioInputs)
             {
                 string dump = $"{input.Codec} {input.BitRate} Kbps";
 
