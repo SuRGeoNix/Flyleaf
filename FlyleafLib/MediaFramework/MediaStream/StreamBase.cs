@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;

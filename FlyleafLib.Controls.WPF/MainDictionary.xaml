@@ -906,7 +906,35 @@
                         </DataTemplate>
                     </MenuItem.ItemTemplate>
                 </MenuItem>
-                <MenuItem Header="External" ItemsSource="{Binding Player.Video.Plugins[OpenVideo].VideoInputs}" AlternationCount="{Binding Player.Video.Plugins[OpenVideo].VideoInputs.Count}">
+                <MenuItem Header="{Binding Player.decoder.OpenedPlugin.Name}" ItemsSource="{Binding Player.Video.Inputs}">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                            <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
+                            <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                            <Setter Property="IsCheckable" Value="True"/>
+                            <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                    <MenuItem.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock>
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat=" {0}x{1} @{2} ({3}) [{4}] [Audio:{5}]">
+                                        <Binding Path="Width"/>
+                                        <Binding Path="Height"/>
+                                        <Binding Path="FPS"/>
+                                        <Binding Path="Codec"/>
+                                        <Binding Path="Protocol"/>
+                                        <Binding Path="HasAudio"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                        </DataTemplate>
+                    </MenuItem.ItemTemplate>
+                </MenuItem>
+                
+                
+                <!--<MenuItem Header="External" ItemsSource="{Binding Player.Video.Plugins[OpenVideo].VideoInputs}" AlternationCount="{Binding Player.Video.Plugins[OpenVideo].VideoInputs.Count}">
                     <MenuItem.ItemContainerStyle>
                         <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
                             <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
@@ -995,7 +1023,7 @@
                             </TextBlock>
                         </DataTemplate>
                     </MenuItem.ItemTemplate>
-                </MenuItem>
+                </MenuItem>-->
             </MenuItem>
 
             <MenuItem Header="Take a Snapshot" Command="{Binding Player.Commands.TakeSnapshot}" Icon="{materialDesign:PackIcon Kind=PhotoCamera}"/>

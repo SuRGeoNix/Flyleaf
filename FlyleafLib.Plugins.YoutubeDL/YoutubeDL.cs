@@ -15,9 +15,9 @@ namespace FlyleafLib.Plugins
 {
     public class YoutubeDL : PluginBase, IOpen, IProvideAudio, IProvideVideo, IProvideSubtitles, ISuggestAudioInput, ISuggestVideoInput, ISuggestSubtitlesInput
     {
-        public List<AudioInput>     AudioInputs     { get; set; } = new List<AudioInput>();
-        public List<VideoInput>     VideoInputs     { get; set; } = new List<VideoInput>();
-        public List<SubtitlesInput> SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
+        public List<AudioInput>     AudioInputs     => Handler.UserInput.AudioInputs;
+        public List<VideoInput>     VideoInputs     => Handler.UserInput.VideoInputs;
+        public List<SubtitlesInput> SubtitlesInputs => Handler.UserInput.SubtitlesInputs;
 
         public bool                 IsPlaylist      => false;
         public new int              Priority        { get; set; } = 1999;
@@ -69,9 +69,6 @@ namespace FlyleafLib.Plugins
 
         public override void OnInitialized()
         {
-            AudioInputs.Clear();
-            VideoInputs.Clear();
-            SubtitlesInputs.Clear();
             ytdl = null;
             retries = 0;
         }
@@ -209,7 +206,9 @@ namespace FlyleafLib.Plugins
                 if (Handler.Interrupt)
                 {
                     Log.Info("Interrupted");
-                    if (!proc.HasExited) proc.Kill();
+                    if (!proc.HasExited)
+                        proc.Kill();
+
                     return null;
                 }
 
@@ -236,7 +235,8 @@ namespace FlyleafLib.Plugins
                 // Parse Json Object
                 string json = File.ReadAllText($"{tmpFile}.info.json");
                 ytdl = JsonConvert.DeserializeObject<YoutubeDLJson>(json, jsonSettings);
-                if (ytdl == null) return null;
+                if (ytdl == null)
+                    return null;
 
                 Format fmt;
                 InputData inputData = new InputData()
@@ -256,9 +256,14 @@ namespace FlyleafLib.Plugins
                 for (int i = 0; i < ytdl.formats.Count; i++)
                 {
                     fmt = ytdl.formats[i];
-                    if (ytdl.formats[i].vcodec == null) ytdl.formats[i].vcodec = "";
-                    if (ytdl.formats[i].acodec == null) ytdl.formats[i].acodec = "";
-                    if (ytdl.formats[i].protocol == null) ytdl.formats[i].protocol = "";
+                    if (ytdl.formats[i].vcodec == null)
+                        ytdl.formats[i].vcodec = "";
+
+                    if (ytdl.formats[i].acodec == null)
+                        ytdl.formats[i].acodec = "";
+
+                    if (ytdl.formats[i].protocol == null)
+                        ytdl.formats[i].protocol = "";
 
                     bool hasAudio = HasAudio(fmt);
                     bool hasVideo = HasVideo(fmt);
@@ -306,7 +311,8 @@ namespace FlyleafLib.Plugins
 
                     foreach (var subtitle in subtitle1.Value)
                     {
-                        if (subtitle.ext.ToLower() != "vtt") continue;
+                        if (subtitle.ext.ToLower() != "vtt")
+                                continue;
 
                         SubtitlesInputs.Add(new SubtitlesInput()
                         { 

@@ -19,7 +19,7 @@ namespace FlyleafLib.MediaPlayer
     public class Audio : NotifyPropertyChanged
     {
         #region Properties
-        public List<AudioInput>     Inputs          => ((IProvideAudio)decoder?.OpenedPlugin)?.AudioInputs;
+        public List<AudioInput>     Inputs          => decoder?.UserInput?.AudioInputs;
         public Dictionary<string, IProvideAudio>
                                     Plugins         => decoder?.PluginsProvideAudio;
         public List<AudioStream>    Streams         => decoder?.VideoDemuxer.AudioStreams;

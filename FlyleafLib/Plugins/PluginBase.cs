@@ -95,18 +95,9 @@ namespace FlyleafLib.Plugins
         OpenResults     Open(Stream iostream);
     }
 
-    public interface IProvideAudio : IPlugin
-    {
-        List<AudioInput>    AudioInputs     { get; set; }
-    }
-    public interface IProvideVideo : IPlugin
-    {
-        List<VideoInput>    VideoInputs     { get; set; }
-    }
-    public interface IProvideSubtitles : IPlugin
-    {
-        List<SubtitlesInput>SubtitlesInputs { get; set; }
-    }
+    public interface IProvideAudio : IPlugin {}
+    public interface IProvideVideo : IPlugin {}
+    public interface IProvideSubtitles : IPlugin {}
 
     public interface ISuggestAudioInput : IPlugin
     {

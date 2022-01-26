@@ -257,7 +257,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 Height      = Control.Height,
                 AlphaMode   = AlphaMode.Ignore,
                 BufferUsage = Usage.RenderTargetOutput,
-                Scaling     = IsWin8OrGreater ? Scaling.None : Scaling.Stretch, // We should re-draw the source texture for proper render
+                Scaling     = Device.FeatureLevel < FeatureLevel.Level_10_0 ? Scaling.Stretch : Scaling.None,
                 SampleDescription = new SampleDescription(1, 0)
             };
 
@@ -266,15 +266,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 Windowed = true
             };
 
-            if (IsWin8OrGreater)
-            {
-                swapChainDescription.BufferCount= 2; // TBR: for hdr output or >=60fps maybe use 6
-                swapChainDescription.SwapEffect = SwapEffect.FlipDiscard;
-            }
-            else
+            if (Device.FeatureLevel < FeatureLevel.Level_10_0)
             {
                 swapChainDescription.BufferCount= 1;
                 swapChainDescription.SwapEffect = SwapEffect.Discard;
+            }
+            else
+            {
+                swapChainDescription.BufferCount= 2; // TBR: for hdr output or >=60fps maybe use 6
+                swapChainDescription.SwapEffect = SwapEffect.FlipDiscard;
             }
 
             swapChain    = Engine.Video.Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, fullscreenDescription);

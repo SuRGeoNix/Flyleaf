@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Flyleaf.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MaterialDesignColors" Version="2.0.5-ci57" />
+    <PackageReference Include="MaterialDesignThemes" Version="4.4.0-ci57" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Flyleaf.ico" />
+  </ItemGroup>
+
+</Project>

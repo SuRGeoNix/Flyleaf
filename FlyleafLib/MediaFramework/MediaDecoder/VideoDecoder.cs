@@ -295,7 +295,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             
             VideoAccelerated = false;
 
-            if (Config.Video.VideoAcceleration)
+            if (Config.Video.VideoAcceleration && Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0)
             {
                 if (CheckCodecSupport(codec))
                 {
@@ -321,7 +321,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             textDesc = new Texture2DDescription()
             {
                 Usage               = ResourceUsage.Default,
-                BindFlags           = BindFlags.ShaderResource | BindFlags.RenderTarget,
+                BindFlags           = Renderer.Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0 ? BindFlags.ShaderResource : BindFlags.ShaderResource | BindFlags.RenderTarget,
 
                 Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
                 Width               = codecCtx->width,
@@ -335,7 +335,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             textDescUV = new Texture2DDescription()
             {
                 Usage               = ResourceUsage.Default,
-                BindFlags           = BindFlags.ShaderResource | BindFlags.RenderTarget,
+                BindFlags           = Renderer.Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0 ? BindFlags.ShaderResource : BindFlags.ShaderResource | BindFlags.RenderTarget,
 
                 Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
                 Width               = codecCtx->width  >> VideoStream.PixelFormatDesc->log2_chroma_w,

@@ -10,17 +10,17 @@ namespace FlyleafLib.Plugins
     {
         public new int Priority { get; set; } = 3000;
 
-        public List<SubtitlesInput> SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
+        public List<SubtitlesInput> SubtitlesInputs => Handler.UserInput.SubtitlesInputs;
 
         public override void OnInitialized()
         {
-            SubtitlesInputs.Clear();
+            //SubtitlesInputs.Clear();
         }
 
         public override void OnInitializedSwitch()
         {
-            if (Handler.OpenedPlugin != null && Handler.OpenedPlugin.IsPlaylist)
-                SubtitlesInputs.Clear();
+            //if (Handler.OpenedPlugin != null && Handler.OpenedPlugin.IsPlaylist)
+                //SubtitlesInputs.Clear();
         }
 
         public OpenResults Open(string url)

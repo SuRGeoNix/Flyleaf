@@ -10,7 +10,7 @@ namespace FlyleafLib.MediaPlayer
 {
     public class Subtitles : NotifyPropertyChanged
     {
-        public List<SubtitlesInput>     Inputs          => ((IProvideSubtitles)decoder?.OpenedSubtitlesPlugin)?.SubtitlesInputs;
+        public List<SubtitlesInput>     Inputs          => decoder?.UserInput?.SubtitlesInputs;
         public Dictionary<string, IProvideSubtitles>
                                         Plugins         => decoder?.PluginsProvideSubtitles;
         public List<SubtitlesStream>    Streams         => decoder?.VideoDemuxer.SubtitlesStreams;

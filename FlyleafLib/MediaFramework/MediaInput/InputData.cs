@@ -8,6 +8,6 @@ namespace FlyleafLib.MediaFramework.MediaInput
         public string   Folder      { get; set; }
         public long     FileSize    { get; set; }
         public string   Rating      { get; set; }
-        //public long     Duration    { get; set; }
+        public long     Duration    { get; set; }
     }
 }
