@@ -213,7 +213,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (res.Error != null)
                     return result = new SubtitlesInputOpenedArgs(null, null, res.Error, true);
 
-                foreach(var input in UserInput.SubtitlesInputs)
+                foreach(var input in ((IProvideSubtitles)OpenedSubtitlesPlugin).SubtitlesInputs)
                     if (input.Url == url)
                         curInput = input;
 

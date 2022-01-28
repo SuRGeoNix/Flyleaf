@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-
 using FlyleafLib.MediaFramework.MediaInput;
 
 namespace FlyleafLib.Plugins
@@ -15,12 +14,9 @@ namespace FlyleafLib.Plugins
 
         public bool             IsPlaylist  => true;
         public new int          Priority    { get; set; } = 3000;
-        public List<VideoInput> VideoInputs => Handler.UserInput.VideoInputs;
+        public List<VideoInput> VideoInputs { get; set; } = new List<VideoInput>();
 
-        public override void OnInitializing()
-        {
-            //VideoInputs.Clear();
-        }
+        public VideoInput curSuggestInput; // Pointer to the latest opened input
 
         public bool IsValidInput(string url)
         {
@@ -29,8 +25,9 @@ namespace FlyleafLib.Plugins
 
         public OpenResults Open(string url)
         {
-            if (VideoInputs.Count > 0 && VideoInputs[0].Url != null && VideoInputs[0].Url.ToLower() == url.ToLower())
-                return new OpenResults();
+            foreach(var input in VideoInputs)
+                if (input.Url != null && input.Url.ToLower() == url.ToLower()) 
+                    { curSuggestInput = input; return new OpenResults(); }
 
             VideoInput videoInput = new VideoInput();
             InputData  inputData  = new InputData();
@@ -53,6 +50,7 @@ namespace FlyleafLib.Plugins
             videoInput.InputData = inputData;
 
             VideoInputs.Add(videoInput);
+            curSuggestInput = videoInput;
 
             return new OpenResults();
         }
@@ -70,25 +68,26 @@ namespace FlyleafLib.Plugins
                 }
             });
 
+            curSuggestInput = VideoInputs[VideoInputs.Count - 1];
+
             return new OpenResults();
         }
 
         public override OpenResults OnOpenVideo(VideoInput input)
         {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name)
-                return null;
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
 
-            //Handler.UserInputUrl = input.IOStream != null ? "Custom IO Stream" : input.Url;
+            Handler.UserInputUrl = input.IOStream != null ? "Custom IO Stream" : input.Url;
+            curSuggestInput = input;
 
             return new OpenResults();
         }
 
         public VideoInput SuggestVideo()
         {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name || VideoInputs.Count == 0)
-                return null;
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
 
-            return VideoInputs[0];
+            return curSuggestInput;
         }
     }
 }

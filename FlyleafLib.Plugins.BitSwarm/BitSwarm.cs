@@ -18,7 +18,7 @@ namespace FlyleafLib.Plugins
     {
         public bool             IsPlaylist          => true;
         public new int          Priority            { get; set; } = 2000;
-        public List<VideoInput> VideoInputs         => Handler.UserInput.VideoInputs;
+        public List<VideoInput> VideoInputs         { get; set; } = new List<VideoInput>();
 
         public bool             Downloaded          => torrent != null && torrent.data.files != null && (torrent.data.files[fileIndex] == null || torrent.data.files[fileIndex].Created);
         public string           FolderComplete      => torrent.file.paths.Count == 1 ? cfg.FolderComplete : torrent.data.folder;
@@ -121,7 +121,7 @@ namespace FlyleafLib.Plugins
                 downloadNextStarted = false;
                 cfg.EnableBuffering = false;
 
-                //VideoInputs.Clear();
+                VideoInputs.Clear();
             } catch(Exception e)
             {
                 Log.Error("Dispose - " + e.Message);
