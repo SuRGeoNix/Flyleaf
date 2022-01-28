@@ -15,9 +15,9 @@ namespace FlyleafLib.Plugins
 {
     public class YoutubeDL : PluginBase, IOpen, IProvideAudio, IProvideVideo, IProvideSubtitles, ISuggestAudioInput, ISuggestVideoInput, ISuggestSubtitlesInput
     {
-        public List<AudioInput>     AudioInputs     => Handler.UserInput.AudioInputs;
-        public List<VideoInput>     VideoInputs     => Handler.UserInput.VideoInputs;
-        public List<SubtitlesInput> SubtitlesInputs => Handler.UserInput.SubtitlesInputs;
+        public List<AudioInput>     AudioInputs     { get; set; } = new List<AudioInput>();
+        public List<VideoInput>     VideoInputs     { get; set; } = new List<VideoInput>();
+        public List<SubtitlesInput> SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
 
         public bool                 IsPlaylist      => false;
         public new int              Priority        { get; set; } = 1999;
@@ -69,6 +69,10 @@ namespace FlyleafLib.Plugins
 
         public override void OnInitialized()
         {
+            AudioInputs.Clear();
+            VideoInputs.Clear();
+            SubtitlesInputs.Clear();
+
             ytdl = null;
             retries = 0;
         }

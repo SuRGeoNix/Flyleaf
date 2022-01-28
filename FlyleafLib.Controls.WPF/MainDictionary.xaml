@@ -906,7 +906,7 @@
                         </DataTemplate>
                     </MenuItem.ItemTemplate>
                 </MenuItem>
-                <MenuItem Header="{Binding Player.decoder.OpenedPlugin.Name}" ItemsSource="{Binding Player.Video.Inputs}">
+                <!--<MenuItem Header="{Binding Player.decoder.OpenedPlugin.Name}" ItemsSource="{Binding Player.Video.Inputs}">
                     <MenuItem.ItemContainerStyle>
                         <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
                             <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
@@ -931,10 +931,10 @@
                             </TextBlock>
                         </DataTemplate>
                     </MenuItem.ItemTemplate>
-                </MenuItem>
+                </MenuItem>-->
                 
                 
-                <!--<MenuItem Header="External" ItemsSource="{Binding Player.Video.Plugins[OpenVideo].VideoInputs}" AlternationCount="{Binding Player.Video.Plugins[OpenVideo].VideoInputs.Count}">
+                <MenuItem Header="External" ItemsSource="{Binding Player.Video.Plugins[OpenVideo].VideoInputs}" AlternationCount="{Binding Player.Video.Plugins[OpenVideo].VideoInputs.Count}">
                     <MenuItem.ItemContainerStyle>
                         <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
                             <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ContextMenu}}"/>
@@ -1023,7 +1023,7 @@
                             </TextBlock>
                         </DataTemplate>
                     </MenuItem.ItemTemplate>
-                </MenuItem>-->
+                </MenuItem>
             </MenuItem>
 
             <MenuItem Header="Take a Snapshot" Command="{Binding Player.Commands.TakeSnapshot}" Icon="{materialDesign:PackIcon Kind=PhotoCamera}"/>
