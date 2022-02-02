@@ -272,7 +272,6 @@ namespace FlyleafLib
             /// </summary>
             public bool             AllowTimeouts       { get; set; } = true;
 
-
             /// <summary>
             /// List of FFmpeg formats to be excluded from interrupts
             /// </summary>
@@ -396,7 +395,7 @@ namespace FlyleafLib
             /// <summary>
             /// Allows video accceleration even in codec's profile mismatch
             /// </summary>
-            public bool             AllowProfileMismatch { get; set; } = true;
+            public bool             AllowProfileMismatch { get; set; } = false;
         }
         public class VideoConfig : NotifyPropertyChanged
         {
