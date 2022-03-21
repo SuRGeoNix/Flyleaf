@@ -349,6 +349,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 return;
 
             FrameResized();
+
+            // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
+            if (videoProcessor == VideoProcessors.Flyleaf)
+            {
+                Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
+                Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
+            }
+
             Present();
         }
     }
