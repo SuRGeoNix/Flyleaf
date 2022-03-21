@@ -875,6 +875,9 @@
                 <MenuItem Header=" x 8"   CommandParameter="8" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 4"   CommandParameter="4" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 2"   CommandParameter="2" Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 1.75"   CommandParameter="1.75" Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 1.50"   CommandParameter="1.50" Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 1.25"   CommandParameter="1.25" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 1"   CommandParameter="1" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 0.75"   CommandParameter="0.75" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 0.50"   CommandParameter="0.50" Command="{Binding Player.Commands.SpeedSet}"/>

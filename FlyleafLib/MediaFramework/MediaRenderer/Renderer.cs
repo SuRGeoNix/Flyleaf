@@ -304,6 +304,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (CanDebug) Log.Debug("Disposing");
 
+                VideoDecoder.DisposeFrame(LastFrame);
                 RefreshLayout();
 
                 DisposeVideoProcessor();
@@ -320,7 +321,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 //blendStateAlpha?.Dispose();
                 //blendStateAlphaInv?.Dispose();
 
-                VideoDecoder.DisposeFrame(LastFrame);
                 psBuffer?.Dispose();
                 samplerLinear?.Dispose();
                 vertexLayout?.Dispose();

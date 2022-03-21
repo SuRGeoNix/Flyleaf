@@ -218,22 +218,14 @@ namespace FlyleafLib.MediaPlayer
 
         public void SpeedUp()
         {
-            if (Speed + 0.25 <= 1)
-                Speed += 0.25;
-            else
-            {
-                if (ReversePlayback)
-                    return;
+            if (Speed + 0.25 > 1 && ReversePlayback)
+                return;
 
-                Speed = Speed + 1 > 16 ? 16 : Speed + 1;
-            }
+            Speed = Speed + 0.25 > 16 ? 16 : Speed + 0.25;
         }
         public void SpeedDown()
         {
-            if (Speed <= 1)
-                Speed = Speed - 0.25 < 0.25 ? 0.25 : Speed - 0.25;
-            else
-                Speed -= 1;
+            Speed = Speed - 0.25 < 0.25 ? 0.25 : Speed - 0.25;
         }
         
         public void FullScreen()

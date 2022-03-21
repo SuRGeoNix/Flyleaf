@@ -253,8 +253,6 @@ namespace FlyleafLib.MediaPlayer
                     newValue = 0.25;
                 else if (value > 16)
                     newValue = 16;
-                else if (value > 1)
-                    newValue = (int) value;
 
                 if (newValue == _Speed || newValue > 1 && ReversePlayback)
                     return;
@@ -264,9 +262,10 @@ namespace FlyleafLib.MediaPlayer
 
                 if (newValue > 1)
                 {
-                    VideoDecoder.Speed      = (int)newValue;
-                    AudioDecoder.Speed      = (int)newValue;
-                    SubtitlesDecoder.Speed  = (int)newValue;
+                    int skipFramesOffset = newValue % 1 == 0 ? 0 : 1;
+                    VideoDecoder.Speed      = (int)newValue + skipFramesOffset;
+                    AudioDecoder.Speed      = (int)newValue + skipFramesOffset;
+                    SubtitlesDecoder.Speed  = (int)newValue + skipFramesOffset;
                 }
                 else
                 {
