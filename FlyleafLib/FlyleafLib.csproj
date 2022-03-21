@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.9</Version>
+	<Version>3.4.10</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Fixes backwards compatibility issues (with Feature Level less than 10)
+		Adds support for playback speed 1.25, 1.5, 1.75, etc
+		Fixes Brightness/Contrast dim issues while switching to Flyleaf Video Processor (FLVP)
+		Disables by default the new Config.Decoder.AllowProfileMismatch as it causes issues (mainly with HEVC)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
