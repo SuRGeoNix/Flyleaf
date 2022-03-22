@@ -343,6 +343,11 @@ namespace FlyleafLib
         
         public static System.Windows.Media.Color WinFormsToWPFColor(System.Drawing.Color sColor) { return System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B); }
         public static System.Drawing.Color WPFToWinFormsColor(System.Windows.Media.Color wColor) { return System.Drawing.Color.FromArgb(wColor.A, wColor.R, wColor.G, wColor.B); }
+
+        public static System.Windows.Media.Color VorticeToWPFColor(Vortice.Mathematics.Color sColor) { return System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B); }
+        public static Vortice.Mathematics.Color WPFToVorticeColor(System.Windows.Media.Color wColor) { return new Vortice.Mathematics.Color(wColor.R, wColor.G, wColor.B, wColor.A); }
+
+
         public static string ToHexadecimal(byte[] bytes)
         {
             StringBuilder hexBuilder = new StringBuilder();

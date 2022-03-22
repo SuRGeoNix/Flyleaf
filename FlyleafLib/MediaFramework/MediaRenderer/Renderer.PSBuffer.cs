@@ -62,7 +62,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
             }
 
-            context.UpdateSubresource(ref psBufferData, psBuffer);
+            context.UpdateSubresource(psBufferData, psBuffer);
 
             Present();
 

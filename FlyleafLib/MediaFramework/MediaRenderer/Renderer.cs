@@ -161,8 +161,19 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (Control != null)
                     InitializeSwapChain();
 
+                Span<float> vertexBufferData = new float[]
+                {
+                    -1.0f,  -1.0f,  0,      0.0f, 1.0f,
+                    -1.0f,   1.0f,  0,      0.0f, 0.0f,
+                     1.0f,  -1.0f,  0,      1.0f, 1.0f,
+                
+                     1.0f,  -1.0f,  0,      1.0f, 1.0f,
+                    -1.0f,   1.0f,  0,      0.0f, 0.0f,
+                     1.0f,   1.0f,  0,      1.0f, 0.0f
+                };
+
                 vertexBuffer = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
-                context.IASetVertexBuffers(0, new VertexBufferView[] { new VertexBufferView(vertexBuffer, sizeof(float) * 5, 0) });
+                context.IASetVertexBuffer(0, vertexBuffer,  sizeof(float) * 5);
 
                 samplerLinear = Device.CreateSamplerState(new SamplerDescription()
                 {
@@ -234,7 +245,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 //psBufferData.brightness = Config.Video.Brightness / 100.0f;
                 //psBufferData.contrast   = Config.Video.Contrast / 100.0f;
 
-                context.UpdateSubresource(ref psBufferData, psBuffer);
+                context.UpdateSubresource(psBufferData, psBuffer);
 
                 //if (Control != null)
                 InitializeVideoProcessor();
@@ -436,7 +447,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     else
                         psBufferData.coefsIndex = 2;
 
-                    context.UpdateSubresource(ref psBufferData, psBuffer);
+                    context.UpdateSubresource(psBufferData, psBuffer);
                 }
                 else
                 {
