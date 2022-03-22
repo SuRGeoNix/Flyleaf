@@ -284,14 +284,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 case VideoFilters.Brightness:
                     int scaledValue = (int)Utils.Scale(filter.Value, filter.Minimum, filter.Maximum, 0, 100);
                     psBufferData.brightness = scaledValue / 100.0f;
-                    context.UpdateSubresource(ref psBufferData, psBuffer);
+                    context.UpdateSubresource(psBufferData, psBuffer);
 
                     break;
 
                 case VideoFilters.Contrast:
                     scaledValue = (int)Utils.Scale(filter.Value, filter.Minimum, filter.Maximum, 0, 100);
                     psBufferData.contrast = scaledValue / 100.0f;
-                    context.UpdateSubresource(ref psBufferData, psBuffer);
+                    context.UpdateSubresource(psBufferData, psBuffer);
 
                     break;
 

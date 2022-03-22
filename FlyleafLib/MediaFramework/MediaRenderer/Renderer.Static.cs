@@ -22,17 +22,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float,        0),
         };
 
-        static float[] vertexBufferData =
-        {
-            -1.0f,  -1.0f,  0,      0.0f, 1.0f,
-            -1.0f,   1.0f,  0,      0.0f, 0.0f,
-             1.0f,  -1.0f,  0,      1.0f, 1.0f,
-                
-             1.0f,  -1.0f,  0,      1.0f, 1.0f,
-            -1.0f,   1.0f,  0,      0.0f, 0.0f,
-             1.0f,   1.0f,  0,      1.0f, 0.0f
-        };
-
         static FeatureLevel[] featureLevels;
         static FeatureLevel[] featureLevelsAll;
 
@@ -144,7 +133,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
         }
 
-        public static void CompileEmbeddedShaders()
+        public unsafe static void CompileEmbeddedShaders()
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             string[] shaders = assembly.GetManifestResourceNames().Where(x => Utils.GetUrlExtention(x) == "hlsl").ToArray();
@@ -176,7 +165,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     #if DEBUG
                     if (psError != null)
-                        Utils.Log($"Shader ({shaderName}) [Warnings/Errors]:\r\n{psError.ConvertToString()}");
+                        Utils.Log($"Shader ({shaderName}) [Warnings/Errors]:\r\n{Utils.BytePtrToStringUTF8((byte*)psError.BufferPointer)}");
                     #endif
 
                     if (shaderBlob != null)
