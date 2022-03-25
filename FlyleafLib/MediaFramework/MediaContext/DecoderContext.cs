@@ -1078,7 +1078,6 @@ namespace FlyleafLib.MediaFramework.MediaContext
         bool recHasVideo;
         public void StartRecording(ref string filename, bool useRecommendedExtension = true)
         {
-
             if (IsRecording) StopRecording();
 
             oldMaxAudioFrames = -1;
@@ -1092,11 +1091,20 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 filename = $"{filename}.{(recHasVideo ? VideoDecoder.Stream.Demuxer.Extension : AudioDecoder.Stream.Demuxer.Extension)}";
 
             Recorder.Open(filename);
+
+            bool failed;
+
             if (recHasVideo)
-                if (CanInfo) Log.Info(Recorder.AddStream(VideoDecoder.Stream.AVStream) != 0 ? "Failed to add video stream" : "Video stream added to the recorder");
-                
+            {
+                failed = Recorder.AddStream(VideoDecoder.Stream.AVStream) != 0;
+                if (CanInfo) Log.Info(failed ? "Failed to add video stream" : "Video stream added to the recorder");
+            }
+
             if (!AudioDecoder.Disposed && AudioDecoder.Stream != null)
-                if (CanInfo) Log.Info(Recorder.AddStream(AudioDecoder.Stream.AVStream, !AudioDecoder.OnVideoDemuxer) != 0 ? "Failed to add audio stream" : "Audio stream added to the recorder");
+            {
+                failed = Recorder.AddStream(AudioDecoder.Stream.AVStream, !AudioDecoder.OnVideoDemuxer) != 0;
+                if (CanInfo) Log.Info(failed ? "Failed to add audio stream" : "Audio stream added to the recorder");
+            }
 
             if (!Recorder.HasStreams || Recorder.WriteHeader() != 0) return; //throw new Exception("Invalid remuxer configuration");
 

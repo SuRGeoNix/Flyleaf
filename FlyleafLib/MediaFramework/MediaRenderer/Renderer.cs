@@ -173,7 +173,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 };
 
                 vertexBuffer = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
-                context.IASetVertexBuffer(0, vertexBuffer,  sizeof(float) * 5);
+                context.IASetVertexBuffer(0, vertexBuffer, sizeof(float) * 5);
 
                 samplerLinear = Device.CreateSamplerState(new SamplerDescription()
                 {

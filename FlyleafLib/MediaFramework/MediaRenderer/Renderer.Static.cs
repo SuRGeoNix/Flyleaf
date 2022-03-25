@@ -13,9 +13,7 @@ using Vortice.Direct3D11;
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public partial class Renderer
-    {
-        static bool IsWin8OrGreater;
-        
+    {   
         static InputElementDescription[] inputElements =
         {
             new InputElementDescription("POSITION", 0, Format.R32G32B32_Float,     0),
