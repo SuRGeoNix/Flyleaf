@@ -77,6 +77,12 @@ namespace FlyleafLib
         private object locker = new object();
         public AudioEngine()
         {
+            if (Engine.Config.DisableAudio)
+            {
+                Failed = true;
+                return;
+            }
+
             try
             {
                 deviceEnum = new IMMDeviceEnumerator();

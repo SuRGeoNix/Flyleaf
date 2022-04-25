@@ -594,6 +594,11 @@ namespace FlyleafLib
     public class EngineConfig
     {
         /// <summary>
+        /// It will not initiallize audio and will be disabled globally
+        /// </summary>
+        public bool     DisableAudio            { get; set; }
+
+        /// <summary>
         /// <para>Required to register ffmpeg libraries. Make sure you provide x86 or x64 based on your project.</para>
         /// <para>:&lt;path&gt; for relative path from current folder or any below</para>
         /// <para>&lt;path&gt; for absolute or relative path</para>
