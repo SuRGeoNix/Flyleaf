@@ -219,15 +219,22 @@ namespace FlyleafLib.MediaPlayer
                 player.Log.Info($"Initialiazing audio ({Device} @ {SampleRate}Hz)");
 
                 Dispose();
+                try
+                {
+                    xaudio2         = XAudio2Create();
+                    masteringVoice  = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : Engine.Audio.GetDeviceId(_Device));
+                    sourceVoice     = xaudio2.CreateSourceVoice(waveFormat, true);
+                    sourceVoice.SetSourceSampleRate(SampleRate);
+                    sourceVoice.Start();
 
-                xaudio2         = XAudio2Create();
-                masteringVoice  = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : Engine.Audio.GetDeviceId(_Device));
-                sourceVoice     = xaudio2.CreateSourceVoice(waveFormat, true);
-                sourceVoice.SetSourceSampleRate(SampleRate);
-                sourceVoice.Start();
+                    masteringVoice.Volume = Config.Player.VolumeMax / 100.0f;
+                    Volume = _Volume;
 
-                masteringVoice.Volume = Config.Player.VolumeMax / 100.0f;
-                Volume = _Volume;
+                } catch (Exception e)
+                {
+                    player.Log.Info($"Audio initialization failed ({e.Message})");
+                    Config.Audio.Enabled = false;
+                }
             }
         }
         internal void Dispose()
