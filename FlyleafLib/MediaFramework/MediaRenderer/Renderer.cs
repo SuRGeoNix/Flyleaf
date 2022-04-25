@@ -161,7 +161,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (Control != null)
                     InitializeSwapChain();
 
-                Span<float> vertexBufferData = new float[]
+                ReadOnlySpan<float> vertexBufferData = new float[]
                 {
                     -1.0f,  -1.0f,  0,      0.0f, 1.0f,
                     -1.0f,   1.0f,  0,      0.0f, 0.0f,
@@ -171,8 +171,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     -1.0f,   1.0f,  0,      0.0f, 0.0f,
                      1.0f,   1.0f,  0,      1.0f, 0.0f
                 };
-
-                vertexBuffer = Device.CreateBuffer(BindFlags.VertexBuffer, vertexBufferData);
+                vertexBuffer = Device.CreateBuffer(vertexBufferData, new BufferDescription() { BindFlags = BindFlags.VertexBuffer });
                 context.IASetVertexBuffer(0, vertexBuffer, sizeof(float) * 5);
 
                 samplerLinear = Device.CreateSamplerState(new SamplerDescription()
@@ -236,8 +235,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     Usage           = ResourceUsage.Default,
                     BindFlags       = BindFlags.ConstantBuffer,
-                    CpuAccessFlags  = CpuAccessFlags.None,
-                    SizeInBytes     = sizeof(PSBufferType)
+                    CPUAccessFlags  = CpuAccessFlags.None,
+                    ByteWidth       = sizeof(PSBufferType)
                 });
                 context.PSSetConstantBuffer(0, psBuffer);
 
@@ -827,7 +826,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             int subresource = -1;
 
-            var stageDesc = new Texture2DDescription(VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height, Format.B8G8R8A8_UNorm, 1, 1, BindFlags.None, ResourceUsage.Staging, CpuAccessFlags.Read);
+            var stageDesc = new Texture2DDescription()
+            {
+                Usage       = ResourceUsage.Staging,
+                Width       = VideoDecoder.VideoStream.Width,
+                Height      = VideoDecoder.VideoStream.Height,
+                Format      = Format.B8G8R8A8_UNorm,
+                ArraySize   = 1,
+                MipLevels   = 1,
+                BindFlags   = BindFlags.None,
+                CPUAccessFlags      = CpuAccessFlags.Read,
+                SampleDescription   = new SampleDescription(1, 0)
+            };
             ID3D11Texture2D stage = Device.CreateTexture2D(stageDesc);
 
             lock (lockDevice)
@@ -899,10 +909,31 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 try
                 {
-                    var stageDesc = new Texture2DDescription(VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height, Format.B8G8R8A8_UNorm, 1, 1, BindFlags.None, ResourceUsage.Staging, CpuAccessFlags.Read);
+                    var stageDesc = new Texture2DDescription()
+                    {
+                        Width       = VideoDecoder.VideoStream.Width,
+                        Height      = VideoDecoder.VideoStream.Height,
+                        Format      = Format.B8G8R8A8_UNorm,
+                        ArraySize   = 1,
+                        MipLevels   = 1,
+                        BindFlags   = BindFlags.None,
+                        Usage       = ResourceUsage.Staging,
+                        CPUAccessFlags      = CpuAccessFlags.Read,
+                        SampleDescription   = new SampleDescription(1, 0)
+                    };
                     ID3D11Texture2D stage = Device.CreateTexture2D(stageDesc);
 
-                    var gpuDesc = new Texture2DDescription(stageDesc.Width, stageDesc.Height, Format.B8G8R8A8_UNorm, 1, 1, BindFlags.RenderTarget | BindFlags.ShaderResource);
+                    var gpuDesc = new Texture2DDescription()
+                    {
+                        Usage       = ResourceUsage.Default,
+                        Width       = stageDesc.Width,
+                        Height      = stageDesc.Height,
+                        Format      = Format.B8G8R8A8_UNorm,
+                        ArraySize   = 1,
+                        MipLevels   = 1,
+                        BindFlags   = BindFlags.RenderTarget | BindFlags.ShaderResource,
+                        SampleDescription   = new SampleDescription(1, 0)
+                    };
                     ID3D11Texture2D gpu = Device.CreateTexture2D(gpuDesc);
 
                     ID3D11RenderTargetView gpuRtv = Device.CreateRenderTargetView(gpu);

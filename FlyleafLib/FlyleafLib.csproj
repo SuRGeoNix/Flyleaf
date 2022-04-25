@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.10</Version>
+	<Version>3.4.11</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Adds support for playback speed 1.25, 1.5, 1.75, etc
-		Fixes Brightness/Contrast dim issues while switching to Flyleaf Video Processor (FLVP)
-		Disables by default the new Config.Decoder.AllowProfileMismatch as it causes issues (mainly with HEVC)
+		Fixes a critical issue with Recording while loglevel is less than info
+		Introduces Config.Demuxer.BufferPackets as a second option for buffering limits along with the BufferDuration
+		Introduces Config.Demuxer.MaxAudioPackets to prevent memory leaks on timestamps wrapping (2^33 ffmpeg bug) which will fire AudioLimit event (can be used to restart the player)
+		Updates Vortice
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -46,11 +47,11 @@
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.4-beta" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.1.4-beta" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.4.7" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.4-beta" />
-    <PackageReference Include="Vortice.XAudio2" Version="2.1.4-beta" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.10-beta" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.1.10-beta" />
+    <PackageReference Include="Vortice.Mathematics" Version="1.4.13" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.10-beta" />
+    <PackageReference Include="Vortice.XAudio2" Version="2.1.10-beta" />
   </ItemGroup>
   
   <ItemGroup>
