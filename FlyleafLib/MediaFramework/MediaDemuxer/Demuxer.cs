@@ -98,7 +98,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             public string   Title       { get; set; }
         }
 
-        public event EventHandler<EventArgs> TimedOut;
+
+        public event EventHandler AudioLimit;
+        bool audioBufferLimitFired;
+        void OnAudioLimit()
+        {
+            System.Threading.Tasks.Task.Run(() => AudioLimit?.Invoke(this, new EventArgs()));
+        }
+
+        public event EventHandler TimedOut;
         internal void OnTimedOut()
         {
             System.Threading.Tasks.Task.Run(() => TimedOut?.Invoke(this, new EventArgs()));
@@ -632,16 +640,17 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             int allowedErrors = Config.MaxErrors;
             bool gotAVERROR_EXIT = false;
             int updateLoop = 5;
+            audioBufferLimitFired = false;
 
             do
             {
                 // Wait until not QueueFull
-                if (BufferedDuration > Config.BufferDuration)
+                if (BufferedDuration > Config.BufferDuration || CurPackets.Count > Config.BufferPackets)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (!PauseOnQueueFull && BufferedDuration > Config.BufferDuration && Status == Status.QueueFull)
+                    while (!PauseOnQueueFull && (BufferedDuration > Config.BufferDuration || CurPackets.Count > Config.BufferPackets) && Status == Status.QueueFull)
                     {
                         Thread.Sleep(20);
                         UpdateCurTime();
@@ -721,6 +730,20 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         {
                             case AVMEDIA_TYPE_AUDIO:
                                 //Log($"Audio => {Utils.TicksToTime((long)(packet->pts * AudioStream.Timebase))} | {Utils.TicksToTime(CurTime)}");
+
+                                // Handles A/V de-sync and ffmpeg bug with 2^33 timestamps wrapping
+                                if (Config.MaxAudioPackets != 0 && AudioPackets.Count > Config.MaxAudioPackets)
+                                {
+                                    av_packet_unref(packet);
+
+                                    if (!audioBufferLimitFired)
+                                    {
+                                        audioBufferLimitFired = true;
+                                        OnAudioLimit();
+                                    }
+
+                                    break;
+                                }
 
                                 if (VideoStream == null)
                                 {
@@ -1155,7 +1178,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
         }
         #endregion
-
+        
         #region Misc
         [SecurityCritical]
         public void UpdateCurTime()

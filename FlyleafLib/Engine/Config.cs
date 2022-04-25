@@ -292,6 +292,16 @@ namespace FlyleafLib
             long _BufferDuration = 2 * 60 * (long)1000 * 10000;
 
             /// <summary>
+            /// Maximuim allowed packets for buffering (as an extra check along with BufferDuration)
+            /// </summary>
+            public long             BufferPackets   { get; set; }
+
+            /// <summary>
+            /// Maximuim allowed audio packets (when reached it will drop the extra packets and will fire the AudioLimit event)
+            /// </summary>
+            public long             MaxAudioPackets { get; set; }
+
+            /// <summary>
             /// Maximum allowed errors before stopping
             /// </summary>
             public int              MaxErrors       { get; set; } = 30;
