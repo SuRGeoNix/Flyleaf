@@ -645,12 +645,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             do
             {
                 // Wait until not QueueFull
-                if (BufferedDuration > Config.BufferDuration || CurPackets.Count > Config.BufferPackets)
+                if (BufferedDuration > Config.BufferDuration || (Config.BufferPackets != 0 && CurPackets.Count > Config.BufferPackets))
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (!PauseOnQueueFull && (BufferedDuration > Config.BufferDuration || CurPackets.Count > Config.BufferPackets) && Status == Status.QueueFull)
+                    while (!PauseOnQueueFull && (BufferedDuration > Config.BufferDuration || (Config.BufferPackets != 0 && CurPackets.Count > Config.BufferPackets)) && Status == Status.QueueFull)
                     {
                         Thread.Sleep(20);
                         UpdateCurTime();
