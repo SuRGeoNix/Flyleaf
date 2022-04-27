@@ -221,9 +221,15 @@ namespace FlyleafLib.MediaPlayer
                 Dispose();
                 try
                 {
-                    xaudio2         = XAudio2Create();
-                    masteringVoice  = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : Engine.Audio.GetDeviceId(_Device));
-                    sourceVoice     = xaudio2.CreateSourceVoice(waveFormat, true);
+                    xaudio2 = XAudio2Create();
+                    try
+                    {
+	                    masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : Engine.Audio.GetDeviceId(_Device));
+                    } catch (Exception) // Win 7/8 compatibility issue https://social.msdn.microsoft.com/Forums/en-US/4989237b-814c-4a7a-8a35-00714d36b327/xaudio2-how-to-get-device-id-for-mastering-voice?forum=windowspro-audiodevelopment
+                    {
+                        masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : (@"\\?\swd#mmdevapi#" + Engine.Audio.GetDeviceId(_Device).ToLower() + @"#{e6327cad-dcec-4949-ae8a-991e976a79d2}")); 
+                    }
+                    sourceVoice = xaudio2.CreateSourceVoice(waveFormat, true);
                     sourceVoice.SetSourceSampleRate(SampleRate);
                     sourceVoice.Start();
 
