@@ -72,12 +72,6 @@ namespace DoubleVideoViewOverlay
             PlayerSeek.Open(Player.decoder.UserInputUrl);
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            // TBR: Binding should work directly
-            SeekView.Player = PlayerSeek;
-        }
-
         private void Slider_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (Mouse.LeftButton == MouseButtonState.Pressed && !IsSeeking)

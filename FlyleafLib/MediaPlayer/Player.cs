@@ -515,7 +515,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 if (VideoView != null)
                 {
-                    if (Config.Player.KeyBindings.FlyleafWindow)
+                    if (Config.Player.KeyBindings.FlyleafWindow && VideoView.WindowFront != null)
                     {
                         VideoView.WindowFront.KeyUp     += WindowFront_KeyUp;
                         VideoView.WindowFront.KeyDown   += WindowFront_KeyDown;
@@ -534,7 +534,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 if (VideoView != null)
                 {
-                    if (Config.Player.KeyBindings.FlyleafWindow)
+                    if (Config.Player.KeyBindings.FlyleafWindow && VideoView.WindowFront != null)
                         VideoView.WindowFront.KeyUp += WindowFront_KeyUp;
 
                     VideoView.WinFormsHost.KeyUp    += WinFormsHost_KeyUp;
@@ -578,9 +578,13 @@ namespace FlyleafLib.MediaPlayer
 
             if (VideoView != null)
             {
-                VideoView.WindowFront.KeyDown   -= WindowFront_KeyDown;
+                if (VideoView.WindowFront != null)
+                {
+                    VideoView.WindowFront.KeyDown   -= WindowFront_KeyDown;
+                    VideoView.WindowFront.KeyUp     -= WindowFront_KeyUp;
+                }
+                
                 VideoView.WinFormsHost.KeyDown  -= WinFormsHost_KeyDown;
-                VideoView.WindowFront.KeyUp     -= WindowFront_KeyUp;
                 VideoView.WinFormsHost.KeyUp    -= WinFormsHost_KeyUp;
             }
             
