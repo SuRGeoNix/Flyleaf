@@ -13,7 +13,8 @@ namespace DoubleVideoViewOverlay
     /// <summary>
     /// Testing VideoView within another VideoView
     /// 
-    /// This sample demonstrates a second videoview which follow the first videoview's input and preview's the seeking position before the actual seeking
+    /// This sample demonstrates a second videoview which follows the first videoview's input
+    /// and previews the seeking frame/position before the actual seeking on the main player
     /// </summary>
     public partial class MainWindow : Window
     {
@@ -50,6 +51,7 @@ namespace DoubleVideoViewOverlay
             Player = new Player();
             PlayerSeek = new Player();
 
+            // Disables Mouse/Keys/Audio on Preview/Seek Player
             PlayerSeek.Config.Player.KeyBindings.Enabled = false;
             PlayerSeek.Config.Player.MouseBindings.Enabled = false;
             PlayerSeek.Config.Audio.Enabled = false;
@@ -69,6 +71,7 @@ namespace DoubleVideoViewOverlay
             if (!e.Success)
                 return;
 
+            // Prepares the Preview/Seek Player with the same input as the main player
             PlayerSeek.Open(Player.decoder.UserInputUrl);
         }
 
@@ -76,6 +79,7 @@ namespace DoubleVideoViewOverlay
         {
             if (Mouse.LeftButton == MouseButtonState.Pressed && !IsSeeking)
             {
+                // Prevents the CurTime update on Slider
                 BindingOperations.ClearBinding(SliderSeek, Slider.ValueProperty);
                 SeekView.Visibility = Visibility.Visible;
                 IsSeeking = true;
@@ -87,8 +91,12 @@ namespace DoubleVideoViewOverlay
             if (IsSeeking)
             {
                 SeekView.Visibility = Visibility.Collapsed;
-                Player.SeekAccurate((int) (PlayerSeek.CurTime / 10000));
+
+                // Enables the CurTime update on Slider
                 BindingOperations.SetBinding(SliderSeek, Slider.ValueProperty, sliderBinding);
+
+                // Seek released so it will seek on the main player at current Preview/Seek player position
+                Player.SeekAccurate((int) (PlayerSeek.CurTime / 10000));
             }
 
             IsSeeking = false;
@@ -99,6 +107,7 @@ namespace DoubleVideoViewOverlay
             if (!IsSeeking)
                 return;
 
+            // While sliding/seeking updates the Preview/Seek player's frame by seeking (accurate)
             PlayerSeek.SeekAccurate((int) (e.NewValue / 10000));
         }
     }
