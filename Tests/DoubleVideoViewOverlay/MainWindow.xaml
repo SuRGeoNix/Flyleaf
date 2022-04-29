@@ -22,8 +22,7 @@
                 <fl:VideoView x:Name="SeekView" Player="{Binding PlayerSeek}" BorderThickness="3" BorderBrush="Green" Width="100" Height="100" VerticalAlignment="Bottom" Focusable="True" Margin="0 0 0 15"/>
 
                 <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center">
-                    <Slider Name="SliderSeek" Width="600" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Player.SeekOffset}" LargeChange="{Binding Player.Config.Player.SeekOffset2}" ValueChanged="Slider_ValueChanged" PreviewMouseDown="Slider_MouseDown" PreviewMouseUp="Slider_MouseUp">
-                    </Slider>
+                    <Slider Name="SliderSeek" Width="600" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Player.SeekOffset}" LargeChange="{Binding Player.Config.Player.SeekOffset2}" ValueChanged="Slider_ValueChanged" PreviewMouseDown="Slider_MouseDown" PreviewMouseUp="Slider_MouseUp"/>
                 </StackPanel>
             </Grid>
         </fl:VideoView>
