@@ -16,7 +16,7 @@ namespace FlyleafLib.Controls.WPF
     [TemplatePart(Name = PART_PlayerGrid, Type = typeof(Grid))]
     [TemplatePart(Name = PART_PlayerHost, Type = typeof(WindowsFormsHost))]
     [TemplatePart(Name = PART_PlayerView, Type = typeof(FlyleafWF))]
-    public class VideoView : ContentControl, IVideoView
+    public class VideoView : ContentControl
     {
         private const string    PART_PlayerGrid = "PART_PlayerGrid";
         private const string    PART_PlayerHost = "PART_PlayerHost";
@@ -77,7 +77,6 @@ namespace FlyleafLib.Controls.WPF
             PlayerGrid  = Template.FindName(PART_PlayerGrid, this) as Grid;
             WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
             FlyleafWF   = Template.FindName(PART_PlayerView, this) as FlyleafWF;
-            WindowFront = new FlyleafWindow(WinFormsHost);
 
             if (Content != null && ControlRequiresPlayer == null)
                 FindIVideoView((Visual)Content);
@@ -87,9 +86,15 @@ namespace FlyleafLib.Controls.WPF
             try { Content= null; }
             finally { IsUpdatingContent = false; }
 
-            WindowFront.SetContent((UIElement) curContent);
-            WindowFront.DataContext = DataContext;
-            WindowFront.VideoView   = this;
+            if (curContent != null)
+                WindowFront = new FlyleafWindow(WinFormsHost);
+            
+            if (WindowFront != null)
+            {
+                WindowFront.SetContent((UIElement) curContent);
+                WindowFront.DataContext = DataContext;
+                WindowFront.VideoView   = this;
+            }
 
             if (Player != null && Player.VideoView == null)
             {
