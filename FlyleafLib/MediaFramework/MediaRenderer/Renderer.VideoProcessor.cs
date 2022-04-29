@@ -355,6 +355,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
                 Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
+
+                UpdateFilterValue(Config.Video.Filters[VideoFilters.Brightness]);
+                UpdateFilterValue(Config.Video.Filters[VideoFilters.Contrast]);
             }
 
             Present();
