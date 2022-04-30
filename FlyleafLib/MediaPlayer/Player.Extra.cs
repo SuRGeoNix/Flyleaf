@@ -102,6 +102,9 @@ namespace FlyleafLib.MediaPlayer
                 Config.Player.ActivityMode = true;
 
             IsOpenFileDialogOpen = false;
+
+            panClickX = -1; panClickY = -1;
+            mouseDownPoint = new System.Drawing.Point(-1, -1);
         }
 
         public void ShowFrame(int frameIndex)
