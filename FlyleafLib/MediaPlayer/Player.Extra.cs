@@ -194,6 +194,8 @@ namespace FlyleafLib.MediaPlayer
                     reversePlaybackResync = true;
                     int askedFrame = VideoDecoder.GetFrameNumber(CurTime) - 1;
                     vFrame = VideoDecoder.GetFrame(askedFrame);
+                    if (vFrame == null) return;
+
                     int recvFrame = VideoDecoder.GetFrameNumber(vFrame.timestamp);
                     if (askedFrame != recvFrame)
                     {
