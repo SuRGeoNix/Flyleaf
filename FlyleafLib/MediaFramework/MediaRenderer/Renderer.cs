@@ -386,7 +386,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 curRatio = VideoDecoder.VideoStream.AspectRatio.Value;
                 IsHDR = VideoDecoder.VideoStream.ColorSpace == "BT2020";
+
+                var oldVP = videoProcessor;
                 VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || zoom != 0 || PanXOffset != 0 || panYOffset != 0 || (isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
+
+                // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
+                if (oldVP != videoProcessor)
+                {
+                    Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
+                    Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
+                }
 
                 if (videoProcessor == VideoProcessors.Flyleaf)
                 {
