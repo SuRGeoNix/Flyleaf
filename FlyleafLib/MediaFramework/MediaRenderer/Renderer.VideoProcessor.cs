@@ -263,11 +263,19 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             configLoadedChecked = true;
             UpdateBackgroundColor();
+
             if (vc != null)
             {
                 vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
                 vc.VideoProcessorSetStreamFrameFormat(vp, 0, !Config.Video.Deinterlace ? VideoFrameFormat.Progressive : (Config.Video.DeinterlaceBottomFirst ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
-            }            
+            }
+
+            // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
+            if (videoProcessor == VideoProcessors.Flyleaf)
+            {
+                Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
+                Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
+            }
         }
         internal void UpdateFilterValue(VideoFilter filter)
         {
@@ -355,9 +363,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
                 Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
-
-                UpdateFilterValue(Config.Video.Filters[VideoFilters.Brightness]);
-                UpdateFilterValue(Config.Video.Filters[VideoFilters.Contrast]);
             }
 
             Present();
