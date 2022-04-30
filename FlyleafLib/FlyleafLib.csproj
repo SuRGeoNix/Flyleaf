@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.11</Version>
+	<Version>3.4.12</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Fixes a critical issue with Recording while loglevel is less than info
-		Introduces Config.Demuxer.BufferPackets as a second option for buffering limits along with the BufferDuration
-		Introduces Config.Demuxer.MaxAudioPackets to prevent memory leaks on timestamps wrapping (2^33 ffmpeg bug) which will fire AudioLimit event (can be used to restart the player)
-		Updates Vortice
+		Improves support for VideoView within another VideoView overlay
+		Fixes an issue with Brightness/Contrast while switching between video processors
+		Fixes an audio compatibility issue with the Device Id for Win7/8
+		Fixes an issue with OpenFromFileDialog and WinMoveOnDrag
 	</PackageReleaseNotes>
   </PropertyGroup>
 
