@@ -390,15 +390,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 var oldVP = videoProcessor;
                 VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || zoom != 0 || PanXOffset != 0 || panYOffset != 0 || (isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
 
-                // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
-                if (oldVP != videoProcessor)
-                {
-                    Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
-                    Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
-                }
-
                 if (videoProcessor == VideoProcessors.Flyleaf)
                 {
+                    // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
+                    if (oldVP != videoProcessor)
+                    {
+                        Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
+                        Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
+                    }
+
                     srvDescR = new ShaderResourceViewDescription();
                     srvDescR.Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm;
 
@@ -459,6 +459,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
                 else
                 {
+                    // Reset D3D11 filters to defaults
+                    if (oldVP != videoProcessor)
+                    {
+                        Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].DefaultValue;
+                        Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].DefaultValue;
+                    }
+
                     vpov?.Dispose();
                     vd1.CreateVideoProcessorOutputView(backBuffer, vpe, vpovd, out vpov);
 
