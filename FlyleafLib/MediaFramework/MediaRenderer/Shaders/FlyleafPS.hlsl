@@ -115,7 +115,7 @@ float reinhard(float x)
 float4 main(PixelShaderInput input) : SV_TARGET
 {
     float4 color;
-
+    
     if (format == Y_UV)
     {
         color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).r, TextureU_UV.Sample(Sampler, input.Texture).rg, 1.0);
@@ -162,7 +162,6 @@ float4 main(PixelShaderInput input) : SV_TARGET
 
     color *= contrast * 2.0f;
     color += brightness - 0.5f;
-
-    color.a = 1;
+    
     return color;
 }
