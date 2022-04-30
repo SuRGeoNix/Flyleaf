@@ -234,7 +234,9 @@ namespace FlyleafLib.MediaPlayer
                     sourceVoice.Start();
 
                     masteringVoice.Volume = Config.Player.VolumeMax / 100.0f;
+                    bool oldMute = mute;
                     Volume = _Volume;
+                    Mute = oldMute;
 
                 } catch (Exception e)
                 {
