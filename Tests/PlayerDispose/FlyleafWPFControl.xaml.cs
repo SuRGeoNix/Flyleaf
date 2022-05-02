@@ -14,19 +14,6 @@ namespace DisposePlayer
         public Player Player { get ; set; }
         public FlyleafWPFControl()
         {
-            // Initializes Engine (Specifies FFmpeg libraries path which is required)
-            Engine.Start(new EngineConfig()
-            {
-                #if DEBUG
-                LogOutput       = ":debug",
-                LogLevel        = LogLevel.Debug,
-                FFmpegLogLevel  = FFmpegLogLevel.Warning,
-                #endif
-                
-                PluginsPath     = ":Plugins",
-                FFmpegPath      = ":FFmpeg",
-            });
-
             // Prepares Player's Configuration
             Config config = new Config();
 

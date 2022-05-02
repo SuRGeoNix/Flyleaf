@@ -46,8 +46,8 @@ namespace DisposePlayer
                 Player = new Player();
 
                 VideoView = new VideoView();
-                VideoView.ApplyTemplate();
                 ContentControl.Content = VideoView;
+                VideoView.ApplyTemplate();
 
                 // Add to test WPF control (possible memory leak, settings/tab control? -does not happen on new window?-) 
                 //VideoView.Content = new Flyleaf();

@@ -626,11 +626,9 @@ namespace FlyleafLib.MediaPlayer
 
                     IsDisposed = true;
 
-                    if (VideoView != null && VideoView.WindowFront != null && !VideoView.WindowFront.Disposing)
+                    if (VideoView != null)
                     {
-                        if (VideoView.WindowFront.Disposed) return;
-
-                        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => { VideoView?.WindowFront?.Close(); GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced); } ));
+                        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => { VideoView?.Dispose(); GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced); } ));
                         return;
                     }
                     else

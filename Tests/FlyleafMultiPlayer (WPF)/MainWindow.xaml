@@ -14,9 +14,10 @@
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_Tests">
                 <MenuItem Header="Swap Players Clockwise" Command="{Binding RotatePlayers}" />
+                <MenuItem Header="Move Player 1" Click="MenuItem_Click"/>
             </MenuItem>
         </Menu>
-        <Grid>
+        <Grid x:Name="MultiPlayer">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition/>
