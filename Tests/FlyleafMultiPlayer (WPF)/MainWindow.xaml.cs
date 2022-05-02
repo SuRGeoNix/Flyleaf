@@ -85,6 +85,14 @@ namespace FlyleafMultiPlayer__WPF_
 
             // User should review and possible re-subscribe from player/control events
         }
+
+        private void MenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            MultiPlayer.Children.Remove(VideoView1);
+            FullScreenWindow fullScreenWindow = new FullScreenWindow();
+            fullScreenWindow.FullGrid.Children.Add(VideoView1);
+            fullScreenWindow.ShowDialog();
+        }
     }
 }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.

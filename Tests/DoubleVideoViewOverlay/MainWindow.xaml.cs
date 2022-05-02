@@ -92,11 +92,11 @@ namespace DoubleVideoViewOverlay
             {
                 SeekView.Visibility = Visibility.Collapsed;
 
-                // Enables the CurTime update on Slider
-                BindingOperations.SetBinding(SliderSeek, Slider.ValueProperty, sliderBinding);
-
                 // Seek released so it will seek on the main player at current Preview/Seek player position
                 Player.SeekAccurate((int) (PlayerSeek.CurTime / 10000));
+
+                // Enables the CurTime update on Slider
+                BindingOperations.SetBinding(SliderSeek, Slider.ValueProperty, sliderBinding);
             }
 
             IsSeeking = false;

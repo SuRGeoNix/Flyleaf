@@ -18,26 +18,33 @@ namespace FlyleafLib.Controls.WPF
     [TemplatePart(Name = PART_PlayerView, Type = typeof(FlyleafWF))]
     public class VideoView : ContentControl
     {
+        public VideoView() { DefaultStyleKey = typeof(VideoView); }
+
         private const string    PART_PlayerGrid = "PART_PlayerGrid";
         private const string    PART_PlayerHost = "PART_PlayerHost";
         private const string    PART_PlayerView = "PART_PlayerView";
         private IVideoView      ControlRequiresPlayer; // kind of dependency injection (used for WPF control)
+        
+        readonly Point          _zeroPoint      = new Point(0, 0);
+        private bool            IsDesignMode    => (bool)DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
         private bool            IsUpdatingContent;
 
-        public int              UniqueId        { get; set; }
-        private bool            IsDesignMode    => (bool)DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
-        public WindowsFormsHost WinFormsHost    { get; set; }   // Airspace: catch back events (key events working, mouse event not working ... the rest not tested)
-        public FlyleafWindow    WindowFront     { get; set; }   // Airspace: catch any front events
-        public Window           WindowBack      => WindowFront.WindowBack;
         public FlyleafWF        FlyleafWF       { get; set; }   // Airspace: catch any back events, the problem is that they don't speak the same language (WinForms/WPF)
         public Grid             PlayerGrid      { get; set; }
+        
+        public Window           WindowBack      { get; set; }
+        public WindowsFormsHost WinFormsHost    { get; set; }   // Airspace: catch back events (key events working, mouse event not working ... the rest not tested)
+        public Window           WindowFront     { get; set; }   // Airspace: catch any front events
+        public int              UniqueId        { get; set; }
+
+
+        #region Player Set / Swap
+        private Player          lastPlayer; // TBR: ToggleFullScreen will cause to loose binding and the Player
         public Player           Player
         {
             get { return (Player)GetValue(PlayerProperty) == null ? lastPlayer : (Player)GetValue(PlayerProperty); }
             set { if (!isSwitchingState) SetValue(PlayerProperty, value); }
         }
-        internal Player lastPlayer; // TBR: ToggleFullScreen will cause to loose binding and the Player
-
         public static readonly DependencyProperty PlayerProperty =
             DependencyProperty.Register("Player", typeof(Player), typeof(VideoView), new PropertyMetadata(null, OnPlayerChanged));
 
@@ -66,8 +73,9 @@ namespace FlyleafLib.Controls.WPF
                     VideoView.ControlRequiresPlayer.Player = Player;
             }
         }
-        public VideoView() { DefaultStyleKey = typeof(VideoView); }
+        #endregion
 
+        #region Initialization / Content Change / (Un)Load
         public override void OnApplyTemplate()
         {
             base.OnApplyTemplate();
@@ -78,6 +86,10 @@ namespace FlyleafLib.Controls.WPF
             WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
             FlyleafWF   = Template.FindName(PART_PlayerView, this) as FlyleafWF;
 
+            WinFormsHost.DataContextChanged    += WFH_DataContextChanged;
+            WinFormsHost.Loaded                += WFH_Loaded;
+            WinFormsHost.Unloaded              += WFH_Unloaded;
+
             if (Content != null && ControlRequiresPlayer == null)
                 FindIVideoView((Visual)Content);
 
@@ -87,13 +99,24 @@ namespace FlyleafLib.Controls.WPF
             finally { IsUpdatingContent = false; }
 
             if (curContent != null)
-                WindowFront = new FlyleafWindow(WinFormsHost);
-            
+            {
+                WindowFront = new Window(); //new FlyleafWindow(WinFormsHost);
+                WindowFront.Title               = "FlyleafWindow";
+                WindowFront.Height              = 300;
+                WindowFront.Width               = 300;
+                WindowFront.WindowStyle         = WindowStyle.None;
+                WindowFront.Background          = Brushes.Transparent;
+                WindowFront.ResizeMode          = ResizeMode.NoResize;
+                WindowFront.AllowsTransparency  = true;
+                WindowFront.ShowInTaskbar       = false;
+                WindowFront.Content             = curContent;
+                WindowFront.Tag                 = this;
+            }
+
             if (WindowFront != null)
             {
-                WindowFront.SetContent((UIElement) curContent);
                 WindowFront.DataContext = DataContext;
-                WindowFront.VideoView   = this;
+                WindowFront.Owner = WindowBack;
             }
 
             if (Player != null && Player.VideoView == null)
@@ -107,7 +130,59 @@ namespace FlyleafLib.Controls.WPF
                     ControlRequiresPlayer.Player = Player;
             }
         }
+        protected override void OnContentChanged(object oldContent, object newContent)
+        {
+            if (newContent != null)
+                FindIVideoView((Visual)newContent);
 
+            if (IsUpdatingContent | IsDesignMode | disposed) return;
+
+            if (WindowFront != null)
+            {
+                IsUpdatingContent = true;
+                try { Content = null; WindowFront.Content = null; }
+                finally { IsUpdatingContent = false; }
+
+                WindowFront.Content = newContent;
+            }
+        }
+        void WFH_Loaded(object sender, RoutedEventArgs e)
+        {
+            WindowBack = Window.GetWindow(WinFormsHost);
+
+            if (WindowBack != null)
+                WindowBack.Closed += WindowBack_Closed;
+
+            if (WindowBack == null || WinFormsHost == null || WindowFront == null)
+                return;
+
+            WindowFront.Owner            = WindowBack;
+            WindowBack.LocationChanged  += WindowBack_LocationChanged;
+            WinFormsHost.SizeChanged    += WFH_SizeChanged;
+
+            var locationFromScreen  = WinFormsHost.PointToScreen(_zeroPoint);
+            var source              = PresentationSource.FromVisual(WindowBack);
+            var targetPoints        = source.CompositionTarget.TransformFromDevice.Transform(locationFromScreen);
+            WindowFront.Left        = targetPoints.X;
+            WindowFront.Top         = targetPoints.Y;
+            var size                = new Point(WinFormsHost.ActualWidth, WinFormsHost.ActualHeight);
+            WindowFront.Height      = size.Y;
+            WindowFront.Width       = size.X;
+            WindowFront.Show();
+            WindowBack.Focus();
+        }
+        void WFH_Unloaded(object sender, RoutedEventArgs e)
+        {
+            WinFormsHost.SizeChanged -= WFH_SizeChanged;
+
+            if (WindowBack != null)
+            {
+                WindowBack.Closed -= WindowBack_Closed;
+                WindowBack.LocationChanged -= WindowBack_LocationChanged;
+            }
+
+            WindowFront?.Hide();
+        }
         public void FindIVideoView(Visual parent)
         {
             if (parent is IVideoView)
@@ -132,30 +207,47 @@ namespace FlyleafLib.Controls.WPF
                 FindIVideoView(visual);
             }
         }
+        #endregion
 
-        protected override void OnContentChanged(object oldContent, object newContent)
+        #region Foreground Window follows Background/WinFormsHost
+        void WFH_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (newContent != null)
-                FindIVideoView((Visual)newContent);
+            if (e.NewValue == null || WindowFront == null)
+                return;
 
-            if (IsUpdatingContent | IsDesignMode | disposed) return;
-
-            if (WindowFront != null)
-            {
-                IsUpdatingContent = true;
-                try { Content = null; }
-                finally { IsUpdatingContent = false; }
-
-                WindowFront.SetContent((UIElement)newContent);
-            }
+            WindowFront.DataContext = e.NewValue;
         }
+        void WFH_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            var source = PresentationSource.FromVisual(WindowBack);
+            if (source == null)
+                return;
 
-        object      oldContent;
+            var locationFromScreen  = WinFormsHost.PointToScreen(_zeroPoint);
+            var targetPoints        = source.CompositionTarget.TransformFromDevice.Transform(locationFromScreen);
+            WindowFront.Left        = targetPoints.X;
+            WindowFront.Top         = targetPoints.Y;
+            var size                = new Point(WinFormsHost.ActualWidth, WinFormsHost.ActualHeight);
+            WindowFront.Height      = size.Y;
+            WindowFront.Width       = size.X;
+        }
+        void WindowBack_LocationChanged(object sender, EventArgs e)
+        {
+            var locationFromScreen  = WinFormsHost.PointToScreen(_zeroPoint);
+            var source              = PresentationSource.FromVisual(WindowBack);
+            var targetPoints        = source.CompositionTarget.TransformFromDevice.Transform(locationFromScreen);
+            WindowFront.Left        = targetPoints.X;
+            WindowFront.Top         = targetPoints.Y;
+        }
+        #endregion
+
+        #region Full Screen
+        object oldContent;
         ResizeMode  oldMode;
         WindowStyle oldStyle;
         WindowState oldState;
+        static bool isSwitchingState;
 
-        internal static bool isSwitchingState;
         public bool FullScreen()
         {
             /* TBR:
@@ -165,7 +257,8 @@ namespace FlyleafLib.Controls.WPF
              * 2) Suspend/Resume Layout failed so far
              */
 
-            if (WindowBack == null) return false;
+            if (WindowBack == null)
+                return false;
 
             isSwitchingState = true;
 
@@ -184,12 +277,13 @@ namespace FlyleafLib.Controls.WPF
             WindowBack.Visibility   = Visibility.Visible;
 
             isSwitchingState = false;
+
             return true;
         }
-
         public bool NormalScreen()
         {
-            if (WindowBack == null) return false;
+            if (WindowBack == null)
+                return false;
 
             isSwitchingState = true;
 
@@ -202,12 +296,15 @@ namespace FlyleafLib.Controls.WPF
             WindowBack.WindowStyle  = oldStyle;
             WindowBack.WindowState  = oldState;
 
-            WindowFront.Activate();
+            WindowFront?.Activate();
 
             isSwitchingState = false;
+
             return true;
         }
+        #endregion
 
+        #region Disposal
         bool disposed = false;
         internal void Dispose()
         {
@@ -217,6 +314,9 @@ namespace FlyleafLib.Controls.WPF
 
                 try
                 {
+                    if (WindowFront != null)
+                        WindowFront.Close();
+
                     if (FlyleafWF != null)
                     {
                         FlyleafWF.Dispose();
@@ -238,10 +338,16 @@ namespace FlyleafLib.Controls.WPF
                     DataContext = null;
                     PlayerGrid.Children.Clear();
                     PlayerGrid = null;
-                } catch (Exception) { }
+
+                } catch (Exception e) { Debug.WriteLine("VideoView: " + e.Message); }
 
                 disposed = true;
             }
         }
+        void WindowBack_Closed(object sender, EventArgs e)
+        {
+            Dispose();
+        }
+        #endregion
     }
 }

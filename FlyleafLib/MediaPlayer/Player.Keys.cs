@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Windows;
 using System.Windows.Forms.Integration;
 using System.Windows.Input;
 
@@ -118,14 +119,14 @@ namespace FlyleafLib.MediaPlayer
             if (!Config.Player.KeyBindings.Enabled || !Config.Player.KeyBindings.FlyleafWindow) return;
 
             //Log("WindowFront_KeyUp");
-            KeyUp(((FlyleafWindow)sender).VideoView.Player, e);
+            KeyUp(((VideoView)((Window)sender).Tag).Player, e);
         }
         private void WindowFront_KeyDown(object sender, KeyEventArgs e)
         {
             if (!Config.Player.KeyBindings.Enabled || !Config.Player.KeyBindings.FlyleafWindow) return;
 
             //Log("WindowFront_KeyDown");
-            KeyDown(((FlyleafWindow)sender).VideoView.Player, e);
+            KeyDown(((VideoView)((Window)sender).Tag).Player, e);
         }
 
         private void WinFormsHost_KeyUp(object sender, KeyEventArgs e)
