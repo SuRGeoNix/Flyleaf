@@ -388,7 +388,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 IsHDR = VideoDecoder.VideoStream.ColorSpace == "BT2020";
 
                 var oldVP = videoProcessor;
-                VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || zoom != 0 || PanXOffset != 0 || panYOffset != 0 || (isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
+                VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
 
                 if (videoProcessor == VideoProcessors.Flyleaf)
                 {
@@ -572,10 +572,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             else
                 GetViewport = new Viewport(0 - zoom + PanXOffset, ((Control.Height - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
 
-            // TODO: Handle Pan Move/Zoom and seperate from GetViewport
             if (videoProcessor == VideoProcessors.D3D11)
             {
-                vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect((int)GetViewport.X, (int)GetViewport.Y, (int)GetViewport.Width + (int)GetViewport.X, (int)GetViewport.Height + (int)GetViewport.Y));
+                int xHeight = VideoDecoder.VideoStream.Height;
+                int xWidth = VideoDecoder.VideoStream.Width;
+                if (GetViewport.Y + GetViewport.Height > Control.Height)
+                    xHeight = (int) (VideoDecoder.VideoStream.Height- ((GetViewport.Y + GetViewport.Height - Control.Height)* (VideoDecoder.VideoStream.Height / GetViewport.Height)));
+
+                if (GetViewport.X + GetViewport.Width > Control.Width)
+                    xWidth = (int) (VideoDecoder.VideoStream.Width  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoDecoder.VideoStream.Width / GetViewport.Width)));
+
+                vc.VideoProcessorSetStreamSourceRect(vp, 0, true, new RawRect(Math.Min((int)GetViewport.X, 0) * -1, Math.Min((int)GetViewport.Y, 0) * -1, xWidth, xHeight));
+                vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, Control.Width), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, Control.Height)));
                 vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
             }
 
@@ -648,7 +656,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             if (VideoDecoder.VideoAccelerated)
             {
-                if (videoProcessor == VideoProcessors.D3D11) // TODO: VideoProcessorBlt
+                if (videoProcessor == VideoProcessors.D3D11)
                 {
                     if (frame.bufRef != null)
                     {
