@@ -93,6 +93,13 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             VideoDecoder.recCompleted = RecordCompleted;
             AudioDecoder.recCompleted = RecordCompleted;
+
+            // TBR: player.renderer (=> VideoDecoder.Renderer) will be null during VideoDecoder's constructor and it will not fire UpdateFilterValue on filters
+            if (Config.Video.Filters != null && VideoDecoder != null && VideoDecoder.Renderer != null)
+            {
+                foreach(var filter in Config.Video.Filters.Values)
+                    VideoDecoder.Renderer.UpdateFilterValue(filter);
+            }
         }
         public void Initialize()
         {
