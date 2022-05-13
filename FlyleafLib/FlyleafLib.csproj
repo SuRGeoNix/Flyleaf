@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.13</Version>
+	<Version>3.4.14</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Improves support for VideoView within another VideoView overlay
 		Fixes an issue with Brightness/Contrast while switching between video processors
-		Fixes an audio compatibility issue with the Device Id for Win7/8
-		Fixes an issue with OpenFromFileDialog and WinMoveOnDrag
 	</PackageReleaseNotes>
   </PropertyGroup>
 
