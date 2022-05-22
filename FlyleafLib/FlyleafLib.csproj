@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.4.14</Version>
+	<Version>3.5-pre</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,41 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Fixes an issue with Brightness/Contrast while switching between video processors
+		[New Features]
+		* Playlist
+		- Adds Playlist support on the decoder context (will be extended to support playlist files such as .pls/.m3u/.m3u8 etc.)
+		- Adds Playlist support for BitSwarm (Torrent) and YoutubeDL (Web) plugins
+		- Allows playing received items while playlist is still in progress
+		- Separates main user input with playlist items, embedded streams and external streams
+		- Adds basic scraping (for title, season, episode)
+		* Sessions: Adds support to re-open a previously opened session (with the same input/playlist item/streams/curtime/audio and subs delay)
+		* Subtitles
+		- Adds basic local search support and improves suggestion algorithm
+		- Adds Config.Subtitles.SearchLocal/SearchLocalOnInputType/SearchOnline/SearchOnlineOnInputType
+
+		[Enchantments]
+		* Overall Code Clean-up
+		* Renderer
+		- Allows late assignment of the Control/Handle (you can start playing before the control has been created)
+		- Allows WARP device to be forced from the configuration (luid=-1000)
+		* Threading, Locking and Cancellation
+		- Improves Open/OpenAsync implementation
+		- Replaces threads with tasks and gets rid of EnsureThreadDone
+		- Improves locking and cancellation
+		* Demuxer Packet Queue, CurTime and BufferedDuration
+		* UI Updates mainly for Streams (as ObservableCollection)
+
+		[Issues]
+		* Fixes a null reference on renderer's SetViewport with D3D11 VP #158
+		* Fixes a rare dead lock on player's seek
+		* Fixes an issue on WPF Control that it wouldn't go idle when the mouse was above the sliders
+
+		[Important/Breaking Changes]
+		* Player.Title can now be accessed from Player.Playlist.Selected.Title
+		* Player.PlaybackCompleted renamed to Player.PlaybackStopped
+		* Player.[AVS].Inputs and Player.[AVS].ExternalStreams can be accessed from Playlist.Items and Playlist.Items[N].External[AVS]Streams
+		* LogOutput for files now will not append by default check Engine.Config.LogAppend
+		* Changes the way that Player's Open Completed events will fire (only what user requested to open). If you still need to catch all the events subscribe on the Decoder Context's events (Player.decoder)
 	</PackageReleaseNotes>
   </PropertyGroup>
 

@@ -312,6 +312,7 @@ namespace FlyleafLib.MediaPlayer
             Add(Key.V,                  KeyBindingAction.OpenFromClipboard, false, true);
             Add(Key.O,                  KeyBindingAction.OpenFromFileDialog);
             Add(Key.C,                  KeyBindingAction.CopyToClipboard, false, true);
+            Add(Key.C,                  KeyBindingAction.CopyItemToClipboard, false, false, true);
 
             Add(Key.Left,               KeyBindingAction.SeekBackward);
             Add(Key.Left,               KeyBindingAction.SeekBackward2, false, true);
@@ -412,6 +413,9 @@ namespace FlyleafLib.MediaPlayer
 
                 case KeyBindingAction.CopyToClipboard:
                     return player.CopyToClipboard;
+
+                case KeyBindingAction.CopyItemToClipboard:
+                    return player.CopyItemToClipboard;
 
                 case KeyBindingAction.Flush:
                     return player.Flush;
@@ -548,7 +552,7 @@ namespace FlyleafLib.MediaPlayer
         AudioDelayAdd, AudioDelayAdd2, AudioDelayRemove, AudioDelayRemove2, ToggleMute, VolumeUp, VolumeDown,
         SubtitlesDelayAdd, SubtitlesDelayAdd2, SubtitlesDelayRemove, SubtitlesDelayRemove2,
 
-        CopyToClipboard, OpenFromClipboard, OpenFromFileDialog,
+        CopyToClipboard, CopyItemToClipboard, OpenFromClipboard, OpenFromFileDialog,
         Stop, Pause, Play, TogglePlayPause, ToggleReversePlayback, Flush,
         TakeSnapshot,
         NormalScreen, FullScreen, ToggleFullScreen,

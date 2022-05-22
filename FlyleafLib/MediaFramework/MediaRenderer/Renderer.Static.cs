@@ -161,10 +161,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Compiler.Compile(bytes, null, null, "main", null, $"{psOrvs}{profileExt}", 
                         ShaderFlags.OptimizationLevel3, out Blob shaderBlob, out Blob psError);
 
-                    #if DEBUG
-                    if (psError != null)
-                        Utils.Log($"Shader ({shaderName}) [Warnings/Errors]:\r\n{Utils.BytePtrToStringUTF8((byte*)psError.BufferPointer)}");
-                    #endif
+                    if (psError != null && Logger.CanDebug)
+                        Engine.Log.Debug($"[Renderer] Shader ({shaderName}) [Warnings/Errors]:\r\n{Utils.BytePtrToStringUTF8((byte*)psError.BufferPointer)}");
 
                     if (shaderBlob != null)
                         curShaders.Add(shaderName, shaderBlob);

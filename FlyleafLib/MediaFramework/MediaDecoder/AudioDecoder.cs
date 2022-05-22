@@ -190,8 +190,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 lock (lockCodecCtx)
                 {
                     if (Status == Status.Stopped || demuxer.AudioPackets.Count == 0) continue;
-                    demuxer.AudioPackets.TryDequeue(out IntPtr pktPtr);
-                    packet = (AVPacket*) pktPtr;
+                    packet = demuxer.AudioPackets.Dequeue();
 
                     if (isRecording)
                     {

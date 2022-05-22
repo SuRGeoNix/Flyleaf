@@ -21,6 +21,12 @@ using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
+    /* TODO
+     * 1) Attach on every frame video output configuration so we will not have to worry for video codec change etc.
+     *      this will fix also dynamic video stream change
+     *      we might have issue with bufRef / ffmpeg texture array on zero copy
+     */
+
     public unsafe partial class Renderer : NotifyPropertyChanged, IDisposable
     {
         public Config           Config          => VideoDecoder?.Config;
@@ -87,18 +93,50 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         long    lastPresentAt       = 0;
         long    lastPresentRequestAt= 0;
         float   curRatio            = 1.0f;
+        bool    isWarp;
 
         public Renderer(VideoDecoder videoDecoder, Control control = null, int uniqueId = -1)
         {
-            if (control != null)
-            {
-                Control = control;
-                ControlHandle = control.Handle; // Requires UI Access
-            }
-            
             UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder = videoDecoder;
             Log = new LogHandler($"[#{UniqueId}] [Renderer      ] ");
+
+            Initialize();
+
+            if (control != null)
+                SetControl(control);
+        }
+
+        public void SetControl(Control control)
+        {
+            if (ControlHandle != IntPtr.Zero)
+                return;
+
+            Control = control;
+
+            if (Control.Handle == IntPtr.Zero)
+            {
+                Log.Debug("Waiting for control handle to be created");
+
+                Control.HandleCreated += (o, e) =>
+                {
+                    lock (lockDevice)
+                    {
+                        ControlHandle = Control.Handle;
+                        InitializeSwapChain();
+                        Log.Debug("Swap chain with control ready");
+                    }
+                };
+            }
+            else
+            {
+                lock (lockDevice)
+                {
+                    ControlHandle = Control.Handle;
+                    InitializeSwapChain();
+                    Log.Debug("Swap chain with control ready");
+                }
+            }
         }
 
         public void Initialize()
@@ -107,10 +145,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 if (CanDebug) Log.Debug("Initializing");
                 Disposed = false;
-
+                isWarp = false;
+                ID3D11Device tempDevice;
                 IDXGIAdapter1 adapter = null;
+                DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+                #if DEBUG
+                if (D3D11.SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
+                #endif
 
-                if (Config.Video.GPUAdapteLuid != -1)
+                // User defined adapter
+                if (Config.Video.GPUAdapteLuid > 0)
                 {
                     for (int adapterIndex = 0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                     {
@@ -124,18 +168,25 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
                 }
 
-                DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+                if (Config.Video.GPUAdapteLuid == -1000)
+                {
+                    // Force WARP device if required
+                    D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
+                    isWarp = true;
+                }
+                else
+                {
+                    // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
+                    if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out tempDevice).Failure)
+                        if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice).Failure)
+                        {
+                            D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
+                            isWarp = true;
+                        }
+                            
+                }
 
-                #if DEBUG
-                if (D3D11.SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
-                #endif
-
-                // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
-                if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out ID3D11Device tempDevice).Failure)
-                    if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice).Failure)
-                        D3D11.D3D11CreateDevice(null, DriverType.Warp, creationFlags, featureLevels, out tempDevice).CheckError();
-
-                Device = tempDevice. QueryInterface<ID3D11Device1>();
+                Device = tempDevice.QueryInterface<ID3D11Device1>();
                 context= Device.ImmediateContext;
 
                 // Gets the default adapter from the D3D11 Device
@@ -157,9 +208,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             
                 using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
                 using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
-
-                if (Control != null)
-                    InitializeSwapChain();
 
                 ReadOnlySpan<float> vertexBufferData = new float[]
                 {
@@ -225,7 +273,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
 
                 // Pixel Shaders
-                foreach(var shader in PSShaderBlobs) 
+                foreach(var shader in PSShaderBlobs)
                     PSShaders.Add(shader.Key, Device.CreatePixelShader(shader.Value));
 
                 context.PSSetShader(PSShaders["PSSimple"]);
@@ -241,16 +289,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 context.PSSetConstantBuffer(0, psBuffer);
 
                 psBufferData.hdrmethod  = HDRtoSDRMethod.None;
-                //psBufferData.brightness = Config.Video.Brightness / 100.0f;
-                //psBufferData.contrast   = Config.Video.Contrast / 100.0f;
-
                 context.UpdateSubresource(psBufferData, psBuffer);
 
-                //if (Control != null)
                 InitializeVideoProcessor();
 
                 // TBR: Device Removal Event
                 //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
+
+                if (ControlHandle != IntPtr.Zero)
+                    InitializeSwapChain();
 
                 if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{(int)Device.FeatureLevel >> 8 & 0xf}");
             }
@@ -263,33 +310,32 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 Format      = Format.B8G8R8A8_UNorm,
                 //Format      = Format.R10G10B10A2_UNorm,
+
                 Width       = Control.Width,
                 Height      = Control.Height,
                 AlphaMode   = AlphaMode.Ignore,
                 BufferUsage = Usage.RenderTargetOutput,
-                Scaling     = Device.FeatureLevel < FeatureLevel.Level_10_0 ? Scaling.Stretch : Scaling.None,
                 SampleDescription = new SampleDescription(1, 0)
             };
 
-            SwapChainFullscreenDescription fullscreenDescription = new SwapChainFullscreenDescription
-            {
-                Windowed = true
-            };
-
-            if (Device.FeatureLevel < FeatureLevel.Level_10_0)
+            if (Device.FeatureLevel < FeatureLevel.Level_10_0 || isWarp)
             {
                 swapChainDescription.BufferCount= 1;
                 swapChainDescription.SwapEffect = SwapEffect.Discard;
+                swapChainDescription.Scaling    = Scaling.Stretch;
             }
             else
             {
                 swapChainDescription.BufferCount= 2; // TBR: for hdr output or >=60fps maybe use 6
                 swapChainDescription.SwapEffect = SwapEffect.FlipDiscard;
+                swapChainDescription.Scaling    = Scaling.None;
             }
 
-            swapChain    = Engine.Video.Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, fullscreenDescription);
+            swapChain    = Engine.Video.Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, new SwapChainFullscreenDescription() { Windowed = true });
             backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
             backBufferRtv= Device.CreateRenderTargetView(backBuffer);
+
+            Present();
         }
         public void DisposeSwapChain()
         {
@@ -572,17 +618,17 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             else
                 GetViewport = new Viewport(0 - zoom + PanXOffset, ((Control.Height - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
 
-            if (videoProcessor == VideoProcessors.D3D11)
+            if (videoProcessor == VideoProcessors.D3D11 && VideoDecoder.VideoStream != null) // TBR: on VideoDecoder.VideoStream == null
             {
-                int xHeight = VideoDecoder.VideoStream.Height;
-                int xWidth = VideoDecoder.VideoStream.Width;
+                Height = VideoDecoder.VideoStream.Height;
+                Width  = VideoDecoder.VideoStream.Width;
                 if (GetViewport.Y + GetViewport.Height > Control.Height)
-                    xHeight = (int) (VideoDecoder.VideoStream.Height- ((GetViewport.Y + GetViewport.Height - Control.Height)* (VideoDecoder.VideoStream.Height / GetViewport.Height)));
+                    Width = (int) (VideoDecoder.VideoStream.Height- ((GetViewport.Y + GetViewport.Height - Control.Height)* (VideoDecoder.VideoStream.Height / GetViewport.Height)));
 
                 if (GetViewport.X + GetViewport.Width > Control.Width)
-                    xWidth = (int) (VideoDecoder.VideoStream.Width  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoDecoder.VideoStream.Width / GetViewport.Width)));
+                    Width = (int) (VideoDecoder.VideoStream.Width  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoDecoder.VideoStream.Width / GetViewport.Width)));
 
-                vc.VideoProcessorSetStreamSourceRect(vp, 0, true, new RawRect(Math.Min((int)GetViewport.X, 0) * -1, Math.Min((int)GetViewport.Y, 0) * -1, xWidth, xHeight));
+                vc.VideoProcessorSetStreamSourceRect(vp, 0, true, new RawRect(Math.Min((int)GetViewport.X, 0) * -1, Math.Min((int)GetViewport.Y, 0) * -1, Width, Height));
                 vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, Control.Width), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, Control.Height)));
                 vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
             }
@@ -731,7 +777,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             if (VideoDecoder.VideoAccelerated)
             {
-                if (videoProcessor == VideoProcessors.D3D11) // TODO: VideoProcessorBlt
+                if (videoProcessor == VideoProcessors.D3D11)
                 {
                     vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out ID3D11VideoProcessorOutputView vpov);
                     vc.VideoProcessorSetStreamDestRect(vp, 0, true, VideoRect);

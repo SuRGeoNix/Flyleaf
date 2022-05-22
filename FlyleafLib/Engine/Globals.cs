@@ -18,6 +18,14 @@ namespace FlyleafLib
         Video,
         Subs
     }
+    public enum InputType
+    {
+        File    = 0,
+        UNC     = 1,
+        Torrent = 2,
+        Web     = 3,
+        Unknown = 4
+    }
     public enum HDRtoSDRMethod : int
     {
         None        = 0,
@@ -167,8 +175,8 @@ namespace FlyleafLib
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
-        [System.Xml.Serialization.XmlIgnore]
-        public bool DisableNotifications { get; set; }
+        //[System.Xml.Serialization.XmlIgnore]
+        //public bool DisableNotifications { get; set; }
 
         protected bool Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
         {
@@ -180,7 +188,7 @@ namespace FlyleafLib
 
                 field = value;
 
-                if (!DisableNotifications)
+                //if (!DisableNotifications)
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
                 return true;
@@ -195,7 +203,7 @@ namespace FlyleafLib
             {
                 field = value;
 
-                if (!DisableNotifications)
+                //if (!DisableNotifications)
                     Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
 
                 return true;
@@ -205,13 +213,13 @@ namespace FlyleafLib
         }
         protected void Raise([CallerMemberName] string propertyName = "")
         {
-            if (!DisableNotifications)
+            //if (!DisableNotifications)
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         protected void RaiseUI([CallerMemberName] string propertyName = "")
         {
-            if (!DisableNotifications)
+            //if (!DisableNotifications)
                 Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
         }
     }

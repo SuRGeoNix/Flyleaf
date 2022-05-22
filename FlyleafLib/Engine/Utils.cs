@@ -18,9 +18,6 @@ using System.Xml.Serialization;
 
 using Microsoft.Win32;
 
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
-
 namespace FlyleafLib
 {
     public unsafe static class Utils
@@ -44,6 +41,7 @@ namespace FlyleafLib
         /// <param name="action"></param>
         public static void UIInvoke(Action action)
         {
+            // NOTE: Deadlocks will happen if we call this from a thread that we wait for it with EnsureThreadDone from an UI thread
             System.Windows.Application.Current.Dispatcher.Invoke(action);
         }
 
@@ -184,27 +182,33 @@ namespace FlyleafLib
             return Languages;
         }
 
-        public static void EnsureThreadDone(Thread t, long maxMS = 15000, int minMS = 4) // Until Pause on live streams can be aborted must be > ReadLiveTimeout
+        public static bool ExtractSeasonEpisode(string text, out int season, out int episode)
         {
-            if (t == null || !t.IsAlive) return;
+            // Other possibilities "S01 Episode 03", "01x03"
 
-            if (t.ManagedThreadId == Thread.CurrentThread.ManagedThreadId)
-                return;
-                //{ Log($"Thread {t.Name} is not allowed to suicide!"); return; }
+            var res = Regex.Match(text, @"(^|[^a-z0-9])s(?<season>[0-9]{1,2})e(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
 
-            long escapeInfinity = maxMS / minMS;
-
-            while (t != null && t.IsAlive && escapeInfinity > 0)
+            if (res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
             {
-                Thread.Sleep(minMS);
-                escapeInfinity--;
+                season = int.Parse(res.Groups["season"].Value);
+                episode = int.Parse(res.Groups["episode"].Value);
+
+                return true;
+            }
+            res = Regex.Match(text, @"(^|[^a-z0-9])Season[^a-z0-9]+(?<season>[0-9]{1,2}).*Episode[^a-z0-9]+(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
+            
+            if (res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
+            {
+                season = int.Parse(res.Groups["season"].Value);
+                episode = int.Parse(res.Groups["episode"].Value);
+
+                return true;
             }
 
-            if (t != null && t.IsAlive)
-            {
-                Log($"Thread {t.Name} did not finished properly!");
-                throw new Exception($"Thread {t.Name} did not finished properly!");
-            }
+            season = -1;
+            episode = -1;
+
+            return false;
         }
 
         public static string FindNextAvailableFile(string fileName)
@@ -367,7 +371,7 @@ namespace FlyleafLib
             [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
             public static extern int StrCmpLogicalW(string psz1, string psz2);
 
-            [DllImport ( "user32.dll" )]
+            [DllImport("user32.dll")]
             public static extern int SetWindowLong (IntPtr hWnd, int nIndex, uint dwNewLong);
 
             [DllImport("user32.dll",SetLastError = true)]

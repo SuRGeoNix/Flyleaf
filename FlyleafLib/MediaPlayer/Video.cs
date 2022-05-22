@@ -1,83 +1,81 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 using FlyleafLib.MediaFramework.MediaContext;
-using FlyleafLib.MediaFramework.MediaInput;
 using FlyleafLib.MediaFramework.MediaStream;
-using FlyleafLib.Plugins;
 
 namespace FlyleafLib.MediaPlayer
 {
     public class Video : NotifyPropertyChanged
     {
-        public List<VideoInput>     Inputs          => ((IProvideVideo)decoder?.OpenedPlugin)?.VideoInputs;
-        public Dictionary<string, IProvideVideo>
-                                    Plugins         => decoder?.PluginsProvideVideo;
-        public List<VideoStream>    Streams         => decoder?.VideoDemuxer.VideoStreams;
+        /// <summary>
+        /// Embedded Streams
+        /// </summary>
+        public ObservableCollection<VideoStream>
+                            Streams         => decoder?.VideoDemuxer.VideoStreams;
 
         /// <summary>
         /// Whether the input has video and it is configured
         /// </summary>
-        public bool                 IsOpened        { get => isOpened;          internal set => Set(ref _IsOpened, value); }
+        public bool         IsOpened        { get => isOpened;          internal set => Set(ref _IsOpened, value); }
         internal bool   _IsOpened, isOpened;
 
-        public string               Codec           { get => codec;             internal set => Set(ref _Codec, value); }
+        public string       Codec           { get => codec;             internal set => Set(ref _Codec, value); }
         internal string _Codec, codec;
 
         ///// <summary>
         ///// Video bitrate (Kbps)
         ///// </summary>
-        public double               BitRate         { get => bitRate;           internal set => Set(ref _BitRate, value); }
+        public double       BitRate         { get => bitRate;           internal set => Set(ref _BitRate, value); }
         internal double _BitRate, bitRate;
 
-        public AspectRatio          AspectRatio     { get => aspectRatio;       internal set => Set(ref _AspectRatio, value); }
+        public AspectRatio  AspectRatio     { get => aspectRatio;       internal set => Set(ref _AspectRatio, value); }
         internal AspectRatio 
                         _AspectRatio, aspectRatio;
 
         ///// <summary>
         ///// Total Dropped Frames
         ///// </summary>
-        public int                  FramesDropped   { get => framesDropped;     internal set => Set(ref _FramesDropped, value); }
+        public int          FramesDropped   { get => framesDropped;     internal set => Set(ref _FramesDropped, value); }
         internal int    _FramesDropped, framesDropped;
 
         /// <summary>
         /// Total Frames
         /// </summary>
-        public int                  FramesTotal     { get => framesTotal;       internal set => Set(ref _FramesTotal, value); }
+        public int          FramesTotal     { get => framesTotal;       internal set => Set(ref _FramesTotal, value); }
         internal int    _FramesTotal, framesTotal;
 
-        public int                  FramesDisplayed { get => framesDisplayed;   internal set => Set(ref _FramesDisplayed, value); }
+        public int          FramesDisplayed { get => framesDisplayed;   internal set => Set(ref _FramesDisplayed, value); }
         internal int    _FramesDisplayed, framesDisplayed;
 
-        public double               FPS             { get => fps;               internal set => Set(ref _FPS, value); }
+        public double       FPS             { get => fps;               internal set => Set(ref _FPS, value); }
         internal double _FPS, fps;
 
         /// <summary>
         /// Actual Frames rendered per second (FPS)
         /// </summary>
-        public double               FPSCurrent      { get => fpsCurrent;        internal set => Set(ref _FPSCurrent, value); }
+        public double       FPSCurrent      { get => fpsCurrent;        internal set => Set(ref _FPSCurrent, value); }
         internal double _FPSCurrent, fpsCurrent;
 
-        public string               PixelFormat     { get => pixelFormat;       internal set => Set(ref _PixelFormat, value); }
+        public string       PixelFormat     { get => pixelFormat;       internal set => Set(ref _PixelFormat, value); }
         internal string _PixelFormat, pixelFormat;
 
-        public int                  Width           { get => width;             internal set => Set(ref _Width, value); }
+        public int          Width           { get => width;             internal set => Set(ref _Width, value); }
         internal int    _Width, width;
 
-        public int                  Height          { get => height;            internal set => Set(ref _Height, value); }
+        public int          Height          { get => height;            internal set => Set(ref _Height, value); }
         internal int    _Height, height;
 
-        public bool                 VideoAcceleration
+        public bool         VideoAcceleration
                                                     { get => videoAcceleration; internal set => Set(ref _VideoAcceleration, value); }
         internal bool   _VideoAcceleration, videoAcceleration;
 
-        public bool                 ZeroCopy        { get => zeroCopy;          internal set => Set(ref _ZeroCopy, value); }
+        public bool         ZeroCopy        { get => zeroCopy;          internal set => Set(ref _ZeroCopy, value); }
         internal bool   _ZeroCopy, zeroCopy;
 
         Action uiAction;
         Player player;
         DecoderContext decoder => player.decoder;
-        VideoStream disabledStream;
         Config Config => player.Config;
 
         public Video(Player player)
@@ -102,7 +100,7 @@ namespace FlyleafLib.MediaPlayer
             };
         }
 
-        internal void Reset(bool andDisabledStream = true)
+        internal void Reset()
         {
             codec              = null;
             AspectRatio        = new AspectRatio(0, 0);
@@ -118,9 +116,6 @@ namespace FlyleafLib.MediaPlayer
 
             if (player.renderer != null)
                 player.renderer.DisableRendering = true;
-
-            if (andDisabledStream)
-                disabledStream = null;
 
             player.UIAdd(uiAction);
         }
@@ -153,16 +148,11 @@ namespace FlyleafLib.MediaPlayer
             if (player.VideoDemuxer.Disposed || Config.Player.Usage == Usage.Audio)
                 return;
 
-            if (disabledStream == null)
-                disabledStream = decoder.SuggestVideo(decoder.VideoDemuxer.VideoStreams);
-
-            if (disabledStream == null)
-                return;
-
             bool wasPlaying = player.IsPlaying;
 
             player.Pause();
-            player.Open(disabledStream);
+            decoder.OpenSuggestedVideo();
+            player.ReSync(decoder.VideoStream, (int) (player.CurTime / 10000), true);
 
             Refresh();
             player.UIAll();
@@ -172,14 +162,13 @@ namespace FlyleafLib.MediaPlayer
         }
         internal void Disable()
         {
-            if (!IsOpened || Config.Player.Usage == Usage.Audio)
+            if (!IsOpened)
                 return;
 
             bool wasPlaying = player.IsPlaying;
 
-            disabledStream = decoder.VideoStream;
             player.Pause();
-            player.VideoDecoder.Dispose(true);
+            decoder.CloseVideo();
             player.Subtitles.subsText = "";
             player.UIAdd(() => player.Subtitles.SubsText = player.Subtitles.SubsText);
 
@@ -189,7 +178,7 @@ namespace FlyleafLib.MediaPlayer
                 player.UIAdd(() => player.CanPlay = player.CanPlay);
             }
 
-            Reset(false);
+            Reset();
             player.UIAll();
 
             if (wasPlaying || Config.Player.AutoPlay)

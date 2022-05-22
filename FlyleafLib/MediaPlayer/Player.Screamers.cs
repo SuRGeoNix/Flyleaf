@@ -180,10 +180,10 @@ namespace FlyleafLib.MediaPlayer
                     {
                         if (CanWarn) Log.Warn($"Audio Exhausted {audioRetries}");
 
-                        audioRetries--; 
+                        audioRetries--;
 
                         if (audioRetries < 1)
-                            gotAudio  = true; 
+                            gotAudio  = true;
                     }
                 }
 
@@ -293,8 +293,8 @@ namespace FlyleafLib.MediaPlayer
                         sFrame.timestamp = (long) (sFrame.timestamp / Speed); //sFrame.duration = sFrame.duration / Speed;
                 }
 
-                elapsedTicks    = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
-                vDistanceMs     = (int) ((vFrame.timestamp - elapsedTicks) / 10000);
+                elapsedTicks= videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
+                vDistanceMs = (int) ((vFrame.timestamp - elapsedTicks) / 10000);
 
                 if (aFrame != null)
                 {
@@ -307,8 +307,8 @@ namespace FlyleafLib.MediaPlayer
                 else
                     aDistanceMs = int.MaxValue;
 
-                sDistanceMs     = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : int.MaxValue;
-                sleepMs         = Math.Min(vDistanceMs, aDistanceMs) - 1;
+                sDistanceMs = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : int.MaxValue;
+                sleepMs     = Math.Min(vDistanceMs, aDistanceMs) - 1;
 
                 if (sleepMs < 0) sleepMs = 0;
                 if (sleepMs > 2)
@@ -317,7 +317,7 @@ namespace FlyleafLib.MediaPlayer
                     {   // Probably happens only on hls when it refreshes the m3u8 playlist / segments (and we are before the allowed cache)
                         Log.Warn($"Restarting ... (HLS?) | Distance: {TicksToTime(sleepMs * (long)10000)}");
                         requiresBuffering = true;
-                        continue; 
+                        continue;
                     }
 
                     if (Engine.Config.UICurTimePerSecond &&  (

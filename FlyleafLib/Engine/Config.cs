@@ -84,12 +84,6 @@ namespace FlyleafLib
             Audio.player    = player;
             Video.player    = player;
             Subtitles.player= player;
-
-            if (Video.Filters != null)
-            {
-                foreach(var filter in Video.Filters.Values)
-                    filter.player = player;
-            }
         }
 
         /// <summary>
@@ -581,20 +575,30 @@ namespace FlyleafLib
             /// <summary>
             /// Subtitle languages preference by priority
             /// </summary>
-            public List<Language>   Languages           { get { if (_Languages == null) _Languages = Utils.GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
+            public List<Language>   Languages           { get { if (_Languages == null) _Languages = Utils.GetSystemLanguages(); return _Languages; } set { _Languages = value;} }
             List<Language> _Languages;
 
             /// <summary>
-            /// Whether to use offline (local) search plugins
+            /// Whether to use local search plugins (see also <see cref="SearchLocalOnInputType"/>)
             /// </summary>
-            public bool             UseLocalSearch  { get => _UseLocalSearch;set { Set(ref _UseLocalSearch, value); } }
-            bool    _UseLocalSearch = false;
+            public bool             SearchLocal         { get => _SearchLocal;      set { Set(ref _SearchLocal, value); } }
+            bool _SearchLocal = true;
 
             /// <summary>
-            /// Whether to use online search plugins
+            /// Allowed input types to be searched locally for subtitles (empty list allows all types)
             /// </summary>
-            public bool             UseOnlineDatabases  { get => _UseOnlineDatabases;set { Set(ref _UseOnlineDatabases, value); } }
-            bool    _UseOnlineDatabases = false;
+            public List<InputType>  SearchLocalOnInputType { get; set; } = new List<InputType>() { InputType.File, InputType.UNC, InputType.Torrent };
+
+            /// <summary>
+            /// Whether to use online search plugins (see also <see cref="SearchOnlineOnInputType"/>)
+            /// </summary>
+            public bool             SearchOnline        { get => _SearchOnline;     set { Set(ref _SearchOnline, value); } }
+            bool _SearchOnline = false;
+
+            /// <summary>
+            /// Allowed input types to be searched online for subtitles (empty list allows all types)
+            /// </summary>
+            public List<InputType>  SearchOnlineOnInputType { get; set; } = new List<InputType>() { InputType.File, InputType.Torrent };
         }
     }
 
@@ -642,8 +646,8 @@ namespace FlyleafLib
 
         /// <summary>
         /// <para>Sets loggers output</para>
-        /// <para>:&lt;debug&gt; -> System.Diagnostics.Debug</para>
-        /// <para>:&lt;debug&gt; -> System.Console</para>
+        /// <para>:debug -> System.Diagnostics.Debug</para>
+        /// <para>:console -> System.Console</para>
         /// <para>&lt;path&gt; -> Absolute or relative file path</para>
         /// </summary>
         public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.Started) Logger.SetOutput(); } }
@@ -653,6 +657,11 @@ namespace FlyleafLib
         /// Sets logger's level
         /// </summary>
         public LogLevel LogLevel                { get; set; } = LogLevel.Quiet;
+
+        /// <summary>
+        /// When the output is file it will append instead of overwriting
+        /// </summary>
+        public bool     LogAppend               { get; set; }
 
         /// <summary>
         /// <para>Required to register plugins. Make sure you provide x86 or x64 based on your project and same .NET framework.</para>

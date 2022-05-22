@@ -12,7 +12,11 @@ namespace FlyleafLib.Controls
 
         public Flyleaf()
         {
-            BackColor   = Color.Yellow;
+            BackColor   = Color.Black;
+
+            #if DEBUG
+            BackColor   = Color.DarkGray;
+            #endif
         }
 
         Point oldLocation = Point.Empty;

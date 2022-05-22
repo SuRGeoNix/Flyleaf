@@ -4,7 +4,6 @@ using System.Windows.Forms;
 
 using FlyleafLib;
 using FlyleafLib.MediaFramework.MediaContext;
-using FlyleafLib.MediaFramework.MediaInput;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.Plugins;
 
@@ -146,19 +145,19 @@ namespace FlyleafDownloader
             lstVideoStreams.Items.Clear();
             lstAudioStreams.Items.Clear();
 
-            if (!(Downloader.DecCtx.OpenedPlugin is IProvideVideo)) return;
+            if (Downloader.DecCtx.Playlist.Selected == null) return;
 
-            foreach (var input in ((IProvideVideo)Downloader.DecCtx.OpenedPlugin).VideoInputs)
+            foreach (var extStream in Downloader.DecCtx.Playlist.Selected.ExternalVideoStreams)
             {
                 string dump;
-                if (input.Width > 0)
-                    dump = $"{input.Width}x{input.Height}@{input.FPS} ({input.Codec}) {input.BitRate} Kbps";
+                if (extStream.Width > 0)
+                    dump = $"{extStream.Width}x{extStream.Height}@{extStream.FPS} ({extStream.Codec}) {extStream.BitRate} Kbps";
                 else
-                    dump = input.Url;
+                    dump = extStream.Url;
 
                 lstVideoInputs.Items.Add(dump);
-                lstVideoInputs.Items[lstVideoInputs.Items.Count-1].Tag = input;
-                if (selectEnabled) lstVideoInputs.Items[lstVideoInputs.Items.Count-1].Selected = input.Enabled;
+                lstVideoInputs.Items[lstVideoInputs.Items.Count-1].Tag = extStream;
+                if (selectEnabled) lstVideoInputs.Items[lstVideoInputs.Items.Count-1].Selected = extStream.Enabled;
             }
             lstVideoInputs.Columns[0].Width = -1;
             lstVideoInputs.EndUpdate();
@@ -169,15 +168,15 @@ namespace FlyleafDownloader
             lstAudioInputs.Items.Clear();
             lstAudioStreams2.Items.Clear();
 
-            if (!(Downloader.DecCtx.OpenedPlugin is IProvideAudio)) return;
+            //if (!(Downloader.DecCtx.OpenedPlugin is IProvideAudio)) return;
 
-            foreach (var input in ((IProvideAudio)Downloader.DecCtx.OpenedPlugin).AudioInputs)
+            foreach (var extStream in Downloader.DecCtx.Playlist.Selected.ExternalAudioStreams)
             {
-                string dump = $"{input.Codec} {input.BitRate} Kbps";
+                string dump = $"{extStream.Codec} {extStream.BitRate} Kbps";
 
                 lstAudioInputs.Items.Add(dump);
-                lstAudioInputs.Items[lstAudioInputs.Items.Count-1].Tag = input;
-                if (selectEnabled) lstAudioInputs.Items[lstAudioInputs.Items.Count-1].Selected = input.Enabled;
+                lstAudioInputs.Items[lstAudioInputs.Items.Count-1].Tag = extStream;
+                if (selectEnabled) lstAudioInputs.Items[lstAudioInputs.Items.Count-1].Selected = extStream.Enabled;
             }
             lstAudioInputs.Columns[0].Width = -1;
         }
@@ -288,7 +287,7 @@ namespace FlyleafDownloader
         {
             if (lstVideoInputs.SelectedItems.Count == 0) return;
 
-            Downloader.DecCtx.OpenVideoInput((VideoInput)lstVideoInputs.SelectedItems[0].Tag, true, chkDefaultAudio.Checked, false);
+            Downloader.DecCtx.Open((ExternalVideoStream)lstVideoInputs.SelectedItems[0].Tag, chkDefaultAudio.Checked); //, true, chkDefaultAudio.Checked, false);
 
             if (chkDefaultAudio.Checked)
             {
@@ -312,7 +311,7 @@ namespace FlyleafDownloader
         {
             if (lstAudioInputs.SelectedItems.Count == 0) return;
 
-            Downloader.DecCtx.OpenAudioInput((AudioInput)lstAudioInputs.SelectedItems[0].Tag, true);
+            Downloader.DecCtx.Open((ExternalAudioStream)lstAudioInputs.SelectedItems[0].Tag);
 
             RefreshAudioStreams2(true);
         }
@@ -339,7 +338,7 @@ namespace FlyleafDownloader
             }
             else
             {
-                if (lstVideoInputs.SelectedItems.Count != 0)
+                if (lstVideoStreams.SelectedItems.Count != 0 || lstAudioStreams.SelectedItems.Count != 0)
                 {
                     foreach (ListViewItem streamObj in lstVideoStreams.Items)
                         if (streamObj.Selected)
@@ -394,9 +393,7 @@ namespace FlyleafDownloader
             lstAudioInputs.SelectedIndexChanged += lstAudioInputs_SelectedIndexChanged;
             lstVideoInputs.SelectedIndexChanged += lstVideoInputs_SelectedIndexChanged;
 
-            string filename = Downloader.DecCtx.VideoInput != null ? Downloader.DecCtx.VideoInput.InputData.Title : Downloader.DecCtx.AudioInput.InputData.Title;
-
-
+            string filename = Downloader.DecCtx.Playlist.Selected.Title;
 
             if (string.IsNullOrEmpty(filename))
                 filename = $"flyleafDownload";
@@ -405,15 +402,17 @@ namespace FlyleafDownloader
                 if (filename.Length > 50) filename = filename.Substring(0, 50);
                 filename = Utils.GetValidFileName(filename);
             }
-                
-            
+
             btnDownload.Enabled = false;
             btnStop.Text = "Stop";
             lblStatus.Text = "Downloading ...";
             splitContainer1.Panel2.Enabled = false;
             if (!Downloader.DecCtx.VideoDemuxer.IsLive && !Downloader.DecCtx.AudioDemuxer.IsLive) { progressBar1.Visible = true; lblPercent.Visible = true; }
 
-            filename = Utils.FindNextAvailableFile(Path.Combine(txtSavePath.Text, filename + "." + (!Downloader.DecCtx.VideoDemuxer.Disposed ? Downloader.DecCtx.VideoDemuxer.Extension : Downloader.DecCtx.AudioDemuxer.Extension)));
+            // if only audio we can rename to .mp3 on completition
+            string ext = !Downloader.DecCtx.VideoDemuxer.Disposed ? Downloader.DecCtx.VideoDemuxer.Extension : Downloader.DecCtx.AudioDemuxer.Extension;
+
+            filename = Utils.FindNextAvailableFile(Path.Combine(txtSavePath.Text, filename + "." + ext));
             Downloader.Download(ref filename, false); 
         }
 

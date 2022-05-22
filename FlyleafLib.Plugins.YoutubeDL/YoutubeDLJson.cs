@@ -28,6 +28,14 @@ namespace FlyleafLib.Plugins
         public bool     is_live         { get; set; }
         public bool     was_live        { get; set; }
         public string   live_status     { get; set; }
+        
+        // Playlist
+        public string   _type           { get; set; }
+        public string   playlist_count  { get; set; }
+        public string   playlist_index  { get; set; }
+        public string   playlist        { get; set; }
+        public string   playlist_title  { get; set; }
+        
 
 
         public Dictionary<string, List<SubtitlesFormat>>

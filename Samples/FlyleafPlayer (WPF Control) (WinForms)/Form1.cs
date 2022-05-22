@@ -75,6 +75,7 @@ namespace FlyleafPlayer__WPF_Control_
         private void Form1_Load(object sender, EventArgs e)
         {
             VideoView.UpdateDefaultStyle();
+            VideoView.Content = Flyleaf; // Must be set before ApplyTemplate to create the WindowFront
             VideoView.ApplyTemplate();
 
             #region Required code as WindowFront doesn't know WindowsBack here
@@ -82,16 +83,16 @@ namespace FlyleafPlayer__WPF_Control_
             helper.Owner = Handle;
             System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(VideoView.WindowFront);
             VideoView.WindowFront.Show();
-            
+
             LocationChanged += (o, l) =>
             {
-                var location = VideoView.WinFormsHost.PointToScreen(new System.Windows.Point(0,0));
+                var location = VideoView.WinFormsHost.PointToScreen(new System.Windows.Point(0, 0));
                 VideoView.WindowFront.Top = location.Y; VideoView.WindowFront.Left = location.X;
             };
 
             VideoView.WinFormsHost.SizeChanged += (o, l) =>
             {
-                var location = VideoView.WinFormsHost.PointToScreen(new System.Windows.Point(0,0));
+                var location = VideoView.WinFormsHost.PointToScreen(new System.Windows.Point(0, 0));
                 VideoView.WindowFront.Top = location.Y; VideoView.WindowFront.Left = location.X;
 
                 VideoView.WindowFront.Height = VideoView.WinFormsHost.ActualHeight;
@@ -99,16 +100,11 @@ namespace FlyleafPlayer__WPF_Control_
             };
             #endregion
 
-            VideoView.Content   = Flyleaf;
-            VideoView.BeginInit();
-            Player.Control      = VideoView.FlyleafWF;
-
-            VideoView.Player    = Player;
-            
-            Flyleaf.Player      = Player;
-
+            //VideoView.BeginInit();
+            Player.Control  = VideoView.FlyleafWF;
+            VideoView.Player= Player;
+            Flyleaf.Player  = Player;
             ContentControl.Content = VideoView;
-
         }
     }
 }

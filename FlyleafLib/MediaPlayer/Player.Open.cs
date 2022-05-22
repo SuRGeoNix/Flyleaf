@@ -1,181 +1,326 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
+using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
-using FlyleafLib.MediaFramework.MediaInput;
-using FlyleafLib.Plugins;
 
+using static FlyleafLib.Logger;
 using static FlyleafLib.MediaFramework.MediaContext.DecoderContext;
 using static FlyleafLib.Utils;
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer
 {
     unsafe partial class Player
     {
-        /// <summary>
-        /// Fires on open completed of new media input (success or failure)
-        /// </summary>
-        public event EventHandler<OpenCompletedArgs> OpenCompleted;
-        protected virtual void OnOpenCompleted(OpenCompletedArgs e) { OnOpenCompleted(e.Type, e.Input, e.Error); }
-        protected virtual void OnOpenCompleted(MediaType type, InputBase input, string error) { OpenCompleted?.Invoke(this, new OpenCompletedArgs(type, input, error)); }
+        #region Events
+        public event EventHandler<OpenCompletedArgs>                        OpenCompleted; // Will be also used for subtitles
+        public event EventHandler<OpenPlaylistItemCompletedArgs>            OpenPlaylistItemCompleted;
+        public event EventHandler<OpenSessionCompletedArgs>                 OpenSessionCompleted;
 
-        /// <summary>
-        /// Fires on open completed of an existing media input (success or failure)
-        /// </summary>
-        public event EventHandler<OpenInputCompletedArgs> OpenInputCompleted;
-        protected virtual void OnOpenInputCompleted(OpenInputCompletedArgs e) { OnOpenInputCompleted(e.Type, e.Input, e.OldInput, e.Error, e.IsUserInput); }
-        protected virtual void OnOpenInputCompleted(MediaType type, InputBase input, InputBase oldInput, string error, bool isUserInput) { OpenInputCompleted?.Invoke(this, new OpenInputCompletedArgs(type, input, oldInput, error, isUserInput)); }
+        public event EventHandler<OpenAudioStreamCompletedArgs>             OpenAudioStreamCompleted;
+        public event EventHandler<OpenVideoStreamCompletedArgs>             OpenVideoStreamCompleted;
+        public event EventHandler<OpenSubtitlesStreamCompletedArgs>         OpenSubtitlesStreamCompleted;
 
-        /// <summary>
-        /// Fires on open completed of an existing media stream (success or failure)
-        /// </summary>
-        public event EventHandler<OpenStreamCompletedArgs> OpenStreamCompleted;
-        protected virtual void OnOpenStreamCompleted(OpenStreamCompletedArgs e) { OnOpenStreamCompleted(e.Type, e.Stream, e.OldStream, e.Error); }
-        protected virtual void OnOpenStreamCompleted(MediaType type, StreamBase stream, StreamBase oldStream, string error) { OpenStreamCompleted?.Invoke(this, new OpenStreamCompletedArgs(type, stream, oldStream, error)); }
+        public event EventHandler<OpenExternalAudioStreamCompletedArgs>     OpenExternalAudioStreamCompleted;
+        public event EventHandler<OpenExternalVideoStreamCompletedArgs>     OpenExternalVideoStreamCompleted;
+        public event EventHandler<OpenExternalSubtitlesStreamCompletedArgs> OpenExternalSubtitlesStreamCompleted;
 
-        private OpenCompletedArgs OpenInternal(object url_iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        private void OnOpenCompleted(OpenCompletedArgs args = null)
         {
-            InputOpenedArgs args = null;
+            OpenCompleted?.Invoke(this, args);
+        }
+
+        private void OnOpenPlaylistItemCompleted(OpenPlaylistItemCompletedArgs args = null)
+        {
+            OpenPlaylistItemCompleted?.Invoke(this, args);
+        }
+
+        private void OnOpenAudioStreamCompleted(OpenAudioStreamCompletedArgs args = null)
+        {
+            OpenAudioStreamCompleted?.Invoke(this, args);
+        }
+        private void OnOpenVideoStreamCompleted(OpenVideoStreamCompletedArgs args = null)
+        {
+            OpenVideoStreamCompleted?.Invoke(this, args);
+        }
+        private void OnOpenSubtitlesStreamCompleted(OpenSubtitlesStreamCompletedArgs args = null)
+        {
+            OpenSubtitlesStreamCompleted?.Invoke(this, args);
+        }
+
+        private void OnOpenExternalAudioStreamCompleted(OpenExternalAudioStreamCompletedArgs args = null)
+        {
+            OpenExternalAudioStreamCompleted?.Invoke(this, args);
+        }
+        private void OnOpenExternalVideoStreamCompleted(OpenExternalVideoStreamCompletedArgs args = null)
+        {
+            OpenExternalVideoStreamCompleted?.Invoke(this, args);
+        }
+        private void OnOpenExternalSubtitlesStreamCompleted(OpenExternalSubtitlesStreamCompletedArgs args = null)
+        {
+            OpenExternalSubtitlesStreamCompleted?.Invoke(this, args);
+        }
+        #endregion
+
+        #region Decoder Events
+        private void Decoder_AudioCodecChanged(DecoderBase x)
+        {
+            Audio.Refresh();
+            UIAll();
+        }
+        private void Decoder_VideoCodecChanged(DecoderBase x)
+        {
+            Video.Refresh();
+            UIAll();
+        }
+
+        private void Decoder_OpenAudioStreamCompleted(object sender, OpenAudioStreamCompletedArgs e)
+        {
+            Config.Audio.SetDelay(0);
+            Audio.Refresh();
+            canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+            isLive  = MainDemuxer.IsLive;
+            duration= MainDemuxer.Duration;
+            if (Video.isOpened) duration -= VideoDemuxer.VideoStream.FrameDuration;
+
+            UIAdd(() =>
+            {
+                IsLive  = IsLive;
+                CanPlay = CanPlay;
+                Duration=Duration;
+            });
+            UIAll();
+        }
+        private void Decoder_OpenVideoStreamCompleted(object sender, OpenVideoStreamCompletedArgs e)
+        {
+            Video.Refresh();
+            canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+            isLive  = MainDemuxer.IsLive;
+            duration= MainDemuxer.Duration;
+            if (Video.isOpened) duration -= VideoDemuxer.VideoStream.FrameDuration;
+
+            UIAdd(() =>
+            {
+                IsLive  = IsLive;
+                CanPlay = CanPlay;
+                Duration=Duration;
+            });
+            UIAll();
+        }
+        private void Decoder_OpenSubtitlesStreamCompleted(object sender, OpenSubtitlesStreamCompletedArgs e)
+        {
+            Config.Subtitles.SetDelay(0);
+            Subtitles.Refresh();
+            UIAll();
+        }
+
+        private void Decoder_OpenExternalAudioStreamCompleted(object sender, OpenExternalAudioStreamCompletedArgs e)
+        {
+            if (!e.Success)
+            {
+                canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+                UIAdd(() => CanPlay = CanPlay);
+                UIAll();
+            }
+        }
+        private void Decoder_OpenExternalVideoStreamCompleted(object sender, OpenExternalVideoStreamCompletedArgs e)
+        {
+            if (!e.Success)
+            {
+                canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+                UIAdd(() => CanPlay = CanPlay);
+                UIAll();
+            }
+        }
+        private void Decoder_OpenExternalSubtitlesStreamCompleted(object sender, OpenExternalSubtitlesStreamCompletedArgs e)
+        {
+            if (e.Success)
+                lock (lockSubtitles) ReSync(decoder.SubtitlesStream, decoder.GetCurTimeMs());
+        }
+        #endregion
+
+        #region Open Implementation
+        private OpenCompletedArgs OpenInternal(object url_iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            OpenCompletedArgs args = new OpenCompletedArgs();
 
             try
             {
                 if (url_iostream == null)
                 {
-                    decoder.OpenVideo((string)null);
-                    return new OpenInputCompletedArgs(MediaType.Video, null, null, "Null input", true);
+                    args.Error = "Invalid empty/null input";
+                    return args;
                 }
 
                 if (CanInfo) Log.Info($"Opening {url_iostream.ToString()}");
 
-                if ((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString())))
+                Initialize(Status.Opening);
+                MediaFramework.MediaContext.DecoderContext.OpenCompletedArgs args2 = decoder.Open(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+                
+                args.Url = args2.Url;
+                args.IOStream = args2.IOStream;
+                args.Error = args2.Error;
+
+                if (!args.Success)
                 {
-                    //if (!Video.IsOpened) return "Cannot open subtitles without having video";
-                    Config.Subtitles.SetEnabled(true);
-                    args = decoder.OpenSubtitles(url_iostream.ToString(), defaultSubtitles);
-                    ReSync(decoder.SubtitlesStream);
-                    return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, args.Error, args.IsUserInput);
+                    status = Status.Failed;
+                    lastError = args.Error;
+                }
+                else if (CanPlay)
+                {
+                    status = Status.Paused;
+                    
+                    if (Config.Player.AutoPlay)
+                        Play();
+                }
+                else if (!defaultVideo && !defaultAudio)
+                {
+                    isLive  = MainDemuxer.IsLive;
+                    duration= MainDemuxer.Duration;
+                    UIAdd(() =>
+                    {
+                        IsLive  = IsLive;
+                        Duration=Duration;
+                    });
                 }
 
-                Initialize();
-                VideoDemuxer.DisableReversePlayback();
-                ReversePlayback = false;
-                status = Status.Opening;
-
-                if (LastError != null)
+                UIAdd(() =>
                 {
-                    lastError = null;
-                    UIAdd(() => LastError = LastError);
-                }
+                    LastError=LastError;
+                    Status  = Status;
+                });
 
-                UIAdd(() => Status = Status);
                 UIAll();
 
-                if (Config.Player.Usage == Usage.Audio)
-                {
-                    if (url_iostream is Stream)
-                        args = (InputOpenedArgs) decoder.OpenAudio((Stream)url_iostream, defaultInput, defaultAudio);
-                    else
-                        args = (InputOpenedArgs) decoder.OpenAudio(url_iostream.ToString(), defaultInput, defaultAudio);
-                }
-                else
-                {
-                    if (url_iostream is Stream)
-                        args = decoder.OpenVideo((Stream)url_iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
-                    else
-                        args = decoder.OpenVideo(url_iostream.ToString(), defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
-
-                    // TBR: Video Fails try Audio Input (this is wrong, works on every failure. Should do that only for No Video Stream error and maybe back to the decoder with general Open instead of OpenAV?)
-                    if (!args.Success && defaultInput && decoder != null && decoder.OpenedPlugin != null && decoder.OpenedPlugin.IsPlaylist == false)
-                    {
-                        if (url_iostream is Stream)
-                            args = (InputOpenedArgs) decoder.OpenAudio((Stream)url_iostream, defaultInput, defaultAudio);
-                        else
-                            args = (InputOpenedArgs) decoder.OpenAudio(url_iostream.ToString(), defaultInput, defaultAudio);
-                    }
-                }
+                return args;
 
             } catch (Exception e)
             {
-                Log.Error($"Open failed ({e.Message})");
-                return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, e.Message + "\r\n" + args.Error, args.IsUserInput);
+                args.Error = !args.Success ? args.Error + "\r\n" + e.Message : e.Message;
+                return args;
+            } finally
+            {
+                OnOpenCompleted(args);
+            }
+        }
+        private OpenCompletedArgs OpenSubtitles(string url)
+        {
+            OpenCompletedArgs args = new OpenCompletedArgs(url, null, null, true);
+
+            try
+            {
+                if (CanInfo) Log.Info($"Opening subtitles {url.ToString()}");
+
+                if (!Video.IsOpened)
+                {
+                    args.Error = "Cannot open subtitles without video";
+                    return args;
+                }
+
+                Config.Subtitles.SetEnabled(true);
+                args.Error = decoder.OpenSubtitles(url).Error;
+
+                if (args.Success)
+                    ReSync(decoder.SubtitlesStream);
+
+                return args;
+
+            } catch (Exception e)
+            {
+                args.Error = !args.Success ? args.Error + "\r\n" + e.Message : e.Message;
+                return args;
+            } finally
+            {
+                OnOpenCompleted(args);
+            }
+        }
+
+        public OpenSessionCompletedArgs Open(Session session)
+        {
+            OpenSessionCompletedArgs args = new OpenSessionCompletedArgs(session);
+
+            if (Playlist.Selected != null)
+                    Playlist.Selected.AddTag(GetCurrentSession(), playerSessionTag);
+
+            Initialize(Status.Opening);
+            args.Error = decoder.Open(session).Error;
+
+            if (!args.Success || !CanPlay)
+            {
+                status = Status.Failed;
+                lastError = args.Error;
+            }
+            else
+            {
+                status = Status.Paused;
+                    
+                if (Config.Player.AutoPlay)
+                    Play();
             }
 
-            return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, args.Error, args.IsUserInput);
-        }
-        private void OpenAsync(object url_iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-        {
-            Task.Run(() =>
+            UIAdd(() =>
             {
-                lock(lockOpen) 
-                {
-                    opens.Push(new OpenData(url_iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles));
-                    if (IsOpening || IsOpeningInput)
-                    {
-                        // Interrupt only subs?
-                        if (!((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString()))))
-                            decoder.Interrupt = true;
-
-                        if (IsOpening) return;
-                    }
-                    IsOpening = true; 
-                }
-
-                while (opens.TryPop(out OpenData openData))
-                {
-                    lock (lockPlayPause)
-                    {
-                        opens.Clear();
-                        OpenInternal(openData.url_iostream, openData.defaultInput, openData.defaultVideo, openData.defaultAudio, openData.defaultSubtitles);
-                    }
-                }
-
-                lock(lockOpen) IsOpening = false;
+                LastError=LastError;
+                Status  = Status;
             });
+
+            UIAll();
+
+            return args;
         }
-        
+
+        // TODO: Proper handling as the other open async
+        public void OpenAsync(Session session)
+        {
+            Task.Run(() => Open(session));
+        }
+
         /// <summary>
         /// Opens a new media file (audio/subtitles/video)
         /// </summary>
         /// <param name="url">Media file's url</param>
-        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultPlaylistItem">Whether to open the first/default item in case of playlist</param>
         /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
         /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
         /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
         /// <returns></returns>
-        public OpenCompletedArgs Open(string url, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        public OpenCompletedArgs Open(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         {
-            return OpenInternal(url, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+            if (SubsExts.Contains(GetUrlExtention(url)))
+                return OpenSubtitles(url);
+            else
+                return OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
         }
 
-        /// <summary>
-        /// Opens a new media stream (audio/video)
-        /// </summary>
-        /// <param name="iostream">Media stream</param>
-        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
-        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
-        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
-        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
-        /// <returns></returns>
-        public OpenCompletedArgs Open(Stream iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-        {
-            return OpenInternal(iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
-        }
-        
         /// <summary>
         /// Opens a new media file (audio/subtitles/video) without blocking
         /// You can get the results from <see cref="OpenCompleted"/>
         /// </summary>
         /// <param name="url">Media file's url</param>
-        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultPlaylistItem">Whether to open the first/default item in case of playlist</param>
         /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
         /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
         /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
-        public void OpenAsync(string url, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        public void OpenAsync(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         {
-            OpenAsync((object)url, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+            OpenAsyncPush(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+        }
+
+        /// <summary>
+        /// Opens a new media I/O stream (audio/video) without blocking
+        /// </summary>
+        /// <param name="iostream">Media stream</param>
+        /// <param name="defaultPlaylistItem">Whether to open the first/default item in case of playlist</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        /// <returns></returns>
+        public OpenCompletedArgs Open(Stream iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            return OpenInternal(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
         }
 
         /// <summary>
@@ -183,25 +328,104 @@ namespace FlyleafLib.MediaPlayer
         /// You can get the results from <see cref="OpenCompleted"/>
         /// </summary>
         /// <param name="iostream">Media stream</param>
-        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultPlaylistItem">Whether to open the first/default item in case of playlist</param>
         /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
         /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
         /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
-        public void OpenAsync(Stream iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        public void OpenAsync(Stream iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         {
-            OpenAsync((object)iostream, defaultInput, defaultVideo, defaultAudio, defaultSubtitles);
+            OpenAsyncPush(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
         }
 
         /// <summary>
-        /// Opens an existing media input (audio/subtitles/video)
+        /// Opens a playlist item <see cref="Playlist.Items"/>
         /// </summary>
-        /// <param name="input">An existing Player's media input</param>
-        /// <param name="resync">Whether to force resync with other streams</param>
+        /// <param name="item">The playlist item to open</param>
         /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
         /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
         /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
         /// <returns></returns>
-        public OpenInputCompletedArgs Open(InputBase input, bool resync = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        public OpenPlaylistItemCompletedArgs Open(PlaylistItem item, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            OpenPlaylistItemCompletedArgs args = new OpenPlaylistItemCompletedArgs(item, Playlist.Selected);
+
+            try
+            {
+                if (Playlist.Selected != null)
+                    Playlist.Selected.AddTag(GetCurrentSession(), playerSessionTag);
+
+                Initialize(Status.Opening);
+
+                // TODO: Config.Player.Reopen? to reopen session if (item.OpenedCounter > 0)
+                args = decoder.Open(item, defaultVideo, defaultAudio, defaultSubtitles);
+
+                if (!args.Success)
+                {
+                    status = Status.Failed;
+                    lastError = args.Error;
+                }
+                else if (CanPlay)
+                {
+                    status = Status.Paused;
+
+                    if (Config.Player.AutoPlay)
+                        Play();
+                    // TODO: else Show on frame?
+                }
+                else if (!defaultVideo && !defaultAudio)
+                {
+                    isLive  = MainDemuxer.IsLive;
+                    duration= MainDemuxer.Duration;
+                    UIAdd(() =>
+                    {
+                        IsLive  = IsLive;
+                        Duration=Duration;
+                    });
+                }
+
+                UIAdd(() =>
+                {
+                    LastError=LastError;
+                    Status  = Status;
+                });
+
+                UIAll();
+
+                return args;
+
+            } catch (Exception e)
+            {
+                args.Error = !args.Success ? args.Error + "\r\n" + e.Message : e.Message;
+                return args;
+            } finally
+            {
+                OnOpenPlaylistItemCompleted(args);
+            }
+        }
+        
+        /// <summary>
+        /// Opens a playlist item <see cref="Playlist.Items"/> without blocking
+        /// You can get the results from <see cref="OpenPlaylistItemCompleted"/>
+        /// </summary>
+        /// <param name="item">The playlist item to open</param>
+        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
+        /// <returns></returns>
+        public void OpenAsync(PlaylistItem item, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            OpenAsyncPush(item, defaultVideo, defaultAudio, defaultSubtitles);
+        }
+
+        /// <summary>
+        /// Opens an external stream (audio/subtitles/video)
+        /// </summary>
+        /// <param name="extStream">The external stream to open</param>
+        /// <param name="resync">Whether to force resync with other streams</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        /// <param name="streamIndex">-2: None, -1: Suggested/Default, X: Specified embedded stream index</param>
+        /// <returns></returns>
+        public ExternalStreamOpenedArgs Open(ExternalStream extStream, bool resync = true, bool defaultAudio = true, int streamIndex = -1)
         {
             /* TODO
              * 
@@ -209,198 +433,238 @@ namespace FlyleafLib.MediaPlayer
              * If the input is from different plugin we don't dispose the current plugin (eg.  switching between recent/history plugin with torrents) (?)
              */
 
-            InputOpenedArgs args;
-            long syncMs = decoder.GetCurTimeMs();
+            ExternalStreamOpenedArgs args = null;
 
-            if (LastError != null)
+            try
             {
-                lastError = null;
-                UI(() => LastError = LastError);
-            }
+                int syncMs = decoder.GetCurTimeMs();
 
-            if (input is AudioInput)
-            {
-                if (decoder.VideoStream == null)
-                    requiresBuffering = true;
-
-                isAudioSwitch = true;
-                Config.Audio.SetEnabled(true);
-                args = decoder.OpenAudioInput((AudioInput)input, defaultAudio);
-
-                if (!args.Success)
+                if (LastError != null)
                 {
+                    lastError = null;
+                    UI(() => LastError = LastError);
+                }
+
+                if (extStream is ExternalAudioStream)
+                {
+                    if (decoder.VideoStream == null)
+                        requiresBuffering = true;
+
+                    isAudioSwitch = true;
+                    Config.Audio.SetEnabled(true);
+                    args = decoder.Open(extStream, false, streamIndex);
+
+                    if (!args.Success)
+                    {
+                        isAudioSwitch = false;
+                        return args;
+                    }
+
+                    if (resync)
+                        ReSync(decoder.AudioStream, syncMs);
+
+                    if (VideoDemuxer.VideoStream == null)
+                    {
+                        isLive = MainDemuxer.IsLive;
+                        duration = MainDemuxer.Duration;
+                    }
+
                     isAudioSwitch = false;
-                    return new OpenInputCompletedArgs(MediaType.Video, input, args.OldInput, args.Error, args.IsUserInput);
                 }
-
-                if (resync)
-                    ReSync(decoder.AudioStream, syncMs);
-
-                isAudioSwitch = false;
-            }
-            else if (input is VideoInput)
-            {
-                // Going from AudioOnly to Video
-                bool shouldPlay = false;
-                if (IsPlaying && !Video.IsOpened)
+                else if (extStream is ExternalVideoStream)
                 {
-                    shouldPlay = true;
-                    Pause();
-                }
-
-                isVideoSwitch = true;
-                requiresBuffering = true;
-                canPlay = false;
-
-                // TBR: eg. for non playlists subtitles should be remain (possible not thread safe)
-                decoder.Stop();
-                Audio.Reset();
-                Subtitles.Reset();
-                args = decoder.OpenVideoInput((VideoInput)input, defaultVideo, defaultAudio, defaultSubtitles);
-
-                if (!args.Success)
-                {
-                    UI(() => CanPlay = CanPlay);
-                    isVideoSwitch = false;
-                    return new OpenInputCompletedArgs(MediaType.Video, input, args.OldInput, args.Error, args.IsUserInput);
-                }
-
-                canPlay = true;
-
-                if (!((IOpen)input.Plugin).IsPlaylist)
-                {
-                    if (resync) ReSync(decoder.VideoStream, syncMs); else isVideoSwitch = false;
-                }
-                else
-                {
-                    isVideoSwitch = false;
-
-                    if (!IsPlaying && resync)
+                    bool shouldPlay = false;
+                    if (IsPlaying)
                     {
-                        decoder.PauseDecoders();
-                        decoder.GetVideoFrame();
+                        shouldPlay = true;
+                        Pause();
+                    }
+
+                    Initialize(Status.Opening, false);
+                    args = decoder.Open(extStream, defaultAudio, streamIndex);
+
+                    if (!args.Success || !CanPlay)
+                        return args;
+
+                    decoder.Seek(syncMs, false, false);
+                    decoder.GetVideoFrame(syncMs * (long)10000);
+                    VideoDemuxer.Start();
+                    AudioDemuxer.Start();
+                    SubtitlesDemuxer.Start();
+                    decoder.PauseOnQueueFull();
+
+                    if (shouldPlay)
+                        Play();
+                    else
                         ShowOneFrame();
-                    }
                 }
-
-                if (shouldPlay) Play();
-            }
-            else
-            {
-                if (!Video.IsOpened)
-                    return new OpenInputCompletedArgs(MediaType.Subs, input, null, "Subtitles require opened video stream", false); // Could be closed?
-
-                Config.Subtitles.SetEnabled(true);
-                args = decoder.OpenSubtitlesInput((SubtitlesInput)input, defaultSubtitles);
-            }
-
-            return new OpenInputCompletedArgs(args is VideoInputOpenedArgs ? MediaType.Video : (args is AudioInputOpenedArgs ? MediaType.Audio : MediaType.Subs), args.Input, args.OldInput, args.Error, args.IsUserInput);
-        }
-
-        /// <summary>
-        /// Opens an existing media input (audio/subtitles/video) without blocking
-        /// You can get the results from <see cref="OpenInputCompleted"/>
-        /// </summary>
-        /// <param name="input">An existing Player's media input</param>
-        /// <param name="resync">Whether to force resync with other streams</param>
-        /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
-        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
-        /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
-        public void OpenAsync(InputBase input, bool resync = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-        {
-            Task.Run(() =>
-            {
-                lock(lockOpen) 
-                { 
-                    inputopens.Push(new OpenInputData(input, resync, defaultVideo, defaultAudio, defaultSubtitles));
-                    if (IsOpening || IsOpeningInput)
-                    {
-                        // TBR: This is not thread safe - related to decoder.Stop()
-                        if (!(input is SubtitlesInput))
-                            decoder.Interrupt = true;
-
-                        if (IsOpeningInput) return;
-                    }
-                    IsOpeningInput = true; 
-                }
-
-                while (inputopens.TryPop(out OpenInputData openData))
+                else // ExternalSubtitlesStream
                 {
-                    lock (lockPlayPause)
+                    if (!Video.IsOpened)
                     {
-                        inputopens.Clear();
-                        Open(openData.input, openData.resync, openData.defaultVideo, openData.defaultAudio, openData.defaultSubtitles);
+                        args.Error = "Subtitles require opened video stream";
+                        return args;
                     }
+
+                    Config.Subtitles.SetEnabled(true);
+                    args = decoder.Open(extStream, false, streamIndex);
                 }
 
-                lock(lockOpen) IsOpeningInput = false;
-            });
+                return args;
+
+            } catch (Exception e)
+            {
+                args.Error = !args.Success ? args.Error + "\r\n" + e.Message : e.Message;
+                return args;
+            } finally
+            {
+                if (extStream is ExternalVideoStream)
+                    OnOpenExternalVideoStreamCompleted((OpenExternalVideoStreamCompletedArgs)args);
+                else if (extStream is ExternalAudioStream)
+                    OnOpenExternalAudioStreamCompleted((OpenExternalAudioStreamCompletedArgs)args);
+                else
+                    OnOpenExternalSubtitlesStreamCompleted((OpenExternalSubtitlesStreamCompletedArgs)args);
+            }
         }
 
         /// <summary>
-        /// Opens an existing media stream (audio/subtitles/video)
+        /// Opens an external stream (audio/subtitles/video) without blocking
+        /// You can get the results from <see cref="OpenExternalAudioStreamCompleted"/>, <see cref="OpenExternalVideoStreamCompleted"/>, <see cref="OpenExternalSubtitlesStreamCompleted"/>
+        /// </summary>
+        /// <param name="extStream">The external stream to open</param>
+        /// <param name="resync">Whether to force resync with other streams</param>
+        /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
+        public void OpenAsync(ExternalStream extStream, bool resync = true, bool defaultAudio = true)
+        {
+            OpenAsyncPush(extStream, resync, defaultAudio);
+        }
+
+        /// <summary>
+        /// Opens an embedded stream (audio/subtitles/video)
         /// </summary>
         /// <param name="stream">An existing Player's media stream</param>
         /// <param name="resync">Whether to force resync with other streams</param>
         /// <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
         /// <returns></returns>
-        public OpenStreamCompletedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
+        public StreamOpenedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
         {
             StreamOpenedArgs args = new StreamOpenedArgs();
 
-            long delay = DateTime.UtcNow.Ticks;
-            long fromEnd = (Duration - CurTime);
-
-            if (stream.Demuxer.Type == MediaType.Video) { isVideoSwitch = true; requiresBuffering = true; }
-
-            if (stream is AudioStream)
+            try
             {
-                Config.Audio.SetEnabled(true);
-                args = decoder.OpenAudioStream((AudioStream)stream);
-            }
-            else if (stream is VideoStream)
-                args = decoder.OpenVideoStream((VideoStream)stream, defaultAudio);
-            else if (stream is SubtitlesStream)
-            {
-                Config.Subtitles.SetEnabled(true);
-                args = decoder.OpenSubtitlesStream((SubtitlesStream)stream);
-            }
+                long delay = DateTime.UtcNow.Ticks;
+                long fromEnd = (Duration - CurTime);
 
-            if (resync)
-            {
-                // Wait for at least on package before seek to update the HLS context first_time
-                if (stream.Demuxer.HLSPlaylist != null)
+                if (stream.Demuxer.Type == MediaType.Video)
                 {
-                    while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3)
-                        System.Threading.Thread.Sleep(20);
+                    isVideoSwitch = true;
+                    requiresBuffering = true;
+                }
 
-                    ReSync(stream, ((Duration - fromEnd) - (DateTime.UtcNow.Ticks - delay))/ 10000);
+                if (stream is AudioStream)
+                {
+                    Config.Audio.SetEnabled(true);
+                    args = decoder.OpenAudioStream((AudioStream)stream);
+                }
+                else if (stream is VideoStream)
+                    args = decoder.OpenVideoStream((VideoStream)stream, defaultAudio);
+                else if (stream is SubtitlesStream)
+                {
+                    Config.Subtitles.SetEnabled(true);
+                    args = decoder.OpenSubtitlesStream((SubtitlesStream)stream);
+                }
+
+                if (resync)
+                {
+                    // Wait for at least on package before seek to update the HLS context first_time
+                    if (stream.Demuxer.HLSPlaylist != null)
+                    {
+                        while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3)
+                            System.Threading.Thread.Sleep(20);
+
+                        ReSync(stream, (int) (((Duration - fromEnd) - (DateTime.UtcNow.Ticks - delay))/ 10000));
+                    }
+                    else
+                        ReSync(stream, (int) (CurTime / 10000), true);
                 }
                 else
-                    ReSync(stream, CurTime / 10000, true);
-            }
-            else
-                isVideoSwitch = false;
+                    isVideoSwitch = false;
 
-            return new OpenStreamCompletedArgs(stream.Type, args.Stream, args.OldStream, args.Error);
+                return args;
+
+            } catch (Exception e)
+            {
+                args.Error = !args.Success ? args.Error + "\r\n" + e.Message : e.Message;
+                return args;
+            } finally
+            {
+                if (stream is VideoStream)
+                    OnOpenVideoStreamCompleted((OpenVideoStreamCompletedArgs)args);
+                else if (stream is AudioStream)
+                    OnOpenAudioStreamCompleted((OpenAudioStreamCompletedArgs)args);
+                else
+                    OnOpenSubtitlesStreamCompleted((OpenSubtitlesStreamCompletedArgs)args);
+            }
         }
 
         /// <summary>
-        /// Opens an existing media stream (audio/subtitles/video) without blocking
-        /// You can get the results from <see cref="OpenStreamCompleted"/>
+        /// Opens an embedded stream (audio/subtitles/video) without blocking
+        /// You can get the results from <see cref="OpenAudioStreamCompleted"/>, <see cref="OpenVideoStreamCompleted"/>, <see cref="OpenSubtitlesStreamCompleted"/>
         /// </summary>
         /// <param name="stream">An existing Player's media stream</param>
         /// <param name="resync">Whether to force resync with other streams</param>
         /// <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
         public void OpenAsync(StreamBase stream, bool resync = true, bool defaultAudio = true)
         {
-            Task.Run(() =>
-            {
-                Open(stream, resync, defaultAudio);
-            });
+            OpenAsyncPush(stream, resync, defaultAudio);
         }
 
-        internal void ReSync(StreamBase stream, long syncMs = -1, bool accurate = false)
+        /// <summary>
+        /// Gets a session that can be re-opened later on with <see cref="Open(Session)"/>
+        /// </summary>
+        /// <param name="item">The current selected playlist item if null</param>
+        /// <returns></returns>
+        public Session GetSession(PlaylistItem item = null)
+        {
+            if (Playlist.Selected != null && (item == null || item.Index == Playlist.Selected.Index))
+                return GetCurrentSession();
+
+            return item != null && item.GetTag(playerSessionTag) != null ? (Session)item.GetTag(playerSessionTag) : null;
+        }
+        string playerSessionTag = "_session";
+        private Session GetCurrentSession()
+        {
+            Session session = new Session();
+            PlaylistItem item = Playlist.Selected;
+
+            session.Url = Playlist.Url;
+            session.PlaylistItem = item.Index;
+
+            if (item.ExternalAudioStream != null)
+                session.ExternalAudioStream = item.ExternalAudioStream.Index;
+
+            if (item.ExternalVideoStream != null)
+                session.ExternalVideoStream = item.ExternalVideoStream.Index;
+
+            if (item.ExternalSubtitlesStream != null)
+                session.ExternalSubtitlesUrl = item.ExternalSubtitlesStream.Url;
+            else if (decoder.SubtitlesStream != null)
+                session.SubtitlesStream = decoder.SubtitlesStream.StreamIndex;
+
+            if (decoder.AudioStream != null)
+                session.AudioStream = decoder.AudioStream.StreamIndex;
+
+            if (decoder.VideoStream != null)
+                session.VideoStream = decoder.VideoStream.StreamIndex;
+
+            session.CurTime = CurTime;
+            session.AudioDelay = Config.Audio.Delay;
+            session.SubtitlesDelay = Config.Subtitles.Delay;
+
+            return session;
+        }
+
+        internal void ReSync(StreamBase stream, int syncMs = -1, bool accurate = false)
         {
             /* TODO
              * 
@@ -421,7 +685,7 @@ namespace FlyleafLib.MediaPlayer
                 {
                     decoder.PauseDecoders();
                     decoder.Seek(syncMs, false, false);
-                    decoder.GetVideoFrame(syncMs * 10000);
+                    decoder.GetVideoFrame(syncMs * (long)10000); // TBR: syncMs should not be -1 here
                 }
                 else
                     decoder.Seek(syncMs, false, false);
@@ -472,247 +736,192 @@ namespace FlyleafLib.MediaPlayer
                 }
             }    
         }
+        #endregion
 
-        #region Decoder Events
-        private void Decoder_AudioCodecChanged(DecoderBase x)
+        #region OpenAsync Implementation
+        private void OpenAsync()
         {
-            Audio.Refresh();
-            UIAll();
-        }
-        private void Decoder_VideoCodecChanged(DecoderBase x)
-        {
-            Video.Refresh();
-            UIAll();
-        }
+            if (taskOpenAsyncRuns)
+                return;
 
-        private void Decoder_AudioStreamOpened(object sender, AudioStreamOpenedArgs e)
-        {
-            Config.Audio.SetDelay(0);
-            Audio.Refresh();
-            canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+            taskOpenAsyncRuns = true;
 
-            UIAdd(() => CanPlay = CanPlay);
-            UIAll();
-            OnOpenStreamCompleted(MediaType.Audio, e.Stream, e.OldStream, e.Error);
-        }
-        private void Decoder_VideoStreamOpened(object sender, VideoStreamOpenedArgs e)
-        {
-            Video.Refresh();
-            canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
-
-            UIAdd(() => CanPlay = CanPlay);
-            UIAll();
-            OnOpenStreamCompleted(MediaType.Video, e.Stream, e.OldStream, e.Error);
-        }
-        private void Decoder_SubtitlesStreamOpened(object sender, SubtitlesStreamOpenedArgs e)
-        {
-            Config.Subtitles.SetDelay(0);
-            Subtitles.Refresh();
-
-            UIAll();
-            OnOpenStreamCompleted(MediaType.Subs, e.Stream, e.OldStream, e.Error);
-        }
-
-        private void Decoder_AudioInputOpened(object sender, AudioInputOpenedArgs e)
-        {
-            lock (this)
-            {
+            Task.Run(() =>
+            { 
                 if (IsDisposed)
                     return;
 
-                if (decoder.VideoStream == null)
-                {
-                    if (e.Success)
-                    {
-                        if (e.Input != null && e.Input.InputData != null)
-                            title = e.Input.InputData.Title;
-                    
-                        lastError   = null;
-                        var curDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
-                        duration    = curDemuxer.Duration;
-                        isLive      = curDemuxer.IsLive;
-                        isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
+                OpenAsyncData data;
 
-                        UIAdd(() =>
-                        {
-                            LastError   = LastError;
-                            Title       = Title;
-                            Duration    = Duration;
-                            IsLive      = IsLive;
-                            IsPlaylist  = IsPlaylist;
-                        });
+                while (true)
+                {
+                    if (openInputs.TryPop(out data))
+                    {
+                        openInputs.Clear();
+                        decoder.Interrupt = true;
+                        OpenInternal(data.url_iostream, data.defaultPlaylistItem, data.defaultVideo, data.defaultAudio, data.defaultSubtitles);
+                    }
+                    else if (openItems.TryPop(out data))
+                    {
+                        openItems.Clear();
+                        decoder.Interrupt = true;
+                        Open(data.playlistItem, data.defaultVideo, data.defaultAudio, data.defaultSubtitles);
+                    }
+                    else if (openVideo.TryPop(out data))
+                    {
+                        openVideo.Clear();
+                        if (data.extStream != null)
+                            Open(data.extStream, data.resync, data.defaultAudio);
+                        else
+                            Open(data.stream, data.resync, data.defaultAudio);
+                    }
+                    else if (openAudio.TryPop(out data))
+                    {
+                        openAudio.Clear();
+                        if (data.extStream != null)
+                            Open(data.extStream, data.resync);
+                        else
+                            Open(data.stream, data.resync);
+                    }
+                    else if (openSubtitles.TryPop(out data))
+                    {
+                        openSubtitles.Clear();
+                        if (data.url_iostream != null)
+                            OpenSubtitles(data.url_iostream.ToString());
+                        else if (data.extStream != null)
+                            Open(data.extStream, data.resync);
+                        else if (data.stream != null)
+                            Open(data.stream, data.resync);
                     }
                     else
-                    {
-                        Audio.Reset();
-                        canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
-                        UIAdd(() => CanPlay = CanPlay);
-
-                        if (!CanPlay)
-                        {
-                            status = Status.Failed;
-                            UIAdd(() => Status = Status);
-                        }
-
-                        lastError = e.Error;
-                        UIAdd(() => LastError = LastError);
-                    }
+                        break;
                 }
 
-                UIAll();
+                lock (lockActions) taskOpenAsyncRuns = false;
+            });
+        }
 
-                if (CanPlay && Config.Player.AutoPlay)
-                    Play();
-
-                if (e.IsUserInput)
-                    OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Audio, e.Input, e.OldInput, e.Error, e.IsUserInput));
+        private void OpenAsyncPush(object url_iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+        {
+            lock (lockActions)
+            {
+                if ((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString())))
+                    openSubtitles.Push(new OpenAsyncData(url_iostream));
                 else
-                    OnOpenInputCompleted(MediaType.Audio, e.Input, e.OldInput, e.Error, e.IsUserInput);
+                {
+                    decoder.Interrupt = true;
+                    openInputs.Push(new OpenAsyncData(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles));
+                }
+                    
+
+                OpenAsync();
             }
         }
-        private void Decoder_VideoInputOpened(object sender, VideoInputOpenedArgs e)
+        private void OpenAsyncPush(PlaylistItem playlistItem, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         {
-            lock (this)
+            lock (lockActions)
             {
-                if (IsDisposed || decoder.OpenedPlugin == null) // TBR
+                if (openInputs.Count > 0)
+                return;
+
+                decoder.Interrupt = true;
+                openItems.Push(new OpenAsyncData(playlistItem, defaultVideo, defaultAudio, defaultSubtitles));
+
+                OpenAsync();
+            }
+        }
+        private void OpenAsyncPush(ExternalStream extStream, bool resync = true, bool defaultAudio = true, int streamIndex = -1)
+        {
+            lock (lockActions)
+            {
+                if (openInputs.Count > 0 || openItems.Count > 0)
                     return;
 
-                MediaType curMedia = MediaType.Video;
-
-                if (e.Success)
+                if (extStream is ExternalAudioStream)
                 {
-                    // We can get audio only here
-                    if (VideoDemuxer.VideoStream == null)
-                        curMedia = MediaType.Audio;
-
-                    if (e.Input != null && e.Input.InputData != null)
-                        title = e.Input.InputData.Title;
-
-                    lastError   = null;
-                    isLive      = VideoDemuxer.IsLive;
-                    isPlaylist  = decoder.OpenedPlugin.IsPlaylist;
-
-                    // Demuxer's duration calculates also last frames duration that we don't care
-                    if (curMedia == MediaType.Video)
-                        duration    = VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration;
-                    else
-                        duration    = VideoDemuxer.Duration;
-
-                    // TODO: Now we start from timestamps from Demuxer's StartTime which means that we can have X initial duration without video (requires to change all the design with timestamps)
-                    //duration    = isLive || VideoDemuxer.VideoStream.Duration == 0 ? VideoDemuxer.Duration - VideoDemuxer.VideoStream.FrameDuration : Math.Min(VideoDemuxer.Duration, VideoDemuxer.VideoStream.Duration) - VideoDemuxer.VideoStream.FrameDuration;
-
-                    UIAdd(() =>
-                    {
-                        LastError   = LastError;
-                        Title       = Title;
-                        Duration    = Duration;
-                        IsLive      = IsLive;
-                        IsPlaylist  = IsPlaylist;
-                    });
+                    openAudio.Clear();
+                    openAudio.Push(new OpenAsyncData(extStream, resync, false, streamIndex));
+                }
+                else if (extStream is ExternalVideoStream)
+                {
+                    openVideo.Clear();
+                    openVideo.Push(new OpenAsyncData(extStream, resync, defaultAudio, streamIndex));
                 }
                 else
                 {
-                    Video.Reset();
-                    canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
-                    UIAdd(() => CanPlay = CanPlay);
-
-                    if (!CanPlay)
-                    {
-                        status = Status.Failed;
-                        UIAdd(() => Status = Status);
-                    }
-
-                    lastError = e.Error;
-                    UIAdd(() => LastError = LastError);
+                    openSubtitles.Clear();
+                    openSubtitles.Push(new OpenAsyncData(extStream, resync, false, streamIndex));
                 }
 
-                UIAll();
-
-                if (CanPlay && Config.Player.AutoPlay)
-                    Play();
-
-                if (e.IsUserInput)
-                    OnOpenCompleted(new OpenInputCompletedArgs(curMedia, e.Input, e.OldInput, e.Error, e.IsUserInput));
-                else
-                    OnOpenInputCompleted(curMedia, e.Input, e.OldInput, e.Error, e.IsUserInput);
+                OpenAsync();
             }
         }
-        private void Decoder_SubtitlesInputOpened(object sender, SubtitlesInputOpenedArgs e)
+        private void OpenAsyncPush(StreamBase stream, bool resync = true, bool defaultAudio = true)
         {
-            if (e.Success)
-                lock (lockSubtitles) ReSync(decoder.SubtitlesStream, decoder.GetCurTimeMs());
+            lock (lockActions)
+            {
+                if (openInputs.Count > 0 || openItems.Count > 0)
+                    return;
 
-            if (e.IsUserInput)
-                OnOpenCompleted(new OpenInputCompletedArgs(MediaType.Subs, e.Input, e.OldInput, e.Error, e.IsUserInput));
-            else
-                OnOpenInputCompleted(MediaType.Subs, e.Input, e.OldInput, e.Error, e.IsUserInput);
+                if (stream is AudioStream)
+                {
+                    openAudio.Clear();
+                    openAudio.Push(new OpenAsyncData(stream, resync));
+                }
+                else if (stream is VideoStream)
+                {
+                    openVideo.Clear();
+                    openVideo.Push(new OpenAsyncData(stream, resync, defaultAudio));
+                }
+                else
+                {
+                    openSubtitles.Clear();
+                    openSubtitles.Push(new OpenAsyncData(stream, resync));
+                }
+
+                OpenAsync();
+            }
         }
+        
+        ConcurrentStack<OpenAsyncData> openInputs   = new ConcurrentStack<OpenAsyncData>();
+        ConcurrentStack<OpenAsyncData> openItems    = new ConcurrentStack<OpenAsyncData>();
+        ConcurrentStack<OpenAsyncData> openVideo    = new ConcurrentStack<OpenAsyncData>();
+        ConcurrentStack<OpenAsyncData> openAudio    = new ConcurrentStack<OpenAsyncData>();
+        ConcurrentStack<OpenAsyncData> openSubtitles= new ConcurrentStack<OpenAsyncData>();
         #endregion
     }
 
-    public class OpenCompletedArgs : EventArgs
+    public class OpenCompletedArgs
     {
-        public MediaType    Type            { get; }
-        public InputBase    Input           { get; }
-        public string       Error           { get; }
-        public bool         Success         { get; }
-            
-        public OpenCompletedArgs(MediaType type, InputBase input, string error)
-        {
-            Type    = type;
-            Input   = input;
-            Error   = error;
-            Success = Error == null;
-        }
-    }
-    public class OpenInputCompletedArgs : OpenCompletedArgs
-    {
-        public InputBase    OldInput        { get; }
-        public bool         IsUserInput     { get; }
-            
-        public OpenInputCompletedArgs(MediaType type, InputBase input, InputBase oldInput, string error, bool isUserInput) : base(type, input, error)
-        {
-            OldInput    = oldInput;
-            IsUserInput = isUserInput;
-        }
-    }
-    public class OpenStreamCompletedArgs : EventArgs
-    {
-        public MediaType    Type            { get; }
-        public StreamBase   Stream          { get; }
-        public StreamBase   OldStream       { get; }
-        public string       Error           { get; }
-        public bool         Success         { get; }
+        public string       Url;
+        public Stream       IOStream;
+        public string       Error;
+        public bool         Success => Error == null;
+        public bool         IsSubtitles;
 
-        public OpenStreamCompletedArgs(MediaType type, StreamBase stream, StreamBase oldStream, string error)
-        {
-            Type        = type;
-            Stream      = stream;
-            OldStream   = oldStream;
-            Error       = error;
-            Success     = Error == null;
-        }
+        public OpenCompletedArgs(string url = null, Stream iostream = null, string error = null, bool isSubtitles = false) { Url = url; IOStream = iostream; Error = error; IsSubtitles = isSubtitles; }
     }
 
-    class OpenData
+    class OpenAsyncData
     {
         public object url_iostream;
-        public bool defaultInput;
-        public bool defaultAudio;
-        public bool defaultVideo;
-        public bool defaultSubtitles;
-        public OpenData(object url_iostream, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-            { this.url_iostream = url_iostream; this.defaultInput = defaultInput; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
-    }
-
-    class OpenInputData
-    {
-        public InputBase input;
+        public PlaylistItem playlistItem;
+        public ExternalStream extStream;
+        public int streamIndex;
+        public StreamBase stream;
         public bool resync;
+        public bool defaultPlaylistItem;
         public bool defaultAudio;
         public bool defaultVideo;
         public bool defaultSubtitles;
-        public OpenInputData(InputBase input, bool resync = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-            { this.input = input; this.resync = resync; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
+
+        public OpenAsyncData(object url_iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+            { this.url_iostream = url_iostream; this.defaultPlaylistItem = defaultPlaylistItem; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
+        public OpenAsyncData(PlaylistItem playlistItem, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
+            { this.playlistItem = playlistItem; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
+        public OpenAsyncData(ExternalStream extStream, bool resync = true, bool defaultAudio = true, int streamIndex = -1)
+            { this.extStream = extStream; this.resync = resync; this.defaultAudio = defaultAudio; this.streamIndex = streamIndex; }
+        public OpenAsyncData(StreamBase stream, bool resync = true, bool defaultAudio = true)
+            { this.stream = stream; this.resync = resync; this.defaultAudio = defaultAudio; }
     }
 }

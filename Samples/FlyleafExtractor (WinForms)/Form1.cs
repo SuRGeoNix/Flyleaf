@@ -175,7 +175,7 @@ namespace FlyleafExtractor
 
             DecCtx.Stop();
 
-            var res = DecCtx.OpenVideo(txtUrl.Text, true, true, false, false);
+            var res = DecCtx.Open(txtUrl.Text, true, true, false, false);
             if (!res.Success)
             {
                 MessageBox.Show($"{res.Error}", "Open Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -191,7 +191,7 @@ namespace FlyleafExtractor
             txtEndAt.Text = DecCtx.VideoStream.TotalFrames.ToString();
             btnExtract.Enabled = true;
 
-            Filename = DecCtx.VideoInput.InputData.Title;
+            Filename = DecCtx.Playlist.Selected.Title;
 
             if (string.IsNullOrEmpty(Filename))
                 Filename = $"flyleafExtractor";

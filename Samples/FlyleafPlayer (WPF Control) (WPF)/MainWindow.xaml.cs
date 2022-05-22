@@ -19,38 +19,64 @@ namespace FlyleafPlayer
         /// Flyleaf Player binded to VideoView
         /// </summary>
         public Player Player { get; set; }
-        public Config Config { get; set; }
+        
+        EngineConfig engineConfig;
+        Config playerConfig;
 
         public MainWindow()
         {
+            // NOTE: Loads/Saves configs only in RELEASE mode
+
             // Ensures that we have enough worker threads to avoid the UI from freezing or not updating on time
             ThreadPool.GetMinThreads(out int workers, out int ports);
             ThreadPool.SetMinThreads(workers + 6, ports + 6);
 
-            // Initializes Engine (Specifies FFmpeg libraries path which is required)
-            Engine.Start(new EngineConfig()
-            {
-                #if DEBUG
-                LogOutput           = ":debug",
-                LogLevel            = LogLevel.Debug,
-                FFmpegLogLevel      = FFmpegLogLevel.Warning,
-                #endif
-                
-                PluginsPath         = ":Plugins",
-                FFmpegPath          = ":FFmpeg",
-                HighPerformaceTimers= false // Less power consumption (safe to use only for single player)
-            });
-
-            Config = new Config();
-
+            // Engine's Config
             #if RELEASE
-            // Loads the configuration file before initializing the player (if exists)
+            
+            // Load Engine's Config
+            if (File.Exists("Flyleaf.Engine.xml"))
+                try { engineConfig = EngineConfig.Load("Flyleaf.Engine.xml"); } catch { engineConfig = new EngineConfig(); }
+            else
+                engineConfig = new EngineConfig();
+            #else
+
+            // DEBUG only
+            engineConfig = new EngineConfig();
+            engineConfig.LogOutput      = ":debug";
+            engineConfig.LogLevel       = LogLevel.Debug;
+            engineConfig.FFmpegLogLevel = FFmpegLogLevel.Warning;
+            #endif
+
+            if (!engineConfig.Loaded)
+            {
+                engineConfig.PluginsPath = ":Plugins";
+                engineConfig.FFmpegPath = ":FFmpeg";
+                engineConfig.HighPerformaceTimers = false;
+                try { engineConfig.Save("Flyleaf.Engine.xml"); } catch { }
+
+                #if RELEASE
+                // Start Logging (First Run)
+                engineConfig.LogOutput      = "Flyleaf.FirstRun.log";
+                engineConfig.LogLevel       = LogLevel.Debug;
+                #endif
+            }
+
+            Engine.Start(engineConfig);
+
+            // Player's Config (Cannot be initialized before Engine's initialization)
+            #if RELEASE
+            // Load Player's Config
             if (File.Exists("Flyleaf.Config.xml"))
-                try { Config = Config.Load("Flyleaf.Config.xml"); } catch { }
+                try { playerConfig = Config.Load("Flyleaf.Config.xml"); } catch { playerConfig = new Config(); }
+            else
+                playerConfig = new Config();
+            #else
+                playerConfig = new Config();
             #endif
 
             // Initializes the Player
-            Player = new Player(Config);
+            Player = new Player(playerConfig);
 
             // Allowing VideoView to access our Player
             DataContext = this;
@@ -59,6 +85,7 @@ namespace FlyleafPlayer
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
             flyleafControl.ConfigPath = "Flyleaf.Config.xml";
+            flyleafControl.EnginePath = "Flyleaf.Engine.xml";
             flyleafControl.UIConfigPath = "Flyleaf.UIConfig.xml";
 
             // If the user requests reverse playback allocate more frames once
@@ -67,8 +94,8 @@ namespace FlyleafPlayer
                 if (e.PropertyName == "ReversePlayback" && !ReversePlaybackChecked)
                 {
                     ReversePlaybackChecked = true;
-                    if (Config.Decoder.MaxVideoFrames < 40)
-                        Config.Decoder.MaxVideoFrames = 40;
+                    if (playerConfig.Decoder.MaxVideoFrames < 60)
+                        playerConfig.Decoder.MaxVideoFrames = 60;
                 }
             };
         }
@@ -76,20 +103,28 @@ namespace FlyleafPlayer
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Gives access to keyboard events on start up
-            Player.VideoView.WinFormsHost.Focus();
-
             #if RELEASE
+            // Save Player's Config (First Run)
             // Ensures that the Control's handle has been created and the renderer has been fully initialized (so we can save also the filters parsed by the library)
-            if (!Config.Loaded)
+            if (!playerConfig.Loaded)
             {
                 try
                 {
                     Utils.AddFirewallRule();
-                    Config.Save("Flyleaf.Config.xml");
+                    playerConfig.Save("Flyleaf.Config.xml");
                 } catch { }
             }
+
+            // Stops Logging (First Run)
+            if (!engineConfig.Loaded)
+            {
+                engineConfig.LogOutput = null;
+                engineConfig.LogLevel = LogLevel.Quiet;
+            }
             #endif
+
+            // Gives access to keyboard events on start up
+            Player.VideoView.WinFormsHost.Focus();
         }
 
         #region Dark Theme

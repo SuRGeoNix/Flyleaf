@@ -4,14 +4,11 @@ using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
-using FlyleafLib.MediaFramework.MediaInput;
 
 namespace FlyleafLib.MediaFramework.MediaStream
 {
     public unsafe class VideoStream : StreamBase
     {
-        public VideoInput                   VideoInput          { get; set; }
-
         public AspectRatio                  AspectRatio         { get; set; }
         public string                       ColorRange          { get; set; }
         public string                       ColorSpace          { get; set; }

@@ -1,21 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Collections.ObjectModel;
 using System.IO;
 
-using FlyleafLib.MediaFramework.MediaStream;
-using FlyleafLib.MediaFramework.MediaInput;
 using FlyleafLib.MediaFramework.MediaContext;
+using FlyleafLib.MediaFramework.MediaPlaylist;
+using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
     public abstract class PluginBase : PluginType, IPlugin
     {
-        //public SerializableDictionary<string, string>
-        //                                DefaultOptions  { get; set; } = new SerializableDictionary<string, string>();
         public SerializableDictionary<string, string>
                                         Options         => Config?.Plugins[Name];
         public Config                   Config          => Handler.Config;
+
+        public Playlist                 Playlist        => Handler.Playlist;
+        public PlaylistItem             Selected        => Handler.Playlist.Selected;
         
         public DecoderContext           decoder         => (DecoderContext) Handler;
 
@@ -23,7 +24,6 @@ namespace FlyleafLib.Plugins
         public LogHandler               Log             { get; internal set; }
         public bool                     Disposed        { get; protected set;}
         public int                      Priority        { get; set; } = 1000;
-
 
         public virtual void OnLoaded() { }
         public virtual void OnInitializing() { }
@@ -35,11 +35,43 @@ namespace FlyleafLib.Plugins
         public virtual void OnBuffering() { }
         public virtual void OnBufferingCompleted() { }
 
-        public virtual OpenResults OnOpenAudio(AudioInput input) { return null; }
-        public virtual OpenResults OnOpenVideo(VideoInput input) { return null; }
-        public virtual OpenResults OnOpenSubtitles(SubtitlesInput input) { return null; }
+        public virtual void OnOpen() { }
+        public virtual void OnOpenExternalAudio() { }
+        public virtual void OnOpenExternalVideo() { }
+        public virtual void OnOpenExternalSubtitles() { }
 
         public virtual void Dispose() { }
+
+        public void AddExternalStream(ExternalStream extStream, object tag = null, PlaylistItem item = null)
+        {
+            if (item == null)
+                item = Playlist.Selected;
+
+            item?.AddExternalStream(extStream, item, Name, tag);
+        }
+
+        public void AddPlaylistItem(PlaylistItem item, object tag = null)
+        {
+            Playlist.AddItem(item, Name, tag);
+        }
+
+        public void AddTag(object tag, PlaylistItem item = null)
+        {
+            if (item == null)
+                item = Playlist.Selected;
+
+            item?.AddTag(tag, Name);
+        }
+
+        public object GetTag(ExternalStream extStream)
+        {
+            return extStream != null ? extStream.GetTag(Name) : null;
+        }
+
+        public object GetTag(PlaylistItem item)
+        {
+            return item != null ? item.GetTag(Name) : null;
+        }
 
         public virtual SerializableDictionary<string, string> GetDefaultOptions()
         {
@@ -54,10 +86,17 @@ namespace FlyleafLib.Plugins
     }
     public class OpenResults
     {
-        public string Error { get; private set; }
+        public string   Error;
+        public bool     Success => Error == null;
 
         public OpenResults() { }
         public OpenResults(string error) { Error = error; }
+    }
+
+    public class OpenSubtitlesResults : OpenResults
+    {
+        public ExternalSubtitlesStream ExternalSubtitlesStream;
+        public OpenSubtitlesResults(ExternalSubtitlesStream extStream, string error = null) : base(error) { ExternalSubtitlesStream = extStream; }
     }
 
     public interface IPlugin : IDisposable
@@ -76,70 +115,92 @@ namespace FlyleafLib.Plugins
         void OnBuffering();
         void OnBufferingCompleted();
 
-        OpenResults OnOpenAudio(AudioInput input);
-        OpenResults OnOpenVideo(VideoInput input);
-        OpenResults OnOpenSubtitles(SubtitlesInput input);
+        void OnOpenExternalAudio();
+        void OnOpenExternalVideo();
+        void OnOpenExternalSubtitles();
     }
 
     public interface IOpen : IPlugin
     {
-        bool IsPlaylist { get; }
-
-        bool IsValidInput(string url);
-        OpenResults     Open(string url);
-        OpenResults     Open(Stream iostream);
+        bool CanOpen();
+        OpenResults     Open();
+        OpenResults     OpenItem();
     }
     public interface IOpenSubtitles : IPlugin
     {
-        OpenResults     Open(string url);
-        OpenResults     Open(Stream iostream);
+        OpenSubtitlesResults Open(string url);
+        OpenSubtitlesResults Open(Stream iostream);
     }
 
-    public interface IProvideAudio : IPlugin
+    public interface IScrapeItem : IPlugin
     {
-        List<AudioInput>    AudioInputs     { get; set; }
-    }
-    public interface IProvideVideo : IPlugin
-    {
-        List<VideoInput>    VideoInputs     { get; set; }
-    }
-    public interface IProvideSubtitles : IPlugin
-    {
-        List<SubtitlesInput>SubtitlesInputs { get; set; }
+        void ScrapeItem(PlaylistItem item);
     }
 
-    public interface ISuggestAudioInput : IPlugin
+    public interface ISuggestPlaylistItem : IPlugin
     {
-        AudioInput SuggestAudio();
-    }
-    public interface ISuggestVideoInput : IPlugin
-    {
-        VideoInput SuggestVideo();
-    }
-    public interface ISuggestSubtitlesInput : IPlugin
-    {
-        SubtitlesInput SuggestSubtitles(Language lang);
+        PlaylistItem SuggestItem();
     }
 
+    public interface ISuggestExternalAudio : IPlugin
+    {
+        ExternalAudioStream SuggestExternalAudio();
+    }
+    public interface ISuggestExternalVideo : IPlugin
+    {
+        ExternalVideoStream SuggestExternalVideo();
+    }
+    
     public interface ISuggestAudioStream : IPlugin
     {
-        AudioStream SuggestAudio(List<AudioStream> streams);
+        AudioStream SuggestAudio(ObservableCollection<AudioStream> streams);
     }
     public interface ISuggestVideoStream : IPlugin
     {
-        VideoStream SuggestVideo(List<VideoStream> streams);
-    }
-    public interface ISuggestSubtitlesStream : IPlugin
-    {
-        SubtitlesStream SuggestSubtitles(List<SubtitlesStream> streams, Language lang);
+        VideoStream SuggestVideo(ObservableCollection<VideoStream> streams);
     }
 
-    public interface ISearchSubtitles : IPlugin
+    public interface ISuggestExternalSubtitles : IPlugin
     {
-        void Search(Language lang);
+        ExternalSubtitlesStream SuggestExternalSubtitles(Language lang);
     }
+
+    public interface ISuggestSubtitlesStream : IPlugin
+    {
+        SubtitlesStream SuggestSubtitles(ObservableCollection<SubtitlesStream> streams, List<Language> langs);
+    }
+
+    public interface ISuggestSubtitles : IPlugin
+    {
+        /// <summary>
+        /// Suggests from all the available subtitles
+        /// </summary>
+        /// <param name="stream">Embedded stream</param>
+        /// <param name="extStream">External stream</param>
+        void SuggestSubtitles(out SubtitlesStream stream, out ExternalSubtitlesStream extStream);
+    }
+
+    public interface ISuggestBestExternalSubtitles : IPlugin
+    {
+        /// <summary>
+        /// Suggests only if best match exists (to avoid search local/online)
+        /// </summary>
+        /// <returns></returns>
+        ExternalSubtitlesStream SuggestBestExternalSubtitles();
+    }
+
+    public interface ISearchLocalSubtitles : IPlugin
+    {
+        void SearchLocalSubtitles();
+    }
+
+    public interface ISearchOnlineSubtitles : IPlugin
+    {
+        void SearchOnlineSubtitles();
+    }
+
     public interface IDownloadSubtitles : IPlugin
     {
-        bool Download(SubtitlesInput input);
+        bool DownloadSubtitles(ExternalSubtitlesStream extStream);
     }
 }

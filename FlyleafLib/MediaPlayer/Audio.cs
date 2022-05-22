@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 using Vortice.Multimedia;
 using Vortice.XAudio2;
@@ -7,10 +7,8 @@ using Vortice.XAudio2;
 using static Vortice.XAudio2.XAudio2;
 
 using FlyleafLib.MediaFramework.MediaContext;
-using FlyleafLib.MediaFramework.MediaInput;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
-using FlyleafLib.Plugins;
 
 using static FlyleafLib.Logger;
 
@@ -19,48 +17,48 @@ namespace FlyleafLib.MediaPlayer
     public class Audio : NotifyPropertyChanged
     {
         #region Properties
-        public List<AudioInput>     Inputs          => ((IProvideAudio)decoder?.OpenedPlugin)?.AudioInputs;
-        public Dictionary<string, IProvideAudio>
-                                    Plugins         => decoder?.PluginsProvideAudio;
-        public List<AudioStream>    Streams         => decoder?.VideoDemuxer.AudioStreams;
-        public List<AudioStream>    ExternalStreams => decoder?.AudioDemuxer.AudioStreams;
+        /// <summary>
+        /// Embedded Streams
+        /// </summary>
+        public ObservableCollection<AudioStream>
+                        Streams         => decoder?.VideoDemuxer.AudioStreams;
 
         /// <summary>
         /// Whether the input has audio and it is configured
         /// </summary>
-        public bool                 IsOpened        { get => isOpened;      internal set => Set(ref _IsOpened, value); }
+        public bool     IsOpened        { get => isOpened;      internal set => Set(ref _IsOpened, value); }
         internal bool   _IsOpened, isOpened;
 
-        public string               Codec           { get => codec;         internal set => Set(ref _Codec, value); }
+        public string   Codec           { get => codec;         internal set => Set(ref _Codec, value); }
         internal string _Codec, codec;
 
         ///// <summary>
         ///// Audio bitrate (Kbps)
         ///// </summary>
-        public double               BitRate         { get => bitRate;       internal set => Set(ref _BitRate, value); }
+        public double   BitRate         { get => bitRate;       internal set => Set(ref _BitRate, value); }
         internal double _BitRate, bitRate;
 
-        public int                  Bits            { get => bits;          internal set => Set(ref _Bits, value); }
+        public int      Bits            { get => bits;          internal set => Set(ref _Bits, value); }
         internal int    _Bits, bits;
 
-        public int                  Channels        { get => channels;      internal set => Set(ref _Channels, value); }
+        public int      Channels        { get => channels;      internal set => Set(ref _Channels, value); }
         internal int    _Channels, channels;
 
         /// <summary>
         /// Audio player's channels out (currently 2 channels supported only)
         /// </summary>
-        public int                  ChannelsOut     { get; } = 2;
+        public int      ChannelsOut     { get; } = 2;
 
-        public string               ChannelLayout   { get => channelLayout; internal set => Set(ref _ChannelLayout, value); }
+        public string   ChannelLayout   { get => channelLayout; internal set => Set(ref _ChannelLayout, value); }
         internal string _ChannelLayout, channelLayout;
 
-        public string               SampleFormat    { get => sampleFormat;  internal set => Set(ref _SampleFormat, value); }
+        public string   SampleFormat    { get => sampleFormat;  internal set => Set(ref _SampleFormat, value); }
         internal string _SampleFormat, sampleFormat;
 
         /// <summary>
         /// Audio sample rate (in/out)
         /// </summary>
-        public int                  SampleRate      { get => sampleRate;    internal set => Set(ref _SampleRate, value); }
+        public int      SampleRate      { get => sampleRate;    internal set => Set(ref _SampleRate, value); }
         internal int    _SampleRate = 48000, sampleRate = 48000;
 
         /// <summary>
@@ -170,7 +168,6 @@ namespace FlyleafLib.MediaPlayer
         Player                  player;
         Config                  Config => player.Config;
         DecoderContext          decoder => player?.decoder;
-        AudioStream             disabledStream;
 
         Action                  uiAction;
         readonly object         locker = new object();
@@ -276,7 +273,7 @@ namespace FlyleafLib.MediaPlayer
                 sourceVoice?.FlushSourceBuffers();
         }
 
-        internal void Reset(bool andDisabledStream = true)
+        internal void Reset()
         {
             codec           = null;
             bitRate         = 0;
@@ -286,9 +283,6 @@ namespace FlyleafLib.MediaPlayer
             sampleRate      = 0;
             sampleFormat    = null;
             isOpened        = false;
-
-            if (andDisabledStream)
-                disabledStream  = null;
 
             ClearBuffer();
             player.UIAdd(uiAction);
@@ -309,24 +303,11 @@ namespace FlyleafLib.MediaPlayer
         }
         internal void Enable()
         {
-            if (disabledStream == null || (player.VideoDemuxer.Disposed && player.AudioDemuxer.Disposed))
-                return;
-
-            AudioInput suggestedInput = null;
             bool wasPlaying = player.IsPlaying;
 
-            if (disabledStream == null)
-                decoder.SuggestAudio(out disabledStream, out suggestedInput, player.VideoDemuxer.AudioStreams);
+            decoder.OpenSuggestedAudio();
 
-            if (disabledStream != null)
-            {
-                if (disabledStream.AudioInput != null)
-                    player.Open(disabledStream.AudioInput);
-                else
-                    player.Open(disabledStream);
-            }
-            else if (suggestedInput != null)
-                player.Open(suggestedInput);
+            player.ReSync(decoder.AudioStream, (int) (player.CurTime / 10000), true);
 
             Refresh();
             player.UIAll();
@@ -336,10 +317,10 @@ namespace FlyleafLib.MediaPlayer
         }
         internal void Disable()
         {
-            if (!IsOpened) return;
+            if (!IsOpened)
+                return;
 
-            disabledStream = decoder.AudioStream;
-            player.AudioDecoder.Dispose(true);
+            decoder.CloseAudio();
 
             player.aFrame = null;
 
@@ -349,7 +330,7 @@ namespace FlyleafLib.MediaPlayer
                 player.UIAdd(() => player.CanPlay = player.CanPlay);
             }
 
-            Reset(false);
+            Reset();
             player.UIAll();
         }
 

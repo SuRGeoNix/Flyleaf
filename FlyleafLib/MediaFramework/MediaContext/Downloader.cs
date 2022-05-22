@@ -55,7 +55,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         public Downloader(Config config, int uniqueId = -1) : base(uniqueId)
         {
-            DecCtx = new DecoderContext(config, null, UniqueId, false);
+            DecCtx = new DecoderContext(config, UniqueId, false);
             DecCtx.AudioDemuxer.Config = config.Demuxer.Clone(); // We change buffer duration and we need to avoid changing video demuxer's config
 
             //DecCtx.VideoInputOpened += (o, e) => { if (!e.Success) OnDownloadCompleted(false); };
@@ -80,11 +80,11 @@ namespace FlyleafLib.MediaFramework.MediaContext
         /// Opens a new media file (audio/video) and prepares it for download (blocking)
         /// </summary>
         /// <param name="url">Media file's url</param>
-        /// <param name="defaultInput">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
+        /// <param name="defaultPlaylistItem">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
         /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
         /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
         /// <returns></returns>
-        public string Open(string url, bool defaultInput = true, bool defaultVideo = true, bool defaultAudio = true)
+        public string Open(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true)
         {
             lock (lockActions)
             {
@@ -92,7 +92,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 Disposed= false;
                 Status  = Status.Opening;
-                var ret =  DecCtx.OpenVideo(url, defaultInput, defaultVideo, defaultAudio, false);
+                var ret = DecCtx.Open(url, defaultPlaylistItem, defaultVideo, defaultAudio, false);
                 if (ret != null && ret.Error != null) return ret.Error;
 
                 CurTime = 0;
@@ -185,7 +185,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             long startedAt = DateTime.UtcNow.Ticks;
             long secondTicks = startedAt;
-            bool isAudioDemuxer = false;
+            bool isAudioDemuxer = DecCtx.VideoDemuxer.Disposed && !DecCtx.AudioDemuxer.Disposed;
             IntPtr pktPtr = IntPtr.Zero;
             AVPacket* packet = null;
             AVPacket* packet2 = null;
@@ -247,35 +247,31 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 {
                     if (AudioDemuxer.Packets.Count == 0)
                     {
-                        Demuxer.Packets.TryDequeue(out pktPtr);
-                        packet = (AVPacket*) pktPtr;
+                        packet = Demuxer.Packets.Dequeue();
                         isAudioDemuxer = false;
                     }
                     else if (Demuxer.Packets.Count == 0)
                     {
-                        AudioDemuxer.Packets.TryDequeue(out pktPtr);
-                        packet = (AVPacket*) pktPtr;
+                        packet = AudioDemuxer.Packets.Dequeue();
                         isAudioDemuxer = true;
                     }
                     else
                     {
-                        Demuxer.Packets.TryPeek(out pktPtr);
-                        AudioDemuxer.Packets.TryPeek(out IntPtr pktPtr2);
-                        packet  = (AVPacket*) pktPtr;
-                        packet2 = (AVPacket*) pktPtr2;
+                        packet  = Demuxer.Packets.Peek();
+                        packet2 = AudioDemuxer.Packets.Peek();
 
                         long ts1 = (long) ((packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - Demuxer.StartTime);
                         long ts2 = (long) ((packet2->dts * AudioDemuxer.AVStreamToStream[packet2->stream_index].Timebase) - AudioDemuxer.StartTime);
 
                         if (ts2 <= ts1)
                         {
-                            AudioDemuxer.Packets.TryDequeue(out IntPtr devnull);
+                            AudioDemuxer.Packets.Dequeue();
                             isAudioDemuxer = true;
                             packet = packet2;
                         }
                         else
                         {
-                            Demuxer.Packets.TryDequeue(out IntPtr devnull);
+                            Demuxer.Packets.Dequeue();
                             isAudioDemuxer = false;
                         }
 
@@ -284,8 +280,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 }
                 else
                 {
-                    Demuxer.Packets.TryDequeue(out pktPtr);
-                    packet = (AVPacket*) pktPtr;
+                    packet = Demuxer.Packets.Dequeue();
                 }
 
                 long curDT = DateTime.UtcNow.Ticks;

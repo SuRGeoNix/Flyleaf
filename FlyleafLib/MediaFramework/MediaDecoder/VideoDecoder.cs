@@ -61,16 +61,19 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         List<VideoFrame>                curReverseVideoFrames   = new List<VideoFrame>();
         int                             curReversePacketPos     = 0;
 
-        public VideoDecoder(Config config, Control control = null, int uniqueId = -1, bool initVA = true) : base(config, uniqueId)
+        public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
         {
             getHWformat = new AVCodecContext_get_format(get_format);
+        }
 
-            if (initVA)
-            {
+        public void CreateRenderer(Control control = null)
+        {
+            if (Renderer == null)
                 Renderer = new Renderer(this, control, UniqueId);
-                Renderer.Initialize();
-                Disposed = false;
-            }
+            else
+                Renderer.SetControl(control);
+
+            Disposed = false;
         }
 
         #region Video Acceleration (Should be disposed seperately)
@@ -442,7 +445,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 AVPacket* drainPacket = av_packet_alloc();
                                 drainPacket->data = null;
                                 drainPacket->size = 0;
-                                demuxer.VideoPackets.Enqueue((IntPtr)drainPacket);
+                                demuxer.VideoPackets.Enqueue(drainPacket);
                             }
                             
                             break;
@@ -488,8 +491,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 lock (lockCodecCtx)
                 {
                     if (Status == Status.Stopped || demuxer.VideoPackets.Count == 0) continue;
-                    demuxer.VideoPackets.TryDequeue(out IntPtr pktPtr);
-                    packet = (AVPacket*) pktPtr;
+                    packet = demuxer.VideoPackets.Dequeue();
 
                     if (isRecording)
                     {
@@ -931,7 +933,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 ret = av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
 
             demuxer.DisposePackets();
-            demuxer.UpdateCurTime();
+
             if (demuxer.Status == Status.Ended) demuxer.Status = Status.Stopped;
             if (ret < 0) return null; // handle seek error
             Flush();

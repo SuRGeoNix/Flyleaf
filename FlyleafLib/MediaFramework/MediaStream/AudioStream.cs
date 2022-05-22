@@ -4,13 +4,11 @@ using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
-using FlyleafLib.MediaFramework.MediaInput;
 
 namespace FlyleafLib.MediaFramework.MediaStream
 {    
     public unsafe class AudioStream : StreamBase
     {
-        public AudioInput       AudioInput          { get; set; }
         public int              Bits                { get; set; }
         public int              Channels            { get; set; }
         public ulong            ChannelLayout       { get; set; }

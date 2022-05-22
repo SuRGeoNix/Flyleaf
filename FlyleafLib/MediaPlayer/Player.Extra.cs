@@ -73,9 +73,17 @@ namespace FlyleafLib.MediaPlayer
 
         public void CopyToClipboard()
         {
-            if (decoder == null | decoder.UserInputUrl == null) return;
-
-            System.Windows.Clipboard.SetText(decoder.UserInputUrl);
+            if (decoder.Playlist.Url == null) 
+                System.Windows.Clipboard.SetText("");
+            else
+                System.Windows.Clipboard.SetText(decoder.Playlist.Url);
+        }
+        public void CopyItemToClipboard()
+        {
+            if (decoder.Playlist.Selected == null || decoder.Playlist.Selected.DirectUrl == null)
+                System.Windows.Clipboard.SetText("");
+            else
+                System.Windows.Clipboard.SetText(decoder.Playlist.Selected.DirectUrl);
         }
         public void OpenFromClipboard()
         {
@@ -111,7 +119,7 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!Video.IsOpened || !CanPlay || VideoDemuxer.HLSPlaylist != null) return;
 
-            lock (lockPlayPause)
+            lock (lockActions)
             {
                 Pause();
                 sFrame = null;
@@ -138,7 +146,7 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!Video.IsOpened || !CanPlay || VideoDemuxer.HLSPlaylist != null) return;
 
-            lock (lockPlayPause)
+            lock (lockActions)
             {
                 Pause();
                 ReversePlayback = false;
@@ -170,7 +178,7 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!Video.IsOpened || !CanPlay || VideoDemuxer.HLSPlaylist != null) return;
 
-            lock (lockPlayPause)
+            lock (lockActions)
             {
                 Pause();
 
@@ -187,7 +195,7 @@ namespace FlyleafLib.MediaPlayer
                     decoder.StopThreads();
                     decoder.Flush();
                 }
-                        
+
                 if (VideoDecoder.Frames.Count == 0)
                 {
                     // Temp fix for previous timestamps until we seperate GetFrame for Extractor and the Player
@@ -269,7 +277,7 @@ namespace FlyleafLib.MediaPlayer
                 if (!Directory.Exists(Config.Player.FolderRecordings))
                     Directory.CreateDirectory(Config.Player.FolderRecordings);
 
-                string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Record" : Title) + $"_{(new TimeSpan(CurTime)).ToString("hhmmss")}." + decoder.Extension;
+                string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Record" : Playlist.Selected.Title) + $"_{(new TimeSpan(CurTime)).ToString("hhmmss")}." + decoder.Extension;
                 filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderRecordings, filename));
                 StartRecording(ref filename, false);
             } catch { }
@@ -323,7 +331,7 @@ namespace FlyleafLib.MediaPlayer
                     if (!Directory.Exists(Config.Player.FolderSnapshots))
                         Directory.CreateDirectory(Config.Player.FolderSnapshots);
 
-                    filename = Utils.GetValidFileName(string.IsNullOrEmpty(Title) ? "Snapshot" : Title) + $"_{VideoDecoder.GetFrameNumber(CurTime)}.{Config.Player.SnapshotFormat}";
+                    filename = Utils.GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{VideoDecoder.GetFrameNumber(CurTime)}.{Config.Player.SnapshotFormat}";
                     filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
                 } catch { return; }
             }

@@ -35,7 +35,7 @@ namespace FlyleafLib.Controls.WPF
             } catch (Exception e) { System.Diagnostics.Debug.WriteLine(e.Message); }
         }
 
-        public static void Save(Flyleaf flyleaf, string uiConfigPath, string configPath)
+        public static void Save(Flyleaf flyleaf, string uiConfigPath, string configPath, string enginePath)
         {
             try
             {
@@ -54,6 +54,10 @@ namespace FlyleafLib.Controls.WPF
 
                 if (configPath != null)
                     flyleaf.Config.Save(configPath);
+
+                if (enginePath != null)
+                    flyleaf.ConfigEngine.Save(enginePath);
+
             } catch (Exception e) { System.Diagnostics.Debug.WriteLine(e.Message); }
         }
     }
