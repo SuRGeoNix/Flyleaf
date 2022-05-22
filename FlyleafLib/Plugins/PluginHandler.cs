@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Collections.ObjectModel;
 using System.Linq;
-using System.Reflection;
 
-using FlyleafLib.MediaFramework.MediaInput;
+using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
 using static FlyleafLib.Logger;
@@ -13,6 +12,9 @@ namespace FlyleafLib.Plugins
 {
     public class PluginHandler
     {
+        public Playlist                 Playlist                        { get; set; }
+
+
         public Config                   Config                          { get ; private set; }
         public int                      UniqueId                        { get; set; }
 
@@ -23,19 +25,11 @@ namespace FlyleafLib.Plugins
         public Dictionary<string, IOpenSubtitles>
                                         PluginsOpenSubtitles            { get; private set; }
 
-        public Dictionary<string, IProvideAudio>
-                                        PluginsProvideAudio             { get; private set; }
-        public Dictionary<string, IProvideVideo>
-                                        PluginsProvideVideo             { get; private set; }
-        public Dictionary<string, IProvideSubtitles>
-                                        PluginsProvideSubtitles         { get; private set; }
+        public Dictionary<string, IScrapeItem> 
+                                        PluginsScrapeItem                   { get; private set; }
 
-        public Dictionary<string, ISuggestAudioInput>         
-                                        PluginsSuggestAudioInput        { get; private set; }
-        public Dictionary<string, ISuggestVideoInput>         
-                                        PluginsSuggestVideoInput        { get; private set; }
-        public Dictionary<string, ISuggestSubtitlesInput>     
-                                        PluginsSuggestSubtitlesInput    { get; private set; }
+        public Dictionary<string, ISuggestPlaylistItem>         
+                                        PluginsSuggestItem              { get; private set; }
 
         public Dictionary<string, ISuggestAudioStream>        
                                         PluginsSuggestAudioStream       { get; private set; }
@@ -43,29 +37,41 @@ namespace FlyleafLib.Plugins
                                         PluginsSuggestVideoStream       { get; private set; }
         public Dictionary<string, ISuggestSubtitlesStream>    
                                         PluginsSuggestSubtitlesStream   { get; private set; }
+        public Dictionary<string, ISuggestSubtitles>    
+                                        PluginsSuggestSubtitles         { get; private set; }
 
-        public Dictionary<string, ISearchSubtitles>           
-                                        PluginsSearchSubtitles          { get; private set; }
+        public Dictionary<string, ISuggestExternalAudio>        
+                                        PluginsSuggestExternalAudio     { get; private set; }
+        public Dictionary<string, ISuggestExternalVideo>        
+                                        PluginsSuggestExternalVideo     { get; private set; }
+        public Dictionary<string, ISuggestExternalSubtitles>    
+                                        PluginsSuggestExternalSubtitles { get; private set; }
+
+        public Dictionary<string, ISuggestBestExternalSubtitles>    
+                                        PluginsSuggestBestExternalSubtitles
+                                                                        { get; private set; }
+
         public Dictionary<string, IDownloadSubtitles>         
                                         PluginsDownloadSubtitles        { get; private set; }
 
-        public string                   UserInputUrl                    { get; set; }
+        public Dictionary<string, ISearchLocalSubtitles>           
+                                        PluginsSearchLocalSubtitles     { get; private set; }
+        public Dictionary<string, ISearchOnlineSubtitles>           
+                                        PluginsSearchOnlineSubtitles    { get; private set; }
+
         public IOpen                    OpenedPlugin                    { get; private set; }
         public IOpenSubtitles           OpenedSubtitlesPlugin           { get; private set; }
 
-        public AudioInput               AudioInput                      { get; private set; }
-        public VideoInput               VideoInput                      { get; private set; }
-        public SubtitlesInput           SubtitlesInput                  { get; private set; }
-
         public bool                     Interrupt                       { get; set; }
-
-        bool searchedForSubtitles;
+        public long                     OpenCounter                     { get; internal set; }
+        public long                     OpenItemCounter                 { get; internal set; }
         LogHandler Log;
 
         public PluginHandler(Config config, int uniqueId = -1)
         {
             Config = config;
             UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+            Playlist = new Playlist(UniqueId);
             Log = new LogHandler($"[#{UniqueId}] [PluginHandler ] ");
             LoadPlugins();
         }
@@ -99,76 +105,73 @@ namespace FlyleafLib.Plugins
 
             PluginsOpen                     = new Dictionary<string, IOpen>();
             PluginsOpenSubtitles            = new Dictionary<string, IOpenSubtitles>();
+            PluginsScrapeItem                   = new Dictionary<string, IScrapeItem>();
 
-            PluginsProvideAudio             = new Dictionary<string, IProvideAudio>();
-            PluginsProvideVideo             = new Dictionary<string, IProvideVideo>();
-            PluginsProvideSubtitles         = new Dictionary<string, IProvideSubtitles>();
-
-            PluginsSuggestAudioInput        = new Dictionary<string, ISuggestAudioInput>();
-            PluginsSuggestVideoInput        = new Dictionary<string, ISuggestVideoInput>();
-            PluginsSuggestSubtitlesInput    = new Dictionary<string, ISuggestSubtitlesInput>();
+            PluginsSuggestItem              = new Dictionary<string, ISuggestPlaylistItem>();
 
             PluginsSuggestAudioStream       = new Dictionary<string, ISuggestAudioStream>();
             PluginsSuggestVideoStream       = new Dictionary<string, ISuggestVideoStream>();
             PluginsSuggestSubtitlesStream   = new Dictionary<string, ISuggestSubtitlesStream>();
+            PluginsSuggestSubtitles         = new Dictionary<string, ISuggestSubtitles>();
 
-            PluginsSearchSubtitles          = new Dictionary<string, ISearchSubtitles>();
+            PluginsSuggestExternalAudio        = new Dictionary<string, ISuggestExternalAudio>();
+            PluginsSuggestExternalVideo        = new Dictionary<string, ISuggestExternalVideo>();
+            PluginsSuggestExternalSubtitles    = new Dictionary<string, ISuggestExternalSubtitles>();
+            PluginsSuggestBestExternalSubtitles= new Dictionary<string, ISuggestBestExternalSubtitles>();
+
+            PluginsSearchLocalSubtitles     = new Dictionary<string, ISearchLocalSubtitles>();
+            PluginsSearchOnlineSubtitles    = new Dictionary<string, ISearchOnlineSubtitles>();
             PluginsDownloadSubtitles        = new Dictionary<string, IDownloadSubtitles>();
 
             foreach (var plugin in Plugins.Values)
                 LoadPluginInterfaces(plugin);
         }
-
         private void LoadPluginInterfaces(PluginBase plugin)
         {
             if (plugin is IOpen) PluginsOpen.Add(plugin.Name, (IOpen)plugin);
             else if (plugin is IOpenSubtitles) PluginsOpenSubtitles.Add(plugin.Name, (IOpenSubtitles)plugin);
 
-            if (plugin is IProvideAudio) PluginsProvideAudio.Add(plugin.Name, (IProvideAudio)plugin);
-            if (plugin is IProvideVideo) PluginsProvideVideo.Add(plugin.Name, (IProvideVideo)plugin);
-            if (plugin is IProvideSubtitles) PluginsProvideSubtitles.Add(plugin.Name, (IProvideSubtitles)plugin);
+            if (plugin is IScrapeItem) PluginsScrapeItem.Add(plugin.Name, (IScrapeItem)plugin);
 
-            if (plugin is ISuggestAudioInput) PluginsSuggestAudioInput.Add(plugin.Name, (ISuggestAudioInput)plugin);
-            if (plugin is ISuggestVideoInput) PluginsSuggestVideoInput.Add(plugin.Name, (ISuggestVideoInput)plugin);
-            if (plugin is ISuggestSubtitlesInput) PluginsSuggestSubtitlesInput.Add(plugin.Name, (ISuggestSubtitlesInput)plugin);
+            if (plugin is ISuggestPlaylistItem) PluginsSuggestItem.Add(plugin.Name, (ISuggestPlaylistItem)plugin);
 
             if (plugin is ISuggestAudioStream) PluginsSuggestAudioStream.Add(plugin.Name, (ISuggestAudioStream)plugin);
             if (plugin is ISuggestVideoStream) PluginsSuggestVideoStream.Add(plugin.Name, (ISuggestVideoStream)plugin);
             if (plugin is ISuggestSubtitlesStream) PluginsSuggestSubtitlesStream.Add(plugin.Name, (ISuggestSubtitlesStream)plugin);
+            if (plugin is ISuggestSubtitles) PluginsSuggestSubtitles.Add(plugin.Name, (ISuggestSubtitles)plugin);
 
-            if (plugin is ISearchSubtitles) PluginsSearchSubtitles.Add(plugin.Name, (ISearchSubtitles)plugin);
+            if (plugin is ISuggestExternalAudio) PluginsSuggestExternalAudio.Add(plugin.Name, (ISuggestExternalAudio)plugin);
+            if (plugin is ISuggestExternalVideo) PluginsSuggestExternalVideo.Add(plugin.Name, (ISuggestExternalVideo)plugin);
+            if (plugin is ISuggestExternalSubtitles) PluginsSuggestExternalSubtitles.Add(plugin.Name, (ISuggestExternalSubtitles)plugin);
+            if (plugin is ISuggestBestExternalSubtitles) PluginsSuggestBestExternalSubtitles.Add(plugin.Name, (ISuggestBestExternalSubtitles)plugin);
+
+            if (plugin is ISearchLocalSubtitles) PluginsSearchLocalSubtitles.Add(plugin.Name, (ISearchLocalSubtitles)plugin);
+            if (plugin is ISearchOnlineSubtitles) PluginsSearchOnlineSubtitles.Add(plugin.Name, (ISearchOnlineSubtitles)plugin);
             if (plugin is IDownloadSubtitles) PluginsDownloadSubtitles.Add(plugin.Name, (IDownloadSubtitles)plugin);
         }
 
 #region Events
         public void OnInitializing()
         {
+            OpenCounter++;
+            OpenItemCounter++;
             foreach(var plugin in Plugins.Values)
                 plugin.OnInitializing();
         }
         public void OnInitialized()
         {
-            if (VideoInput != null) VideoInput.Enabled = false;
-            if (AudioInput != null) AudioInput.Enabled = false;
-            if (SubtitlesInput != null) SubtitlesInput.Enabled = false;
+            OpenedPlugin            = null;
+            OpenedSubtitlesPlugin   = null;
+
+            Playlist.Reset();
 
             foreach(var plugin in Plugins.Values)
                 plugin.OnInitialized();
-
-            UserInputUrl            = "";
-            OpenedPlugin            = null;
-            OpenedSubtitlesPlugin   = null;
-            AudioInput              = null;
-            VideoInput              = null;
-            SubtitlesInput          = null;
-            searchedForSubtitles    = false;
         }
 
         public void OnInitializingSwitch()
         {
-            if (VideoInput != null)
-                VideoInput.Enabled = false;
-
+            OpenItemCounter++;
             foreach(var plugin in Plugins.Values)
                 plugin.OnInitializingSwitch();
         }
@@ -176,59 +179,6 @@ namespace FlyleafLib.Plugins
         {
             foreach(var plugin in Plugins.Values)
                 plugin.OnInitializedSwitch();
-        }
-
-        public void OnDispose()
-        {
-            foreach(var plugin in Plugins.Values)
-                plugin.Dispose();
-        }
-
-        public OpenResults OnOpen(InputBase input)
-        {
-            if (input == null)
-                return new OpenResults("Invalid input");
-
-            onClose(input is AudioInput ? (InputBase)AudioInput : (input is VideoInput ? (InputBase)VideoInput : (InputBase)SubtitlesInput));
-
-            if (input is AudioInput)
-                AudioInput = (AudioInput)input;
-            else if (input is VideoInput)
-                VideoInput = (VideoInput)input;
-            else
-            {
-                SubtitlesInput = (SubtitlesInput)input;
-
-                if (!SubtitlesInput.Downloaded && !DownloadSubtitles(SubtitlesInput))
-                    return new OpenResults("Failed to download subtitles");
-
-                SubtitlesInput.Downloaded = true;
-            }    
-
-            foreach(var plugin in Plugins.Values)
-            {
-                OpenResults res = input is AudioInput ? plugin.OnOpenAudio((AudioInput)input) : 
-                                 (input is VideoInput ? plugin.OnOpenVideo((VideoInput)input) : 
-                                                        plugin.OnOpenSubtitles((SubtitlesInput)input));
-
-                if (res != null && res.Error != null)
-                {
-                    onClose(input);
-                    return res;
-                }
-            }
-
-            if (Config.Subtitles.Enabled && input is VideoInput) 
-                SearchSubtitles();
-
-            return null;
-        }
-        public void onClose(InputBase input)
-        {
-            if (input == null)
-                return;
-
-            input.Enabled = false;
         }
 
         public void Dispose()
@@ -239,115 +189,131 @@ namespace FlyleafLib.Plugins
 #endregion
 
 #region Audio / Video
-        public OpenResults Open(Stream iostream)
+        public OpenResults Open()
         {
-            var plugins = (from plugin in PluginsOpen.Values orderby plugin.Priority select plugin).ToList();
+            var sessionId = OpenCounter;
+            var plugins = PluginsOpen.Values.OrderBy(x => x.Priority);
             foreach(var plugin in plugins)
             {
-                if (Interrupt)
+                if (Interrupt || sessionId != OpenCounter)
                     return new OpenResults("Cancelled");
 
-                OpenResults res = plugin.Open(iostream);
+                if (!plugin.CanOpen())
+                    continue;
+
+                OpenResults res = plugin.Open();
                 if (res == null)
                     continue;
 
                 if (res.Error != null)
                     return res;
 
-                if (plugin is IProvideAudio)
-                    foreach(var input in ((IProvideAudio)plugin).AudioInputs)
-                        input.Plugin = plugin;
-
-                if (plugin is IProvideVideo)
-                    foreach(var input in ((IProvideVideo)plugin).VideoInputs)
-                        input.Plugin = plugin;
-
-                if (plugin is IProvideSubtitles)
-                    foreach(var input in ((IProvideSubtitles)plugin).SubtitlesInputs)
-                        input.Plugin = plugin;
-
                 OpenedPlugin = plugin;
-                Log.Info($"*{plugin.Name} (Open Plugin)");
+                Log.Info($"[{plugin.Name}] Open Success");
 
                 return res;
             }
 
-            return null;
+            return new OpenResults("No plugin found for the provided input");
         }
-        public OpenResults Open(string url)
+        public OpenResults OpenItem()
         {
-            UserInputUrl = url;
+            var sessionId = OpenItemCounter;
+            OpenResults res = OpenedPlugin.OpenItem();
 
-            var plugins = (from plugin in PluginsOpen.Values orderby plugin.Priority select plugin).ToList();
-            foreach(var plugin in plugins)
+            if (sessionId != OpenItemCounter)
+                res.Error = "Cancelled";
+
+            if (res.Error == null)
+                Log.Info($"[{OpenedPlugin.Name}] Open Item ({Playlist.Selected.Index}) Success");
+
+            return res;
+        }
+
+        // Should only be called from opened plugin
+        public void OnPlaylistCompleted()
+        {
+            Playlist.Completed = true;
+            if (Playlist.ExpectingItems == 0)
+                Playlist.ExpectingItems = Playlist.Items.Count;
+
+            if (Playlist.Items.Count > 1)
+                Log.Debug("Playlist Completed");
+        }
+
+        public void ScrapeItem(PlaylistItem item)
+        {
+            var plugins = PluginsScrapeItem.Values.OrderBy(x => x.Priority);
+            foreach (var plugin in plugins)
             {
                 if (Interrupt)
-                    return new OpenResults("Cancelled");
+                    return;
 
-                if (!plugin.IsValidInput(url)) continue;
-
-                OpenResults res = plugin.Open(url);
-                if (res == null)
-                    continue;
-
-                if (res.Error != null)
-                    return res;
-
-                if (plugin is IProvideAudio)
-                    foreach(var input in ((IProvideAudio)plugin).AudioInputs)
-                        input.Plugin = plugin;
-
-                if (plugin is IProvideVideo)
-                    foreach(var input in ((IProvideVideo)plugin).VideoInputs)
-                        input.Plugin = plugin;
-
-                if (plugin is IProvideSubtitles)
-                    foreach(var input in ((IProvideSubtitles)plugin).SubtitlesInputs)
-                        input.Plugin = plugin;
-
-                OpenedPlugin = plugin;
-                Log.Info($"*{plugin.Name} (Open Plugin)");
-
-                return res;
+                plugin.ScrapeItem(item);
             }
-
-            return null;
         }
 
-        public VideoInput SuggestVideo()
+        public PlaylistItem SuggestItem()
         {
-            var plugins = (from plugin in PluginsSuggestVideoInput.Values orderby plugin.Priority select plugin).ToList();
+            var plugins = PluginsSuggestItem.Values.OrderBy(x => x.Priority);
             foreach (var plugin in plugins)
             {
                 if (Interrupt)
                     return null;
 
-                var input = plugin.SuggestVideo();
-                if (input != null) { Log.Info($"SuggestVideoInput {(input.InputData.Title != null ? input.InputData.Title : "Null Title")}"); return input; }
+                PlaylistItem item = plugin.SuggestItem();
+                if (item != null) 
+                {
+                    Log.Info($"SuggestItem #{item.Index} - {item.Title}");
+                    return item;
+                }
             }
 
             return null;
         }
-        public AudioInput SuggestAudio()
+
+        public ExternalVideoStream SuggestExternalVideo()
         {
-            var plugins = (from plugin in PluginsSuggestAudioInput.Values orderby plugin.Priority select plugin).ToList();
+            var plugins = PluginsSuggestExternalVideo.Values.OrderBy(x => x.Priority);
+            foreach (var plugin in plugins)
+            {
+                if (Interrupt)
+                    return null;
+
+                var extStream = plugin.SuggestExternalVideo();
+                if (extStream != null)
+                {
+                    Log.Info($"SuggestVideo (External) {extStream.Width} x {extStream.Height} @ {extStream.FPS}");
+                    return extStream;
+                }
+            }
+
+            return null;
+        }
+        public ExternalAudioStream SuggestExternalAudio()
+        {
+            var plugins = PluginsSuggestExternalAudio.Values.OrderBy(x => x.Priority);
             foreach(var plugin in plugins)
             {
                 if (Interrupt)
                     return null;
 
-                var input = plugin.SuggestAudio();
-                if (input != null) { Log.Info($"SuggestAudioInput {(input.InputData.Title != null ? input.InputData.Title : "Null Title")}"); return input; }
+                var extStream = plugin.SuggestExternalAudio();
+                if (extStream != null)
+                {
+                    Log.Info($"SuggestAudio (External) {extStream.SampleRate} Hz, {extStream.Codec}");
+                    return extStream;
+                }
             }
 
             return null;
         }
 
-        public VideoStream SuggestVideo(List<VideoStream> streams)
+        public VideoStream SuggestVideo(ObservableCollection<VideoStream> streams)
         {
             if (streams == null || streams.Count == 0) return null;
 
-            var plugins = (from plugin in PluginsSuggestVideoStream.Values orderby plugin.Priority select plugin).ToList();
+            var plugins = PluginsSuggestVideoStream.Values.OrderBy(x => x.Priority);
             foreach(var plugin in plugins)
             {
                 if (Interrupt)
@@ -359,11 +325,29 @@ namespace FlyleafLib.Plugins
 
             return null;
         }
-        public AudioStream SuggestAudio(List<AudioStream> streams)
+        public void SuggestVideo(out VideoStream stream, out ExternalVideoStream extStream, ObservableCollection<VideoStream> streams)
+        {
+            stream = null;
+            extStream = null;
+
+            if (Interrupt)
+                return;
+
+            stream = SuggestVideo(streams);
+            if (stream != null)
+                return;
+
+            if (Interrupt)
+                return;
+
+            extStream = SuggestExternalVideo();
+        }
+
+        public AudioStream SuggestAudio(ObservableCollection<AudioStream> streams)
         {
             if (streams == null || streams.Count == 0) return null;
 
-            var plugins = (from plugin in PluginsSuggestAudioStream.Values orderby plugin.Priority select plugin).ToList();
+            var plugins = PluginsSuggestAudioStream.Values.OrderBy(x => x.Priority);
             foreach(var plugin in plugins)
             {
                 if (Interrupt)
@@ -375,11 +359,10 @@ namespace FlyleafLib.Plugins
 
             return null;
         }
-
-        public void SuggestAudio(out AudioStream stream, out AudioInput input, List<AudioStream> streams)
+        public void SuggestAudio(out AudioStream stream, out ExternalAudioStream extStream, ObservableCollection<AudioStream> streams)
         {
             stream = null;
-            input = null;
+            extStream = null;
 
             if (Interrupt)
                 return;
@@ -391,134 +374,117 @@ namespace FlyleafLib.Plugins
             if (Interrupt)
                 return;
 
-            input = SuggestAudio();
-            if (input != null)
-                return;
+            extStream = SuggestExternalAudio();
         }
 #endregion
 
 #region Subtitles
-        public OpenResults OpenSubtitles(string url)
+        public OpenSubtitlesResults OpenSubtitles(string url)
         {
-            var plugins = (from plugin in PluginsOpenSubtitles.Values orderby plugin.Priority select plugin).ToList();
+            var plugins = PluginsOpenSubtitles.Values.OrderBy(x => x.Priority);
             foreach(var plugin in plugins)
             {
-                OpenResults res = plugin.Open(url);
+                OpenSubtitlesResults res = plugin.Open(url);
                 if (res == null)
                     continue;
 
                 if (res.Error != null)
                     return res;
 
-                if (plugin is IProvideSubtitles)
-                    foreach(var input in ((IProvideSubtitles)plugin).SubtitlesInputs)
-                        input.Plugin = plugin;
-
                 OpenedSubtitlesPlugin = plugin;
+                Log.Info($"[{plugin.Name}] Open Subtitles Success");
 
                 return res;
             }
 
             return null;
         }
-        public bool DownloadSubtitles(SubtitlesInput input)
+
+        public void SearchLocalSubtitles()
+        {
+            var plugins = PluginsSearchLocalSubtitles.Values.OrderBy(x => x.Priority);
+            foreach(var plugin in plugins)
+            {
+                if (Interrupt)
+                    return;
+
+                plugin.SearchLocalSubtitles();
+            }
+
+            Playlist.Selected.SearchedLocal = true;
+        }
+        public void SearchOnlineSubtitles()
+        {
+            var plugins = PluginsSearchOnlineSubtitles.Values.OrderBy(x => x.Priority);
+            foreach(var plugin in plugins)
+            {
+                if (Interrupt)
+                    return;
+
+                plugin.SearchOnlineSubtitles();
+            }
+
+            Playlist.Selected.SearchedOnline = true;
+        }
+        public bool DownloadSubtitles(ExternalSubtitlesStream extStream)
         {
             bool res = false;
 
-            var plugins = (from plugin in PluginsDownloadSubtitles.Values orderby plugin.Priority select plugin).ToList();
+            var plugins = PluginsDownloadSubtitles.Values.OrderBy(x => x.Priority);
             foreach(var plugin in plugins)
-                if (res = plugin.Download(input))
-                    break;
+                if (res = plugin.DownloadSubtitles(extStream))
+                {
+                    extStream.Downloaded = true;
+                    return res;
+                }
 
             return res;
         }
 
-        public void SearchSubtitles()
+        public ExternalSubtitlesStream SuggestBestExternalSubtitles()
         {
-            if (VideoInput != null && (((IOpen)VideoInput.Plugin).IsPlaylist || !searchedForSubtitles) && !VideoInput.SearchedForSubtitles)
-            {
-                var plugins = (from plugin in PluginsSearchSubtitles.Values orderby plugin.Priority select plugin).ToList();
-                foreach(var lang in Config.Subtitles.Languages)
-                    foreach(var plugin in plugins)
-                        if (!Interrupt)
-                        {
-                            // Remember the inputs that have been already searched?
-                            plugin.Search(lang);
-
-                            foreach(var input in ((IProvideSubtitles)plugin).SubtitlesInputs)
-                                input.Plugin = plugin;
-                        }
-
-                if (Config.Subtitles.UseOnlineDatabases) // Temporary until remember if searched for each plugin/input
-                {
-                    VideoInput.SearchedForSubtitles = true;
-                    searchedForSubtitles = true;
-                }
-            }
-        }
-        public void SuggestSubtitles(out SubtitlesStream stream, out SubtitlesInput input, List<SubtitlesStream> streams)
-        {
-            stream = null;
-            input = null;
-
-            foreach(var lang in Config.Subtitles.Languages)
-            {
-                if (Interrupt)
-                    return;
-
-                stream = SuggestSubtitles(streams, lang);
-                if (stream != null)
-                    return;
-
-                if (Interrupt)
-                    return;
-
-                input = SuggestSubtitles(lang);
-                if (input != null)
-                    return;
-            }
-        }
-        public SubtitlesStream SuggestSubtitles(List<SubtitlesStream> streams)
-        {
-            foreach(var lang in Config.Subtitles.Languages)
+            var plugins = PluginsSuggestBestExternalSubtitles.Values.OrderBy(x => x.Priority);
+            foreach(var plugin in plugins)
             {
                 if (Interrupt)
                     return null;
 
-                SubtitlesStream subtitlesStream = SuggestSubtitles(streams, lang);
-                if (subtitlesStream != null) return subtitlesStream;
+                ExternalSubtitlesStream extStream = plugin.SuggestBestExternalSubtitles();
+                if (extStream != null)
+                    return extStream;
             }
 
             return null;
         }
-        public SubtitlesStream SuggestSubtitles(List<SubtitlesStream> streams, Language lang)
+        public void SuggestSubtitles(out SubtitlesStream stream, out ExternalSubtitlesStream extStream)
+        {
+            stream = null;
+            extStream = null;
+
+            var plugins = PluginsSuggestSubtitles.Values.OrderBy(x => x.Priority);
+            foreach(var plugin in plugins)
+            {
+                if (Interrupt)
+                    return;
+
+                plugin.SuggestSubtitles(out stream, out extStream);
+                if (stream != null || extStream != null)
+                    return;
+            }
+        }
+        public SubtitlesStream SuggestSubtitles(ObservableCollection<SubtitlesStream> streams, List<Language> langs)
         {
             if (streams == null || streams.Count == 0) return null;
 
-            var plugins = (from plugin in PluginsSuggestSubtitlesStream.Values orderby plugin.Priority select plugin).ToList();
+            var plugins = PluginsSuggestSubtitlesStream.Values.OrderBy(x => x.Priority);
             foreach(var plugin in plugins)
             {
                 if (Interrupt)
                     return null;
 
-                var stream = plugin.SuggestSubtitles(streams, lang);
+                var stream = plugin.SuggestSubtitles(streams, langs);
                 if (stream != null)
                     return stream;
-            }
-
-            return null;
-        }
-        public SubtitlesInput SuggestSubtitles(Language lang)
-        {
-            var plugins = (from plugin in PluginsSuggestSubtitlesInput.Values orderby plugin.Priority select plugin).ToList();
-            foreach(var plugin in plugins)
-            {
-                if (Interrupt)
-                    return null;
-
-                var input = plugin.SuggestSubtitles(lang);
-                if (input != null)
-                    return input;
             }
 
             return null;

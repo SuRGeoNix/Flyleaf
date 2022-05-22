@@ -79,9 +79,9 @@ namespace FlyleafPlayer__Custom_
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            // Just to make sure that handles have been created before using the player (opening)
-            while (Player.Control.Handle == IntPtr.Zero || Player2.Control.Handle == IntPtr.Zero)
-                System.Threading.Thread.Sleep(20);
+            //// Just to make sure that handles have been created before using the player (opening)
+            //while (Player.Control.Handle == IntPtr.Zero || Player2.Control.Handle == IntPtr.Zero)
+            //    System.Threading.Thread.Sleep(20);
 
             Player.OpenAsync(SampleVideo);
 

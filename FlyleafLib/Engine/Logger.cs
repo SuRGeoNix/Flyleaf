@@ -62,7 +62,7 @@ namespace FlyleafLib
                     if (!string.IsNullOrEmpty(dir))
                         Directory.CreateDirectory(dir);
 
-                    fileStream = new FileStream(output, FileMode.Append, FileAccess.Write);
+                    fileStream = new FileStream(output, Engine.Config.LogAppend ? FileMode.Append : FileMode.Create, FileAccess.Write);
                     if (lastOutput != ":file")
                     {
                         Output = FilePtr;

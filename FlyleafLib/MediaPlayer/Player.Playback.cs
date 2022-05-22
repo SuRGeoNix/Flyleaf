@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 
@@ -11,12 +12,14 @@ namespace FlyleafLib.MediaPlayer
 {
     partial class Player
     {
+        bool stoppedWithError;
+
         /// <summary>
-        /// Fires on playback stopped by an error or completed / ended successfully
+        /// Fires on playback stopped by an error or completed / ended successfully <see cref="Status"/>
         /// Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
         /// </summary>
-        public event EventHandler<PlaybackCompletedArgs> PlaybackCompleted;
-        protected virtual void OnPlaybackCompleted(string error = null)
+        public event EventHandler<PlaybackStoppedArgs> PlaybackStopped;
+        protected virtual void OnPlaybackStopped(string error = null)
         {
             if (error != null && LastError == null)
             {
@@ -24,118 +27,111 @@ namespace FlyleafLib.MediaPlayer
                 UI(() => LastError = LastError);
             }
 
-            PlaybackCompleted?.Invoke(this, new PlaybackCompletedArgs(error));
+            PlaybackStopped?.Invoke(this, new PlaybackStoppedArgs(error));
         }
-
-        bool stoppedWithError;
 
         /// <summary>
         /// Plays AVS streams
         /// </summary>
         public void Play()
         {
-            lock (lockPlayPause)
+            lock (lockActions)
             {
                 if (!CanPlay || Status == Status.Playing || Status == Status.Ended)
                     return;
 
                 status = Status.Playing;
                 UI(() => Status = Status);
-                EnsureThreadDone(tSeek);
-                EnsureThreadDone(tPlay);
-
-                tPlay = new Thread(() =>
-                {
-                    try
-                    {
-                        TimeBeginPeriod(1);
-                        SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
-
-                        MainDemuxer = VideoDemuxer;
-                        onBufferingStarted   = 0;
-                        onBufferingCompleted = 0;
-
-                        if (LastError != null)
-                        {
-                            lastError = null;
-                            UI(() => LastError = LastError);
-                        }
-
-                        if (Config.Player.Usage == Usage.LowLatencyVideo)
-                            ScreamerLowLatency();
-                        else if (Config.Player.Usage == Usage.Audio || !Video.IsOpened)
-                        {
-                            MainDemuxer = AudioDecoder.OnVideoDemuxer ? VideoDemuxer : AudioDemuxer;
-                            ScreamerAudioOnly();
-                        }
-                        else
-                        {
-                            if (ReversePlayback)
-                                ScreamerReverse();
-                            else
-                                Screamer();
-                        }
-
-                    } catch (Exception e)
-                    {
-                        Log.Error($"Playback failed ({e.Message})");
-                    }
-                    finally
-                    {
-                        VideoDecoder.DisposeFrame(vFrame);
-                        vFrame = null;
-
-                        if (Status == Status.Stopped)
-                            decoder?.Stop();
-                        else if (decoder != null) 
-                        {
-                            decoder.PauseOnQueueFull();
-                            decoder.PauseDecoders();
-                        } 
-
-                        Audio.ClearBuffer();
-                        TimeEndPeriod(1);
-                        SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
-
-                        stoppedWithError = false;
-
-                        // Missed Buffering Completed means error
-                        if (onBufferingStarted - 1 == onBufferingCompleted)
-                        {
-                            stoppedWithError = IsPlaying;
-                            OnBufferingCompleted(stoppedWithError ? "Buffering failed" : null);
-                        }
-
-                        if (IsPlaying)
-                        {
-                            if (!stoppedWithError)
-                            {
-                                if (!ReversePlayback)
-                                    stoppedWithError = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
-                                else
-                                    stoppedWithError = CurTime > 3 * 1000 * 10000;
-                            }
-
-                            if (HasEnded)
-                                status = Status.Ended;
-                            else
-                                status = Status.Paused;
-                        }
-
-                        OnPlaybackCompleted(stoppedWithError ? "Playback stopped unexpectedly" : null);
-                        if (CanDebug) Log.Debug($"[SCREAMER] Finished (Status: {Status}, Error: {(stoppedWithError ? "Playback stopped unexpectedly" : "")})");
-
-                        UI(() =>
-                        {
-                            Status = Status;
-                            UpdateCurTime();
-                        });
-                    }
-                });
-                tPlay.Name = "Play";
-                tPlay.IsBackground = true;
-                tPlay.Start();
             }
+
+            while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
+            taskPlayRuns = true;
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    TimeBeginPeriod(1);
+                    SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
+
+                    onBufferingStarted   = 0;
+                    onBufferingCompleted = 0;
+
+                    if (LastError != null)
+                    {
+                        lastError = null;
+                        UI(() => LastError = LastError);
+                    }
+
+                    if (Config.Player.Usage == Usage.LowLatencyVideo)
+                        ScreamerLowLatency();
+                    else if (Config.Player.Usage == Usage.Audio || !Video.IsOpened)
+                        ScreamerAudioOnly();
+                    else
+                    {
+                        if (ReversePlayback)
+                            ScreamerReverse();
+                        else
+                            Screamer();
+                    }
+
+                } catch (Exception e)
+                {
+                    Log.Error($"Playback failed ({e.Message})");
+                }
+                finally
+                {
+                    VideoDecoder.DisposeFrame(vFrame);
+                    vFrame = null;
+                        
+                    if (Status == Status.Stopped)
+                        decoder?.Stop();
+                    else if (decoder != null) 
+                    {
+                        decoder.PauseOnQueueFull();
+                        decoder.PauseDecoders();
+                    }
+
+                    Audio.ClearBuffer();
+                    TimeEndPeriod(1);
+                    SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
+                    stoppedWithError = false;
+
+                    // Missed Buffering Completed means error
+                    if (onBufferingStarted - 1 == onBufferingCompleted)
+                    {
+                        stoppedWithError = IsPlaying;
+                        OnBufferingCompleted(stoppedWithError ? "Buffering failed" : null);
+                    }
+                        
+                    if (IsPlaying)
+                    {
+                        if (!stoppedWithError)
+                        {
+                            if (!ReversePlayback)
+                                stoppedWithError = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
+                            else
+                                stoppedWithError = CurTime > 3 * 1000 * 10000;
+                        }
+                            
+                        if (HasEnded)
+                            status = Status.Ended;
+                        else
+                            status = Status.Paused;
+                    }
+                        
+                    OnPlaybackStopped(stoppedWithError ? "Playback stopped unexpectedly" : null);
+                    if (CanDebug) Log.Debug($"[SCREAMER] Finished (Status: {Status}, Error: {(stoppedWithError ? "Playback stopped unexpectedly" : "")})");
+
+                    UI(() =>
+                    {
+                        Status = Status;
+                        UpdateCurTime();
+                    });
+
+                    taskPlayRuns = false;
+                }
+            });
         }
 
         /// <summary>
@@ -143,14 +139,15 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Pause()
         {
-            lock (lockPlayPause)
+            lock (lockActions)
             {
                 if (!CanPlay || Status == Status.Ended)
                     return;
 
                 status = Status.Paused;
                 UI(() => Status = Status);
-                EnsureThreadDone(tPlay);
+
+                while (taskPlayRuns) Thread.Sleep(5);
             }
         }
 
@@ -203,9 +200,9 @@ namespace FlyleafLib.MediaPlayer
 
             if (Status == Status.Playing) return;
 
-            lock (lockSeek) { if (IsSeeking) return; IsSeeking = true; }
+            lock (lockActions) { if (taskSeekRuns) return; taskSeekRuns = true; }
 
-            tSeek = new Thread(() =>
+            Task.Run(() =>
             {
                 int ret;
                 bool wasEnded = false;
@@ -254,18 +251,14 @@ namespace FlyleafLib.MediaPlayer
                             {
                                 if (CanWarn) Log.Warn("Seek failed");
                             }
-                            else
+                            else if (!ReversePlayback && CanPlay)
                             {
-                                if (!ReversePlayback && CanPlay)
-                                    decoder.GetVideoFrame(seekData.accurate ? seekData.ms * (long)10000 : -1);
-                                if (!ReversePlayback && CanPlay)
-                                {
-                                    ShowOneFrame();
-                                    VideoDemuxer.Start();
-                                    AudioDemuxer.Start();
-                                    SubtitlesDemuxer.Start();
-                                    decoder.PauseOnQueueFull();
-                                }
+                                decoder.GetVideoFrame(seekData.accurate ? seekData.ms * (long)10000 : -1);
+                                ShowOneFrame();
+                                VideoDemuxer.Start();
+                                AudioDemuxer.Start();
+                                SubtitlesDemuxer.Start();
+                                decoder.PauseOnQueueFull();
                             }
                         }
 
@@ -278,15 +271,11 @@ namespace FlyleafLib.MediaPlayer
                 {
                     decoder.OpenedPlugin?.OnBufferingCompleted();
                     TimeEndPeriod(1);
-                    lock (lockSeek) IsSeeking = false;
+                    lock (lockActions) taskSeekRuns = false;
                     if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError)
                         Play();
                 }
             });
-
-            tSeek.Name = "Seek";
-            tSeek.IsBackground = true;
-            tSeek.Start();
         }
 
         /// <summary>
@@ -303,37 +292,20 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void Stop()
         {
-            canPlay = false;
-
-            lock (this)
+            lock (lockActions)
             {
-                status = Status.Stopped;
-                UI(() =>
-                {
-                    CanPlay = CanPlay;
-                    Status  = Status;
-                });
-
-                EnsureThreadDone(tPlay);
-                if (IsDisposed || decoder == null) return;
-                decoder.Stop();
+                Initialize();
                 VideoDecoder.DisposeVA();
-                lock (lockSeek)
-                    lock (lockOpen)
-                    {
-                        Initialize();
-                        decoder.Interrupt = true;
-                    }
             }
         }
     }
 
-    public class PlaybackCompletedArgs : EventArgs
+    public class PlaybackStoppedArgs : EventArgs
     {
         public string   Error       { get; }
         public bool     Success     { get; }
             
-        public PlaybackCompletedArgs(string error)
+        public PlaybackStoppedArgs(string error)
         {
             Error   = error;
             Success = Error == null;

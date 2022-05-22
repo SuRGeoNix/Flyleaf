@@ -5,17 +5,16 @@ using System.Text;
 
 using UniversalDetector;
 
-using FlyleafLib.MediaFramework.MediaInput;
-
 namespace FlyleafLib.Plugins.SubtitlesConverter
 {
     public class SubtitlesConverter : PluginBase
     {
         public new int Priority { get; set; } = 2000;
 
-        public override OpenResults OnOpenSubtitles(SubtitlesInput input)
+        public override void OnOpenExternalSubtitles()
         {
-            if (input.Converted) return null;
+            if (Selected.ExternalSubtitlesStream.Converted)
+                return;
 
             string foundFrom = "";
             Encoding subsEnc = null;
@@ -26,7 +25,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
             {
                 ICharsetDetector detector = new CharsetDetector();
 
-                using (var stream = new FileStream(input.Url, FileMode.Open))
+                using (var stream = new FileStream(Selected.ExternalSubtitlesStream.Url, FileMode.Open))
                 {
                     int buflen = (int)Math.Min(stream.Length, 1024);
                     byte[] buf = new byte[buflen];
@@ -86,22 +85,23 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 
             if (subsEnc != Encoding.UTF8)
             {
-                Log.Info($"Converting from {subsEnc} | Folder: {Handler.VideoInput.InputData.Folder} | Detector: {foundFrom}");
-
                 try
                 {
-                    FileInfo fi = new FileInfo(input.Url);
-                    var newUrl = Path.Combine(Handler.VideoInput.InputData.Folder, "Subs", fi.Name.Remove(fi.Name.Length - fi.Extension.Length) + ".utf8.srt");
-                    Directory.CreateDirectory(Path.Combine(Handler.VideoInput.InputData.Folder, "Subs"));
-                    Convert(input.Url, newUrl, subsEnc, new UTF8Encoding(false));
-                    input.Url = newUrl;
+                    FileInfo fi = new FileInfo(Selected.ExternalSubtitlesStream.Url);
+                    var folder = Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs");
+                    var filename = Utils.FindNextAvailableFile(Path.Combine(folder, $"{Selected.Title}.{Selected.ExternalSubtitlesStream.Language.IdSubLanguage}.utf8.srt"));
+                    Log.Info($"Converting from {subsEnc} | Path: {filename} | Detector: {foundFrom}");
+
+                    var newUrl = Path.Combine(folder, filename);
+                    Directory.CreateDirectory(folder);
+                    Convert(Selected.ExternalSubtitlesStream.Url, newUrl, subsEnc, new UTF8Encoding(false));
+                    Selected.ExternalSubtitlesStream.DirectUrl = Selected.ExternalSubtitlesStream.Url;
+                    Selected.ExternalSubtitlesStream.Url = newUrl;
                 }
                 catch (Exception e) { Log.Error($"Convert Error: {e.Message}"); }
             }
 
-            input.Converted = true;
-
-            return null;
+            Selected.ExternalSubtitlesStream.Converted = true;
         }
 
         public bool Convert(string fileNameIn, string fileNameOut, Encoding input, Encoding output)

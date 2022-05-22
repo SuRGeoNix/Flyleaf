@@ -126,8 +126,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 lock (lockCodecCtx)
                 {
                     if (Status == Status.Stopped || demuxer.SubtitlesPackets.Count == 0) continue;
-                    demuxer.SubtitlesPackets.TryDequeue(out IntPtr pktPtr);
-                    packet = (AVPacket*) pktPtr;
+                    packet = demuxer.SubtitlesPackets.Dequeue();
                     int gotFrame = 0;
                     AVSubtitle sub = new AVSubtitle();
                     ret = avcodec_decode_subtitle2(codecCtx, &sub, &gotFrame, packet);

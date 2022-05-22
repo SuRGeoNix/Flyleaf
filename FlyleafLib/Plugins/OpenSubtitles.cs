@@ -2,85 +2,93 @@
 using System.Collections.Generic;
 using System.IO;
 
-using FlyleafLib.MediaFramework.MediaInput;
+using FlyleafLib.MediaFramework.MediaStream;
+using FlyleafLib.MediaFramework.MediaPlaylist;
 
 namespace FlyleafLib.Plugins
 {
-    public class OpenSubtitles : PluginBase, IOpenSubtitles, IProvideSubtitles, ISearchSubtitles, ISuggestSubtitlesInput
+    public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
     {
         public new int Priority { get; set; } = 3000;
 
-        public List<SubtitlesInput> SubtitlesInputs { get; set; } = new List<SubtitlesInput>();
-
-        public override void OnInitialized()
+        public OpenSubtitlesResults Open(string url)
         {
-            SubtitlesInputs.Clear();
-        }
+            /* TODO
+             * 1) Identify language
+             */
 
-        public override void OnInitializedSwitch()
-        {
-            if (Handler.OpenedPlugin != null && Handler.OpenedPlugin.IsPlaylist)
-                SubtitlesInputs.Clear();
-        }
+            foreach(var extStream in Selected.ExternalSubtitlesStreams)
+                if (extStream.Url == url || extStream.DirectUrl == url)
+                    return new OpenSubtitlesResults(extStream);
 
-        public OpenResults Open(string url)
-        {
-            foreach(var input in SubtitlesInputs)
-                if (input.Tag != null && input.Tag.ToString().ToLower() == url.ToLower()) return new OpenResults();
-
-            SubtitlesInputs.Add(new SubtitlesInput() { Url = url, Downloaded = true, InputData = new InputData() { Title = url }, Tag = url });
-            return new OpenResults();
-        }
-
-        public OpenResults Open(Stream iostream)
-        {
-            return null;
-        }
-
-        public void Search(Language lang)
-        {
-            // TBR: Until we define input urls as local/web/torrent etc. (perform also FileInfo only once on pluginhandler)
-            if (!Config.Subtitles.UseLocalSearch)
-                return;
-
-            string[] files = null;
+            string title;
 
             try
             {
-                FileInfo fi = new FileInfo(Handler.UserInputUrl);
-                string prefix = fi.Name.Substring(0, Math.Min(fi.Name.Length - fi.Extension.Length, 4));
-                files = Directory.GetFiles(Path.Combine(fi.DirectoryName, "Subs"), $"{prefix}*{lang.IdSubLanguage}.utf8.srt");
-            } catch { }
-            
-            if (files != null && files.Length > 0)
+                var fi = new FileInfo(Playlist.Url);
+                title = fi.Extension == null ? fi.Name : fi.Name.Substring(0, fi.Name.Length - fi.Extension.Length);
+            } catch { title = url; }
+
+            ExternalSubtitlesStream newExtStream = new ExternalSubtitlesStream()
             {
-                for (int i=0; i<Math.Min(files.Length, 4); i++)
-                {
-                    bool exists = false;
-                    foreach(var input in SubtitlesInputs)
-                        if (input.Url == files[i])
-                            { exists = true; break; }
-                    if (exists) continue;
+                Url         = url,
+                Title       = title,
+                Downloaded  = true,
+            };
 
-                    SubtitlesInputs.Add(new SubtitlesInput()
-                    {
-                        Url         = files[i],
-                        Converted   = true,
-                        Downloaded  = true,
-                        Language    = lang
-                    });
-                }
+            AddExternalStream(newExtStream);
 
-            }
+            return new OpenSubtitlesResults(newExtStream);
         }
 
-        public SubtitlesInput SuggestSubtitles(Language lang)
+        public OpenSubtitlesResults Open(Stream iostream)
         {
-            foreach(var input in SubtitlesInputs)
-                if (input.Tag == null && input.Language == lang)
-                    return input;
-
             return null;
+        }
+
+        public void SearchLocalSubtitles()
+        {
+            /* TODO
+             * 1) Subs folder could exist under Season X (it will suggest another season's subtitle)
+             * 2) Identify language
+             * 3) Confidence
+             */
+
+            List<string> files = new List<string>();
+
+            try
+            {
+                foreach (var lang in Config.Subtitles.Languages)
+                {
+                    //FileInfo fi = new FileInfo(Handler.Playlist.Url);
+                    string prefix = Selected.Title.Substring(0, Math.Min(Selected.Title.Length, 4));
+                    string[] filesCur = Directory.GetFiles(Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs"), $"{prefix}*{lang.IdSubLanguage}.utf8*.srt");
+                    foreach(var file in filesCur)
+                    {
+                        bool exists = false;
+                        foreach(var extStream in Selected.ExternalSubtitlesStreams)
+                            if (extStream.Url == file)
+                                { exists = true; break; }
+                        if (exists) continue;
+
+                        if (Utils.ExtractSeasonEpisode(file, out int season, out int episode) && Selected.Season != -1 && (Selected.Season != season || Selected.Episode != episode))
+                            continue;
+
+                        Log.Debug($"Adding [{lang}] {file}");
+
+                        AddExternalStream(new ExternalSubtitlesStream()
+                        {
+                            Url         = file,
+                            Title       = file,
+                            Converted   = true,
+                            Downloaded  = true,
+                            Language    = lang
+                            //Language    = Language.Get("eng")
+                        });
+                    }
+                }
+                
+            } catch { }
         }
     }
 }

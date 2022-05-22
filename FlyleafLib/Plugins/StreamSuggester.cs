@@ -1,19 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 using static FFmpeg.AutoGen.AVMediaType;
 using static FFmpeg.AutoGen.ffmpeg;
 
+using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
-    public unsafe class StreamSuggester : PluginBase, ISuggestAudioStream, ISuggestVideoStream, ISuggestSubtitlesStream
+    public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggestAudioStream, ISuggestVideoStream, ISuggestSubtitlesStream, ISuggestSubtitles, ISuggestBestExternalSubtitles
     {
         public new int Priority { get; set; } = 3000;
 
-        public AudioStream SuggestAudio(List<AudioStream> streams)
+        public AudioStream SuggestAudio(ObservableCollection<AudioStream> streams)
         {
             lock (streams[0].Demuxer.lockActions)
             {
@@ -60,7 +62,7 @@ namespace FlyleafLib.Plugins
             }
         }
 
-        public VideoStream SuggestVideo(List<VideoStream> streams)
+        public VideoStream SuggestVideo(ObservableCollection<VideoStream> streams)
         {
             // Try to find best video stream based on current screen resolution
             var iresults =
@@ -89,10 +91,60 @@ namespace FlyleafLib.Plugins
             return null;
         }
 
-        public SubtitlesStream SuggestSubtitles(List<SubtitlesStream> streams, Language lang)
+        public PlaylistItem SuggestItem()
         {
-            foreach(var stream in streams)
-                if (lang == stream.Language) return stream;
+            return Playlist.Items[0];
+        }
+
+        public void SuggestSubtitles(out SubtitlesStream stream, out ExternalSubtitlesStream extStream)
+        {
+            stream = null;
+            extStream = null;
+
+            List<Language> langs = new List<Language>();
+
+            foreach (var lang in Config.Subtitles.Languages)
+                langs.Add(lang);
+
+            langs.Add(Language.Get("und"));
+
+            var extStreams = Selected.ExternalSubtitlesStreams.OrderBy(x => x.Language.ToString()).ThenByDescending(x => x.Rating).ThenBy(x => x.Downloaded);
+
+            foreach (var lang in langs)
+            {
+                foreach(var embStream in decoder.VideoDemuxer.SubtitlesStreams)
+                    if (embStream.Language == lang)
+                    {
+                        stream = embStream;
+                        return;
+                    }
+
+                foreach(var extStream2 in extStreams)
+                    if (extStream2.Language == lang)
+                    {
+                        extStream = extStream2;
+                        return;
+                    }
+            }
+        }
+
+        public ExternalSubtitlesStream SuggestBestExternalSubtitles()
+        {
+            var extStreams = Selected.ExternalSubtitlesStreams.OrderBy(x => x.Language.ToString()).ThenByDescending(x => x.Rating).ThenBy(x => x.Downloaded);
+
+            foreach(var extStream in extStreams)
+                if (extStream.Language == Config.Subtitles.Languages[0])
+                    return extStream;
+
+            return null;
+        }
+
+        public SubtitlesStream SuggestSubtitles(ObservableCollection<SubtitlesStream> streams, List<Language> langs)
+        {
+            foreach(var lang in langs)
+                foreach(var stream in streams)
+                    if (lang == stream.Language)
+                        return stream;
 
             return null;
         }

@@ -248,6 +248,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 var cfgFilter = Config.Video.Filters[filter.Filter];
                 cfgFilter.Available = true;
+                cfgFilter.renderer = this;
 
                 if (!configLoadedChecked && !Config.Loaded)
                 {
@@ -347,7 +348,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
     public class VideoFilter : NotifyPropertyChanged
     {
-        internal Player player;
+        internal Renderer renderer;
 
         [XmlIgnore]
         public bool         Available   { get => _Available;set => SetUI(ref _Available, value); }
@@ -368,18 +369,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public int          DefaultValue{ get => _DefaultValue; set => SetUI(ref _DefaultValue, value); }
         int _DefaultValue = 50;
 
-        public int          Value       { get => _Value;        set { if (Set(ref _Value, value)) player?.renderer?.UpdateFilterValue(this); } }
+        public int          Value       { get => _Value;        set { if (Set(ref _Value, value)) renderer?.UpdateFilterValue(this); } }
         int _Value = 50;
 
-        internal void SetValue(int value)
-        {
-            if (_Value == value)
-                return;
-
-            _Value = value;
-
-            RaiseUI(nameof(Value));
-        }
+        internal void SetValue(int value) { SetUI(ref _Value, value, true, nameof(Value)); }
 
         public VideoFilter() { }
         public VideoFilter(VideoFilters filter, Player player = null) { Filter = filter; }

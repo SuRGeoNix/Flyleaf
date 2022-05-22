@@ -4,7 +4,7 @@
     <TargetFrameworks>net6.0-windows;net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.21</Version>
+    <Version>1.1.22-pre</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2022</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,7 +14,10 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		* Fixes an issue with Pop-Up menu and Subtitles embedded streams
+		* Adds Playlist support (on popup menu)
+		* Adds Search Local / Search Online on Subtitles Settings
+		* Plugins' external streams will be all as one under External
+		* Fixes an issue that it wouldn't go idle when the mouse was above the sliders
 		* Updates FlyleafLib
 	</PackageReleaseNotes>
   </PropertyGroup>

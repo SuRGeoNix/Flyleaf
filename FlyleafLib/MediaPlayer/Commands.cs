@@ -1,6 +1,8 @@
 ﻿using System.Windows.Input;
 
 using FlyleafLib.Controls.WPF;
+using FlyleafLib.MediaFramework.MediaPlaylist;
+using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -23,6 +25,7 @@ namespace FlyleafLib.MediaPlayer
         public ICommand Open                    { get; set; }
         public ICommand OpenFromClipboard       { get; set; }
         public ICommand OpenFromFileDialog      { get; set; }
+        public ICommand Reopen                  { get; set; }
 
         public ICommand Play                    { get; set; }
         public ICommand Pause                   { get; set; }
@@ -72,6 +75,7 @@ namespace FlyleafLib.MediaPlayer
             Open                    = new RelayCommand(OpenAction);
             OpenFromClipboard       = new RelayCommandSimple(player.OpenFromClipboard);
             OpenFromFileDialog      = new RelayCommandSimple(player.OpenFromFileDialog);
+            Reopen                  = new RelayCommand(ReopenAction);
 
             Play                    = new RelayCommandSimple(player.Play);
             Pause                   = new RelayCommandSimple(player.Pause);
@@ -177,12 +181,34 @@ namespace FlyleafLib.MediaPlayer
             if (input == null)
                 return;
 
-            if (input is MediaFramework.MediaStream.StreamBase)
-                player.OpenAsync((MediaFramework.MediaStream.StreamBase)input);
-            else if (input is MediaFramework.MediaInput.InputBase)
-                player.OpenAsync((MediaFramework.MediaInput.InputBase)input);
+            if (input is StreamBase)
+                player.OpenAsync((StreamBase)input);
+            else if (input is PlaylistItem)
+                player.OpenAsync((PlaylistItem)input);
+            else if (input is ExternalStream)
+                player.OpenAsync((ExternalStream)input);
+            else if (input is System.IO.Stream)
+                player.OpenAsync((System.IO.Stream)input);
             else
                 player.OpenAsync(input.ToString());
+        }
+
+        public void ReopenAction(object playlistItem)
+        {
+            if (playlistItem == null)
+                return;
+
+            PlaylistItem item = (PlaylistItem)playlistItem;
+            if (item.OpenedCounter > 0)
+            {
+                Session session = player.GetSession(item);
+                if (session.CurTime < 60 * (long)1000 * 10000)
+                    session.CurTime = 0;
+
+                player.OpenAsync(session);
+            }
+            else
+                player.OpenAsync(item);
         }
     }
 }

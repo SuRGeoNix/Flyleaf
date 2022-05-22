@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Threading;
 
 using FFmpeg.AutoGen;
@@ -20,6 +20,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
     public unsafe class Demuxer : RunThreadBase
     {
+        /* TODO
+         * 1) Review lockFmtCtx on Enable/Disable Streams causes delay and is not fully required
+         */
+
         #region Properties
         public MediaType                Type            { get; private set; }
         public DemuxerConfig            Config          { get; set; }
@@ -31,17 +35,20 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public string                   Extensions      { get; private set; }
         public string                   Extension       { get; private set; }
         public long                     StartTime       { get; private set; }
-        public long                     Duration        { get; private set; }
+        public long                     Duration        { get; internal set; }
+
+        public Dictionary<string, string>
+                                        Metadata        { get; internal set; } = new Dictionary<string, string>();
 
         /// <summary>
-        /// The time of first packet in the queue
+        /// The time of first packet in the queue (zero based, substracts start time)
         /// </summary>
-        public long                     CurTime         { get; private set; }
+        public long                     CurTime         => CurPackets.CurTime != 0 ? CurPackets.CurTime : lastSeekTime;
 
         /// <summary>
         /// The buffered time in the queue (last packet time - first packet time)
         /// </summary>
-        public long                     BufferedDuration{ get; private set; }
+        public long                     BufferedDuration=> CurPackets.BufferedDuration;
 
         public bool                     IsLive          { get; private set; }
 
@@ -52,9 +59,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public int[][]                  Programs        { get; private set; } = new int[0][];
 
         // Media Streams
-        public List<AudioStream>        AudioStreams    { get; private set; } = new List<AudioStream>();
-        public List<VideoStream>        VideoStreams    { get; private set; } = new List<VideoStream>();
-        public List<SubtitlesStream>    SubtitlesStreams{ get; private set; } = new List<SubtitlesStream>();
+        public ObservableCollection<AudioStream>        AudioStreams    { get; private set; } = new ObservableCollection<AudioStream>();
+        public ObservableCollection<VideoStream>        VideoStreams    { get; private set; } = new ObservableCollection<VideoStream>();
+        public ObservableCollection<SubtitlesStream>    SubtitlesStreams{ get; private set; } = new ObservableCollection<SubtitlesStream>();
+        object lockStreams = new object();
+
         public List<int>                EnabledStreams  { get; private set; } = new List<int>();
         public Dictionary<int, StreamBase> 
                                         AVStreamToStream{ get; private set; }
@@ -67,13 +76,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         internal HLSPlaylist*           HLSPlaylist     { get; private set; }
         
         // Media Packets
-        public ConcurrentQueue<IntPtr>  Packets         { get; private set; } = new ConcurrentQueue<IntPtr>();
-        public ConcurrentQueue<IntPtr>  AudioPackets    { get; private set; } = new ConcurrentQueue<IntPtr>();
-        public ConcurrentQueue<IntPtr>  VideoPackets    { get; private set; } = new ConcurrentQueue<IntPtr>();
-        public ConcurrentQueue<IntPtr>  SubtitlesPackets{ get; private set; } = new ConcurrentQueue<IntPtr>();
-        public ConcurrentQueue<IntPtr>  CurPackets      { get; private set; }
+        public PacketQueue              Packets         { get; private set; }
+        public PacketQueue              AudioPackets    { get; private set; }
+        public PacketQueue              VideoPackets    { get; private set; }
+        public PacketQueue              SubtitlesPackets{ get; private set; }
+        public PacketQueue              CurPackets      { get; private set; }
+
         public bool                     UseAVSPackets   { get; private set; }
-        public ConcurrentQueue<IntPtr>  GetPacketsPtr(MediaType type) 
+        public PacketQueue GetPacketsPtr(MediaType type)
             { if (!UseAVSPackets) return Packets; return type == MediaType.Audio ? AudioPackets : (type == MediaType.Video ? VideoPackets : SubtitlesPackets); }
 
         public ConcurrentQueue<ConcurrentStack<List<IntPtr>>>
@@ -82,10 +92,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public bool                     IsReversePlayback
                                                         { get; private set; }
         
-        // Stats
         public long                     TotalBytes      { get; private set; } = 0;
-        public long                     VideoBytes      { get; private set; } = 0;
-        public long                     AudioBytes      { get; private set; } = 0;
 
         // Interrupt
         public Interrupter              Interrupter     { get; private set; }
@@ -119,10 +126,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         internal HLSContext*    hlsCtx;
 
         long                    hlsPrevSeqNo            = AV_NOPTS_VALUE;   // Identifies the change of the m3u8 playlist (wraped)
-        long                    hlsStartTime            = AV_NOPTS_VALUE;   // Calculation of first timestamp (lastPacketTs - hlsCurDuration)
+        internal long           hlsStartTime            = AV_NOPTS_VALUE;   // Calculation of first timestamp (lastPacketTs - hlsCurDuration)
         long                    hlsCurDuration;                             // Duration until the start of the current segment
-        long                    firstPacketTs           = AV_NOPTS_VALUE;   // First packet timestamp in the queue
-        internal long           lastPacketTs            = AV_NOPTS_VALUE;   // Last demuxed packet timestamp
+        long                    lastSeekTime;                               // To set CurTime while no packets are available
 
         internal GCHandle       handle;
         public object           lockFmtCtx              = new object();
@@ -149,12 +155,21 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Config          = config;
             Type            = type;
             UseAVSPackets   = useAVSPackets;
-            CurPackets      = Packets; // Will be updated on stream switch in case of AVS
             Interrupter     = new Interrupter(this);
             CustomIOContext = new CustomIOContext(this);
 
+            Packets         = new PacketQueue(this);
+            AudioPackets    = new PacketQueue(this);
+            VideoPackets    = new PacketQueue(this);
+            SubtitlesPackets= new PacketQueue(this);
+            CurPackets      = Packets; // Will be updated on stream switch in case of AVS
+
             string typeStr = Type == MediaType.Video ? "Main" : Type.ToString();
             threadName = $"Demuxer: {typeStr.PadLeft(5, ' ')}";
+
+            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(AudioStreams, lockStreams);
+            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(VideoStreams, lockStreams);
+            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(SubtitlesStreams, lockStreams);
         }
         #endregion
 
@@ -163,29 +178,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         {
             if (UseAVSPackets)
             {
-                DisposePackets(AudioPackets);
-                DisposePackets(VideoPackets);
-                DisposePackets(SubtitlesPackets);
+                AudioPackets.Clear();
+                VideoPackets.Clear();
+                SubtitlesPackets.Clear();
+
                 DisposePacketsReverse();
             }
             else
-                DisposePackets(Packets);
+                Packets.Clear();
 
-            firstPacketTs= AV_NOPTS_VALUE;
-            lastPacketTs = AV_NOPTS_VALUE;
             hlsStartTime = AV_NOPTS_VALUE;
-            BufferedDuration = 0;
         }
-        public void DisposePackets(ConcurrentQueue<IntPtr> packets)
-        {
-            while (!packets.IsEmpty)
-            {
-                packets.TryDequeue(out IntPtr packetPtr);
-                if (packetPtr == IntPtr.Zero) continue;
-                AVPacket* packet = (AVPacket*)packetPtr;
-                av_packet_free(&packet);
-            }
-        }
+        
         public void DisposePacketsReverse()
         {
             while (!VideoPacketsReverse.IsEmpty)
@@ -195,7 +199,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 {
                     t1.TryPop(out var t2);
                     for (int i = 0; i < t2.Count; i++)
-                    { 
+                    {
                         if (t2[i] == IntPtr.Zero) continue;
                         AVPacket* packet = (AVPacket*)t2[i];
                         av_packet_free(&packet);
@@ -228,16 +232,22 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 hlsCtx = null;
                 Programs = new int[0][];
 
-                CurTime = 0;
                 IsReversePlayback   = false;
                 curReverseStopPts   = AV_NOPTS_VALUE;
                 curReverseStartPts  = AV_NOPTS_VALUE;
                 hlsPrevSeqNo        = AV_NOPTS_VALUE;
+                lastSeekTime        = 0;
 
                 // Free Streams
-                AudioStreams.Clear();
-                VideoStreams.Clear();
-                SubtitlesStreams.Clear();
+                if (AudioStreams.Count != 0 || VideoStreams.Count != 0 || SubtitlesStreams.Count != 0)
+                {
+                    lock (lockStreams)
+                    {
+                        AudioStreams.Clear();
+                        VideoStreams.Clear();
+                        SubtitlesStreams.Clear();
+                    }
+                }
                 EnabledStreams.Clear();
                 AudioStream = null;
                 VideoStream = null;
@@ -257,7 +267,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 if (handle.IsAllocated) handle.Free();
 
-                TotalBytes = 0; VideoBytes = 0; AudioBytes = 0;
+                TotalBytes = 0;
                 Status = Status.Stopped;
                 Disposed = true;
 
@@ -371,6 +381,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             bool hasVideo = false;
             AVStreamToStream = new Dictionary<int, StreamBase>();
 
+            Metadata.Clear();
+            AVDictionaryEntry* b = null;
+            while (true)
+            {
+                b = av_dict_get(fmtCtx->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
+                if (b == null) break;
+                Metadata.Add(Utils.BytePtrToStringUTF8(b->key), Utils.BytePtrToStringUTF8(b->value));
+            }
+
             Chapters.Clear();
             string dump = "";
             for (int i=0; i<fmtCtx->nb_chapters; i++)
@@ -379,7 +398,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 double tb = av_q2d(chp->time_base) * 10000.0 * 1000.0;
                 string title = "";
 
-                AVDictionaryEntry* b = null;
+                b = null;
                 while (true)
                 {
                     b = av_dict_get(chp->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
@@ -404,36 +423,38 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             bool audioHasEng = false;
             bool subsHasEng = false;
 
-            for (int i=0; i<fmtCtx->nb_streams; i++)
-            {
-                fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
-
-                switch (fmtCtx->streams[i]->codecpar->codec_type)
+            lock (lockStreams) {  
+                for (int i=0; i<fmtCtx->nb_streams; i++)
                 {
-                    case AVMEDIA_TYPE_AUDIO:
-                        AudioStreams.Add(new AudioStream(this, fmtCtx->streams[i]));
-                        AVStreamToStream.Add(fmtCtx->streams[i]->index, AudioStreams[AudioStreams.Count-1]);
-                        if (AudioStreams[AudioStreams.Count-1].Language == Language.Get("eng")) audioHasEng = true;
-                        break;
+                    fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
 
-                    case AVMEDIA_TYPE_VIDEO:
-                        if ((fmtCtx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0) 
-                            { Log.Info($"Excluding image stream #{i}"); continue; }
+                    switch (fmtCtx->streams[i]->codecpar->codec_type)
+                    {
+                        case AVMEDIA_TYPE_AUDIO:
+                            AudioStreams.Add(new AudioStream(this, fmtCtx->streams[i]));
+                            AVStreamToStream.Add(fmtCtx->streams[i]->index, AudioStreams[AudioStreams.Count-1]);
+                            if (AudioStreams[AudioStreams.Count-1].Language == Language.Get("eng")) audioHasEng = true;
+                            break;
 
-                        VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
-                        AVStreamToStream.Add(fmtCtx->streams[i]->index, VideoStreams[VideoStreams.Count-1]);
-                        if (VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE) hasVideo = true;
-                        break;
+                        case AVMEDIA_TYPE_VIDEO:
+                            if ((fmtCtx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0) 
+                                { Log.Info($"Excluding image stream #{i}"); continue; }
 
-                    case AVMEDIA_TYPE_SUBTITLE:
-                        SubtitlesStreams.Add(new SubtitlesStream(this, fmtCtx->streams[i]));
-                        AVStreamToStream.Add(fmtCtx->streams[i]->index, SubtitlesStreams[SubtitlesStreams.Count-1]);
-                        if (SubtitlesStreams[SubtitlesStreams.Count-1].Language == Language.Get("eng")) subsHasEng = true;
-                        break;
+                            VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
+                            AVStreamToStream.Add(fmtCtx->streams[i]->index, VideoStreams[VideoStreams.Count-1]);
+                            if (VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE) hasVideo = true;
+                            break;
 
-                    default:
-                        Log.Info($"#[Unknown #{i}] {fmtCtx->streams[i]->codecpar->codec_type}");
-                        break;
+                        case AVMEDIA_TYPE_SUBTITLE:
+                            SubtitlesStreams.Add(new SubtitlesStream(this, fmtCtx->streams[i]));
+                            AVStreamToStream.Add(fmtCtx->streams[i]->index, SubtitlesStreams[SubtitlesStreams.Count-1]);
+                            if (SubtitlesStreams[SubtitlesStreams.Count-1].Language == Language.Get("eng")) subsHasEng = true;
+                            break;
+
+                        default:
+                            Log.Info($"#[Unknown #{i}] {fmtCtx->streams[i]->codecpar->codec_type}");
+                            break;
+                    }
                 }
             }
 
@@ -501,52 +522,52 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     bool found = false;
                     while (VideoPackets.Count > 0)
                     {
-                        VideoPackets.TryPeek(out IntPtr packetPtr);
-                        if (packetPtr == IntPtr.Zero) continue;
-                        AVPacket* packet = (AVPacket*)packetPtr;
+                        AVPacket* packet = VideoPackets.Peek();
                         if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * VideoStream.Timebase && (packet->flags & AV_PKT_FLAG_KEY) != 0)
                         {
                             found = true;
                             ticks = (long) (packet->pts * VideoStream.Timebase);
+
                             break;
                         }
+
+                        VideoPackets.Dequeue();
                         av_packet_free(&packet);
-                        VideoPackets.TryDequeue(out IntPtr devnull);
                     }
 
                     while (AudioPackets.Count > 0)
                     {
-                        AudioPackets.TryPeek(out IntPtr packetPtr);
-                        if (packetPtr == IntPtr.Zero) continue;
-                        AVPacket* packet = (AVPacket*)packetPtr;
+                        AVPacket* packet = AudioPackets.Peek();
                         if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * AudioStream.Timebase)
                         {
-                            if (Type == MediaType.Audio || VideoStream == null) found = true;
+                            if (Type == MediaType.Audio || VideoStream == null)
+                                found = true;
+
                             break;
                         }
+
+                        AudioPackets.Dequeue();
                         av_packet_free(&packet);
-                        AudioPackets.TryDequeue(out IntPtr devnull);
                     }
 
                     while (SubtitlesPackets.Count > 0)
                     {
-                        SubtitlesPackets.TryPeek(out IntPtr packetPtr);
-                        if (packetPtr == IntPtr.Zero) continue;
-                        AVPacket* packet = (AVPacket*)packetPtr;
+                        AVPacket* packet = SubtitlesPackets.Peek();
                         if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * SubtitlesStream.Timebase)
                         {
-                            if (Type == MediaType.Subs) found = true;
+                            if (Type == MediaType.Subs)
+                                found = true;
+
                             break;
                         }
+
+                        SubtitlesPackets.Dequeue();
                         av_packet_free(&packet);
-                        SubtitlesPackets.TryDequeue(out IntPtr devnull);
                     }
 
                     if (found)
                     {
                         Log.Debug("[Seek] Found in Queue");
-                        //CurTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
-                        UpdateCurTime();
                         return 0;
                     }
                 }
@@ -615,10 +636,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (ret < 0)
                             Log.Warn($"Seek failed 2/2 {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
                         else
-                            CurTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
+                            lastSeekTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
                     }
                     else
-                        CurTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
+                        lastSeekTime = ticks - StartTime - (HLSPlaylist != null ? hlsStartTime : 0);
 
                     DisposePackets();
                     lock (lockStatus) if (Status == Status.Ended) Status = Status.Stopped;
@@ -639,7 +660,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             int ret = 0;
             int allowedErrors = Config.MaxErrors;
             bool gotAVERROR_EXIT = false;
-            int updateLoop = 5;
             audioBufferLimitFired = false;
 
             do
@@ -651,10 +671,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (Status == Status.Running) Status = Status.QueueFull;
 
                     while (!PauseOnQueueFull && (BufferedDuration > Config.BufferDuration || (Config.BufferPackets != 0 && CurPackets.Count > Config.BufferPackets)) && Status == Status.QueueFull)
-                    {
                         Thread.Sleep(20);
-                        UpdateCurTime();
-                    }
 
                     lock (lockStatus)
                     {
@@ -708,12 +725,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     // Skip Disabled Streams | TODO: It's possible that the streams will changed (add/remove or even update/change of codecs)
                     if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
-                    if (packet->dts != AV_NOPTS_VALUE)
-                    {
-                        //Log($"dts: {Utils.TicksToTime((long)(packet->dts * AVStreamToStream[packet->stream_index].Timebase))} pts: {Utils.TicksToTime(lastPacketTs)}");
-                        lastPacketTs = (long)(packet->dts * AVStreamToStream[packet->stream_index].Timebase);
-                        UpdateHLSTime();
-                    }
+                    UpdateHLSTime();
 
                     if (CanTrace)
                     {
@@ -745,46 +757,19 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                                     break;
                                 }
 
-                                if (VideoStream == null)
-                                {
-                                    updateLoop--;
-
-                                    if (updateLoop == 0)
-                                    {
-                                        updateLoop = 5;
-                                        UpdateCurTime();
-                                    }
-                                }
-
-                                AudioBytes += packet->size;
-                                AudioPackets.Enqueue((IntPtr)packet);
-                                packet = av_packet_alloc();
+                                AudioPackets.Enqueue();
 
                                 break;
 
                             case AVMEDIA_TYPE_VIDEO:
                                 //Log($"Video => {Utils.TicksToTime((long)(packet->pts * VideoStream.Timebase))} | {Utils.TicksToTime(CurTime)}");
 
-                                updateLoop--;
-
-                                if (updateLoop == 0)
-                                {
-                                    updateLoop = 5;
-                                    UpdateCurTime();
-                                }
-
-                                VideoBytes += packet->size;
-                                VideoPackets.Enqueue((IntPtr)packet);
-                                packet = av_packet_alloc();
+                                VideoPackets.Enqueue();
 
                                 break;
 
                             case AVMEDIA_TYPE_SUBTITLE:
-                                SubtitlesPackets.Enqueue((IntPtr)packet);
-                                packet = av_packet_alloc();
-
-                                if (Type == MediaType.Subs)
-                                    UpdateCurTime();
+                                SubtitlesPackets.Enqueue();
                             
                                 break;
 
@@ -795,16 +780,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     }
                     else
                     {
-                        updateLoop--;
-
-                        if (updateLoop == 0)
-                        {
-                            updateLoop = 10;
-                            UpdateCurTime();
-                        }
-
-                        Packets.Enqueue((IntPtr)packet);
-                        packet = av_packet_alloc();
+                        Packets.Enqueue();
                     }
                 }
             } while (Status == Status.Running);
@@ -910,9 +886,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     }
 
                     if (VideoStream.StreamIndex != packet->stream_index) { av_packet_unref(packet); continue; }
-
-                    if (packet->pts != AV_NOPTS_VALUE)
-                        CurTime = (long) ((packet->pts * VideoStream.Timebase) - StartTime);
 
                     if ((packet->flags & AV_PKT_FLAG_KEY) != 0)
                     {
@@ -1091,16 +1064,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             UpdateHLSTime();
                         }
 
-                        UpdateCurTime();
-
                         break;
 
                     case MediaType.Video:
                         VideoStream = (VideoStream) stream;
                         HLSPlaylist = VideoStream.HLSPlaylist;
-                        
                         UpdateHLSTime();
-                        UpdateCurTime();
 
                         curReverseSeekOffset = av_rescale_q((3 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
 
@@ -1141,21 +1110,25 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         AudioStream = null;
                         if (VideoStream != null) HLSPlaylist = VideoStream.HLSPlaylist;
 
+                        AudioPackets.Clear();
+
                         break;
 
                     case MediaType.Video:
                         VideoStream = null;
                         if (AudioStream != null) HLSPlaylist = AudioStream.HLSPlaylist;
 
+
+                        VideoPackets.Clear();
                         break;
 
                     case MediaType.Subs:
                         SubtitlesStream = null;
 
+                        SubtitlesPackets.Clear();
+
                         break;
                 }
-
-                DisposePackets(GetPacketsPtr(stream.Type));
 
                 if (UseAVSPackets)
                     CurPackets = VideoStream != null ? VideoPackets : (AudioStream != null ? AudioPackets : SubtitlesPackets);
@@ -1180,50 +1153,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         #endregion
         
         #region Misc
-        [SecurityCritical]
-        public void UpdateCurTime()
-        {
-            if (CurPackets.Count == 0)
-            {
-                BufferedDuration = 0;
-                return;
-            }
-
-            try
-            {
-                if (CurPackets.TryPeek(out IntPtr firstPacketPtr) && ((AVPacket*)firstPacketPtr)->dts != AV_NOPTS_VALUE)
-                    firstPacketTs = (long) (((AVPacket*)firstPacketPtr)->dts * AVStreamToStream[((AVPacket*)firstPacketPtr)->stream_index].Timebase);
-            } catch { return; } // TBR: Race condition with the decoder av_packet_free(&packet); 
-            
-            if (firstPacketTs == AV_NOPTS_VALUE)
-            {
-                if (lastPacketTs == AV_NOPTS_VALUE)
-                    return;
-
-                firstPacketTs = lastPacketTs;
-            }
-
-            long bufferedDuration = lastPacketTs - firstPacketTs;
-            if (bufferedDuration >= 0)
-                BufferedDuration = bufferedDuration;
-
-            if (HLSPlaylist == null)
-                CurTime = lastPacketTs - StartTime - BufferedDuration;
-            else
-            {
-                // If we pause we can find ourselves (first packet) behind the current first segment
-                if (firstPacketTs < hlsStartTime)
-                {
-                    CurTime = 0;
-                    Duration += hlsStartTime - firstPacketTs;
-                    hlsStartTime = firstPacketTs;
-                }
-                else
-                    CurTime = lastPacketTs - hlsStartTime - BufferedDuration; //CurTime = firstPacketTs - hlsStartTime; We can't trust firstPacketTs might changed timestamps                
-            }
-
-            //Log($"[S: {HLSPlaylist->start_seq_no} C: {HLSPlaylist->cur_seq_no} L: {HLSPlaylist->last_seq_no} T:{HLSPlaylist->n_segments} BD: {Utils.TicksToTime(BufferedDuration)} SD: {Utils.TicksToTime(hlsCurDuration)} DUR: {Utils.TicksToTime(Duration)}] [FT: {Utils.TicksToTime(hlsCtx->first_timestamp * 10)} ST: {Utils.TicksToTime(hlsStartTime)} FP: {Utils.TicksToTime(firstPacketTs)} CP: {Utils.TicksToTime(lastPacketTs)} <> {Utils.TicksToTime(lastPacketTs-firstPacketTs)} | CT: {Utils.TicksToTime(CurTime)}]");
-        }
         internal void UpdateHLSTime()
         {
             if (HLSPlaylist == null)
@@ -1253,8 +1182,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             //if (HLSPlaylist->finished == 1) IsLive = false;
 
-            if (lastPacketTs != AV_NOPTS_VALUE && hlsStartTime == AV_NOPTS_VALUE)
-                hlsStartTime = lastPacketTs - hlsCurDuration;
+            if (hlsStartTime == AV_NOPTS_VALUE && CurPackets.LastTimestamp != AV_NOPTS_VALUE)
+            {
+                hlsStartTime = CurPackets.LastTimestamp - hlsCurDuration;
+                CurPackets.UpdateCurTime();
+            }
+
+            //Log($"[S: {HLSPlaylist->start_seq_no} C: {HLSPlaylist->cur_seq_no} L: {HLSPlaylist->last_seq_no} T:{HLSPlaylist->n_segments} BD: {Utils.TicksToTime(BufferedDuration)} SD: {Utils.TicksToTime(hlsCurDuration)} DUR: {Utils.TicksToTime(Duration)}] [FT: {Utils.TicksToTime(hlsCtx->first_timestamp * 10)} ST: {Utils.TicksToTime(hlsStartTime)} FP: {Utils.TicksToTime(firstPacketTs)} CP: {Utils.TicksToTime(lastPacketTs)} <> {Utils.TicksToTime(lastPacketTs-firstPacketTs)} | CT: {Utils.TicksToTime(CurTime)}]");
         }
 
         private string GetValidExtension()
@@ -1332,8 +1266,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         {
             if (VideoPackets.Count > 0)
             {
-                VideoPackets.TryDequeue(out IntPtr pktPtr);
-                packet = (AVPacket*) pktPtr;
+                packet = VideoPackets.Dequeue();
                 return 0;
             }
             else
@@ -1382,5 +1315,122 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
         }
         #endregion
+    }
+
+    public unsafe class PacketQueue
+    {
+        /* TODO
+         * 
+         * 1) Review thread safe for Enqueue/Dequeue/Clear
+         * 
+         */
+        Demuxer demuxer;
+        ConcurrentQueue<IntPtr> packets = new ConcurrentQueue<IntPtr>();
+
+        public long Bytes               { get; private set; }
+        public long BufferedDuration    { get; private set; }
+        public long CurTime             { get; private set; }
+        public int  Count               => packets.Count;
+
+        public long FirstTimestamp      { get; private set; } = AV_NOPTS_VALUE;
+        public long LastTimestamp       { get; private set; } = AV_NOPTS_VALUE;
+
+        public PacketQueue(Demuxer demuxer)
+        {
+            this.demuxer = demuxer;
+        }
+
+        public void Clear()
+        {
+            while (!packets.IsEmpty)
+            {
+                packets.TryDequeue(out IntPtr packetPtr);
+                if (packetPtr == IntPtr.Zero) continue;
+                AVPacket* packet = (AVPacket*)packetPtr;
+                av_packet_free(&packet);
+            }
+
+            FirstTimestamp = AV_NOPTS_VALUE;
+            LastTimestamp = AV_NOPTS_VALUE;
+            Bytes = 0;
+            BufferedDuration = 0;
+            CurTime = 0;
+        }
+
+        public void Enqueue()
+        {
+            Enqueue(demuxer.packet);
+            demuxer.packet = av_packet_alloc();
+        }
+        public void Enqueue(AVPacket* packet)
+        {
+            lock (packets)
+            {
+                packets.Enqueue((IntPtr)packet);
+
+                if (packet->dts != AV_NOPTS_VALUE)
+                {
+                    LastTimestamp = (long)(packet->dts * demuxer.AVStreamToStream[packet->stream_index].Timebase);
+
+                    if (FirstTimestamp == AV_NOPTS_VALUE)
+                    {
+                        FirstTimestamp = LastTimestamp;
+                        UpdateCurTime();
+                    }
+                    else
+                        BufferedDuration = LastTimestamp - FirstTimestamp;
+                }
+
+                Bytes += packet->size;
+            }
+        }
+
+        public AVPacket* Dequeue()
+        {
+            lock(packets)
+                if (packets.TryDequeue(out IntPtr packetPtr))
+                {
+                    AVPacket* packet = (AVPacket*)packetPtr;
+
+                    if (packet->dts != AV_NOPTS_VALUE)
+                    {
+                        FirstTimestamp = (long)(packet->dts * demuxer.AVStreamToStream[packet->stream_index].Timebase);
+                        UpdateCurTime();
+                    }
+
+                    return (AVPacket*)packetPtr;
+                }
+
+            return null;
+        }
+
+        public AVPacket* Peek()
+        {
+            if (packets.TryPeek(out IntPtr packetPtr))
+                return (AVPacket*)packetPtr;
+
+            return null;
+        }
+
+        internal void UpdateCurTime()
+        {
+            if (demuxer.HLSPlaylist != null)
+            {
+                if (demuxer.hlsStartTime != AV_NOPTS_VALUE)
+                {
+                    if (FirstTimestamp < demuxer.hlsStartTime)
+                    {
+                        demuxer.Duration += demuxer.hlsStartTime - FirstTimestamp;
+                        demuxer.hlsStartTime = FirstTimestamp;
+                    }
+                    CurTime = LastTimestamp - demuxer.hlsStartTime - BufferedDuration;
+                    CurTime = FirstTimestamp - demuxer.hlsStartTime;
+                }
+            }
+            else
+                CurTime = FirstTimestamp - demuxer.StartTime;
+
+            BufferedDuration = LastTimestamp - FirstTimestamp;
+        }
     }
 }

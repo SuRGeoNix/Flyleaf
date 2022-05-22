@@ -65,7 +65,7 @@
 
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource TextInfo}" Text="Title"/>
-                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Title}" Margin="-100 0 0 0" Width="235"/>
+                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Playlist.Selected.Title}" Margin="-100 0 0 0" Width="235"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal">

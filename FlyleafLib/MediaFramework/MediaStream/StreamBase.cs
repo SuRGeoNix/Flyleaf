@@ -11,6 +11,8 @@ namespace FlyleafLib.MediaFramework.MediaStream
 {
     public abstract unsafe class StreamBase
     {
+        public ExternalStream               ExternalStream      { get; set; }
+
         public Demuxer                      Demuxer             { get; internal set; }
         public AVStream*                    AVStream            { get; internal set; }
         internal HLSPlaylist*               HLSPlaylist         { get; set; }

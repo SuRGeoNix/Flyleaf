@@ -71,7 +71,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafAudioPlayer (Custom)
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafPlayer", "Samples\FlyleafPlayer\FlyleafPlayer.csproj", "{B8B48CC5-AF0B-409F-882E-774A842858B6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DoubleVideoViewOverlay", "Tests\DoubleVideoViewOverlay\DoubleVideoViewOverlay.csproj", "{2D8A6364-050D-4037-8BA6-EB114FE9A497}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DoubleVideoViewOverlay", "Tests\DoubleVideoViewOverlay\DoubleVideoViewOverlay.csproj", "{2D8A6364-050D-4037-8BA6-EB114FE9A497}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

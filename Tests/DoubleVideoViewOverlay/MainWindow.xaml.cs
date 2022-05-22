@@ -72,7 +72,7 @@ namespace DoubleVideoViewOverlay
                 return;
 
             // Prepares the Preview/Seek Player with the same input as the main player
-            PlayerSeek.Open(Player.decoder.UserInputUrl);
+            PlayerSeek.Open(Player.decoder.Playlist.Url);
         }
 
         private void Slider_MouseDown(object sender, MouseButtonEventArgs e)

@@ -4,26 +4,24 @@ using System.ComponentModel;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 using SuRGeoNix.BitSwarmLib;
 using SuRGeoNix.BitSwarmLib.BEP;
 
 using static SuRGeoNix.BitSwarmLib.BitSwarm;
 
-using FlyleafLib.MediaFramework.MediaInput;
+using FlyleafLib.MediaFramework.MediaPlaylist;
 
 namespace FlyleafLib.Plugins
 {
-    public class BitSwarm : PluginBase, IOpen, IProvideVideo, ISuggestVideoInput
+    public class BitSwarm : PluginBase, IOpen
     {
-        public bool             IsPlaylist          => true;
         public new int          Priority            { get; set; } = 2000;
-        public List<VideoInput> VideoInputs         { get; set; } = new List<VideoInput>();
 
         public bool             Downloaded          => torrent != null && torrent.data.files != null && (torrent.data.files[fileIndex] == null || torrent.data.files[fileIndex].Created);
         public string           FolderComplete      => torrent.file.paths.Count == 1 ? cfg.FolderComplete : torrent.data.folder;
         public string           FileName            { get; private set; }
-        public long             FileSize            { get; private set; }
         public TorrentStream    TorrentStream       { get; private set; }
 
         SuRGeoNix.BitSwarmLib.BitSwarm
@@ -35,7 +33,8 @@ namespace FlyleafLib.Plugins
         bool            downloadNextStarted;
         bool            torrentReceived;
         List<string>    sortedPaths;
-
+        long            openId;
+        long            openItemId;
         static SerializableDictionary<string, string>
                         defaultOptions;
 
@@ -106,7 +105,10 @@ namespace FlyleafLib.Plugins
 
         public override void Dispose()
         {
-            if (Disposed) return;
+            if (Disposed)
+                return;
+
+            Disposed = true;
 
             TorrentStream?.Cancel();
 
@@ -121,144 +123,66 @@ namespace FlyleafLib.Plugins
                 downloadNextStarted = false;
                 cfg.EnableBuffering = false;
 
-                VideoInputs.Clear();
             } catch(Exception e)
             {
                 Log.Error("Dispose - " + e.Message);
             }
-
-            Disposed = true;
-        }
-
-        public bool IsValidInput(string url)
-        {
-            return ValidateInput(url) != InputType.Unkown;
-        }
-        public OpenResults Open(string url)
-        {
-            try
-            {
-                if (!IsValidInput(url)) return null;
-
-                Disposed                    = false;
-                torrentReceived             = false;
-                bitSwarm                    = new SuRGeoNix.BitSwarmLib.BitSwarm(cfg);
-                bitSwarm.MetadataReceived   += MetadataReceived;
-                bitSwarm.OnFinishing        += OnFinishing;
-
-                bitSwarm.Open(url);
-                Log.Info("Starting");
-                bitSwarm.Start();
-
-                while (!torrentReceived && !Handler.Interrupt) { Thread.Sleep(35); }
-                if (Handler.Interrupt) { Dispose(); return null; }
-
-                if (sortedPaths == null || sortedPaths.Count == 0) { Dispose(); return new OpenResults("No video files found in torrent"); }
-
-                return new OpenResults();
-            }
-            catch(Exception e)
-            {
-                if (Regex.IsMatch(e.Message, "completed or is invalid"))
-                {
-                    MetadataReceived(this, new MetadataReceivedArgs(bitSwarm.torrent));
-                    return new OpenResults();
-                }
-
-                Log.Error("Error ... " + e.Message);
-                return new OpenResults(e.Message);
-            }
-        }
-        public OpenResults Open(Stream iostream)
-        {
-            return null;
-        }
-        public VideoInput SuggestVideo()
-        {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
-
-            return VideoInputs[0];
-        }
-        public override OpenResults OnOpenVideo(VideoInput input)
-        {
-            if (input.Plugin == null || input.Plugin.Name != Name) return null;
-
-            FileName    = input.InputData.Title;
-            fileIndex   = torrent.file.paths.IndexOf(FileName);
-            FileSize    = torrent.file.lengths[fileIndex];
-
-            downloadNextStarted     = false;
-            bitSwarm.FocusAreInUse  = false;
-            fileIndexNext           = -1;
-
-            if (!Downloaded)
-            {
-                TorrentStream = torrent.GetTorrentStream(FileName);
-                input.IOStream  = TorrentStream;
-                bitSwarm.IncludeFiles(new List<string>() { FileName });
-                if (!bitSwarm.isRunning) { Log.Info("Starting"); bitSwarm.Start(); }
-
-                // Prepare for subs (add interrupt!)
-                bool threadDone = false;
-
-                Thread prepSubs = new Thread(() =>
-                {
-                    byte[] tmp = new byte[65536];
-                    TorrentStream.Position = 0;
-                    TorrentStream.Read(tmp, 0, 65536);
-                    if (Handler.Interrupt) { threadDone = true; return; }
-                    TorrentStream.Position = TorrentStream.Length - 65536;
-                    TorrentStream.Read(tmp, 0, 65536);
-                    threadDone = true;
-                });
-                prepSubs.IsBackground = true;
-                prepSubs.Start();
-
-                while (!threadDone)
-                {
-                    if (Handler.Interrupt) TorrentStream?.Cancel();
-                    Thread.Sleep(30);
-                }
-
-                TorrentStream.Position = 0;
-            }
-            else if (File.Exists(Path.Combine(FolderComplete, FileName)))
-            {
-                input.IOStream = null;
-                input.Url = Path.Combine(FolderComplete, FileName);
-
-                if (!DownloadNext()) { Log.Info("Pausing"); bitSwarm.Pause(); }
-            }
-            else
-                return null;
-
-            input.InputData.Folder  = FolderComplete;
-            input.InputData.FileSize= FileSize;
-
-            return new OpenResults();
         }
 
         private void OnFinishing(object source, FinishingArgs e)
         {
-            Log.Info("Download of " + torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished"); e.Cancel = DownloadNext(); if (!e.Cancel) Log.Info("Stopped");
+            Log.Info("Download of " + torrent.file.paths[fileIndexNext == -1 ? fileIndex : fileIndexNext] + " finished");
+            Selected.DirectUrl = Path.Combine(FolderComplete, FileName);
+
+            e.Cancel = DownloadNext();
+            if (!e.Cancel)
+                Log.Info("Stopped");
         }
         private void MetadataReceived(object source, MetadataReceivedArgs e)
         {
             try
             {
-                torrent     = e.Torrent;
+                if (openId != Handler.OpenCounter)
+                    return;
+
+                torrent = e.Torrent;
+
+                var folderBase = FolderComplete;
+
+                Playlist.Title = torrent.file.name;
+                Playlist.FolderBase = folderBase;
+
                 sortedPaths = Utils.GetMoviesSorted(torrent.file.paths);
 
-                foreach (var file in sortedPaths)
+                foreach (var path in sortedPaths)
                 {
-                    VideoInputs.Add(new VideoInput()
+                    PlaylistItem item = new PlaylistItem();
+
+                    var fileIndex = torrent.file.paths.IndexOf(path);
+
+                    int index = path.LastIndexOf('\\');
+                    if (index != -1)
                     {
-                        InputData = new InputData()
-                        {
-                            Title = file
-                        }
-                    });
+                        item.Title = path.Substring(path.LastIndexOf('\\') + 1);
+                        item.Folder = path.Substring(0, path.LastIndexOf('\\'));
+                    }
+                    else
+                        item.Title = path;
+
+                    string ext = Utils.GetUrlExtention(item.Title);
+                    if (ext != null && ext.Length < 5)
+                        item.Title = item.Title.Substring(0, item.Title.Length - ext.Length -1);
+
+                    item.FileSize = torrent.file.lengths[fileIndex];
+
+                    if (torrent.data.files[fileIndex] != null && torrent.data.files[fileIndex].Created)
+                        item.DirectUrl = Path.Combine(FolderComplete, path);
+
+                    AddPlaylistItem(item, path);
                 }
+
+                Handler.OnPlaylistCompleted();
+                    
             }
             catch (Exception e2)
             {
@@ -291,6 +215,101 @@ namespace FlyleafLib.Plugins
             }
 
             return false;
+        }
+
+        public bool CanOpen()
+        {
+            return ValidateInput(Playlist.Url) != SuRGeoNix.BitSwarmLib.BitSwarm.InputType.Unkown;
+        }
+
+        public OpenResults Open()
+        {
+            try
+            {
+                openId = Handler.OpenCounter;
+                Disposed                    = false;
+                torrentReceived             = false;
+                bitSwarm                    = new SuRGeoNix.BitSwarmLib.BitSwarm(cfg);
+                bitSwarm.MetadataReceived   += MetadataReceived;
+                bitSwarm.OnFinishing        += OnFinishing;
+
+                Playlist.InputType = InputType.Torrent;
+
+                bitSwarm.Open(Playlist.Url);
+                Log.Info("Starting");
+                bitSwarm.Start();
+
+                while (!torrentReceived && !Handler.Interrupt && openId == Handler.OpenCounter) { Thread.Sleep(35); }
+                if (Handler.Interrupt || openId != Handler.OpenCounter) { Dispose(); return null; }
+
+                if (sortedPaths == null || sortedPaths.Count == 0) { Dispose(); return new OpenResults("No video files found in torrent"); }
+
+                return new OpenResults();
+            }
+            catch(Exception e)
+            {
+                if (Regex.IsMatch(e.Message, "completed or is invalid"))
+                {
+                    MetadataReceived(this, new MetadataReceivedArgs(bitSwarm.torrent));
+                    return new OpenResults();
+                }
+
+                Log.Error("Error ... " + e.Message);
+                return new OpenResults(e.Message);
+            }
+        }
+
+        public OpenResults OpenItem()
+        {
+            openItemId = Handler.OpenItemCounter;
+            FileName    = GetTag(Selected).ToString();
+            fileIndex   = torrent.file.paths.IndexOf(FileName);
+
+            downloadNextStarted     = false;
+            bitSwarm.FocusAreInUse  = false;
+            fileIndexNext           = -1;
+
+            if (!Downloaded)
+            {
+                TorrentStream = torrent.GetTorrentStream(FileName);
+                Selected.IOStream  = TorrentStream;
+                bitSwarm.IncludeFiles(new List<string>() { FileName });
+                if (!bitSwarm.isRunning) { Log.Info("Starting"); bitSwarm.Start(); }
+
+                // Prepare for subs
+                bool threadDone = false;
+                Task.Run(() =>
+                {
+                    if (Handler.Interrupt || openItemId != Handler.OpenItemCounter) { threadDone = true; return; }
+                    byte[] tmp = new byte[65536];
+                    TorrentStream.Position = 0;
+                    TorrentStream.Read(tmp, 0, 65536);
+                    if (Handler.Interrupt || openItemId != Handler.OpenItemCounter) { threadDone = true; return; }
+                    TorrentStream.Position = TorrentStream.Length - 65536;
+                    TorrentStream.Read(tmp, 0, 65536);
+                    threadDone = true;
+                });
+
+                while (!threadDone)
+                {
+                    if (Handler.Interrupt || openItemId != Handler.OpenItemCounter) { TorrentStream?.Cancel(); return null; }
+                    Thread.Sleep(30);
+                }
+
+                TorrentStream.Position = 0;
+            }
+            else if (File.Exists(Path.Combine(FolderComplete, FileName)))
+            {
+                Selected.IOStream = null;
+                Selected.Url = Path.Combine(FolderComplete, FileName);
+                Selected.DirectUrl = Selected.Url;
+
+                if (!DownloadNext()) { Log.Info("Pausing"); bitSwarm.Pause(); }
+            }
+            else
+                return null;
+
+            return new OpenResults();
         }
 
         public class TorrentOptions : Options

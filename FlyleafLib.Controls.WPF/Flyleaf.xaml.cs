@@ -24,6 +24,7 @@ namespace FlyleafLib.Controls.WPF
         #region Properties
         public string       UIConfigPath        { get; set; }
         public string       ConfigPath          { get; set; }
+        public string       EnginePath          { get; set; }
 
         public Player       Player
         { 
@@ -49,9 +50,6 @@ namespace FlyleafLib.Controls.WPF
 
         public ObservableCollection<UITheme> 
                             UIThemes            { get; set; } = new ObservableCollection<UITheme>();
-
-        public string       ErrorMsg            { get => _ErrorMsg; set => Set(ref _ErrorMsg, value); }
-        string _ErrorMsg;
 
         public bool         ShowDebug           { get => _ShowDebug; set { Set(ref _ShowDebug, value); Config.Player.Stats = value; } }
         bool _ShowDebug;
@@ -394,7 +392,11 @@ namespace FlyleafLib.Controls.WPF
             Unloaded += (o, e) => { Dispose(); };
             Player.Control.MouseClick   += (o, e) => { if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true; };
             MouseDown += (o, e) => { Player?.Activity.ForceFullActive(); };
-            MouseMove += (o, e) => { Player?.Activity.ForceFullActive(); };
+            MouseMove += (o, e) => {
+                // Weird bug when slider's value changes will cause mouse move event to fire (so we can not go idle while mouse over the sliders)
+                if (!(e.OriginalSource is System.Windows.Shapes.Rectangle))
+                    Player?.Activity.ForceFullActive(); 
+            };
 
             if (defaultTheme != null)
                 defaultTheme.VideoView = Config.Video.BackgroundColor;
@@ -524,7 +526,7 @@ namespace FlyleafLib.Controls.WPF
             {
                 settings.ApplySettings();
                 if (result.ToString() == "save")
-                    UIConfig.Save(this, UIConfigPath, ConfigPath);
+                    UIConfig.Save(this, UIConfigPath, ConfigPath, EnginePath);
             }
         }
 
