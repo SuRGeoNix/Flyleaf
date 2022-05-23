@@ -194,9 +194,6 @@ namespace FlyleafLib.Controls.WPF
             if (isDesignMode) return;
 
             DataContext = this;
-
-            // Ensure that the engine has been started
-            Engine.Config.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
         }
         public override void OnApplyTemplate()
         {
@@ -207,6 +204,9 @@ namespace FlyleafLib.Controls.WPF
         }
         private void Initialize()
         {
+            // Ensure that the engine has been started
+            Engine.Config.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
+
             NamedColors = GetColors();
 
             popUpMenu           = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner", this))?.ContextMenu;
