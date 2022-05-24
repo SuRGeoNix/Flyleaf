@@ -533,8 +533,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         ret = avcodec_receive_frame(codecCtx, frame);
                         if (ret != 0) { av_frame_unref(frame); break; }
 
-                        frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
-                        if (frame->pts == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
+                        if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
+                            frame->pts = frame->best_effort_timestamp;
+                        else if (frame->pts == AV_NOPTS_VALUE)
+                            { av_frame_unref(frame); continue; }
 
                         if (keyFrameRequired)
                         {
@@ -698,8 +700,10 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             ret = avcodec_receive_frame(codecCtx, frame);
                             if (ret != 0) { av_frame_unref(frame); break; }
 
-                            frame->pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? frame->pts : frame->best_effort_timestamp;
-                            if (frame->pts == AV_NOPTS_VALUE) { av_frame_unref(frame); continue; }
+                            if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
+                                frame->pts = frame->best_effort_timestamp;
+                            else if (frame->pts == AV_NOPTS_VALUE)
+                                { av_frame_unref(frame); continue; }
 
                             bool shouldProcess = curReverseVideoPackets.Count - curReversePacketPos < Config.Decoder.MaxVideoFrames;
 
@@ -946,15 +950,15 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             while (GetFrameNext(checkExtraFrames) == 0)
             {
                 // Skip frames before our actual requested frame
-                if ((long)(frame->best_effort_timestamp * VideoStream.Timebase) < frameTimestamp)
+                if ((long)(frame->pts * VideoStream.Timebase) < frameTimestamp)
                 {
-                    //Log($"[Skip] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}]");
+                    //Log.Debug($"[Skip] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}]");
                     av_frame_unref(frame);
                     checkExtraFrames = true;
                     continue; 
                 }
 
-                //Log($"[Found] [pts: {frame->best_effort_timestamp}] [time: {Utils.TicksToTime((long)(frame->best_effort_timestamp * VideoStream.Timebase))}] | {Utils.TicksToTime(VideoStream.StartTime + (index * VideoStream.FrameDuration))}");
+                //Log.Debug($"[Found] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | {Utils.TicksToTime(VideoStream.StartTime + (index * VideoStream.FrameDuration))}");
                 return ProcessVideoFrame(frame);
             }
 
@@ -991,10 +995,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 if (ret == 0)
                 {
-                    if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
-                        frame->best_effort_timestamp = frame->pts;
-
-                    if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
+                    if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
+                        frame->pts = frame->best_effort_timestamp;
+                    else if (frame->pts == AV_NOPTS_VALUE)
                     {
                         av_frame_unref(frame);
                         return GetFrameNext(true);
@@ -1033,10 +1036,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     return ret;
                 }
 
-                if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
-                    frame->best_effort_timestamp = frame->pts;
-
-                if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
+                if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
+                    frame->pts = frame->best_effort_timestamp;
+                else if (frame->pts == AV_NOPTS_VALUE)
                 {
                     av_frame_unref(frame);
                     return GetFrameNext(true);
