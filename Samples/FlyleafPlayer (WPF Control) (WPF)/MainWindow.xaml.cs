@@ -33,34 +33,13 @@ namespace FlyleafPlayer
 
             // Engine's Config
             #if RELEASE
-            
-            // Load Engine's Config
             if (File.Exists("Flyleaf.Engine.xml"))
-                try { engineConfig = EngineConfig.Load("Flyleaf.Engine.xml"); } catch { engineConfig = new EngineConfig(); }
+                try { engineConfig = EngineConfig.Load("Flyleaf.Engine.xml"); } catch { engineConfig = DefaultEngineConfig(); }
             else
-                engineConfig = new EngineConfig();
+                engineConfig = DefaultEngineConfig();
             #else
-
-            // DEBUG only
-            engineConfig = new EngineConfig();
-            engineConfig.LogOutput      = ":debug";
-            engineConfig.LogLevel       = LogLevel.Debug;
-            engineConfig.FFmpegLogLevel = FFmpegLogLevel.Warning;
+            engineConfig = DefaultEngineConfig();
             #endif
-
-            if (!engineConfig.Loaded)
-            {
-                engineConfig.PluginsPath = ":Plugins";
-                engineConfig.FFmpegPath = ":FFmpeg";
-                engineConfig.HighPerformaceTimers = false;
-                try { engineConfig.Save("Flyleaf.Engine.xml"); } catch { }
-
-                #if RELEASE
-                // Start Logging (First Run)
-                engineConfig.LogOutput      = "Flyleaf.FirstRun.log";
-                engineConfig.LogLevel       = LogLevel.Debug;
-                #endif
-            }
 
             Engine.Start(engineConfig);
 
@@ -68,11 +47,11 @@ namespace FlyleafPlayer
             #if RELEASE
             // Load Player's Config
             if (File.Exists("Flyleaf.Config.xml"))
-                try { playerConfig = Config.Load("Flyleaf.Config.xml"); } catch { playerConfig = new Config(); }
+                try { playerConfig = Config.Load("Flyleaf.Config.xml"); } catch { playerConfig = DefaultConfig(); }
             else
-                playerConfig = new Config();
+                playerConfig = DefaultConfig();
             #else
-                playerConfig = new Config();
+                playerConfig = DefaultConfig();
             #endif
 
             // Initializes the Player
@@ -100,6 +79,35 @@ namespace FlyleafPlayer
             };
         }
         bool ReversePlaybackChecked;
+
+        private EngineConfig DefaultEngineConfig()
+        {
+            EngineConfig engineConfig = new EngineConfig();
+
+            engineConfig.PluginsPath = ":Plugins";
+            engineConfig.FFmpegPath = ":FFmpeg";
+            engineConfig.HighPerformaceTimers = false;
+
+            #if RELEASE
+            engineConfig.LogOutput      = "Flyleaf.FirstRun.log";
+            engineConfig.LogLevel       = LogLevel.Debug;
+            try { engineConfig.Save("Flyleaf.Engine.xml"); } catch { }
+            #else
+            engineConfig.LogOutput      = ":debug";
+            engineConfig.LogLevel       = LogLevel.Debug;
+            engineConfig.FFmpegLogLevel = FFmpegLogLevel.Warning;
+            #endif
+
+            return engineConfig;
+        }
+
+        private Config DefaultConfig()
+        {
+            Config config = new Config();
+            config.Subtitles.SearchLocal = true;
+
+            return config;
+        }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
