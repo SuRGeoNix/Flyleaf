@@ -408,10 +408,10 @@ namespace FlyleafLib
             public VideoConfig Clone() { return (VideoConfig) MemberwiseClone(); }
 
             /// <summary>
-            /// <para>Forces the decoder/renderer to use the specified GPU adapter / device luid (available GPU adapters can be found on Engine.Video.GPUAdapters)/></para>
-            /// <para>Should be set before the decoder's initialization and it cannot be changed after</para>
+            /// <para>Forces a specific GPU Adapter to be used by the renderer</para>
+            /// <para>GPUAdapter must match with the description of the adapter eg. rx 580 (available adapters can be found in Engine.Video.GPUAdapters)</para>
             /// </summary>
-            public long             GPUAdapteLuid               { get; set; } = -1;
+            public string           GPUAdapter                  { get; set; }
 
             /// <summary>
             /// Video aspect ratio
