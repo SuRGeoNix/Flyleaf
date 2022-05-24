@@ -582,7 +582,7 @@ namespace FlyleafLib
             /// Whether to use local search plugins (see also <see cref="SearchLocalOnInputType"/>)
             /// </summary>
             public bool             SearchLocal         { get => _SearchLocal;      set { Set(ref _SearchLocal, value); } }
-            bool _SearchLocal = true;
+            bool _SearchLocal = false;
 
             /// <summary>
             /// Allowed input types to be searched locally for subtitles (empty list allows all types)

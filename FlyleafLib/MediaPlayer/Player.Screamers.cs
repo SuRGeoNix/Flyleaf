@@ -160,7 +160,7 @@ namespace FlyleafLib.MediaPlayer
                         {
                             if (aFrame == null || aFrame.timestamp + 20000 > vFrame.timestamp) { gotAudio = true; break; }
 
-                            if (CanWarn) Log.Warn($"Drop aFrame {TicksToTime(aFrame.timestamp)}");
+                            if (CanInfo) Log.Info($"Drop aFrame {TicksToTime(aFrame.timestamp)}");
                             AudioDecoder.Frames.TryDequeue(out aFrame);
                         }
                     }
@@ -357,7 +357,7 @@ namespace FlyleafLib.MediaPlayer
                 }
                 else if (vDistanceMs < -2)
                 {
-                    if (CanWarn) Log.Warn($"vDistanceMs = {vDistanceMs}");
+                    if (CanInfo) Log.Info($"vDistanceMs = {vDistanceMs}");
 
                     if (vDistanceMs < -10 || VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
                     {
@@ -391,7 +391,7 @@ namespace FlyleafLib.MediaPlayer
                             continue;
                         }
 
-                        if (CanWarn) Log.Warn($"aDistanceMs = {aDistanceMs}");
+                        if (CanInfo) Log.Info($"aDistanceMs = {aDistanceMs}");
 
                         if (aDistanceMs < -600)
                         {

@@ -808,7 +808,7 @@
                 <MenuItem Header="+  100"   CommandParameter="100"      Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
                 <MenuItem Header="+   10"   CommandParameter="10"       Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
             </MenuItem>
-            <MenuItem Header="{Binding Subtitles.Margin.Bottom}" HeaderStringFormat="Position Y ({0})">
+            <MenuItem Header="{Binding UIConfig.SubsMargin.Bottom}" HeaderStringFormat="Position Y ({0})">
                 <MenuItem Header="Reset..." Command="{Binding ResetSubsPositionY}"/>
                 <Separator />
                 <MenuItem Header="Up"        CommandParameter="  2"     Command="{Binding SetSubsPositionY}"/>

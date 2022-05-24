@@ -93,11 +93,16 @@ namespace FlyleafLib.Plugins
 
         public void ScrapeItem(PlaylistItem item)
         {
+            // Update Season/Episode
             if (Utils.ExtractSeasonEpisode(item.OriginalTitle, out int season, out int episode))
             {
                 item.Season = season;
                 item.Episode = episode;
             }
+
+            // Update Title (TBR: don't mess with other media types - only movies/tv shows)
+            if (Playlist.InputType != InputType.File && Playlist.InputType != InputType.UNC && Playlist.InputType != InputType.Torrent)
+                return;
 
             string title = item.OriginalTitle;//.Replace(".", " ").Replace("_", " ").Replace("-", " ").Trim();
 

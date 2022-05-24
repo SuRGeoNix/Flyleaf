@@ -57,6 +57,8 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
         /// </summary>
         public InputType    InputType       { get; set; }
 
+        // TODO: MediaType (Music/MusicClip/Movie/TVShow/etc.) probably should go per Playlist Item
+
         public ObservableCollection<PlaylistItem>
                             Items           { get; set; } = new ObservableCollection<PlaylistItem>();
         object lockItems = new object();
