@@ -143,164 +143,183 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             lock (lockDevice)
             {
-                if (CanDebug) Log.Debug("Initializing");
-                Disposed = false;
-                isWarp = false;
-                ID3D11Device tempDevice;
-                IDXGIAdapter1 adapter = null;
-                DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
-                #if DEBUG
-                if (D3D11.SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
-                #endif
-
-                // User defined adapter
-                if (Config.Video.GPUAdapteLuid > 0)
+                try
                 {
-                    for (int adapterIndex = 0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
-                    {
-                        if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
-                            break;
+                    if (CanDebug) Log.Debug("Initializing");
 
-                        adapter.Dispose();
+                    Disposed = false;
+                    isWarp = false;
+
+                    ID3D11Device tempDevice;
+                    IDXGIAdapter1 adapter = null;
+                    DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+
+                    #if DEBUG
+                    if (D3D11.SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
+                    #endif
+
+                    // User defined adapter
+                    if (Config.Video.GPUAdapteLuid > 0)
+                    {
+                        for (int adapterIndex = 0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                        {
+                            if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
+                                break;
+
+                            adapter.Dispose();
+                        }
+
+                        if (adapter == null)
+                            throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
                     }
 
+                    if (Config.Video.GPUAdapteLuid == -1000)
+                    {
+                        isWarp = true;
+
+                        // Force WARP device if required
+                        D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
+                    }
+                    else
+                    {
+                        // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
+                        if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out tempDevice).Failure)
+                            if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice).Failure)
+                            {
+                                isWarp = true;
+
+                                D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
+                            }
+                    }
+
+                    Device = tempDevice.QueryInterface<ID3D11Device1>();
+                    context= Device.ImmediateContext;
+
+                    // Gets the default adapter from the D3D11 Device
                     if (adapter == null)
-                        throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
-                }
+                    {
+                        Device.Tag = (new Luid()).ToString();
+                        using (var deviceTmp = Device.QueryInterface<IDXGIDevice1>())
+                        using (var adapterTmp = deviceTmp.GetAdapter())
+                            adapter = adapterTmp.QueryInterface<IDXGIAdapter1>();
+                    }
+                    else
+                        Device.Tag = adapter.Description.Luid.ToString();
 
-                if (Config.Video.GPUAdapteLuid == -1000)
-                {
-                    // Force WARP device if required
-                    D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
-                    isWarp = true;
-                }
-                else
-                {
-                    // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
-                    if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out tempDevice).Failure)
-                        if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice).Failure)
-                        {
-                            D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
-                            isWarp = true;
-                        }
-                            
-                }
+                    RendererInfo.Fill(this, adapter);
+                    if (CanDebug) Log.Debug($"Adapter Info\r\n{AdapterInfo}\r\n");
 
-                Device = tempDevice.QueryInterface<ID3D11Device1>();
-                context= Device.ImmediateContext;
-
-                // Gets the default adapter from the D3D11 Device
-                if (adapter == null)
-                {
-                    Device.Tag = (new Luid()).ToString();
-                    using (var deviceTmp = Device.QueryInterface<IDXGIDevice1>())
-                    using (var adapterTmp = deviceTmp.GetAdapter())
-                        adapter = adapterTmp.QueryInterface<IDXGIAdapter1>();
-                }
-                else
-                    Device.Tag = adapter.Description.Luid.ToString();
-
-                RendererInfo.Fill(this, adapter);
-                if (CanDebug) Log.Debug($"Adapter Info\r\n{AdapterInfo}\r\n");
-
-                tempDevice.Dispose();
-                adapter.Dispose();
+                    tempDevice.Dispose();
+                    adapter.Dispose();
             
-                using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
-                using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
+                    using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
+                    using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
 
-                ReadOnlySpan<float> vertexBufferData = new float[]
-                {
-                    -1.0f,  -1.0f,  0,      0.0f, 1.0f,
-                    -1.0f,   1.0f,  0,      0.0f, 0.0f,
-                     1.0f,  -1.0f,  0,      1.0f, 1.0f,
+                    ReadOnlySpan<float> vertexBufferData = new float[]
+                    {
+                        -1.0f,  -1.0f,  0,      0.0f, 1.0f,
+                        -1.0f,   1.0f,  0,      0.0f, 0.0f,
+                         1.0f,  -1.0f,  0,      1.0f, 1.0f,
                 
-                     1.0f,  -1.0f,  0,      1.0f, 1.0f,
-                    -1.0f,   1.0f,  0,      0.0f, 0.0f,
-                     1.0f,   1.0f,  0,      1.0f, 0.0f
-                };
-                vertexBuffer = Device.CreateBuffer(vertexBufferData, new BufferDescription() { BindFlags = BindFlags.VertexBuffer });
-                context.IASetVertexBuffer(0, vertexBuffer, sizeof(float) * 5);
+                         1.0f,  -1.0f,  0,      1.0f, 1.0f,
+                        -1.0f,   1.0f,  0,      0.0f, 0.0f,
+                         1.0f,   1.0f,  0,      1.0f, 0.0f
+                    };
+                    vertexBuffer = Device.CreateBuffer(vertexBufferData, new BufferDescription() { BindFlags = BindFlags.VertexBuffer });
+                    context.IASetVertexBuffer(0, vertexBuffer, sizeof(float) * 5);
 
-                samplerLinear = Device.CreateSamplerState(new SamplerDescription()
+                    samplerLinear = Device.CreateSamplerState(new SamplerDescription()
+                    {
+                        ComparisonFunction = ComparisonFunction.Never,
+                        AddressU = TextureAddressMode.Clamp,
+                        AddressV = TextureAddressMode.Clamp,
+                        AddressW = TextureAddressMode.Clamp,
+                        Filter   = Filter.MinMagMipLinear,
+                        MinLOD   = 0,
+                        MaxLOD   = float.MaxValue
+                    });
+
+                    //samplerPoint = Device.CreateSamplerState(new SamplerDescription()
+                    //{
+                    //    ComparisonFunction = ComparisonFunction.Never,
+                    //    AddressU = TextureAddressMode.Clamp,
+                    //    AddressV = TextureAddressMode.Clamp,
+                    //    AddressW = TextureAddressMode.Clamp,
+                    //    Filter   = Filter.MinMagMipPoint,
+                    //    MinLOD   = 0,
+                    //    MaxLOD   = float.MaxValue
+                    //});
+
+                    // Blend
+                    //var blendDesc = new BlendDescription();
+                    //blendDesc.RenderTarget[0].IsBlendEnabled = true;
+                    //blendDesc.RenderTarget[0].SourceBlend = Blend.One;
+                    //blendDesc.RenderTarget[0].DestinationBlend = Blend.SourceAlpha;
+                    //blendDesc.RenderTarget[0].BlendOperation = BlendOperation.Add;
+                    //blendDesc.RenderTarget[0].SourceBlendAlpha = Blend.One;
+                    //blendDesc.RenderTarget[0].DestinationBlendAlpha = Blend.Zero;
+                    //blendDesc.RenderTarget[0].BlendOperationAlpha = BlendOperation.Add;
+                    //blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
+                    //blendStateAlpha = Device.CreateBlendState(blendDesc);
+
+                    //blendDesc.RenderTarget[0].DestinationBlend = Blend.InverseSourceAlpha;
+                    //blendStateAlphaInv = Device.CreateBlendState(blendDesc);
+
+                    // Vertex
+                    foreach(var shader in VSShaderBlobs)
+                    {
+                        VSShaders.Add(shader.Key, Device.CreateVertexShader(shader.Value));
+                        vertexLayout = Device.CreateInputLayout(inputElements, shader.Value);
+
+                        context.IASetInputLayout(vertexLayout);
+                        context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
+                        context.VSSetShader(VSShaders["VSSimple"]);
+
+                        break; // Using single vertex
+                    }
+
+                    // Pixel Shaders
+                    foreach(var shader in PSShaderBlobs)
+                        PSShaders.Add(shader.Key, Device.CreatePixelShader(shader.Value));
+
+                    context.PSSetShader(PSShaders["PSSimple"]);
+                    context.PSSetSampler(0, samplerLinear);
+
+                    psBuffer = Device.CreateBuffer(new BufferDescription() 
+                    {
+                        Usage           = ResourceUsage.Default,
+                        BindFlags       = BindFlags.ConstantBuffer,
+                        CPUAccessFlags  = CpuAccessFlags.None,
+                        ByteWidth       = sizeof(PSBufferType)
+                    });
+                    context.PSSetConstantBuffer(0, psBuffer);
+
+                    psBufferData.hdrmethod  = HDRtoSDRMethod.None;
+                    context.UpdateSubresource(psBufferData, psBuffer);
+
+                    InitializeVideoProcessor();
+
+                    // TBR: Device Removal Event
+                    //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
+
+                    if (ControlHandle != IntPtr.Zero)
+                        InitializeSwapChain();
+
+                    if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{(int)Device.FeatureLevel >> 8 & 0xf}");
+
+                } catch (Exception e)
                 {
-                    ComparisonFunction = ComparisonFunction.Never,
-                    AddressU = TextureAddressMode.Clamp,
-                    AddressV = TextureAddressMode.Clamp,
-                    AddressW = TextureAddressMode.Clamp,
-                    Filter   = Filter.MinMagMipLinear,
-                    MinLOD   = 0,
-                    MaxLOD   = float.MaxValue
-                });
+                    Log.Error($"Initialization failed ({e.Message})");
 
-                //samplerPoint = Device.CreateSamplerState(new SamplerDescription()
-                //{
-                //    ComparisonFunction = ComparisonFunction.Never,
-                //    AddressU = TextureAddressMode.Clamp,
-                //    AddressV = TextureAddressMode.Clamp,
-                //    AddressW = TextureAddressMode.Clamp,
-                //    Filter   = Filter.MinMagMipPoint,
-                //    MinLOD   = 0,
-                //    MaxLOD   = float.MaxValue
-                //});
-
-                // Blend
-                //var blendDesc = new BlendDescription();
-                //blendDesc.RenderTarget[0].IsBlendEnabled = true;
-                //blendDesc.RenderTarget[0].SourceBlend = Blend.One;
-                //blendDesc.RenderTarget[0].DestinationBlend = Blend.SourceAlpha;
-                //blendDesc.RenderTarget[0].BlendOperation = BlendOperation.Add;
-                //blendDesc.RenderTarget[0].SourceBlendAlpha = Blend.One;
-                //blendDesc.RenderTarget[0].DestinationBlendAlpha = Blend.Zero;
-                //blendDesc.RenderTarget[0].BlendOperationAlpha = BlendOperation.Add;
-                //blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
-                //blendStateAlpha = Device.CreateBlendState(blendDesc);
-
-                //blendDesc.RenderTarget[0].DestinationBlend = Blend.InverseSourceAlpha;
-                //blendStateAlphaInv = Device.CreateBlendState(blendDesc);
-
-                // Vertex
-                foreach(var shader in VSShaderBlobs)
-                {
-                    VSShaders.Add(shader.Key, Device.CreateVertexShader(shader.Value));
-                    vertexLayout = Device.CreateInputLayout(inputElements, shader.Value);
-
-                    context.IASetInputLayout(vertexLayout);
-                    context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-                    context.VSSetShader(VSShaders["VSSimple"]);
-
-                    break; // Using single vertex
+                    if (Config.Video.GPUAdapteLuid != -1000 && !isWarp)
+                    {
+                        Log.Warn("Failling back to WARP device");
+                        Config.Video.GPUAdapteLuid = -1000;
+                        Dispose();
+                        Initialize();
+                    }
                 }
-
-                // Pixel Shaders
-                foreach(var shader in PSShaderBlobs)
-                    PSShaders.Add(shader.Key, Device.CreatePixelShader(shader.Value));
-
-                context.PSSetShader(PSShaders["PSSimple"]);
-                context.PSSetSampler(0, samplerLinear);
-
-                psBuffer = Device.CreateBuffer(new BufferDescription() 
-                {
-                    Usage           = ResourceUsage.Default,
-                    BindFlags       = BindFlags.ConstantBuffer,
-                    CPUAccessFlags  = CpuAccessFlags.None,
-                    ByteWidth       = sizeof(PSBufferType)
-                });
-                context.PSSetConstantBuffer(0, psBuffer);
-
-                psBufferData.hdrmethod  = HDRtoSDRMethod.None;
-                context.UpdateSubresource(psBufferData, psBuffer);
-
-                InitializeVideoProcessor();
-
-                // TBR: Device Removal Event
-                //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
-
-                if (ControlHandle != IntPtr.Zero)
-                    InitializeSwapChain();
-
-                if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{(int)Device.FeatureLevel >> 8 & 0xf}");
-            }
+            } // lock
         }
         public void InitializeSwapChain()
         {
