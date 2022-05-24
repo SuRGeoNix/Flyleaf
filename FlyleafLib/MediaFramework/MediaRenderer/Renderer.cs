@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -93,7 +94,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         long    lastPresentAt       = 0;
         long    lastPresentRequestAt= 0;
         float   curRatio            = 1.0f;
-        bool    isWarp;
 
         public Renderer(VideoDecoder videoDecoder, Control control = null, int uniqueId = -1)
         {
@@ -148,7 +148,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (CanDebug) Log.Debug("Initializing");
 
                     Disposed = false;
-                    isWarp = false;
 
                     ID3D11Device tempDevice;
                     IDXGIAdapter1 adapter = null;
@@ -159,35 +158,37 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     #endif
 
                     // User defined adapter
-                    if (Config.Video.GPUAdapteLuid > 0)
+                    if (Config.Video.GPUAdapter != null && Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
-                        for (int adapterIndex = 0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                        for (int adapterIndex=0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                         {
-                            if (adapter.Description1.Luid == Config.Video.GPUAdapteLuid)
+                            if (Regex.IsMatch(adapter.Description1.Description, Config.Video.GPUAdapter, RegexOptions.IgnoreCase))
                                 break;
 
                             adapter.Dispose();
                         }
 
                         if (adapter == null)
-                            throw new Exception($"GPU Adapter with {Config.Video.GPUAdapteLuid} has not been found");
+                        {
+                            Log.Error($"GPU Adapter with {Config.Video.GPUAdapter} has not been found. Falling back to default.");
+                            Config.Video.GPUAdapter = null;
+                        }
                     }
 
-                    if (Config.Video.GPUAdapteLuid == -1000)
+                    // Creating WARP (force by user or us after late failure)
+                    if (Config.Video.GPUAdapter != null && Config.Video.GPUAdapter.ToUpper() == "WARP")
                     {
-                        isWarp = true;
-
-                        // Force WARP device if required
                         D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
                     }
+
+                    // Creating Default or User Defined
                     else
                     {
                         // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
                         if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out tempDevice).Failure)
                             if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice).Failure)
                             {
-                                isWarp = true;
-
+                                Config.Video.GPUAdapter = "WARP";
                                 D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
                             }
                     }
@@ -309,15 +310,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 } catch (Exception e)
                 {
-                    Log.Error($"Initialization failed ({e.Message})");
-
-                    if (Config.Video.GPUAdapteLuid != -1000 && !isWarp)
+                    if (string.IsNullOrEmpty(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
-                        Log.Warn("Failling back to WARP device");
-                        Config.Video.GPUAdapteLuid = -1000;
+                        Log.Warn($"Initialization failed ({e.Message}). Failling back to WARP device.");
+                        Config.Video.GPUAdapter = "WARP";
                         Dispose();
                         Initialize();
                     }
+                    else
+                        Log.Error($"Initialization failed ({e.Message})");
                 }
             } // lock
         }
@@ -337,7 +338,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 SampleDescription = new SampleDescription(1, 0)
             };
 
-            if (Device.FeatureLevel < FeatureLevel.Level_10_0 || isWarp)
+            if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (Config.Video.GPUAdapter != null && Config.Video.GPUAdapter.ToUpper() == "WARP"))
             {
                 swapChainDescription.BufferCount= 1;
                 swapChainDescription.SwapEffect = SwapEffect.Discard;
