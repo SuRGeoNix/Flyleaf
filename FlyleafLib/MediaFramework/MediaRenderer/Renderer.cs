@@ -157,7 +157,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (D3D11.SdkLayersAvailable()) creationFlags |= DeviceCreationFlags.Debug;
                     #endif
 
-                    // User defined adapter
+                    // Finding User Definied adapter
                     if (Config.Video.GPUAdapter != null && Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
                         for (int adapterIndex=0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
@@ -181,7 +181,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
                     }
 
-                    // Creating Default or User Defined
+                    // Creating User Defined or Default
                     else
                     {
                         // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
@@ -312,6 +312,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     if (string.IsNullOrEmpty(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
+                        try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
+                        
                         Log.Warn($"Initialization failed ({e.Message}). Failling back to WARP device.");
                         Config.Video.GPUAdapter = "WARP";
                         Dispose();
@@ -320,7 +322,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     else
                         Log.Error($"Initialization failed ({e.Message})");
                 }
-            } // lock
+            }
         }
         public void InitializeSwapChain()
         {
