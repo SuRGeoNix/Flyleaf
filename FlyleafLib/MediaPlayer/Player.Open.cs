@@ -32,7 +32,10 @@ namespace FlyleafLib.MediaPlayer
         {
             OpenCompleted?.Invoke(this, args);
         }
-
+        private void OnOpenSessionCompleted(OpenSessionCompletedArgs args = null)
+        {
+            OpenSessionCompleted?.Invoke(this, args);
+        }
         private void OnOpenPlaylistItemCompleted(OpenPlaylistItemCompletedArgs args = null)
         {
             OpenPlaylistItemCompleted?.Invoke(this, args);
@@ -238,45 +241,6 @@ namespace FlyleafLib.MediaPlayer
             }
         }
 
-        public OpenSessionCompletedArgs Open(Session session)
-        {
-            OpenSessionCompletedArgs args = new OpenSessionCompletedArgs(session);
-
-            if (Playlist.Selected != null)
-                    Playlist.Selected.AddTag(GetCurrentSession(), playerSessionTag);
-
-            Initialize(Status.Opening);
-            args.Error = decoder.Open(session).Error;
-
-            if (!args.Success || !CanPlay)
-            {
-                status = Status.Failed;
-                lastError = args.Error;
-            }
-            else
-            {
-                status = Status.Paused;
-                    
-                if (Config.Player.AutoPlay)
-                    Play();
-            }
-
-            UIAdd(() =>
-            {
-                LastError=LastError;
-                Status  = Status;
-            });
-
-            UIAll();
-
-            return args;
-        }
-
-        // TODO: Proper handling as the other open async
-        public void OpenAsync(Session session)
-        {
-            Task.Run(() => Open(session));
-        }
 
         /// <summary>
         /// Opens a new media file (audio/subtitles/video)
@@ -335,6 +299,64 @@ namespace FlyleafLib.MediaPlayer
         public void OpenAsync(Stream iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         {
             OpenAsyncPush(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+        }
+
+        /// <summary>
+        /// Opens a new media session
+        /// </summary>
+        /// <param name="session">Media session</param>
+        /// <returns></returns>
+        public OpenSessionCompletedArgs Open(Session session)
+        {
+            OpenSessionCompletedArgs args = new OpenSessionCompletedArgs(session);
+
+            try
+            {
+                if (Playlist.Selected != null)
+                    Playlist.Selected.AddTag(GetCurrentSession(), playerSessionTag);
+
+                Initialize(Status.Opening);
+                args.Error = decoder.Open(session).Error;
+
+                if (!args.Success || !CanPlay)
+                {
+                    status = Status.Failed;
+                    lastError = args.Error;
+                }
+                else
+                {
+                    status = Status.Paused;
+                    
+                    if (Config.Player.AutoPlay)
+                        Play();
+                }
+
+                UIAdd(() =>
+                {
+                    LastError=LastError;
+                    Status  = Status;
+                });
+
+                UIAll();
+
+                return args;
+            } catch (Exception e)
+            {
+                args.Error = !args.Success ? args.Error + "\r\n" + e.Message : e.Message;
+                return args;
+            } finally
+            {
+                OnOpenSessionCompleted(args);
+            }
+        }
+
+        /// <summary>
+        /// Opens a new media session without blocking
+        /// </summary>
+        /// <param name="session">Media session</param>
+        public void OpenAsync(Session session)
+        {
+            OpenAsyncPush(session);
         }
 
         /// <summary>
@@ -761,6 +783,12 @@ namespace FlyleafLib.MediaPlayer
                         decoder.Interrupt = true;
                         OpenInternal(data.url_iostream, data.defaultPlaylistItem, data.defaultVideo, data.defaultAudio, data.defaultSubtitles);
                     }
+                    else if (openSessions.TryPop(out data))
+                    {
+                        openSessions.Clear();
+                        decoder.Interrupt = true;
+                        Open(data.session);
+                    }
                     else if (openItems.TryPop(out data))
                     {
                         openItems.Clear();
@@ -812,7 +840,20 @@ namespace FlyleafLib.MediaPlayer
                     decoder.Interrupt = true;
                     openInputs.Push(new OpenAsyncData(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles));
                 }
-                    
+
+                OpenAsync();
+            }
+        }
+        private void OpenAsyncPush(Session session)
+        {
+            lock (lockActions)
+            {
+                if (openInputs.Count > 0)
+                    return;
+
+                decoder.Interrupt = true;
+                openSessions.Clear();
+                openSessions.Push(new OpenAsyncData(session));
 
                 OpenAsync();
             }
@@ -821,8 +862,8 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockActions)
             {
-                if (openInputs.Count > 0)
-                return;
+                if (openInputs.Count > 0 || openSessions.Count > 0)
+                    return;
 
                 decoder.Interrupt = true;
                 openItems.Push(new OpenAsyncData(playlistItem, defaultVideo, defaultAudio, defaultSubtitles));
@@ -834,7 +875,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockActions)
             {
-                if (openInputs.Count > 0 || openItems.Count > 0)
+                if (openInputs.Count > 0 || openItems.Count > 0 || openSessions.Count > 0)
                     return;
 
                 if (extStream is ExternalAudioStream)
@@ -860,7 +901,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockActions)
             {
-                if (openInputs.Count > 0 || openItems.Count > 0)
+                if (openInputs.Count > 0 || openItems.Count > 0 || openSessions.Count > 0)
                     return;
 
                 if (stream is AudioStream)
@@ -884,6 +925,7 @@ namespace FlyleafLib.MediaPlayer
         }
         
         ConcurrentStack<OpenAsyncData> openInputs   = new ConcurrentStack<OpenAsyncData>();
+        ConcurrentStack<OpenAsyncData> openSessions = new ConcurrentStack<OpenAsyncData>();
         ConcurrentStack<OpenAsyncData> openItems    = new ConcurrentStack<OpenAsyncData>();
         ConcurrentStack<OpenAsyncData> openVideo    = new ConcurrentStack<OpenAsyncData>();
         ConcurrentStack<OpenAsyncData> openAudio    = new ConcurrentStack<OpenAsyncData>();
@@ -905,6 +947,7 @@ namespace FlyleafLib.MediaPlayer
     class OpenAsyncData
     {
         public object url_iostream;
+        public Session session;
         public PlaylistItem playlistItem;
         public ExternalStream extStream;
         public int streamIndex;
@@ -917,6 +960,7 @@ namespace FlyleafLib.MediaPlayer
 
         public OpenAsyncData(object url_iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
             { this.url_iostream = url_iostream; this.defaultPlaylistItem = defaultPlaylistItem; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
+        public OpenAsyncData(Session session) { this.session = session;}
         public OpenAsyncData(PlaylistItem playlistItem, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
             { this.playlistItem = playlistItem; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
         public OpenAsyncData(ExternalStream extStream, bool resync = true, bool defaultAudio = true, int streamIndex = -1)
