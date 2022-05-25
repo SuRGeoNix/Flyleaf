@@ -356,6 +356,16 @@ namespace FlyleafLib
 
                 return defaults;
             }
+
+            public SerializableDictionary<string, string> GetFormatOptPtr(MediaType type)
+            {
+                if (type == MediaType.Video)
+                    return FormatOpt;
+                else if (type == MediaType.Audio)
+                    return AudioFormatOpt;
+                else
+                    return SubtitlesFormatOpt;
+            }
         }
         public class DecoderConfig : NotifyPropertyChanged
         {

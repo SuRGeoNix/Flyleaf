@@ -493,24 +493,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (!args.Success)
                     return args;
 
-                if (Playlist.Selected.Url != null)
-                {
-                    OpenedPlugin?.OnBuffering();
-                    args.Error = VideoDemuxer.Open(Playlist.Selected.Url);
-                    if (args.Error != null && !string.IsNullOrEmpty(Playlist.Selected.UrlFallback))
-                    {
-                        Log.Warn($"Fallback to {Playlist.Selected.UrlFallback}");
-                        args.Error = VideoDemuxer.Open(Playlist.Selected.UrlFallback);
-                    }
-                    OpenedPlugin?.OnBufferingCompleted();
-                }
-                else if (Playlist.Selected.IOStream != null)
-                {
-                    OpenedPlugin?.OnBufferingCompleted();
-                    args.Error = VideoDemuxer.Open(Playlist.Selected.IOStream);
-                    OpenedPlugin?.OnBufferingCompleted();
-
-                }
+                if (Playlist.Selected.Url != null || Playlist.Selected.IOStream != null)
+                    args.Error = OpenDemuxerInput(VideoDemuxer, Playlist.Selected);
 
                 if (!args.Success)
                     return args;
@@ -599,17 +583,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 }
 
                 // Open external stream
-                if (extStream.IOStream != null)
-                    args.Error = demuxer.Open(extStream.IOStream);
-                else
-                {
-                    args.Error = demuxer.Open(extStream.Url);
-                    if (args.Error != null && !string.IsNullOrEmpty(extStream.UrlFallback))
-                    {
-                        Log.Warn($"Fallback to {extStream.UrlFallback}");
-                        args.Error = demuxer.Open(extStream.UrlFallback);
-                    }
-                }
+                args.Error = OpenDemuxerInput(demuxer, extStream);
 
                 if (!args.Success)
                     return args;
@@ -977,6 +951,73 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     Log.Debug($"OpenSuggestedSubtitles canceled? [{e.Message}]");
                 }
             });
+        }
+
+        public string OpenDemuxerInput(Demuxer demuxer, DemuxerInput demuxerInput)
+        {
+            OpenedPlugin?.OnBuffering();
+
+            string error = null;
+
+            SerializableDictionary<string, string> formatOpt = null;
+            SerializableDictionary<string, string> copied = null;
+
+            try
+            {
+                // Set HTTP Config
+                if (Playlist.InputType == InputType.Web)
+                {
+                    formatOpt = Config.Demuxer.GetFormatOptPtr(demuxer.Type);
+                    copied = new SerializableDictionary<string, string>();
+
+                    foreach (var opt in formatOpt)
+                        copied.Add(opt.Key, opt.Value);
+
+                    if (demuxerInput.UserAgent != null)
+                        formatOpt["user_agent"] = demuxerInput.UserAgent;
+
+                    if (demuxerInput.Referrer != null)
+                        formatOpt["referer"] = demuxerInput.Referrer;
+                    else if (!formatOpt.ContainsKey("referer") && Playlist.Url != null)
+                        formatOpt["referer"] = Playlist.Url;
+
+                    if (demuxerInput.HTTPHeaders != null)
+                    {
+                        formatOpt["headers"] = "";
+                        foreach(var header in demuxerInput.HTTPHeaders)
+                            formatOpt["headers"] += header.Key + ": " + header.Value + "\r\n";
+                    }
+                }
+
+                // Open Demuxer Input
+                if (demuxerInput.Url != null)
+                {
+                    error = demuxer.Open(demuxerInput.Url);
+                    if (error != null)
+                        return error;
+
+                    if (!string.IsNullOrEmpty(demuxerInput.UrlFallback))
+                    {
+                        Log.Warn($"Fallback to {demuxerInput.UrlFallback}");
+                        error = demuxer.Open(demuxerInput.UrlFallback);
+                    }
+                }
+                else if (demuxerInput.IOStream != null)
+                    error = demuxer.Open(demuxerInput.IOStream);
+
+                return error;
+            } finally
+            {
+                // Restore HTTP Config
+                if (Playlist.InputType == InputType.Web)
+                {
+                    formatOpt.Clear();
+                    foreach(var opt in copied)
+                        formatOpt.Add(opt.Key, opt.Value);
+                }
+
+                OpenedPlugin?.OnBufferingCompleted();
+            }
         }
         #endregion
 

@@ -171,11 +171,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         #if DEBUG
         public static void ReportLiveObjects()
         {
-            if (DXGI.DXGIGetDebugInterface1(out IDXGIDebug1 dxgiDebug).Success)
+            try
             {
-                dxgiDebug.ReportLiveObjects(DXGI.DebugAll, ReportLiveObjectFlags.Summary | ReportLiveObjectFlags.IgnoreInternal);
-                dxgiDebug.Dispose();
-            }
+                if (DXGI.DXGIGetDebugInterface1(out IDXGIDebug1 dxgiDebug).Success)
+                {
+                    dxgiDebug.ReportLiveObjects(DXGI.DebugAll, ReportLiveObjectFlags.Summary | ReportLiveObjectFlags.IgnoreInternal);
+                    dxgiDebug.Dispose();
+                }
+            } catch { }
         }
         #endif
         public static void Swap(Renderer renderer1, Renderer renderer2)

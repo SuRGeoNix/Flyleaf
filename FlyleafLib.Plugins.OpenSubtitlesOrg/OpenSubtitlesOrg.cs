@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Web;
 
@@ -15,8 +14,9 @@ namespace FlyleafLib.Plugins
     // TODO: Config + Interrupt for WebClient / HttpClient
     public class OpenSubtitlesOrg : PluginBase, ISearchOnlineSubtitles, IDownloadSubtitles
     {
-        public new int  Priority        { get; set; } = 2000;
-        public int      TimeoutSeconds  { get; set; } = 15;
+        public new int  Priority            { get; set; } = 2000;
+        public int      SearchTimeoutMs     { get; set; } = 15000;
+        public int      DownloadTimeoutMs   { get; set; } = 30000;
 
         static Dictionary<string, List<OpenSubtitlesOrgJson>> cache = new Dictionary<string, List<OpenSubtitlesOrgJson>>();
         static readonly string restUrl = "https://rest.opensubtitles.org/search";
@@ -36,28 +36,25 @@ namespace FlyleafLib.Plugins
 
             try
             {
-                using (var client = new WebClient())
-                {
-                    string subDownloadLinkEnc = sub.SubDownloadLink;
+                string subDownloadLinkEnc = sub.SubDownloadLink;
 
-                    string filename = sub.SubFileName;
-                    if (filename.EndsWith(".srt", StringComparison.OrdinalIgnoreCase))
-                        filename = filename.Substring(0, filename.Length - 4);
+                string filename = sub.SubFileName;
+                if (filename.EndsWith(".srt", StringComparison.OrdinalIgnoreCase))
+                    filename = filename.Substring(0, filename.Length - 4);
 
-                    string zipPath = Path.GetTempPath() + filename + "." + sub.SubLanguageID + ".srt.gz";
+                string zipPath = Path.GetTempPath() + filename + "." + sub.SubLanguageID + ".srt.gz";
 
-                    File.Delete(zipPath);
-                    File.Delete(zipPath.Substring(0, zipPath.Length - 3));
+                File.Delete(zipPath);
+                File.Delete(zipPath.Substring(0, zipPath.Length - 3));
 
-                    Log.Debug($"Downloading {zipPath}");
-                    client.DownloadFile(new Uri(subDownloadLinkEnc), zipPath);
+                Log.Debug($"Downloading {zipPath}");
+                Utils.DownloadFile(subDownloadLinkEnc, zipPath, DownloadTimeoutMs);
 
-                    Log.Debug($"Unzipping {zipPath}");
-                    string unzipPath = Utils.GZipDecompress(zipPath);
-                    Log.Debug($"Unzipped at {unzipPath}");
+                Log.Debug($"Unzipping {zipPath}");
+                string unzipPath = Utils.GZipDecompress(zipPath);
+                Log.Debug($"Unzipped at {unzipPath}");
 
-                    sub.AvailableAt = unzipPath;
-                }
+                sub.AvailableAt = unzipPath;
             }
             catch (Exception e)
             {
@@ -139,7 +136,7 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, TimeoutSeconds) })
+            using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) })
             {
                 string resp = "";
                 List<OpenSubtitlesOrgJson> subs = new List<OpenSubtitlesOrgJson>();
@@ -173,7 +170,7 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, TimeoutSeconds) })
+            using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) })
             {
                 string resp = "";
                 List<OpenSubtitlesOrgJson> subs = new List<OpenSubtitlesOrgJson>();
@@ -212,7 +209,7 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = new TimeSpan(0, 0, TimeoutSeconds) })
+            using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) })
             {
                 string resp = "";
                 List<OpenSubtitlesOrgJson> subs = new List<OpenSubtitlesOrgJson>();
