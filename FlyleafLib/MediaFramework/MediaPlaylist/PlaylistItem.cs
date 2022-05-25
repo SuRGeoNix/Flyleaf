@@ -3,33 +3,20 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 
+using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.MediaFramework.MediaPlaylist
 {
-    public class PlaylistItem : NotifyPropertyChanged
+    public class PlaylistItem : DemuxerInput
     {
         public int      Index                   { get; set; } = -1; // if we need it we need to ensure we fix it in case of removing an item
-
-        /// <summary>
-        /// Url provided as a demuxer input
-        /// </summary>
-        public string   Url                     { get; set; }
-
-        /// <summary>
-        /// Fallback url provided as a demuxer input
-        /// </summary>
-        public string   UrlFallback             { get; set; }
 
         /// <summary>
         /// While the Url can expire or be null DirectUrl can be used as a new input for re-opening
         /// </summary>
         public string   DirectUrl               { get; set; }
 
-        /// <summary>
-        /// IOStream provided as a demuxer input
-        /// </summary>
-        public Stream   IOStream                { get; set; }
         //public IOpen    OpenPlugin      { get; set; }
 
         /// <summary>

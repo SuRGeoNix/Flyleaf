@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
@@ -166,7 +167,7 @@ namespace FlyleafLib
 
             return dump;
         }
-        public static string GetUrlExtention(string url) { return url.LastIndexOf(".")  > 0 ? url.Substring(url.LastIndexOf(".") + 1) : ""; }
+        public static string GetUrlExtention(string url) { return url.LastIndexOf(".")  > 0 ? url.Substring(url.LastIndexOf(".") + 1).ToLower() : ""; }
         public static List<Language> GetSystemLanguages()
         {
             List<Language>  Languages  = new List<Language>();
@@ -271,6 +272,37 @@ namespace FlyleafLib
             return null;
         }
         public static string GetUserDownloadPath() { try { return Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\").GetValue("{374DE290-123F-4565-9164-39C4925E467B}").ToString(); } catch (Exception) { return null; } }
+        public static string DownloadToString(string url, int timeoutMs = 30000)
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) })
+                return client.GetAsync(url).Result.Content.ReadAsStringAsync().Result;
+            } catch (Exception e)
+            {
+                Log($"Download failed {e.Message} [Url: {(url != null ? url : "Null")}]");
+            }
+            
+            return null;
+        }
+        public static bool DownloadFile(string url, string filename, int timeoutMs = 30000, bool overwrite = true)
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) })
+                {
+                    using (FileStream fs = new FileStream(filename, overwrite ? FileMode.Create : FileMode.CreateNew))
+                        client.GetAsync(url).Result.Content.CopyToAsync(fs).Wait();
+
+                    return true;
+                }
+            } catch (Exception e)
+            {
+                Log($"Download failed {e.Message} [Url: {(url != null ? url : "Null")}, Path: {(filename != null ? filename : "Null")}]");
+            }
+
+            return false;
+        }
 
         static List<PerformanceCounter> gpuCounters;
 

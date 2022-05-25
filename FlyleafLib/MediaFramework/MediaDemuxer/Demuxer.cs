@@ -1118,13 +1118,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         VideoStream = null;
                         if (AudioStream != null) HLSPlaylist = AudioStream.HLSPlaylist;
 
-
                         VideoPackets.Clear();
                         break;
 
                     case MediaType.Subs:
                         SubtitlesStream = null;
-
                         SubtitlesPackets.Clear();
 
                         break;

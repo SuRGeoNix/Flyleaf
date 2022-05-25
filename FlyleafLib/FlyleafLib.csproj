@@ -99,6 +99,10 @@
     <Import Include="WindowsBase" />
     <Import Include="WindowsFormsIntegration" />
   </ItemGroup>
+	
+	<ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
+		<Reference Include="System.Net.Http" />
+	</ItemGroup>
   
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />

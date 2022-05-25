@@ -33,10 +33,37 @@ namespace FlyleafLib.Plugins
                 return new OpenResults();
             }
 
-            // TODO playlist files
             try
             {
                 Uri uri = new Uri(Playlist.Url);
+                string ext = Utils.GetUrlExtention(Playlist.Url);
+                bool isWeb = uri.Scheme.ToLower().StartsWith("http");
+
+                if (ext == "m3u")
+                {
+                    Playlist.InputType = InputType.Web;
+                    Playlist.FolderBase = Path.GetTempPath();
+
+                    var items = isWeb ? M3UPlaylist.ParseFromHttp(Playlist.Url) : M3UPlaylist.Parse(Playlist.Url);
+
+                    foreach(var mitem in items)
+                    {
+                        AddPlaylistItem(new PlaylistItem()
+                        {
+                            Title       = mitem.Title,
+                            Url         = mitem.Url,
+                            UserAgent   = mitem.UserAgent,
+                            Referrer    = mitem.Referrer
+                        });
+                    }
+
+                    Handler.OnPlaylistCompleted();
+
+                    return new OpenResults();
+                }
+
+                // TODO pls
+
                 if (uri.IsFile)
                 {
                     Playlist.InputType = InputType.File;

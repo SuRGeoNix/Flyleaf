@@ -85,65 +85,6 @@ namespace FlyleafLib.Plugins
             DisposeInternal(true);
         }
 
-        public override void OnOpenExternalVideo()
-        {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name)
-                return;
-
-            Format fmt = (Format) GetTag(Selected.ExternalVideoStream);
-
-            bool gotReferer = false;
-            Config.Demuxer.FormatOpt["headers"] = "";
-            if (fmt.http_headers != null)
-                foreach (var hdr in fmt.http_headers)
-                {
-                    if (hdr.Key.ToLower() == "referer")
-                    {
-                        gotReferer = true;
-                        Config.Demuxer.FormatOpt["referer"] = hdr.Value;
-                    }
-                    else if (hdr.Key.ToLower() != "user-agent")
-                        Config.Demuxer.FormatOpt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
-                }
-
-            if (!gotReferer)
-                Config.Demuxer.FormatOpt["referer"] = Handler.Playlist.Url;
-        }
-        public override void OnOpenExternalAudio()
-        {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name)
-                return;
-
-            Format fmt = (Format) GetTag(Selected.ExternalAudioStream);
-
-            var curFormatOpt = decoder.VideoStream == null ? Config.Demuxer.FormatOpt : Config.Demuxer.AudioFormatOpt;
-
-            bool gotReferer = false;
-            curFormatOpt["headers"] = "";
-            if (fmt.http_headers != null)
-                foreach (var hdr in fmt.http_headers)
-                {
-                    if (hdr.Key.ToLower() == "referer")
-                    {
-                        gotReferer = true;
-                        curFormatOpt["referer"] = hdr.Value;
-                    }
-                    else if (hdr.Key.ToLower() != "user-agent")
-                        curFormatOpt["headers"] += hdr.Key + ": " + hdr.Value + "\r\n";
-                }
-
-            if (!gotReferer)
-                curFormatOpt["referer"] = Handler.Playlist.Url;
-        }
-        public override void OnOpenExternalSubtitles()
-        {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name)
-                return;
-
-            var curFormatOpt = Config.Demuxer.SubtitlesFormatOpt;
-            curFormatOpt["referer"] = Handler.Playlist.Url;
-        }
-
         private Format GetAudioOnly(YoutubeDLJson ytdl)
         {
             // Prefer best with no video (dont waste bandwidth)
@@ -380,9 +321,14 @@ namespace FlyleafLib.Plugins
                 bool hasAudio = HasAudio(fmt);
                 bool hasVideo = HasVideo(fmt);
 
+                if (!hasVideo && !hasAudio)
+                    continue;
+
+                ExternalStream extStream;
+
                 if (hasVideo)
                 {
-                    AddExternalStream(new ExternalVideoStream()
+                    extStream = new ExternalVideoStream()
                     {
                         Url = fmt.url,
                         UrlFallback = string.IsNullOrEmpty(fmt.manifest_url) ? ytdl.manifest_url : fmt.manifest_url,
@@ -394,12 +340,11 @@ namespace FlyleafLib.Plugins
                         Width = (int)fmt.width,
                         Height = (int)fmt.height,
                         FPS = fmt.fps
-                    }, fmt, item);
+                    };
                 }
-                else if (hasAudio)
+                else
                 {
-                    
-                    AddExternalStream(new ExternalAudioStream()
+                    extStream = new ExternalAudioStream()
                     {
                         Url = fmt.url,
                         UrlFallback = string.IsNullOrEmpty(fmt.manifest_url) ? ytdl.manifest_url : fmt.manifest_url,
@@ -408,8 +353,11 @@ namespace FlyleafLib.Plugins
                         BitRate = (long)fmt.abr,
                         Codec = fmt.acodec,
                         Language = Language.Get(fmt.language)
-                    }, fmt, item);
+                    };
                 }
+
+                AddHeaders(extStream, fmt);
+                AddExternalStream(extStream, fmt, item);
             }
 
             if (ytdl.automatic_captions != null)
@@ -431,7 +379,6 @@ namespace FlyleafLib.Plugins
                             Url         = subtitle.url
                         }, item);
                     }
-
                 }
 
             if (GetBestMatch(ytdl) == null && GetAudioOnly(ytdl) == null)
@@ -441,6 +388,25 @@ namespace FlyleafLib.Plugins
             }
 
             AddPlaylistItem(item, ytdl);
+        }
+        public void AddHeaders(ExternalStream extStream, Format fmt)
+        {
+            if (fmt.http_headers != null)
+            {
+                if (fmt.http_headers.ContainsKey("User-Agent"))
+                {
+                    extStream.UserAgent = fmt.http_headers["User-Agent"];
+                    fmt.http_headers.Remove("User-Agent");
+                }
+
+                if (fmt.http_headers.ContainsKey("Referer"))
+                {
+                    extStream.Referrer = fmt.http_headers["Referer"];
+                    fmt.http_headers.Remove("Referer");
+                }
+                            
+                extStream.HTTPHeaders = fmt.http_headers;
+            }
         }
 
         public bool CanOpen()
@@ -456,7 +422,7 @@ namespace FlyleafLib.Plugins
                 if (scheme != "http" && scheme != "https")
                     return false;
 
-                string ext = Utils.GetUrlExtention(uri.AbsolutePath).ToLower();
+                string ext = Utils.GetUrlExtention(uri.AbsolutePath);
 
                 if (ext == "m3u8" || ext == "mp3" || ext == "m3u" || ext == "pls")
                     return false;
@@ -476,7 +442,6 @@ namespace FlyleafLib.Plugins
                 Disposed = false;
                 long sessionId = Handler.OpenCounter;
                 Playlist.InputType = InputType.Web;
-                Uri uri = new Uri(Playlist.Url);
 
                 workingDir = Path.GetTempPath() + Guid.NewGuid().ToString();
 

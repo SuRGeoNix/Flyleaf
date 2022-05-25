@@ -331,12 +331,12 @@ namespace FlyleafLib.MediaPlayer
                     if (!Directory.Exists(Config.Player.FolderSnapshots))
                         Directory.CreateDirectory(Config.Player.FolderSnapshots);
 
-                    filename = Utils.GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{VideoDecoder.GetFrameNumber(CurTime)}.{Config.Player.SnapshotFormat}";
-                    filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
+                    filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{VideoDecoder.GetFrameNumber(CurTime)}.{Config.Player.SnapshotFormat}";
+                    filename = FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
                 } catch { return; }
             }
 
-            string ext = Utils.GetUrlExtention(filename).ToLower();
+            string ext = GetUrlExtention(filename);
 
             switch (ext)
             {
