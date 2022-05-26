@@ -39,14 +39,14 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
         /// Item's title
         /// (can be updated from scrapers)
         /// </summary>
-        public string   Title                   { get => _Title; set { if (_Title == "") OriginalTitle = value; SetUI(ref _Title, value, false);} }
+        public string   Title                   { get => _Title; set { if (_Title == "") OriginalTitle = value; SetUI(ref _Title, value == null ? "" : value, false);} }
         string _Title = "";
 
         /// <summary>
         /// Item's original title
         /// (setted by opened plugin)
         /// </summary>
-        public string   OriginalTitle           { get => _OriginalTitle; set => SetUI(ref _OriginalTitle, value, false); }
+        public string   OriginalTitle           { get => _OriginalTitle; set => SetUI(ref _OriginalTitle, value == null ? "" : value, false); }
         string _OriginalTitle = "";
 
         public int      Season                  { get; set; } = -1;
