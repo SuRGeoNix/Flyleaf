@@ -103,10 +103,16 @@ namespace FlyleafLib.MediaPlayer
             get => mute;
             set
             {
-                if (value)
-                    sourceVoice.Volume = 0;
-                else
-                    sourceVoice.Volume = _Volume / 100.0f;
+                lock (locker)
+                {
+                    if (sourceVoice == null)
+                        return;
+
+                    if (value)
+                        sourceVoice.Volume = 0;
+                    else
+                        sourceVoice.Volume = _Volume / 100.0f;
+                }
 
                 Set(ref mute, value, false);
             }
