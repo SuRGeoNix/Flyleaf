@@ -16,7 +16,7 @@ using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.Plugins
 {
-    public class YoutubeDL : PluginBase, IOpen, ISuggestExternalAudio, ISuggestExternalVideo, ISuggestExternalSubtitles
+    public class YoutubeDL : PluginBase, IOpen, ISuggestExternalAudio, ISuggestExternalVideo
     {
         /* TODO
          * 1) Check Audio streams if we need to add also video streams with audio
@@ -305,6 +305,7 @@ namespace FlyleafLib.Plugins
                 ytdl.formats.Add(ytdl);
             }
 
+            // Audio / Video Streams
             for (int i=0; i<ytdl.formats.Count; i++)
             {
                 Format fmt = ytdl.formats[i];
@@ -360,32 +361,71 @@ namespace FlyleafLib.Plugins
                 AddExternalStream(extStream, fmt, item);
             }
 
-            if (ytdl.automatic_captions != null)
-                foreach (var subtitle1 in ytdl.automatic_captions)
-                {
-                    if (!Config.Subtitles.Languages.Contains(Language.Get(subtitle1.Key))) continue;
-
-                    foreach (var subtitle in subtitle1.Value)
-                    {
-                        if (subtitle.ext.ToLower() != "vtt")
-                            continue;
-
-                        AddExternalStream(new ExternalSubtitlesStream()
-                        {
-                            Downloaded  = true,
-                            Converted   = true,
-                            Protocol    = subtitle.ext,
-                            Language    = Language.Get(subtitle.name),
-                            Url         = subtitle.url
-                        }, item);
-                    }
-                }
-
             if (GetBestMatch(ytdl) == null && GetAudioOnly(ytdl) == null)
             {
                 Log.Warn("No streams found");
                 return;
             }
+
+            // Subtitles Streams
+            try
+            {
+                if (ytdl.automatic_captions != null)
+                {
+                    bool found = false;
+                    Language lang;
+
+                    foreach (var subtitle1 in ytdl.automatic_captions)
+                    {
+                        lang = Language.Get(subtitle1.Key);
+                        if (!Config.Subtitles.Languages.Contains(lang))
+                            continue;
+
+                        foreach (var subtitle in subtitle1.Value)
+                        {
+                            if (subtitle.ext.ToLower() != "vtt")
+                                continue;
+
+                            if (Language.Get(subtitle1.Key) == Config.Subtitles.Languages[0])
+                                found = true;
+
+                            AddExternalStream(new ExternalSubtitlesStream()
+                            {
+                                Downloaded  = true,
+                                Converted   = true,
+                                Protocol    = subtitle.ext,
+                                Language    = lang,
+                                Url         = subtitle.url
+                            }, null, item);
+                        }
+                    }
+
+                    if (!found) // TBR: There are still subtitles converted from one language to another (eg. Spanish from English, es-en)
+                    {
+                        foreach (var subtitle1 in ytdl.automatic_captions)
+                        {
+                            lang = subtitle1.Key.IndexOf('-') > 1 ? Language.Get(subtitle1.Key.Substring(0, subtitle1.Key.IndexOf('-'))) : null;
+                            if (lang != Config.Subtitles.Languages[0])
+                                continue;
+
+                            foreach (var subtitle in subtitle1.Value)
+                            {
+                                if (subtitle.ext.ToLower() != "vtt")
+                                    continue;
+
+                                AddExternalStream(new ExternalSubtitlesStream()
+                                {
+                                    Downloaded  = true,
+                                    Converted   = true,
+                                    Protocol    = subtitle.ext,
+                                    Language    = lang,
+                                    Url         = subtitle.url
+                                }, null, item);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) { Log.Warn($"Failed to add subtitles ({e.Message})"); }
 
             AddPlaylistItem(item, ytdl);
         }
@@ -551,15 +591,6 @@ namespace FlyleafLib.Plugins
 
             foreach (var extStream in Selected.ExternalVideoStreams)
                 if (fmt.url == extStream.Url) return extStream;
-
-            return null;
-        }
-        public ExternalSubtitlesStream SuggestExternalSubtitles(Language lang)
-        {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
-
-            foreach (var extStream in Selected.ExternalSubtitlesStreams)
-                if (extStream.Language == lang) return extStream;
 
             return null;
         }

@@ -12,10 +12,14 @@ namespace FlyleafLib.Plugins
 {
     public class PluginHandler
     {
+        #region Properties
+        public Config                   Config                          { get; private set; }
+        public bool                     Interrupt                       { get; set; }
+        public IOpen                    OpenedPlugin                    { get; private set; }
+        public IOpenSubtitles           OpenedSubtitlesPlugin           { get; private set; }
+        public long                     OpenCounter                     { get; internal set; }
+        public long                     OpenItemCounter                 { get; internal set; }
         public Playlist                 Playlist                        { get; set; }
-
-
-        public Config                   Config                          { get ; private set; }
         public int                      UniqueId                        { get; set; }
 
         public Dictionary<string, PluginBase>   
@@ -26,7 +30,7 @@ namespace FlyleafLib.Plugins
                                         PluginsOpenSubtitles            { get; private set; }
 
         public Dictionary<string, IScrapeItem> 
-                                        PluginsScrapeItem                   { get; private set; }
+                                        PluginsScrapeItem               { get; private set; }
 
         public Dictionary<string, ISuggestPlaylistItem>         
                                         PluginsSuggestItem              { get; private set; }
@@ -35,18 +39,15 @@ namespace FlyleafLib.Plugins
                                         PluginsSuggestAudioStream       { get; private set; }
         public Dictionary<string, ISuggestVideoStream>        
                                         PluginsSuggestVideoStream       { get; private set; }
-        public Dictionary<string, ISuggestSubtitlesStream>    
-                                        PluginsSuggestSubtitlesStream   { get; private set; }
-        public Dictionary<string, ISuggestSubtitles>    
-                                        PluginsSuggestSubtitles         { get; private set; }
-
         public Dictionary<string, ISuggestExternalAudio>        
                                         PluginsSuggestExternalAudio     { get; private set; }
         public Dictionary<string, ISuggestExternalVideo>        
                                         PluginsSuggestExternalVideo     { get; private set; }
-        public Dictionary<string, ISuggestExternalSubtitles>    
-                                        PluginsSuggestExternalSubtitles { get; private set; }
 
+        public Dictionary<string, ISuggestSubtitlesStream>    
+                                        PluginsSuggestSubtitlesStream   { get; private set; }
+        public Dictionary<string, ISuggestSubtitles>    
+                                        PluginsSuggestSubtitles         { get; private set; }
         public Dictionary<string, ISuggestBestExternalSubtitles>    
                                         PluginsSuggestBestExternalSubtitles
                                                                         { get; private set; }
@@ -58,15 +59,10 @@ namespace FlyleafLib.Plugins
                                         PluginsSearchLocalSubtitles     { get; private set; }
         public Dictionary<string, ISearchOnlineSubtitles>           
                                         PluginsSearchOnlineSubtitles    { get; private set; }
+        #endregion
 
-        public IOpen                    OpenedPlugin                    { get; private set; }
-        public IOpenSubtitles           OpenedSubtitlesPlugin           { get; private set; }
-
-        public bool                     Interrupt                       { get; set; }
-        public long                     OpenCounter                     { get; internal set; }
-        public long                     OpenItemCounter                 { get; internal set; }
+        #region Initialize
         LogHandler Log;
-
         public PluginHandler(Config config, int uniqueId = -1)
         {
             Config = config;
@@ -116,7 +112,6 @@ namespace FlyleafLib.Plugins
 
             PluginsSuggestExternalAudio        = new Dictionary<string, ISuggestExternalAudio>();
             PluginsSuggestExternalVideo        = new Dictionary<string, ISuggestExternalVideo>();
-            PluginsSuggestExternalSubtitles    = new Dictionary<string, ISuggestExternalSubtitles>();
             PluginsSuggestBestExternalSubtitles= new Dictionary<string, ISuggestBestExternalSubtitles>();
 
             PluginsSearchLocalSubtitles     = new Dictionary<string, ISearchLocalSubtitles>();
@@ -142,15 +137,15 @@ namespace FlyleafLib.Plugins
 
             if (plugin is ISuggestExternalAudio) PluginsSuggestExternalAudio.Add(plugin.Name, (ISuggestExternalAudio)plugin);
             if (plugin is ISuggestExternalVideo) PluginsSuggestExternalVideo.Add(plugin.Name, (ISuggestExternalVideo)plugin);
-            if (plugin is ISuggestExternalSubtitles) PluginsSuggestExternalSubtitles.Add(plugin.Name, (ISuggestExternalSubtitles)plugin);
             if (plugin is ISuggestBestExternalSubtitles) PluginsSuggestBestExternalSubtitles.Add(plugin.Name, (ISuggestBestExternalSubtitles)plugin);
 
             if (plugin is ISearchLocalSubtitles) PluginsSearchLocalSubtitles.Add(plugin.Name, (ISearchLocalSubtitles)plugin);
             if (plugin is ISearchOnlineSubtitles) PluginsSearchOnlineSubtitles.Add(plugin.Name, (ISearchOnlineSubtitles)plugin);
             if (plugin is IDownloadSubtitles) PluginsDownloadSubtitles.Add(plugin.Name, (IDownloadSubtitles)plugin);
         }
+        #endregion
 
-#region Events
+        #region Misc / Events
         public void OnInitializing()
         {
             OpenCounter++;
@@ -186,9 +181,9 @@ namespace FlyleafLib.Plugins
             foreach(var plugin in Plugins.Values)
                 plugin.Dispose();
         }
-#endregion
+        #endregion
 
-#region Audio / Video
+        #region Audio / Video
         public OpenResults Open()
         {
             var sessionId = OpenCounter;
@@ -376,9 +371,9 @@ namespace FlyleafLib.Plugins
 
             extStream = SuggestExternalAudio();
         }
-#endregion
+        #endregion
 
-#region Subtitles
+        #region Subtitles
         public OpenSubtitlesResults OpenSubtitles(string url)
         {
             var plugins = PluginsOpenSubtitles.Values.OrderBy(x => x.Priority);
@@ -489,6 +484,6 @@ namespace FlyleafLib.Plugins
 
             return null;
         }
-#endregion
+        #endregion
     }
 }
