@@ -9,12 +9,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         /// <summary>
         /// Url provided as a demuxer input
         /// </summary>
-        public string   Url             { get; set; }
+        public string   Url             { get => _Url; set => _Url = Utils.FixFileUrl(value); }
+        string _Url;
 
         /// <summary>
         /// Fallback url provided as a demuxer input
         /// </summary>
-        public string   UrlFallback     { get; set; }
+        public string   UrlFallback     { get => _UrlFallback; set => _UrlFallback = Utils.FixFileUrl(value); }
+        string _UrlFallback;
 
         /// <summary>
         /// IOStream provided as a demuxer input

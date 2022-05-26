@@ -10,23 +10,13 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
     public class Playlist : NotifyPropertyChanged
     {
         /// <summary>
-        /// Url provided as a demuxer input
+        /// Url provided by user
         /// </summary>
-        public string       Url             { get => _Url;   set => SetUI(ref _Url, value); }
+        public string       Url             { get => _Url;   set { string fixedUrl = Utils.FixFileUrl(value); SetUI(ref _Url, fixedUrl); } }
         string _Url;
 
         /// <summary>
-        /// Fallback url provided as a demuxer input
-        /// </summary>
-        public string       UrlFallback     { get; set; }
-
-        /// <summary>
-        /// While the Url can expire or be null DirectUrl can be used as a new input for re-opening
-        /// </summary>
-        public string       DirectUrl       { get; set; }
-
-        /// <summary>
-        /// IOStream provided as a demuxer input
+        /// IOStream provided by user
         /// </summary>
         public Stream       IOStream        { get; set; }
 
@@ -121,7 +111,7 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
 
             decoder.ScrapeItem(item);
 
-            UI(() => 
+            UI(() =>
             {
                 System.Windows.Data.BindingOperations.EnableCollectionSynchronization(item.ExternalAudioStreams, item.lockExternalStreams);
                 System.Windows.Data.BindingOperations.EnableCollectionSynchronization(item.ExternalVideoStreams, item.lockExternalStreams);

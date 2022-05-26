@@ -58,10 +58,17 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
 
                     while ((line = reader.ReadLine()) != null && line.StartsWith("#EXTVLCOPT"))
                     {
-                        item.UserAgent = GetMatch(line, "http-user-agent\\s*=\\s*\"*(.*)\"*");
-                        if (item.UserAgent != null) continue;
+                        if (item.UserAgent == null)
+                        {
+                            item.UserAgent = GetMatch(line, "http-user-agent\\s*=\\s*\"*(.*)\"*");
+                            if (item.UserAgent != null) continue;
+                        }
 
-                        item.Referrer = GetMatch(line, "http-referrer\\s*=\\s*\"*(.*)\"*");
+                        if (item.Referrer == null)
+                        {
+                            item.Referrer = GetMatch(line, "http-referrer\\s*=\\s*\"*(.*)\"*");
+                            if (item.Referrer != null) continue;
+                        }
                     }
 
                     item.Url = line;

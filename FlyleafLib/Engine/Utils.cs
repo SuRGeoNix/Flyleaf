@@ -167,7 +167,7 @@ namespace FlyleafLib
 
             return dump;
         }
-        public static string GetUrlExtention(string url) { return url.LastIndexOf(".")  > 0 ? url.Substring(url.LastIndexOf(".") + 1).ToLower() : ""; }
+        public static string GetUrlExtention(string url) { return url.LastIndexOf(".") > 0 ? url.Substring(url.LastIndexOf(".") + 1).ToLower() : ""; }
         public static List<Language> GetSystemLanguages()
         {
             List<Language>  Languages  = new List<Language>();
@@ -302,6 +302,19 @@ namespace FlyleafLib
             }
 
             return false;
+        }
+        public static string FixFileUrl(string url)
+        {
+            try
+            {
+                if (url == null || url.Length < 5)
+                    return url;
+
+                if (url.Substring(0, 5).ToLower() == "file:")
+                    return (new Uri(url)).LocalPath;
+            } catch { }
+
+            return url;
         }
 
         static List<PerformanceCounter> gpuCounters;

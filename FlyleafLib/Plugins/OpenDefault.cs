@@ -10,6 +10,14 @@ namespace FlyleafLib.Plugins
 {
     public class OpenDefault : PluginBase, IOpen, IScrapeItem
     {
+        /* TODO
+         * 
+         * 1) Current Url Syntax issues
+         *  ..\..\..\..\folder\file.mp3 | Cannot handle this
+         *  file:///C:/folder/fi%20le.mp3 | FFmpeg & File.Exists cannot handle this
+         * 
+         */
+
         public new int  Priority    { get; set; } = 3000;
 
         public bool CanOpen()
@@ -19,29 +27,43 @@ namespace FlyleafLib.Plugins
 
         public OpenResults Open()
         {
-            if (Playlist.IOStream != null)
-            {
-                AddPlaylistItem(new PlaylistItem()
-                {
-                    IOStream= Playlist.IOStream,
-                    Title   = "Custom IO Stream",
-                    FileSize= Playlist.IOStream.Length
-                });
-
-                Handler.OnPlaylistCompleted();
-
-                return new OpenResults();
-            }
-
             try
             {
-                Uri uri = new Uri(Playlist.Url);
-                string ext = Utils.GetUrlExtention(Playlist.Url);
-                bool isWeb = uri.Scheme.ToLower().StartsWith("http");
+                if (Playlist.IOStream != null)
+                {
+                    AddPlaylistItem(new PlaylistItem()
+                    {
+                        IOStream= Playlist.IOStream,
+                        Title   = "Custom IO Stream",
+                        FileSize= Playlist.IOStream.Length
+                    });
 
+                    Handler.OnPlaylistCompleted();
+
+                    return new OpenResults();
+                }
+
+                // Proper Url Format
+                string scheme;
+                bool isWeb = false;
+                string uriType = "";
+                string ext = Utils.GetUrlExtention(Playlist.Url);
+                string localPath = null;
+
+                try
+                {
+                    Uri uri = new Uri(Playlist.Url);
+                    scheme = uri.Scheme.ToLower();
+                    isWeb = scheme.StartsWith("http");
+                    uriType = uri.IsFile ? "file" : ((uri.IsUnc) ? "unc" : "");
+                    localPath = uri.LocalPath;
+                } catch { }
+
+
+                // Playlists (M3U, PLS | TODO: WPL, XSPF)
                 if (ext == "m3u")
                 {
-                    Playlist.InputType = InputType.Web;
+                    Playlist.InputType = InputType.Web; // TBR: Can be mixed
                     Playlist.FolderBase = Path.GetTempPath();
 
                     var items = isWeb ? M3UPlaylist.ParseFromHttp(Playlist.Url) : M3UPlaylist.Parse(Playlist.Url);
@@ -61,10 +83,32 @@ namespace FlyleafLib.Plugins
 
                     return new OpenResults();
                 }
+                else if (ext == "pls")
+                {
+                    Playlist.InputType = InputType.Web; // TBR: Can be mixed
+                    Playlist.FolderBase = Path.GetTempPath();
 
-                // TODO pls
+                    var items = PLSPlaylist.Parse(Playlist.Url);
 
-                if (uri.IsFile)
+                    foreach(var mitem in items)
+                    {
+                        AddPlaylistItem(new PlaylistItem()
+                        {
+                            Title       = mitem.Title,
+                            Url         = mitem.Url
+                            // Duration
+                        });
+                    }
+
+                    Handler.OnPlaylistCompleted();
+
+                    return new OpenResults();
+                }
+
+
+                // Single Playlist Item
+
+                if (uriType == "file")
                 {
                     Playlist.InputType = InputType.File;
                     if (File.Exists(Playlist.Url))
@@ -73,12 +117,12 @@ namespace FlyleafLib.Plugins
                         Playlist.FolderBase = fi.DirectoryName;
                     }
                 }
-                else if (uri.Scheme.ToLower().StartsWith("http"))
+                else if (isWeb)
                 {
                     Playlist.InputType = InputType.Web;
                     Playlist.FolderBase = Path.GetTempPath();
                 }
-                else if (uri.IsUnc)
+                else if (uriType == "unc")
                 { 
                     Playlist.InputType = InputType.UNC;
                     Playlist.FolderBase = Path.GetTempPath();
@@ -89,28 +133,28 @@ namespace FlyleafLib.Plugins
                     Playlist.FolderBase = Path.GetTempPath();
                 }
 
-            } catch { }
+                PlaylistItem item = new PlaylistItem();
 
-            PlaylistItem item = new PlaylistItem();
+                item.Url = Playlist.Url;
+                item.DirectUrl = Playlist.Url;
 
-            item.Url = Playlist.Url;
-            item.DirectUrl = Playlist.Url;
+                if (File.Exists(Playlist.Url))
+                {
+                    var fi = new FileInfo(Playlist.Url);
+                    item.Title = fi.Extension == null ? fi.Name : fi.Name.Substring(0, fi.Name.Length - fi.Extension.Length);
+                    item.FileSize = fi.Length;
+                }
+                else
+                    item.Title = localPath != null ? Path.GetFileName(localPath) : Playlist.Url;
 
-            if (File.Exists(Playlist.Url))
+                AddPlaylistItem(item);
+                Handler.OnPlaylistCompleted();
+
+                return new OpenResults();
+            } catch (Exception e)
             {
-                var fi = new FileInfo(Playlist.Url);
-                item.Title = fi.Extension == null ? fi.Name : fi.Name.Substring(0, fi.Name.Length - fi.Extension.Length);
-                item.FileSize = fi.Length;
+                return new OpenResults(e.Message);
             }
-            else
-            {
-                try { Uri uri = new Uri(Playlist.Url); item.Title = Path.GetFileName(uri.LocalPath); } catch { }
-            }
-
-            AddPlaylistItem(item);
-            Handler.OnPlaylistCompleted();
-
-            return new OpenResults();
         }
 
         public OpenResults OpenItem()

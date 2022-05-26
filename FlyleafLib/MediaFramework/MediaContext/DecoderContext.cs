@@ -388,7 +388,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             try
             {
                 // Open
-                if (session.Url != null && session.Url != Playlist.Url && session.Url != Playlist.DirectUrl)
+                if (session.Url != null && session.Url != Playlist.Url) // && session.Url != Playlist.DirectUrl)
                 {
                     args.Error = Open(session.Url, false, false, false, false).Error;
                     if (!args.Success)
