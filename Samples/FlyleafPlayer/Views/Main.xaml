@@ -118,7 +118,7 @@
             <Grid Style="{StaticResource FadeActivity}" Margin="0 30 0 0" VerticalAlignment="Top" HorizontalAlignment="Center">
                 <StackPanel>
                     <TextBlock HorizontalAlignment="Right" Background="#a0000000" Padding="5">
-                        <Run Text="{Binding Player.Title, Mode=OneWay}" d:Text="Paokara"/>
+                        <Run Text="{Binding Player.Playlist.Selected.Title, Mode=OneWay}" d:Text="Paokara"/>
                     </TextBlock>
                 </StackPanel>
             </Grid>

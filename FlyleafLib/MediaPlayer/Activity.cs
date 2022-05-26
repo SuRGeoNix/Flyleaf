@@ -27,6 +27,7 @@ namespace FlyleafLib.MediaPlayer
         public Activity(Player player)
         {
             this.player = player;
+            ForceFullActive();
         }
 
         public ActivityMode Check()

@@ -136,7 +136,7 @@
             </Button>
 
             <!--Movie Title-->
-            <TextBlock Grid.Column="3" FontSize="14" VerticalAlignment="Center" FontStyle="Italic" Margin="5,0,0,0" Text="{Binding Player.Title}" d:Text="Movie Title"/>
+            <TextBlock Grid.Column="3" FontSize="14" VerticalAlignment="Center" FontStyle="Italic" Margin="5,0,0,0" Text="{Binding Player.Playlist.Selected.Title}" d:Text="Movie Title"/>
 
             <!--Live Stream-->
             <!--<materialDesign:PackIcon Kind="VideoInputAntenna" Margin="5 2 0 0" Foreground="{DynamicResource SecondaryHueMidBrush}" Visibility="{Binding Player.IsLive, Converter={StaticResource BooleanToVisibility}}"/>-->
