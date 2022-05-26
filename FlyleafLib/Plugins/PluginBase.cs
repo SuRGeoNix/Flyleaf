@@ -160,11 +160,6 @@ namespace FlyleafLib.Plugins
         VideoStream SuggestVideo(ObservableCollection<VideoStream> streams);
     }
 
-    public interface ISuggestExternalSubtitles : IPlugin
-    {
-        ExternalSubtitlesStream SuggestExternalSubtitles(Language lang);
-    }
-
     public interface ISuggestSubtitlesStream : IPlugin
     {
         SubtitlesStream SuggestSubtitles(ObservableCollection<SubtitlesStream> streams, List<Language> langs);

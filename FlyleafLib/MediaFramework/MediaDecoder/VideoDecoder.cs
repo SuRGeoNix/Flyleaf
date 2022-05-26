@@ -724,7 +724,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             avcodec_flush_buffers(codecCtx);
                             curReversePacketPos = 0;
 
-                            for (int i = curReverseVideoFrames.Count -1; i>=0; i--)
+                            for (int i=curReverseVideoFrames.Count -1; i>=0; i--)
                                 Frames.Enqueue(curReverseVideoFrames[i]);
 
                             curReverseVideoFrames.Clear();
