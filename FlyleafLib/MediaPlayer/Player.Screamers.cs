@@ -438,7 +438,7 @@ namespace FlyleafLib.MediaPlayer
                     }
                     else if (sDistanceMs < -30)
                     {
-                        if (CanWarn) Log.Warn($"sDistanceMs = {sDistanceMs}");
+                        if (CanWarn) Log.Info($"sDistanceMs = {sDistanceMs}");
 
                         sFrame = null;
                         SubtitlesDecoder.Frames.TryDequeue(out SubtitlesFrame devnull);

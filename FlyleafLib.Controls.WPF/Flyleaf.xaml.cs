@@ -139,7 +139,7 @@ namespace FlyleafLib.Controls.WPF
         Thickness   subsInitialMargin;
 
         bool        isDesignMode = (bool) DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
-        bool        prevActivityMode;
+        bool        initialActivityMode; // Note: we consider the user will not changed it
         bool        disposed;
 
         static Flyleaf()
@@ -189,85 +189,7 @@ namespace FlyleafLib.Controls.WPF
                 dialogSettings.Identifier = dialogSettingsIdentifier;
             }
 
-            if (popUpMenu != null)
-                popUpMenu.PlacementTarget = this;
-
-            if (popUpMenuSubtitles != null)
-            {
-                popUpMenuSubtitles.PlacementTarget = this;
-                popUpMenuSubtitles.Opened += (o, e) => { prevActivityMode = Config.Player.ActivityMode; Config.Player.ActivityMode = false; };
-                popUpMenuSubtitles.Closed += (o, e) => { Config.Player.ActivityMode = prevActivityMode == true; };
-            }
-
-            if (popUpMenuVideo != null)
-            {
-                popUpMenuVideo.PlacementTarget = this;
-                popUpMenuVideo.Opened += (o, e) => { prevActivityMode = Config.Player.ActivityMode; Config.Player.ActivityMode = false; };
-                popUpMenuVideo.Closed += (o, e) => { Config.Player.ActivityMode = prevActivityMode == true; };
-            }
-
-            if (popUpMenu != null)
-            {
-                var videoItem = from object item in popUpMenu.Items where item is MenuItem && ((MenuItem)item).Header != null && ((MenuItem)item).Header.ToString() == "Video" select item;
-                var aspectRatioItem = from object item in ((MenuItem)videoItem.ToArray()[0]).Items where ((MenuItem)item).Header != null && ((MenuItem)item).Header.ToString() == "Aspect Ratio" select item;
-                popUpAspectRatio = (MenuItem)aspectRatioItem.ToArray()[0];
-            }
-
-            if (popUpAspectRatio != null)
-            {
-                foreach (var aspectRatio in AspectRatio.AspectRatios)
-                {
-                    if (aspectRatio == AspectRatio.Custom) continue;
-                    popUpAspectRatio.Items.Add(new MenuItem() { Header = aspectRatio, IsCheckable = true });
-                    if (aspectRatio == AspectRatio.Keep) popUpKeepAspectRatio = (MenuItem)popUpAspectRatio.Items[popUpAspectRatio.Items.Count - 1];
-                }
-
-                popUpCustomAspectRatio = new MenuItem() { IsCheckable = true };
-                popUpCustomAspectRatioSet = new MenuItem() { Header = "Set Custom..." };
-                popUpCustomAspectRatioSet.Click += (n1, n2) => { DialogAspectRatio(); };
-
-                popUpAspectRatio.Items.Add(popUpCustomAspectRatio);
-                popUpAspectRatio.Items.Add(popUpCustomAspectRatioSet);
-
-                popUpMenu.Closed += (o, e) =>
-                {
-                    if (!prevActivityMode)
-                        return;
-
-                    // Workaround to re-enable activity mode
-                    if (!Player.IsOpenFileDialogOpen)
-                        Config.Player.ActivityMode = true;
-                    else
-                    {
-                        System.Threading.Tasks.Task.Run(() =>
-                        {
-                            while (Player.IsOpenFileDialogOpen)
-                                Thread.Sleep(50);
-
-                            Config.Player.ActivityMode = true;
-                        });
-                    }
-                };
-
-                popUpMenu.Opened += (o, e) =>
-                {
-                    prevActivityMode = Config.Player.ActivityMode; Config.Player.ActivityMode = false;
-                    CanPaste = String.IsNullOrEmpty(Clipboard.GetText()) ? false : true;
-                    popUpCustomAspectRatio.Header = $"Custom ({Config.Video.CustomAspectRatio})";
-                    FixMenuSingleCheck(popUpAspectRatio, Config.Video.AspectRatio.ToString());
-                    if (Config.Video.AspectRatio == AspectRatio.Custom)
-                        popUpCustomAspectRatio.IsChecked = true;
-                    else if (Config.Video.AspectRatio == AspectRatio.Keep)
-                        popUpKeepAspectRatio.IsChecked = true;
-                };
-
-                KeyUp += (o, e) =>
-                {
-                    if (e.Key == Key.Escape && dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier))
-                        DialogHost.Close(dialogSettingsIdentifier, "cancel");
-                };
-            }
-
+            InitializePopUps();
             RegisterCommands();
 
             if (UIConfigPath != null)
@@ -309,6 +231,69 @@ namespace FlyleafLib.Controls.WPF
 
             Raise(null);
             settings?.Raise(null);
+        }
+        private void InitializePopUps()
+        {
+            if (popUpMenu != null)
+                popUpMenu.PlacementTarget = this;
+
+            if (popUpMenuSubtitles != null)
+            {
+                popUpMenuSubtitles.PlacementTarget = this;
+                popUpMenuSubtitles.Opened += (o, e) => { if (initialActivityMode) Config.Player.ActivityMode = false; };
+                popUpMenuSubtitles.Closed += (o, e) => { if (initialActivityMode) Config.Player.ActivityMode = true; };
+            }
+
+            if (popUpMenuVideo != null)
+            {
+                popUpMenuVideo.PlacementTarget = this;
+                popUpMenuVideo.Opened += (o, e) => { if (initialActivityMode) Config.Player.ActivityMode = false; };
+                popUpMenuVideo.Closed += (o, e) => { if (initialActivityMode) Config.Player.ActivityMode = true; };
+            }
+
+            if (popUpMenu != null)
+            {
+                var videoItem = from object item in popUpMenu.Items where item is MenuItem && ((MenuItem)item).Header != null && ((MenuItem)item).Header.ToString() == "Video" select item;
+                var aspectRatioItem = from object item in ((MenuItem)videoItem.ToArray()[0]).Items where ((MenuItem)item).Header != null && ((MenuItem)item).Header.ToString() == "Aspect Ratio" select item;
+                popUpAspectRatio = (MenuItem)aspectRatioItem.ToArray()[0];
+            }
+
+            if (popUpAspectRatio != null)
+            {
+                foreach (var aspectRatio in AspectRatio.AspectRatios)
+                {
+                    if (aspectRatio == AspectRatio.Custom) continue;
+                    popUpAspectRatio.Items.Add(new MenuItem() { Header = aspectRatio, IsCheckable = true });
+                    if (aspectRatio == AspectRatio.Keep) popUpKeepAspectRatio = (MenuItem)popUpAspectRatio.Items[popUpAspectRatio.Items.Count - 1];
+                }
+
+                popUpCustomAspectRatio = new MenuItem() { IsCheckable = true };
+                popUpCustomAspectRatioSet = new MenuItem() { Header = "Set Custom..." };
+                popUpCustomAspectRatioSet.Click += (n1, n2) => { DialogAspectRatio(); };
+
+                popUpAspectRatio.Items.Add(popUpCustomAspectRatio);
+                popUpAspectRatio.Items.Add(popUpCustomAspectRatioSet);
+
+                popUpMenu.Closed += (o, e) => { if (initialActivityMode && !Player.IsOpenFileDialogOpen) Config.Player.ActivityMode = true; };
+
+                popUpMenu.Opened += (o, e) =>
+                {
+                    if (initialActivityMode) Config.Player.ActivityMode = false;
+                    CanPaste = String.IsNullOrEmpty(Clipboard.GetText()) ? false : true;
+                    popUpCustomAspectRatio.Header = $"Custom ({Config.Video.CustomAspectRatio})";
+                    FixMenuSingleCheck(popUpAspectRatio, Config.Video.AspectRatio.ToString());
+                    if (Config.Video.AspectRatio == AspectRatio.Custom)
+                        popUpCustomAspectRatio.IsChecked = true;
+                    else if (Config.Video.AspectRatio == AspectRatio.Keep)
+                        popUpKeepAspectRatio.IsChecked = true;
+                };
+
+                KeyUp += (o, e) =>
+                {
+                    if (e.Key == Key.Escape && dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier))
+                        DialogHost.Close(dialogSettingsIdentifier, "cancel");
+                };
+            }
         }
         private void InitializePlayer(Player oldPlayer = null)
         {
@@ -354,6 +339,8 @@ namespace FlyleafLib.Controls.WPF
                     }
                 }
             }
+
+            initialActivityMode = Config.Player.ActivityMode;
 
             Player.Tag = this;
 
@@ -436,6 +423,7 @@ namespace FlyleafLib.Controls.WPF
         #region ICommands
         void RegisterCommands()
         {
+            OpenFileDialog      = new RelayCommand(OpenFileDialogAction);
             OpenSettings        = new RelayCommand(OpenSettingsAction);
             OpenColorPicker     = new RelayCommand(OpenColorPickerAction);
             ChangeAspectRatio   = new RelayCommand(ChangeAspectRatioAction);
@@ -445,6 +433,14 @@ namespace FlyleafLib.Controls.WPF
             ResetSubsPositionY  = new RelayCommand(ResetSubsPositionYAction);
             ShowSubtitlesMenu   = new RelayCommand(ShowSubtitlesMenuAction);
             ShowVideoMenu       = new RelayCommand(ShowVideoMenuAction);
+        }
+
+        public ICommand OpenFileDialog { get; set; }
+        public void OpenFileDialogAction(object obj = null)
+        {
+            // From Pop-Up menu we disable ActivityMode but it needs to be enable so it can be re-enabled when the File Dialog is closed
+            Config.Player.ActivityMode = initialActivityMode;
+            Player.OpenFromFileDialog();
         }
 
         public ICommand ExitApplication { get ; set; }
@@ -469,7 +465,7 @@ namespace FlyleafLib.Controls.WPF
             if (settings == null)
                 settings = new Settings(this);
 
-            Config.Player.ActivityMode = false;
+            if (initialActivityMode) Config.Player.ActivityMode = false;
             Config.Player.KeyBindings.Enabled = false;
 
             Dictionary<VideoFilters, int> saveFilterValues = new Dictionary<VideoFilters, int>();
@@ -479,7 +475,7 @@ namespace FlyleafLib.Controls.WPF
             var prevConfig = Config.Video.Clone();
             var result = await DialogHost.Show(settings, dialogSettingsIdentifier);
 
-            Config.Player.ActivityMode = true;
+            if (initialActivityMode) Config.Player.ActivityMode = true;
             Config.Player.KeyBindings.Enabled = true;
 
             if (result == null) return;
