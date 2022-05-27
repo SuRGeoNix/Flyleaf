@@ -697,7 +697,7 @@
     </collections:ArrayList>
 
     <ContextMenu x:Key="PopUpMenu">
-        <MenuItem Header="Open File" Command="{Binding Player.Commands.OpenFromFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}"/>
+        <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}"/>
         <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}" IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}"/>
         <Separator />
 

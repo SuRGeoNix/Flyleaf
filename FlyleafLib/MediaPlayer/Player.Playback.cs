@@ -47,7 +47,8 @@ namespace FlyleafLib.MediaPlayer
             while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
             taskPlayRuns = true;
 
-            Task.Run(() =>
+            // Long-Run Task
+            Task.Factory.StartNew(() =>
             {
                 try
                 {
@@ -131,7 +132,7 @@ namespace FlyleafLib.MediaPlayer
 
                     taskPlayRuns = false;
                 }
-            });
+            }, TaskCreationOptions.LongRunning);
         }
 
         /// <summary>
