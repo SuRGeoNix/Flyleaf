@@ -87,6 +87,7 @@ namespace FlyleafPlayer
             engineConfig.PluginsPath = ":Plugins";
             engineConfig.FFmpegPath = ":FFmpeg";
             engineConfig.HighPerformaceTimers = false;
+            engineConfig.UIRefresh = true;
 
             #if RELEASE
             engineConfig.LogOutput      = "Flyleaf.FirstRun.log";

@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms.Integration;
+using System.Windows.Input;
 using System.Windows.Media;
 
 using FlyleafLib.MediaPlayer;
@@ -100,7 +101,7 @@ namespace FlyleafLib.Controls.WPF
 
             if (curContent != null)
             {
-                WindowFront = new Window(); //new FlyleafWindow(WinFormsHost);
+                WindowFront = new Window();
                 WindowFront.Title               = "FlyleafWindow";
                 WindowFront.Height              = 300;
                 WindowFront.Width               = 300;
@@ -111,6 +112,7 @@ namespace FlyleafLib.Controls.WPF
                 WindowFront.ShowInTaskbar       = false;
                 WindowFront.Content             = curContent;
                 WindowFront.Tag                 = this;
+                WindowFront.KeyDown += (o, e) => { if (e.Key == Key.System && e.SystemKey == Key.F4) WindowBack?.Focus(); };
             }
 
             if (WindowFront != null)
@@ -155,7 +157,7 @@ namespace FlyleafLib.Controls.WPF
 
             if (WindowBack == null || WinFormsHost == null || WindowFront == null)
                 return;
-
+            
             WindowFront.Owner            = WindowBack;
             WindowBack.LocationChanged  += WindowBack_LocationChanged;
             WinFormsHost.SizeChanged    += WFH_SizeChanged;
