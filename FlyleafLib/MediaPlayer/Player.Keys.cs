@@ -93,7 +93,7 @@ namespace FlyleafLib.MediaPlayer
             player.isAnyKeyDown = false;
 
             if (player.Config.Player.ActivityMode)
-                player.Activity.KeyboardTimestmap = DateTime.UtcNow.Ticks;
+                player.Activity.KeyboardTimestamp = DateTime.UtcNow.Ticks;
 
             if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
                 return false;
@@ -358,7 +358,7 @@ namespace FlyleafLib.MediaPlayer
             Add(Key.D0,                 KeyBindingAction.ResetAll);
             Add(Key.X,                  KeyBindingAction.Flush, false, true);
 
-            Add(Key.I,                  KeyBindingAction.ActivityForceIdle);
+            Add(Key.I,                  KeyBindingAction.ForceIdle);
             Add(Key.Escape,             KeyBindingAction.NormalScreen);
             Add(Key.Q,                  KeyBindingAction.Stop, false, true, false);
         }
@@ -367,8 +367,12 @@ namespace FlyleafLib.MediaPlayer
         {
             switch (action)
             {
-                case KeyBindingAction.ActivityForceIdle:
+                case KeyBindingAction.ForceIdle:
                     return player.Activity.ForceIdle;
+                case KeyBindingAction.ForceActive:
+                    return player.Activity.ForceActive;
+                case KeyBindingAction.ForceFullActive:
+                    return player.Activity.ForceFullActive;
 
                 case KeyBindingAction.AudioDelayAdd:
                     return player.Audio.DelayAdd;
@@ -516,7 +520,9 @@ namespace FlyleafLib.MediaPlayer
             { KeyBindingAction.ToggleSeekAccurate },
             { KeyBindingAction.SpeedAdd },
             { KeyBindingAction.SpeedRemove },
-            { KeyBindingAction.ActivityForceIdle }
+            { KeyBindingAction.ForceIdle },
+            { KeyBindingAction.ForceActive },
+            { KeyBindingAction.ForceFullActive }
         };
     }
     public class KeyBinding
@@ -547,7 +553,7 @@ namespace FlyleafLib.MediaPlayer
     public enum KeyBindingAction
     {
         Custom,
-        ActivityForceIdle,
+        ForceIdle, ForceActive, ForceFullActive,
 
         AudioDelayAdd, AudioDelayAdd2, AudioDelayRemove, AudioDelayRemove2, ToggleMute, VolumeUp, VolumeDown,
         SubtitlesDelayAdd, SubtitlesDelayAdd2, SubtitlesDelayRemove, SubtitlesDelayRemove2,

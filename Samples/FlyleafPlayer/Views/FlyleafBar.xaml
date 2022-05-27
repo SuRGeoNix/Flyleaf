@@ -42,7 +42,7 @@
 
         <i:Interaction.Triggers>
             <i:EventTrigger EventName="MouseMove">
-                <i:InvokeCommandAction Command="{Binding Player.Commands.ForceFullActive}"/>
+                <i:InvokeCommandAction Command="{Binding Player.Commands.RefreshFullActive}"/>
             </i:EventTrigger>
         </i:Interaction.Triggers>
 

@@ -121,7 +121,7 @@ namespace FlyleafLib
             /// <summary>
             /// Whether to use Activity Mode
             /// </summary>
-            public bool     ActivityMode                { get => _ActivityMode; set { _ActivityMode = value; if (value) player?.Activity.ForceFullActive(); } }
+            public bool     ActivityMode                { get => _ActivityMode; set { _ActivityMode = value; if (player != null) { player.Activity.MouseTimestamp = DateTime.UtcNow.Ticks; player.Activity.mode = MediaPlayer.ActivityMode.FullActive; } } }
             bool _ActivityMode = false;
 
             /// <summary>

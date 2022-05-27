@@ -50,7 +50,6 @@ namespace FlyleafLib
         internal static LogHandler Log;
 
         static Thread   tMaster;
-        static bool     isCursorHidden;
         static object   lockEngine      = new object();
 
         /// <summary>
@@ -158,8 +157,7 @@ namespace FlyleafLib
                         foreach (Player player in Players)
                         {
                             /* Every UIRefreshInterval */
-                            if (player.Config.Player.ActivityMode)
-                                player.Activity.mode = player.Activity.Check();
+                            player.Activity.RefreshMode();
 
                             /* Every Second */
                             if (curLoop == secondLoops)
@@ -205,21 +203,8 @@ namespace FlyleafLib
                                 /* Every UIRefreshInterval */
 
                                 // Activity Mode Refresh & Hide Mouse Cursor (FullScreen only)
-                                if (player.Activity.mode != player.Activity._Mode && (player.Config.Player.ActivityMode || isCursorHidden))
-                                {
-                                    player.Activity.Mode = player.Activity.Mode;
-
-                                    if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle && player.Config.Player.MouseBindings.HideCursorOnFullScreenIdle)
-                                    {
-                                        while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
-                                        isCursorHidden = true;
-                                    }    
-                                    else if (isCursorHidden && player.Activity.Mode == ActivityMode.FullActive)
-                                    {
-                                        while (Utils.NativeMethods.ShowCursor(true) < 0) { }
-                                        isCursorHidden = false;
-                                    }   
-                                }
+                                if (player.Activity.mode != player.Activity._Mode)
+                                    player.Activity.SetMode();                                    
 
                                 // CurTime / Buffered Duration (+Duration for HLS)
                                 if (!Config.UICurTimePerSecond)

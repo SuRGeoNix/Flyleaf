@@ -364,11 +364,11 @@ namespace FlyleafLib.Controls.WPF
 
             Unloaded += (o, e) => { Dispose(); };
             Player.Control.MouseClick   += (o, e) => { if (e.Button == System.Windows.Forms.MouseButtons.Right & popUpMenu != null) popUpMenu.IsOpen = true; };
-            MouseDown += (o, e) => { Player?.Activity.ForceFullActive(); };
+            MouseDown += (o, e) => { Player?.Activity.RefreshFullActive(); };
             MouseMove += (o, e) => {
                 // Weird bug when slider's value changes will cause mouse move event to fire (so we can not go idle while mouse over the sliders)
                 if (!(e.OriginalSource is System.Windows.Shapes.Rectangle))
-                    Player?.Activity.ForceFullActive(); 
+                    Player?.Activity.RefreshFullActive(); 
             };
 
             if (SelectedTheme != null)

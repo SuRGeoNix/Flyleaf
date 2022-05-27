@@ -15,51 +15,121 @@ namespace FlyleafLib.MediaPlayer
          * TODO: FlyleafWindow.MouseMove and FlyleafWindow.MouseDown ?
          */
 
-        public ActivityMode Mode        { get => mode; internal set => Set(ref _Mode, value); }
+        public ActivityMode Mode
+            {
+            get => mode;
+            set {
+
+                if (value == mode)
+                    return;
+
+                mode = value;
+
+                if (value == ActivityMode.Idle)
+                {
+                    KeyboardTimestamp = 0;
+                    MouseTimestamp = 0;
+                }
+                else if (value == ActivityMode.Active)
+                    KeyboardTimestamp = DateTime.UtcNow.Ticks;
+                else
+                    MouseTimestamp = DateTime.UtcNow.Ticks;
+
+                Utils.UI(() => SetMode());
+                }
+            }
         internal ActivityMode _Mode = ActivityMode.FullActive, mode = ActivityMode.FullActive;
 
-        public long KeyboardTimestmap   { get; internal set; }
+        public long KeyboardTimestamp   { get; internal set; }
         public long MouseTimestamp      { get; internal set; }
 
         Player player;
         Config Config => player.Config;
+        static bool     isCursorHidden;
 
         public Activity(Player player)
         {
             this.player = player;
-            ForceFullActive();
+            KeyboardTimestamp = MouseTimestamp = DateTime.UtcNow.Ticks;
         }
 
-        public ActivityMode Check()
+        /// <summary>
+        /// Updates Mode UI value and shows/hides mouse cursor if required
+        /// Must be called from a UI Thread
+        /// </summary>
+        internal void SetMode()
+        {
+            _Mode = mode;
+            Raise(nameof(Mode));
+            player.Log.Debug(mode.ToString());
+
+            if (player.IsFullScreen && player.Config.Player.MouseBindings.HideCursorOnFullScreenIdle && player.Activity.Mode == ActivityMode.Idle)
+            {
+                while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
+                isCursorHidden = true;
+            }    
+            else if (isCursorHidden && player.Activity.Mode == ActivityMode.FullActive)
+            {
+                while (Utils.NativeMethods.ShowCursor(true) < 0) { }
+                isCursorHidden = false;
+            }
+        }
+
+        /// <summary>
+        /// Refreshes mode value based on current timestamps
+        /// </summary>
+        internal void RefreshMode()
         {
             if (!Config.Player.ActivityMode)
-                return ActivityMode.FullActive;
+                mode = ActivityMode.FullActive;
 
-            if ((DateTime.UtcNow.Ticks - MouseTimestamp  ) / 10000 < Config.Player.ActivityTimeout)
-                return ActivityMode.FullActive;
+            else if ((DateTime.UtcNow.Ticks - MouseTimestamp  ) / 10000 < Config.Player.ActivityTimeout)
+                mode = ActivityMode.FullActive;
 
-            if (player.isAnyKeyDown || (DateTime.UtcNow.Ticks - KeyboardTimestmap ) / 10000 < Config.Player.ActivityTimeout)
-                return ActivityMode.Active;
+            else if (player.isAnyKeyDown || (DateTime.UtcNow.Ticks - KeyboardTimestamp ) / 10000 < Config.Player.ActivityTimeout)
+                mode = ActivityMode.Active;
 
-            return ActivityMode.Idle;
+            else 
+                mode = ActivityMode.Idle;
         }
 
+        /// <summary>
+        /// Sets Mode to Idle
+        /// </summary>
         public void ForceIdle()
         {
-            KeyboardTimestmap = 0;
-            MouseTimestamp = 0;
+            Mode = ActivityMode.Idle;
         }
-
+        /// <summary>
+        /// Sets Mode to Active
+        /// </summary>
         public void ForceActive()
         {
-            KeyboardTimestmap = DateTime.UtcNow.Ticks;
+            Mode = ActivityMode.Active;
+        }
+        /// <summary>
+        /// Sets Mode to Full Active
+        /// </summary>
+        public void ForceFullActive()
+        {
+            Mode = ActivityMode.FullActive;
         }
 
-        public void ForceFullActive()
+        /// <summary>
+        /// Updates Active Timestamp
+        /// </summary>
+        public void RefreshActive()
+        {
+            KeyboardTimestamp = DateTime.UtcNow.Ticks;
+        }
+
+        /// <summary>
+        /// Updates Full Active Timestamp
+        /// </summary>
+        public void RefreshFullActive()
         {
             MouseTimestamp = DateTime.UtcNow.Ticks;
         }
-
     }
 
     public enum ActivityMode

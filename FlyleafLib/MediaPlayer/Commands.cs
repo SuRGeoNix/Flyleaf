@@ -63,7 +63,12 @@ namespace FlyleafLib.MediaPlayer
         public ICommand VolumeDown              { get; set; }
         public ICommand ToggleMute              { get; set; }
 
+        public ICommand ForceIdle               { get; set; }
+        public ICommand ForceActive             { get; set; }
         public ICommand ForceFullActive         { get; set; }
+        public ICommand RefreshActive           { get; set; }
+        public ICommand RefreshFullActive       { get; set; }
+
         public ICommand ResetFilter             { get; set; }
 
         Player player;
@@ -127,7 +132,12 @@ namespace FlyleafLib.MediaPlayer
             SubtitlesDelayRemove    = new RelayCommandSimple(player.Subtitles.DelayRemove);
             SubtitlesDelayRemove2   = new RelayCommandSimple(player.Subtitles.DelayRemove2);
 
+            ForceIdle               = new RelayCommandSimple(player.Activity.ForceIdle);
+            ForceActive             = new RelayCommandSimple(player.Activity.ForceActive);
             ForceFullActive         = new RelayCommandSimple(player.Activity.ForceFullActive);
+            RefreshActive           = new RelayCommandSimple(player.Activity.RefreshActive);
+            RefreshFullActive       = new RelayCommandSimple(player.Activity.RefreshFullActive);
+
             ResetFilter             = new RelayCommand(ResetFilterAction);
         }
 

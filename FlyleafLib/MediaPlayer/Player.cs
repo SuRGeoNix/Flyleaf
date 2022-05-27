@@ -519,8 +519,6 @@ namespace FlyleafLib.MediaPlayer
 
             if (Config.Player.MouseBindings.PanZoomOnWheelAndCtrl)
                 _Control.MouseWheel += Control_MouseWheel;
-            
-            Activity.ForceFullActive();
         }
         public void UnsubscribeEvents()
         {
