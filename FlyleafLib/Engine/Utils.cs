@@ -196,7 +196,18 @@ namespace FlyleafLib
 
                 return true;
             }
+
             res = Regex.Match(text, @"(^|[^a-z0-9])Season[^a-z0-9]+(?<season>[0-9]{1,2}).*Episode[^a-z0-9]+(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
+            
+            if (res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
+            {
+                season = int.Parse(res.Groups["season"].Value);
+                episode = int.Parse(res.Groups["episode"].Value);
+
+                return true;
+            }
+
+            res = Regex.Match(text, @"(^|[^a-z0-9])(?<season>[0-9]{1,2})x(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
             
             if (res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
             {

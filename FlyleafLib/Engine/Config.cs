@@ -630,6 +630,16 @@ namespace FlyleafLib
         public string   FFmpegPath              { get; set; } = "FFmpeg";
 
         /// <summary>
+        /// <para>Whether to register av devices or not (gdigrab/dshow/etc.)</para>
+        /// <para>When enabled you can pass urls in this format device://[device_name]?[FFmpeg_Url]</para>
+        /// <para>device://gdigrab?desktop</para>
+        /// <para>device://gdigrab?title=Command Prompt</para>
+        /// <para>device://dshow?video=Lenovo Camera</para>
+        /// <para>device://dshow?audio=Microphone (Relatek):video=Lenovo Camera</para>
+        /// </summary>
+        public bool     FFmpegDevices           { get; set; }
+
+        /// <summary>
         /// Sets FFmpeg logger's level
         /// </summary>
         public FFmpegLogLevel 

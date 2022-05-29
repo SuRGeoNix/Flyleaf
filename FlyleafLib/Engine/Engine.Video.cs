@@ -4,11 +4,17 @@ using System.Collections.Generic;
 using Vortice.DXGI;
 
 using FlyleafLib.MediaFramework.MediaRenderer;
+using System.Collections.ObjectModel;
 
 namespace FlyleafLib
 {
     public class VideoEngine
     {
+        /// <summary>
+        /// List of Video Capture Devices
+        /// </summary>
+        public ObservableCollection<string> CapDevices { get; private set; } = new ObservableCollection<string>();
+
         /// <summary>
         /// List of GPU Adpaters <see cref="Config.VideoConfig.GPUAdapter"/>
         /// </summary>

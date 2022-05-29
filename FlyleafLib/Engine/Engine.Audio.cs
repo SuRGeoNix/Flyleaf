@@ -37,6 +37,11 @@ namespace FlyleafLib
         public string       CurrentDeviceId     { get; private set; } = "0";
 
         /// <summary>
+        /// List of Audio Capture Devices
+        /// </summary>
+        public ObservableCollection<string> CapDevices { get; private set; } = new ObservableCollection<string>();
+
+        /// <summary>
         /// List of Audio Devices
         /// </summary>
         public ObservableCollection<string> Devices { get; private set; } = new ObservableCollection<string>();
@@ -86,7 +91,6 @@ namespace FlyleafLib
             try
             {
                 deviceEnum = new IMMDeviceEnumerator();
-            
                 var defaultDevice = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
                 if (defaultDevice == null)
                 {
