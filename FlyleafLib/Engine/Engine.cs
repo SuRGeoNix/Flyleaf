@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Threading;
 
+using SharpGen.Runtime;
+using Vortice.MediaFoundation;
+
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
 
@@ -80,6 +83,9 @@ namespace FlyleafLib
                 Plugins = new PluginsEngine();
                 Players = new List<Player>();
 
+                if (Engine.Config.FFmpegDevices)
+                    EnumerateCapDevices();
+
                 Renderer.Start();
 
                 Started = true;
@@ -87,6 +93,67 @@ namespace FlyleafLib
                 if (Config.UIRefresh)
                     StartThread();
             }
+        }
+
+        private unsafe static void EnumerateCapDevices()
+        {
+            IMFActivate capDevice;
+            string capDeviceName;
+
+            IntPtr* capDevicesPtr;
+            IntPtr capDevicesPtrs;
+            int capsCount;
+            Result res;
+            object tmp;
+
+
+            string dump = "Audio Cap Devices\r\n";
+
+            var attrs = MediaFactory.MFCreateAttributes(1);
+            attrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeAudcap);
+            res = MediaFactory.MFEnumDeviceSources(attrs, out capDevicesPtrs, out capsCount);
+
+            if (res == Result.Ok && capDevicesPtrs != IntPtr.Zero)
+            {
+                capDevicesPtr = (IntPtr*)capDevicesPtrs;
+                for (int i=1; i<=capsCount; i++)
+                {
+                    capDevice = new IMFActivate(*capDevicesPtr);
+                    tmp = capDevice.Get(CaptureDeviceAttributeKeys.FriendlyName);
+                    if (tmp == null) continue;
+                    capDeviceName = tmp.ToString();
+                    Audio.CapDevices.Add(capDeviceName);
+                    dump += $"[#{i}] {capDeviceName}\r\n";
+                    capDevice.Release();
+                    capDevicesPtr++;
+                }
+            }
+
+            if (capsCount > 0)
+                Log.Debug(dump);
+
+            dump = "Video Cap Devices\r\n";
+
+            attrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeVidcap);
+            res = MediaFactory.MFEnumDeviceSources(attrs, out capDevicesPtrs, out capsCount);
+
+            capDevicesPtr = (IntPtr*)capDevicesPtrs;
+            for (int i=1; i<=capsCount; i++)
+            {
+                capDevice = new IMFActivate(*capDevicesPtr);
+                tmp = capDevice.Get(CaptureDeviceAttributeKeys.FriendlyName);
+                if (tmp == null) continue;
+                capDeviceName = tmp.ToString();
+                Audio.CapDevices.Add(capDeviceName);
+                dump += $"[#{i}] {capDeviceName}\r\n";
+                capDevice.Release();
+                capDevicesPtr++;
+            }
+            
+            if (capsCount > 0)
+                Log.Debug(dump);
+
+            attrs.Release();
         }
 
         internal static void AddPlayer(Player player)

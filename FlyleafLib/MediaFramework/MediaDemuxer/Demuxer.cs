@@ -289,6 +289,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 int ret = -1;
                 string error = null;
+                string deviceUrl = null;
+                AVInputFormat* inFmt = null;
                 Url = url;
 
                 try
@@ -296,14 +298,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     Disposed = false;
                     Status = Status.Opening;
                     if (!handle.IsAllocated) handle = GCHandle.Alloc(this);
-
-                    // Parse Options to AV Dictionary Format Options
-                    AVDictionary *avopt = null;
-
+                    
                     var curFormats = Type == MediaType.Video ? Config.FormatOpt : (Type == MediaType.Audio ? Config.AudioFormatOpt : Config.SubtitlesFormatOpt);
-                    foreach (var optKV in curFormats)
-                        av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
-
+                    
                     // Allocate / Prepare Format Context
                     fmtCtx = avformat_alloc_context();
                     if (Config.AllowInterrupts)
@@ -316,6 +313,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     if (stream != null)
                         CustomIOContext.Initialize(stream);
+                    else if (Engine.Config.FFmpegDevices && url.StartsWith("device://"))
+                    {
+                        Uri uri = new Uri(url);
+                        deviceUrl = Uri.UnescapeDataString(uri.Query).TrimStart('?');
+                        inFmt = av_find_input_format(uri.Host);
+                        if (inFmt == null)
+                            return error = $"[av_find_input_format] {uri.Host} not found";
+                    }
 
                     lock (lockFmtCtx)
                     {
@@ -325,9 +330,35 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             stream.Seek(0, SeekOrigin.Begin);
 
                         // Open Format Context
-                        AVFormatContext* fmtCtxPtr = fmtCtx;
+                        
                         Interrupter.Request(Requester.Open);
-                        ret = avformat_open_input(&fmtCtxPtr, stream == null ? url : null, null, &avopt);
+
+                        #if NET6_0_OR_GREATER
+                        // Workaround to fix a weird issue while opening gdigrab from an non-UI thread after 20-40 sec. of demuxing
+                        // [gdigrab @ 0000019affe3f2c0] Failed to capture image (error 6) or (error 8)
+                        
+                        if (inFmt != null && Utils.BytePtrToStringUTF8(inFmt->name) == "gdigrab")
+                            Utils.UIInvoke(() =>
+                            {
+                                // Parse Options to AV Dictionary Format Options
+                                AVDictionary *avopt = null;
+                                foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                                AVFormatContext* fmtCtxPtr = fmtCtx;
+                                ret = avformat_open_input(&fmtCtxPtr, deviceUrl, inFmt, &avopt);
+                            });
+                        else
+                        {
+                            AVDictionary *avopt = null;
+                            foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                            AVFormatContext* fmtCtxPtr = fmtCtx;
+                            ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl != null ? deviceUrl : url), inFmt, &avopt);
+                        }
+                        #else
+                        AVFormatContext* fmtCtxPtr = fmtCtx;
+                        AVDictionary *avopt = null;
+                        foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                        ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl != null ? deviceUrl : url), inFmt, &avopt);
+                        #endif
 
                         if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { fmtCtx = null; return error = "Cancelled"; }
                         if (ret < 0) { fmtCtx = null; return error = $"[avformat_open_input] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})"; }

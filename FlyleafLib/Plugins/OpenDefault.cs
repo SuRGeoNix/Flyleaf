@@ -74,6 +74,7 @@ namespace FlyleafLib.Plugins
                         {
                             Title       = mitem.Title,
                             Url         = mitem.Url,
+                            DirectUrl   = mitem.Url,
                             UserAgent   = mitem.UserAgent,
                             Referrer    = mitem.Referrer
                         });
@@ -95,7 +96,8 @@ namespace FlyleafLib.Plugins
                         AddPlaylistItem(new PlaylistItem()
                         {
                             Title       = mitem.Title,
-                            Url         = mitem.Url
+                            Url         = mitem.Url,
+                            DirectUrl   = mitem.Url,
                             // Duration
                         });
                     }

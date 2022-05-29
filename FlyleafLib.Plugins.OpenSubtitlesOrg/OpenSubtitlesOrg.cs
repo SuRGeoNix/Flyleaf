@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Web;
 
 using Newtonsoft.Json;
 
@@ -219,8 +218,8 @@ namespace FlyleafLib.Plugins
 
                 try
                 {
-                    Log.Debug($"Searching for /query-{HttpUtility.UrlEncode(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}");
-                    resp = client.PostAsync($"{restUrl}/query-{HttpUtility.UrlEncode(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}", null).Result.Content.ReadAsStringAsync().Result;
+                    Log.Debug($"Searching for /query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}");
+                    resp = client.PostAsync($"{restUrl}/query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}", null).Result.Content.ReadAsStringAsync().Result;
                     subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
                     Log.Debug($"Search Results {subs.Count}");
 
