@@ -7,14 +7,9 @@ namespace FFmpeg.AutoGen
     /// </summary>
     internal unsafe partial class ffmpegEx
     {
-        #pragma warning disable CS0649
+#pragma warning disable CS0649
+#pragma warning disable CS0169
         #region hls demuxer
-
-        public interface IHLSPlaylist
-        {
-
-        }
-
         public unsafe struct HLSContext
         {
             public AVClass *avclass;
@@ -236,6 +231,7 @@ namespace FFmpeg.AutoGen
         }
         #endregion
 
+        #region misc
         public struct FFIOContext
         {
             AVIOContext pub;
@@ -257,65 +253,6 @@ namespace FFmpeg.AutoGen
             UInt16 priming;
             byte_array10 setup_data;
         }
-
-        #region mpegts demuxer
-        public struct MpegTSContext
-        {
-            public AVClass* @class;
-            /* user data */
-            public AVFormatContext *stream;
-            /* raw packet size, including FEC if present */
-            public int raw_packet_size;
-
-            public long pos47_full;
-
-            /* if true, all pids are analyzed to find streams */
-            public int auto_guess;
-
-            /* compute exact PCR for each transport stream packet */
-            public int mpeg2ts_compute_pcr;
-
-            /* fix dvb teletext pts                                 */
-            public int fix_teletext_pts;
-
-            public long cur_pcr;    /*< used to estimate the exact PCR */
-            public long pcr_incr;   /*< used to estimate the exact PCR */
-
-            /* data needed to handle file based ts */
-            /* stop parsing loop */
-            public int stop_parse;
-            /* packet containing Audio/Video data */
-            public AVPacket *pkt;
-            /* to detect seek */
-            public long last_pos;
-
-            public int skip_changes;
-            public int skip_clear;
-            public int skip_unknown_pmt;
-
-            public int scan_all_pmts;
-
-            public int resync_size;
-            public int merge_pmt_versions;
-
-            /******************************************/
-            /* private mpegts data */
-            /* scan context */
-            /* structure to keep track of Program->pids mapping */
-            //public uint nb_prg;
-            //public struct Program *prg;
-
-            //public int8_t crc_validity[NB_PID_MAX];
-            /* filters for various streams specified by PMT + for the PAT and PMT */
-            //public MpegTSFilter *pids[NB_PID_MAX];
-            //public int current_pid;
-
-            //public AVStream *epg_stream;
-            //public AVBufferPool* pools[32];
-        }
-        #endregion
-
-        #region misc
         public unsafe struct byte_array4096
         {
             public static readonly int Size = 4096;
@@ -421,6 +358,7 @@ namespace FFmpeg.AutoGen
             public static implicit operator int[](int_array16 @struct) => @struct.ToArray();
         }
         #endregion
-        #pragma warning restore CS0649
+#pragma warning restore CS0169
+#pragma warning restore CS0649
     }
 }

@@ -63,8 +63,8 @@ namespace FlyleafPlayer
             InitializeComponent();
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
-            flyleafControl.ConfigPath = "Flyleaf.Config.xml";
-            flyleafControl.EnginePath = "Flyleaf.Engine.xml";
+            flyleafControl.ConfigPath   = "Flyleaf.Config.xml";
+            flyleafControl.EnginePath   = "Flyleaf.Engine.xml";
             flyleafControl.UIConfigPath = "Flyleaf.UIConfig.xml";
 
             // If the user requests reverse playback allocate more frames once
@@ -84,16 +84,16 @@ namespace FlyleafPlayer
         {
             EngineConfig engineConfig = new EngineConfig();
 
-            engineConfig.PluginsPath = ":Plugins";
-            engineConfig.FFmpegPath = ":FFmpeg";
-            engineConfig.HighPerformaceTimers = false;
-            engineConfig.UIRefresh = true;
-            engineConfig.FFmpegDevices = false;
+            engineConfig.PluginsPath    = ":Plugins";
+            engineConfig.FFmpegPath     = ":FFmpeg";
+            engineConfig.HighPerformaceTimers
+                                        = false;
+            engineConfig.UIRefresh      = true;
 
             #if RELEASE
             engineConfig.LogOutput      = "Flyleaf.FirstRun.log";
             engineConfig.LogLevel       = LogLevel.Debug;
-            try { engineConfig.Save("Flyleaf.Engine.xml"); } catch { }
+            engineConfig.FFmpegDevices  = true;
             #else
             engineConfig.LogOutput      = ":debug";
             engineConfig.LogLevel       = LogLevel.Debug;
@@ -128,8 +128,11 @@ namespace FlyleafPlayer
             // Stops Logging (First Run)
             if (!engineConfig.Loaded)
             {
-                engineConfig.LogOutput = null;
-                engineConfig.LogLevel = LogLevel.Quiet;
+                engineConfig.LogOutput      = null;
+                engineConfig.LogLevel       = LogLevel.Quiet;
+                engineConfig.FFmpegDevices  = false;
+
+                try { engineConfig.Save("Flyleaf.Engine.xml"); } catch { }
             }
             #endif
 

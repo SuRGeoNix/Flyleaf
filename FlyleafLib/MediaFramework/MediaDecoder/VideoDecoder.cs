@@ -64,6 +64,20 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
         {
             getHWformat = new AVCodecContext_get_format(get_format);
+
+            HW_PIX_FMT = (int)AVPixelFormat.AV_PIX_FMT_D3D11;
+            AV_PIX_FMT_P010LE = (int)AVPixelFormat.AV_PIX_FMT_P010LE;
+            AV_PIX_FMT_P010BE = (int)AVPixelFormat.AV_PIX_FMT_P010BE;
+            AV_PIX_FMT_YUV420P10LE = (int)AVPixelFormat.AV_PIX_FMT_YUV420P10LE;
+
+            if (Engine.FFmpeg.IsVer5)
+            {
+                HW_PIX_FMT -= 2;
+                AV_PIX_FMT_P010LE -= 2;
+                AV_PIX_FMT_P010BE -= 2;
+                AV_PIX_FMT_YUV420P10LE -= 2;
+                
+            }
         }
 
         public void CreateRenderer(Control control = null)
@@ -79,7 +93,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         #region Video Acceleration (Should be disposed seperately)
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
         const AVHWDeviceType    HW_DEVICE   = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA; // To fully support Win7/8 should consider AV_HWDEVICE_TYPE_DXVA2
-        const AVPixelFormat     HW_PIX_FMT  = AVPixelFormat.AV_PIX_FMT_D3D11;
+        //const AVPixelFormat     HW_PIX_FMT  = AVPixelFormat.AV_PIX_FMT_D3D11;
+
+        // We can't use AVPixelFormat enum as it is different between ffmpeg v4 and v5 (two new entries after 44 so we need -2 for >46 )
+        static int HW_PIX_FMT;
+        static int AV_PIX_FMT_YUV420P10LE;
+        static int AV_PIX_FMT_P010LE;
+        static int AV_PIX_FMT_P010BE;
+
         internal ID3D11Texture2D
                                 textureFFmpeg;
         AVCodecContext_get_format 
@@ -95,8 +116,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 AVCodecHWConfig* config = avcodec_get_hw_config(codec, i);
                 if (config == null) break;
                 if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) == 0 || config->pix_fmt == AVPixelFormat.AV_PIX_FMT_NONE) continue;
-
-                if (config->device_type == HW_DEVICE && config->pix_fmt == HW_PIX_FMT) return true;
+                
+                if (config->device_type == HW_DEVICE && (int)config->pix_fmt == HW_PIX_FMT) return true;
             }
 
             return false;
@@ -146,7 +167,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 if (CanTrace) Log.Trace($"{*pix_fmts}");
 
-                if (*pix_fmts == AVPixelFormat.AV_PIX_FMT_D3D11)
+                if ((int)(*pix_fmts) == HW_PIX_FMT)
                 {
                     foundHWformat = true;
                     break;
@@ -166,7 +187,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 textDesc.Format = textureFFmpeg.Description.Format;
 
-                return AVPixelFormat.AV_PIX_FMT_D3D11;
+                return (AVPixelFormat)HW_PIX_FMT;
             }
 
             lock (lockCodecCtx)
@@ -213,7 +234,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     VideoStream.Height  = codecCtx->height;
                 }
 
-                return AVPixelFormat.AV_PIX_FMT_D3D11;
+                return (AVPixelFormat)HW_PIX_FMT;
             }
         }
         private int ShouldAllocateNew() // 0: No, 1: Yes, 2: Yes+Codec Changed
@@ -232,12 +253,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (codecCtx->coded_height != t2->height)
                 return 2;
 
-            var fmt = codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_YUV420P10LE ? AVPixelFormat.AV_PIX_FMT_P010LE : (codecCtx->sw_pix_fmt == AVPixelFormat.AV_PIX_FMT_P010BE ? AVPixelFormat.AV_PIX_FMT_P010BE : AVPixelFormat.AV_PIX_FMT_NV12);
+            var fmt = codecCtx->sw_pix_fmt == (AVPixelFormat)AV_PIX_FMT_YUV420P10LE ? (AVPixelFormat)AV_PIX_FMT_P010LE : (codecCtx->sw_pix_fmt == (AVPixelFormat)AV_PIX_FMT_P010BE ? (AVPixelFormat)AV_PIX_FMT_P010BE : AVPixelFormat.AV_PIX_FMT_NV12);
             if (fmt != t2->sw_format)
                 return 2;
 
             return 0;
         }
+
         private int AllocateHWFrames()
         {
             if (hwframes != null)
@@ -249,7 +271,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (codecCtx->hw_frames_ctx != null)
                 av_buffer_unref(&codecCtx->hw_frames_ctx);
 
-            if (avcodec_get_hw_frames_parameters(codecCtx, codecCtx->hw_device_ctx, AVPixelFormat.AV_PIX_FMT_D3D11, &codecCtx->hw_frames_ctx) != 0)
+            if (avcodec_get_hw_frames_parameters(codecCtx, codecCtx->hw_device_ctx, (AVPixelFormat)HW_PIX_FMT, &codecCtx->hw_frames_ctx) != 0)
                 return -1;
 
             AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)(codecCtx->hw_frames_ctx->data);
@@ -364,7 +386,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (Config.Decoder.AllowProfileMismatch)
                     codecCtx->hwaccel_flags |= AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH;
 
-                codecCtx->pix_fmt = AVPixelFormat.AV_PIX_FMT_D3D11;
+                codecCtx->pix_fmt = (AVPixelFormat)HW_PIX_FMT;
                 codecCtx->get_format = getHWformat;
                 disableGetFormat = false;
             }
