@@ -4,7 +4,7 @@
     <TargetFrameworks>net6.0-windows;net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.22</Version>
+    <Version>1.1.23</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2022</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,11 +14,8 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		* Playlists: Adds playlists support (on pop-up menu)
-		* Settings: Adds Search Local / Search Online
-		* External Streams: Will be all now be under External sub-menu
-		* UI Config: Extends UI Config with the subtitles options
-		* Fixes an issue that it wouldn't go idle when the mouse was above the sliders
+		* Fixes and improves activity mode
+		* Fixes an issue with Alt+F4 on VideoView's front window
 		* Updates FlyleafLib
 	</PackageReleaseNotes>
   </PropertyGroup>
