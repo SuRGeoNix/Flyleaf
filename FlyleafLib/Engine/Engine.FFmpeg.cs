@@ -8,8 +8,9 @@ namespace FlyleafLib
 {
     public class FFmpegEngine
     {
-        public string Folder    { get; private set; }
-        public string Version   { get; private set; }
+        public string   Folder      { get; private set; }
+        public string   Version     { get; private set; }
+        public bool     IsVer5      { get; private set; }
 
         public static int BUFFER_SIZE = 5 * 1024;
 
@@ -21,6 +22,8 @@ namespace FlyleafLib
                 Folder = Utils.GetFolderPath(Engine.Config.FFmpegPath);
                 RootPath = Folder;
                 uint ver = avformat_version();
+
+                IsVer5 = ver >> 16 > 58;
                 Version = $"{ver >> 16}.{ver >> 8 & 255}.{ver & 255}";
 
                 // Requires additional libraries avdevice, avfitler, postproc

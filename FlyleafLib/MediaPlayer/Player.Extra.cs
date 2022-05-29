@@ -117,7 +117,7 @@ namespace FlyleafLib.MediaPlayer
 
         public void ShowFrame(int frameIndex)
         {
-            if (!Video.IsOpened || !CanPlay || VideoDemuxer.HLSPlaylist != null) return;
+            if (!Video.IsOpened || !CanPlay || VideoDemuxer.IsHLSLive) return;
 
             lock (lockActions)
             {
@@ -144,7 +144,7 @@ namespace FlyleafLib.MediaPlayer
         }
         public void ShowFrameNext()
         {
-            if (!Video.IsOpened || !CanPlay || VideoDemuxer.HLSPlaylist != null) return;
+            if (!Video.IsOpened || !CanPlay || VideoDemuxer.IsHLSLive) return;
 
             lock (lockActions)
             {
@@ -176,7 +176,7 @@ namespace FlyleafLib.MediaPlayer
         }
         public void ShowFramePrev()
         {
-            if (!Video.IsOpened || !CanPlay || VideoDemuxer.HLSPlaylist != null) return;
+            if (!Video.IsOpened || !CanPlay || VideoDemuxer.IsHLSLive) return;
 
             lock (lockActions)
             {

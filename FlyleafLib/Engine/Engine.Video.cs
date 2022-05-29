@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 using Vortice.DXGI;
 
 using FlyleafLib.MediaFramework.MediaRenderer;
-using System.Collections.ObjectModel;
 
 namespace FlyleafLib
 {

@@ -162,7 +162,7 @@ namespace FlyleafLib.MediaPlayer
         {
             if (MainDemuxer == null || seeks.Count != 0) return;
 
-            if (MainDemuxer.HLSPlaylist != null)
+            if (MainDemuxer.IsHLSLive)
             {
                 curTime  = MainDemuxer.CurTime;
                 duration = MainDemuxer.Duration;

@@ -60,10 +60,9 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
 
         public int AddStream(AVStream* in_stream, bool isAudioDemuxer = false)
         {
-#pragma warning disable CS0618 // Type or member is obsolete
             int ret = -1;
 
-            if (in_stream == null || (in_stream->codec->codec_type != AVMEDIA_TYPE_VIDEO && in_stream->codec->codec_type != AVMEDIA_TYPE_AUDIO)) return ret;
+            if (in_stream == null || (in_stream->codecpar->codec_type != AVMEDIA_TYPE_VIDEO && in_stream->codecpar->codec_type != AVMEDIA_TYPE_AUDIO)) return ret;
             
             AVStream *out_stream;
             AVCodecParameters *in_codecpar = in_stream->codecpar;
@@ -74,9 +73,10 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
             ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
             if (ret < 0) return ret;
 
-            if ((fmt->flags & AVFMT_GLOBALHEADER) != 0)
-                out_stream->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-
+            // TBR: probably not required for remuxing
+            //if ((fmt->flags & AVFMT_GLOBALHEADER) != 0)
+                //out_stream->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+            
             // Copy metadata (currently only language)
             AVDictionaryEntry* b = null;
             while (true)
@@ -109,10 +109,8 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
                 mapInOutStreams.Add((IntPtr)in_stream, (IntPtr)out_stream);
                 mapInInStream.Add(in_stream->index, (IntPtr)in_stream);
             }
-            
 
             return 0;
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         public int WriteHeader()
