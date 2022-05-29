@@ -64,7 +64,7 @@ namespace FlyleafLib.MediaPlayer
 
                 if (seeks.Count == 0)
                 {
-                    if (VideoDemuxer.HLSPlaylist == null)
+                    if (!VideoDemuxer.IsHLSLive)
                         curTime = vFrame.timestamp;
                     UIAdd(() => UpdateCurTime());
                     UIAll();
@@ -321,8 +321,8 @@ namespace FlyleafLib.MediaPlayer
                     }
 
                     if (Engine.Config.UICurTimePerSecond &&  (
-                        (MainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
-                        (MainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
+                        (!MainDemuxer.IsHLSLive && curTime / 10000000 != _CurTime / 10000000) ||
+                        (MainDemuxer.IsHLSLive && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
                         elapsedSec  = elapsedTicks;
                         UI(() => UpdateCurTime());
@@ -342,7 +342,7 @@ namespace FlyleafLib.MediaPlayer
 
                     if (seeks.Count == 0)
                     {
-                        if (MainDemuxer.HLSPlaylist == null)
+                        if (!MainDemuxer.IsHLSLive)
                             curTime = (long) (vFrame.timestamp * Speed);
                         else
                             curTime = VideoDemuxer.CurTime;
@@ -495,7 +495,7 @@ namespace FlyleafLib.MediaPlayer
                     int sleepMs = (int) ((avgFrameDuration - (curTime - lastPresentTime)) / 10000);
                     if (sleepMs < 11000 && sleepMs > 2) Thread.Sleep(sleepMs);
                     renderer.Present(vFrame);
-                    if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                    if (!MainDemuxer.IsHLSLive && seeks.Count == 0)
                     {
                         this.curTime = (long) (vFrame.timestamp * Speed);
 
@@ -525,7 +525,7 @@ namespace FlyleafLib.MediaPlayer
 
             if (seeks.Count == 0)
             {
-                if (MainDemuxer.HLSPlaylist == null)
+                if (MainDemuxer.IsHLSLive)
                     curTime = aFrame.timestamp;
                 UI(() => UpdateCurTime());
             }
@@ -604,8 +604,8 @@ namespace FlyleafLib.MediaPlayer
                 if (aDistanceMs > 2)
                 {
                     if (Engine.Config.UICurTimePerSecond && (
-                        (MainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) ||
-                        (MainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
+                        (!MainDemuxer.IsHLSLive && curTime / 10000000 != _CurTime / 10000000) ||
+                        (MainDemuxer.IsHLSLive && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
                         elapsedSec = elapsedTicks;
                         UI(() => UpdateCurTime());
@@ -619,7 +619,7 @@ namespace FlyleafLib.MediaPlayer
                         Thread.Sleep(aDistanceMs);
                 }
 
-                if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                if (!MainDemuxer.IsHLSLive && seeks.Count == 0)
                 {
                     curTime = aFrame.timestamp;
 
@@ -673,7 +673,7 @@ namespace FlyleafLib.MediaPlayer
                     elapsedTicks = videoStartTicks;
                     elapsedSec = startedAtTicks;
 
-                    if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                    if (!MainDemuxer.IsHLSLive && seeks.Count == 0)
                         curTime = (long) (vFrame.timestamp * Speed);
                     UI(() => UpdateCurTime());
                 }
@@ -706,8 +706,8 @@ namespace FlyleafLib.MediaPlayer
 
                     // Every seconds informs the application with CurTime / Bitrates (invokes UI thread to ensure the updates will actually happen)
                     if (Engine.Config.UICurTimePerSecond && (
-                        (MainDemuxer.HLSPlaylist == null && curTime / 10000000 != _CurTime / 10000000) || 
-                        (MainDemuxer.HLSPlaylist != null && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
+                        (!MainDemuxer.IsHLSLive && curTime / 10000000 != _CurTime / 10000000) || 
+                        (MainDemuxer.IsHLSLive && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                     {
                         elapsedSec  = elapsedTicks;
                         UI(() => UpdateCurTime());
@@ -717,7 +717,7 @@ namespace FlyleafLib.MediaPlayer
                 }
 
                 decoder.VideoDecoder.Renderer.Present(vFrame);
-                if (MainDemuxer.HLSPlaylist == null && seeks.Count == 0)
+                if (!MainDemuxer.IsHLSLive && seeks.Count == 0)
                 {
                     curTime = (long) (vFrame.timestamp * Speed);
 

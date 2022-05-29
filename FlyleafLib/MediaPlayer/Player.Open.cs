@@ -599,7 +599,7 @@ namespace FlyleafLib.MediaPlayer
                 if (resync)
                 {
                     // Wait for at least on package before seek to update the HLS context first_time
-                    if (stream.Demuxer.HLSPlaylist != null)
+                    if (stream.Demuxer.IsHLSLive)
                     {
                         while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3)
                             System.Threading.Thread.Sleep(20);

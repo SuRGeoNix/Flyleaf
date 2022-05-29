@@ -91,6 +91,7 @@ namespace FlyleafLib
             try
             {
                 deviceEnum = new IMMDeviceEnumerator();
+
                 var defaultDevice = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
                 if (defaultDevice == null)
                 {

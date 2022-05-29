@@ -83,7 +83,7 @@ namespace FlyleafLib
                 Plugins = new PluginsEngine();
                 Players = new List<Player>();
 
-                if (Engine.Config.FFmpegDevices)
+                if (Config.FFmpegDevices)
                     EnumerateCapDevices();
 
                 Renderer.Start();
@@ -97,63 +97,69 @@ namespace FlyleafLib
 
         private unsafe static void EnumerateCapDevices()
         {
-            IMFActivate capDevice;
-            string capDeviceName;
-
-            IntPtr* capDevicesPtr;
-            IntPtr capDevicesPtrs;
-            int capsCount;
-            Result res;
-            object tmp;
-
-
-            string dump = "Audio Cap Devices\r\n";
-
-            var attrs = MediaFactory.MFCreateAttributes(1);
-            attrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeAudcap);
-            res = MediaFactory.MFEnumDeviceSources(attrs, out capDevicesPtrs, out capsCount);
-
-            if (res == Result.Ok && capDevicesPtrs != IntPtr.Zero)
+            try
             {
-                capDevicesPtr = (IntPtr*)capDevicesPtrs;
-                for (int i=1; i<=capsCount; i++)
+                IMFAttributes capAttrs = MediaFactory.MFCreateAttributes(1);
+
+                IntPtr      capDevicesPtrs;
+                IntPtr*     capDevicesPtr;
+                IMFActivate capDevice;
+                string      capDeviceName;
+                int         capsCount;
+
+                Result res;
+                object tmp;
+                string dump;
+
+                dump = "Audio Cap Devices\r\n";
+                capAttrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeAudcap);
+                res = MediaFactory.MFEnumDeviceSources(capAttrs, out capDevicesPtrs, out capsCount);
+
+                if (res == Result.Ok && capDevicesPtrs != IntPtr.Zero && capsCount > 0)
                 {
-                    capDevice = new IMFActivate(*capDevicesPtr);
-                    tmp = capDevice.Get(CaptureDeviceAttributeKeys.FriendlyName);
-                    if (tmp == null) continue;
-                    capDeviceName = tmp.ToString();
-                    Audio.CapDevices.Add(capDeviceName);
-                    dump += $"[#{i}] {capDeviceName}\r\n";
-                    capDevice.Release();
-                    capDevicesPtr++;
+                    capDevicesPtr = (IntPtr*)capDevicesPtrs;
+                    for (int i=1; i<=capsCount; i++)
+                    {
+                        capDevice = new IMFActivate(*capDevicesPtr);
+                        tmp = capDevice.Get(CaptureDeviceAttributeKeys.FriendlyName);
+                        if (tmp == null) continue;
+                        capDeviceName = tmp.ToString();
+                        Audio.CapDevices.Add(capDeviceName);
+                        dump += $"[#{i}] {capDeviceName}\r\n";
+                        capDevice.Release();
+                        capDevicesPtr++;
+                    }
+
+                    Log.Debug(dump);
                 }
-            }
 
-            if (capsCount > 0)
-                Log.Debug(dump);
+                dump = "Video Cap Devices\r\n";
+                capAttrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeVidcap);
+                res = MediaFactory.MFEnumDeviceSources(capAttrs, out capDevicesPtrs, out capsCount);
 
-            dump = "Video Cap Devices\r\n";
+                if (res == Result.Ok && capDevicesPtrs != IntPtr.Zero && capsCount > 0)
+                {
+                    capDevicesPtr = (IntPtr*)capDevicesPtrs;
+                    for (int i=1; i<=capsCount; i++)
+                    {
+                        capDevice = new IMFActivate(*capDevicesPtr);
+                        tmp = capDevice.Get(CaptureDeviceAttributeKeys.FriendlyName);
+                        if (tmp == null) continue;
+                        capDeviceName = tmp.ToString();
+                        Audio.CapDevices.Add(capDeviceName);
+                        dump += $"[#{i}] {capDeviceName}\r\n";
+                        capDevice.Release();
+                        capDevicesPtr++;
+                    }
 
-            attrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeVidcap);
-            res = MediaFactory.MFEnumDeviceSources(attrs, out capDevicesPtrs, out capsCount);
+                    Log.Debug(dump);
+                }
 
-            capDevicesPtr = (IntPtr*)capDevicesPtrs;
-            for (int i=1; i<=capsCount; i++)
+                capAttrs.Release();
+            } catch (Exception e)
             {
-                capDevice = new IMFActivate(*capDevicesPtr);
-                tmp = capDevice.Get(CaptureDeviceAttributeKeys.FriendlyName);
-                if (tmp == null) continue;
-                capDeviceName = tmp.ToString();
-                Audio.CapDevices.Add(capDeviceName);
-                dump += $"[#{i}] {capDeviceName}\r\n";
-                capDevice.Release();
-                capDevicesPtr++;
+                Log.Error($"Failed to enumerate capture devices ({e.Message})");
             }
-            
-            if (capsCount > 0)
-                Log.Debug(dump);
-
-            attrs.Release();
         }
 
         internal static void AddPlayer(Player player)
