@@ -162,7 +162,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     {
                         for (int adapterIndex=0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                         {
-                            if (Regex.IsMatch(adapter.Description1.Description, Config.Video.GPUAdapter, RegexOptions.IgnoreCase))
+                            if (adapter.Description1.Description == Config.Video.GPUAdapter)
+                                break;
+
+                            if (Regex.IsMatch(adapter.Description1.Description + " luid=" + adapter.Description1.Luid, Config.Video.GPUAdapter, RegexOptions.IgnoreCase))
                                 break;
 
                             adapter.Dispose();
