@@ -10,31 +10,21 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
 {
     public unsafe class Remuxer
     {
-        public int          UniqueId        { get; set; }
-        public bool         Disposed        { get; private set; } = true;
-        public string       Filename        { get; private set; }
-        public bool         HasStreams      => mapInOutStreams2.Count > 0 || mapInOutStreams.Count > 0;
-        public bool         HeaderWritten   { get; private set; }
+        public int                  UniqueId            { get; set; }
+        public bool                 Disposed            { get; private set; } = true;
+        public string               Filename            { get; private set; }
+        public bool                 HasStreams          => mapInOutStreams2.Count > 0 || mapInOutStreams.Count > 0;
+        public bool                 HeaderWritten       { get; private set; }
 
+        Dictionary<IntPtr, IntPtr>  mapInOutStreams     = new Dictionary<IntPtr, IntPtr>();
+        Dictionary<int, IntPtr>     mapInInStream       = new Dictionary<int, IntPtr>();
+        Dictionary<int, long>       mapInStreamToDts    = new Dictionary<int, long>();
+        Dictionary<IntPtr, IntPtr>  mapInOutStreams2    = new Dictionary<IntPtr, IntPtr>();
+        Dictionary<int, IntPtr>     mapInInStream2      = new Dictionary<int, IntPtr>();
+        Dictionary<int, long>       mapInStreamToDts2   = new Dictionary<int, long>();
 
-        AVFormatContext*        fmtCtx;
-        AVOutputFormat*         fmt;
-
-        Dictionary<IntPtr, IntPtr>
-                                mapInOutStreams = new Dictionary<IntPtr, IntPtr>();
-
-        Dictionary<int, IntPtr>
-                                mapInInStream   = new Dictionary<int, IntPtr>();
-
-        Dictionary<int, long>   mapInStreamToDts= new Dictionary<int, long>();
-
-        Dictionary<IntPtr, IntPtr>
-                                mapInOutStreams2 = new Dictionary<IntPtr, IntPtr>();
-
-        Dictionary<int, IntPtr>
-                                mapInInStream2   = new Dictionary<int, IntPtr>();
-
-        Dictionary<int, long>   mapInStreamToDts2= new Dictionary<int, long>();
+        AVFormatContext* fmtCtx;
+        AVOutputFormat* fmt;
         
         public Remuxer(int uniqueId = -1)
         {
@@ -72,10 +62,6 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
 
             ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
             if (ret < 0) return ret;
-
-            // TBR: probably not required for remuxing
-            //if ((fmt->flags & AVFMT_GLOBALHEADER) != 0)
-                //out_stream->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
             
             // Copy metadata (currently only language)
             AVDictionaryEntry* b = null;
@@ -122,10 +108,8 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
             ret = avio_open(&fmtCtx->pb, Filename, AVIO_FLAG_WRITE);
             if (ret < 0) { Dispose(); return ret; }
 
-            AVDictionary *avopt = null;
-            //av_dict_set(&avopt, "movflags", "use_metadata_tags", 0); // Copy format metadata (not working?)
-            ret = avformat_write_header(fmtCtx, &avopt);
-            //av_dict_free(&avopt);
+            ret = avformat_write_header(fmtCtx, null);
+
             if (ret < 0) { Dispose(); return ret; }
             
             HeaderWritten = true;
@@ -143,7 +127,7 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
 
                 AVStream* in_stream     =  (AVStream*) mapInInStream[packet->stream_index];
                 AVStream* out_stream    =  (AVStream*) mapInOutStreams[(IntPtr)in_stream];
-                av_rescale_q(packet->dts,in_stream->time_base, av_get_time_base_q());
+
                 if (packet->dts != AV_NOPTS_VALUE)
                 {
 
