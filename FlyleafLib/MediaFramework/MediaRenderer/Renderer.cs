@@ -158,7 +158,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     #endif
 
                     // Finding User Definied adapter
-                    if (Config.Video.GPUAdapter != null && Config.Video.GPUAdapter.ToUpper() != "WARP")
+                    if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
                         for (int adapterIndex=0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
                         {
@@ -179,7 +179,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     // Creating WARP (force by user or us after late failure)
-                    if (Config.Video.GPUAdapter != null && Config.Video.GPUAdapter.ToUpper() == "WARP")
+                    if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP")
                     {
                         D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
                     }
@@ -313,7 +313,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 } catch (Exception e)
                 {
-                    if (string.IsNullOrEmpty(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
+                    if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
                         try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
                         
@@ -343,7 +343,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 SampleDescription = new SampleDescription(1, 0)
             };
 
-            if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (Config.Video.GPUAdapter != null && Config.Video.GPUAdapter.ToUpper() == "WARP"))
+            if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP"))
             {
                 swapChainDescription.BufferCount= 1;
                 swapChainDescription.SwapEffect = SwapEffect.Discard;

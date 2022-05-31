@@ -26,7 +26,7 @@ namespace FlyleafPlayer
         public MainWindow()
         {
             // NOTE: Loads/Saves configs only in RELEASE mode
-
+            
             // Ensures that we have enough worker threads to avoid the UI from freezing or not updating on time
             ThreadPool.GetMinThreads(out int workers, out int ports);
             ThreadPool.SetMinThreads(workers + 6, ports + 6);
@@ -53,7 +53,7 @@ namespace FlyleafPlayer
             #else
                 playerConfig = DefaultConfig();
             #endif
-
+            
             // Initializes the Player
             Player = new Player(playerConfig);
 
@@ -107,6 +107,7 @@ namespace FlyleafPlayer
         {
             Config config = new Config();
             config.Subtitles.SearchLocal = true;
+            config.Video.GPUAdapter = ""; // Set it empty so it will include it when we save it
 
             return config;
         }

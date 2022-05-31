@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -6,6 +7,11 @@ namespace FlyleafLib
 {
     public static class Logger
     {
+        /* TODO
+         * 1) Rotation and file size control
+         * 2) Buffering control for better performance (check when is logging from UI thread)
+         */
+
         public static bool      CanError        => Engine.Config.LogLevel >= LogLevel.Error;
         public static bool      CanWarn         => Engine.Config.LogLevel >= LogLevel.Warn;
         public static bool      CanInfo         => Engine.Config.LogLevel >= LogLevel.Info;
@@ -18,6 +24,14 @@ namespace FlyleafLib
 
         static FileStream       fileStream;
         static object           lockFileStream  = new object();
+        static Dictionary<LogLevel, string>
+                                logLevels = new Dictionary<LogLevel, string>();
+
+        static Logger()
+        {
+            foreach(LogLevel loglevel in Enum.GetValues(typeof(LogLevel)))
+                logLevels.Add(loglevel, loglevel.ToString().PadRight(5, ' '));
+        }
 
         internal static void SetOutput()
         {
@@ -91,11 +105,10 @@ namespace FlyleafLib
             }
         }
 
-        
         internal static void Log(string msg, LogLevel logLevel)
         { 
             if (logLevel <= Engine.Config.LogLevel)
-                Output($"{DateTime.Now.ToString("hh.mm.ss.fff")} | {logLevel.ToString().PadRight(5, ' ')} | {msg}");
+                Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | {logLevels[logLevel]} | {msg}");
         }
     }
 

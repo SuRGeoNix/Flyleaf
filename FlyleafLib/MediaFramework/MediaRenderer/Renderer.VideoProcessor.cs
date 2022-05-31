@@ -13,6 +13,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public partial class Renderer
     {
+        /* TODO
+         * 1) Try to sync filters between Flyleaf and D3D11 video processors so we will not have to reset on change
+         * 2) Filter default values will change when the device/adapter is changed
+         */
+
         public bool             D3D11VPFailed       => vc == null;
         public VideoProcessors  VideoProcessor      { get => videoProcessor;    private set { SetUI(ref _VideoProcessor, value); videoProcessor = value; } }
         VideoProcessors _VideoProcessor = VideoProcessors.Flyleaf, videoProcessor = VideoProcessors.Flyleaf;

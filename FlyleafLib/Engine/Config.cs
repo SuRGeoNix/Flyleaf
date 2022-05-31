@@ -684,6 +684,11 @@ namespace FlyleafLib
         public bool     LogAppend               { get; set; }
 
         /// <summary>
+        /// Sets the logger's datetime string format
+        /// </summary>
+        public string   LogDateTimeFormat       { get; set; } = "HH.mm.ss.fff";
+
+        /// <summary>
         /// <para>Required to register plugins. Make sure you provide x86 or x64 based on your project and same .NET framework.</para>
         /// <para>:&lt;path&gt; for relative path from current folder or any below</para>
         /// <para>&lt;path&gt; for absolute or relative path</para>
