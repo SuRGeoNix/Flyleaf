@@ -452,7 +452,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             // TODO: Win7 doesn't support R8G8_UNorm so use SNorm will need also unormUV on pixel shader
             lock (lockDevice)
             {
-                if (Disposed)
+                if (Disposed || VideoDecoder.VideoStream == null)
                     return;
 
                 curRatio = VideoDecoder.VideoStream.AspectRatio.Value;

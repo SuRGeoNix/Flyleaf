@@ -65,18 +65,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             getHWformat = new AVCodecContext_get_format(get_format);
 
-            HW_PIX_FMT = (int)AVPixelFormat.AV_PIX_FMT_D3D11;
-            AV_PIX_FMT_P010LE = (int)AVPixelFormat.AV_PIX_FMT_P010LE;
-            AV_PIX_FMT_P010BE = (int)AVPixelFormat.AV_PIX_FMT_P010BE;
-            AV_PIX_FMT_YUV420P10LE = (int)AVPixelFormat.AV_PIX_FMT_YUV420P10LE;
-
             if (Engine.FFmpeg.IsVer5)
             {
-                HW_PIX_FMT -= 2;
-                AV_PIX_FMT_P010LE -= 2;
-                AV_PIX_FMT_P010BE -= 2;
-                AV_PIX_FMT_YUV420P10LE -= 2;
-                
+                HW_PIX_FMT              -= 2;
+                AV_PIX_FMT_P010LE       -= 2;
+                AV_PIX_FMT_P010BE       -= 2;
+                AV_PIX_FMT_YUV420P10LE  -= 2;
             }
         }
 
@@ -93,13 +87,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         #region Video Acceleration (Should be disposed seperately)
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
         const AVHWDeviceType    HW_DEVICE   = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA; // To fully support Win7/8 should consider AV_HWDEVICE_TYPE_DXVA2
-        //const AVPixelFormat     HW_PIX_FMT  = AVPixelFormat.AV_PIX_FMT_D3D11;
 
         // We can't use AVPixelFormat enum as it is different between ffmpeg v4 and v5 (two new entries after 44 so we need -2 for >46 )
-        static int HW_PIX_FMT;
-        static int AV_PIX_FMT_YUV420P10LE;
-        static int AV_PIX_FMT_P010LE;
-        static int AV_PIX_FMT_P010BE;
+        static int HW_PIX_FMT               = (int)AVPixelFormat.AV_PIX_FMT_D3D11;
+        static int AV_PIX_FMT_P010LE        = (int)AVPixelFormat.AV_PIX_FMT_P010LE;
+        static int AV_PIX_FMT_P010BE        = (int)AVPixelFormat.AV_PIX_FMT_P010BE;
+        static int AV_PIX_FMT_YUV420P10LE   = (int)AVPixelFormat.AV_PIX_FMT_YUV420P10LE;
 
         internal ID3D11Texture2D
                                 textureFFmpeg;
