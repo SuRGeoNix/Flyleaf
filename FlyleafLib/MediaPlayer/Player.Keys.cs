@@ -347,11 +347,6 @@ namespace FlyleafLib.MediaPlayer
             Add(Key.Up,                 KeyBindingAction.VolumeUp);
             Add(Key.Down,               KeyBindingAction.VolumeDown);
 
-            // Affects master volume
-            //Add(Key.VolumeMute,         KeyBindingAction.ToggleMute);
-            //Add(Key.VolumeUp,           KeyBindingAction.VolumeUp);
-            //Add(Key.VolumeDown,         KeyBindingAction.VolumeDown);
-
             Add(Key.OemPlus,            KeyBindingAction.ZoomIn, false, true);
             Add(Key.OemMinus,           KeyBindingAction.ZoomOut, false, true);
 
