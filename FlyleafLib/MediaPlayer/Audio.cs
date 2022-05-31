@@ -215,7 +215,7 @@ namespace FlyleafLib.MediaPlayer
                 return;
 
             if (sampleRate != -1)
-                this.sampleRate = sampleRate;
+                this.sampleRate = sampleRate == 0 ? 48000 : sampleRate;
 
             lock (locker)
             {
@@ -263,6 +263,10 @@ namespace FlyleafLib.MediaPlayer
                 masteringVoice  = null;
             }
         }
+        
+        // TBR: Very rarely could crash the app on audio device change while playing? Requires two locks (Audio's locker and aFrame)
+        // The process was terminated due to an internal error in the .NET Runtime at IP 00007FFA6725DA03 (00007FFA67090000) with exit code c0000005.
+        [System.Security.SecurityCritical]
         internal void AddSamples(AudioFrame aFrame)
         {
             try
@@ -286,7 +290,7 @@ namespace FlyleafLib.MediaPlayer
             bits            = 0;
             channels        = 0;
             channelLayout   = null;
-            sampleRate      = 0;
+            sampleRate      = 48000;
             sampleFormat    = null;
             isOpened        = false;
 
