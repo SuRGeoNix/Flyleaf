@@ -61,10 +61,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         List<VideoFrame>                curReverseVideoFrames   = new List<VideoFrame>();
         int                             curReversePacketPos     = 0;
 
-        public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
+        static VideoDecoder()
         {
-            getHWformat = new AVCodecContext_get_format(get_format);
-
             if (Engine.FFmpeg.IsVer5)
             {
                 HW_PIX_FMT              -= 2;
@@ -72,6 +70,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 AV_PIX_FMT_P010BE       -= 2;
                 AV_PIX_FMT_YUV420P10LE  -= 2;
             }
+        }
+
+        public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
+        {
+            getHWformat = new AVCodecContext_get_format(get_format);
         }
 
         public void CreateRenderer(Control control = null)
