@@ -115,7 +115,7 @@ namespace FlyleafLib.MediaPlayer
                                 stoppedWithError = CurTime > 3 * 1000 * 10000;
                         }
                             
-                        if (HasEnded)
+                        if (decoderHasEnded)
                             status = Status.Ended;
                         else
                             status = Status.Paused;

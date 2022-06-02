@@ -348,11 +348,7 @@ namespace FlyleafLib.MediaPlayer
         public object       Tag                 { get; set; }
         public string       LastError           { get => lastError; set => Set(ref _LastError, value); } 
         string _LastError, lastError;
-
-        /// <summary>
-        /// Whether playback has been completed
-        /// </summary>
-        public bool         HasEnded            => decoder != null && (VideoDecoder.Status == MediaFramework.Status.Ended || (VideoDecoder.Disposed && AudioDecoder.Status == MediaFramework.Status.Ended));
+        bool decoderHasEnded => decoder != null && (VideoDecoder.Status == MediaFramework.Status.Ended || (VideoDecoder.Disposed && AudioDecoder.Status == MediaFramework.Status.Ended));
         #endregion
 
         #region Properties Internal
@@ -397,7 +393,7 @@ namespace FlyleafLib.MediaPlayer
                 Config = new Config();
 
             PlayerId = GetUniqueId();
-            Log = new LogHandler($"[#{PlayerId}] [Player        ] ");
+            Log = new LogHandler(("[#" + PlayerId + "]").PadRight(8, ' ') + " [Player        ] ");
             Log.Debug($"Creating Player (Usage = {Config.Player.Usage})");
 
             Activity    = new Activity(this);

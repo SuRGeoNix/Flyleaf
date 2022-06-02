@@ -94,7 +94,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         LogHandler Log;
         public DecoderContext(Config config = null, int uniqueId = -1, bool enableDecoding = true) : base(config, uniqueId)
         {
-            Log = new LogHandler($"[#{UniqueId}] [DecoderContext] ");
+            Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [DecoderContext] ");
             Playlist.decoder    = this;
 
             EnableDecoding      = enableDecoding;

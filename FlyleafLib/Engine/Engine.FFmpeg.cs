@@ -61,7 +61,7 @@ namespace FlyleafLib
             av_log_format_line2(p0, level, format, vl, buffer, AV_LOG_BUFFER_SIZE, &printPrefix);
             var line = Marshal.PtrToStringAnsi((IntPtr)buffer);
 
-            Logger.Output($"{DateTime.Now.ToString("hh.mm.ss.fff")} |FFmpeg | {((FFmpegLogLevel)level).ToString().PadRight(7, ' ')} | {line.Trim()}");
+            Logger.Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | FFmpeg | {((FFmpegLogLevel)level).ToString().PadRight(7, ' ')} | {line.Trim()}");
         };
 
         internal unsafe static string ErrorCodeToMsg(int error)

@@ -60,7 +60,7 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
 
         public Playlist(int uniqueId)
         {
-            Log = new LogHandler($"[#{uniqueId}] [Playlist] ");
+            Log = new LogHandler(("[#" + uniqueId + "]").PadRight(8, ' ') + " [Playlist] ");
             UI(() => System.Windows.Data.BindingOperations.EnableCollectionSynchronization(Items, lockItems));
         }
 

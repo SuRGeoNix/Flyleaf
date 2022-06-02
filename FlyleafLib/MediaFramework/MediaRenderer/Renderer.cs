@@ -99,7 +99,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder = videoDecoder;
-            Log = new LogHandler($"[#{UniqueId}] [Renderer      ] ");
+            Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
 
             Initialize();
 

@@ -166,7 +166,7 @@ namespace FlyleafLib.MediaPlayer
                     }
                 }
 
-                if (!IsPlaying || HasEnded)
+                if (!IsPlaying || decoderHasEnded)
                     shouldStop = true;
                 else
                 {
@@ -191,7 +191,7 @@ namespace FlyleafLib.MediaPlayer
 
             } while (!shouldStop && (!gotVideo || !gotAudio));
 
-            if (shouldStop && !(HasEnded && IsPlaying && vFrame != null))
+            if (shouldStop && !(decoderHasEnded && IsPlaying && vFrame != null))
             {
                 Log.Info("Stopped");
                 return false;

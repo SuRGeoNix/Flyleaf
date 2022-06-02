@@ -68,7 +68,7 @@ namespace FlyleafLib.Plugins
             Config = config;
             UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             Playlist = new Playlist(UniqueId);
-            Log = new LogHandler($"[#{UniqueId}] [PluginHandler ] ");
+            Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [PluginHandler ] ");
             LoadPlugins();
         }
 
@@ -94,7 +94,7 @@ namespace FlyleafLib.Plugins
                 try
                 {
                     PluginBase plugin = CreatePluginInstance(type, this);
-                    plugin.Log = new LogHandler($"[#{UniqueId}] [{plugin.Name.PadRight(14, ' ')}] ");
+                    plugin.Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{plugin.Name.PadRight(14, ' ')}] ");
                     Plugins.Add(plugin.Name, plugin);
                 } catch (Exception e) { Log.Error($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
             }
