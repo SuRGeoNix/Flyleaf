@@ -42,7 +42,7 @@ namespace FlyleafLib.MediaFramework
             set
             {
                 _threadName = value;
-                Log = new LogHandler($"[#{UniqueId}] [{threadName}] ");
+                Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{threadName}] ");
             }
         }
         string _threadName;

@@ -147,7 +147,7 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
                 case "Status":
                     btnPlayPause.Text       = Player.IsPlaying ? "Pause" : "Play";
 
-                    if (!Player.IsLive && Player.HasEnded && chkRepeat.Checked)
+                    if (!Player.IsLive && Player.Status == Status.Ended && chkRepeat.Checked)
                         Player.Seek(0);
 
                     break;

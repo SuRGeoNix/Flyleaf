@@ -76,7 +76,7 @@ namespace FlyleafLib
 
                 Logger.SetOutput();
 
-                Log     = new LogHandler("[FlyleafEngine      ] ");
+                Log     = new LogHandler("[FlyleafEngine] ");
                 FFmpeg  = new FFmpegEngine();
                 Video   = new VideoEngine();
                 Audio   = new AudioEngine();
