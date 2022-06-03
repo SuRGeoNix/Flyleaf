@@ -59,7 +59,7 @@ namespace FlyleafLib.MediaPlayer
         /// Audio sample rate (in/out)
         /// </summary>
         public int      SampleRate      { get => sampleRate;    internal set => Set(ref _SampleRate, value); }
-        internal int    _SampleRate = 48000, sampleRate = 48000;
+        internal int    _SampleRate, sampleRate;
 
         /// <summary>
         /// Audio player's volume / amplifier (valid values 0 - no upper limit)
@@ -146,6 +146,9 @@ namespace FlyleafLib.MediaPlayer
             get => _DeviceId;
             set
             {
+                if (value == null || _DeviceId == value)
+                    return; 
+
                 _DeviceId   = value;
                 _Device     = Engine.Audio.GetDeviceName(value);
 
@@ -181,7 +184,7 @@ namespace FlyleafLib.MediaPlayer
         IXAudio2                xaudio2;
         internal IXAudio2MasteringVoice  masteringVoice;
         IXAudio2SourceVoice     sourceVoice;
-        WaveFormat              waveFormat = new WaveFormat(48000, 16, 2);
+        WaveFormat              waveFormat = new WaveFormat(48000, 16, 2); // Output Audio Device
         #endregion
         public Audio(Player player)
         {
@@ -203,22 +206,18 @@ namespace FlyleafLib.MediaPlayer
             Initialize();
         }
 
-        internal void Initialize(int sampleRate = -1)
+        internal void Initialize()
         {
-            if (Engine.Audio.Failed)
-            {
-                Config.Audio.Enabled = false;
-                return;
-            }
-
-            if (SampleRate == sampleRate)
-                return;
-
-            if (sampleRate != -1)
-                this.sampleRate = sampleRate == 0 ? 48000 : sampleRate;
-
             lock (locker)
             {
+                if (Engine.Audio.Failed)
+                {
+                    Config.Audio.Enabled = false;
+                    return;
+                }
+
+                sampleRate = decoder != null && decoder.AudioStream != null && decoder.AudioStream.SampleRate > 0 ? decoder.AudioStream.SampleRate : 48000;
+
                 player.Log.Info($"Initialiazing audio ({Device} @ {SampleRate}Hz)");
 
                 Dispose();
@@ -290,7 +289,6 @@ namespace FlyleafLib.MediaPlayer
             bits            = 0;
             channels        = 0;
             channelLayout   = null;
-            sampleRate      = 48000;
             sampleFormat    = null;
             isOpened        = false;
 
@@ -308,7 +306,9 @@ namespace FlyleafLib.MediaPlayer
             sampleFormat   = decoder.AudioStream.SampleFormatStr;
             isOpened       =!decoder.AudioDecoder.Disposed;
 
-            Initialize(decoder.AudioStream.SampleRate);
+            if (SampleRate!= decoder.AudioStream.SampleRate)
+                Initialize();
+
             player.UIAdd(uiAction);
         }
         internal void Enable()
