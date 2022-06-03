@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.5.3</Version>
+	<Version>3.5.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Renderer: Brings back support to specify LUID if required (eg. set GPUAdapter to luid=1234)
-		* Logger: Adds LogDateTimeFormat to customize the date time string format
-		* Renderer: Fixes an NPE issue on FrameResized
-		* Audio: Fixes a crash on audio device change
+		* Audio: Fixes a critical issue with the sample rate
+		* FFmpeg5: Fixes a critical issue mainly with multiplayers
+		* Logger: Fixes few minor issues
+		* Player.HasEnded has been removed, use Player.Status == Status.Ended instead
 	</PackageReleaseNotes>
   </PropertyGroup>
 
