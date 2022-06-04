@@ -32,16 +32,24 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public VideoStream() { }
         public VideoStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         {
-            Type            = MediaType.Video;
-            PixelFormat     = (AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), st->codecpar->format);
+            Demuxer = demuxer;
+            AVStream = st;
+            Refresh();
+        }
+
+        public override void Refresh()
+        {
+            base.Refresh();
+
+            PixelFormat     = (AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), AVStream->codecpar->format);
             PixelFormatStr  = PixelFormat.ToString().Replace("AV_PIX_FMT_","").ToLower();
             PixelFormatType = PixelFormatType.Software_Sws;
 
-            Width           = st->codecpar->width;
-            Height          = st->codecpar->height;
-            FPS             = av_q2d(st->avg_frame_rate) > 0 ? av_q2d(st->avg_frame_rate) : av_q2d(st->r_frame_rate);
+            Width           = AVStream->codecpar->width;
+            Height          = AVStream->codecpar->height;
+            FPS             = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
             FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
-            TotalFrames     = st->duration > 0 && FrameDuration > 0 ? (int) (st->duration * Timebase / FrameDuration) : (int) (demuxer.Duration / FrameDuration);
+            TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (int) (Demuxer.Duration / FrameDuration);
 
             var gcd = Utils.GCD(Width, Height);
             if (gcd != 0)
@@ -49,13 +57,13 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
             if (PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
             {
-                ColorRange = st->codecpar->color_range == AVColorRange.AVCOL_RANGE_JPEG ? "FULL" : "LIMITED";
+                ColorRange = AVStream->codecpar->color_range == AVColorRange.AVCOL_RANGE_JPEG ? "FULL" : "LIMITED";
 
-                if (st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT470BG)
+                if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT470BG)
                     ColorSpace = "BT601";
-                else if (st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT709)
+                else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT709)
                     ColorSpace = "BT709";
-                else if (st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || st->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL)
+                else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL)
                     ColorSpace = "BT2020";
                 else
                 {

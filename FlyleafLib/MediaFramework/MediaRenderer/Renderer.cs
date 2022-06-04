@@ -460,7 +460,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 var oldVP = videoProcessor;
                 VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
-
+                
                 if (videoProcessor == VideoProcessors.Flyleaf)
                 {
                     // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
@@ -652,7 +652,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 if (GetViewport.X + GetViewport.Width > Control.Width)
                     Width = (int) (VideoDecoder.VideoStream.Width  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoDecoder.VideoStream.Width / GetViewport.Width)));
-
+                
                 vc.VideoProcessorSetStreamSourceRect(vp, 0, true, new RawRect(Math.Min((int)GetViewport.X, 0) * -1, Math.Min((int)GetViewport.Y, 0) * -1, Width, Height));
                 vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, Control.Width), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, Control.Height)));
                 vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
@@ -675,6 +675,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 } catch (Exception e)
                 {
+                    if (vpiv != null)
+                        vpiv.Dispose();
+
                     if (CanWarn) Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
                     VideoDecoder.DisposeFrame(frame);
 

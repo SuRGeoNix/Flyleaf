@@ -1464,6 +1464,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         Demuxer demuxer;
         ConcurrentQueue<IntPtr> packets = new ConcurrentQueue<IntPtr>();
 
+        static int  _FPS_FALLBACK = 30; // in case of negative buffer duration calculate it based on packets count / FPS
+
         public long Bytes               { get; private set; }
         public long BufferedDuration    { get; private set; }
         public long CurTime             { get; private set; }
@@ -1515,7 +1517,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         UpdateCurTime();
                     }
                     else
+                    {
                         BufferedDuration = LastTimestamp - FirstTimestamp;
+                        if (BufferedDuration < 0)
+                            BufferedDuration = packets.Count * _FPS_FALLBACK * (long)10000;
+                    }
                 }
 
                 Bytes += packet->size;
@@ -1559,15 +1565,22 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     {
                         demuxer.Duration += demuxer.hlsStartTime - FirstTimestamp;
                         demuxer.hlsStartTime = FirstTimestamp;
+                        CurTime = 0;
                     }
-                    CurTime = LastTimestamp - demuxer.hlsStartTime - BufferedDuration;
-                    CurTime = FirstTimestamp - demuxer.hlsStartTime;
+                    else
+                        CurTime = FirstTimestamp - demuxer.hlsStartTime;
                 }
             }
             else
                 CurTime = FirstTimestamp - demuxer.StartTime;
 
+            if (CurTime < 0)
+                CurTime = 0;
+
             BufferedDuration = LastTimestamp - FirstTimestamp;
+
+            if (BufferedDuration < 0)
+                BufferedDuration = packets.Count * _FPS_FALLBACK * (long)10000;
         }
     }
 }

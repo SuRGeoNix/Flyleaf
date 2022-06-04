@@ -66,9 +66,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (Engine.FFmpeg.IsVer5)
             {
                 HW_PIX_FMT              -= 2;
-                AV_PIX_FMT_P010LE       -= 2;
-                AV_PIX_FMT_P010BE       -= 2;
-                AV_PIX_FMT_YUV420P10LE  -= 2;
+                //AV_PIX_FMT_P010LE       -= 2;
+                //AV_PIX_FMT_P010BE       -= 2;
+                //AV_PIX_FMT_YUV420P10LE  -= 2;
             }
         }
 
@@ -93,9 +93,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         // We can't use AVPixelFormat enum as it is different between ffmpeg v4 and v5 (two new entries after 44 so we need -2 for >46 )
         static int HW_PIX_FMT               = (int)AVPixelFormat.AV_PIX_FMT_D3D11;
-        static int AV_PIX_FMT_P010LE        = (int)AVPixelFormat.AV_PIX_FMT_P010LE;
-        static int AV_PIX_FMT_P010BE        = (int)AVPixelFormat.AV_PIX_FMT_P010BE;
-        static int AV_PIX_FMT_YUV420P10LE   = (int)AVPixelFormat.AV_PIX_FMT_YUV420P10LE;
+        //static int AV_PIX_FMT_P010LE        = (int)AVPixelFormat.AV_PIX_FMT_P010LE;
+        //static int AV_PIX_FMT_P010BE        = (int)AVPixelFormat.AV_PIX_FMT_P010BE;
+        //static int AV_PIX_FMT_YUV420P10LE   = (int)AVPixelFormat.AV_PIX_FMT_YUV420P10LE;
 
         internal ID3D11Texture2D
                                 textureFFmpeg;
@@ -226,8 +226,26 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 {
                     Log.Warn($"Codec changed {VideoStream.CodecID} {VideoStream.Width}x{VideoStream.Height} => {codecCtx->codec_id} {codecCtx->width}x{codecCtx->height}");
 
+                    // Change can be seen only through codecCtx (not AVStreams) - codecCtx changes byitself (we can't destory it and re-create it)
+                    //VideoStream.Refresh(); // No reason as AVStreams will be the same
+                    textDesc.Width      = codecCtx->width;
+                    textDesc.Height     = codecCtx->height;
+                    textDescUV.Width    = codecCtx->width  >> VideoStream.PixelFormatDesc->log2_chroma_w;
+                    textDescUV.Height   = codecCtx->height >> VideoStream.PixelFormatDesc->log2_chroma_h;
                     VideoStream.Width   = codecCtx->width;
                     VideoStream.Height  = codecCtx->height;
+
+                    var gcd = Utils.GCD(VideoStream.Width, VideoStream.Height);
+                    if (gcd != 0)
+                        VideoStream.AspectRatio = new AspectRatio(VideoStream.Width / gcd , VideoStream.Height / gcd);
+
+                    VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : VideoStream.FPS;
+                    VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
+                    //VideoStream.Timebase    = av_q2d(codecCtx->time_base) * 10000.0 * 1000.0;
+                    //VideoStream.TotalFrames     = VideoStream.AVStream->duration > 0 && VideoStream.FrameDuration > 0 ? (int) (AVStream->duration * VideoStream.Timebase / VideoStream.FrameDuration) : (int) (Demuxer.Duration / VideoStream.FrameDuration);
+
+                    Renderer?.FrameResized();
+                    CodecChanged?.Invoke(this);
                 }
 
                 return (AVPixelFormat)HW_PIX_FMT;
@@ -240,18 +258,19 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             var t2 = (AVHWFramesContext*) hwframes->data;
 
-            //if (codecCtx->codec_id != VideoStream.CodecID)
-                //return 2;
-
             if (codecCtx->coded_width != t2->width)
                 return 2;
 
             if (codecCtx->coded_height != t2->height)
                 return 2;
 
-            var fmt = codecCtx->sw_pix_fmt == (AVPixelFormat)AV_PIX_FMT_YUV420P10LE ? (AVPixelFormat)AV_PIX_FMT_P010LE : (codecCtx->sw_pix_fmt == (AVPixelFormat)AV_PIX_FMT_P010BE ? (AVPixelFormat)AV_PIX_FMT_P010BE : AVPixelFormat.AV_PIX_FMT_NV12);
-            if (fmt != t2->sw_format)
-                return 2;
+            // TBR: Codec changed (seems ffmpeg changes codecCtx by itself
+            //if (codecCtx->codec_id != VideoStream.CodecID)
+            //    return 2;
+
+            //var fmt = codecCtx->sw_pix_fmt == (AVPixelFormat)AV_PIX_FMT_YUV420P10LE ? (AVPixelFormat)AV_PIX_FMT_P010LE : (codecCtx->sw_pix_fmt == (AVPixelFormat)AV_PIX_FMT_P010BE ? (AVPixelFormat)AV_PIX_FMT_P010BE : AVPixelFormat.AV_PIX_FMT_NV12);
+            //if (fmt != t2->sw_format)
+            //    return 2;
 
             return 0;
         }
@@ -333,7 +352,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             else
                 Log.Debug("VA Disabled");
 
-            int bits = 0;
+            int bits = 8;
             try
             {
                 bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
