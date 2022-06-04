@@ -137,7 +137,7 @@ namespace FlyleafLib.MediaPlayer
                     ShowOneFrame();
                     if (seeks.Count != 0) return false; 
 
-                    showOneFrame = false; 
+                    showOneFrame = false;
                 }
 
                 if (vFrame == null && VideoDecoder.Frames.Count != 0)
@@ -158,10 +158,18 @@ namespace FlyleafLib.MediaPlayer
                     {
                         for (int i=0; i<Math.Min(20, AudioDecoder.Frames.Count); i++)
                         {
-                            if (aFrame == null || aFrame.timestamp + 20000 > vFrame.timestamp) { gotAudio = true; break; }
+                            if (aFrame == null || aFrame.timestamp + 20000 > vFrame.timestamp || vFrame.timestamp > Duration) { gotAudio = true; break; }
 
                             if (CanInfo) Log.Info($"Drop aFrame {TicksToTime(aFrame.timestamp)}");
                             AudioDecoder.Frames.TryDequeue(out aFrame);
+                        }
+
+                        // Avoid infinite loop in case of all audio timestamps wrong
+                        if (!gotAudio)
+                        {
+                            gotAudio = true;
+                            aFrame = null;
+                            Log.Warn($"Audio Exhausted 1");
                         }
                     }
                 }
@@ -178,7 +186,7 @@ namespace FlyleafLib.MediaPlayer
 
                     if (vFrame != null && !gotAudio && audioRetries > 0 && (!AudioDecoder.IsRunning || AudioDecoder.Demuxer.Status == MediaFramework.Status.QueueFull))
                     {
-                        if (CanWarn) Log.Warn($"Audio Exhausted {audioRetries}");
+                        if (CanWarn) Log.Warn($"Audio Exhausted 2 | {audioRetries}");
 
                         audioRetries--;
 
@@ -224,6 +232,8 @@ namespace FlyleafLib.MediaPlayer
             int     sleepMs;
             long    elapsedSec = startedAtTicks;
 
+            int     allowedLateAudioDrops = 7;
+
             requiresBuffering = true;
 
             while (Status == Status.Playing)
@@ -248,6 +258,7 @@ namespace FlyleafLib.MediaPlayer
                 {
                     OnBufferingStarted();
                     MediaBuffer();
+                    allowedLateAudioDrops = 7;
                     elapsedSec = startedAtTicks;
                     requiresBuffering = false;
                     if (seeks.Count != 0)
@@ -382,6 +393,19 @@ namespace FlyleafLib.MediaPlayer
                         AudioDecoder.Frames.TryDequeue(out aFrame);
                         if (aFrame != null)
                             aFrame.timestamp = (long)(aFrame.timestamp / Speed);
+                    }
+                    else if (aDistanceMs > 1000) // Drops few audio frames in case of wrong timestamps
+                    {
+                        if (allowedLateAudioDrops > 0)
+                        {
+                            allowedLateAudioDrops--;
+                            if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs}");
+                            AudioDecoder.Frames.TryDequeue(out aFrame);
+                            if (aFrame != null)
+                                aFrame.timestamp = (long)(aFrame.timestamp / Speed);
+                        }
+                        //else
+                            //if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs} | limit reached");
                     }
                     else if (aDistanceMs < -2) // Will be transfered back to decoder to drop invalid timestamps
                     {

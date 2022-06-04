@@ -22,21 +22,19 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public AudioStream() { }
         public AudioStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         {
-            Refresh(demuxer, st, true);
+            Refresh();
         }
 
-        public void Refresh(Demuxer demuxer, AVStream* st, bool nobase = false)
+        public override void Refresh()
         {
-            if (!nobase)
-                base.Refresh(demuxer, st);
+            base.Refresh();
 
-            Type            = MediaType.Audio;
-            SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), st->codecpar->format);
+            SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), AVStream->codecpar->format);
             SampleFormatStr = SampleFormat.ToString().Replace("AV_SAMPLE_FMT_","").ToLower();
-            SampleRate      = st->codecpar->sample_rate;
-            ChannelLayout   = st->codecpar->channel_layout;
-            Channels        = st->codecpar->channels;
-            Bits            = st->codecpar->bits_per_coded_sample;
+            SampleRate      = AVStream->codecpar->sample_rate;
+            ChannelLayout   = AVStream->codecpar->channel_layout;
+            Channels        = AVStream->codecpar->channels;
+            Bits            = AVStream->codecpar->bits_per_coded_sample;
 
             // https://trac.ffmpeg.org/ticket/7321
             if (CodecID == AVCodecID.AV_CODEC_ID_MP2 && (SampleFormat == AVSampleFormat.AV_SAMPLE_FMT_FLTP || SampleFormat == AVSampleFormat.AV_SAMPLE_FMT_FLT))

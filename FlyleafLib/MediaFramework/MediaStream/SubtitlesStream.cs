@@ -13,7 +13,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public SubtitlesStream() { }
         public SubtitlesStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         {
-            Type = MediaType.Subs;
+            base.Refresh();
         }
     }
 }
