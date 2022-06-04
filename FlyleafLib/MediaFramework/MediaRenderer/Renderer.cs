@@ -643,18 +643,35 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             else
                 GetViewport = new Viewport(0 - zoom + PanXOffset, ((Control.Height - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
 
-            if (videoProcessor == VideoProcessors.D3D11 && VideoDecoder.VideoStream != null) // TBR: on VideoDecoder.VideoStream == null
+            if (videoProcessor == VideoProcessors.D3D11 && VideoDecoder.VideoStream != null)
             {
-                Height = VideoDecoder.VideoStream.Height;
-                Width  = VideoDecoder.VideoStream.Width;
-                if (GetViewport.Y + GetViewport.Height > Control.Height)
-                    Width = (int) (VideoDecoder.VideoStream.Height- ((GetViewport.Y + GetViewport.Height - Control.Height)* (VideoDecoder.VideoStream.Height / GetViewport.Height)));
+                RawRect src, dst;
 
-                if (GetViewport.X + GetViewport.Width > Control.Width)
-                    Width = (int) (VideoDecoder.VideoStream.Width  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoDecoder.VideoStream.Width / GetViewport.Width)));
-                
-                vc.VideoProcessorSetStreamSourceRect(vp, 0, true, new RawRect(Math.Min((int)GetViewport.X, 0) * -1, Math.Min((int)GetViewport.Y, 0) * -1, Width, Height));
-                vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, Control.Width), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, Control.Height)));
+                if (GetViewport.X + GetViewport.Width <= 0 || GetViewport.X >= Control.Width || GetViewport.Y + GetViewport.Height <= 0 || GetViewport.Y >= Control.Height)
+                {
+                    //Log.Debug("Out of screen");
+                    src = new RawRect();
+                    dst = new RawRect();
+                }
+                else
+                {
+                    try // Possible VideoDecoder.VideoStream == null
+                    {
+                        Height = VideoDecoder.VideoStream.Height;
+                        Width  = VideoDecoder.VideoStream.Width;
+                        if (GetViewport.Y + GetViewport.Height > Control.Height)
+                            Height = (int) (VideoDecoder.VideoStream.Height- ((GetViewport.Y + GetViewport.Height - Control.Height)* (VideoDecoder.VideoStream.Height / GetViewport.Height)));
+
+                        if (GetViewport.X + GetViewport.Width > Control.Width)
+                            Width = (int) (VideoDecoder.VideoStream.Width  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoDecoder.VideoStream.Width / GetViewport.Width)));
+
+                        src = new RawRect((int) (Math.Min(GetViewport.X, 0f) * ((float)VideoDecoder.VideoStream.Width / (float)GetViewport.Width) * -1f), (int) (Math.Min(GetViewport.Y, 0f) * ((float)VideoDecoder.VideoStream.Height / (float)GetViewport.Height) * -1f), Width, Height);
+                        dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, Control.Width), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, Control.Height));
+                    } catch { return; }
+                }
+
+                vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
+                vc.VideoProcessorSetStreamDestRect  (vp, 0, true, dst);
                 vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
             }
 
@@ -675,11 +692,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 } catch (Exception e)
                 {
+                    if (CanWarn) Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
+                    VideoDecoder.DisposeFrame(frame);
+
                     if (vpiv != null)
                         vpiv.Dispose();
 
-                    if (CanWarn) Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
-                    VideoDecoder.DisposeFrame(frame);
+                    if (curSRVs != null)
+                        for (int i=0; i<curSRVs.Length; i++)
+                            curSRVs[i].Dispose();
 
                     return false;
 
