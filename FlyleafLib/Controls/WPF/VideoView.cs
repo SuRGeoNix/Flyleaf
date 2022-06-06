@@ -87,9 +87,10 @@ namespace FlyleafLib.Controls.WPF
             WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
             FlyleafWF   = Template.FindName(PART_PlayerView, this) as FlyleafWF;
 
-            WinFormsHost.DataContextChanged    += WFH_DataContextChanged;
-            WinFormsHost.Loaded                += WFH_Loaded;
-            WinFormsHost.Unloaded              += WFH_Unloaded;
+            WinFormsHost.IsVisibleChanged   += WFH_IsVisibleChanged;
+            WinFormsHost.DataContextChanged += WFH_DataContextChanged;
+            WinFormsHost.Loaded             += WFH_Loaded;
+            WinFormsHost.Unloaded           += WFH_Unloaded;
 
             if (Content != null && ControlRequiresPlayer == null)
                 FindIVideoView((Visual)Content);
@@ -132,6 +133,15 @@ namespace FlyleafLib.Controls.WPF
                     ControlRequiresPlayer.Player = Player;
             }
         }
+
+        private void WFH_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (WinFormsHost.IsVisible)
+                WindowFront?.Show();
+            else
+                WindowFront?.Hide();
+        }
+
         protected override void OnContentChanged(object oldContent, object newContent)
         {
             if (newContent != null)
@@ -159,7 +169,8 @@ namespace FlyleafLib.Controls.WPF
                 return;
             
             WindowFront.Owner            = WindowBack;
-            WindowBack.LocationChanged  += WindowBack_LocationChanged;
+            WindowBack.LocationChanged  += RefreshFrontPosition;
+            WinFormsHost.LayoutUpdated  += RefreshFrontPosition;
             WinFormsHost.SizeChanged    += WFH_SizeChanged;
 
             var locationFromScreen  = WinFormsHost.PointToScreen(_zeroPoint);
@@ -176,11 +187,11 @@ namespace FlyleafLib.Controls.WPF
         void WFH_Unloaded(object sender, RoutedEventArgs e)
         {
             WinFormsHost.SizeChanged -= WFH_SizeChanged;
-
+            WinFormsHost.LayoutUpdated -= RefreshFrontPosition;
             if (WindowBack != null)
             {
                 WindowBack.Closed -= WindowBack_Closed;
-                WindowBack.LocationChanged -= WindowBack_LocationChanged;
+                WindowBack.LocationChanged -= RefreshFrontPosition;
             }
 
             WindowFront?.Hide();
@@ -214,7 +225,7 @@ namespace FlyleafLib.Controls.WPF
         #region Foreground Window follows Background/WinFormsHost
         void WFH_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (e.NewValue == null || WindowFront == null)
+            if (e.NewValue == null || WindowFront == null || isSwitchingState)
                 return;
 
             WindowFront.DataContext = e.NewValue;
@@ -233,13 +244,16 @@ namespace FlyleafLib.Controls.WPF
             WindowFront.Height      = size.Y;
             WindowFront.Width       = size.X;
         }
-        void WindowBack_LocationChanged(object sender, EventArgs e)
+        void RefreshFrontPosition(object sender, EventArgs e) // TBR: Visible area can be less than actual size
         {
-            var locationFromScreen  = WinFormsHost.PointToScreen(_zeroPoint);
-            var source              = PresentationSource.FromVisual(WindowBack);
-            var targetPoints        = source.CompositionTarget.TransformFromDevice.Transform(locationFromScreen);
-            WindowFront.Left        = targetPoints.X;
-            WindowFront.Top         = targetPoints.Y;
+            try
+            {
+                var locationFromScreen  = WinFormsHost.PointToScreen(_zeroPoint);
+                var source              = PresentationSource.FromVisual(WindowBack);
+                var targetPoints        = source.CompositionTarget.TransformFromDevice.Transform(locationFromScreen);
+                WindowFront.Left        = targetPoints.X;
+                WindowFront.Top         = targetPoints.Y;
+            } catch { } // When WinFormsHost is not visible (mainly on ToggleFullscreen)
         }
         #endregion
 
