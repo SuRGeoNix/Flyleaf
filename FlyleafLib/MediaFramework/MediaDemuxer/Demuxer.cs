@@ -1299,6 +1299,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         }
         internal void UpdateHLSTimev5()
         {
+            // TBR: Access Violation
+            // [hls @ 00000269f9cdb400] Media sequence changed unexpectedly: 150070 -> 0
+
             if (hlsPrevSeqNo != HLSPlaylistv5->cur_seq_no)
             {
                 hlsPrevSeqNo = HLSPlaylistv5->cur_seq_no;
