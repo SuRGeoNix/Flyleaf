@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.5.4</Version>
+	<Version>3.5.5</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Audio: Fixes a critical issue with the sample rate
-		* FFmpeg5: Fixes a critical issue mainly with multiplayers
-		* Logger: Fixes few minor issues
-		* Player.HasEnded has been removed, use Player.Status == Status.Ended instead
+		* VideoView: Shows/Hides front window based on videoview's visibility
+		* VideoView: Fixes an issue with front window not properly following the videoview
+		* VideoView: Fixes an issue with datacontext getting to null on fullscreen
+		* Renderer : Fixes issues with Pan/Zoom on D3D11 video processor
+		* Updates Vortice
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -47,11 +48,11 @@
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.10-beta" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.1.10-beta" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.4.13" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.10-beta" />
-    <PackageReference Include="Vortice.XAudio2" Version="2.1.10-beta" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.19" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.1.19" />
+    <PackageReference Include="Vortice.Mathematics" Version="1.4.16" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.19" />
+    <PackageReference Include="Vortice.XAudio2" Version="2.1.19" />
   </ItemGroup>
   
   <ItemGroup>
