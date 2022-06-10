@@ -33,6 +33,7 @@ namespace FlyleafLib
         /// <param name="action"></param>
         public static void UI(Action action)
         {
+            //if (System.Windows.Application.Current == null) return; // Possible on App Exit but not really required to add it?
             System.Windows.Application.Current.Dispatcher.BeginInvoke(action, System.Windows.Threading.DispatcherPriority.DataBind);
         }
 
