@@ -87,7 +87,7 @@ namespace FlyleafLib.Controls.WPF
             WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
             FlyleafWF   = Template.FindName(PART_PlayerView, this) as FlyleafWF;
 
-            IsVisibleChanged                += WFH_IsVisibleChanged;
+            IsVisibleChanged                += VideoView_IsVisibleChanged;
             WinFormsHost.DataContextChanged += WFH_DataContextChanged;
             WinFormsHost.Loaded             += WFH_Loaded;
             WinFormsHost.Unloaded           += WFH_Unloaded;
@@ -134,9 +134,12 @@ namespace FlyleafLib.Controls.WPF
             }
         }
 
-        private void WFH_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        private void VideoView_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (IsVisible)
+            if (isSwitchingState)
+                return;
+
+            if (Visibility == Visibility.Visible)
                 WindowFront?.Show();
             else
                 WindowFront?.Hide();
@@ -182,7 +185,7 @@ namespace FlyleafLib.Controls.WPF
             WindowFront.Height      = size.Y;
             WindowFront.Width       = size.X;
 
-            if (IsVisible)
+            if (Visibility == Visibility.Visible)
             {
                 WindowFront.Show();
                 //WindowBack.Focus();
@@ -197,7 +200,7 @@ namespace FlyleafLib.Controls.WPF
                 WindowBack.Closed -= WindowBack_Closed;
                 WindowBack.LocationChanged -= RefreshFrontPosition;
             }
-            
+
             WindowFront?.Hide();
         }
         public void FindIVideoView(Visual parent)
