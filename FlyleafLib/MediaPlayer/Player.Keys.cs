@@ -182,6 +182,14 @@ namespace FlyleafLib.MediaPlayer
 
         public KeysConfig() { }
 
+        public KeysConfig Clone()
+        {
+            KeysConfig keys = (KeysConfig) MemberwiseClone();
+            keys.player = null;
+            keys.Keys = null;
+            return keys;
+        }
+
         internal void SetPlayer(Player player)
         {
             if (Keys == null)

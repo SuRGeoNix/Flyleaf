@@ -36,13 +36,15 @@ namespace FlyleafLib
         public Config Clone()
         {
             Config config   = new Config();
-            config          = (Config) MemberwiseClone();
-
             config.Audio    = Audio.Clone();
             config.Video    = Video.Clone();
             config.Subtitles= Subtitles.Clone();
             config.Demuxer  = Demuxer.Clone();
             config.Decoder  = Decoder.Clone();
+            config.Player   = Player.Clone();
+
+            config.Player.config = config;
+            config.Demuxer.config = config;
 
             return config;
         }
@@ -112,6 +114,9 @@ namespace FlyleafLib
             public PlayerConfig Clone()
             {
                 PlayerConfig player = (PlayerConfig) MemberwiseClone();
+                player.player = null;
+                player.config = null;
+                player.KeyBindings = KeyBindings.Clone();
                 return player;
             }
 
@@ -233,9 +238,6 @@ namespace FlyleafLib
         }
         public class DemuxerConfig : NotifyPropertyChanged
         {
-            internal Player player;
-            internal Config config;
-
             public DemuxerConfig Clone()
             {
                 DemuxerConfig demuxer = (DemuxerConfig) MemberwiseClone();
@@ -248,8 +250,14 @@ namespace FlyleafLib
                 foreach (var kv in AudioFormatOpt) demuxer.AudioFormatOpt.Add(kv.Key, kv.Value);
                 foreach (var kv in SubtitlesFormatOpt) demuxer.SubtitlesFormatOpt.Add(kv.Key, kv.Value);
 
+                demuxer.player = null;
+                demuxer.config = null;
+
                 return demuxer;
             }
+            
+            internal Player player;
+            internal Config config;
 
             /// <summary>
             /// Whether to enable demuxer's custom interrupt callback (for timeouts and interrupts)
@@ -371,7 +379,13 @@ namespace FlyleafLib
         {
             internal Player player;
 
-            public DecoderConfig Clone() { return (DecoderConfig) MemberwiseClone(); }
+            public DecoderConfig Clone()
+            {
+                DecoderConfig decoder = (DecoderConfig) MemberwiseClone();
+                decoder.player = null;
+
+                return decoder;
+            }
 
             /// <summary>
             /// Threads that will be used from the decoder
@@ -413,9 +427,15 @@ namespace FlyleafLib
         }
         public class VideoConfig : NotifyPropertyChanged
         {
-            internal Player player;
+            public VideoConfig Clone()
+            {
+                VideoConfig video = (VideoConfig) MemberwiseClone();
+                video.player = null;
 
-            public VideoConfig Clone() { return (VideoConfig) MemberwiseClone(); }
+                return video;
+            }
+
+            internal Player player;
 
             /// <summary>
             /// <para>Forces a specific GPU Adapter to be used by the renderer</para>
@@ -529,9 +549,15 @@ namespace FlyleafLib
         }
         public class AudioConfig : NotifyPropertyChanged
         {
-            internal Player player;
+            public AudioConfig Clone()
+            {
+                AudioConfig audio = (AudioConfig) MemberwiseClone();
+                audio.player = null;
 
-            public AudioConfig Clone() { return (AudioConfig) MemberwiseClone(); }
+                return audio;
+            }
+
+            internal Player player;
 
             /// <summary>
             /// Audio delay ticks (will be reseted to 0 for every new audio stream)
@@ -555,8 +581,6 @@ namespace FlyleafLib
         }
         public class SubtitlesConfig : NotifyPropertyChanged
         {
-            internal Player player;
-
             public SubtitlesConfig Clone()
             {
                 SubtitlesConfig subs = new SubtitlesConfig();
@@ -565,8 +589,12 @@ namespace FlyleafLib
                 subs.Languages = new List<Language>();
                 if (Languages != null) foreach(var lang in Languages) subs.Languages.Add(lang);
 
+                subs.player = null;
+
                 return subs;
             }
+
+            internal Player player;
 
             /// <summary>
             /// Subtitle delay ticks (will be reseted to 0 for every new subtitle stream)
