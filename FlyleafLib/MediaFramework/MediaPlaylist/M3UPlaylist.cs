@@ -9,15 +9,20 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
     {
         public long     Duration    { get; set; }
         public string   Title       { get; set; }
+        public string   OriginalTitle
+                                    { get; set; }
         public string   Url         { get; set; }
         public string   UserAgent   { get; set; }
         public string   Referrer    { get; set; }
+        public bool     GeoBlocked  { get; set; }
+        public bool     Not_24_7    { get; set; }
+        public int      Height      { get; set; }
+
         public Dictionary<string, string> Tags { get; set; } = new Dictionary<string, string>();
     }
 
     public class M3UPlaylist
     {
-
         public static List<M3UPlaylistItem> ParseFromHttp(string url, int timeoutMs = 30000)
         {
             string downStr = Utils.DownloadToString(url, timeoutMs);
@@ -51,10 +56,30 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
                     M3UPlaylistItem item = new M3UPlaylistItem();
                     MatchCollection matches = Regex.Matches(line, " ([^\\s=]+)=\"([^\\s\"]+)\"");
                     foreach (Match match in matches)
-                        if (match.Groups.Count > 3)
+                        if (match.Groups.Count == 3 && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
                             item.Tags.Add(match.Groups[1].Value, match.Groups[2].Value);
 
                     item.Title = GetMatch(line, @",\s*([^=,]+)$");
+                    item.OriginalTitle = item.Title;
+
+                    if (item.Title.IndexOf(" [Geo-blocked]") >= 0)
+                    {
+                        item.GeoBlocked = true;
+                        item.Title = item.Title.Replace(" [Geo-blocked]", "");
+                    }
+
+                    if (item.Title.IndexOf(" [Not 24/7]") >= 0)
+                    {
+                        item.Not_24_7 = true;
+                        item.Title = item.Title.Replace(" [Not 24/7]", "");
+                    }
+
+                    var height = Regex.Match(item.Title, " \\(([0-9]+)p\\)");
+                    if (height.Groups.Count == 2)
+                    {
+                        item.Height = int.Parse(height.Groups[1].Value);
+                        item.Title = item.Title.Replace(height.Groups[0].Value, "");
+                    }
 
                     while ((line = reader.ReadLine()) != null && line.StartsWith("#EXTVLCOPT"))
                     {

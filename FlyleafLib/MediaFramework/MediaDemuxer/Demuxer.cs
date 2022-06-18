@@ -398,6 +398,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Name        = Utils.BytePtrToStringUTF8(fmtCtx->iformat->name);
             LongName    = Utils.BytePtrToStringUTF8(fmtCtx->iformat->long_name);
             Extensions  = Utils.BytePtrToStringUTF8(fmtCtx->iformat->extensions);
+            if (Name == "mpegts")
+                Extensions = "ts";
+
             StartTime   = fmtCtx->start_time != AV_NOPTS_VALUE ? fmtCtx->start_time * 10 : 0;
             Duration    = fmtCtx->duration > 0 ? fmtCtx->duration * 10 : 0;
 
@@ -1337,6 +1340,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             // Should check for all supported output formats (there is no list in ffmpeg.autogen ?)
             // Should check for inner input format (not outer protocol eg. hls/rtsp)
             // Should check for raw codecs it can be mp4/mov but it will not work in mp4 only in mov (or avi for raw)
+
+            if (Extensions == "ts")
+                return "ts";
 
             List<string> supportedOutput = new List<string>() { "mp4", "avi", "flv", "flac", "mpeg", "mpegts", "mkv", "ogg", "ts"};
             string defaultExtenstion = "mp4";
