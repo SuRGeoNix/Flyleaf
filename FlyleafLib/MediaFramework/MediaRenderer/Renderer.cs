@@ -44,11 +44,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public Viewport         GetViewport     { get; private set; }
 
-        public int              PanXOffset      { get => panXOffset; set { panXOffset = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); else SetViewport(); } }
+        public int              PanXOffset      { get => panXOffset; set { panXOffset = value; SetViewport(); } }
         int panXOffset;
-        public int              PanYOffset      { get => panYOffset; set { panYOffset = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); else SetViewport(); } }
+        public int              PanYOffset      { get => panYOffset; set { panYOffset = value; SetViewport(); } }
         int panYOffset;
-        public int              Zoom            { get => zoom;       set { zoom       = value; if (videoProcessor != VideoProcessors.Flyleaf && value != 0) FrameResized(); else SetViewport(); } }
+        public int              Zoom            { get => zoom;       set { zoom       = value; SetViewport(); } }
         int zoom;
         public int              UniqueId        { get; private set; }
 
@@ -459,7 +459,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 IsHDR = VideoDecoder.VideoStream.ColorSpace == "BT2020";
 
                 var oldVP = videoProcessor;
-                VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
+                VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (Config.Video.VideoProcessor == VideoProcessors.Auto && isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
                 
                 if (videoProcessor == VideoProcessors.Flyleaf)
                 {

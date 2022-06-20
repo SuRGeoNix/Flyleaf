@@ -53,7 +53,7 @@ namespace FlyleafLib.MediaPlayer
             if (Config.Player.ActivityMode)
                 Activity.MouseTimestamp = DateTime.UtcNow.Ticks;
 
-            if (!Config.Player.MouseBindings.PanMoveOnDragAndCtrl || !CanPlay || e.Button != System.Windows.Forms.MouseButtons.Left)
+            if (!Config.Player.MouseBindings.PanMoveOnDragAndCtrl || e.Button != System.Windows.Forms.MouseButtons.Left)
                 return;
 
             if (panClickX == -1)
