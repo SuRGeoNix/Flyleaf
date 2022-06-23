@@ -98,27 +98,27 @@ namespace FlyleafLib.MediaPlayer
                     SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
                     stoppedWithError = false;
 
-                    // Missed Buffering Completed means error
-                    if (onBufferingStarted - 1 == onBufferingCompleted)
-                    {
-                        stoppedWithError = IsPlaying;
-                        OnBufferingCompleted(stoppedWithError ? "Buffering failed" : null);
-                    }
-                        
                     if (IsPlaying)
-                    {
-                        if (!stoppedWithError)
-                        {
-                            if (!ReversePlayback)
-                                stoppedWithError = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
-                            else
-                                stoppedWithError = CurTime > 3 * 1000 * 10000;
-                        }
-                            
+                    {    
                         if (decoderHasEnded)
                             status = Status.Ended;
                         else
+                        {
+                            if (onBufferingStarted - 1 == onBufferingCompleted)
+                            {
+                                stoppedWithError = true;
+                                OnBufferingCompleted("Buffering failed");
+                            }
+                            else
+                            {
+                                if (!ReversePlayback)
+                                    stoppedWithError = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
+                                else
+                                    stoppedWithError = CurTime > 3 * 1000 * 10000;
+                            }
+
                             status = Status.Paused;
+                        }
                     }
                         
                     OnPlaybackStopped(stoppedWithError ? "Playback stopped unexpectedly" : null);

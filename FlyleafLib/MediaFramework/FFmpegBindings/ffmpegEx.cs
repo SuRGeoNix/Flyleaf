@@ -9,6 +9,7 @@ namespace FFmpeg.AutoGen
     {
 #pragma warning disable CS0649
 #pragma warning disable CS0169
+#pragma warning disable CS1587
         #region hls demuxer
         public unsafe struct HLSContext
         {
@@ -358,6 +359,7 @@ namespace FFmpeg.AutoGen
             public static implicit operator int[](int_array16 @struct) => @struct.ToArray();
         }
         #endregion
+#pragma warning restore CS1587
 #pragma warning restore CS0169
 #pragma warning restore CS0649
     }
