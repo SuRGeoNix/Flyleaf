@@ -369,6 +369,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         ret = avformat_find_stream_info(fmtCtx, null);
                         if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) return error = "Cancelled";
                         if (ret < 0) return error = $"[avformat_find_stream_info] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
+
+                        // Prevent Multiple Immediate exit requested on eof (maybe should not use avio_feof() to test for the end)
+                        if (fmtCtx->pb != null)
+                            fmtCtx->pb->eof_reached = 0;
                     }
 
                     bool hasVideo = FillInfo();
@@ -740,9 +744,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     {
                         av_packet_unref(packet);
 
-                        if ((ret == AVERROR_EXIT && fmtCtx->pb != null && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF)
-                        { 
-                            // AVERROR_EXIT && fmtCtx->pb->eof_reached probably comes from Interrupts (should ensure we seek after that)
+                        if (ret == AVERROR_EOF)
+                        {
                             Status = Status.Ended;
                             break;
                         }
@@ -877,10 +880,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     {
                         av_packet_unref(packet);
 
-                        if ((ret == AVERROR_EXIT && fmtCtx->pb != null && fmtCtx->pb->eof_reached != 0) || ret == AVERROR_EOF)
-                        { 
-                            // AVERROR_EXIT && fmtCtx->pb->eof_reached probably comes from Interrupts (should ensure we seek after that)
-
+                        if (ret == AVERROR_EOF)
+                        {
                             if (curReverseVideoPackets.Count > 0)
                             {
                                 AVPacket* drainPacket = av_packet_alloc();

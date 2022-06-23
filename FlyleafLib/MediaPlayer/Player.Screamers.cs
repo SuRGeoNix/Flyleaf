@@ -266,6 +266,9 @@ namespace FlyleafLib.MediaPlayer
 
                     if (vFrame == null)
                     {
+                        if (decoderHasEnded)
+                            OnBufferingCompleted();
+
                         Log.Warn("[MediaBuffer] No video frame");
                         break;
                     }
