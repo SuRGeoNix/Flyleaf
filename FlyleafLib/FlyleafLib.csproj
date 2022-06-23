@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.5.5</Version>
+	<Version>3.5.6</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* VideoView: Shows/Hides front window based on videoview's visibility
-		* VideoView: Fixes an issue with front window not properly following the videoview
-		* VideoView: Fixes an issue with datacontext getting to null on fullscreen
-		* Renderer : Fixes issues with Pan/Zoom on D3D11 video processor
-		* Updates Vortice
+		* Config: Fixes clone implementation
+		* Demuxer/Screamer: Improves EOF without raising errors in some cases
+		* M3UPlaylist: Fixes an issue with Tags
+		* Mouse: Fixes an issue with WinMoveOnDrag (sometimes it was moving the window when it should not)
+		* Remuxer: Fixes a possible issue with TS extension by adding it manually on the demuxer
+		* Renderer: Allows D3D11 to play HDR videos (even if does not support it yet) when forced as VP
+		* VideoView: Binds VideoViews visibility with the Foreground Window
 	</PackageReleaseNotes>
   </PropertyGroup>
 

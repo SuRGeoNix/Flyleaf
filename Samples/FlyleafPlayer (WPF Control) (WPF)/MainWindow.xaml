@@ -9,7 +9,7 @@
         xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
         
         mc:Ignorable="d"
-        Title="Flyleaf v3.5.2" Height="450" Width="800" Background="Black" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
+        Title="Flyleaf v3.5.6" Height="450" Width="800" Background="Black" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
     <Grid>
         <fl:VideoView Player="{Binding Player}">
             <Grid>
