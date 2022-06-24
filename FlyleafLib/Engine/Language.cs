@@ -12,7 +12,7 @@ namespace FlyleafLib
         public string LanguageName;
         public string UploadEnabled;
         public string WebEnabled;
-        public string OriginalInput;
+        public string OriginalInput; // Only for Undetermined language (return clone)
 
         public Language()
         {
@@ -33,6 +33,10 @@ namespace FlyleafLib
             { "nld", "dut" },
             { "deu", "ger" },
             { "fra", "fre" },
+            { "zho", "chi" },
+            { "sqi", "alb" },
+            { "hye", "arm" },
+            { "ces", "cze" },
             { "gre", "ell" },
             { "gr", "el" }
         };
@@ -52,10 +56,7 @@ namespace FlyleafLib
             if (AlternativeNames.TryGetValue(name, out var alternativeName))
                 return Get(alternativeName);
 
-            Language langUnd = Get("und");
-            langUnd.OriginalInput = name;
-
-            return langUnd;
+            return new Language("und","","Undetermined","0","0") { OriginalInput = name };
         }
 
         public override string ToString()
@@ -145,7 +146,7 @@ namespace FlyleafLib
             new Language("chb","","Chibcha","0","0"),
             new Language("che","ce","Chechen","0","0"),
             new Language("chg","","Chagatai","0","0"),
-            new Language("chi","zh","Chinese (simplified)","1","1"),
+            new Language("chi","zh","Chinese","1","1"),
             new Language("chk","","Chuukese","0","0"),
             new Language("chm","","Mari","0","0"),
             new Language("chn","","Chinook jargon","0","0"),
