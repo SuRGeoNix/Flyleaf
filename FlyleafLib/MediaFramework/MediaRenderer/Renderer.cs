@@ -329,13 +329,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         public void InitializeSwapChain()
         {
+            Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers");
+
             Control.Resize += ResizeBuffers;
 
             SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
             {
-                Format      = Format.B8G8R8A8_UNorm,
-                //Format      = Format.R10G10B10A2_UNorm,
-
+                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
                 Width       = Control.Width,
                 Height      = Control.Height,
                 AlphaMode   = AlphaMode.Ignore,
@@ -351,7 +351,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
             else
             {
-                swapChainDescription.BufferCount= 2; // TBR: for hdr output or >=60fps maybe use 6
+                swapChainDescription.BufferCount= Config.Video.SwapBuffers; // TBR: for hdr output or >=60fps maybe use 6
                 swapChainDescription.SwapEffect = SwapEffect.FlipDiscard;
                 swapChainDescription.Scaling    = Scaling.None;
             }

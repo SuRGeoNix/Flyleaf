@@ -524,14 +524,25 @@ namespace FlyleafLib
             /// <summary>
             /// The HDR to SDR method that will be used by the pixel shader
             /// </summary>
-            public unsafe HDRtoSDRMethod   HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value)) player?.renderer?.UpdateHDRtoSDR(); }}
+            public unsafe HDRtoSDRMethod
+                                    HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value)) player?.renderer?.UpdateHDRtoSDR(); }}
             HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
 
             /// <summary>
             /// The HDR to SDR Tone float correnction (not used by Reinhard) 
             /// </summary>
-            public unsafe float            HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value)) player?.renderer?.UpdateHDRtoSDR(); } }
+            public unsafe float     HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value)) player?.renderer?.UpdateHDRtoSDR(); } }
             float _HDRtoSDRTone = 1.4f;
+
+            /// <summary>
+            /// Whether the renderer will use 10-bit swap chaing or 8-bit output
+            /// </summary>
+            public bool             Swap10Bit                   { get; set; } = false;
+
+            /// <summary>
+            /// The number of buffers to use for the renderer's swap chain
+            /// </summary>
+            public int              SwapBuffers                 { get; set; } = 2;
 
             public SerializableDictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
 
