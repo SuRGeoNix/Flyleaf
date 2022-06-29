@@ -199,13 +199,13 @@ namespace FlyleafLib.Controls.WPF
 
             if (!UIConfig.Loaded)
             {
-                UIConfig.SubsMargin = new Thickness(0, 0, 0, 50);
+                UIConfig.SubsMargin     = new Thickness(0, 0, 0, 50);
                 UIConfig.SubsFontFamily = "Segoe UI";
-                UIConfig.SubsFontWeight = FontWeights.Bold;
-                UIConfig.SubsFontStyle = FontStyles.Normal;
-                UIConfig.SubsFontStretch = FontStretches.Normal;
-                UIConfig.SubsFontSize = 33;
-                UIConfig.SubsFontColor = Colors.White;
+                UIConfig.SubsFontWeight = FontWeights.Bold.ToString();
+                UIConfig.SubsFontStyle  = FontStyles.Normal.ToString();
+                UIConfig.SubsFontStretch= FontStretches.Normal.ToString();
+                UIConfig.SubsFontSize   = 33;
+                UIConfig.SubsFontColor  = Colors.White;
 
                 ITheme theme = Resources.GetTheme();
                 var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, PaperColor = theme.Paper, VideoView = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};
@@ -545,18 +545,21 @@ namespace FlyleafLib.Controls.WPF
         public void SetSubsPositionYAction(object y) { Thickness t = UIConfig.SubsMargin; t.Bottom += int.Parse(y.ToString()); UIConfig.SubsMargin = t; }
 
         public ICommand SetSubtitlesFont    { get; set; }
+        public static FontWeightConverter fontWeightConv = new FontWeightConverter();
+        public static FontStyleConverter fontStyleConv = new FontStyleConverter();
+        public static FontStretchConverter fontStretchConv = new FontStretchConverter();
         public void SetSubtitlesFontAction(object obj = null)
         {
             ColorFontDialog dialog  = new ColorFontDialog();
-            dialog.Font = new FontInfo(new FontFamily(UIConfig.SubsFontFamily), UIConfig.SubsFontSize, UIConfig.SubsFontStyle, UIConfig.SubsFontStretch, UIConfig.SubsFontWeight, new SolidColorBrush(UIConfig.SubsFontColor));
+            dialog.Font = new FontInfo(new FontFamily(UIConfig.SubsFontFamily), UIConfig.SubsFontSize, (FontStyle) fontStyleConv.ConvertFromString(UIConfig.SubsFontStyle), (FontStretch) fontStretchConv.ConvertFromString(UIConfig.SubsFontStretch), (FontWeight) fontWeightConv.ConvertFromString(UIConfig.SubsFontWeight), new SolidColorBrush(UIConfig.SubsFontColor));
 
             if (dialog.ShowDialog() == true && dialog.Font != null)
             {
                 UIConfig.SubsFontFamily = dialog.Font.Family.ToString();
                 UIConfig.SubsFontSize   = dialog.Font.Size;
-                UIConfig.SubsFontWeight = dialog.Font.Weight;
-                UIConfig.SubsFontStretch= dialog.Font.Stretch;
-                UIConfig.SubsFontStyle  = dialog.Font.Style;
+                UIConfig.SubsFontWeight = dialog.Font.Weight.ToString();
+                UIConfig.SubsFontStretch= dialog.Font.Stretch.ToString();
+                UIConfig.SubsFontStyle  = dialog.Font.Style.ToString();
                 UIConfig.SubsFontColor  = dialog.Font.BrushColor.Color;
 
                 SubtitlesFontDesc       = $"{UIConfig.SubsFontFamily} ({UIConfig.SubsFontWeight}), {UIConfig.SubsFontSize}";

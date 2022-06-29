@@ -106,7 +106,7 @@ namespace FlyleafLib.Plugins
             foreach (var lang in Config.Subtitles.Languages)
                 langs.Add(lang);
 
-            langs.Add(Language.Get("und"));
+            langs.Add(Language.Unknown);
 
             var extStreams = Selected.ExternalSubtitlesStreams.OrderBy(x => x.Language.ToString()).ThenByDescending(x => x.Rating).ThenBy(x => x.Downloaded);
 

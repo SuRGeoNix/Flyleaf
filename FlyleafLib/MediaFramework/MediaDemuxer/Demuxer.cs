@@ -473,7 +473,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         case AVMEDIA_TYPE_AUDIO:
                             AudioStreams.Add(new AudioStream(this, fmtCtx->streams[i]));
                             AVStreamToStream.Add(fmtCtx->streams[i]->index, AudioStreams[AudioStreams.Count-1]);
-                            if (AudioStreams[AudioStreams.Count-1].Language == Language.Get("eng")) audioHasEng = true;
+                            audioHasEng = AudioStreams[AudioStreams.Count-1].Language == Language.English;
+
                             break;
 
                         case AVMEDIA_TYPE_VIDEO:
@@ -482,13 +483,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                             VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
                             AVStreamToStream.Add(fmtCtx->streams[i]->index, VideoStreams[VideoStreams.Count-1]);
-                            if (VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE) hasVideo = true;
+                            hasVideo = VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE;
+
                             break;
 
                         case AVMEDIA_TYPE_SUBTITLE:
                             SubtitlesStreams.Add(new SubtitlesStream(this, fmtCtx->streams[i]));
                             AVStreamToStream.Add(fmtCtx->streams[i]->index, SubtitlesStreams[SubtitlesStreams.Count-1]);
-                            if (SubtitlesStreams[SubtitlesStreams.Count-1].Language == Language.Get("eng")) subsHasEng = true;
+                            subsHasEng = SubtitlesStreams[SubtitlesStreams.Count-1].Language == Language.English;
+                            
                             break;
 
                         default:
@@ -499,22 +502,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             }
 
             if (!audioHasEng)
-            {
                 for (int i=0; i<AudioStreams.Count; i++)
-                {
-                    if (AudioStreams[i].Language.IdSubLanguage == "und" && (string.IsNullOrEmpty(AudioStreams[i].Language.OriginalInput) || System.Text.RegularExpressions.Regex.IsMatch(AudioStreams[i].Language.OriginalInput, "^un", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
-                        AudioStreams[i].Language = Language.Get("eng");
-                }
-            }
+                    if (AudioStreams[i].Language.Culture == null && AudioStreams[i].Language.OriginalInput == null)
+                        AudioStreams[i].Language = Language.English;
 
             if (!subsHasEng && Type == MediaType.Video)
-            {
                 for (int i=0; i<SubtitlesStreams.Count; i++)
-                {
-                    if (SubtitlesStreams[i].Language.IdSubLanguage == "und" && (string.IsNullOrEmpty(SubtitlesStreams[i].Language.OriginalInput) || System.Text.RegularExpressions.Regex.IsMatch(SubtitlesStreams[i].Language.OriginalInput, "^un", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
-                        SubtitlesStreams[i].Language = Language.Get("eng");
-                }
-            }
+                    if (SubtitlesStreams[i].Language.Culture == null && SubtitlesStreams[i].Language.OriginalInput == null)
+                        SubtitlesStreams[i].Language = Language.English;
 
             Programs = new int[0][];
             if (fmtCtx->nb_programs > 0)

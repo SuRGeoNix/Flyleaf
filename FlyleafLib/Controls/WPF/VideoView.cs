@@ -5,8 +5,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Forms.Integration;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 using FlyleafLib.MediaPlayer;
@@ -15,7 +15,7 @@ using FlyleafWF = FlyleafLib.Controls.Flyleaf;
 namespace FlyleafLib.Controls.WPF
 {
     [TemplatePart(Name = PART_PlayerGrid, Type = typeof(Grid))]
-    [TemplatePart(Name = PART_PlayerHost, Type = typeof(WindowsFormsHost))]
+    [TemplatePart(Name = PART_PlayerHost, Type = typeof(WindowsFormsHostEx))]
     [TemplatePart(Name = PART_PlayerView, Type = typeof(FlyleafWF))]
     public class VideoView : ContentControl
     {
@@ -34,7 +34,8 @@ namespace FlyleafLib.Controls.WPF
         public Grid             PlayerGrid      { get; set; }
         
         public Window           WindowBack      { get; set; }
-        public WindowsFormsHost WinFormsHost    { get; set; }   // Airspace: catch back events (key events working, mouse event not working ... the rest not tested)
+        public WindowsFormsHostEx
+                                WinFormsHost    { get; set; }   // Airspace: catch back events (key events working, mouse event not working ... the rest not tested)
         public Window           WindowFront     { get; set; }   // Airspace: catch any front events
         public int              UniqueId        { get; set; }
 
@@ -84,7 +85,7 @@ namespace FlyleafLib.Controls.WPF
             if (IsDesignMode | disposed) return;
             
             PlayerGrid  = Template.FindName(PART_PlayerGrid, this) as Grid;
-            WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHost;
+            WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHostEx;
             FlyleafWF   = Template.FindName(PART_PlayerView, this) as FlyleafWF;
 
             IsVisibleChanged                += VideoView_IsVisibleChanged;
@@ -99,7 +100,7 @@ namespace FlyleafLib.Controls.WPF
             IsUpdatingContent = true;
             try { Content= null; }
             finally { IsUpdatingContent = false; }
-
+            
             if (curContent != null)
             {
                 WindowFront = new Window();
@@ -113,7 +114,8 @@ namespace FlyleafLib.Controls.WPF
                 WindowFront.ShowInTaskbar       = false;
                 WindowFront.Content             = curContent;
                 WindowFront.Tag                 = this;
-                WindowFront.KeyDown += (o, e) => { if (e.Key == Key.System && e.SystemKey == Key.F4) WindowBack?.Focus(); };
+                WindowFront.KeyDown += (o, e)   => { if (e.Key == Key.System && e.SystemKey == Key.F4) WindowBack?.Focus(); };
+                WindowFront.Loaded  += (o, e)   => { WinFormsHost.WinFrontHandle = new WindowInteropHelper(WindowFront).Handle; };
             }
 
             if (WindowFront != null)
@@ -299,6 +301,7 @@ namespace FlyleafLib.Controls.WPF
             WindowBack.WindowState  = WindowState.Maximized;
             WindowBack.Visibility   = Visibility.Visible;
 
+            WinFormsHost.ResetRegion();
             isSwitchingState = false;
 
             return true;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -68,6 +69,18 @@ namespace FlyleafLib.Plugins
 
         public void SearchOnlineSubtitles()
         {
+            List<string> langs = new List<string>();
+
+            foreach(var lang in Config.Subtitles.Languages)
+            {
+                var oLang = CultureToOnline(lang.Culture);
+                if (oLang != null)
+                    langs.Add(oLang);
+            }
+
+            if (langs.Count == 0)
+                return;
+
             string hash = null;
             if (Selected.FileSize != 0)
                 if (Selected.IOStream != null)
@@ -82,7 +95,7 @@ namespace FlyleafLib.Plugins
                 else
                     hash = Utils.ToHexadecimal(ComputeMovieHash(Selected.Url));
 
-            Search(Selected.Title, hash, Selected.FileSize, Config.Subtitles.Languages);
+            Search(Selected.Title, hash, Selected.FileSize, langs);
         }
 
         // https://trac.OpenSubtitlesJson.org/projects/OpenSubtitlesJson/wiki/HashSourceCodes
@@ -157,14 +170,13 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
         }
-        public List<OpenSubtitlesOrgJson> SearchByIMDB(string imdbid, Language lang = null, string season = null, string episode = null)
+        public List<OpenSubtitlesOrgJson> SearchByIMDB(string imdbid, string lang, string season = null, string episode = null)
         {
-            if (lang == null) lang = Language.Get("eng");
             List<OpenSubtitlesOrgJson> subsCopy = new List<OpenSubtitlesOrgJson>();
 
-            if (cache.ContainsKey(imdbid + "|" + season + "|" + episode + lang.IdSubLanguage))
+            if (cache.ContainsKey(imdbid + "|" + season + "|" + episode + lang))
             {
-                foreach (OpenSubtitlesOrgJson sub in cache[imdbid + "|" + season + "|" + episode + lang.IdSubLanguage]) subsCopy.Add(sub);
+                foreach (OpenSubtitlesOrgJson sub in cache[imdbid + "|" + season + "|" + episode + lang]) subsCopy.Add(sub);
 
                 return subsCopy;
             }
@@ -181,14 +193,14 @@ namespace FlyleafLib.Plugins
                 {
                     string qSeason = season != null ? $"/season-{season}" : "";
                     string qEpisode = episode != null ? $"/episode-{episode}" : "";
-                    string query = $"{qEpisode}/imdbid-{imdbid}{qSeason}/sublanguageid-{lang.IdSubLanguage}";
+                    string query = $"{qEpisode}/imdbid-{imdbid}{qSeason}/sublanguageid-{lang}";
 
                     Log.Debug($"Searching for {query}");
                     resp = client.PostAsync($"{restUrl}{query}", null).Result.Content.ReadAsStringAsync().Result;
                     subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
                     Log.Debug($"Search Results {subs.Count}");
 
-                    cache.Add(imdbid + "|" + season + "|" + episode + lang.IdSubLanguage, subs);
+                    cache.Add(imdbid + "|" + season + "|" + episode + lang, subs);
                     foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
                 }
                 catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
@@ -196,14 +208,13 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
         }
-        public List<OpenSubtitlesOrgJson> SearchByName(string name, Language lang = null)
+        public List<OpenSubtitlesOrgJson> SearchByName(string name, string lang)
         {
-            if (lang == null) lang = Language.Get("eng");
             List<OpenSubtitlesOrgJson> subsCopy = new List<OpenSubtitlesOrgJson>();
 
-            if (cache.ContainsKey(name + "|" + lang.IdSubLanguage))
+            if (cache.ContainsKey(name + "|" + lang))
             {
-                foreach (OpenSubtitlesOrgJson sub in cache[name + "|" + lang.IdSubLanguage]) subsCopy.Add(sub);
+                foreach (OpenSubtitlesOrgJson sub in cache[name + "|" + lang]) subsCopy.Add(sub);
 
                 return subsCopy;
             }
@@ -218,12 +229,12 @@ namespace FlyleafLib.Plugins
 
                 try
                 {
-                    Log.Debug($"Searching for /query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}");
-                    resp = client.PostAsync($"{restUrl}/query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang.IdSubLanguage}", null).Result.Content.ReadAsStringAsync().Result;
+                    Log.Debug($"Searching for /query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}");
+                    resp = client.PostAsync($"{restUrl}/query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}", null).Result.Content.ReadAsStringAsync().Result;
                     subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
                     Log.Debug($"Search Results {subs.Count}");
 
-                    cache.Add(name + "|" + lang.IdSubLanguage, subs);
+                    cache.Add(name + "|" + lang, subs);
                     foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
                 }
                 catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
@@ -231,14 +242,14 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
         }
-        public void Search(string filename, string hash, long length, List<Language> Languages)
+        public void Search(string filename, string hash, long length, List<string> Languages)
         {
             List<OpenSubtitlesOrgJson> subs = SearchByHash(hash, length);
 
             bool imdbExists = subs != null && subs.Count > 0 && subs[0].IDMovieImdb != null && subs[0].IDMovieImdb.Trim() != "";
             bool isEpisode = imdbExists && subs[0].SeriesSeason != null && subs[0].SeriesSeason.Trim() != "" && subs[0].SeriesSeason.Trim() != "0" && subs[0].SeriesEpisode != null && subs[0].SeriesEpisode.Trim() != "" && subs[0].SeriesEpisode.Trim() != "0";
 
-            foreach (Language lang in Languages)
+            foreach (string lang in Languages)
             {
                 if (imdbExists)
                 {
@@ -275,17 +286,17 @@ namespace FlyleafLib.Plugins
                 if (!removeIds.Contains(i)) uniqueList.Add(subs[i]);
 
             subs.Clear();
-            foreach (Language lang in Languages)
+            foreach (string lang in Languages)
             {
                 IEnumerable<OpenSubtitlesOrgJson> movieHashRating =
                     from sub in uniqueList
-                    where sub.ISO639 != null && sub.ISO639 == lang.ISO639 && sub.MatchedBy.ToLower() == "moviehash"
+                    where sub.SubLanguageID == lang && sub.MatchedBy.ToLower() == "moviehash"
                     orderby float.Parse(sub.SubRating) descending
                     select sub;
 
                 IEnumerable<OpenSubtitlesOrgJson> rating =
                     from sub in uniqueList
-                    where sub.ISO639 != null && sub.ISO639 == lang.ISO639 && sub.MatchedBy.ToLower() != "moviehash"
+                    where sub.SubLanguageID == lang && sub.MatchedBy.ToLower() != "moviehash"
                     orderby float.Parse(sub.SubRating) descending
                     select sub;
 
@@ -301,12 +312,96 @@ namespace FlyleafLib.Plugins
 
                 AddExternalStream(new ExternalSubtitlesStream()
                 {
-                    Title = sub.SubFileName,
-                    Rating = rating,
-                    Language = Language.Get(sub.ISO639)
+                    Title   = sub.SubFileName,
+                    Rating  = rating,
+                    Language= Language.Get(sub.SubLanguageID)
                 }, sub);
             }
                 
         }
+
+        public static string CultureToOnline(CultureInfo cult)
+        {
+            if (cult.IetfLanguageTag.StartsWith("zh-Hant"))
+                return "zht";
+            else if (cult.IetfLanguageTag == "pt-BR")
+                return "pob";
+            else if (cult.ThreeLetterISOLanguageName == "nob")
+                return "nor";
+            else if (cult.ThreeLetterISOLanguageName == "srp")
+                return "scc";
+            else if (cult.ThreeLetterISOLanguageName == "fil")
+                return "tgl";
+
+            if (ISOX_Online.TryGetValue(cult.ThreeLetterISOLanguageName, out string retValue))
+                return retValue;
+
+            Language.ISO639_2T_TO_2B.TryGetValue(cult.ThreeLetterISOLanguageName, out string iso639_2b);
+
+            if (iso639_2b != null && ISOX_Online.TryGetValue(iso639_2b, out retValue))
+                return retValue;
+
+            return null;
+        }
+
+        // https://www.opensubtitles.org/addons/export_languages.php (UploadEnabled && WebEnabled)
+        public static readonly HashSet<string> ISOX_Online = new HashSet<string>
+        {
+            "alb",
+            "ara",
+            //"arg", no culture?
+            "arm",
+            "ast",
+            "baq",
+            "bre",
+            "bul",
+            "cat",
+            "chi",
+            "cze",
+            "dan",
+            "dut",
+            "ell",
+            "eng",
+            "epo",
+            "est",
+            "fin",
+            "fre",
+            "geo",
+            "ger",
+            "glg",
+            "heb",
+            "hin",
+            "hrv",
+            "hun",
+            "ice",
+            "ind",
+            "ita",
+            "jpn",
+            "khm",
+            "kor",
+            "mac",
+            "may",
+            "nor",
+            "oci",
+            "per",
+            "pob",
+            "pol",
+            "por",
+            "rum",
+            "rus",
+            "scc",
+            "sin",
+            "slo",
+            "slv",
+            "spa",
+            "swe",
+            "tat",
+            "tgl",
+            "tha",
+            "tur",
+            "ukr",
+            "vie",
+            "zht",
+        };
     }
 }

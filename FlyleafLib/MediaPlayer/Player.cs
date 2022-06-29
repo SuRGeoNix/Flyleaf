@@ -427,6 +427,7 @@ namespace FlyleafLib.MediaPlayer
             VideoDecoder.CodecChanged = Decoder_VideoCodecChanged;
             decoder.RecordingCompleted += (o, e) => { IsRecording = false; };
 
+            status = Status.Stopped;
             Reset();
             Log.Debug("Created");
         }
@@ -584,7 +585,6 @@ namespace FlyleafLib.MediaPlayer
             }
 
             canPlay     = false;
-            status      = Status.Stopped;
             bitRate     = 0;
             curTime     = 0;
             duration    = 0;

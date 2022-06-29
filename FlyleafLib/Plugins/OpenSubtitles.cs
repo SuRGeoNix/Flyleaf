@@ -83,7 +83,6 @@ namespace FlyleafLib.Plugins
                             Converted   = true,
                             Downloaded  = true,
                             Language    = lang
-                            //Language    = Language.Get("eng")
                         });
                     }
                 }

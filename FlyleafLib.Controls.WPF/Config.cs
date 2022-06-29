@@ -25,12 +25,12 @@ namespace FlyleafLib.Controls.WPF
         double _SubsFontSize;
         public Color        SubsFontColor   { get => _SubsFontColor;    set => Set(ref _SubsFontColor, value); }
         Color _SubsFontColor;
-        public FontStretch  SubsFontStretch { get => _SubsFontStretch;  set => Set(ref _SubsFontStretch, value); }
-        FontStretch _SubsFontStretch;
-        public FontWeight   SubsFontWeight  { get => _SubsFontWeight;   set => Set(ref _SubsFontWeight, value); }
-        FontWeight _SubsFontWeight;
-        public FontStyle    SubsFontStyle   { get => _SubsFontStyle;    set => Set(ref _SubsFontStyle, value); }
-        FontStyle _SubsFontStyle;
+        public string       SubsFontStretch { get => _SubsFontStretch;  set => Set(ref _SubsFontStretch, value); }
+        string _SubsFontStretch;
+        public string       SubsFontWeight  { get => _SubsFontWeight;       set => Set(ref _SubsFontWeight, value); }
+        string _SubsFontWeight;
+        public string       SubsFontStyle   { get => _SubsFontStyle;    set => Set(ref _SubsFontStyle, value); }
+        string _SubsFontStyle;
         public Thickness    SubsMargin      { get => _SubsMargin;       set => Set(ref _SubsMargin, value); }
         Thickness _SubsMargin;
 

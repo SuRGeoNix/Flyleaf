@@ -1019,6 +1019,68 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             return bitmap;
         }
 
+        public Bitmap GetBitmap2(VideoFrame frame)
+        {
+            if (Disposed || VideoDecoder == null || VideoDecoder.VideoStream == null)
+                return null;
+
+            try
+            {
+                var stageDesc = new Texture2DDescription()
+                {
+                    Width       = VideoDecoder.VideoStream.Width,
+                    Height      = VideoDecoder.VideoStream.Height,
+                    Format      = Format.B8G8R8A8_UNorm,
+                    ArraySize   = 1,
+                    MipLevels   = 1,
+                    BindFlags   = BindFlags.None,
+                    Usage       = ResourceUsage.Staging,
+                    CPUAccessFlags      = CpuAccessFlags.Read,
+                    SampleDescription   = new SampleDescription(1, 0)
+                };
+                ID3D11Texture2D stage = Device.CreateTexture2D(stageDesc);
+
+                var gpuDesc = new Texture2DDescription()
+                {
+                    Usage       = ResourceUsage.Default,
+                    Width       = stageDesc.Width,
+                    Height      = stageDesc.Height,
+                    Format      = Format.B8G8R8A8_UNorm,
+                    ArraySize   = 1,
+                    MipLevels   = 1,
+                    BindFlags   = BindFlags.RenderTarget | BindFlags.ShaderResource,
+                    SampleDescription   = new SampleDescription(1, 0)
+                };
+                ID3D11Texture2D gpu = Device.CreateTexture2D(gpuDesc);
+
+                ID3D11RenderTargetView gpuRtv = Device.CreateRenderTargetView(gpu);
+                Viewport viewport = new Viewport(stageDesc.Width, stageDesc.Height);
+
+                lock (lockDevice)
+                {
+                    PresentOffline(frame, gpuRtv, viewport);
+
+                    if (videoProcessor == VideoProcessors.D3D11)
+                    {
+                        vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect((int)GetViewport.X, (int)GetViewport.Y, (int)GetViewport.Width + (int)GetViewport.X, (int)GetViewport.Height + (int)GetViewport.Y));
+                        vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
+                    }
+                    //else // TBR: if we set it all time or not
+                        //context.RSSetViewport(GetViewport);
+                }
+
+                context.CopyResource(stage, gpu);
+                gpuRtv.Dispose();
+                gpu.Dispose();
+
+                Bitmap snapshotBitmap = GetBitmap(stage);
+                    
+                return snapshotBitmap;
+            } catch { }
+
+            return null;
+        }
+
         public void TakeSnapshot(string fileName, ImageFormat imageFormat = null)
         {
             if (Disposed || VideoDecoder == null || VideoDecoder.VideoStream == null)
