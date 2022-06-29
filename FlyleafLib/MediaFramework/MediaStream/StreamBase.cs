@@ -23,6 +23,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public bool                         Enabled             { get; internal set; }
         public long                         BitRate             { get; internal set; }
         public Language                     Language            { get; internal set; }
+        public string                       Title               { get; internal set; }
         public string                       Codec               { get; internal set; }
         
 
@@ -96,9 +97,17 @@ namespace FlyleafLib.MediaFramework.MediaStream
             }
 
             foreach (var kv in Metadata)
-                if (kv.Key.ToLower() == "language" || kv.Key.ToLower() == "lang") { Language = Language.Get(kv.Value); break; }
+            {
+                string keyLower = kv.Key.ToLower();
 
-            if (Language == null) Language = Language.Get("und");
+                if (Language == null && (keyLower == "language" || keyLower == "lang"))
+                    Language = Language.Get(kv.Value);
+                else if (keyLower == "title")
+                    Title = kv.Value;
+            }
+
+            if (Language == null)
+                Language = Language.Unknown;
         }
     }
 }

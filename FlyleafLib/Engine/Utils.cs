@@ -171,15 +171,15 @@ namespace FlyleafLib
         public static string GetUrlExtention(string url) { return url.LastIndexOf(".") > 0 ? url.Substring(url.LastIndexOf(".") + 1).ToLower() : ""; }
         public static List<Language> GetSystemLanguages()
         {
-            List<Language>  Languages  = new List<Language>();
-            Language        systemLang = Language.Get(CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
-            if (systemLang.LanguageName != "English") Languages.Add(systemLang);
+            List<Language> Languages = new List<Language>();
+            if (CultureInfo.CurrentCulture.ThreeLetterISOLanguageName != "eng")
+                Languages.Add(Language.Get(CultureInfo.CurrentCulture));
 
             foreach (System.Windows.Forms.InputLanguage lang in System.Windows.Forms.InputLanguage.InstalledInputLanguages)
-                if (Language.Get(lang.Culture.TwoLetterISOLanguageName).ISO639 != systemLang.ISO639 && Language.Get(lang.Culture.TwoLetterISOLanguageName).LanguageName != "English") 
-                    Languages.Add(Language.Get(lang.Culture.TwoLetterISOLanguageName));
+                if (lang.Culture.ThreeLetterISOLanguageName != CultureInfo.CurrentCulture.ThreeLetterISOLanguageName && lang.Culture.ThreeLetterISOLanguageName != "eng") 
+                    Languages.Add(Language.Get(lang.Culture));
 
-            Languages.Add(Language.Get("English"));
+            Languages.Add(Language.English);
 
             return Languages;
         }
@@ -297,6 +297,23 @@ namespace FlyleafLib
             
             return null;
         }
+
+        public static MemoryStream DownloadFile(string url, int timeoutMs = 30000)
+        {
+            MemoryStream ms = new MemoryStream();
+
+            try
+            {
+                using (HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) })
+                    client.GetAsync(url).Result.Content.CopyToAsync(ms).Wait();
+            } catch (Exception e)
+            {
+                Log($"Download failed {e.Message} [Url: {(url != null ? url : "Null")}]");
+            }
+
+            return ms;
+        }
+
         public static bool DownloadFile(string url, string filename, int timeoutMs = 30000, bool overwrite = true)
         {
             try

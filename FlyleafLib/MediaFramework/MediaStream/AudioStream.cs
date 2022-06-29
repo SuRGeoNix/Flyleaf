@@ -17,7 +17,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public string           SampleFormatStr     { get; set; }
         public int              SampleRate          { get; set; }
 
-        public override string GetDump() { return $"[{Type} #{StreamIndex}{(Language == null || Language == Language.Get("und") ? "" : "-" + Language.IdSubLanguage)}] {Codec} {SampleFormatStr}@{Bits} {SampleRate/1000}KHz {ChannelLayoutStr} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
+        public override string GetDump() { return $"[{Type} #{StreamIndex}-{Language.IdSubLanguage}{(Title != null ? "(" + Title + ")" : "")}] {Codec} {SampleFormatStr}@{Bits} {SampleRate/1000}KHz {ChannelLayoutStr} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
 
         public AudioStream() { }
         public AudioStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)

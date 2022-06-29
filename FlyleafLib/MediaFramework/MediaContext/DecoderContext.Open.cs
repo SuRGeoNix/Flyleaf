@@ -487,7 +487,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     else
                     {
                         var langs = Config.Subtitles.Languages.ToList();
-                        langs.Add(Language.Get("und"));
+                        langs.Add(Language.Unknown);
                         suggestedStream = streamIndex == -1 ? SuggestSubtitles(demuxer.SubtitlesStreams, langs) : demuxer.AVStreamToStream[streamIndex];
                     }
 
