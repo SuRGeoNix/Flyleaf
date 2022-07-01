@@ -1,9 +1,10 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms.Integration;
 using System.Windows.Media;
+
+using static FlyleafLib.Utils.NativeMethods;
 
 namespace FlyleafLib.Controls.WPF
 {
@@ -12,21 +13,11 @@ namespace FlyleafLib.Controls.WPF
     /// </summary>
     public class WindowsFormsHostEx : WindowsFormsHost
     {
-        [DllImport("User32.dll", SetLastError = true)]
-        static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
-
-        [DllImport("User32.dll", SetLastError = true)]
-        static extern int GetWindowRgn(IntPtr hWnd, IntPtr hRgn);
-
-        [DllImport("gdi32.dll")]
-        static extern IntPtr CreateRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
-        
         private PresentationSource _presentationSource;
-        private ScrollViewer ParentScrollViewer { get; set; }
-        private bool Scrolling { get; set; }
-        public bool Resizing { get; set; }
-        public IntPtr WinFrontHandle { get; set; }
-        private Visual RootVisual
+        private ScrollViewer        ParentScrollViewer  { get; set; }
+        private bool                RequiresUpdate      { get; set; }
+        public  IntPtr              WinFrontHandle      { get; set; }
+        private Visual              RootVisual
         {
             get
             {
@@ -35,16 +26,13 @@ namespace FlyleafLib.Controls.WPF
             }
         }
 
-        public WindowsFormsHostEx()
-        {
-            PresentationSource.AddSourceChangedHandler(this, SourceChangedEventHandler);
-        }
+        public WindowsFormsHostEx() => PresentationSource.AddSourceChangedHandler(this, SourceChangedEventHandler);
 
         protected override void OnWindowPositionChanged(Rect rcBoundingBox)
         {
             base.OnWindowPositionChanged(rcBoundingBox);
 
-            if (ParentScrollViewer == null || (!Scrolling && !Resizing))
+            if (ParentScrollViewer == null || !RequiresUpdate)
                 return;
 
             DpiScale dpiScale = VisualTreeHelper.GetDpi(this);
@@ -72,53 +60,25 @@ namespace FlyleafLib.Controls.WPF
             int y2 = (int)Math.Round(finalRect.Bottom);
 
             SetRegion(x1, y1, x2, y2);
-            Scrolling = false;
-            Resizing = false;
-        }
-
-        private void ParentScrollViewer_Loaded(object sender, RoutedEventArgs e)
-        {
-            Resizing = true;
-        }
-
-        private void ParentScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            Resizing = true;
-        }
-
-        private void ParentScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
-        {
-            if (e.VerticalChange != 0 || e.HorizontalChange != 0 || e.ExtentHeightChange != 0 || e.ExtentWidthChange != 0)
-                Scrolling = true;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-
-            if (disposing)
-            {
-                PresentationSource.RemoveSourceChangedHandler(this, SourceChangedEventHandler);
-                _presentationSource = null;
-            }
+            RequiresUpdate = false;
         }
 
         private void SourceChangedEventHandler(Object sender, SourceChangedEventArgs e)
         {
             if (ParentScrollViewer != null)
             {
-                ParentScrollViewer.ScrollChanged -= ParentScrollViewer_ScrollChanged;
-                ParentScrollViewer.SizeChanged -= ParentScrollViewer_SizeChanged;
-                ParentScrollViewer.Loaded -= ParentScrollViewer_Loaded;
+                ParentScrollViewer.ScrollChanged-= ParentScrollViewer_ScrollChanged;
+                ParentScrollViewer.SizeChanged  -= ParentScrollViewer_SizeChanged;
+                ParentScrollViewer.Loaded       -= ParentScrollViewer_Loaded;
             }
 
             ParentScrollViewer = FindParentScrollViewer();
 
             if (ParentScrollViewer != null)
             {
-                ParentScrollViewer.ScrollChanged += ParentScrollViewer_ScrollChanged;
-                ParentScrollViewer.SizeChanged += ParentScrollViewer_SizeChanged;
-                ParentScrollViewer.Loaded += ParentScrollViewer_Loaded;
+                ParentScrollViewer.ScrollChanged+= ParentScrollViewer_ScrollChanged;
+                ParentScrollViewer.SizeChanged  += ParentScrollViewer_SizeChanged;
+                ParentScrollViewer.Loaded       += ParentScrollViewer_Loaded;
             }
             else
                 ResetRegion();
@@ -160,7 +120,7 @@ namespace FlyleafLib.Controls.WPF
                 SetWindowRgn(WinFrontHandle, hRgn, true);
         }
 
-        public static  Rect ScaleRectDownFromDPI(Rect _sourceRect, DpiScale dpiScale)
+        public static Rect ScaleRectDownFromDPI(Rect _sourceRect, DpiScale dpiScale)
         {
             double dpiX = dpiScale.DpiScaleX;
             double dpiY = dpiScale.DpiScaleY;
@@ -173,6 +133,26 @@ namespace FlyleafLib.Controls.WPF
             double dpiY = dpiScale.DpiScaleY;
             return new Rect(new Point(_toScaleUp.X * dpiX, _toScaleUp.Y * dpiY), new Size(_toScaleUp.Width * dpiX, _toScaleUp.Height * dpiY));
         }
-        
+
+        private void ParentScrollViewer_Loaded(object sender, RoutedEventArgs e)            => RequiresUpdate = true;
+
+        private void ParentScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)  => RequiresUpdate = true;
+
+        private void ParentScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (e.VerticalChange != 0 || e.HorizontalChange != 0 || e.ExtentHeightChange != 0 || e.ExtentWidthChange != 0)
+                RequiresUpdate = true;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+
+            if (disposing)
+            {
+                PresentationSource.RemoveSourceChangedHandler(this, SourceChangedEventHandler);
+                _presentationSource = null;
+            }
+        }
     }
 }
