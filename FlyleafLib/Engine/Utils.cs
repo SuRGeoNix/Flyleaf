@@ -478,6 +478,15 @@ namespace FlyleafLib
             [DllImport("user32.dll")]
             public static extern bool GetWindowRect(IntPtr hwnd, ref RECT rectangle);
 
+            [DllImport("User32.dll", SetLastError = true)]
+            public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
+
+            [DllImport("User32.dll", SetLastError = true)]
+            public static extern int GetWindowRgn(IntPtr hWnd, IntPtr hRgn);
+
+            [DllImport("gdi32.dll")]
+            public static extern IntPtr CreateRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
+
             [StructLayout(LayoutKind.Sequential)]
             public struct WINDOWINFO
             {
