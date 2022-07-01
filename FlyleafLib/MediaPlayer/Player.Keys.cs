@@ -498,12 +498,14 @@ namespace FlyleafLib.MediaPlayer
         }
         private static HashSet<KeyBindingAction> isKeyUpBinding = new HashSet<KeyBindingAction>
         {
+            // TODO: Should Fire once one KeyDown and not again until KeyUp is fired (in case of Tasks keep track of already running actions?)
+
             // Having issues with alt/ctrl/shift (should save state of alt/ctrl/shift on keydown and not checked on keyup)
 
             //{ KeyBindingAction.OpenFromClipboard },
             { KeyBindingAction.OpenFromFileDialog },
             //{ KeyBindingAction.CopyToClipboard },
-            //{ KeyBindingAction.TakeSnapshot },
+            { KeyBindingAction.TakeSnapshot },
             { KeyBindingAction.NormalScreen },
             { KeyBindingAction.FullScreen },
             { KeyBindingAction.ToggleFullScreen },

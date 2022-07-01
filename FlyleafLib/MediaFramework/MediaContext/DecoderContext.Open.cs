@@ -373,13 +373,15 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     return args;
 
                 if (defaultVideo && Config.Video.Enabled)
-                    OpenSuggestedVideo(defaultAudio);
+                    args.Error = OpenSuggestedVideo(defaultAudio);
                 else if (defaultAudio && Config.Audio.Enabled)
-                    OpenSuggestedAudio();
+                    args.Error = OpenSuggestedAudio();
 
                 if ((defaultVideo || defaultAudio) && AudioStream == null && VideoStream == null)
                 {
-                    args.Error = "No audio/video found";
+                    if (args.Error == null)
+                        args.Error = "No audio/video found";
+
                     return args;
                 }
 
@@ -646,10 +648,11 @@ namespace FlyleafLib.MediaFramework.MediaContext
             }
         }
 
-        public void OpenSuggestedVideo(bool defaultAudio = false)
+        public string OpenSuggestedVideo(bool defaultAudio = false)
         {
             VideoStream stream;
             ExternalVideoStream extStream;
+            string error = null;
 
             if (ClosedVideoStream != null)
             {
@@ -657,10 +660,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 extStream = ClosedVideoStream.Item1;
                 if (extStream != null)
-                {
-                    Open(extStream, false, ClosedVideoStream.Item2 >= 0 ? ClosedVideoStream.Item2 : -1);
-                    return;
-                }
+                    return Open(extStream, false, ClosedVideoStream.Item2 >= 0 ? ClosedVideoStream.Item2 : -1).Error;
 
                 stream = ClosedVideoStream.Item2 >= 0 ? (VideoStream)VideoDemuxer.AVStreamToStream[ClosedVideoStream.Item2] : null;
             }
@@ -668,16 +668,19 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 SuggestVideo(out stream, out extStream, VideoDemuxer.VideoStreams);
 
             if (stream != null)
-                Open(stream, defaultAudio);
+                error = Open(stream, defaultAudio).Error;
             else if (extStream != null)
-                Open(extStream, defaultAudio);
+                error = Open(extStream, defaultAudio).Error;
             else if (defaultAudio)
-                OpenSuggestedAudio(); // We still need audio if no video exists
+                error = OpenSuggestedAudio(); // We still need audio if no video exists
+
+            return error;
         }
-        public void OpenSuggestedAudio()
+        public string OpenSuggestedAudio()
         {
             AudioStream stream = null;
             ExternalAudioStream extStream = null;
+            string error = null;
 
             if (ClosedAudioStream != null)
             {
@@ -685,10 +688,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 extStream = ClosedAudioStream.Item1;
                 if (extStream != null)
-                {
-                    Open(extStream, false, ClosedAudioStream.Item2 >= 0 ? ClosedAudioStream.Item2 : -1);
-                    return;
-                }
+                    return Open(extStream, false, ClosedAudioStream.Item2 >= 0 ? ClosedAudioStream.Item2 : -1).Error;
 
                 stream = ClosedAudioStream.Item2 >= 0 ? (AudioStream)VideoDemuxer.AVStreamToStream[ClosedAudioStream.Item2] : null;
             }
@@ -696,9 +696,11 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 SuggestAudio(out stream, out extStream, VideoDemuxer.AudioStreams);
 
             if (stream != null)
-                Open(stream);
+                error = Open(stream).Error;
             else if (extStream != null)
-                Open(extStream);
+                error = Open(extStream).Error;
+
+            return error;
         }
         public void OpenSuggestedSubtitles()
         {
