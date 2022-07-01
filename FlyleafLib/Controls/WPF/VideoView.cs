@@ -115,7 +115,7 @@ namespace FlyleafLib.Controls.WPF
                 WindowFront.Content             = curContent;
                 WindowFront.Tag                 = this;
                 WindowFront.KeyDown += (o, e)   => { if (e.Key == Key.System && e.SystemKey == Key.F4) WindowBack?.Focus(); };
-                WindowFront.Loaded  += (o, e)   => { WinFormsHost.WinFrontHandle = new WindowInteropHelper(WindowFront).Handle; };
+                WindowFront.Loaded  += (o, e)   => { WinFormsHost.WinFrontHandle = new WindowInteropHelper(WindowFront).Handle; WinFormsHost.RefreshFront(); };
             }
 
             if (WindowFront != null)
@@ -301,7 +301,6 @@ namespace FlyleafLib.Controls.WPF
             WindowBack.WindowState  = WindowState.Maximized;
             WindowBack.Visibility   = Visibility.Visible;
 
-            WinFormsHost.ResetRegion();
             isSwitchingState = false;
 
             return true;

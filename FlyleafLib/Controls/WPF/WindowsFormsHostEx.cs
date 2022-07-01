@@ -15,6 +15,9 @@ namespace FlyleafLib.Controls.WPF
         [DllImport("User32.dll", SetLastError = true)]
         static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
 
+        [DllImport("User32.dll", SetLastError = true)]
+        static extern int GetWindowRgn(IntPtr hWnd, IntPtr hRgn);
+
         [DllImport("gdi32.dll")]
         static extern IntPtr CreateRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
         
@@ -67,7 +70,7 @@ namespace FlyleafLib.Controls.WPF
             int y1 = (int)Math.Round(finalRect.Y);
             int x2 = (int)Math.Round(finalRect.Right);
             int y2 = (int)Math.Round(finalRect.Bottom);
-                
+
             SetRegion(x1, y1, x2, y2);
             Scrolling = false;
             Resizing = false;
@@ -117,6 +120,8 @@ namespace FlyleafLib.Controls.WPF
                 ParentScrollViewer.SizeChanged += ParentScrollViewer_SizeChanged;
                 ParentScrollViewer.Loaded += ParentScrollViewer_Loaded;
             }
+            else
+                ResetRegion();
         }
 
         private ScrollViewer FindParentScrollViewer()
@@ -146,6 +151,13 @@ namespace FlyleafLib.Controls.WPF
             SetWindowRgn(Handle, IntPtr.Zero, true);
             if (WinFrontHandle != IntPtr.Zero)
                 SetWindowRgn(WinFrontHandle, IntPtr.Zero, true);
+        }
+
+        public void RefreshFront()
+        {
+            IntPtr hRgn = CreateRectRgn(0, 0, 0, 0);
+            if (GetWindowRgn(Handle, hRgn) != 0)
+                SetWindowRgn(WinFrontHandle, hRgn, true);
         }
 
         public static  Rect ScaleRectDownFromDPI(Rect _sourceRect, DpiScale dpiScale)
