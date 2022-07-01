@@ -76,6 +76,7 @@ namespace FlyleafLib.Controls.WPF
 
             if (ParentScrollViewer != null)
             {
+                RequiresUpdate = true;
                 ParentScrollViewer.ScrollChanged+= ParentScrollViewer_ScrollChanged;
                 ParentScrollViewer.SizeChanged  += ParentScrollViewer_SizeChanged;
                 ParentScrollViewer.Loaded       += ParentScrollViewer_Loaded;
