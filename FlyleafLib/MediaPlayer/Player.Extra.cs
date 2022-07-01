@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing.Imaging;
 using System.IO;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
@@ -316,11 +317,15 @@ namespace FlyleafLib.MediaPlayer
         }
 
         /// <summary>
-        /// Saves the current video frame (encoding based on format extention)
-        /// If filename not specified will use Config.Player.FolderSnapshots and with default filename title_frameNumber.Config.Player.SnapshotFormat
+        /// <para>Saves the current video frame (encoding based on file extention .bmp, .png, .jpg)</para>
+        /// <para>If filename not specified will use Config.Player.FolderSnapshots and with default filename title_frameNumber.ext (ext from Config.Player.SnapshotFormat)</para>
+        /// <para>If width/height not specified will use the original size. If one of them will be set, the other one will be set based on original ratio</para>
         /// </summary>
         /// <param name="filename"></param>
-        public void TakeSnapshot(string filename = null)
+        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
+        /// <param name="width">Specify the width (-1: will keep the ratio based on height)</param>
+        /// <exception cref="Exception"></exception>
+        public void TakeSnapshot(string filename = null, int height = -1, int width = -1)
         {
             if (!CanPlay) return;
 
@@ -338,24 +343,28 @@ namespace FlyleafLib.MediaPlayer
 
             string ext = GetUrlExtention(filename);
 
+            ImageFormat imageFormat;
+
             switch (ext)
             {
                 case "bmp":
-                    renderer?.TakeSnapshot(filename, System.Drawing.Imaging.ImageFormat.Bmp);
+                    imageFormat = ImageFormat.Bmp;
                     break;
 
                 case "png":
-                    renderer?.TakeSnapshot(filename, System.Drawing.Imaging.ImageFormat.Png);
+                    imageFormat = ImageFormat.Png;
                     break;
 
                 case "jpg":
                 case "jpeg":
-                    renderer?.TakeSnapshot(filename, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    imageFormat = ImageFormat.Jpeg;
                     break;
 
                 default:
                     throw new Exception($"Invalid snapshot extention '{ext}' (valid .bmp, .png, .jpeg, .jpg");
             }
+
+            renderer?.TakeSnapshot(filename, imageFormat, height, width);
         }
 
         public void ZoomIn()

@@ -26,6 +26,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
      * 1) Attach on every frame video output configuration so we will not have to worry for video codec change etc.
      *      this will fix also dynamic video stream change
      *      we might have issue with bufRef / ffmpeg texture array on zero copy
+     *      
+     * 2) Use different context/video processor for off rendering so we dont have to reset pixel shaders/viewports etc (review also rtvs for extractor)
      */
 
     public unsafe partial class Renderer : NotifyPropertyChanged, IDisposable
@@ -829,8 +831,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (videoProcessor == VideoProcessors.D3D11)
                 {
                     vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out ID3D11VideoProcessorOutputView vpov);
-                    vc.VideoProcessorSetStreamDestRect(vp, 0, true, VideoRect);
-                    vc.VideoProcessorSetOutputTargetRect(vp, true, VideoRect);
+                    
+
+                    RawRect rect = new RawRect((int)viewport.X, (int)viewport.Y, (int)(viewport.Width + viewport.X), (int)(viewport.Height + viewport.Y));
+                    vc.VideoProcessorSetStreamSourceRect(vp, 0, true, VideoRect);
+                    vc.VideoProcessorSetStreamDestRect(vp, 0, true, rect);
+                    vc.VideoProcessorSetOutputTargetRect(vp, true, rect);
 
                     if (frame.bufRef != null)
                     {
@@ -850,10 +856,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
                     vpiv.Dispose();
                     vpov.Dispose();
-
-                    RawRect rect = new RawRect((int)viewport.X, (int)viewport.Y, (int)(viewport.Width - viewport.X), (int)(viewport.Height - viewport.Y));
-                    vc.VideoProcessorSetStreamDestRect(vp, 0, true, rect);
-                    vc.VideoProcessorSetOutputTargetRect(vp, true, rect);
                 }
                 else
                 {
@@ -1019,17 +1021,34 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             return bitmap;
         }
 
-        public Bitmap GetBitmap2(VideoFrame frame)
+        /// <summary>
+        /// Gets bitmap from a video frame
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <param name="height"></param>
+        /// <param name="width"></param>
+        /// <returns></returns>
+        public Bitmap GetBitmap2(VideoFrame frame, int height = -1, int width = -1)
         {
-            if (Disposed || VideoDecoder == null || VideoDecoder.VideoStream == null)
-                return null;
-
             try
             {
+                if (Disposed || VideoDecoder == null || VideoDecoder.VideoStream == null)
+                    return null;
+
+                if (width == -1 && height == -1)
+                {
+                    width = VideoDecoder.VideoStream.Width;
+                    height = VideoDecoder.VideoStream.Height;
+                }
+                else if (width != -1 && height == -1)
+                    height = (int) (width / curRatio);
+                else if (height != -1 && width == -1)
+                    width = (int) (height * curRatio);
+
                 var stageDesc = new Texture2DDescription()
                 {
-                    Width       = VideoDecoder.VideoStream.Width,
-                    Height      = VideoDecoder.VideoStream.Height,
+                    Width       = width,
+                    Height      = height,
                     Format      = Format.B8G8R8A8_UNorm,
                     ArraySize   = 1,
                     MipLevels   = 1,
@@ -1061,86 +1080,29 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     PresentOffline(frame, gpuRtv, viewport);
 
                     if (videoProcessor == VideoProcessors.D3D11)
-                    {
-                        vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect((int)GetViewport.X, (int)GetViewport.Y, (int)GetViewport.Width + (int)GetViewport.X, (int)GetViewport.Height + (int)GetViewport.Y));
-                        vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
-                    }
-                    //else // TBR: if we set it all time or not
-                        //context.RSSetViewport(GetViewport);
+                        SetViewport();
                 }
 
                 context.CopyResource(stage, gpu);
                 gpuRtv.Dispose();
                 gpu.Dispose();
 
-                Bitmap snapshotBitmap = GetBitmap(stage);
-                    
-                return snapshotBitmap;
+                return GetBitmap(stage);
             } catch { }
 
             return null;
         }
 
-        public void TakeSnapshot(string fileName, ImageFormat imageFormat = null)
+        public void TakeSnapshot(string fileName, ImageFormat imageFormat = null, int height = -1, int width = -1)
         {
-            if (Disposed || VideoDecoder == null || VideoDecoder.VideoStream == null)
-                return;
-
             Task.Run(() =>
             {
-                try
+                Bitmap snapshotBitmap = GetBitmap2(LastFrame, height, width);
+                if (snapshotBitmap != null)
                 {
-                    var stageDesc = new Texture2DDescription()
-                    {
-                        Width       = VideoDecoder.VideoStream.Width,
-                        Height      = VideoDecoder.VideoStream.Height,
-                        Format      = Format.B8G8R8A8_UNorm,
-                        ArraySize   = 1,
-                        MipLevels   = 1,
-                        BindFlags   = BindFlags.None,
-                        Usage       = ResourceUsage.Staging,
-                        CPUAccessFlags      = CpuAccessFlags.Read,
-                        SampleDescription   = new SampleDescription(1, 0)
-                    };
-                    ID3D11Texture2D stage = Device.CreateTexture2D(stageDesc);
-
-                    var gpuDesc = new Texture2DDescription()
-                    {
-                        Usage       = ResourceUsage.Default,
-                        Width       = stageDesc.Width,
-                        Height      = stageDesc.Height,
-                        Format      = Format.B8G8R8A8_UNorm,
-                        ArraySize   = 1,
-                        MipLevels   = 1,
-                        BindFlags   = BindFlags.RenderTarget | BindFlags.ShaderResource,
-                        SampleDescription   = new SampleDescription(1, 0)
-                    };
-                    ID3D11Texture2D gpu = Device.CreateTexture2D(gpuDesc);
-
-                    ID3D11RenderTargetView gpuRtv = Device.CreateRenderTargetView(gpu);
-                    Viewport viewport = new Viewport(stageDesc.Width, stageDesc.Height);
-
-                    lock (lockDevice)
-                    {
-                        PresentOffline(LastFrame, gpuRtv, viewport);
-
-                        if (videoProcessor == VideoProcessors.D3D11)
-                        {
-                            vc.VideoProcessorSetStreamDestRect(vp, 0, true, new RawRect((int)GetViewport.X, (int)GetViewport.Y, (int)GetViewport.Width + (int)GetViewport.X, (int)GetViewport.Height + (int)GetViewport.Y));
-                            vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
-                        }
-                        //else // TBR: if we set it all time or not
-                            //context.RSSetViewport(GetViewport);
-                    }
-
-                    context.CopyResource(stage, gpu);
-                    gpuRtv.Dispose();
-                    gpu.Dispose();
-
-                    Bitmap snapshotBitmap = GetBitmap(stage);
                     try { snapshotBitmap.Save(fileName, imageFormat == null ? ImageFormat.Bmp : imageFormat); } catch (Exception) { }
                     snapshotBitmap.Dispose();
-                } catch { }
+                }
             });
         }
     }
