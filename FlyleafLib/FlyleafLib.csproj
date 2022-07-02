@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.5.6</Version>
+	<Version>3.5.7</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Config: Fixes clone implementation
-		* Demuxer/Screamer: Improves EOF without raising errors in some cases
-		* M3UPlaylist: Fixes an issue with Tags
-		* Mouse: Fixes an issue with WinMoveOnDrag (sometimes it was moving the window when it should not)
-		* Remuxer: Fixes a possible issue with TS extension by adding it manually on the demuxer
-		* Renderer: Allows D3D11 to play HDR videos (even if does not support it yet) when forced as VP
-		* VideoView: Binds VideoViews visibility with the Foreground Window
+		* Overall: UI update improvements
+        * VideoView: Fixes an issue with WindowsFormsHost and Front Window within a Scroll Viewer
+        * Renderer: Introduces Player.renderer.GetBitmap which can be used in parallel with rendering to retrieve (and resize if required) a gpu texture
+        * TakeSnapshot: Improvements and adds resize on gpu support
+        * Languages: Better handling of audio, subtitles and online subtitles languages (using windows cultures)
+        * Config: Introduces Config.Video.ClearScreenOnOpen to allow the last frame to be presented until the new open has been completed
+        * Config: Introduces Config.Video.Swap10Bit to use 10-bit instead of 8-bit swap chain
+        * Config: Introduces Config.Video.SwapBuffers to manually set render's swap chain buffers
 	</PackageReleaseNotes>
   </PropertyGroup>
 

@@ -949,19 +949,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             try
             {
-                if (Disposed || VideoDecoder == null || VideoDecoder.VideoStream == null)
-                    return null;
-
                 if (frame == null)
                     frame = LastFrame;
 
-                if (frame == null)
+                if (Disposed || frame == null || (frame.textures == null && LastFrame.bufRef == null))
                     return null;
 
                 if (width == -1 && height == -1)
                 {
-                    width = VideoDecoder.VideoStream.Width;
-                    height = VideoDecoder.VideoStream.Height;
+                    width = VideoRect.Right;
+                    height = VideoRect.Bottom;
                 }
                 else if (width != -1 && height == -1)
                     height = (int) (width / curRatio);
