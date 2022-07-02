@@ -112,11 +112,13 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         private void OnOpenCompleted(OpenCompletedArgs args = null)
         {
+            VideoDecoder.Renderer?.ClearScreen();
             if (CanInfo) Log.Info($"[Open] {(args.Url != null ? args.Url : "None")} {(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             OpenCompleted?.Invoke(this, args);
         }
         private void OnOpenSessionCompleted(OpenSessionCompletedArgs args = null)
         {
+            VideoDecoder.Renderer?.ClearScreen();
             if (CanInfo) Log.Info($"[OpenSession] {(args.Session.Url != null ? args.Session.Url : "None")} - Item: {args.Session.PlaylistItem} {(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             OpenSessionCompleted?.Invoke(this, args);
         }
@@ -127,6 +129,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         private void OnOpenPlaylistItemCompleted(OpenPlaylistItemCompletedArgs args = null)
         {
+            VideoDecoder.Renderer?.ClearScreen();
             if (CanInfo) Log.Info($"[OpenPlaylistItem] {(args.OldItem != null ? args.OldItem.Title : "None")} => {(args.Item != null ? args.Item.Title : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
             OpenPlaylistItemCompleted?.Invoke(this, args);
         }
@@ -368,7 +371,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 if (Playlist.Selected.Url != null || Playlist.Selected.IOStream != null)
                     args.Error = OpenDemuxerInput(VideoDemuxer, Playlist.Selected);
-
+                
                 if (!args.Success)
                     return args;
 
@@ -538,7 +541,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         private StreamOpenedArgs Open(StreamBase stream, bool defaultAudio = false)
         {
             StreamOpenedArgs args = null;
-
+            
             try
             {
                 lock (stream.Demuxer.lockFmtCtx)
@@ -920,6 +923,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             }
 
             VideoDecoder.Dispose(true);
+            VideoDecoder.Renderer?.ClearScreen();
         }
         public void CloseSubtitles()
         {

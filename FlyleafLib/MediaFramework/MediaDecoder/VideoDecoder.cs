@@ -1085,10 +1085,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             }
         }
 
-        public void DisposeVA()
-        {
-            Renderer?.Dispose();
-        }
+        public void DisposeVA() => Renderer?.Dispose();
         public void DisposeFrames()
         {
             while (!Frames.IsEmpty)
@@ -1147,9 +1144,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             lock (lockCodecCtx)
             {
                 DisposeFrames();
-
-                if (Renderer != null)
-                    DisposeFrame(Renderer.LastFrame);
 
                 if (codecCtx != null)
                 {

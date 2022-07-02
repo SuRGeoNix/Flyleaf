@@ -463,6 +463,11 @@ namespace FlyleafLib
             internal Vortice.Mathematics.Color _BackgroundColor = (Vortice.Mathematics.Color)Vortice.Mathematics.Colors.Black;
 
             /// <summary>
+            /// Delays the clear screen of the last frame until the new input has been opened
+            /// </summary>
+            public bool             ClearScreenOnOpen           { get; set; }
+
+            /// <summary>
             /// Whether video should be allowed
             /// </summary>
             public bool             Enabled                     { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.Video.Enable(); else player?.Video.Disable(); } }

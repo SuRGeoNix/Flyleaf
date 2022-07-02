@@ -155,7 +155,7 @@ namespace FlyleafExtractor
         public void SaveFrame(VideoFrame frame, int frameNumber)
         {
             if (frame == null) return;
-            Bitmap bmp = VideoDecoder.Renderer.GetBitmap(frame);
+            Bitmap bmp = VideoDecoder.Renderer.ExtractFrame(frame);
             string fullpath = Path.Combine(txtSavePath.Text, $"{Filename}_{frameNumber + 1}.{Extension}");
             bmp.Save(fullpath, ImageFormat);
             bmp.Dispose();

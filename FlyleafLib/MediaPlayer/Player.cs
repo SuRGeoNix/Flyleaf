@@ -577,13 +577,6 @@ namespace FlyleafLib.MediaPlayer
 
         private void ResetMe()
         {
-            if (renderer != null)
-            {
-                // TBR: Probably we just need to clear the screen with config's backcolor sometimes but render can be disposed
-                renderer.DisableRendering = true;
-                renderer.Present();
-            }
-
             canPlay     = false;
             bitRate     = 0;
             curTime     = 0;
@@ -627,7 +620,7 @@ namespace FlyleafLib.MediaPlayer
                 while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
 
                 if (andDecoder)
-                    decoder.Stop();
+                    decoder.Initialize();
 
                 Reset();
                 VideoDemuxer.DisableReversePlayback();

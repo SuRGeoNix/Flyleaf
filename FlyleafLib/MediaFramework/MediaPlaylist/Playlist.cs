@@ -1,7 +1,8 @@
-﻿using FlyleafLib.MediaFramework.MediaContext;
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.IO;
+
+using FlyleafLib.MediaFramework.MediaContext;
 
 using static FlyleafLib.Utils;
 
@@ -12,7 +13,7 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
         /// <summary>
         /// Url provided by user
         /// </summary>
-        public string       Url             { get => _Url;   set { string fixedUrl = Utils.FixFileUrl(value); SetUI(ref _Url, fixedUrl); } }
+        public string       Url             { get => _Url;   set { string fixedUrl = FixFileUrl(value); SetUI(ref _Url, fixedUrl); } }
         string _Url;
 
         /// <summary>
