@@ -118,6 +118,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
         public void Initialize()
         {
+            if (!Config.Video.ClearScreenOnOpen)
+                VideoDecoder.Renderer?.ClearScreen();
+
             RequiresResync = false;
 
             OnInitializing();
@@ -126,6 +129,9 @@ namespace FlyleafLib.MediaFramework.MediaContext
         }
         public void InitializeSwitch()
         {
+            if (!Config.Video.ClearScreenOnOpen)
+                VideoDecoder.Renderer?.ClearScreen();
+
             RequiresResync = false;
             ClosedAudioStream = null;
             ClosedVideoStream = null;

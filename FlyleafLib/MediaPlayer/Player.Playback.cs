@@ -86,7 +86,7 @@ namespace FlyleafLib.MediaPlayer
                     vFrame = null;
                         
                     if (Status == Status.Stopped)
-                        decoder?.Stop();
+                        decoder?.Initialize();
                     else if (decoder != null) 
                     {
                         decoder.PauseOnQueueFull();

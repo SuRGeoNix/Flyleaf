@@ -37,7 +37,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         internal IntPtr ControlHandle; // When we re-created the swapchain so we don't access the control (which requires UI thread)
 
         public ID3D11Device     Device          { get; private set; }
-        public bool             DisableRendering{ get; set; }
         public bool             Disposed        { get; private set; } = true;
         public RendererInfo     AdapterInfo     { get; internal set; }
         public int              MaxOffScreenTextures
@@ -46,11 +45,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public Viewport         GetViewport     { get; private set; }
 
-        public int              PanXOffset      { get => panXOffset; set { panXOffset = value; SetViewport(); } }
+        public int              PanXOffset      { get => panXOffset; set { panXOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int panXOffset;
-        public int              PanYOffset      { get => panYOffset; set { panYOffset = value; SetViewport(); } }
+        public int              PanYOffset      { get => panYOffset; set { panYOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int panYOffset;
-        public int              Zoom            { get => zoom;       set { zoom       = value; SetViewport(); } }
+        public int              Zoom            { get => zoom;       set { zoom       = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int zoom;
         public int              UniqueId        { get; private set; }
 
@@ -561,6 +560,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     };
                 }
 
+                VideoDecoder.DisposeFrame(LastFrame);
                 VideoRect = new RawRect(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height);
 
                 if (Control != null)
@@ -645,7 +645,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             else
                 GetViewport = new Viewport(0 - zoom + PanXOffset, ((Control.Height - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
 
-            if (videoProcessor == VideoProcessors.D3D11 && VideoDecoder.VideoStream != null)
+            if (videoProcessor == VideoProcessors.D3D11)
             {
                 RawRect src, dst;
 
@@ -657,19 +657,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
                 else
                 {
-                    try // Possible VideoDecoder.VideoStream == null
-                    {
-                        Height = VideoDecoder.VideoStream.Height;
-                        Width  = VideoDecoder.VideoStream.Width;
-                        if (GetViewport.Y + GetViewport.Height > Control.Height)
-                            Height = (int) (VideoDecoder.VideoStream.Height- ((GetViewport.Y + GetViewport.Height - Control.Height)* (VideoDecoder.VideoStream.Height / GetViewport.Height)));
+                    if (GetViewport.Y + GetViewport.Height > Control.Height)
+                        Height = (int) (VideoRect.Bottom- ((GetViewport.Y + GetViewport.Height - Control.Height)* (VideoRect.Bottom / GetViewport.Height)));
+                    else
+                        Height = VideoRect.Bottom;
 
-                        if (GetViewport.X + GetViewport.Width > Control.Width)
-                            Width = (int) (VideoDecoder.VideoStream.Width  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoDecoder.VideoStream.Width / GetViewport.Width)));
+                    if (GetViewport.X + GetViewport.Width > Control.Width)
+                        Width = (int) (VideoRect.Right  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoRect.Right / GetViewport.Width)));
+                    else
+                        Width  = VideoRect.Right;
 
-                        src = new RawRect((int) (Math.Min(GetViewport.X, 0f) * ((float)VideoDecoder.VideoStream.Width / (float)GetViewport.Width) * -1f), (int) (Math.Min(GetViewport.Y, 0f) * ((float)VideoDecoder.VideoStream.Height / (float)GetViewport.Height) * -1f), Width, Height);
-                        dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, Control.Width), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, Control.Height));
-                    } catch { return; }
+                    src = new RawRect((int) (Math.Min(GetViewport.X, 0f) * ((float)VideoRect.Right / (float)GetViewport.Width) * -1f), (int) (Math.Min(GetViewport.Y, 0f) * ((float)VideoRect.Bottom / (float)GetViewport.Height) * -1f), Width, Height);
+                    dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, Control.Width), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, Control.Height));   
                 }
 
                 vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
@@ -823,7 +822,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     curSRVs[i].Dispose();
             }
         }
-
         internal void PresentOffline(VideoFrame frame, ID3D11RenderTargetView rtv, Viewport viewport)
         {
             if (VideoDecoder.VideoAccelerated)
@@ -916,7 +914,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         if (Control != null)
                             Control.BackColor = Utils.WPFToWinFormsColor(Config.Video.BackgroundColor);
                     }
-                    else if (!DisableRendering && LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
+                    else if (LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
                         PresentInternal(LastFrame);
                     else
                     {
@@ -934,105 +932,30 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
             }
         }
-
-        /// <summary>
-        /// Gets bitmap from a video frame
-        /// (Currently cannot be used in parallel with the rendering)
-        /// </summary>
-        /// <param name="frame"></param>
-        /// <returns></returns>
-        public Bitmap GetBitmap(VideoFrame frame)
+        public void ClearScreen()
         {
-            if (Device == null || frame == null) return null;
-
-            int subresource = -1;
-
-            var stageDesc = new Texture2DDescription()
-            {
-                Usage       = ResourceUsage.Staging,
-                Width       = VideoDecoder.VideoStream.Width,
-                Height      = VideoDecoder.VideoStream.Height,
-                Format      = Format.B8G8R8A8_UNorm,
-                ArraySize   = 1,
-                MipLevels   = 1,
-                BindFlags   = BindFlags.None,
-                CPUAccessFlags      = CpuAccessFlags.Read,
-                SampleDescription   = new SampleDescription(1, 0)
-            };
-            ID3D11Texture2D stage = Device.CreateTexture2D(stageDesc);
-
-            lock (lockDevice)
-            {
-                while (true)
-                {
-                    for (int i=0; i<MaxOffScreenTextures; i++)
-                        if (!backBuffer2busy[i]) { subresource = i; break;}
-
-                    if (subresource != -1)
-                        break;
-                    else
-                        Thread.Sleep(5);
-                }
-
-                backBuffer2busy[subresource] = true;
-                PresentOffline(frame, rtv2[subresource], new Viewport(backBuffer2[subresource].Description.Width, backBuffer2[subresource].Description.Height));
-                VideoDecoder.DisposeFrame(frame);
-
-                if (curSRVs != null)
-                {
-                    for (int i=0; i<curSRVs.Length; i++)
-                        curSRVs[i]?.Dispose();
-
-                    curSRVs = null;
-                }
-
-                context.CopyResource(stage, backBuffer2[subresource]);
-                backBuffer2busy[subresource] = false;
-            }
-
-            return GetBitmap(stage);
-        }
-        public Bitmap GetBitmap(ID3D11Texture2D stageTexture)
-        {
-            Bitmap bitmap   = new Bitmap(stageTexture.Description.Width, stageTexture.Description.Height);
-            var db          = context.Map(stageTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
-            var bitmapData  = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-            
-            if (db.RowPitch == bitmapData.Stride)
-                MemoryHelpers.CopyMemory(bitmapData.Scan0, db.DataPointer, bitmap.Width * bitmap.Height * 4);
-            else
-            {
-                var sourcePtr   = db.DataPointer;
-                var destPtr     = bitmapData.Scan0;
-
-                for (int y = 0; y < bitmap.Height; y++)
-                {
-                    MemoryHelpers.CopyMemory(destPtr, sourcePtr, bitmap.Width * 4);
-
-                    sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
-                    destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
-                }
-            }
-
-            bitmap.UnlockBits(bitmapData);
-            context.Unmap(stageTexture, 0);
-            stageTexture.Dispose();
-            
-            return bitmap;
+            VideoDecoder.DisposeFrame(LastFrame);
+            Present();
         }
 
         /// <summary>
         /// Gets bitmap from a video frame
         /// </summary>
-        /// <param name="frame"></param>
-        /// <param name="height"></param>
-        /// <param name="width"></param>
+        /// <param name="frame">Video frame to process (null: will use the current/last frame)</param>
+        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
+        /// <param name="width">Specify the width (-1: will keep the ratio based on height)</param>
         /// <returns></returns>
-        public Bitmap GetBitmap2(VideoFrame frame, int height = -1, int width = -1)
+        public Bitmap GetBitmap(VideoFrame frame = null, int height = -1, int width = -1)
         {
             try
             {
                 if (Disposed || VideoDecoder == null || VideoDecoder.VideoStream == null)
+                    return null;
+
+                if (frame == null)
+                    frame = LastFrame;
+
+                if (frame == null)
                     return null;
 
                 if (width == -1 && height == -1)
@@ -1092,18 +1015,111 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             return null;
         }
+        public Bitmap GetBitmap(ID3D11Texture2D stageTexture)
+        {
+            Bitmap bitmap   = new Bitmap(stageTexture.Description.Width, stageTexture.Description.Height);
+            var db          = context.Map(stageTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
+            var bitmapData  = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            
+            if (db.RowPitch == bitmapData.Stride)
+                MemoryHelpers.CopyMemory(bitmapData.Scan0, db.DataPointer, bitmap.Width * bitmap.Height * 4);
+            else
+            {
+                var sourcePtr   = db.DataPointer;
+                var destPtr     = bitmapData.Scan0;
 
+                for (int y = 0; y < bitmap.Height; y++)
+                {
+                    MemoryHelpers.CopyMemory(destPtr, sourcePtr, bitmap.Width * 4);
+
+                    sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
+                    destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
+                }
+            }
+
+            bitmap.UnlockBits(bitmapData);
+            context.Unmap(stageTexture, 0);
+            stageTexture.Dispose();
+            
+            return bitmap;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="fileName">Path to save the snapshot</param>
+        /// <param name="imageFormat">Encoding image format</param>
+        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
+        /// <param name="width">Specify the width (-1: will keep the ratio based on height)</param>
         public void TakeSnapshot(string fileName, ImageFormat imageFormat = null, int height = -1, int width = -1)
         {
             Task.Run(() =>
             {
-                Bitmap snapshotBitmap = GetBitmap2(LastFrame, height, width);
+                Bitmap snapshotBitmap = GetBitmap(LastFrame, height, width);
                 if (snapshotBitmap != null)
                 {
                     try { snapshotBitmap.Save(fileName, imageFormat == null ? ImageFormat.Bmp : imageFormat); } catch (Exception) { }
                     snapshotBitmap.Dispose();
                 }
             });
+        }
+
+        /// <summary>
+        /// Extracts a bitmap from a video frame
+        /// (Currently cannot be used in parallel with the rendering)
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <returns></returns>
+        public Bitmap ExtractFrame(VideoFrame frame)
+        {
+            if (Device == null || frame == null) return null;
+
+            int subresource = -1;
+
+            var stageDesc = new Texture2DDescription()
+            {
+                Usage       = ResourceUsage.Staging,
+                Width       = VideoDecoder.VideoStream.Width,
+                Height      = VideoDecoder.VideoStream.Height,
+                Format      = Format.B8G8R8A8_UNorm,
+                ArraySize   = 1,
+                MipLevels   = 1,
+                BindFlags   = BindFlags.None,
+                CPUAccessFlags      = CpuAccessFlags.Read,
+                SampleDescription   = new SampleDescription(1, 0)
+            };
+            ID3D11Texture2D stage = Device.CreateTexture2D(stageDesc);
+
+            lock (lockDevice)
+            {
+                while (true)
+                {
+                    for (int i=0; i<MaxOffScreenTextures; i++)
+                        if (!backBuffer2busy[i]) { subresource = i; break;}
+
+                    if (subresource != -1)
+                        break;
+                    else
+                        Thread.Sleep(5);
+                }
+
+                backBuffer2busy[subresource] = true;
+                PresentOffline(frame, rtv2[subresource], new Viewport(backBuffer2[subresource].Description.Width, backBuffer2[subresource].Description.Height));
+                VideoDecoder.DisposeFrame(frame);
+
+                if (curSRVs != null)
+                {
+                    for (int i=0; i<curSRVs.Length; i++)
+                        curSRVs[i]?.Dispose();
+
+                    curSRVs = null;
+                }
+
+                context.CopyResource(stage, backBuffer2[subresource]);
+                backBuffer2busy[subresource] = false;
+            }
+
+            return GetBitmap(stage);
         }
     }
 }

@@ -114,9 +114,6 @@ namespace FlyleafLib.MediaPlayer
             zeroCopy           = false;
             isOpened           = false;
 
-            if (player.renderer != null)
-                player.renderer.DisableRendering = true;
-
             player.UIAdd(uiAction);
         }
         internal void Refresh()
@@ -138,8 +135,6 @@ namespace FlyleafLib.MediaPlayer
             framesDisplayed = 0;
             framesDropped   = 0;
 
-            if (player.renderer != null)
-                player.renderer.DisableRendering = false;
             player.UIAdd(uiAction);
         }
 
@@ -153,9 +148,6 @@ namespace FlyleafLib.MediaPlayer
             player.Pause();
             decoder.OpenSuggestedVideo();
             player.ReSync(decoder.VideoStream, (int) (player.CurTime / 10000), true);
-
-            Refresh();
-            player.UIAll();
 
             if (wasPlaying || Config.Player.AutoPlay)
                 player.Play();
