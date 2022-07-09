@@ -63,8 +63,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         ID3D11Texture2D                         backBuffer;
         ID3D11RenderTargetView                  backBufferRtv;
-        
+
         // Used for off screen rendering
+        Texture2DDescription                    singleStageDesc, singleGpuDesc;
+        ID3D11Texture2D                         singleStage;
+        ID3D11Texture2D                         singleGpu;
+        ID3D11RenderTargetView                  singleGpuRtv;
+        Viewport                                singleViewport;
+        
+        // Used for parallel off screen rendering
         ID3D11RenderTargetView[]                rtv2;
         ID3D11Texture2D[]                       backBuffer2;
         bool[]                                  backBuffer2busy;
@@ -102,6 +109,30 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             VideoDecoder = videoDecoder;
             Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
 
+            singleStageDesc = new Texture2DDescription()
+            {
+                Usage       = ResourceUsage.Staging,
+                Format      = Format.B8G8R8A8_UNorm,
+                ArraySize   = 1,
+                MipLevels   = 1,
+                BindFlags   = BindFlags.None,
+                CPUAccessFlags      = CpuAccessFlags.Read,
+                SampleDescription   = new SampleDescription(1, 0),
+
+                Width       = -1,
+                Height      = -1
+            };
+
+            singleGpuDesc = new Texture2DDescription()
+            {
+                Usage       = ResourceUsage.Default,
+                Format      = Format.B8G8R8A8_UNorm,
+                ArraySize   = 1,
+                MipLevels   = 1,
+                BindFlags   = BindFlags.RenderTarget | BindFlags.ShaderResource,
+                SampleDescription   = new SampleDescription(1, 0)
+            };
+            
             Initialize();
 
             if (control != null)
@@ -408,6 +439,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 vertexLayout?.Dispose();
                 vertexBuffer?.Dispose();
                 DisposeSwapChain();
+
+                singleGpu?.Dispose();
+                singleStage?.Dispose();
+                singleGpuRtv?.Dispose();
 
                 if (rtv2 != null)
                 {
@@ -829,7 +864,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 if (videoProcessor == VideoProcessors.D3D11)
                 {
                     vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out ID3D11VideoProcessorOutputView vpov);
-                    
 
                     RawRect rect = new RawRect((int)viewport.X, (int)viewport.Y, (int)(viewport.Width + viewport.X), (int)(viewport.Height + viewport.Y));
                     vc.VideoProcessorSetStreamSourceRect(vp, 0, true, VideoRect);
@@ -949,68 +983,56 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             try
             {
-                if (frame == null)
-                    frame = LastFrame;
-
-                if (Disposed || frame == null || (frame.textures == null && LastFrame.bufRef == null))
-                    return null;
-
-                if (width == -1 && height == -1)
-                {
-                    width = VideoRect.Right;
-                    height = VideoRect.Bottom;
-                }
-                else if (width != -1 && height == -1)
-                    height = (int) (width / curRatio);
-                else if (height != -1 && width == -1)
-                    width = (int) (height * curRatio);
-
-                var stageDesc = new Texture2DDescription()
-                {
-                    Width       = width,
-                    Height      = height,
-                    Format      = Format.B8G8R8A8_UNorm,
-                    ArraySize   = 1,
-                    MipLevels   = 1,
-                    BindFlags   = BindFlags.None,
-                    Usage       = ResourceUsage.Staging,
-                    CPUAccessFlags      = CpuAccessFlags.Read,
-                    SampleDescription   = new SampleDescription(1, 0)
-                };
-                ID3D11Texture2D stage = Device.CreateTexture2D(stageDesc);
-
-                var gpuDesc = new Texture2DDescription()
-                {
-                    Usage       = ResourceUsage.Default,
-                    Width       = stageDesc.Width,
-                    Height      = stageDesc.Height,
-                    Format      = Format.B8G8R8A8_UNorm,
-                    ArraySize   = 1,
-                    MipLevels   = 1,
-                    BindFlags   = BindFlags.RenderTarget | BindFlags.ShaderResource,
-                    SampleDescription   = new SampleDescription(1, 0)
-                };
-                ID3D11Texture2D gpu = Device.CreateTexture2D(gpuDesc);
-
-                ID3D11RenderTargetView gpuRtv = Device.CreateRenderTargetView(gpu);
-                Viewport viewport = new Viewport(stageDesc.Width, stageDesc.Height);
-
                 lock (lockDevice)
                 {
-                    PresentOffline(frame, gpuRtv, viewport);
+                    if (frame == null)
+                        frame = LastFrame;
+
+                    if (Disposed || frame == null || (frame.textures == null && LastFrame.bufRef == null))
+                        return null;
+
+                    if (width == -1 && height == -1)
+                    {
+                        width   = VideoRect.Right;
+                        height  = VideoRect.Bottom;
+                    }
+                    else if (width != -1 && height == -1)
+                        height  = (int) (width / curRatio);
+                    else if (height != -1 && width == -1)
+                        width   = (int) (height * curRatio);
+
+                    if (singleStageDesc.Width != width || singleStageDesc.Height != height)
+                    {
+                        singleGpu?.Dispose();
+                        singleStage?.Dispose();
+                        singleGpuRtv?.Dispose();
+
+                        singleStageDesc.Width   = width;
+                        singleStageDesc.Height  = height;
+                        singleGpuDesc.Width     = width;
+                        singleGpuDesc.Height    = height;
+
+                        singleStage = Device.CreateTexture2D(singleStageDesc);
+                        singleGpu   = Device.CreateTexture2D(singleGpuDesc);
+                        singleGpuRtv= Device.CreateRenderTargetView(singleGpu);
+
+                        singleViewport = new Viewport(width, height);
+                    } 
+
+                    PresentOffline(frame, singleGpuRtv, singleViewport);
 
                     if (videoProcessor == VideoProcessors.D3D11)
                         SetViewport();
                 }
 
-                context.CopyResource(stage, gpu);
-                gpuRtv.Dispose();
-                gpu.Dispose();
+                context.CopyResource(singleStage, singleGpu);
+                return GetBitmap(singleStage);
 
-                return GetBitmap(stage);
-            } catch { }
-
-            return null;
+            } catch (Exception e)
+            {
+                Log.Warn($"GetBitmap failed with: {e.Message}");
+                return null;
+            }
         }
         public Bitmap GetBitmap(ID3D11Texture2D stageTexture)
         {
@@ -1036,8 +1058,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             bitmap.UnlockBits(bitmapData);
             context.Unmap(stageTexture, 0);
-            stageTexture.Dispose();
-            
+
             return bitmap;
         }
 
@@ -1116,7 +1137,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 backBuffer2busy[subresource] = false;
             }
 
-            return GetBitmap(stage);
+            var bitmap = GetBitmap(stage);
+            stage.Dispose(); // TODO use array stage
+            return bitmap;
         }
     }
 }

@@ -200,6 +200,7 @@ namespace FlyleafLib.Plugins
                 if (res == null)
                     continue;
 
+                // Currently fallback is not allowed if an error has been returned
                 if (res.Error != null)
                     return res;
 

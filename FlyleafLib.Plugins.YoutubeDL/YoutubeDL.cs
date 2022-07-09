@@ -531,7 +531,7 @@ namespace FlyleafLib.Plugins
                     while (Playlist.Items.Count < 1 && addingItem && !Handler.Interrupt && sessionId == Handler.OpenCounter)
                         Thread.Sleep(35);
 
-                    if (!Handler.Interrupt && sessionId == Handler.OpenCounter)
+                    if (!Handler.Interrupt && sessionId == Handler.OpenCounter && Playlist.Items.Count > 0)
                         Handler.OnPlaylistCompleted();
                 };
 
@@ -546,6 +546,9 @@ namespace FlyleafLib.Plugins
 
                     return null;
                 }
+
+                if (Playlist.Items.Count == 0) // Allow fallback to default plugin in case of YT-DLP bug with windows filename (this affects proper direct URLs as well)
+                    return null;
 
                 //    if (Logger.CanDebug)
                 //    {
