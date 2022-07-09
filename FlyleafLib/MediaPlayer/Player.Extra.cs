@@ -342,7 +342,7 @@ namespace FlyleafLib.MediaPlayer
                         Directory.CreateDirectory(Config.Player.FolderSnapshots);
 
                     // TBR: if frame is specified we don't know the frame's number
-                    filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{(frame == null ? VideoDecoder.GetFrameNumber(CurTime) : "X")}.{Config.Player.SnapshotFormat}";
+                    filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{(frame == null ? VideoDecoder.GetFrameNumber(CurTime).ToString() : "X")}.{Config.Player.SnapshotFormat}";
                     filename = FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
                 } catch { return; }
             }
