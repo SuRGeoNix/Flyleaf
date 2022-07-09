@@ -988,7 +988,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (frame == null)
                         frame = LastFrame;
 
-                    if (Disposed || frame == null || (frame.textures == null && LastFrame.bufRef == null))
+                    if (Disposed || frame == null || (frame.textures == null && frame.bufRef == null))
                         return null;
 
                     if (width == -1 && height == -1)
