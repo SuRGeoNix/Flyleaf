@@ -1,4 +1,5 @@
-﻿using System.Windows.Input;
+﻿using System.Threading.Tasks;
+using System.Windows.Input;
 
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaFramework.MediaPlaylist;
@@ -170,10 +171,7 @@ namespace FlyleafLib.MediaPlayer
             player.Config.Subtitles.Delay += (int.Parse(delay.ToString())) * (long)10000;
         }
 
-        public void TakeSnapshotAction()
-        {
-            player.TakeSnapshot();
-        }
+        public void TakeSnapshotAction() => Task.Run(() => { try { player.TakeSnapshotToFile(); } catch { } });
 
         public void SeekToChapterAction(object chapter)
         {
