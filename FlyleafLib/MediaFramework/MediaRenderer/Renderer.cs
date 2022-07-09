@@ -975,11 +975,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         /// <summary>
         /// Gets bitmap from a video frame
         /// </summary>
-        /// <param name="frame">Video frame to process (null: will use the current/last frame)</param>
-        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
         /// <param name="width">Specify the width (-1: will keep the ratio based on height)</param>
+        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
+        /// <param name="frame">Video frame to process (null: will use the current/last frame)</param>
         /// <returns></returns>
-        public Bitmap GetBitmap(VideoFrame frame = null, int height = -1, int width = -1)
+        public Bitmap GetBitmap(int width = -1, int height = -1, VideoFrame frame = null)
         {
             try
             {
@@ -1060,26 +1060,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             context.Unmap(stageTexture, 0);
 
             return bitmap;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="fileName">Path to save the snapshot</param>
-        /// <param name="imageFormat">Encoding image format</param>
-        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
-        /// <param name="width">Specify the width (-1: will keep the ratio based on height)</param>
-        public void TakeSnapshot(string fileName, ImageFormat imageFormat = null, int height = -1, int width = -1)
-        {
-            Task.Run(() =>
-            {
-                Bitmap snapshotBitmap = GetBitmap(LastFrame, height, width);
-                if (snapshotBitmap != null)
-                {
-                    try { snapshotBitmap.Save(fileName, imageFormat == null ? ImageFormat.Bmp : imageFormat); } catch (Exception) { }
-                    snapshotBitmap.Dispose();
-                }
-            });
         }
 
         /// <summary>

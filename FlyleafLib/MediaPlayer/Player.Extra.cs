@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
+using FlyleafLib.MediaFramework.MediaFrame;
 
 using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
@@ -320,14 +322,17 @@ namespace FlyleafLib.MediaPlayer
         /// <para>Saves the current video frame (encoding based on file extention .bmp, .png, .jpg)</para>
         /// <para>If filename not specified will use Config.Player.FolderSnapshots and with default filename title_frameNumber.ext (ext from Config.Player.SnapshotFormat)</para>
         /// <para>If width/height not specified will use the original size. If one of them will be set, the other one will be set based on original ratio</para>
+        /// <para>If frame not specified will use the current/last frame</para>
         /// </summary>
-        /// <param name="filename"></param>
-        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
+        /// <param name="filename">Specify the filename (null: will use Config.Player.FolderSnapshots and with default filename title_frameNumber.ext (ext from Config.Player.SnapshotFormat)</param>
         /// <param name="width">Specify the width (-1: will keep the ratio based on height)</param>
+        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
+        /// <param name="frame">Specify the frame (null: will use the current/last frame)</param>
         /// <exception cref="Exception"></exception>
-        public void TakeSnapshot(string filename = null, int height = -1, int width = -1)
+        public void TakeSnapshotToFile(string filename = null, int width = -1, int height = -1, VideoFrame frame = null)
         {
-            if (!CanPlay) return;
+            if (!CanPlay)
+                return;
 
             if (filename == null)
             {
@@ -336,7 +341,8 @@ namespace FlyleafLib.MediaPlayer
                     if (!Directory.Exists(Config.Player.FolderSnapshots))
                         Directory.CreateDirectory(Config.Player.FolderSnapshots);
 
-                    filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{VideoDecoder.GetFrameNumber(CurTime)}.{Config.Player.SnapshotFormat}";
+                    // TBR: if frame is specified we don't know the frame's number
+                    filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{(frame == null ? VideoDecoder.GetFrameNumber(CurTime) : "X")}.{Config.Player.SnapshotFormat}";
                     filename = FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
                 } catch { return; }
             }
@@ -364,8 +370,31 @@ namespace FlyleafLib.MediaPlayer
                     throw new Exception($"Invalid snapshot extention '{ext}' (valid .bmp, .png, .jpeg, .jpg");
             }
 
-            renderer?.TakeSnapshot(filename, imageFormat, height, width);
+            if (renderer == null)
+                return;
+
+            Bitmap snapshotBitmap = renderer.GetBitmap(width, height, frame);
+            if (snapshotBitmap == null)
+                return;
+
+            Exception e = null;
+            try { snapshotBitmap.Save(filename, imageFormat); } catch (Exception e2) { e = e2; }
+            snapshotBitmap.Dispose();
+
+            if (e != null)
+                throw e;
         }
+
+        /// <summary>
+        /// <para>Returns a bitmap of the current or specified video frame</para>
+        /// <para>If width/height not specified will use the original size. If one of them will be set, the other one will be set based on original ratio</para>
+        /// <para>If frame not specified will use the current/last frame</para>
+        /// </summary>
+        /// <param name="width">Specify the width (-1: will keep the ratio based on height)</param>
+        /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
+        /// <param name="frame">Specify the frame (null: will use the current/last frame)</param>
+        /// <returns></returns>
+        public Bitmap TakeSnapshotToBitmap(int width = -1, int height = -1, VideoFrame frame = null) => renderer == null ? null : renderer.GetBitmap(width, height, frame);
 
         public void ZoomIn()
         {
