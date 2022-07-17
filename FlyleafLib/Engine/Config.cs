@@ -728,6 +728,11 @@ namespace FlyleafLib
         public bool     LogAppend               { get; set; }
 
         /// <summary>
+        /// Lines to cache before writing them to file
+        /// </summary>
+        public int      LogCachedLines          { get; set; } = 20;
+
+        /// <summary>
         /// Sets the logger's datetime string format
         /// </summary>
         public string   LogDateTimeFormat       { get; set; } = "HH.mm.ss.fff";

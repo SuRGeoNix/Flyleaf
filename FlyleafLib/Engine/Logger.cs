@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FlyleafLib
 {
@@ -9,7 +11,6 @@ namespace FlyleafLib
     {
         /* TODO
          * 1) Rotation and file size control
-         * 2) Buffering control for better performance (check when is logging from UI thread)
          */
 
         public static bool      CanError        => Engine.Config.LogLevel >= LogLevel.Error;
@@ -22,6 +23,9 @@ namespace FlyleafLib
                                 Output          = DevNullPtr;
         static string           lastOutput      = "";
 
+        static ConcurrentQueue<byte[]>
+                                fileData        = new ConcurrentQueue<byte[]>();
+        static bool             fileTaskRunning;
         static FileStream       fileStream;
         static object           lockFileStream  = new object();
         static Dictionary<LogLevel, string>
@@ -31,6 +35,20 @@ namespace FlyleafLib
         {
             foreach(LogLevel loglevel in Enum.GetValues(typeof(LogLevel)))
                 logLevels.Add(loglevel, loglevel.ToString().PadRight(5, ' '));
+
+            // Flush File Data on Application Exit
+            System.Windows.Application.Current.Exit += (o, e) =>
+            {
+                lock (lockFileStream)
+                {
+                    if (fileStream != null)
+                    {
+                        while (fileData.TryDequeue(out byte[] data))
+                            fileStream.Write(data, 0, data.Length);
+                        fileStream.Dispose();
+                    }
+                }
+            };
         }
 
         internal static void SetOutput()
@@ -70,7 +88,13 @@ namespace FlyleafLib
             {
                 lock (lockFileStream)
                 {
-                    fileStream?.Dispose();
+                    // Flush File Data on Previously Opened File Stream
+                    if (fileStream != null)
+                    {
+                        while (fileData.TryDequeue(out byte[] data))
+                            fileStream.Write(data, 0, data.Length);
+                        fileStream.Dispose();
+                    }
 
                     string dir = Path.GetDirectoryName(output);
                     if (!string.IsNullOrEmpty(dir))
@@ -89,20 +113,37 @@ namespace FlyleafLib
         static void DevNullPtr(string msg) { }
         static void FilePtr(string msg)
         {
-            try
-            {
-                byte[] data = Encoding.UTF8.GetBytes($"{msg}\r\n");
+            fileData.Enqueue(Encoding.UTF8.GetBytes($"{msg}\r\n"));
 
+            if (!fileTaskRunning && fileData.Count > Engine.Config.LogCachedLines)
+                FlushFileData();
+        }
+
+        static void FlushFileData()
+        {
+            fileTaskRunning = true;
+
+            Task.Run(() =>
+            {
                 lock (lockFileStream)
                 {
-                    fileStream.Write(data, 0, data.Length);
+                    while (fileData.TryDequeue(out byte[] data))
+                        fileStream.Write(data, 0, data.Length);
+
                     fileStream.Flush();
                 }
-            } catch (Exception e)
-            {
-                System.Diagnostics.Debug.WriteLine("[File Log Error] " + e.Message);
-                Output = Console.WriteLine;
-            }
+
+                fileTaskRunning = false;
+            });
+        }
+
+        /// <summary>
+        /// Forces cached file data to be written to the file
+        /// </summary>
+        public static void ForceFlush()
+        {
+            if (!fileTaskRunning && fileStream != null)
+                FlushFileData();
         }
 
         internal static void Log(string msg, LogLevel logLevel)

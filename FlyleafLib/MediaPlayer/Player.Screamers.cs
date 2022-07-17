@@ -371,13 +371,15 @@ namespace FlyleafLib.MediaPlayer
                 }
                 else if (vDistanceMs < -2)
                 {
-                    if (CanInfo) Log.Info($"vDistanceMs = {vDistanceMs}");
-
                     if (vDistanceMs < -10 || VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
                     {
+                        if (CanInfo) Log.Info($"vDistanceMs = {vDistanceMs}");
+
                         requiresBuffering = true;
                         continue;
                     }
+
+                    if (CanDebug) Log.Debug($"vDistanceMs = {vDistanceMs}");
 
                     Video.framesDropped++;
                     VideoDecoder.DisposeFrame(vFrame);
