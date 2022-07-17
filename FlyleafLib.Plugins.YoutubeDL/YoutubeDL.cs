@@ -493,7 +493,7 @@ namespace FlyleafLib.Plugins
                     StartInfo = new ProcessStartInfo
                     {
                         FileName        = Path.Combine(Engine.Plugins.Folder, Name, plugin_path),
-                        Arguments       = $"{Options["ExtraArguments"]} --no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -P \"{workingDir}\" \"{Playlist.Url}\"",
+                        Arguments       = $"{Options["ExtraArguments"]} --no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -P \"{workingDir}\" \"{Playlist.Url}\" -o \"%(title).220B\"", // 418 max filename length
                         CreateNoWindow  = true,
                         UseShellExecute = false,
                         WindowStyle     = ProcessWindowStyle.Hidden,

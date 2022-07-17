@@ -21,7 +21,7 @@ namespace FlyleafLib.MediaPlayer
         /// Embedded Streams
         /// </summary>
         public ObservableCollection<AudioStream>
-                        Streams         => decoder?.VideoDemuxer.AudioStreams;
+                        Streams         => decoder?.VideoDemuxer.AudioStreams; // TBR: We miss AudioDemuxer embedded streams
 
         /// <summary>
         /// Whether the input has audio and it is configured
