@@ -52,6 +52,15 @@ namespace FlyleafLib.MediaPlayer
         public string   ChannelLayout   { get => channelLayout; internal set => Set(ref _ChannelLayout, value); }
         internal string _ChannelLayout, channelLayout;
 
+        ///// <summary>
+        ///// Total Dropped Frames
+        ///// </summary>
+        public int      FramesDropped   { get => framesDropped;     internal set => Set(ref _FramesDropped, value); }
+        internal int    _FramesDropped, framesDropped;
+
+        public int      FramesDisplayed { get => framesDisplayed;   internal set => Set(ref _FramesDisplayed, value); }
+        internal int    _FramesDisplayed, framesDisplayed;
+
         public string   SampleFormat    { get => sampleFormat;  internal set => Set(ref _SampleFormat, value); }
         internal string _SampleFormat, sampleFormat;
 
@@ -200,6 +209,9 @@ namespace FlyleafLib.MediaPlayer
                 ChannelLayout   = ChannelLayout;
                 SampleFormat    = SampleFormat;
                 SampleRate      = SampleRate;
+
+                FramesDisplayed     = FramesDisplayed;
+                FramesDropped       = FramesDropped;
             };
 
             Volume = Config.Player.VolumeMax / 2;
@@ -299,12 +311,15 @@ namespace FlyleafLib.MediaPlayer
         {
             if (decoder.AudioStream == null) { Reset(); return; }
 
-            codec          = decoder.AudioStream.Codec;
-            bits           = decoder.AudioStream.Bits;
-            channels       = decoder.AudioStream.Channels;
-            channelLayout  = decoder.AudioStream.ChannelLayoutStr;
-            sampleFormat   = decoder.AudioStream.SampleFormatStr;
-            isOpened       =!decoder.AudioDecoder.Disposed;
+            codec           = decoder.AudioStream.Codec;
+            bits            = decoder.AudioStream.Bits;
+            channels        = decoder.AudioStream.Channels;
+            channelLayout   = decoder.AudioStream.ChannelLayoutStr;
+            sampleFormat    = decoder.AudioStream.SampleFormatStr;
+            isOpened        =!decoder.AudioDecoder.Disposed;
+
+            framesDisplayed = 0;
+            framesDropped   = 0;
 
             if (SampleRate!= decoder.AudioStream.SampleRate)
                 Initialize();
