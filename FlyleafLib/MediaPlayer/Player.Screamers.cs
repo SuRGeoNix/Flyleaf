@@ -395,6 +395,7 @@ namespace FlyleafLib.MediaPlayer
                     {
                         if (CanTrace) Log.Trace($"[A] Presenting {TicksToTime(aFrame.timestamp)}");
                         Audio.AddSamples(aFrame);
+                        Audio.framesDisplayed++;
                         AudioDecoder.Frames.TryDequeue(out aFrame);
                         if (aFrame != null)
                             aFrame.timestamp = (long)(aFrame.timestamp / Speed);
@@ -403,6 +404,7 @@ namespace FlyleafLib.MediaPlayer
                     {
                         if (allowedLateAudioDrops > 0)
                         {
+                            Audio.framesDropped++;
                             allowedLateAudioDrops--;
                             if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs}");
                             AudioDecoder.Frames.TryDequeue(out aFrame);
@@ -425,6 +427,7 @@ namespace FlyleafLib.MediaPlayer
                         if (aDistanceMs < -600)
                         {
                             if (CanTrace) Log.Trace($"All audio frames disposed");
+                            Audio.framesDropped += AudioDecoder.Frames.Count;
                             AudioDecoder.DisposeFrames();
                             aFrame = null;
                         }
@@ -434,6 +437,7 @@ namespace FlyleafLib.MediaPlayer
                             for (int i=0; i<maxdrop; i++)
                             {
                                 if (CanTrace) Log.Trace($"aDistanceMs 2 = {aDistanceMs}");
+                                Audio.framesDropped++;
                                 AudioDecoder.Frames.TryDequeue(out aFrame);
                                 if (aFrame != null)
                                     aFrame.timestamp = (long)(aFrame.timestamp / Speed);

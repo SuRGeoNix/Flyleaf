@@ -285,6 +285,9 @@ namespace FlyleafLib
 
                                         if (player.IsPlaying)
                                         {
+                                            player.Audio.FramesDisplayed= player.Audio.FramesDisplayed;
+                                            player.Audio.FramesDropped  = player.Audio.FramesDropped;
+
                                             player.Video.FramesDisplayed= player.Video.FramesDisplayed;
                                             player.Video.FramesDropped  = player.Video.FramesDropped;
                                             player.Video.FPSCurrent     = player.Video.FPSCurrent;
