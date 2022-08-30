@@ -217,6 +217,12 @@ namespace FlyleafLib.Plugins
             var sessionId = OpenItemCounter;
             OpenResults res = OpenedPlugin.OpenItem();
 
+            if (res == null)
+            {
+                res = new OpenResults();
+                res.Error = "Cancelled";
+            }
+
             if (sessionId != OpenItemCounter)
                 res.Error = "Cancelled";
 
