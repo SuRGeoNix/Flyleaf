@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.5.7</Version>
+	<Version>3.5.8</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Overall: UI update improvements
-        * VideoView: Fixes an issue with WindowsFormsHost and Front Window within a Scroll Viewer
-        * Renderer: Introduces Player.renderer.GetBitmap which can be used in parallel with rendering to retrieve (and resize if required) a gpu texture
-        * TakeSnapshot: Improvements and adds resize on gpu support
-        * Languages: Better handling of audio, subtitles and online subtitles languages (using windows cultures)
-        * Config: Introduces Config.Video.ClearScreenOnOpen to allow the last frame to be presented until the new open has been completed
-        * Config: Introduces Config.Video.Swap10Bit to use 10-bit instead of 8-bit swap chain
-        * Config: Introduces Config.Video.SwapBuffers to manually set render's swap chain buffers
+		* Player: Introduces TakeSnapshotToBitmap and renames old TakeSnapshot to TakeSnapshotToFile
+		* Player: Fixes a critical issue with playlists (switching between playlist streams)
+		* Renderer: Fixes issues and improves GetBitmap
+		* Logger: Improves file writer with caching and by avoiding writing to file from UI thread
+		* Engine.Config: Introduces LogCachedLines to set cached lines before writing/flushing to file
+		* Plugins.YoutubeDL: Fixes an issue with invalid filename on windows systems
+		* Updates Vortice
 	</PackageReleaseNotes>
   </PropertyGroup>
 
