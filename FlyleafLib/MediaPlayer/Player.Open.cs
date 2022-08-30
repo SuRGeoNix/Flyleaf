@@ -376,7 +376,7 @@ namespace FlyleafLib.MediaPlayer
                 if (Playlist.Selected != null)
                     Playlist.Selected.AddTag(GetCurrentSession(), playerSessionTag);
 
-                Initialize(Status.Opening);
+                Initialize(Status.Opening, true, true);
 
                 // TODO: Config.Player.Reopen? to reopen session if (item.OpenedCounter > 0)
                 args = decoder.Open(item, defaultVideo, defaultAudio, defaultSubtitles);
@@ -502,7 +502,7 @@ namespace FlyleafLib.MediaPlayer
                         Pause();
                     }
 
-                    Initialize(Status.Opening, false);
+                    Initialize(Status.Opening, false, true);
                     args = decoder.Open(extStream, defaultAudio, streamIndex);
 
                     if (!args.Success || !CanPlay)
