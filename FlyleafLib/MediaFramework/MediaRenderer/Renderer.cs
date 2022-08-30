@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -192,8 +193,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     // Finding User Definied adapter
                     if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
-                        for (int adapterIndex=0; Engine.Video.Factory.EnumAdapters1(adapterIndex, out adapter).Success; adapterIndex++)
+                        var adapters2 = Engine.Video.Factory.EnumAdapters1().ToList();
+                        for (int i=0; i<adapters2.Count; i++)
                         {
+                            adapter = adapters2[i];
+
                             if (adapter.Description1.Description == Config.Video.GPUAdapter)
                                 break;
 

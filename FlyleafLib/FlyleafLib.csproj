@@ -51,11 +51,11 @@
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.19" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.1.19" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.4.16" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.19" />
-    <PackageReference Include="Vortice.XAudio2" Version="2.1.19" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.28-beta" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.1.28-beta" />
+    <PackageReference Include="Vortice.Mathematics" Version="1.4.18" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.28-beta" />
+    <PackageReference Include="Vortice.XAudio2" Version="2.1.28-beta" />
   </ItemGroup>
   
   <ItemGroup>
