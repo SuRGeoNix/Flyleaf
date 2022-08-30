@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using Vortice.DXGI;
 
 using FlyleafLib.MediaFramework.MediaRenderer;
+using System.Linq;
 
 namespace FlyleafLib
 {
@@ -35,9 +36,12 @@ namespace FlyleafLib
             Dictionary<long, GPUAdapter> adapters = new Dictionary<long, GPUAdapter>();
             
             string dump = "";
-            for (int adapterIndex=0; Factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1 adapter).Success; adapterIndex++)
+
+            var adapters2 = Factory.EnumAdapters1().ToList();
+            for (int i=0; i<adapters2.Count; i++)
             {
-                dump += $"[#{adapterIndex+1}] {RendererInfo.VendorIdStr(adapter.Description1.VendorId)} {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {RendererInfo.GetBytesReadable(adapter.Description1.DedicatedVideoMemory)}\r\n";
+                IDXGIAdapter1 adapter = adapters2[i];
+                dump += $"[#{i+1}] {RendererInfo.VendorIdStr(adapter.Description1.VendorId)} {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {RendererInfo.GetBytesReadable(adapter.Description1.DedicatedVideoMemory)}\r\n";
 
                 if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
                 {
@@ -50,8 +54,10 @@ namespace FlyleafLib
 
                 List<GPUOutput> outputs = new List<GPUOutput>();
 
-                while (adapter.EnumOutputs(idx, out IDXGIOutput output).Success)
+                var outputs2 = adapter.EnumOutputs().ToList();
+                for (int l=0; l<outputs2.Count; l++)
                 {
+                    IDXGIOutput output = outputs2[l];
                     GPUOutput gpout = new GPUOutput();
 
                     gpout.DeviceName= output.Description.DeviceName;

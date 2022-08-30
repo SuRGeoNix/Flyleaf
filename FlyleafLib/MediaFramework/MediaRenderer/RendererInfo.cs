@@ -1,4 +1,7 @@
-﻿using Vortice.DXGI;
+﻿using System.Linq;
+
+using Vortice;
+using Vortice.DXGI;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
@@ -28,27 +31,26 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             ri.Vendor       = VendorIdStr(adapter.Description1.VendorId);
 
             int maxVerticalResolution = 0;
-            for(int i=0; ; i++)
+            var outputs = adapter.EnumOutputs().ToList();
+
+            if (outputs.Count > 0)
             {
-                var res = adapter.EnumOutputs(i, out IDXGIOutput output);
-                if (output == null) break;
+                IDXGIOutput output = outputs[0];
+                RawRect bounds = output.Description.DesktopCoordinates;
 
-                var bounds = output.Description.DesktopCoordinates;
+                ri.OutputName   = output.Description.DeviceName;
+                ri.ScreenBounds = new System.Drawing.Rectangle(new System.Drawing.Point(bounds.Top, bounds.Left), new System.Drawing.Size(bounds.Right - bounds.Left, bounds.Bottom - bounds.Top));
+                ri.ScreenWidth  = bounds.Right - bounds.Left;
+                ri.ScreenHeight = bounds.Bottom - bounds.Top;
 
-                if (maxVerticalResolution < bounds.Bottom - bounds.Top) maxVerticalResolution = bounds.Bottom - bounds.Top;
-
-                if (i == 0)
+                foreach(var output2 in outputs)
                 {
-                    ri.OutputName   = output.Description.DeviceName;
-                    ri.ScreenBounds = new System.Drawing.Rectangle(new System.Drawing.Point(bounds.Top, bounds.Left), new System.Drawing.Size(bounds.Right - bounds.Left, bounds.Bottom - bounds.Top));
-                    ri.ScreenWidth  = bounds.Right - bounds.Left;
-                    ri.ScreenHeight = bounds.Bottom - bounds.Top;
+                    bounds = output2.Description.DesktopCoordinates;
+                    if (maxVerticalResolution < bounds.Bottom - bounds.Top) maxVerticalResolution = bounds.Bottom - bounds.Top;
                 }
-
-                output.Dispose();
             }
-            renderer.Config.Video.MaxVerticalResolutionAuto = maxVerticalResolution;
 
+            renderer.Config.Video.MaxVerticalResolutionAuto = maxVerticalResolution;
             renderer.AdapterInfo = ri;
         }
 
