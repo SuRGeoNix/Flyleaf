@@ -4,7 +4,7 @@
     <TargetFrameworks>net6.0-windows;net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.26</Version>
+    <Version>1.1.27</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2022</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,7 +14,7 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		* Fixes UIConfig to properly save for subtitles FontWeight, FontStyle and FontStretch
+		* Introduces ThemeLoaded event to properly manually change theme colors if required
 		* Updates FlyleafLib
 	</PackageReleaseNotes>
   </PropertyGroup>
