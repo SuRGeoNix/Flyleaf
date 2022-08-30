@@ -604,7 +604,7 @@ namespace FlyleafLib.MediaPlayer
             Subtitles.Reset();
             UIAll();
         }
-        private void Initialize(Status status = Status.Stopped, bool andDecoder = true)
+        private void Initialize(Status status = Status.Stopped, bool andDecoder = true, bool isSwitch = false)
         {
             try
             {
@@ -620,7 +620,12 @@ namespace FlyleafLib.MediaPlayer
                 while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
 
                 if (andDecoder)
-                    decoder.Initialize();
+                {
+                    if (isSwitch)
+                        decoder.InitializeSwitch();
+                    else
+                        decoder.Initialize();
+                }
 
                 Reset();
                 VideoDemuxer.DisableReversePlayback();
