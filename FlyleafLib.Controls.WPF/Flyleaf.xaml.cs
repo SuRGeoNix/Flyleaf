@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -22,6 +21,8 @@ namespace FlyleafLib.Controls.WPF
     public partial class Flyleaf : UserControl, INotifyPropertyChanged, IVideoView
     {
         #region Properties
+        public event EventHandler ThemeLoaded;
+
         public string       UIConfigPath        { get; set; }
         public string       ConfigPath          { get; set; }
         public string       EnginePath          { get; set; }
@@ -228,6 +229,8 @@ namespace FlyleafLib.Controls.WPF
 
             SubtitlesFontDesc = $"{UIConfig.SubsFontFamily} ({UIConfig.SubsFontWeight}), {UIConfig.SubsFontSize}";
             subsInitialMargin   = UIConfig.SubsMargin;
+
+            ThemeLoaded?.Invoke(this, new EventArgs());
 
             Raise(null);
             settings?.Raise(null);
