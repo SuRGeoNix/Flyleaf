@@ -395,7 +395,7 @@ namespace FlyleafLib
             /// <summary>
             /// Maximum video frames to be decoded and processed for rendering
             /// </summary>
-            public int              MaxVideoFrames  { get => _MaxVideoFrames; set { if (Set(ref _MaxVideoFrames, value)) { player?.Video?.Disable(); player?.Video?.Enable(); } } }
+            public int              MaxVideoFrames  { get => _MaxVideoFrames; set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
             int _MaxVideoFrames = 4;
 
             /// <summary>

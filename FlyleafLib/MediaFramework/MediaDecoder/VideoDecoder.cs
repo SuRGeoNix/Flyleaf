@@ -945,6 +945,25 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             }
         }
 
+        public void RefreshMaxVideoFrames()
+        {
+            lock (lockActions)
+            {
+                if (VideoStream == null)
+                    return;
+
+                bool wasRunning = IsRunning;
+
+                var stream = Stream;
+
+                Dispose();
+                Open(stream);
+
+                if (wasRunning)
+                    Start();
+            }
+        }
+
         public int GetFrameNumber(long timestamp)
         {
             // offset 2ms

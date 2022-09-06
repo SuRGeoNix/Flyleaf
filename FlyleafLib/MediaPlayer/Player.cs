@@ -15,6 +15,7 @@ using FlyleafLib.MediaFramework.MediaDemuxer;
 
 using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
+using System.Numerics;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -572,6 +573,22 @@ namespace FlyleafLib.MediaPlayer
 
                     Log.Info("Disposed");
                 } catch (Exception e) { Log.Warn($"Disposed ({e.Message})"); }
+            }
+        }
+        internal void RefreshMaxVideoFrames()
+        {
+            lock (lockActions)
+            {
+                if (!Video.isOpened)
+                    return;
+
+                bool wasPlaying = IsPlaying;
+                Pause();
+                VideoDecoder.RefreshMaxVideoFrames();
+                ReSync(decoder.VideoStream, (int) (CurTime / 10000), true);
+
+                if (wasPlaying || Config.Player.AutoPlay)
+                    Play();
             }
         }
 
