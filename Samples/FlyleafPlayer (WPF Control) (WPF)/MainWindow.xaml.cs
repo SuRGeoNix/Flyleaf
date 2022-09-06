@@ -72,9 +72,10 @@ namespace FlyleafPlayer
             {
                 if (e.PropertyName == "ReversePlayback" && !ReversePlaybackChecked)
                 {
+                    if (playerConfig.Decoder.MaxVideoFrames < 80)
+                        playerConfig.Decoder.MaxVideoFrames = 80;
+
                     ReversePlaybackChecked = true;
-                    if (playerConfig.Decoder.MaxVideoFrames < 60)
-                        playerConfig.Decoder.MaxVideoFrames = 60;
                 }
             };
         }
