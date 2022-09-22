@@ -444,6 +444,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 singleGpu?.Dispose();
                 singleStage?.Dispose();
                 singleGpuRtv?.Dispose();
+                singleStageDesc.Width = -1; // ensures re-allocation
 
                 if (rtv2 != null)
                 {
