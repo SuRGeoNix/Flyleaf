@@ -453,10 +453,18 @@ namespace FlyleafLib.MediaFramework.MediaContext
                         VideoDemuxer.UpdateHLSTimev5();
                 }
 
+                if (CanTrace)
+                {
+                    StreamBase stream = VideoDemuxer.AVStreamToStream[packet->stream_index];
+                    long dts = packet->dts == AV_NOPTS_VALUE ? -1 : (long)(packet->dts * stream.Timebase);
+                    long pts = packet->pts == AV_NOPTS_VALUE ? -1 : (long)(packet->pts * stream.Timebase);
+                    Log.Trace($"[{stream.Type}] DTS: {(dts == -1 ? "-" : Utils.TicksToTime(dts))} PTS: {(pts == -1 ? "-" : Utils.TicksToTime(pts))} | FLPTS: {(pts == -1 ? "-" : Utils.TicksToTime(pts - VideoDemuxer.StartTime))} | CurTime: {Utils.TicksToTime(VideoDemuxer.CurTime)} | Buffered: {Utils.TicksToTime(VideoDemuxer.BufferedDuration)}");
+                }
+
                 switch (VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type)
                 {
                     case AVMEDIA_TYPE_AUDIO:
-                        if (!VideoDecoder.keyFrameRequired && (timestamp == -1 || (long)(frame->pts * AudioStream.Timebase) - VideoDemuxer.StartTime > timestamp))
+                        if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * AudioStream.Timebase) - VideoDemuxer.StartTime + VideoStream.FrameDuration / 2 > timestamp)
                             VideoDemuxer.AudioPackets.Enqueue(packet);
                         
                         packet = av_packet_alloc();
@@ -464,7 +472,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                         continue;
 
                     case AVMEDIA_TYPE_SUBTITLE:
-                        if (!VideoDecoder.keyFrameRequired && (timestamp == -1 || (long)(frame->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime > timestamp))
+                        if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime + VideoStream.FrameDuration / 2 > timestamp)
                             VideoDemuxer.SubtitlesPackets.Enqueue(packet);
 
                         packet = av_packet_alloc();

@@ -15,7 +15,6 @@ using FlyleafLib.MediaFramework.MediaDemuxer;
 
 using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
-using System.Numerics;
 
 namespace FlyleafLib.MediaPlayer
 {
