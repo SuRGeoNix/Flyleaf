@@ -193,11 +193,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     // Finding User Definied adapter
                     if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
-                        var adapters2 = Engine.Video.Factory.EnumAdapters1().ToList();
-                        for (int i=0; i<adapters2.Count; i++)
+                        for (int i=0; Engine.Video.Factory.EnumAdapters1(i, out adapter).Success; i++)
                         {
-                            adapter = adapters2[i];
-
                             if (adapter.Description1.Description == Config.Video.GPUAdapter)
                                 break;
 
