@@ -31,22 +31,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             ri.Vendor       = VendorIdStr(adapter.Description1.VendorId);
 
             int maxVerticalResolution = 0;
-            var outputs = adapter.EnumOutputs().ToList();
 
-            if (outputs.Count > 0)
+            for (int o=0; adapter.EnumOutputs(o, out IDXGIOutput output).Success; o++)
             {
-                IDXGIOutput output = outputs[0];
                 RawRect bounds = output.Description.DesktopCoordinates;
+                if (maxVerticalResolution < bounds.Bottom - bounds.Top) maxVerticalResolution = bounds.Bottom - bounds.Top;
 
-                ri.OutputName   = output.Description.DeviceName;
-                ri.ScreenBounds = new System.Drawing.Rectangle(new System.Drawing.Point(bounds.Top, bounds.Left), new System.Drawing.Size(bounds.Right - bounds.Left, bounds.Bottom - bounds.Top));
-                ri.ScreenWidth  = bounds.Right - bounds.Left;
-                ri.ScreenHeight = bounds.Bottom - bounds.Top;
-
-                foreach(var output2 in outputs)
+                if (o== 0)
                 {
-                    bounds = output2.Description.DesktopCoordinates;
-                    if (maxVerticalResolution < bounds.Bottom - bounds.Top) maxVerticalResolution = bounds.Bottom - bounds.Top;
+                    ri.OutputName   = output.Description.DeviceName;
+                    ri.ScreenBounds = new System.Drawing.Rectangle(new System.Drawing.Point(bounds.Top, bounds.Left), new System.Drawing.Size(bounds.Right - bounds.Left, bounds.Bottom - bounds.Top));
+                    ri.ScreenWidth  = bounds.Right - bounds.Left;
+                    ri.ScreenHeight = bounds.Bottom - bounds.Top;
                 }
             }
 

@@ -37,10 +37,8 @@ namespace FlyleafLib
             
             string dump = "";
 
-            var adapters2 = Factory.EnumAdapters1().ToList();
-            for (int i=0; i<adapters2.Count; i++)
+            for (int i=0; Factory.EnumAdapters1(i, out IDXGIAdapter1 adapter).Success; i++)
             {
-                IDXGIAdapter1 adapter = adapters2[i];
                 dump += $"[#{i+1}] {RendererInfo.VendorIdStr(adapter.Description1.VendorId)} {adapter.Description1.Description} (Id: {adapter.Description1.DeviceId} | Luid: {adapter.Description1.Luid}) | DVM: {RendererInfo.GetBytesReadable(adapter.Description1.DedicatedVideoMemory)}\r\n";
 
                 if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
@@ -49,15 +47,12 @@ namespace FlyleafLib
                     continue;
                 }
 
-                int idx = 0;
                 bool hasOutput = false;
 
                 List<GPUOutput> outputs = new List<GPUOutput>();
 
-                var outputs2 = adapter.EnumOutputs().ToList();
-                for (int l=0; l<outputs2.Count; l++)
+                for (int o=0; adapter.EnumOutputs(o, out IDXGIOutput output).Success; o++)
                 {
-                    IDXGIOutput output = outputs2[l];
                     GPUOutput gpout = new GPUOutput();
 
                     gpout.DeviceName= output.Description.DeviceName;
@@ -74,8 +69,6 @@ namespace FlyleafLib
                         hasOutput = true;
 
                     output.Dispose();
-
-                    idx++;
                 }
 
                 adapters[adapter.Description1.Luid] = new GPUAdapter() { Description = adapter.Description1.Description, Luid = adapter.Description1.Luid, HasOutput = hasOutput, Outputs = outputs };
