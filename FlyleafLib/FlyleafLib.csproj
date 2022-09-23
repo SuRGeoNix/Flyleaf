@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.5.8</Version>
+	<Version>3.5.9</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,12 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Player: Introduces TakeSnapshotToBitmap and renames old TakeSnapshot to TakeSnapshotToFile
-		* Player: Fixes a critical issue with playlists (switching between playlist streams)
-		* Renderer: Fixes issues and improves GetBitmap
-		* Logger: Improves file writer with caching and by avoiding writing to file from UI thread
-		* Engine.Config: Introduces LogCachedLines to set cached lines before writing/flushing to file
-		* Plugins.YoutubeDL: Fixes an issue with invalid filename on windows systems
+		* Player: Fixes an audio / video delay sync issue
+		* Player: Fixes an issue with TakeSnapshot (GetBitmap) methods after stopping the player
+		* Config: Fixes an issue while changing MaxVideoFrames value
 		* Updates Vortice
 	</PackageReleaseNotes>
   </PropertyGroup>
