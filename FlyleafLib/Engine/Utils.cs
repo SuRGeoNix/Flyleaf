@@ -515,33 +515,6 @@ namespace FlyleafLib
                 public int Right    { get; set; }
                 public int Bottom   { get; set; }
             }
-
-            const string user32 = "user32.dll";
-            [DllImport(user32, CharSet = CharSet.Auto)]
-            static extern bool GetCursorPos(out POINT pt);
-
-            struct POINT
-            {
-                public int X;
-                public int Y;
-                public POINT(int x, int y)
-                {
-                    this.X = x;
-                    this.Y = y;
-                }
-            }
-
-            public static bool GetCursorPos(out System.Drawing.Point pt)
-            {
-                POINT PT;
-                if (GetCursorPos(out PT))
-                {
-                    pt = new System.Drawing.Point(PT.X, PT.Y);
-                    return true;
-                }
-                pt = new System.Drawing.Point(-1, -1);
-                return false;
-            }
         }
     }
 

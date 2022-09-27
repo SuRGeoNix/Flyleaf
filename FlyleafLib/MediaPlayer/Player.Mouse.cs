@@ -22,8 +22,8 @@ namespace FlyleafLib.MediaPlayer
 
         int panClickX = -1, panClickY = -1, panPrevX = -1, panPrevY = -1;
         System.Drawing.Point mouseDownPoint;
-        double mouseDownLeft = -1,mouseDownTop = -1;
-        
+        double _dpiX = 1d, _dpiY = 1d;
+
         private void Control_DragDrop(object sender, System.Windows.Forms.DragEventArgs e)
         {
             if (!Config.Player.MouseBindings.OpenOnDragAndDrop)
@@ -49,16 +49,9 @@ namespace FlyleafLib.MediaPlayer
         }
         private void Control_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
         {
-            Utils.NativeMethods.GetCursorPos(out System.Drawing.Point pt);
-
-            mouseDownPoint = pt;
-            System.Diagnostics.Debug.WriteLine($"MouseDown x:{pt.X}:y{pt.Y}");
-            if (VideoView != null && VideoView.WindowBack != null)
-            {
-                mouseDownLeft = VideoView.WindowBack.Left;
-                mouseDownTop = VideoView.WindowBack.Top;
-            }
-
+            mouseDownPoint = new System.Drawing.Point(e.X, e.Y);
+            _dpiX = NativeDpiHelper.DpiX / 96d;
+            _dpiY = NativeDpiHelper.Dpi / 96d;
             if (Config.Player.ActivityMode)
                 Activity.MouseTimestamp = DateTime.UtcNow.Ticks;
 
@@ -77,7 +70,6 @@ namespace FlyleafLib.MediaPlayer
         {
             panClickX = -1; panClickY = -1;
             mouseDownPoint = new System.Drawing.Point(-1, -1);
-            mouseDownLeft = -1;mouseDownTop = -1;
         }
         private void Control_MouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
         {
@@ -94,14 +86,10 @@ namespace FlyleafLib.MediaPlayer
                 }
                 else if (Config.Player.MouseBindings.WinMoveOnDrag && mouseDownPoint.X != -1)
                 {
-                    Utils.NativeMethods.GetCursorPos(out System.Drawing.Point pt);
-                    var dpi = NativeDpiHelper.Dpi;
-                    var dpix = NativeDpiHelper.DpiX;
-                    System.Diagnostics.Debug.WriteLine($"dpi:{dpi} dpiX:{dpix} --------> MouseMove x:{pt.X}:y{pt.Y}");
                     if (VideoView != null && VideoView.WindowBack != null)
                     {
-                        VideoView.WindowBack.Left = mouseDownLeft + (pt.X - mouseDownPoint.X) / (dpix / 96d);
-                        VideoView.WindowBack.Top = mouseDownTop + (pt.Y - mouseDownPoint.Y) / (dpi / 96d);
+                        VideoView.WindowBack.Left = VideoView.WindowBack.Left + (e.X - mouseDownPoint.X)/(_dpiX);
+                        VideoView.WindowBack.Top  = VideoView.WindowBack.Top  + (e.Y - mouseDownPoint.Y)/(_dpiY);
                     }
                     else if (Control != null && Control.ParentForm != null)
                     {
