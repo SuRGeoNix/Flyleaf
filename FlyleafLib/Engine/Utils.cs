@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -513,6 +514,132 @@ namespace FlyleafLib
                 public int Top      { get; set; }
                 public int Right    { get; set; }
                 public int Bottom   { get; set; }
+            }
+        }
+    }
+
+    internal static class NativeDpiHelper
+    {
+        const string User32 = "user32.dll";
+        const string Gdi32 = "gdi32.dll";
+
+        #region GetDC
+        [SecurityCritical]
+        [SuppressUnmanagedCodeSecurity]
+        [DllImport(User32, SetLastError = true, ExactSpelling = true, EntryPoint = nameof(GetDC), CharSet = CharSet.Auto)]
+        internal static extern IntPtr IntGetDC(HandleRef hWnd);
+
+        [SecurityCritical]
+        internal static IntPtr GetDC(HandleRef hWnd)
+        {
+            var hDc = IntGetDC(hWnd);
+            if (hDc == IntPtr.Zero) throw new Win32Exception();
+
+            return hDc;
+        }
+        #endregion
+
+        #region ReleaseDC
+        [SecurityCritical]
+        [SuppressUnmanagedCodeSecurity]
+        [DllImport(User32, ExactSpelling = true, EntryPoint = nameof(ReleaseDC), CharSet = CharSet.Auto)]
+        internal static extern int IntReleaseDC(HandleRef hWnd, HandleRef hDC);
+
+        [SecurityCritical]
+        internal static int ReleaseDC(HandleRef hWnd, HandleRef hDC)
+        {
+            return IntReleaseDC(hWnd, hDC);
+        }
+        #endregion
+
+        #region GetDeviceCaps
+
+        [SecurityCritical]
+        [SuppressUnmanagedCodeSecurity]
+        [DllImport(Gdi32, SetLastError = true, ExactSpelling = true, CharSet = CharSet.Auto)]
+        internal static extern int GetDeviceCaps(HandleRef hDC, int nIndex);
+        #endregion
+
+        private static bool _setDpiX = true;
+
+        private static bool _dpiInitialized;
+
+        private static readonly object _dpiLock = new object();
+
+        private static int _dpi;
+
+        private static int _dpiX;
+
+        const int LOGPIXELSX = 88, LOGPIXELSY = 90;
+        internal static int Dpi
+        {
+            [SecurityCritical, SecuritySafeCritical]
+            get
+            {
+                if (!_dpiInitialized)
+                {
+                    lock (_dpiLock)
+                    {
+                        if (!_dpiInitialized)
+                        {
+                            var desktopWnd = new HandleRef(null, IntPtr.Zero);
+
+                            // Win32Exception will get the Win32 error code so we don't have to
+                            var dc = GetDC(desktopWnd);
+
+                            // Detecting error case from unmanaged call, required by PREsharp to throw a Win32Exception
+                            if (dc == IntPtr.Zero)
+                            {
+                                throw new Win32Exception();
+                            }
+
+                            try
+                            {
+                                _dpi = GetDeviceCaps(new HandleRef(null, dc), LOGPIXELSY);
+                                _dpiInitialized = true;
+                            }
+                            finally
+                            {
+                                ReleaseDC(desktopWnd, new HandleRef(null, dc));
+                            }
+                        }
+                    }
+                }
+                return _dpi;
+            }
+        }
+
+        internal static int DpiX
+        {
+            [SecurityCritical, SecuritySafeCritical]
+            get
+            {
+                if (_setDpiX)
+                {
+                    lock (_dpiLock)
+                    {
+                        if (_setDpiX)
+                        {
+                            _setDpiX = false;
+                            var desktopWnd = new HandleRef(null, IntPtr.Zero);
+                            var dc = GetDC(desktopWnd);
+                            if (dc == IntPtr.Zero)
+                            {
+                                throw new Win32Exception();
+                            }
+                            try
+                            {
+                                _dpiX = GetDeviceCaps(new HandleRef(null, dc), LOGPIXELSX);
+                            }
+                            finally
+                            {
+                                ReleaseDC(desktopWnd, new HandleRef(null, dc));
+                            }
+                        }
+                    }
+                }
+
+                return _dpiX;
             }
         }
     }
