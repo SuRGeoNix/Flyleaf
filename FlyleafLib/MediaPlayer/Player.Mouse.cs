@@ -22,6 +22,7 @@ namespace FlyleafLib.MediaPlayer
 
         int panClickX = -1, panClickY = -1, panPrevX = -1, panPrevY = -1;
         System.Drawing.Point mouseDownPoint;
+        double _dpiX = 1d, _dpiY = 1d;
 
         private void Control_DragDrop(object sender, System.Windows.Forms.DragEventArgs e)
         {
@@ -49,7 +50,8 @@ namespace FlyleafLib.MediaPlayer
         private void Control_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
         {
             mouseDownPoint = new System.Drawing.Point(e.X, e.Y);
-
+            _dpiX = NativeDpiHelper.DpiX / 96d;
+            _dpiY = NativeDpiHelper.Dpi / 96d;
             if (Config.Player.ActivityMode)
                 Activity.MouseTimestamp = DateTime.UtcNow.Ticks;
 
@@ -86,8 +88,8 @@ namespace FlyleafLib.MediaPlayer
                 {
                     if (VideoView != null && VideoView.WindowBack != null)
                     {
-                        VideoView.WindowBack.Left = VideoView.WindowBack.Left + e.X - mouseDownPoint.X;
-                        VideoView.WindowBack.Top  = VideoView.WindowBack.Top  + e.Y - mouseDownPoint.Y;
+                        VideoView.WindowBack.Left = VideoView.WindowBack.Left + (e.X - mouseDownPoint.X)/(_dpiX);
+                        VideoView.WindowBack.Top  = VideoView.WindowBack.Top  + (e.Y - mouseDownPoint.Y)/(_dpiY);
                     }
                     else if (Control != null && Control.ParentForm != null)
                     {
