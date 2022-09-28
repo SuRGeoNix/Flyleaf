@@ -7,17 +7,12 @@ namespace FlyleafLib.Plugins
 {
     public class FormatSubtitle : PluginBase, IFormatSubtitle
     {
-        public new int Priority { get; set; } = 3000;
-        bool IFormatSubtitle.FormatSubtitle(ref SubtitlesFrame sframe)
+        SubtitlesFrame IFormatSubtitle.FormatSubtitle(SubtitlesFrame sframe)
         {
-            try
-            {
-                var line = SSAtoSubStyles(sframe.OriginalText, out List<SubStyle> subStyles);
-                sframe.text = line;
-                sframe.subStyles = subStyles;
-                return true;
-            }
-            catch { return false; }
+            var line = SSAtoSubStyles(sframe.OriginalText, out List<SubStyle> subStyles);
+            sframe.text = line;
+            sframe.subStyles = subStyles;
+            return sframe;
         }
 
         public static string SSAtoSubStyles(string s, out List<SubStyle> styles)
