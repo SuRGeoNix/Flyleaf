@@ -304,10 +304,7 @@ namespace FlyleafLib.MediaPlayer
                 {
                     SubtitlesDecoder.Frames.TryPeek(out sFrame);
                     if (sFrame != null)
-                    {
-                        sFrame  = decoder.FormatSubtitle(sFrame);
                         sFrame.timestamp = (long) (sFrame.timestamp / Speed); //sFrame.duration = sFrame.duration / Speed;
-                    }
                 }
 
                 elapsedTicks= videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
