@@ -1,20 +1,14 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Globalization;
 using System.Threading;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
-using static FFmpeg.AutoGen.AVCodecID;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 
 using static FlyleafLib.Logger;
-using FlyleafLib.MediaFramework.MediaContext;
-using FlyleafLib.Plugins;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
@@ -25,8 +19,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public ConcurrentQueue<SubtitlesFrame>
                                 Frames              { get; protected set; } = new ConcurrentQueue<SubtitlesFrame>();
 
-        private PluginHandler _pluginHandler;
-        public SubtitlesDecoder(PluginHandler pluginHandler, Config config, int uniqueId = -1) : base(config, uniqueId) { _pluginHandler = pluginHandler; }
+        public SubtitlesDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
 
         protected override unsafe int Setup(AVCodec* codec) { return 0; }
 
@@ -168,14 +161,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 switch (cur->type)
                 {
                     case AVSubtitleType.SUBTITLE_ASS:
-                        buffer = new byte[1024];
-                        line = Utils.BytePtrToStringUTF8(cur->ass);
-                        break;
-
                     case AVSubtitleType.SUBTITLE_TEXT:
                         buffer = new byte[1024];
                         line = Utils.BytePtrToStringUTF8(cur->ass);
-
                         break;
 
                     //case AVSubtitleType.SUBTITLE_BITMAP:
@@ -186,13 +174,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 }
 
                 var mFrame = new SubtitlesFrame(line);
-                mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Subtitles.Delay;
+                mFrame.duration = (int) (sub->end_display_time - sub->start_display_time);
+                mFrame.timestamp= ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Subtitles.Delay;
+                
                 if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
-                mFrame.text         = line;
-                mFrame.subStyles    = new List<SubStyle>();
-                mFrame.duration     = (int) (sub->end_display_time - sub->start_display_time);
-                mFrame              = _pluginHandler.FormatSubtitle(mFrame);
+                Config.Subtitles.Parser(mFrame);
+
                 return mFrame;
             } catch (Exception e) { Log.Error($"Failed to process frame ({e.Message})"); return null; }
         }

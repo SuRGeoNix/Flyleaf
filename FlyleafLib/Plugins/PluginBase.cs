@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using FlyleafLib.MediaFramework.MediaFrame;
+
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -175,10 +175,6 @@ namespace FlyleafLib.Plugins
         void SuggestSubtitles(out SubtitlesStream stream, out ExternalSubtitlesStream extStream);
     }
 
-    public interface IFormatSubtitle : IPlugin
-    {
-        bool FormatSubtitle(ref SubtitlesFrame sframe);
-    }
     public interface ISuggestBestExternalSubtitles : IPlugin
     {
         /// <summary>
