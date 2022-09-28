@@ -13,6 +13,8 @@ using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 
 using static FlyleafLib.Logger;
+using FlyleafLib.MediaFramework.MediaContext;
+using FlyleafLib.Plugins;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
@@ -23,7 +25,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public ConcurrentQueue<SubtitlesFrame>
                                 Frames              { get; protected set; } = new ConcurrentQueue<SubtitlesFrame>();
 
-        public SubtitlesDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
+        private PluginHandler _pluginHandler;
+        public SubtitlesDecoder(PluginHandler pluginHandler, Config config, int uniqueId = -1) : base(config, uniqueId) { _pluginHandler = pluginHandler; }
 
         protected override unsafe int Setup(AVCodec* codec) { return 0; }
 
@@ -189,7 +192,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 mFrame.text         = line;
                 mFrame.subStyles    = new List<SubStyle>();
                 mFrame.duration     = (int) (sub->end_display_time - sub->start_display_time);
-
+                mFrame              = _pluginHandler.FormatSubtitle(mFrame);
                 return mFrame;
             } catch (Exception e) { Log.Error($"Failed to process frame ({e.Message})"); return null; }
         }

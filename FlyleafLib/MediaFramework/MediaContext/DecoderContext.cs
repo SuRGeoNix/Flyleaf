@@ -107,7 +107,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             VideoDecoder        = new VideoDecoder(Config, UniqueId);
             AudioDecoder        = new AudioDecoder(Config, UniqueId, VideoDecoder);
-            SubtitlesDecoder    = new SubtitlesDecoder(Config, UniqueId);
+            SubtitlesDecoder    = new SubtitlesDecoder(this,Config, UniqueId);
 
             if (EnableDecoding && config.Player.Usage != MediaPlayer.Usage.Audio)
                 VideoDecoder.CreateRenderer();
