@@ -7,6 +7,8 @@ namespace FlyleafLib.Plugins
 {
     public class FormatSubtitle : PluginBase, IFormatSubtitle
     {
+        public new int Priority { get; set; } = 3000;
+
         bool IFormatSubtitle.FormatSubtitle(ref SubtitlesFrame sframe)
         {
             try
