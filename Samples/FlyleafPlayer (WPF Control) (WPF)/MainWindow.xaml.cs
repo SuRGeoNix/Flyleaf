@@ -6,6 +6,8 @@ using System.Windows;
 using System.Windows.Interop;
 
 using FlyleafLib;
+using FlyleafLib.MediaFramework.MediaPlaylist;
+using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaPlayer;
 
 namespace FlyleafPlayer
@@ -19,41 +21,41 @@ namespace FlyleafPlayer
         /// Flyleaf Player binded to VideoView
         /// </summary>
         public Player Player { get; set; }
-        
+
         EngineConfig engineConfig;
         Config playerConfig;
 
         public MainWindow()
         {
             // NOTE: Loads/Saves configs only in RELEASE mode
-            
+
             // Ensures that we have enough worker threads to avoid the UI from freezing or not updating on time
             ThreadPool.GetMinThreads(out int workers, out int ports);
             ThreadPool.SetMinThreads(workers + 6, ports + 6);
 
             // Engine's Config
-            #if RELEASE
+#if RELEASE
             if (File.Exists("Flyleaf.Engine.xml"))
                 try { engineConfig = EngineConfig.Load("Flyleaf.Engine.xml"); } catch { engineConfig = DefaultEngineConfig(); }
             else
                 engineConfig = DefaultEngineConfig();
-            #else
+#else
             engineConfig = DefaultEngineConfig();
-            #endif
+#endif
 
             Engine.Start(engineConfig);
 
             // Player's Config (Cannot be initialized before Engine's initialization)
-            #if RELEASE
+#if RELEASE
             // Load Player's Config
             if (File.Exists("Flyleaf.Config.xml"))
                 try { playerConfig = Config.Load("Flyleaf.Config.xml"); } catch { playerConfig = DefaultConfig(); }
             else
                 playerConfig = DefaultConfig();
-            #else
-                playerConfig = DefaultConfig();
-            #endif
-            
+#else
+            playerConfig = DefaultConfig();
+#endif
+
             // Initializes the Player
             Player = new Player(playerConfig);
 
@@ -63,8 +65,8 @@ namespace FlyleafPlayer
             InitializeComponent();
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
-            flyleafControl.ConfigPath   = "Flyleaf.Config.xml";
-            flyleafControl.EnginePath   = "Flyleaf.Engine.xml";
+            flyleafControl.ConfigPath = "Flyleaf.Config.xml";
+            flyleafControl.EnginePath = "Flyleaf.Engine.xml";
             flyleafControl.UIConfigPath = "Flyleaf.UIConfig.xml";
 
             // If the user requests reverse playback allocate more frames once
@@ -78,6 +80,33 @@ namespace FlyleafPlayer
                     ReversePlaybackChecked = true;
                 }
             };
+
+            //var videoUrl = "https://kjwgqp-c5.vcinema.cn/202206/GWETTGZR/cvEcbDdRJX.m3u8?auth_key=1664280752-0-0-560ef55be65e6e05968839865cd24ed8&secret=5090c03de47a9793c9d12a2bff0c3415-122.224.199.130-32740628";
+            //var videoUrl = "https://kjwgqp-c5.vcinema.cn/202206/YLgsTmgg/dfYsWiuYUz.m3u8?auth_key=1664296597-0-0-76ee0144c2bd08765f31a3949e518e98&secret=4d65263e21f9ce546038f8d782f82314-122.224.199.130-32740628";
+            //var videoUrl = "https://kjwgqp-c5.vcinema.cn/202206/GWETTGZR/cvEcbDdRJX.m3u8?auth_key=1664346292-0-0-90b55b66c8522da66bebb83573994036&secret=5090c03de47a9793c9d12a2bff0c3415-122.224.199.130-32740628";
+            var videoUrl = "https://kjwgqp-c5.vcinema.cn/202206/GWETTGZR/cvEcbDdRJX.m3u8?auth_key=1664380234-0-0-5e65526f60202be885ba51373a605f16&secret=5090c03de47a9793c9d12a2bff0c3415-122.224.199.130-32740628";
+
+            var subtitleUrl = "C:\\Users\\afunc\\Downloads\\276FprVqLgmER5jriulMEtxG.srt";
+            //var subtitleUrl = "https://subtitle.vcinema.cn/276FprVqLgmER5jriulMEtxG.srt";
+            Player.OpenSubtitlesStreamCompleted += (ss, ee) =>
+            {
+
+            };
+
+            Player.OpenVideoStreamCompleted += (ss, ee) =>
+            {
+
+            };
+            Player.OpenExternalVideoStreamCompleted += (ss, ee) =>
+            {
+
+            };
+
+            var session = new Session() { Url = videoUrl, ExternalSubtitlesUrl = subtitleUrl };
+
+
+            Player.OpenAsync(videoUrl);
+            Player.OpenAsync(subtitleUrl);
         }
         bool ReversePlaybackChecked;
 
@@ -85,21 +114,21 @@ namespace FlyleafPlayer
         {
             EngineConfig engineConfig = new EngineConfig();
 
-            engineConfig.PluginsPath    = ":Plugins";
-            engineConfig.FFmpegPath     = ":FFmpeg";
+            engineConfig.PluginsPath = "F:\\NewCode\\Flyleaf_Test\\PumpkinSubtitle\\bin\\";
+            engineConfig.FFmpegPath = ":FFmpeg";
             engineConfig.HighPerformaceTimers
                                         = false;
-            engineConfig.UIRefresh      = true;
+            engineConfig.UIRefresh = true;
 
-            #if RELEASE
+#if RELEASE
             engineConfig.LogOutput      = "Flyleaf.FirstRun.log";
             engineConfig.LogLevel       = LogLevel.Debug;
             engineConfig.FFmpegDevices  = true;
-            #else
-            engineConfig.LogOutput      = ":debug";
-            engineConfig.LogLevel       = LogLevel.Debug;
+#else
+            engineConfig.LogOutput = ":debug";
+            engineConfig.LogLevel = LogLevel.Debug;
             engineConfig.FFmpegLogLevel = FFmpegLogLevel.Warning;
-            #endif
+#endif
 
             return engineConfig;
         }
@@ -115,7 +144,7 @@ namespace FlyleafPlayer
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            #if RELEASE
+#if RELEASE
             // Save Player's Config (First Run)
             // Ensures that the Control's handle has been created and the renderer has been fully initialized (so we can save also the filters parsed by the library)
             if (!playerConfig.Loaded)
@@ -136,7 +165,7 @@ namespace FlyleafPlayer
 
                 try { engineConfig.Save("Flyleaf.Engine.xml"); } catch { }
             }
-            #endif
+#endif
 
             // Gives access to keyboard events on start up
             Player.VideoView.WinFormsHost.Focus();
