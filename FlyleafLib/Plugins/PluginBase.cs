@@ -177,7 +177,7 @@ namespace FlyleafLib.Plugins
 
     public interface IFormatSubtitle : IPlugin
     {
-        SubtitlesFrame FormatSubtitle(SubtitlesFrame sframe);
+        bool FormatSubtitle(ref SubtitlesFrame sframe);
     }
     public interface ISuggestBestExternalSubtitles : IPlugin
     {

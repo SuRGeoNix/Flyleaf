@@ -454,7 +454,10 @@ namespace FlyleafLib.Plugins
             var plugins = PluginsFormatSubtitles.Values.OrderBy(x => x.Priority);
             foreach (var plugin in plugins)
             {
-                sframe = plugin.FormatSubtitle(sframe);
+                if (plugin.FormatSubtitle(ref sframe))
+                {
+                    break;
+                }
             }
             return sframe;
         }
