@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-
+using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
@@ -22,42 +22,46 @@ namespace FlyleafLib.Plugins
         public Playlist                 Playlist                        { get; set; }
         public int                      UniqueId                        { get; set; }
 
-        public Dictionary<string, PluginBase>   
+        public Dictionary<string, PluginBase>
                                         Plugins                         { get; private set; }
-        public Dictionary<string, IOpen> 
+        public Dictionary<string, IOpen>
                                         PluginsOpen                     { get; private set; }
         public Dictionary<string, IOpenSubtitles>
                                         PluginsOpenSubtitles            { get; private set; }
 
-        public Dictionary<string, IScrapeItem> 
+        public Dictionary<string, IScrapeItem>
                                         PluginsScrapeItem               { get; private set; }
 
-        public Dictionary<string, ISuggestPlaylistItem>         
+        public Dictionary<string, ISuggestPlaylistItem>
                                         PluginsSuggestItem              { get; private set; }
 
-        public Dictionary<string, ISuggestAudioStream>        
+        public Dictionary<string, ISuggestAudioStream>
                                         PluginsSuggestAudioStream       { get; private set; }
-        public Dictionary<string, ISuggestVideoStream>        
+        public Dictionary<string, ISuggestVideoStream>
                                         PluginsSuggestVideoStream       { get; private set; }
-        public Dictionary<string, ISuggestExternalAudio>        
+        public Dictionary<string, ISuggestExternalAudio>
                                         PluginsSuggestExternalAudio     { get; private set; }
-        public Dictionary<string, ISuggestExternalVideo>        
+        public Dictionary<string, ISuggestExternalVideo>
                                         PluginsSuggestExternalVideo     { get; private set; }
 
-        public Dictionary<string, ISuggestSubtitlesStream>    
+        public Dictionary<string, ISuggestSubtitlesStream>
                                         PluginsSuggestSubtitlesStream   { get; private set; }
-        public Dictionary<string, ISuggestSubtitles>    
+        public Dictionary<string, ISuggestSubtitles>
                                         PluginsSuggestSubtitles         { get; private set; }
-        public Dictionary<string, ISuggestBestExternalSubtitles>    
+        public Dictionary<string, ISuggestBestExternalSubtitles>
                                         PluginsSuggestBestExternalSubtitles
-                                                                        { get; private set; }
+        { get; private set; }
 
-        public Dictionary<string, IDownloadSubtitles>         
+        public Dictionary<string, IDownloadSubtitles>
                                         PluginsDownloadSubtitles        { get; private set; }
 
-        public Dictionary<string, ISearchLocalSubtitles>           
+        public Dictionary<string, IFormatSubtitle>
+                                        PluginsFormatSubtitles
+        { get; private set; }
+
+        public Dictionary<string, ISearchLocalSubtitles>
                                         PluginsSearchLocalSubtitles     { get; private set; }
-        public Dictionary<string, ISearchOnlineSubtitles>           
+        public Dictionary<string, ISearchOnlineSubtitles>
                                         PluginsSearchOnlineSubtitles    { get; private set; }
         #endregion
 
@@ -97,7 +101,7 @@ namespace FlyleafLib.Plugins
                     plugin.Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{plugin.Name.PadRight(14, ' ')}] ");
                     Plugins.Add(plugin.Name, plugin);
                 } catch (Exception e) { Log.Error($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
-            }
+                }
 
             PluginsOpen                     = new Dictionary<string, IOpen>();
             PluginsOpenSubtitles            = new Dictionary<string, IOpenSubtitles>();
@@ -117,6 +121,7 @@ namespace FlyleafLib.Plugins
             PluginsSearchLocalSubtitles     = new Dictionary<string, ISearchLocalSubtitles>();
             PluginsSearchOnlineSubtitles    = new Dictionary<string, ISearchOnlineSubtitles>();
             PluginsDownloadSubtitles        = new Dictionary<string, IDownloadSubtitles>();
+            PluginsFormatSubtitles          = new Dictionary<string, IFormatSubtitle>();
 
             foreach (var plugin in Plugins.Values)
                 LoadPluginInterfaces(plugin);
@@ -142,6 +147,7 @@ namespace FlyleafLib.Plugins
             if (plugin is ISearchLocalSubtitles) PluginsSearchLocalSubtitles.Add(plugin.Name, (ISearchLocalSubtitles)plugin);
             if (plugin is ISearchOnlineSubtitles) PluginsSearchOnlineSubtitles.Add(plugin.Name, (ISearchOnlineSubtitles)plugin);
             if (plugin is IDownloadSubtitles) PluginsDownloadSubtitles.Add(plugin.Name, (IDownloadSubtitles)plugin);
+            if (plugin is IFormatSubtitle) PluginsFormatSubtitles.Add(plugin.Name, (IFormatSubtitle)plugin);
         }
         #endregion
 
@@ -264,7 +270,7 @@ namespace FlyleafLib.Plugins
                     return null;
 
                 PlaylistItem item = plugin.SuggestItem();
-                if (item != null) 
+                if (item != null)
                 {
                     Log.Info($"SuggestItem #{item.Index} - {item.Title}");
                     return item;
@@ -443,6 +449,18 @@ namespace FlyleafLib.Plugins
             return res;
         }
 
+        public SubtitlesFrame FormatSubtitle(SubtitlesFrame sframe)
+        {
+            var plugins = PluginsFormatSubtitles.Values.OrderBy(x => x.Priority);
+            foreach (var plugin in plugins)
+            {
+                if (plugin.FormatSubtitle(ref sframe))
+                {
+                    break;
+                }
+            }
+            return sframe;
+        }
         public ExternalSubtitlesStream SuggestBestExternalSubtitles()
         {
             var plugins = PluginsSuggestBestExternalSubtitles.Values.OrderBy(x => x.Priority);

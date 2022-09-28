@@ -13,6 +13,8 @@ using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 
 using static FlyleafLib.Logger;
+using FlyleafLib.MediaFramework.MediaContext;
+using FlyleafLib.Plugins;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder
 {
@@ -23,7 +25,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public ConcurrentQueue<SubtitlesFrame>
                                 Frames              { get; protected set; } = new ConcurrentQueue<SubtitlesFrame>();
 
-        public SubtitlesDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
+        private PluginHandler _pluginHandler;
+        public SubtitlesDecoder(PluginHandler pluginHandler, Config config, int uniqueId = -1) : base(config, uniqueId) { _pluginHandler = pluginHandler; }
 
         protected override unsafe int Setup(AVCodec* codec) { return 0; }
 
@@ -154,10 +157,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         private SubtitlesFrame ProcessSubtitlesFrame(AVPacket* packet, AVSubtitle* sub)
         {
-            SubtitlesFrame mFrame;
-            mFrame = new SubtitlesFrame();
-            mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Subtitles.Delay;
-            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
             try
             {
@@ -186,165 +185,16 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         return null;
                 }
 
-                mFrame.text         = SSAtoSubStyles(line, out List<SubStyle> subStyles);
-                mFrame.subStyles    = subStyles;
+                var mFrame = new SubtitlesFrame(line);
+                mFrame.timestamp = ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Subtitles.Delay;
+                if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
+
+                mFrame.text         = line;
+                mFrame.subStyles    = new List<SubStyle>();
                 mFrame.duration     = (int) (sub->end_display_time - sub->start_display_time);
+                mFrame              = _pluginHandler.FormatSubtitle(mFrame);
+                return mFrame;
             } catch (Exception e) { Log.Error($"Failed to process frame ({e.Message})"); return null; }
-
-            return mFrame;
-        }
-
-        public static string SSAtoSubStyles(string s, out List<SubStyle> styles)
-        {
-            int     pos     = 0;
-            string  sout    = "";
-            styles          = new List<SubStyle>();
-
-            SubStyle bold       = new SubStyle(SubStyles.BOLD);
-            SubStyle italic     = new SubStyle(SubStyles.ITALIC);
-            SubStyle underline  = new SubStyle(SubStyles.UNDERLINE);
-            SubStyle strikeout  = new SubStyle(SubStyles.STRIKEOUT);
-            SubStyle color      = new SubStyle(SubStyles.COLOR);
-
-            //SubStyle fontname      = new SubStyle(SubStyles.FONTNAME);
-            //SubStyle fontsize      = new SubStyle(SubStyles.FONTSIZE);
-
-            s = s.LastIndexOf(",,") == -1 ? s : s.Substring(s.LastIndexOf(",,") + 2).Replace("\\N", "\n").Trim();
-
-            for (int i=0; i<s.Length; i++)
-            {
-                if (s[i] == '{') continue;
-
-                if (s[i] == '\\' && s[i-1] == '{')
-                {
-                    int codeLen = s.IndexOf('}', i) -i;
-                    if (codeLen == -1) continue;
-
-                    string code = s.Substring(i, codeLen).Trim();
-
-                    switch (code[1])
-                    {
-                        case 'c':
-                            if ( code.Length == 2 )
-                            {
-                                if (color.from == -1) break;
-
-                                color.len = pos - color.from;
-                                if (color.value != Color.Transparent) styles.Add(color);
-                                color = new SubStyle(SubStyles.COLOR);                                
-                            }
-                            else
-                            {
-                                color.from = pos;
-                                color.value = Color.Transparent;
-                                if (code.Length < 7) break;
-
-                                int colorEnd = code.LastIndexOf("&");
-                                if (colorEnd < 6) break;
-
-                                string hexColor = code.Substring(4, colorEnd - 4);
-                                int red = int.Parse(hexColor.Substring(hexColor.Length-2, 2), NumberStyles.HexNumber);
-                                int green = 0;
-                                int blue = 0;
-
-                                if (hexColor.Length-2 > 0)
-                                {
-                                    hexColor = hexColor.Substring(0, hexColor.Length-2);
-                                    green = int.Parse(hexColor.Substring(hexColor.Length-2, 2), NumberStyles.HexNumber);
-                                }
-                                if (hexColor.Length-2 > 0)
-                                {
-                                    hexColor = hexColor.Substring(0, hexColor.Length-2);
-                                    blue = int.Parse(hexColor.Substring(hexColor.Length-2, 2), NumberStyles.HexNumber);
-                                }
-
-                                color.value = Color.FromArgb(255, red, green, blue);
-                            }
-                            break;
-
-                        case 'b':
-                            if ( code[2] == '0' )
-                            {
-                                if (bold.from == -1) break;
-
-                                bold.len = pos - bold.from;
-                                styles.Add(bold);
-                                bold = new SubStyle(SubStyles.BOLD);
-                            }
-                            else
-                            {
-                                bold.from = pos;
-                                //bold.value = code.Substring(2, code.Length-2);
-                            }
-
-                            break;
-
-                        case 'u':
-                            if ( code[2] == '0' )
-                            {
-                                if (underline.from == -1) break;
-
-                                underline.len = pos - underline.from;
-                                styles.Add(underline);
-                                underline = new SubStyle(SubStyles.UNDERLINE);
-                            }
-                            else
-                            {
-                                underline.from = pos;
-                            }
-                            
-                            break;
-
-                        case 's':
-                            if ( code[2] == '0' )
-                            {
-                                if (strikeout.from == -1) break;
-
-                                strikeout.len = pos - strikeout.from;
-                                styles.Add(strikeout);
-                                strikeout = new SubStyle(SubStyles.STRIKEOUT);
-                            }
-                            else
-                            {
-                                strikeout.from = pos;
-                            }
-                            
-                            break;
-
-                        case 'i':
-                            if ( code[2] == '0' )
-                            {
-                                if (italic.from == -1) break;
-
-                                italic.len = pos - italic.from;
-                                styles.Add(italic);
-                                italic = new SubStyle(SubStyles.ITALIC);
-                            }
-                            else
-                            {
-                                italic.from = pos;
-                            }
-                            
-                            break;
-                    }
-
-                    i += codeLen;
-                    continue;
-                }
-
-                sout += s[i];
-                pos ++;
-            }
-
-            // Non-Closing Codes
-            int soutPostLast = sout.Length;
-            if (bold.from != -1) { bold.len = soutPostLast - bold.from; styles.Add(bold); }
-            if (italic.from != -1) { italic.len = soutPostLast - italic.from; styles.Add(italic); }
-            if (strikeout.from != -1) { strikeout.len = soutPostLast - strikeout.from; styles.Add(strikeout); }
-            if (underline.from != -1) { underline.len = soutPostLast - underline.from; styles.Add(underline); }
-            if (color.from != -1 && (Color) color.value != Color.Transparent) { color.len = soutPostLast - color.from; styles.Add(color); }
-
-            return sout;
         }
 
         public void DisposeFrames()
