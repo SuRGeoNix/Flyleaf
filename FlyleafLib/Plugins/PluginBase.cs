@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-
+using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -17,7 +17,7 @@ namespace FlyleafLib.Plugins
 
         public Playlist                 Playlist        => Handler.Playlist;
         public PlaylistItem             Selected        => Handler.Playlist.Selected;
-        
+
         public DecoderContext           decoder         => (DecoderContext) Handler;
 
         public PluginHandler            Handler         { get; internal set; }
@@ -150,7 +150,7 @@ namespace FlyleafLib.Plugins
     {
         ExternalVideoStream SuggestExternalVideo();
     }
-    
+
     public interface ISuggestAudioStream : IPlugin
     {
         AudioStream SuggestAudio(ObservableCollection<AudioStream> streams);
@@ -175,6 +175,10 @@ namespace FlyleafLib.Plugins
         void SuggestSubtitles(out SubtitlesStream stream, out ExternalSubtitlesStream extStream);
     }
 
+    public interface IFormatSubtitle : IPlugin
+    {
+        bool FormatSubtitle(ref SubtitlesFrame sframe);
+    }
     public interface ISuggestBestExternalSubtitles : IPlugin
     {
         /// <summary>

@@ -6,9 +6,15 @@ namespace FlyleafLib.MediaFramework.MediaFrame
 {
     public class SubtitlesFrame : FrameBase
     {
+        public string OriginalText { get;private set; }
         public int          duration;
         public string       text;
         public List<SubStyle> subStyles;
+
+        public SubtitlesFrame(string originalText)
+        {
+            this.OriginalText = originalText;
+        }
     }
     public struct SubStyle
         {
