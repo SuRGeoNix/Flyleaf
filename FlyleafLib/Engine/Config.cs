@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 
+using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins;
@@ -641,7 +642,8 @@ namespace FlyleafLib
             /// <summary>
             /// Allowed input types to be searched locally for subtitles (empty list allows all types)
             /// </summary>
-            public List<InputType>  SearchLocalOnInputType { get; set; } = new List<InputType>() { InputType.File, InputType.UNC, InputType.Torrent };
+            public List<InputType>  SearchLocalOnInputType
+                                                        { get; set; } = new List<InputType>() { InputType.File, InputType.UNC, InputType.Torrent };
 
             /// <summary>
             /// Whether to use online search plugins (see also <see cref="SearchOnlineOnInputType"/>)
@@ -652,7 +654,15 @@ namespace FlyleafLib
             /// <summary>
             /// Allowed input types to be searched online for subtitles (empty list allows all types)
             /// </summary>
-            public List<InputType>  SearchOnlineOnInputType { get; set; } = new List<InputType>() { InputType.File, InputType.Torrent };
+            public List<InputType>  SearchOnlineOnInputType
+                                                        { get; set; } = new List<InputType>() { InputType.File, InputType.Torrent };
+
+            /// <summary>
+            /// Subtitles parser (can be used for custom parsing)
+            /// </summary>
+            [XmlIgnore]
+            public Action<SubtitlesFrame>
+                                    Parser              { get; set; } = ParseSubtitles.Parse;
         }
     }
 

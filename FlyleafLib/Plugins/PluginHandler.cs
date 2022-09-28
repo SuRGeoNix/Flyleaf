@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using FlyleafLib.MediaFramework.MediaFrame;
+
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
@@ -50,14 +50,10 @@ namespace FlyleafLib.Plugins
                                         PluginsSuggestSubtitles         { get; private set; }
         public Dictionary<string, ISuggestBestExternalSubtitles>
                                         PluginsSuggestBestExternalSubtitles
-        { get; private set; }
+                                                                        { get; private set; }
 
         public Dictionary<string, IDownloadSubtitles>
                                         PluginsDownloadSubtitles        { get; private set; }
-
-        public Dictionary<string, IFormatSubtitle>
-                                        PluginsFormatSubtitles
-        { get; private set; }
 
         public Dictionary<string, ISearchLocalSubtitles>
                                         PluginsSearchLocalSubtitles     { get; private set; }
@@ -105,7 +101,7 @@ namespace FlyleafLib.Plugins
 
             PluginsOpen                     = new Dictionary<string, IOpen>();
             PluginsOpenSubtitles            = new Dictionary<string, IOpenSubtitles>();
-            PluginsScrapeItem                   = new Dictionary<string, IScrapeItem>();
+            PluginsScrapeItem               = new Dictionary<string, IScrapeItem>();
 
             PluginsSuggestItem              = new Dictionary<string, ISuggestPlaylistItem>();
 
@@ -114,14 +110,14 @@ namespace FlyleafLib.Plugins
             PluginsSuggestSubtitlesStream   = new Dictionary<string, ISuggestSubtitlesStream>();
             PluginsSuggestSubtitles         = new Dictionary<string, ISuggestSubtitles>();
 
-            PluginsSuggestExternalAudio        = new Dictionary<string, ISuggestExternalAudio>();
-            PluginsSuggestExternalVideo        = new Dictionary<string, ISuggestExternalVideo>();
-            PluginsSuggestBestExternalSubtitles= new Dictionary<string, ISuggestBestExternalSubtitles>();
+            PluginsSuggestExternalAudio     = new Dictionary<string, ISuggestExternalAudio>();
+            PluginsSuggestExternalVideo     = new Dictionary<string, ISuggestExternalVideo>();
+            PluginsSuggestBestExternalSubtitles
+                                            = new Dictionary<string, ISuggestBestExternalSubtitles>();
 
             PluginsSearchLocalSubtitles     = new Dictionary<string, ISearchLocalSubtitles>();
             PluginsSearchOnlineSubtitles    = new Dictionary<string, ISearchOnlineSubtitles>();
             PluginsDownloadSubtitles        = new Dictionary<string, IDownloadSubtitles>();
-            PluginsFormatSubtitles          = new Dictionary<string, IFormatSubtitle>();
 
             foreach (var plugin in Plugins.Values)
                 LoadPluginInterfaces(plugin);
@@ -147,7 +143,6 @@ namespace FlyleafLib.Plugins
             if (plugin is ISearchLocalSubtitles) PluginsSearchLocalSubtitles.Add(plugin.Name, (ISearchLocalSubtitles)plugin);
             if (plugin is ISearchOnlineSubtitles) PluginsSearchOnlineSubtitles.Add(plugin.Name, (ISearchOnlineSubtitles)plugin);
             if (plugin is IDownloadSubtitles) PluginsDownloadSubtitles.Add(plugin.Name, (IDownloadSubtitles)plugin);
-            if (plugin is IFormatSubtitle) PluginsFormatSubtitles.Add(plugin.Name, (IFormatSubtitle)plugin);
         }
         #endregion
 
@@ -449,18 +444,6 @@ namespace FlyleafLib.Plugins
             return res;
         }
 
-        public SubtitlesFrame FormatSubtitle(SubtitlesFrame sframe)
-        {
-            var plugins = PluginsFormatSubtitles.Values.OrderBy(x => x.Priority);
-            foreach (var plugin in plugins)
-            {
-                if (plugin.FormatSubtitle(ref sframe))
-                {
-                    break;
-                }
-            }
-            return sframe;
-        }
         public ExternalSubtitlesStream SuggestBestExternalSubtitles()
         {
             var plugins = PluginsSuggestBestExternalSubtitles.Values.OrderBy(x => x.Priority);
