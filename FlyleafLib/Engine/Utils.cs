@@ -25,6 +25,54 @@ namespace FlyleafLib
     public unsafe static class Utils
     {
         #region MediaEngine
+        // VLC : https://github.com/videolan/vlc/blob/master/modules/gui/qt/dialogs/preferences/simple_preferences.cpp
+        // Kodi: https://github.com/xbmc/xbmc/blob/master/xbmc/settings/AdvancedSettings.cpp
+
+        public static List<string>  ExtensionsAudio = new List<string>()
+        {
+            // VLC
+              "3ga" , "669" , "a52" , "aac" , "ac3"
+            , "adt" , "adts", "aif" , "aifc", "aiff"
+            , "au"  , "amr" , "aob" , "ape" , "caf"
+            , "cda" , "dts" , "flac", "it"  , "m4a"
+            , "m4p" , "mid" , "mka" , "mlp" , "mod"
+            , "mp1" , "mp2" , "mp3" , "mpc" , "mpga"
+            , "oga" , "oma" , "opus", "qcp" , "ra"
+            , "rmi" , "snd" , "s3m" , "spx" , "tta"
+            , "voc" , "vqf" , "w64" , "wav" , "wma"
+            , "wv"  , "xa"  , "xm"
+        };
+
+        public static List<string>  ExtensionsPictures = new List<string>()
+        {
+            "apng", "bmp", "gif", "jpg", "jpeg", "png", "ico", "tif", "tiff", "tga"
+        };
+
+        public static List<string>  ExtensionsSubtitles = new List<string>()
+        {
+            "ass", "ssa", "srt", "sub", "txt", "text", "vtt"
+        };
+
+        public static List<string>  ExtensionsVideo = new List<string>()
+        {
+            // VLC
+              "3g2" , "3gp" , "3gp2", "3gpp", "amrec"
+            , "amv" , "asf" , "avi" , "bik" , "divx"
+            , "drc" , "dv"  , "f4v" , "flv" , "gvi"
+            , "gxf" , "m1v" , "m2t" , "m2v" , "m2ts"
+            , "m4v" , "mkv" , "mov" , "mp2v", "mp4"
+            , "mp4v", "mpa" , "mpe" , "mpeg", "mpeg1"
+            , "mpeg2","mpeg4","mpg" , "mpv2", "mts"
+            , "mtv" , "mxf" , "nsv" , "nuv" , "ogg"
+            , "ogm" , "ogx" , "ogv" , "rec" , "rm"
+            , "rmvb", "rpl" , "thp" , "tod" , "ts"
+            , "tts" , "vob" , "vro" , "webm", "wmv"
+            , "xesc"
+
+            // Additional
+            , "dav"
+        };
+
         private static int uniqueId;
         public static int GetUniqueId() { Interlocked.Increment(ref uniqueId); return uniqueId; }
 
@@ -134,9 +182,6 @@ namespace FlyleafLib
         //public static bool          IsWin8          = Regex.IsMatch(Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ProductName", "").ToString(), "Windows 8");
         //public static bool          IsWin7          = Regex.IsMatch(Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ProductName", "").ToString(), "Windows 7");
 
-        public static List<string>  MovieExts       = new List<string>() { "mp4", "m4v", "m4e", "mkv", "mpg", "mpeg" , "mpv", "mp4p", "mpe" , "m1v", "m2ts", "m2p", "m2v", "movhd", "moov", "movie", "movx", "mjp", "mjpeg", "mjpg", "amv" , "asf", "m4v", "3gp", "ogm", "ogg", "vob", "ts", "rm", "3gp", "3gp2", "3gpp", "3g2", "f4v", "f4a", "f4p", "f4b", "mts", "m2ts", "gifv", "avi", "mov", "flv", "wmv", "qt", "avchd", "swf", "cam", "nsv", "ram", "rm", "x264", "xvid", "wmx", "wvx", "wx", "video", "viv", "vivo", "vid", "dat", "bik", "bix", "dmf", "divx" };
-        public static List<string>  SubsExts        = new List<string>() { "srt", "txt", "sub", "ssa", "ass" };
-
         public static List<string> GetMoviesSorted(List<string> movies)
         {
             List<string> moviesSorted = new List<string>();
@@ -144,9 +189,12 @@ namespace FlyleafLib
             for (int i=0; i<movies.Count; i++)
             {
                 string ext = Path.GetExtension(movies[i]);
-                if (ext == null || ext.Trim() == "") continue;
 
-                if (MovieExts.Contains(ext.Substring(1,ext.Length-1))) moviesSorted.Add(movies[i]);
+                if (ext == null || ext.Trim() == "")
+                    continue;
+                
+                if (ExtensionsVideo.Contains(ext.Substring(1,ext.Length-1).ToLower()))
+                    moviesSorted.Add(movies[i]);
             }
 
             moviesSorted.Sort(new NaturalStringComparer());
@@ -553,7 +601,6 @@ namespace FlyleafLib
         #endregion
 
         #region GetDeviceCaps
-
         [SecurityCritical]
         [SuppressUnmanagedCodeSecurity]
         [DllImport(Gdi32, SetLastError = true, ExactSpelling = true, CharSet = CharSet.Auto)]

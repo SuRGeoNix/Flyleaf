@@ -253,7 +253,7 @@ namespace FlyleafLib.MediaPlayer
         /// <returns></returns>
         public OpenCompletedArgs Open(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         {
-            if (SubsExts.Contains(GetUrlExtention(url)))
+            if (ExtensionsSubtitles.Contains(GetUrlExtention(url)))
                 return OpenSubtitles(url);
             else
                 return OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
@@ -833,7 +833,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockActions)
             {
-                if ((url_iostream is string) && SubsExts.Contains(GetUrlExtention(url_iostream.ToString())))
+                if ((url_iostream is string) && ExtensionsSubtitles.Contains(GetUrlExtention(url_iostream.ToString())))
                     openSubtitles.Push(new OpenAsyncData(url_iostream));
                 else
                 {
