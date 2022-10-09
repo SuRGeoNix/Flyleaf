@@ -146,11 +146,8 @@ namespace FlyleafLib.Plugins
                     return;
 
                 torrent = e.Torrent;
-
-                var folderBase = FolderComplete;
-
                 Playlist.Title = torrent.file.name;
-                Playlist.FolderBase = folderBase;
+                Playlist.FolderBase = FolderComplete;
 
                 sortedPaths = Utils.GetMoviesSorted(torrent.file.paths);
 

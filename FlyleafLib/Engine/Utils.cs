@@ -233,44 +233,64 @@ namespace FlyleafLib
             return Languages;
         }
 
-        public static bool ExtractSeasonEpisode(string text, out int season, out int episode)
+        public class MediaParts
         {
-            // Other possibilities "S01 Episode 03", "01x03"
+            public int      Season      { get; set; }
+            public int      Episode     { get; set; }
+            public string   Title       { get; set; }
+            public int      Year        { get; set; }
+        }
+        public static MediaParts GetMediaParts(string title, bool movieOnly = false)
+        {
+            Match res;
+            MediaParts mp = new MediaParts();
+            List<int> indices = new List<int>();
 
-            var res = Regex.Match(text, @"(^|[^a-z0-9])s(?<season>[0-9]{1,2})e(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
+            // s|season 01 ... e|episode 01
+            res = Regex.Match(title, @"(^|[^a-z0-9])(s|season)[^a-z0-9]*(?<season>[0-9]{1,2})[^a-z0-9]*(e|episode)[^a-z0-9]*(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
+            if (!res.Success) // 01x01
+                res = Regex.Match(title, @"(^|[^a-z0-9])(?<season>[0-9]{1,2})x(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
 
-            if (res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
+            if (res.Success && res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
             {
-                season = int.Parse(res.Groups["season"].Value);
-                episode = int.Parse(res.Groups["episode"].Value);
+                mp.Season = int.Parse(res.Groups["season"].Value);
+                mp.Episode = int.Parse(res.Groups["episode"].Value);
 
-                return true;
+                if (movieOnly)
+                    return mp;
+
+                indices.Add(res.Index);
             }
-
-            res = Regex.Match(text, @"(^|[^a-z0-9])Season[^a-z0-9]+(?<season>[0-9]{1,2}).*Episode[^a-z0-9]+(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
             
-            if (res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
-            {
-                season = int.Parse(res.Groups["season"].Value);
-                episode = int.Parse(res.Groups["episode"].Value);
+            // non-movie words, 1080p, 2015
+            indices.Add(Regex.Match(title, "[^a-z0-9]extended", RegexOptions.IgnoreCase).Index);
+            indices.Add(Regex.Match(title, "[^a-z0-9]directors.cut", RegexOptions.IgnoreCase).Index);
+            indices.Add(Regex.Match(title, "[^a-z0-9]brrip", RegexOptions.IgnoreCase).Index);
+            indices.Add(Regex.Match(title, "[^a-z0-9][0-9]{3,4}p", RegexOptions.IgnoreCase).Index);
 
-                return true;
+            res = Regex.Match(title, @"[^a-z0-9](?<year>(19|20)[0-9][0-9])($|[^a-z0-9])", RegexOptions.IgnoreCase);
+            if (res.Success)
+            {
+                indices.Add(res.Index);
+                mp.Year = int.Parse(res.Groups["year"].Value);
             }
 
-            res = Regex.Match(text, @"(^|[^a-z0-9])(?<season>[0-9]{1,2})x(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
-            
-            if (res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
-            {
-                season = int.Parse(res.Groups["season"].Value);
-                episode = int.Parse(res.Groups["episode"].Value);
+            var sorted = indices.OrderBy(x => x);
 
-                return true;
-            }
+            foreach (var index in sorted)
+                if (index > 0)
+                {
+                    title = title.Substring(0, index);
+                    break;
+                }
 
-            season = -1;
-            episode = -1;
+            title = title.Replace(".", " ").Replace("_", " ");
+            title = Regex.Replace(title, @"\s{2,}", " ");
+            title = Regex.Replace(title, @"[^a-z0-9]$", "", RegexOptions.IgnoreCase);
 
-            return false;
+            mp.Title = title.Trim();
+
+            return mp;
         }
 
         public static string FindNextAvailableFile(string fileName)

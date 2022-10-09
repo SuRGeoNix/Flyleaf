@@ -166,38 +166,19 @@ namespace FlyleafLib.Plugins
 
         public void ScrapeItem(PlaylistItem item)
         {
-            // Update Season/Episode
-            if (Utils.ExtractSeasonEpisode(item.OriginalTitle, out int season, out int episode))
-            {
-                item.Season = season;
-                item.Episode = episode;
-            }
-
             // Update Title (TBR: don't mess with other media types - only movies/tv shows)
             if (Playlist.InputType != InputType.File && Playlist.InputType != InputType.UNC && Playlist.InputType != InputType.Torrent)
                 return;
 
-            string title = item.OriginalTitle;//.Replace(".", " ").Replace("_", " ").Replace("-", " ").Trim();
+            var mp = Utils.GetMediaParts(item.OriginalTitle);
+            item.Title = mp.Title;
 
-            List<int> indices = new List<int>();
-            indices.Add(Regex.Match(title, "[^a-z0-9][0-9]{4,}p").Index);
-            indices.Add(Regex.Match(title, "[^a-z0-9][sS][0-9]{1,2}[eE][0-9]{1,2}").Index);
-            //indices.Add(Regex.Match(title, "[^a-z0-9]19[0-9][0-9][^a-z0-9]").Index);
-            //indices.Add(Regex.Match(title, "[^a-z0-9]20[0-2][0-9][^a-z0-9]").Index);
-
-            var sorted = indices.OrderBy(x => x);
-
-            int selectedIndex = -1;
-            foreach (var index in sorted)
-                if (index > 4) { selectedIndex = index; break; }
-
-            if (selectedIndex != -1)
-                title = title.Substring(0, selectedIndex).Trim();
-
-            item.Title = title;
-
-            if (item.Season != -1)
-                item.Title += $" s{item.Season.ToString("00")}e{item.Episode.ToString("00")}";
+            if (mp.Season > 0)
+            {
+                item.Season = mp.Season;
+                item.Episode = mp.Episode;
+                item.Title += $" S{item.Season}E{item.Episode}";
+            }
         }
     }
 }

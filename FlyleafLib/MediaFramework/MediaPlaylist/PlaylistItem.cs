@@ -49,8 +49,8 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
         public string   OriginalTitle           { get => _OriginalTitle; set => SetUI(ref _OriginalTitle, value == null ? "" : value, false); }
         string _OriginalTitle = "";
 
-        public int      Season                  { get; set; } = -1;
-        public int      Episode                 { get; set; } = -1;
+        public int      Season                  { get; set; }
+        public int      Episode                 { get; set; }
 
         public Dictionary<string, object>
                         Tag                     { get; set; } = new Dictionary<string, object>();

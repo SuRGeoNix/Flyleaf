@@ -71,7 +71,8 @@ namespace FlyleafLib.Plugins
                                 { exists = true; break; }
                         if (exists) continue;
 
-                        if (Utils.ExtractSeasonEpisode(file, out int season, out int episode) && Selected.Season != -1 && (Selected.Season != season || Selected.Episode != episode))
+                        var mp = Utils.GetMediaParts(file);
+                        if (Selected.Season > 0 && (Selected.Season != mp.Season || Selected.Episode != mp.Episode))
                             continue;
 
                         Log.Debug($"Adding [{lang}] {file}");

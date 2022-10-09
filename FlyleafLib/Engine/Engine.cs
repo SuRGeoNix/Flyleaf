@@ -193,9 +193,10 @@ namespace FlyleafLib
         {
             Log.Info("Thread started");
 
-            int curLoop = 0;
+            int curLoop     = 0;
             int secondLoops = 1000 / Config.UIRefreshInterval;
-            long secondCorrection = DateTime.UtcNow.Ticks;
+            long prevTicks  = DateTime.UtcNow.Ticks;
+            double curSecond= 0;
 
             do
             {
@@ -208,6 +209,12 @@ namespace FlyleafLib
                     }
 
                     curLoop++;
+                    if (curLoop == secondLoops)
+                    {
+                        var curTicks = DateTime.UtcNow.Ticks;
+                        curSecond = (curTicks - prevTicks) / 10000000.0;
+                        prevTicks = curTicks;
+                    }
 
                     lock (Players)
                         foreach (Player player in Players)
@@ -220,9 +227,6 @@ namespace FlyleafLib
                             {
                                 if (player.Config.Player.Stats)
                                 {
-                                    var now = DateTime.UtcNow.Ticks;
-                                    secondCorrection = DateTime.UtcNow.Ticks - secondCorrection;
-
                                     var curStats = player.stats;
                                     long curTotalBytes  = player.VideoDemuxer.TotalBytes + player.AudioDemuxer.TotalBytes + player.SubtitlesDemuxer.TotalBytes;
                                     long curVideoBytes  = player.VideoDemuxer.VideoPackets.Bytes + player.AudioDemuxer.VideoPackets.Bytes + player.SubtitlesDemuxer.VideoPackets.Bytes;
@@ -238,11 +242,9 @@ namespace FlyleafLib
 
                                     if (player.IsPlaying)
                                     {
-                                        player.Video.fpsCurrent = (player.Video.FramesDisplayed - curStats.FramesDisplayed) / (secondCorrection / 10000000.0);
+                                        player.Video.fpsCurrent = (player.Video.FramesDisplayed - curStats.FramesDisplayed) / curSecond;
                                         curStats.FramesDisplayed = player.Video.FramesDisplayed;
                                     }
-
-                                    secondCorrection = now;
                                 }
                             }
                         }
