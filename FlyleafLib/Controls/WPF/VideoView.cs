@@ -15,27 +15,25 @@ using FlyleafWF = FlyleafLib.Controls.Flyleaf;
 namespace FlyleafLib.Controls.WPF
 {
     [TemplatePart(Name = PART_PlayerGrid, Type = typeof(Grid))]
-    [TemplatePart(Name = PART_PlayerHost, Type = typeof(WindowsFormsHostEx))]
-    [TemplatePart(Name = PART_PlayerView, Type = typeof(FlyleafWF))]
     public class VideoView : ContentControl
     {
         public VideoView() { DefaultStyleKey = typeof(VideoView); }
 
         private const string    PART_PlayerGrid = "PART_PlayerGrid";
-        private const string    PART_PlayerHost = "PART_PlayerHost";
-        private const string    PART_PlayerView = "PART_PlayerView";
         private IVideoView      ControlRequiresPlayer; // kind of dependency injection (used for WPF control)
         
         readonly Point          _zeroPoint      = new Point(0, 0);
         private bool            IsDesignMode    => (bool)DesignerProperties.IsInDesignModeProperty.GetMetadata(typeof(DependencyObject)).DefaultValue;
         private bool            IsUpdatingContent;
 
-        public FlyleafWF        FlyleafWF       { get; set; }   // Airspace: catch any back events, the problem is that they don't speak the same language (WinForms/WPF)
+        public FlyleafWF        FlyleafWF       { get; set; } = new FlyleafWF();
+                                                                // Airspace: catch any back events, the problem is that they don't speak the same language (WinForms/WPF)
         public Grid             PlayerGrid      { get; set; }
         
         public Window           WindowBack      { get; set; }
         public WindowsFormsHostEx
-                                WinFormsHost    { get; set; }   // Airspace: catch back events (key events working, mouse event not working ... the rest not tested)
+                                WinFormsHost    { get; set; } = new WindowsFormsHostEx();   
+                                                                // Airspace: catch back events (key events working, mouse event not working ... the rest not tested)
         public Window           WindowFront     { get; set; }   // Airspace: catch any front events
         public int              UniqueId        { get; set; }
 
@@ -85,8 +83,8 @@ namespace FlyleafLib.Controls.WPF
             if (IsDesignMode | disposed) return;
             
             PlayerGrid  = Template.FindName(PART_PlayerGrid, this) as Grid;
-            WinFormsHost= Template.FindName(PART_PlayerHost, this) as WindowsFormsHostEx;
-            FlyleafWF   = Template.FindName(PART_PlayerView, this) as FlyleafWF;
+            WinFormsHost.Child = FlyleafWF;
+            PlayerGrid.Children.Add(WinFormsHost);
 
             IsVisibleChanged                += VideoView_IsVisibleChanged;
             WinFormsHost.DataContextChanged += WFH_DataContextChanged;
@@ -130,10 +128,10 @@ namespace FlyleafLib.Controls.WPF
                 Player.VideoView= this;
                 Player.Control  = FlyleafWF;
                 lastPlayer = Player;
-
-                if (ControlRequiresPlayer != null)
-                    ControlRequiresPlayer.Player = Player;
             }
+
+            if (ControlRequiresPlayer != null && ControlRequiresPlayer.Player == null)
+                ControlRequiresPlayer.Player = Player;
         }
 
         private void VideoView_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -141,7 +139,7 @@ namespace FlyleafLib.Controls.WPF
             if (isSwitchingState)
                 return;
 
-            if (Visibility == Visibility.Visible)
+            if (Visibility == Visibility.Visible && IsVisible)
                 WindowFront?.Show();
             else
                 WindowFront?.Hide();
@@ -187,7 +185,7 @@ namespace FlyleafLib.Controls.WPF
             WindowFront.Height      = size.Y;
             WindowFront.Width       = size.X;
 
-            if (Visibility == Visibility.Visible)
+            if (Visibility == Visibility.Visible && IsVisible)
             {
                 WindowFront.Show();
                 //WindowBack.Focus();
@@ -301,6 +299,7 @@ namespace FlyleafLib.Controls.WPF
             WindowBack.WindowState  = WindowState.Maximized;
             WindowBack.Visibility   = Visibility.Visible;
 
+            WindowFront?.Show();
             isSwitchingState = false;
 
             return true;
@@ -320,8 +319,6 @@ namespace FlyleafLib.Controls.WPF
             WindowBack.ResizeMode   = oldMode;
             WindowBack.WindowStyle  = oldStyle;
             WindowBack.WindowState  = oldState;
-
-            WindowFront?.Activate();
 
             isSwitchingState = false;
 

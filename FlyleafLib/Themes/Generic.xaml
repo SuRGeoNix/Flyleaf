@@ -16,9 +16,6 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             Margin="{TemplateBinding Padding}">
                                 <Grid x:Name="PART_PlayerGrid">
-                                    <wpf:WindowsFormsHostEx x:Name="PART_PlayerHost">
-                                        <wf:Flyleaf x:Name="PART_PlayerView" />
-                                    </wpf:WindowsFormsHostEx>
                                     <ContentPresenter Content="{TemplateBinding Content}" />
                                 </Grid>
                             </Border>
