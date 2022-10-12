@@ -133,7 +133,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public Status       Status              { get => status;            private set => Set(ref _Status, value); }
         Status _Status = Status.Stopped, status = Status.Stopped;
-        public bool         IsPlaying           => Status == Status.Playing;
+        public bool         IsPlaying           => status == Status.Playing;
 
         /// <summary>
         /// Whether the player's status is capable of accepting playback commands
@@ -717,6 +717,7 @@ namespace FlyleafLib.MediaPlayer
     {
         AVS,
         Audio,
-        LowLatencyVideo
+        LowLatencyVideo,
+        LowLatencyAudioVideo
     }
 }

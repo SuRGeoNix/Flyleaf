@@ -541,6 +541,71 @@ namespace FlyleafLib.MediaPlayer
             }
         }
 
+        private void ScreamerLowLatencyWithAudio()
+        {
+            // Flush & Start Demuxer/Decoders
+            decoder.Flush();
+            Audio.ClearBuffer();
+
+            VideoDemuxer.Start();
+            VideoDecoder.Start();
+             
+            if (Config.Audio.Enabled)
+            {
+                if (AudioDecoder.OnVideoDemuxer)
+                    AudioDecoder.Start();
+                else if (!decoder.RequiresResync)
+                {
+                    AudioDemuxer.Start();
+                    AudioDecoder.Start();
+                }
+            }
+
+            do
+            {
+                // Wait for Video Frames & Fill Audio Meanwhile
+                while (VideoDecoder.Frames.Count == 0 && IsPlaying && VideoDecoder.IsRunning)// && VideoDemuxer.IsRunning)
+                {
+                    if (AudioDecoder.Frames.Count > 0 && Audio.BuffersQueued < 3)
+                    {
+                        AudioDecoder.Frames.TryDequeue(out aFrame);
+                        if (aFrame != null)
+                            Audio.AddSamples(aFrame);
+                    }
+
+                    Thread.Sleep(10);
+                }
+
+                if (!IsPlaying)
+                    break;
+
+                VideoDecoder.Frames.TryDequeue(out vFrame);
+                if (vFrame == null)
+                    break;
+
+                // Present Video Frame
+                decoder.VideoDecoder.Renderer.Present(vFrame);
+
+                // Add Audio Samples (if close to video frame)
+                if (Audio.isOpened && Audio.BuffersQueued < 3)
+                {
+                    AudioDecoder.Frames.TryDequeue(out aFrame);
+
+                    while (aFrame != null)
+                    {
+                        if (Math.Abs(vFrame.timestamp - aFrame.timestamp) < 1200 * 10000)
+                        {
+                            Audio.AddSamples(aFrame);
+                            break;
+                        }
+                        else
+                            AudioDecoder.Frames.TryDequeue(out aFrame);
+                    }
+                }
+
+            } while(IsPlaying);
+        }
+
         private bool AudioBuffer()
         {
             while ((isVideoSwitch || isAudioSwitch) && IsPlaying) Thread.Sleep(10);
