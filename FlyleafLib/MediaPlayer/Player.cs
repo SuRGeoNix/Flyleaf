@@ -622,40 +622,43 @@ namespace FlyleafLib.MediaPlayer
         }
         private void Initialize(Status status = Status.Stopped, bool andDecoder = true, bool isSwitch = false)
         {
-            try
+            if (CanDebug) Log.Debug($"Initializing");
+
+            lock (lockActions) // Required in case of OpenAsync and Stop requests
             {
-                if (CanDebug) Log.Debug($"Initializing");
-
-                TimeBeginPeriod(1);
-
-                this.status = status;
-                canPlay = false;
-                isVideoSwitch = false;
-                seeks.Clear();
-                
-                while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
-
-                if (andDecoder)
+                try
                 {
-                    if (isSwitch)
-                        decoder.InitializeSwitch();
-                    else
-                        decoder.Initialize();
+                    TimeBeginPeriod(1);
+
+                    this.status = status;
+                    canPlay = false;
+                    isVideoSwitch = false;
+                    seeks.Clear();
+                
+                    while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
+
+                    if (andDecoder)
+                    {
+                        if (isSwitch)
+                            decoder.InitializeSwitch();
+                        else
+                            decoder.Initialize();
+                    }
+
+                    Reset();
+                    VideoDemuxer.DisableReversePlayback();
+                    ReversePlayback = false;
+
+                    if (CanDebug) Log.Debug($"Initialized");
+
+                } catch (Exception e)
+                {
+                    Log.Error($"Initialize() Error: {e.Message}");
+
+                } finally
+                {
+                    TimeEndPeriod(1);
                 }
-
-                Reset();
-                VideoDemuxer.DisableReversePlayback();
-                ReversePlayback = false;
-
-                if (CanDebug) Log.Debug($"Initialized");
-
-            } catch (Exception e)
-            {
-                Log.Error($"Initialize() Error: {e.Message}");
-
-            } finally
-            {
-                TimeEndPeriod(1);
             }
         }
 
