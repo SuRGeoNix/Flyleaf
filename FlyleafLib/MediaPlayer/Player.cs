@@ -252,19 +252,11 @@ namespace FlyleafLib.MediaPlayer
                 isSubsSwitch = true;
                 isAudioSwitch = true;
 
-                if (newValue > 1)
-                {
-                    int skipFramesOffset = newValue % 1 == 0 ? 0 : 1;
-                    VideoDecoder.Speed      = (int)newValue + skipFramesOffset;
-                    AudioDecoder.Speed      = (int)newValue + skipFramesOffset;
-                    SubtitlesDecoder.Speed  = (int)newValue + skipFramesOffset;
-                }
-                else
-                {
-                    VideoDecoder.Speed      = 1;
-                    AudioDecoder.Speed      = 1;
-                    SubtitlesDecoder.Speed  = 1;
-                }
+                int decodersSpeed = newValue < 1 ? 1 : (int)newValue;
+
+                VideoDecoder.Speed      = decodersSpeed;
+                AudioDecoder.Speed      = decodersSpeed;// + (newValue % 1 == 0 ? 0 : 1);
+                //SubtitlesDecoder.Speed  = decodersSpeed;
 
                 Subtitles.subsText = "";
                 _Speed = newValue;
