@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.5.9</Version>
+	<Version>3.5.10</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,18 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Player: Fixes an audio / video delay sync issue
-		* Player: Fixes an issue with TakeSnapshot (GetBitmap) methods after stopping the player
-		* Config: Fixes an issue while changing MaxVideoFrames value
-		* Updates Vortice
+		* Engine: Fixes an issue with engine's thread for stats calculation while using multiple players
+		* Config: Adds Config.Subtitles.Parser for custom formatting/parsing
+		* Config: Adds Config.Player.MaxLatency for the new low latency with audio implementation which is embedded to default AVS usage
+		* Player: Fixes a thread safety issue during Stop and Open/OpenAsync/Config.Video.AspectRatio change
+		* Player: Adds Usage.ZeroLatencyAudioVideo for another low latency which supports audio with (no respect to min buffer or max latency)
+		* Player: Improves speed playback
+		* Plugins: Improves handling with media file extensions
+		* Renderer: Fixes a rendering issue while the Player was buffering (no layout update)
+		* VideoView: Fixes an issue with jitter while dragging (DPI)
+		* VideoView: Fixes an issue with Subscribe Events on early player assignment (mainly for front window)
+		* VideoView: Fixes an issue with front window's visibility
+		* VideoView: Fixes an issue with early actions (eg. swapping when collapsed in a tab control) before the template has been applied by creating winforms control earlier
 	</PackageReleaseNotes>
   </PropertyGroup>
 

@@ -433,7 +433,10 @@ namespace FlyleafLib.MediaPlayer
                 if (oldValue != null)
                 {
                     if (oldValue.Handle == newValue.Handle)
+                    {
+                        SubscribeEvents();
                         return;
+                    }
 
                     throw new Exception("Cannot change Player's control");
                 }
