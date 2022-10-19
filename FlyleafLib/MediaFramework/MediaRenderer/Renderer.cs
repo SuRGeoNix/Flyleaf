@@ -761,9 +761,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             // NOTE: We don't have TimeBeginPeriod, FpsForIdle will not be accurate
             lock (lockPresentTask)
             {
-                if (VideoDecoder.IsRunning) return;
+                if ((Config.Player.player == null || !Config.Player.player.requiresBuffering) && VideoDecoder.IsRunning)
+                    return;
 
-                if (isPresenting) { lastPresentRequestAt = DateTime.UtcNow.Ticks; return;}
+                if (isPresenting)
+                {
+                    lastPresentRequestAt = DateTime.UtcNow.Ticks;
+                    return;
+                }
+
                 isPresenting = true;
             }
 

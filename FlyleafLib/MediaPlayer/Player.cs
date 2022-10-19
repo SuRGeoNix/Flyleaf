@@ -360,8 +360,8 @@ namespace FlyleafLib.MediaPlayer
         internal PlayerStats    stats = new PlayerStats();
         internal LogHandler     Log;
 
+        internal bool requiresBuffering;
         bool reversePlaybackResync;
-        bool requiresBuffering;
 
         bool isVideoSwitch;
         bool isAudioSwitch;
@@ -710,6 +710,6 @@ namespace FlyleafLib.MediaPlayer
         AVS,
         Audio,
         LowLatencyVideo,
-        LowLatencyAudioVideo
+        ZeroLatencyAudioVideo
     }
 }

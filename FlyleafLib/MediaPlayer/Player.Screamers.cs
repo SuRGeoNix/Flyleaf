@@ -124,10 +124,10 @@ namespace FlyleafLib.MediaPlayer
             //if (Subtitles._SubsText != "")
             //    UI(() => Subtitles.SubsText = Subtitles.SubsText);
 
-            bool gotAudio       = !Audio.IsOpened || Config.Player.MaxLatency > -1;
+            bool gotAudio       = !Audio.IsOpened || Config.Player.MaxLatency != 0;
             bool gotVideo       = false;
             bool shouldStop     = false;
-            bool showOneFrame   = Config.Player.MaxLatency < 0;
+            bool showOneFrame   = Config.Player.MaxLatency == 0;
             int  audioRetries   = 3;
 
             do
@@ -374,7 +374,7 @@ namespace FlyleafLib.MediaPlayer
                     VideoDecoder.Frames.TryDequeue(out vFrame);
                     if (vFrame != null)
                     {
-                        if (Config.Player.MaxLatency > -1)
+                        if (Config.Player.MaxLatency != 0)
                         {
                             curLatency = VideoDemuxer.VideoPackets.Count > 0 ? VideoDemuxer.VideoPackets.LastTimestamp - vFrame.timestamp : 0;
                             double newSpeed = 1;
@@ -586,14 +586,13 @@ namespace FlyleafLib.MediaPlayer
             }
         }
 
-        private void ScreamerLowLatencyWithAudio()
+        private void ScreamerZeroLatencyWithAudio()
         {
             long avgFrameDuration = VideoDecoder.VideoStream.FrameDuration > 0 ? VideoDecoder.VideoStream.FrameDuration : (int) (10000000.0 / 25.0);
             long lastPresentTime = 0;
             long curDTime;
             int  sleepMs;
             long curLatency;
-
 
             // Flush & Start Demuxer/Decoders
             decoder.Flush();
@@ -641,10 +640,10 @@ namespace FlyleafLib.MediaPlayer
 
                 sleepMs = (int) ((avgFrameDuration / 10000) / Speed);
 
-                Log.Debug($"Latency: {curLatency}ms | Speed: {Speed} | Sleep: {sleepMs}ms | AvgFD: {avgFrameDuration / 10000}ms | Diff: {(curDTime - lastPresentTime) / 10000}ms");
+                if (CanDebug) Log.Debug($"Latency: {curLatency}ms | Speed: {Speed} | Sleep: {sleepMs}ms | AvgFD: {avgFrameDuration / 10000}ms | Diff: {(curDTime - lastPresentTime) / 10000}ms");
 
                 if (sleepMs > 2 && sleepMs < 1100)
-                Thread.Sleep(sleepMs);
+                    Thread.Sleep(sleepMs);
 
                 // Present Video Frame
                 decoder.VideoDecoder.Renderer.Present(vFrame);

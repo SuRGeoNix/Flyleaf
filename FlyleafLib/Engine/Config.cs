@@ -183,13 +183,24 @@ namespace FlyleafLib
             public int      LowLatencyMaxVideoPackets   { get; set; } = 2;
 
             /// <summary>
-            /// Max Latency (ticks) forces playback to stay at the end of the live network stream
+            /// Max Latency (ticks) forces playback to stay at the end of the live network stream (default: 0 - disabled)
             /// </summary>
             public long     MaxLatency {
                 get => _MaxLatency;
                 set
                 {
+                    if (value < 0)
+                        value = 0;
+
                     if (!Set(ref _MaxLatency, value)) return;
+
+                    if (value == 0)
+                    {
+                        if (player != null)
+                            player.Speed = 1;
+
+                        return;
+                    }
 
                     // Large max buffer so we ensure the actual latency distance
                     if (config != null && config.Demuxer.BufferDuration < value * 2)
@@ -198,9 +209,9 @@ namespace FlyleafLib
                     // Small min buffer to avoid enabling latency speed directly
                     if (_MinBufferDuration > value / 10)
                         MinBufferDuration = value / 10;
-                } 
+                }
             }
-            long _MaxLatency = -1;
+            long _MaxLatency = 0;
 
             /// <summary>
             /// Folder to save recordings (when filename is not specified)

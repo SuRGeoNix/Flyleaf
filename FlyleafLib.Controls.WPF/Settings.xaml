@@ -353,6 +353,7 @@
                                     <RowDefinition Height="30"/>
                                     <RowDefinition Height="30"/>
                                     <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -403,19 +404,22 @@
 
                                 <TextBlock Grid.Row="7" Text="Decoder Threads" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="7" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
+                                
+                                <TextBlock Grid.Row="8" Text="Max Latency (ms)" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="8" Grid.Column="1" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Player.MaxLatency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                                <TextBlock Grid.Row="8" Text="HDR to SDR Method" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
+                                <TextBlock Grid.Row="9" Text="HDR to SDR Method" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
 
-                                <TextBlock Grid.Row="9" Text="HDR to SDR Tone" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="9" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.HDRtoSDRTone, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Grid.Row="10" Text="HDR to SDR Tone" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="10" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.HDRtoSDRTone, UpdateSourceTrigger=LostFocus}"/>
 
-                                <StackPanel Orientation="Vertical" Grid.Row="10" Grid.ColumnSpan="3" Margin="0 10 0 0">
+                                <StackPanel Orientation="Vertical" Grid.Row="11" Grid.ColumnSpan="3" Margin="0 10 0 0">
                                     <ItemsControl ItemsSource="{Binding Config.Video.Filters.Values}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" Visibility="{Binding Available, Converter={StaticResource BooleanToVisibility}}">
-                                                    <TextBlock Grid.Row="9" Text="{Binding Filter}" Margin="0,10,0,0"  VerticalAlignment="Center" Width="150"/>
+                                                    <TextBlock Text="{Binding Filter}" Margin="0,10,0,0"  VerticalAlignment="Center" Width="150"/>
                                                     <Slider Margin="0 0 0 0" Width="200" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Value, Mode=TwoWay}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}"/>
                                                 </StackPanel>
                                             </DataTemplate>
