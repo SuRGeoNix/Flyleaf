@@ -4,7 +4,7 @@
     <TargetFrameworks>net6.0-windows;net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.27</Version>
+    <Version>1.1.28</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2022</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,15 +14,14 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		* Introduces ThemeLoaded event to properly manually change theme colors if required
-		* Updates FlyleafLib
+		* Includes the new Max Latency in Settings
+		* Updates FlyleafLib, MaterialDesign and Dragablz
 	</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dragablz" Version="0.0.3.223" />
-    <PackageReference Include="MaterialDesignColors" Version="2.0.5-ci45" />
-    <PackageReference Include="MaterialDesignThemes" Version="4.4.0-ci45" />
+    <PackageReference Include="Dragablz" Version="0.0.3.234" />
+    <PackageReference Include="MaterialDesignThemes" Version="4.6.1" />
     <PackageReference Include="WpfColorFontDialog" Version="1.0.8" />
   </ItemGroup>
 

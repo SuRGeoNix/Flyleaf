@@ -122,7 +122,7 @@ namespace FlyleafLib.Controls.WPF
                 WindowFront.Owner = WindowBack;
             }
 
-            if (Player != null && Player.VideoView == null)
+            if (Player != null)
             {
                 UniqueId = Player.PlayerId;
                 Player.VideoView= this;
