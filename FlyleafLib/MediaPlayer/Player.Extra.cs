@@ -94,14 +94,8 @@ namespace FlyleafLib.MediaPlayer
         }
         public void OpenFromFileDialog()
         {
+            Activity.IsEnabled = false;
             IsOpenFileDialogOpen = true;
-            bool allowIdleMode = false;
-
-            if (Config.Player.ActivityMode)
-            {
-                allowIdleMode = true;
-                Config.Player.ActivityMode = false;
-            }
 
             System.Windows.Forms.OpenFileDialog openFileDialog = new System.Windows.Forms.OpenFileDialog();
             var res = openFileDialog.ShowDialog();
@@ -109,13 +103,8 @@ namespace FlyleafLib.MediaPlayer
             if(res == System.Windows.Forms.DialogResult.OK)
                 OpenAsync(openFileDialog.FileName);
 
-            if (allowIdleMode)
-                Config.Player.ActivityMode = true;
-
+            Activity.IsEnabled = true;
             IsOpenFileDialogOpen = false;
-
-            panClickX = -1; panClickY = -1;
-            mouseDownPoint = new System.Drawing.Point(-1, -1);
         }
 
         public void ShowFrame(int frameIndex)
@@ -246,19 +235,17 @@ namespace FlyleafLib.MediaPlayer
         
         public void FullScreen()
         {
-            if (IsFullScreen) return;
-
-            if (    (VideoView  != null && VideoView.FullScreen()) 
-                ||  (Control    != null && Control.FullScreen()))
-                IsFullScreen = true;
+            if (WPFHost != null)
+                WPFHost.IsFullScreen = true;
+            else if (WFHost != null)
+                WFHost.IsFullScreen = true;
         }
         public void NormalScreen()
         {
-            if (!IsFullScreen) return;
-
-            if (    (VideoView  != null && VideoView.NormalScreen()) 
-                ||  (Control    != null && Control.NormalScreen()))
-                IsFullScreen = false;
+            if (WPFHost != null)
+                WPFHost.IsFullScreen = false;
+            else if (WFHost != null)
+                WFHost.IsFullScreen = false;
         }
         public void ToggleFullScreen()
         {
@@ -280,8 +267,8 @@ namespace FlyleafLib.MediaPlayer
                 if (!Directory.Exists(Config.Player.FolderRecordings))
                     Directory.CreateDirectory(Config.Player.FolderRecordings);
 
-                string filename = Utils.GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Record" : Playlist.Selected.Title) + $"_{(new TimeSpan(CurTime)).ToString("hhmmss")}." + decoder.Extension;
-                filename = Utils.FindNextAvailableFile(Path.Combine(Config.Player.FolderRecordings, filename));
+                string filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Record" : Playlist.Selected.Title) + $"_{(new TimeSpan(CurTime)).ToString("hhmmss")}." + decoder.Extension;
+                filename = FindNextAvailableFile(Path.Combine(Config.Player.FolderRecordings, filename));
                 StartRecording(ref filename, false);
             } catch { }
         }

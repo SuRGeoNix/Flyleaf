@@ -1,32 +1,36 @@
 ﻿using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
-using System.Windows.Interop;
 
 using FlyleafLib;
+using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
 
 namespace FlyleafPlayer
 {
     /// <summary>
-    /// FlyleafPlayer (WPF Control) Sample
+    /// FlyleafPlayer (Customization of FlyleafME) Sample
     /// </summary>
     public partial class MainWindow : Window
     {
         /// <summary>
-        /// Flyleaf Player binded to VideoView
+        /// Flyleaf Player binded to FlyleafME
         /// </summary>
-        public Player Player { get; set; }
-        
+        public Player       PlayerX     { get; set; }
+
+        /// <summary>
+        /// FlyleafME Media Element Control
+        /// </summary>
+        public FlyleafME    FlyleafME   { get; set; }
+
         EngineConfig engineConfig;
         Config playerConfig;
 
         public MainWindow()
         {
             // NOTE: Loads/Saves configs only in RELEASE mode
-            
+
             // Ensures that we have enough worker threads to avoid the UI from freezing or not updating on time
             ThreadPool.GetMinThreads(out int workers, out int ports);
             ThreadPool.SetMinThreads(workers + 6, ports + 6);
@@ -55,20 +59,37 @@ namespace FlyleafPlayer
             #endif
             
             // Initializes the Player
-            Player = new Player(playerConfig);
+            PlayerX = new Player(playerConfig);
 
-            // Allowing VideoView to access our Player
-            DataContext = this;
+            FlyleafME = new FlyleafME(this)
+            {
+                ActivityTimeout = 2000,
+                KeyBindingsMode = AvailableWindows.Both,
+                ResizeMode = AvailableWindows.Overlay,
+                DragMoveOnDetach = true,
+                Player = PlayerX
+            };
 
             InitializeComponent();
 
+            // Allowing FlyleafHost to access our Player
+            DataContext = this;
+
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
-            flyleafControl.ConfigPath   = "Flyleaf.Config.xml";
-            flyleafControl.EnginePath   = "Flyleaf.Engine.xml";
-            flyleafControl.UIConfigPath = "Flyleaf.UIConfig.xml";
+            FlyleafME.ConfigPath    = "Flyleaf.Config.xml";
+            FlyleafME.EnginePath    = "Flyleaf.Engine.xml";
+            FlyleafME.UIConfigPath  = "Flyleaf.UIConfig.xml";
+
+            MouseLeftButtonDown += (o, e) =>
+            { 
+                if (e.ClickCount == 2)
+                    FlyleafME.IsFullScreen = !FlyleafME.IsFullScreen;
+                else if (FlyleafME.ResizingSideOverlay == 0 && e.ClickCount == 1) 
+                    DragMove();
+            };
 
             // If the user requests reverse playback allocate more frames once
-            Player.PropertyChanged += (o, e) =>
+            PlayerX.PropertyChanged += (o, e) =>
             {
                 if (e.PropertyName == "ReversePlayback" && !ReversePlaybackChecked)
                 {
@@ -137,75 +158,21 @@ namespace FlyleafPlayer
                 try { engineConfig.Save("Flyleaf.Engine.xml"); } catch { }
             }
             #endif
-
-            // Gives access to keyboard events on start up
-            Player.VideoView.WinFormsHost.Focus();
         }
 
-        #region Dark Theme
-        protected override void OnSourceInitialized(EventArgs e)
+        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+        private void BtnMaximizeRestore_Checked(object sender, RoutedEventArgs e) => WindowState = WindowState.Maximized;
+        private void BtnMaximizeRestore_Unchecked(object sender, RoutedEventArgs e) => WindowState = WindowState.Normal;
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+        private void Grid_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            base.OnSourceInitialized(e);
+            if (e.ClickCount == 2)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+                return;
+            }
 
-            //Enable Dark Titlebar
-            DwmApi.ToggleImmersiveDarkMode(new WindowInteropHelper(this).Handle, true);
+            DragMove();
         }
-
-        public static class DwmApi
-        {
-            private const int S_OK = 0;
-
-            // This two flags are not currently documented
-            // and they might change in the future
-            private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
-            private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-
-            private const int WINDOWS10_MIN_BUILD_NUMBER = 17763;
-            private const int WINDOWS10_20H1_BUILD_NUMBER = 18985;
-
-            public static void ToggleImmersiveDarkMode(IntPtr window, bool enable)
-            {
-                if (!IsWindows10OrGreater(WINDOWS10_MIN_BUILD_NUMBER))
-                {
-                    // Dark mode is not supported
-                    //_ = MessageBox.Show($"{Environment.OSVersion.Version.Build}not s");
-                    return;
-                }
-
-                int useImmersiveDarkMode = enable ? 1 : 0;
-                CheckHResult(DwmSetWindowAttribute(window, ImmersiveDarkModeAttribute, ref useImmersiveDarkMode, sizeof(int)));
-            }
-
-            [DllImport("dwmapi.dll", PreserveSig = true)]
-            private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attributeValue, int attributeSize);
-
-            private static bool IsWindows10OrGreater(int build)
-            {
-                return IsWindow10 && HasAtLeastBuildNumber(build);
-            }
-
-            private static bool IsWindow10
-                => Environment.OSVersion.Version.Major >= 10;
-
-            private static bool HasAtLeastBuildNumber(int build)
-            {
-                return Environment.OSVersion.Version.Build >= build;
-            }
-
-            private static int ImmersiveDarkModeAttribute
-                => HasAtLeastBuildNumber(WINDOWS10_20H1_BUILD_NUMBER)
-                    ? DWMWA_USE_IMMERSIVE_DARK_MODE
-                    : DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1;
-
-            private static void CheckHResult(int hResult)
-            {
-                if (hResult != S_OK)
-                {
-                    //throw new Win32Exception(hResult);
-                    //_ = MessageBox.Show(new Win32Exception(hResult).Message);
-                }
-            }
-        }
-        #endregion
     }
 }

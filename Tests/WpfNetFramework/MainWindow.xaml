@@ -11,8 +11,6 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <fl:VideoView Player="{Binding Player}">
-            <flwpf:Flyleaf x:Name="flyleafControl"/>
-        </fl:VideoView>
+        <flwpf:FlyleafME x:Name="flyleafControl" Player="{Binding Player}"/>
     </Grid>
 </Window>

@@ -1,0 +1,62 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Button.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.CheckBox.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ComboBox.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.DialogHost.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.TabControl.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Thumb.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ToggleButton.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.TextBox.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.TextBlock.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.TextBox.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ScrollBar.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ScrollViewer.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Slider.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Shadows.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+    
+    <Style BasedOn="{StaticResource MaterialDesignRaisedButton}" TargetType="{x:Type Button}" />
+    <Style BasedOn="{StaticResource MaterialDesignCheckBox}" TargetType="{x:Type CheckBox}" />
+    <Style BasedOn="{StaticResource MaterialDesignComboBox}" TargetType="{x:Type ComboBox}" />
+    <Style BasedOn="{StaticResource MaterialDesignThumb}" TargetType="{x:Type Thumb}" />
+    <Style BasedOn="{StaticResource MaterialDesignExpander}" TargetType="{x:Type Expander}" />
+    <Style BasedOn="{StaticResource MaterialDesignGridSplitter}" TargetType="{x:Type GridSplitter}" />
+    <Style BasedOn="{StaticResource MaterialDesignGroupBox}" TargetType="{x:Type GroupBox}" />
+    <Style BasedOn="{StaticResource MaterialDesignLabel}" TargetType="{x:Type Label}" />
+    <Style BasedOn="{StaticResource MaterialDesignPasswordBox}" TargetType="{x:Type PasswordBox}" />
+    <Style BasedOn="{StaticResource MaterialDesignRadioButton}" TargetType="{x:Type RadioButton}" />
+    <Style BasedOn="{StaticResource MaterialDesignRaisedButton}" TargetType="{x:Type RepeatButton}" />
+    <Style BasedOn="{StaticResource MaterialDesignScrollBar}" TargetType="{x:Type ScrollBar}" />
+    <Style BasedOn="{StaticResource MaterialDesignScrollViewer}" TargetType="{x:Type ScrollViewer}" />
+    <Style BasedOn="{StaticResource MaterialDesignSlider}" TargetType="{x:Type Slider}" />
+    <Style BasedOn="{StaticResource MaterialDesignTabControl}" TargetType="{x:Type TabControl}" />
+    <Style BasedOn="{StaticResource MaterialDesignTabItem}" TargetType="{x:Type TabItem}" />
+    <Style BasedOn="{StaticResource MaterialDesignTextBox}" TargetType="{x:Type TextBox}" />
+    <Style BasedOn="{StaticResource MaterialDesignSwitchToggleButton}" TargetType="{x:Type ToggleButton}" />
+
+    <Style BasedOn="{StaticResource MaterialDesignContextMenu}" TargetType="{x:Type ContextMenu}" />
+    <Style BasedOn="{StaticResource MaterialDesignMenu}" TargetType="{x:Type Menu}" />
+    <Style BasedOn="{StaticResource MaterialDesignMenuItem}" TargetType="{x:Type MenuItem}" />
+
+    <Style
+        x:Key="{x:Static MenuItem.SeparatorStyleKey}"
+        BasedOn="{StaticResource MaterialDesignSeparator}"
+        TargetType="{x:Type Separator}" />
+    <Style
+        x:Key="MaterialDesignDarkSeparator"
+        BasedOn="{StaticResource MaterialDesignSeparator}"
+        TargetType="{x:Type Separator}">
+        <Setter Property="Background" Value="{DynamicResource MaterialDesignDarkSeparatorBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignDarkSeparatorBackground}" />
+    </Style>
+    <Style
+        x:Key="MaterialDesignLightSeparator"
+        BasedOn="{StaticResource MaterialDesignSeparator}"
+        TargetType="{x:Type Separator}">
+        <Setter Property="Background" Value="{DynamicResource MaterialDesignLightSeparatorBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignLightSeparatorBackground}" />
+    </Style>
+</ResourceDictionary>

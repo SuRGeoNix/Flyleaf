@@ -56,8 +56,10 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
                     M3UPlaylistItem item = new M3UPlaylistItem();
                     MatchCollection matches = Regex.Matches(line, " ([^\\s=]+)=\"([^\\s\"]+)\"");
                     foreach (Match match in matches)
+                    {
                         if (match.Groups.Count == 3 && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
                             item.Tags.Add(match.Groups[1].Value, match.Groups[2].Value);
+                    }
 
                     item.Title = GetMatch(line, @",\s*([^=,]+)$");
                     item.OriginalTitle = item.Title;

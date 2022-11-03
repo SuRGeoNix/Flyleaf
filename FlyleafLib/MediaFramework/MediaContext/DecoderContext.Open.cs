@@ -8,6 +8,7 @@ using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
 using static FlyleafLib.Logger;
+using static FlyleafLib.Utils;
 
 namespace FlyleafLib.MediaFramework.MediaContext
 {

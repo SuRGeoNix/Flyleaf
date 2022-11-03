@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.5.10</Version>
+	<Version>3.6-pre</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,19 +17,29 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Engine: Fixes an issue with engine's thread for stats calculation while using multiple players
-		* Config: Adds Config.Subtitles.Parser for custom formatting/parsing
-		* Config: Adds Config.Player.MaxLatency for the new low latency with audio implementation which is embedded to default AVS usage
-		* Player: Fixes a thread safety issue during Stop and Open/OpenAsync/Config.Video.AspectRatio change
-		* Player: Adds Usage.ZeroLatencyAudioVideo for another low latency which supports audio with (no respect to min buffer or max latency)
-		* Player: Improves speed playback
-		* Plugins: Improves handling with media file extensions
-		* Renderer: Fixes a rendering issue while the Player was buffering (no layout update)
-		* VideoView: Fixes an issue with jitter while dragging (DPI)
-		* VideoView: Fixes an issue with Subscribe Events on early player assignment (mainly for front window)
-		* VideoView: Fixes an issue with front window's visibility
-		* VideoView: Fixes an issue with early actions (eg. swapping when collapsed in a tab control) before the template has been applied by creating winforms control earlier
+		- Introduces FlyleafHost Renderer D3D Surface (WPF VideoView's replacement and Flyleaf's for Winforms)
+		* Early and fast initialization of handles and renderer which will also resolve several issues (related to #204)
+		* Adds Attach / Detach functionality
+		* Self Drag Move also on attach mode (within the host's owner bounds)
+		* Drag n Drop Swap between FlyleafHosts (Shift + Drag)
+		* Custom non-borders resizable windows both on attach and detach mode
+		* Better UI Performance overall (including Swaps and Switching between Normal to Full Screen)
+		* Adds Z-order surfaces support (related to #149)
+		* Resolves several issues when the host's rectangle was clipped (related to #170)
+		* Adds support for WPF Windows to the Renderer in addition to WinForms UserControl
+		* Code clean-up and performance improvements
+		* Resolves several issues with DPI (related to #197)
+
+		- Breaking Changes
+		* VideoView has been renamed to FlyleafHost
+		* Player.IsFullScreen, Config.Player.ActivityTimeout, Config.Player.MouseBindings and Config.Player.KeyBindings.(Enabled/FlyleafWindow) has been transferred to FlyleafHost (see .cs)
+		* Player.ActivityMode has been removed (its the same as ActivityTimeout=0) however Player.Activity.IsEnabled to temporary turn it on/off
+		* Swap has been removed as you can now set directly the Players to FlyleafHosts
 	</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -39,6 +49,14 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net6.0-windows|AnyCPU'">
+    <WarningLevel>6</WarningLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net6.0-windows|AnyCPU'">
+    <WarningLevel>6</WarningLevel>
   </PropertyGroup>
 
   <ItemGroup>

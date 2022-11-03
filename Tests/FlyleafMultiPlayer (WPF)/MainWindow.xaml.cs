@@ -8,7 +8,6 @@ using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
 
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 namespace FlyleafMultiPlayer__WPF_
 {
     /// <summary>
@@ -25,7 +24,7 @@ namespace FlyleafMultiPlayer__WPF_
         public Player PlayerView4 { get => _PlayerView4; set { _PlayerView4 = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PlayerView4))); } }
         Player _PlayerView4;
 
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event PropertyChangedEventHandler PropertyChanged;
 
         public ICommand RotatePlayers { get; set; }
 
@@ -64,35 +63,38 @@ namespace FlyleafMultiPlayer__WPF_
             PlayerView2 = Players[1];
             PlayerView3 = Players[2];
             PlayerView4 = Players[3];
-
+            DataContext = this;
             RotatePlayers = new RelayCommand(RotatePlayersAction);
 
-            DataContext = this;
-
             InitializeComponent();
+
+            Closing += (o, e) =>
+            {
+                while (Engine.Players.Count != 0)
+                    Engine.Players[0].Dispose();
+            };
         }
 
         private void RotatePlayersAction(object obj)
         {
-            // Clockwise rotation
-
             // User should review and possible unsubscribe from player/control events
 
-            // Can use Player on VideoView1 as temporary
-            Player.SwapPlayers(VideoView1.Player, VideoView2.Player);
-            Player.SwapPlayers(VideoView1.Player, VideoView3.Player);
-            Player.SwapPlayers(VideoView1.Player, VideoView4.Player);
+            Player tmp2 = PlayerView2;
+            PlayerView2 = PlayerView1;
+            PlayerView1 = PlayerView4;
+            PlayerView4 = PlayerView3;
+            PlayerView3 = tmp2;
 
             // User should review and possible re-subscribe from player/control events
         }
 
         private void MenuItem_Click(object sender, RoutedEventArgs e)
         {
-            MultiPlayer.Children.Remove(VideoView1);
-            FullScreenWindow fullScreenWindow = new FullScreenWindow();
-            fullScreenWindow.FullGrid.Children.Add(VideoView1);
-            fullScreenWindow.ShowDialog();
+            // TBR
+            //MultiPlayer.Children.Remove(FlyleafHost1);
+            //FullScreenWindow fullScreenWindow = new FullScreenWindow();
+            //fullScreenWindow.FullGrid.Children.Add(FlyleafHost1);
+            //fullScreenWindow.ShowDialog();
         }
     }
 }
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.

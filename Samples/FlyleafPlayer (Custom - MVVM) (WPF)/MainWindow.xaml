@@ -11,7 +11,7 @@
         Title="Flyleaf Player (Custom - MVVM)" Height="650" Width="800" Background="Black">
     
     <Grid>
-        <fl:VideoView Player="{Binding Player}">
+        <fl:FlyleafHost Player="{Binding Player}" KeyBindingsMode="Surface">
             <Grid Margin="50">
                 
                 <!-- NOTE: Window resources will not be within the videoview as it will be on different window -->
@@ -114,6 +114,6 @@
                     <Slider Width="400" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Player.SeekOffset}" LargeChange="{Binding Player.Config.Player.SeekOffset2}"/>
                 </StackPanel>
             </Grid>
-        </fl:VideoView>
+        </fl:FlyleafHost>
     </Grid>
 </Window>

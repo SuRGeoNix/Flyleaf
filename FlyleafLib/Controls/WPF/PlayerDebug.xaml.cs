@@ -7,9 +7,6 @@ using FlyleafLib.MediaPlayer;
 
 namespace FlyleafLib.Controls.WPF
 {
-    /// <summary>
-    /// Interaction logic for PlayerDebug.xaml
-    /// </summary>
     public partial class PlayerDebug : UserControl
     {
         public Player Player
@@ -56,6 +53,7 @@ namespace FlyleafLib.Controls.WPF
 
         public static readonly DependencyProperty ValueColorProperty =
             DependencyProperty.Register("ValueColor", typeof(Brush), typeof(PlayerDebug), new PropertyMetadata(new SolidColorBrush(Colors.White)));
+
         public PlayerDebug()
         {
             InitializeComponent();

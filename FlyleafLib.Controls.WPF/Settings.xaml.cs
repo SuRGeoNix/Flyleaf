@@ -14,14 +14,14 @@ namespace FlyleafLib.Controls.WPF
 {
     public partial class Settings : UserControl, INotifyPropertyChanged
     {
-        Flyleaf flyleaf;
+        FlyleafME flyleaf;
 
-        public Settings(Flyleaf flyleaf)
+        public Settings(FlyleafME flyleaf)
         {
             InitializeComponent();
             this.flyleaf = flyleaf;
-            DataContext = flyleaf.DataContext;
-            Resources.SetTheme(flyleaf.Resources.GetTheme());
+            DataContext = flyleaf;
+            Resources.SetTheme(flyleaf.Overlay.Resources.GetTheme());
         }
 
         public void Dispose()

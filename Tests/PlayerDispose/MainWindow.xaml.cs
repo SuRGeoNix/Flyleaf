@@ -14,8 +14,8 @@ namespace DisposePlayer
     /// </summary>
     public partial class MainWindow : Window
     {
-        public Flyleaf          Flyleaf         { get; set; }
-        public VideoView        VideoView       { get; set; }
+        public FlyleafME        FlyleafME       { get; set; }
+        public FlyleafHost      FlyleafHost     { get; set; } = new FlyleafHost();
         public Player           Player          { get; set; }
         public Config           Config          { get; set; }
 
@@ -37,6 +37,9 @@ namespace DisposePlayer
             });
 
             InitializeComponent();
+
+            Closing += (o, e) => 
+            FlyleafHost?.Dispose();
         }
         private void Button_Click(object sender, RoutedEventArgs e)
         {
@@ -45,14 +48,16 @@ namespace DisposePlayer
                 Player?.Dispose();
                 Player = new Player();
 
-                VideoView = new VideoView();
-                ContentControl.Content = VideoView;
-                VideoView.ApplyTemplate();
+                // If you want to dispose also the video view each time
+                //FlyleafHost?.Dispose();
+                //FlyleafHost = new FlyleafHost();
 
-                // Add to test WPF control (possible memory leak, settings/tab control? -does not happen on new window?-) 
-                //VideoView.Content = new Flyleaf();
+                ContentControl.Content = FlyleafHost;
 
-                VideoView.Player = Player;
+                // Add to test WPF control
+                //FlyleafHost.Content = new Flyleaf();
+
+                FlyleafHost.Player = Player;
                 Player.OpenAsync(SampleVideo);
             }
         }

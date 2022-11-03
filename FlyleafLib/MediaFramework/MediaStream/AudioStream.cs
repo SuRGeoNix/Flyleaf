@@ -6,7 +6,7 @@ using static FFmpeg.AutoGen.ffmpeg;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaStream
-{    
+{
     public unsafe class AudioStream : StreamBase
     {
         public int              Bits                { get; set; }

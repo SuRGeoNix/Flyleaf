@@ -334,7 +334,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         Remuxer curRecorder;
         bool recGotKeyframe;
         internal bool isRecording;
-        internal void StartRecording(Remuxer remuxer, long startAt = -1)
+        internal void StartRecording(Remuxer remuxer)
         {
             if (Disposed || isRecording) return;
 

@@ -13,6 +13,8 @@ using static SuRGeoNix.BitSwarmLib.BitSwarm;
 
 using FlyleafLib.MediaFramework.MediaPlaylist;
 
+using static FlyleafLib.Utils;
+
 namespace FlyleafLib.Plugins
 {
     public class BitSwarm : PluginBase, IOpen
@@ -91,16 +93,20 @@ namespace FlyleafLib.Plugins
 
         public override void OnBuffering()
         {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return;
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name || TorrentStream == null)
+                return;
 
-            TorrentStream?.Cancel();
-            if (cfg != null) cfg.EnableBuffering = true;
+            TorrentStream.Cancel();
+            if (cfg != null)
+                cfg.EnableBuffering = true;
         }
         public override void OnBufferingCompleted()
         {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return;
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name)
+                return;
 
-            if (cfg != null) cfg.EnableBuffering = false;
+            if (cfg != null)
+                cfg.EnableBuffering = false;
         }
 
         public override void Dispose()

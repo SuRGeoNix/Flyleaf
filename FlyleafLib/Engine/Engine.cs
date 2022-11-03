@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading;
 
-using SharpGen.Runtime;
 using Vortice.MediaFoundation;
 
 using FlyleafLib.MediaFramework.MediaRenderer;
@@ -68,6 +67,15 @@ namespace FlyleafLib
 
                 if (System.Windows.Application.Current == null)
                     new System.Windows.Application();
+
+                System.Windows.Application.Current.Exit += (o, e) =>
+                {
+                    Config.UIRefresh = false;
+                    Config.UIRefreshInterval = 1;
+                    
+                    while (Players.Count != 0)
+                        Players[0].Dispose();
+                };
 
                 Config = config == null ? new EngineConfig() : config;
 
@@ -262,7 +270,7 @@ namespace FlyleafLib
 
                                 // Activity Mode Refresh & Hide Mouse Cursor (FullScreen only)
                                 if (player.Activity.mode != player.Activity._Mode)
-                                    player.Activity.SetMode();                                    
+                                    player.Activity.SetMode();
 
                                 // CurTime / Buffered Duration (+Duration for HLS)
                                 if (!Config.UICurTimePerSecond)

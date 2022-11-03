@@ -24,7 +24,7 @@ namespace FlyleafPlayer__Custom_
                 LogLevel        = LogLevel.Debug,
                 FFmpegLogLevel  = FFmpegLogLevel.Warning,
                 #endif
-                
+
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
             });
@@ -39,15 +39,19 @@ namespace FlyleafPlayer__Custom_
             InitializeComponent();
 
             // Parse the control to the Player
-            Player.Control = flyleaf1;
-            Player2.Control = flyleaf2;
+            flyleaf1.Player = Player;
+            flyleaf1.Player.PropertyChanged += Player_PropertyChanged; // On Swap you should unsubscribe player 1 and subscribe to player 2
+            flyleaf2.Player = Player2;
 
-            isPlayer1View = true;
-            Player1View = Player;
-
-            Player.PropertyChanged += Player_PropertyChanged; // On Swap you should unsubscribe player 1 and subscribe to player 2
             //Player.OpenCompleted += // To handle errors
             //Player.BufferingStarted += // To handle buffering
+
+            // Dispose on close
+            FormClosing += (o, e) =>
+            {
+                while (Engine.Players.Count != 0)
+                    Engine.Players[0].Dispose();
+            };
         }
 
         private void Player_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -57,32 +61,21 @@ namespace FlyleafPlayer__Custom_
             switch (e.PropertyName)
             {
                 case "CurTime":
-                    label1.Text = (new TimeSpan(Player1View.CurTime)).ToString(@"hh\:mm\:ss\.fff");
+                    label1.Text = (new TimeSpan(flyleaf1.Player.CurTime)).ToString(@"hh\:mm\:ss\.fff");
                     break;
 
                 case "BufferedDuration":
-                    label2.Text =  (new TimeSpan(Player1View.BufferedDuration)).ToString(@"hh\:mm\:ss\.fff");
+                    label2.Text =  (new TimeSpan(flyleaf1.Player.BufferedDuration)).ToString(@"hh\:mm\:ss\.fff");
                     break;
 
                 case "Status":
-                    label6.Text = Player1View.Status.ToString();
+                    label6.Text = flyleaf1.Player.Status.ToString();
                     break;
             }
         }
 
-        private void RefreshAfterSwap()
-        {
-            label1.Text = (new TimeSpan(Player1View.CurTime)).ToString(@"hh\:mm\:ss\.fff");
-            label2.Text = (new TimeSpan(Player1View.BufferedDuration)).ToString(@"hh\:mm\:ss\.fff");
-            label6.Text = Player1View.Status.ToString();
-        }
-
         private void Form1_Load(object sender, EventArgs e)
         {
-            //// Just to make sure that handles have been created before using the player (opening)
-            //while (Player.Control.Handle == IntPtr.Zero || Player2.Control.Handle == IntPtr.Zero)
-            //    System.Threading.Thread.Sleep(20);
-
             Player.OpenAsync(SampleVideo);
 
             // Sample using a 'custom' IO stream
@@ -90,19 +83,11 @@ namespace FlyleafPlayer__Custom_
             Player2.OpenAsync(customInput);
         }
 
-        bool isPlayer1View;
-        Player Player1View;
         private void btnSwap_Click(object sender, EventArgs e)
         {
-            Player1View.PropertyChanged -= Player_PropertyChanged;
-
-            Player.SwapPlayers(Player, Player2);
-
-            Player1View = isPlayer1View ? Player2 : Player;
-            Player1View.PropertyChanged += Player_PropertyChanged;
-
-            RefreshAfterSwap();
-            isPlayer1View = !isPlayer1View;
+            flyleaf1.Player.PropertyChanged -= Player_PropertyChanged;
+            (flyleaf2.Player, flyleaf1.Player) = (flyleaf1.Player, flyleaf2.Player);
+            flyleaf1.Player.PropertyChanged += Player_PropertyChanged;
         }
     }
 }

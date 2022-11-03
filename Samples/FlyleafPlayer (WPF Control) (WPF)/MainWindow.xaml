@@ -7,30 +7,130 @@
         
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
-        
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
-        Title="Flyleaf v3.5.10" Height="450" Width="800" Background="Black" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
-    <Grid>
-        <fl:VideoView Player="{Binding Player}">
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13"
+        TextOptions.TextFormattingMode="Ideal" 
+        TextOptions.TextRenderingMode="Auto"
+        WindowStyle="None" ResizeMode="NoResize"
+        MinWidth="200" MinHeight="200"
+        Title="Flyleaf v3.6" Height="450" Width="800" Background="Transparent" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
+
+    <Window.Resources>
+        <d:ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml"/>
+    </Window.Resources>
+
+    <Border BorderThickness="0.6" DataContext="{Binding FlyleafME}">
+        <Border.Resources>
+            <ResourceDictionary>
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesign.xaml"/>
+                    <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/Converters.xaml"/>
+                    <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/PopUpMenu.xaml"/>
+                </ResourceDictionary.MergedDictionaries>
+                
+                <Storyboard x:Key="fadeIn" Timeline.DesiredFrameRate="10">
+                    <DoubleAnimation BeginTime="0:0:0" Storyboard.TargetProperty="Opacity"  To="1" Duration="0:0:0.5" AutoReverse="False"/>
+                </Storyboard>
+
+                <Storyboard x:Key="fadeOut" Timeline.DesiredFrameRate="10">
+                    <DoubleAnimation BeginTime="0:0:0" Storyboard.TargetProperty="Opacity"  To="0" Duration="0:0:2.0" AutoReverse="False"/>
+                </Storyboard>
+            </ResourceDictionary>
+        </Border.Resources>
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="BorderBrush" Value="#01000000"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                    </Trigger>
+                    <DataTrigger Binding="{Binding Player.WPFHost.Surface.IsMouseOver}" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Player.WPFHost.IsFullScreen}" Value="True">
+                        <Setter Property="BorderBrush" Value="#01000000"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Active">
+                        <Setter Property="BorderBrush" Value="#01000000"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
+                        <Setter Property="BorderBrush" Value="#01000000"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Player.WPFHost.IsResizing}" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Border BorderThickness="{Binding Player.WPFHost.ResizeSensitivity, FallbackValue=6, TargetNullValue=6}" BorderBrush="#01000000">
             <Grid>
-                <flwpf:Flyleaf x:Name="flyleafControl"/>
-                <StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBox d:Text="Error" Margin="10" FontSize="16" IsReadOnly="True" BorderThickness="0" Text="{Binding Player.LastError}" Foreground="Red" Background="#AA000000" TextWrapping="Wrap" MaxWidth="1000">
-                            <TextBox.Style>
-                                <Style TargetType="{x:Type TextBox}">
-                                <Setter Property="Visibility" Value="Visible"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0" Background="#53000000" x:Name="HeaderGrid">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="50"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.Style>
+                        <Style TargetType="{x:Type Grid}">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Player.LastError}" Value="{x:Null}" d:Value="notnull">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
+                                        <DataTrigger.EnterActions>
+                                            <RemoveStoryboard BeginStoryboardName="fadeInN" />
+                                            <BeginStoryboard x:Name="fadeOutN" Storyboard="{StaticResource fadeOut}" />
+                                        </DataTrigger.EnterActions>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Player.Activity.Mode, FallbackValue=FullActive, TargetNullValue=FullActive}" Value="FullActive">
+                                        <DataTrigger.EnterActions>
+                                            <RemoveStoryboard BeginStoryboardName="fadeOutN" />
+                                            <BeginStoryboard x:Name="fadeInN" Storyboard="{StaticResource fadeIn}" />
+                                        </DataTrigger.EnterActions>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
-                        </TextBox.Style>
-                    </TextBox>
+                    </Grid.Style>
+
+                    <Image Source="Flyleaf.ico" Stretch="UniformToFill" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="Flyleaf v3.6"/>
+
+                    <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontWeight="Bold" FontStyle="Italic" FontFamily="Mistral" FontSize="34" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                        <Button Focusable="False" x:Name="BtnMinimize" Content="{materialDesign:PackIcon Kind=Minimize,Size=30}" VerticalContentAlignment="Bottom" Style="{StaticResource MaterialDesignIconButton}" Click="BtnMinimize_Click"/>
+                        <ToggleButton Grid.Column="6" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Background="Transparent" Focusable="False"
+                                                          IsChecked="{Binding Player.WPFHost.IsFullScreen}" 
+                                                          Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}" 
+                                                          materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=FullscreenExit, Size=28}"/>
+                        <Button x:Name="BtnClose" Click="BtnClose_Click" Content="{materialDesign:PackIcon Kind=Close,Size=30}" Style="{StaticResource MaterialDesignIconButton}" />
                     </StackPanel>
-                </StackPanel>
+
+                </Grid>
+
+                <Grid Grid.Row="1" x:Name="PART_ContextMenuOwner" ContextMenu="{StaticResource PopUpMenu}">
+                    <!--Pop Up Dialog (Settings/Set Values)-->
+                    <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
+
+                    <!--Debug Info-->
+                    <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource PrimaryHueLightBrush}" ValueColor="{DynamicResource SecondaryHueLightBrush}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
+
+                    <!--Subtitles-->
+                    <TextBlock Margin="{Binding UIConfig.SubsMargin}" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontFamily="{Binding UIConfig.SubsFontFamily}" FontSize="{Binding UIConfig.SubsFontSize}" Foreground="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}" FontWeight="{Binding UIConfig.SubsFontWeight}" Text="{Binding Player.Subtitles.SubsText}">
+                        <TextBlock.Effect>
+                            <DropShadowEffect ShadowDepth="2" Direction="0" Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="1.0" BlurRadius="0"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
+
+                    <!--Flyleaf Bar-->
+                    <flwpf:FlyleafBar Player="{Binding Player}"/>
+                </Grid>
             </Grid>
-        </fl:VideoView>
-    </Grid>
+        </Border>
+    </Border>
 </Window>

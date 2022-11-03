@@ -4,7 +4,7 @@
     <TargetFrameworks>net6.0-windows;net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.1.28</Version>
+    <Version>1.2-pre</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2022</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,8 +14,15 @@
     <PackageTags>flyleaf flyleaflib video audio media player element control</PackageTags>
     <Description>WPF Media Player Control/Element (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		* Includes the new Max Latency in Settings
-		* Updates FlyleafLib, MaterialDesign and Dragablz
+		- Introduces FlyleafME WPF Media Element Control (WPF Flyleaf Control replacement)
+		* Updated with the new FlyleafHost and gains better performance
+		* Resolves several issues with DPI
+		* Code clean-up and styles to allow easier override and customization
+		* Updates FlyleafLib
+
+		- Breaking Changes
+		* Flyleaf (WPF Control) has been renamed to FlyleafME (Media Element) and does not require a FlyleafHost as it was required previously with the VideoView (it derives from it)
+		* See WPF/FlyleafHost.cs for the new dependency properties and customization
 	</PackageReleaseNotes>
   </PropertyGroup>
 

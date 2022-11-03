@@ -20,8 +20,9 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="MainDictionary.xaml"/>
-                
+                <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesign.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/Converters.xaml"/>
                 <!-- Include the Dragablz Material Design style -->
                 <ResourceDictionary Source="pack://application:,,,/Dragablz;component/Themes/materialdesign.xaml"/>
             </ResourceDictionary.MergedDictionaries>
@@ -516,12 +517,12 @@
                                 <Button Grid.Row="2" Grid.Column="3" Content="Change" Style="{StaticResource ColorPickerButton}" CommandParameter="Paper"/>
 
                                 <TextBlock Grid.Row="3" Text="Background (Video)" VerticalAlignment="Center"/>
-                                <Border Grid.Row="3" Grid.Column="1" Background="{Binding SelectedItem.VideoView, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesignBody}" Width="20" Height="20" BorderThickness="1"/>
+                                <Border Grid.Row="3" Grid.Column="1" Background="{Binding SelectedItem.SurfaceColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesignBody}" Width="20" Height="20" BorderThickness="1"/>
                                 <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal">
                                     <TextBlock Text="#" VerticalAlignment="Center"/>
                                     <TextBox Style="{StaticResource ColorPickerTextBox}">
                                         <TextBox.Text>
-                                            <Binding Path="SelectedItem.VideoView" ElementName="cmbThemes" Converter="{StaticResource ColorToHex}" UpdateSourceTrigger="PropertyChanged">
+                                            <Binding Path="SelectedItem.SurfaceColor" ElementName="cmbThemes" Converter="{StaticResource ColorToHex}" UpdateSourceTrigger="PropertyChanged">
                                                 <Binding.ValidationRules>
                                                     <local:ColorHexRule/>
                                                 </Binding.ValidationRules>
@@ -529,7 +530,7 @@
                                         </TextBox.Text>
                                     </TextBox>
                                 </StackPanel>
-                                <Button Grid.Row="3" Grid.Column="3" Content="Change" Style="{StaticResource ColorPickerButton}" CommandParameter="VideoView"/>
+                                <Button Grid.Row="3" Grid.Column="3" Content="Change" Style="{StaticResource ColorPickerButton}" CommandParameter="Surface"/>
                             </Grid>
                         </StackPanel>
 

@@ -20,10 +20,12 @@ namespace DisposePlayer
             // Initializes the Player
             Player = new Player(config);
 
-            // Allowing VideoView to access our Player
+            // Allowing FlyleafHost to access our Player
             DataContext = this;
 
             InitializeComponent();
+
+            Closing += (o, e) => Player.Dispose(); 
         }
     }
 }

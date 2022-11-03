@@ -107,6 +107,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(SolutionDir)Plugins.NET4" "$(TargetDir)Plugins\" /E /Y</PostBuildEvent>
+    <PostBuildEvent>if not exist "$(SolutionDir)Plugins.NET4" mkdir "$(SolutionDir)Plugins.NET4"
+xcopy "$(SolutionDir)Plugins.NET4" "$(TargetDir)Plugins\" /E /Y</PostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -1,17 +1,16 @@
 ﻿using System;
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+
 using FlyleafLib;
-using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
 
-namespace DoubleVideoViewOverlay
+namespace DoubleFlyleafHostOverlay
 {
     /// <summary>
-    /// Testing VideoView within another VideoView
+    /// Testing FlyleafHost within another FlyleafHost
     /// 
     /// This sample demonstrates a second videoview which follows the first videoview's input
     /// and previews the seeking frame/position before the actual seeking on the main player
@@ -52,8 +51,6 @@ namespace DoubleVideoViewOverlay
             PlayerSeek = new Player();
 
             // Disables Mouse/Keys/Audio on Preview/Seek Player
-            PlayerSeek.Config.Player.KeyBindings.Enabled = false;
-            PlayerSeek.Config.Player.MouseBindings.Enabled = false;
             PlayerSeek.Config.Audio.Enabled = false;
             PlayerSeek.Config.Player.AutoPlay = false;
             //PlayerSeek.Config.Video.AspectRatio = AspectRatio.Fill;

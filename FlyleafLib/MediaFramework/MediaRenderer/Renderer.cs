@@ -6,7 +6,9 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Interop;
 
 using SharpGen.Runtime;
 
@@ -34,11 +36,17 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
     public unsafe partial class Renderer : NotifyPropertyChanged, IDisposable
     {
         public Config           Config          => VideoDecoder?.Config;
-        public Control          Control         { get; private set; }
-        internal IntPtr ControlHandle; // When we re-created the swapchain so we don't access the control (which requires UI thread)
+        public int              ControlWidth    { get; private set; }
+        public int              ControlHeight   { get; private set; }
+        internal IntPtr         ControlHandle; // When we re-created the swapchain so we don't access the control (which requires UI thread)
+
+        public Window           WindowRef       { get; set; }
+        public Form             FormRef         { get; set; }
+        public UserControl      ControlRef      { get; set; }
 
         public ID3D11Device     Device          { get; private set; }
         public bool             Disposed        { get; private set; } = true;
+        public bool             SCDisposed      { get; private set; } = true;
         public RendererInfo     AdapterInfo     { get; internal set; }
         public int              MaxOffScreenTextures
                                                 { get; set; } = 20;
@@ -104,7 +112,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         long    lastPresentRequestAt= 0;
         float   curRatio            = 1.0f;
 
-        public Renderer(VideoDecoder videoDecoder, Control control = null, int uniqueId = -1)
+        public Renderer(VideoDecoder videoDecoder, object control = null, int uniqueId = -1)
         {
             UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder = videoDecoder;
@@ -140,37 +148,60 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 SetControl(control);
         }
 
-        public void SetControl(Control control)
+        public void SetControl(object control)
         {
-            if (ControlHandle != IntPtr.Zero)
-                return;
-
-            Control = control;
-
-            if (Control.Handle == IntPtr.Zero)
+            lock (lockDevice)
             {
-                Log.Debug("Waiting for control handle to be created");
+                DisposeSwapChain();
 
-                Control.HandleCreated += (o, e) =>
+                if (control == null)
+                    return;
+
+                if (control is Window)
                 {
-                    lock (lockDevice)
-                    {
-                        ControlHandle = Control.Handle;
-                        InitializeSwapChain();
-                        Log.Debug("Swap chain with control ready");
-                    }
-                };
-            }
-            else
-            {
-                lock (lockDevice)
-                {
-                    ControlHandle = Control.Handle;
+                    WindowRef = (Window)control;
+
+                    ControlHandle = new WindowInteropHelper(WindowRef).EnsureHandle();
+                    ControlWidth = (int)WindowRef.ActualWidth;
+                    ControlHeight = (int)WindowRef.ActualHeight;
+
                     InitializeSwapChain();
                     Log.Debug("Swap chain with control ready");
                 }
+                else if (control is UserControl)
+                {
+                    ControlRef = (UserControl)control;
+                    ControlWidth = ControlRef.Width;
+                    ControlHeight = ControlRef.Height;
+
+                    if (ControlRef.Handle == IntPtr.Zero)
+                    {
+                        Log.Debug("Waiting for control handle to be created");
+
+                        ControlRef.HandleCreated += (o, e) =>
+                        {
+                            lock (lockDevice)
+                            {
+                                ControlHandle = ControlRef.Handle;
+                                InitializeSwapChain();
+                                Log.Debug("Swap chain with control ready");
+                            }
+                        };
+                    }
+                    else
+                    {
+                        lock (lockDevice)
+                        {
+                            ControlHandle = ControlRef.Handle;
+                            InitializeSwapChain();
+                            Log.Debug("Swap chain with control ready");
+                        }
+                    }
+                }
             }
         }
+        private void ControlRef_SizeChanged(object sender, EventArgs e) => ResizeBuffers((int)(ControlRef.Width * Utils.NativeMethods.DpiX), (int)(ControlRef.Height * Utils.NativeMethods.DpiY));
+        private void WindowRef_SizeChanged(object sender, SizeChangedEventArgs e) => ResizeBuffers((int)(e.NewSize.Width * Utils.NativeMethods.DpiX), (int)(e.NewSize.Height * Utils.NativeMethods.DpiY));
 
         public void Initialize()
         {
@@ -362,15 +393,20 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         public void InitializeSwapChain()
         {
-            Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers");
+            Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers [Handle: {ControlHandle}]");
 
-            Control.Resize += ResizeBuffers;
+            SCDisposed = false;
+
+            if (WindowRef != null)
+                WindowRef.SizeChanged += WindowRef_SizeChanged;
+            else if (ControlRef != null)
+                ControlRef.SizeChanged += ControlRef_SizeChanged;
 
             SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
             {
                 Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
-                Width       = Control.Width,
-                Height      = Control.Height,
+                Width       = ControlWidth,
+                Height      = ControlHeight,
                 AlphaMode   = AlphaMode.Ignore,
                 BufferUsage = Usage.RenderTargetOutput,
                 SampleDescription = new SampleDescription(1, 0)
@@ -393,20 +429,44 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
             backBufferRtv= Device.CreateRenderTargetView(backBuffer);
 
+            ResizeBuffers(ControlWidth, ControlHeight);
             Present();
         }
         public void DisposeSwapChain()
         {
             lock (lockDevice)
             {
-                if (Control != null)
-                    Control.Resize -= ResizeBuffers;
+                if (SCDisposed && ControlHandle == IntPtr.Zero)
+                    return;
+
+                // Clear Screan
+                if (!Disposed && swapChain != null)
+                {
+                    try
+                    {
+                        context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                        swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                    } catch { }
+                }
+
+                Log.Info($"Destroying swap chain [Handle: {ControlHandle}]");
+                SCDisposed = true;
+
+                if (WindowRef != null)
+                    WindowRef.SizeChanged -= WindowRef_SizeChanged;
+                else if (ControlRef != null)
+                    ControlRef.SizeChanged -= ControlRef_SizeChanged;
+
+                WindowRef = null;
+                ControlRef = null;
+                ControlHandle = IntPtr.Zero;
 
                 vpov?.Dispose();
                 backBufferRtv?.Dispose();
                 backBuffer?.Dispose();
                 swapChain?.Dispose();
-                context?.Flush();
+                if (Device != null)
+                    context?.Flush();
             }
         }
         public void Dispose()
@@ -600,7 +660,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 VideoDecoder.DisposeFrame(LastFrame);
                 VideoRect = new RawRect(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height);
 
-                if (Control != null)
+                if (ControlHandle != IntPtr.Zero)
                     SetViewport();
                 else
                 {
@@ -638,17 +698,20 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
             }
         }
-        internal void ResizeBuffers(object sender, EventArgs e)
+        internal void ResizeBuffers(int width, int height)
         {   
             lock (lockDevice)
             {
                 if (Disposed)
                     return;
 
+                ControlWidth = width;
+                ControlHeight = height;
+
                 backBufferRtv.Dispose();
                 vpov?.Dispose();
                 backBuffer.Dispose();
-                swapChain.ResizeBuffers(0, Control.Width, Control.Height, Format.Unknown, SwapChainFlags.None);
+                swapChain.ResizeBuffers(0, ControlWidth, ControlHeight, Format.Unknown, SwapChainFlags.None);
                 backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 backBufferRtv = Device.CreateRenderTargetView(backBuffer);
                 if (videoProcessor == VideoProcessors.D3D11)
@@ -665,7 +728,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 ratio = curRatio;
 
             else if (Config.Video.AspectRatio == AspectRatio.Fill)
-                ratio = Control.Width / (float)Control.Height;
+                ratio = ControlWidth / (float)ControlHeight;
 
             else if (Config.Video.AspectRatio == AspectRatio.Custom)
                 ratio = Config.Video.CustomAspectRatio.Value;
@@ -674,19 +737,19 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             if (ratio <= 0) ratio = 1;
 
-            int Height = Control.Height + (zoom * 2);
-            int Width  = Control.Width  + (zoom * 2);
+            int Height = ControlHeight + (zoom * 2);
+            int Width  = ControlWidth  + (zoom * 2);
 
             if (Width / ratio > Height)
-                GetViewport = new Viewport(((Control.Width - (Height * ratio)) / 2) + PanXOffset, 0 - zoom + PanYOffset, Height * ratio, Height, 0.0f, 1.0f);
+                GetViewport = new Viewport(((ControlWidth - (Height * ratio)) / 2) + PanXOffset, 0 - zoom + PanYOffset, Height * ratio, Height, 0.0f, 1.0f);
             else
-                GetViewport = new Viewport(0 - zoom + PanXOffset, ((Control.Height - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
+                GetViewport = new Viewport(0 - zoom + PanXOffset, ((ControlHeight - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
 
             if (videoProcessor == VideoProcessors.D3D11)
             {
                 RawRect src, dst;
 
-                if (GetViewport.X + GetViewport.Width <= 0 || GetViewport.X >= Control.Width || GetViewport.Y + GetViewport.Height <= 0 || GetViewport.Y >= Control.Height)
+                if (GetViewport.X + GetViewport.Width <= 0 || GetViewport.X >= ControlWidth || GetViewport.Y + GetViewport.Height <= 0 || GetViewport.Y >= ControlHeight)
                 {
                     //Log.Debug("Out of screen");
                     src = new RawRect();
@@ -694,23 +757,23 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
                 else
                 {
-                    if (GetViewport.Y + GetViewport.Height > Control.Height)
-                        Height = (int) (VideoRect.Bottom- ((GetViewport.Y + GetViewport.Height - Control.Height)* (VideoRect.Bottom / GetViewport.Height)));
+                    if (GetViewport.Y + GetViewport.Height > ControlHeight)
+                        Height = (int) (VideoRect.Bottom- ((GetViewport.Y + GetViewport.Height - ControlHeight)* (VideoRect.Bottom / GetViewport.Height)));
                     else
                         Height = VideoRect.Bottom;
 
-                    if (GetViewport.X + GetViewport.Width > Control.Width)
-                        Width = (int) (VideoRect.Right  - ((GetViewport.X + GetViewport.Width - Control.Width)  * (VideoRect.Right / GetViewport.Width)));
+                    if (GetViewport.X + GetViewport.Width > ControlWidth)
+                        Width = (int) (VideoRect.Right  - ((GetViewport.X + GetViewport.Width - ControlWidth)  * (VideoRect.Right / GetViewport.Width)));
                     else
                         Width  = VideoRect.Right;
 
                     src = new RawRect((int) (Math.Min(GetViewport.X, 0f) * ((float)VideoRect.Right / (float)GetViewport.Width) * -1f), (int) (Math.Min(GetViewport.Y, 0f) * ((float)VideoRect.Bottom / (float)GetViewport.Height) * -1f), Width, Height);
-                    dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, Control.Width), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, Control.Height));   
+                    dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));   
                 }
 
                 vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
                 vc.VideoProcessorSetStreamDestRect  (vp, 0, true, dst);
-                vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, Control.Width, Control.Height));
+                vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, ControlWidth, ControlHeight));
             }
 
             Present();
@@ -793,6 +856,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         internal void PresentInternal(VideoFrame frame)
         {
+            if (SCDisposed)
+                return;
+
             if (VideoDecoder.VideoAccelerated)
             {
                 if (videoProcessor == VideoProcessors.D3D11)
@@ -951,10 +1017,19 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 try
                 {
-                    if (Disposed)
+                    if (SCDisposed)
                     {
-                        if (Control != null)
-                            Control.BackColor = Utils.WPFToWinFormsColor(Config.Video.BackgroundColor);
+                        if (ControlHandle != IntPtr.Zero)
+                        {
+                            // TBR: Requires Layout Update/Refresh
+                            Utils.UI(() =>
+                            {
+                                if (WindowRef != null)
+                                    WindowRef.Background = new System.Windows.Media.SolidColorBrush(Config.Video.BackgroundColor);
+                                else if (ControlRef != null)
+                                    ControlRef.BackColor = Utils.WPFToWinFormsColor(Config.Video.BackgroundColor);
+                            });
+                        }
                     }
                     else if (LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
                         PresentInternal(LastFrame);

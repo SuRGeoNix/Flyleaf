@@ -27,19 +27,19 @@ namespace FlyleafLib.Controls.WPF
         Color _SubsFontColor;
         public string       SubsFontStretch { get => _SubsFontStretch;  set => Set(ref _SubsFontStretch, value); }
         string _SubsFontStretch;
-        public string       SubsFontWeight  { get => _SubsFontWeight;       set => Set(ref _SubsFontWeight, value); }
+        public string       SubsFontWeight  { get => _SubsFontWeight;   set => Set(ref _SubsFontWeight, value); }
         string _SubsFontWeight;
         public string       SubsFontStyle   { get => _SubsFontStyle;    set => Set(ref _SubsFontStyle, value); }
         string _SubsFontStyle;
         public Thickness    SubsMargin      { get => _SubsMargin;       set => Set(ref _SubsMargin, value); }
         Thickness _SubsMargin;
 
-        internal Flyleaf flyleaf;
+        internal FlyleafME flyleaf;
 
         public UIConfig() { }
-        public UIConfig(Flyleaf flyleaf) { this.flyleaf = flyleaf; }
+        public UIConfig(FlyleafME flyleaf) { this.flyleaf = flyleaf; }
 
-        public static void Load(Flyleaf flyleaf, string path)
+        public static void Load(FlyleafME flyleaf, string path)
         {
             using (FileStream fs = new FileStream(path, FileMode.Open))
             {
@@ -53,7 +53,7 @@ namespace FlyleafLib.Controls.WPF
             }
         }
 
-        public static void Save(Flyleaf flyleaf, string uiConfigPath, string configPath, string enginePath)
+        public static void Save(FlyleafME flyleaf, string uiConfigPath, string configPath, string enginePath)
         {
             if (uiConfigPath != null)
                 using (FileStream fs = new FileStream(uiConfigPath, FileMode.Create))
@@ -73,11 +73,11 @@ namespace FlyleafLib.Controls.WPF
     public class UITheme : NotifyPropertyChanged
     {
         [XmlIgnore]
-        public Flyleaf flyleaf;
+        public FlyleafME flyleaf;
 
         public UITheme() { }
 
-        public UITheme(Flyleaf flyleaf, UITheme baseTheme)
+        public UITheme(FlyleafME flyleaf, UITheme baseTheme)
         {
             this.flyleaf = flyleaf;
 
@@ -86,7 +86,7 @@ namespace FlyleafLib.Controls.WPF
                 _PrimaryColor   = baseTheme.PrimaryColor;
                 _SecondaryColor = baseTheme.SecondaryColor;
                 _PaperColor     = baseTheme.PaperColor;
-                _VideoView      = baseTheme.VideoView;
+                _SurfaceColor   = baseTheme.SurfaceColor;
             }
         }
 
@@ -98,9 +98,9 @@ namespace FlyleafLib.Controls.WPF
                 if (!Set(ref _PrimaryColor, value)) return;
                 if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;
 
-                ITheme theme = flyleaf.Resources.GetTheme();
+                ITheme theme = flyleaf.Overlay.Resources.GetTheme();
                 theme.SetPrimaryColor(value);
-                flyleaf.Resources.SetTheme(theme);
+                flyleaf.Overlay.Resources.SetTheme(theme);
                 flyleaf.settings.Resources.SetTheme(theme);
             }
         }
@@ -113,9 +113,9 @@ namespace FlyleafLib.Controls.WPF
                 if (!Set(ref _SecondaryColor, value)) return;
                 if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;
 
-                ITheme theme = flyleaf.Resources.GetTheme();
+                ITheme theme = flyleaf.Overlay.Resources.GetTheme();
                 theme.SetSecondaryColor(value);
-                flyleaf.Resources.SetTheme(theme);
+                flyleaf.Overlay.Resources.SetTheme(theme);
                 flyleaf.settings.Resources.SetTheme(theme);
             }
         }
@@ -128,24 +128,24 @@ namespace FlyleafLib.Controls.WPF
                 if (!Set(ref _PaperColor, value)) return;
                 if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;
 
-                ITheme theme = flyleaf.Resources.GetTheme();
+                ITheme theme = flyleaf.Overlay.Resources.GetTheme();
                 theme.Paper = value;
-                flyleaf.Resources.SetTheme(theme);
+                flyleaf.Overlay.Resources.SetTheme(theme);
                 flyleaf.settings.Resources.SetTheme(theme);
             }
         }
         Color _PaperColor;
 
-        public Color VideoView      {
-            get => _VideoView;
+        public Color SurfaceColor      {
+            get => _SurfaceColor;
             set 
             {
-                if (!Set(ref _VideoView, value)) return;
+                if (!Set(ref _SurfaceColor, value)) return;
                 if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;
 
                 flyleaf.Config.Video.BackgroundColor = value;
             }
         }
-        Color _VideoView;
+        Color _SurfaceColor;
     }
 }

@@ -84,7 +84,7 @@ namespace FlyleafLib.MediaPlayer
         {
             Config.Audio.SetDelay(0);
             Audio.Refresh();
-            canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+            canPlay = Video.IsOpened || Audio.IsOpened;
             isLive  = MainDemuxer.IsLive;
             duration= MainDemuxer.Duration;
             if (Video.isOpened) duration -= VideoDemuxer.VideoStream.FrameDuration;
@@ -100,7 +100,7 @@ namespace FlyleafLib.MediaPlayer
         private void Decoder_OpenVideoStreamCompleted(object sender, OpenVideoStreamCompletedArgs e)
         {
             Video.Refresh();
-            canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+            canPlay = Video.IsOpened || Audio.IsOpened;
             isLive  = MainDemuxer.IsLive;
             duration= MainDemuxer.Duration;
             if (Video.isOpened) duration -= VideoDemuxer.VideoStream.FrameDuration;
@@ -124,7 +124,7 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!e.Success)
             {
-                canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+                canPlay = Video.IsOpened || Audio.IsOpened;
                 UIAdd(() => CanPlay = CanPlay);
                 UIAll();
             }
@@ -133,7 +133,7 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!e.Success)
             {
-                canPlay = Video.IsOpened || Audio.IsOpened ? true : false;
+                canPlay = Video.IsOpened || Audio.IsOpened;
                 UIAdd(() => CanPlay = CanPlay);
                 UIAll();
             }
@@ -158,7 +158,7 @@ namespace FlyleafLib.MediaPlayer
                     return args;
                 }
 
-                if (CanInfo) Log.Info($"Opening {url_iostream.ToString()}");
+                if (CanInfo) Log.Info($"Opening {url_iostream}");
 
                 Initialize(Status.Opening);
                 MediaFramework.MediaContext.DecoderContext.OpenCompletedArgs args2 = decoder.Open(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
@@ -215,7 +215,7 @@ namespace FlyleafLib.MediaPlayer
 
             try
             {
-                if (CanInfo) Log.Info($"Opening subtitles {url.ToString()}");
+                if (CanInfo) Log.Info($"Opening subtitles {url}");
 
                 if (!Video.IsOpened)
                 {
@@ -583,17 +583,17 @@ namespace FlyleafLib.MediaPlayer
                     requiresBuffering = true;
                 }
 
-                if (stream is AudioStream)
+                if (stream is AudioStream astream)
                 {
                     Config.Audio.SetEnabled(true);
-                    args = decoder.OpenAudioStream((AudioStream)stream);
+                    args = decoder.OpenAudioStream(astream);
                 }
-                else if (stream is VideoStream)
-                    args = decoder.OpenVideoStream((VideoStream)stream, defaultAudio);
-                else if (stream is SubtitlesStream)
+                else if (stream is VideoStream vstream)
+                    args = decoder.OpenVideoStream(vstream, defaultAudio);
+                else if (stream is SubtitlesStream sstream)
                 {
                     Config.Subtitles.SetEnabled(true);
-                    args = decoder.OpenSubtitlesStream((SubtitlesStream)stream);
+                    args = decoder.OpenSubtitlesStream(sstream);
                 }
 
                 if (resync)
@@ -773,11 +773,9 @@ namespace FlyleafLib.MediaPlayer
                 if (IsDisposed)
                     return;
 
-                OpenAsyncData data;
-
                 while (true)
                 {
-                    if (openInputs.TryPop(out data))
+                    if (openInputs.TryPop(out OpenAsyncData data))
                     {
                         openInputs.Clear();
                         decoder.Interrupt = true;
@@ -848,7 +846,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockActions)
             {
-                if (openInputs.Count > 0)
+                if (!openInputs.IsEmpty)
                     return;
 
                 decoder.Interrupt = true;
@@ -862,7 +860,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockActions)
             {
-                if (openInputs.Count > 0 || openSessions.Count > 0)
+                if (!openInputs.IsEmpty || !openSessions.IsEmpty)
                     return;
 
                 decoder.Interrupt = true;
@@ -875,7 +873,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockActions)
             {
-                if (openInputs.Count > 0 || openItems.Count > 0 || openSessions.Count > 0)
+                if (!openInputs.IsEmpty || !openItems.IsEmpty || !openSessions.IsEmpty)
                     return;
 
                 if (extStream is ExternalAudioStream)
@@ -901,7 +899,7 @@ namespace FlyleafLib.MediaPlayer
         {
             lock (lockActions)
             {
-                if (openInputs.Count > 0 || openItems.Count > 0 || openSessions.Count > 0)
+                if (!openInputs.IsEmpty || !openItems.IsEmpty || !openSessions.IsEmpty)
                     return;
 
                 if (stream is AudioStream)

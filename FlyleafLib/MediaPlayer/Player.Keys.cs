@@ -1,11 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Windows;
-using System.Windows.Forms.Integration;
 using System.Windows.Input;
-
-using FlyleafLib.Controls;
-using FlyleafLib.Controls.WPF;
 
 using static FlyleafLib.Logger;
 
@@ -15,8 +10,6 @@ namespace FlyleafLib.MediaPlayer
     {
         /* Player Key Bindings
          * 
-         * Config.Player.KeyBindings.Enabled
-         * Config.Player.KeyBindings.FlyleafWindow
          * Config.Player.KeyBindings.Keys
          * 
          * KeyDown / KeyUp Events (Control / WinFormsHost / WindowFront (FlyleafWindow))
@@ -31,9 +24,11 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         /// <param name="player"></param>
         /// <param name="e"></param>
-        public void KeyDown(Player player, KeyEventArgs e)
+        public static bool KeyDown(Player player, KeyEventArgs e)
         {
             e.Handled = KeyDown(player, e.Key == Key.System ? e.SystemKey : e.Key);
+
+            return e.Handled;
         }
 
         /// <summary>
@@ -41,7 +36,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         /// <param name="player"></param>
         /// <param name="e"></param>
-        public void KeyDown(Player player, System.Windows.Forms.KeyEventArgs e)
+        public static void KeyDown(Player player, System.Windows.Forms.KeyEventArgs e)
         {
             e.Handled = KeyDown(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
         }
@@ -51,9 +46,11 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         /// <param name="player"></param>
         /// <param name="e"></param>
-        public void KeyUp(Player player, KeyEventArgs e)
+        public static bool KeyUp(Player player, KeyEventArgs e)
         {
             e.Handled = KeyUp(player, e.Key == Key.System ? e.SystemKey : e.Key);
+
+            return e.Handled;
         }
 
         /// <summary>
@@ -61,13 +58,16 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         /// <param name="player"></param>
         /// <param name="e"></param>
-        public void KeyUp(Player player, System.Windows.Forms.KeyEventArgs e)
+        public static void KeyUp(Player player, System.Windows.Forms.KeyEventArgs e)
         {
             e.Handled = KeyUp(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
         }
 
         private static bool KeyDown(Player player, Key key)
         {
+            if (player == null)
+                return false;
+
             player.isAnyKeyDown = true;
 
             if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
@@ -80,7 +80,7 @@ namespace FlyleafLib.MediaPlayer
                     binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
                     )
                 {
-                    if (CanDebug) player.Log.Debug($"[Keys|Down] {binding.Action.ToString()}");
+                    if (CanDebug) player.Log.Debug($"[Keys|Down] {binding.Action}");
                     binding.ActionInternal?.Invoke();
                     
                     return true;
@@ -90,9 +90,12 @@ namespace FlyleafLib.MediaPlayer
         }
         private static bool KeyUp(Player player, Key key)
         {
+            if (player == null)
+                return false;
+
             player.isAnyKeyDown = false;
 
-            if (player.Config.Player.ActivityMode)
+            if (player.Activity.Timeout > 0)
                 player.Activity.KeyboardTimestamp = DateTime.UtcNow.Ticks;
 
             if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
@@ -105,7 +108,7 @@ namespace FlyleafLib.MediaPlayer
                     binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
                     )
                 {
-                    if (CanDebug) player.Log.Debug($"[Keys|Up] {binding.Action.ToString()}");
+                    if (CanDebug) player.Log.Debug($"[Keys|Up] {binding.Action}");
                     binding.ActionInternal?.Invoke();
 
                     return true;
@@ -113,65 +116,10 @@ namespace FlyleafLib.MediaPlayer
 
             return false;
         }
-
-        private void WindowFront_KeyUp(object sender, KeyEventArgs e)
-        {
-            if (!Config.Player.KeyBindings.Enabled || !Config.Player.KeyBindings.FlyleafWindow) return;
-
-            //Log("WindowFront_KeyUp");
-            KeyUp(((VideoView)((Window)sender).Tag).Player, e);
-        }
-        private void WindowFront_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (!Config.Player.KeyBindings.Enabled || !Config.Player.KeyBindings.FlyleafWindow) return;
-
-            //Log("WindowFront_KeyDown");
-            KeyDown(((VideoView)((Window)sender).Tag).Player, e);
-        }
-
-        private void WinFormsHost_KeyUp(object sender, KeyEventArgs e)
-        {
-            if (!Config.Player.KeyBindings.Enabled) return;
-
-            //Log("WinFormsHost_KeyUp");
-            KeyUp(((Flyleaf)((WindowsFormsHost)sender).Child).Player, e);
-        }
-        private void WinFormsHost_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (!Config.Player.KeyBindings.Enabled) return;
-
-            //Log("WinFormsHost_KeyDown");
-            KeyDown(((Flyleaf)((WindowsFormsHost)sender).Child).Player, e);
-        }
-
-        private void Control_KeyUp(object sender, System.Windows.Forms.KeyEventArgs e)
-        {
-            if (!Config.Player.KeyBindings.Enabled) return;
-
-            //Log("Control_KeyUp");
-            KeyUp(((Flyleaf)sender).Player, e);
-        }
-        private void Control_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
-        {
-            if (!Config.Player.KeyBindings.Enabled) return;
-
-            //Log("Control_KeyDown");
-            KeyDown(((Flyleaf)sender).Player, e);
-        }
     }
 
     public class KeysConfig
     {
-        /// <summary>
-        /// Whether key bindings should be enabled or not
-        /// </summary>
-        public bool             Enabled         { get ; set; } = true;
-
-        /// <summary>
-        /// Whether to subscribe key bindings also to the front windows (WPF)
-        /// </summary>
-        public bool             FlyleafWindow   { get ; set; } = true;
-
         /// <summary>
         /// Currently configured key bindings
         /// (Normally you should not access this directly)
@@ -195,7 +143,7 @@ namespace FlyleafLib.MediaPlayer
             if (Keys == null)
                 Keys = new List<KeyBinding>();
 
-            if (Enabled && !player.Config.Loaded && Keys.Count == 0)
+            if (!player.Config.Loaded && Keys.Count == 0)
                 LoadDefault();
 
             this.player = player;
@@ -226,9 +174,6 @@ namespace FlyleafLib.MediaPlayer
 
             Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, Key = key, IsKeyUp = isKeyUp, Action = KeyBindingAction.Custom, ActionName = actionName, ActionInternal = action });
         }
-
-        
-
 
         /// <summary>
         /// Adds a new key binding

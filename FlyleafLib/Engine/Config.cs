@@ -8,6 +8,8 @@ using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins;
 
+using static FlyleafLib.Utils;
+
 namespace FlyleafLib
 {
     /// <summary>
@@ -125,18 +127,6 @@ namespace FlyleafLib
             internal Config config;
 
             /// <summary>
-            /// Whether to use Activity Mode
-            /// </summary>
-            public bool     ActivityMode                { get => _ActivityMode; set { _ActivityMode = value; if (player != null) { player.Activity.MouseTimestamp = DateTime.UtcNow.Ticks; player.Activity.mode = MediaPlayer.ActivityMode.FullActive; } } }
-            bool _ActivityMode = false;
-
-            /// <summary>
-            /// Idle Timeout (ms)
-            /// </summary>
-            public int      ActivityTimeout             { get => _ActivityTimeout; set => Set(ref _ActivityTimeout, value); }
-            int _ActivityTimeout = 6000;
-
-            /// <summary>
             /// It will automatically start playing after open or seek after ended
             /// </summary>
             public bool     AutoPlay                    { get; set; } = true;
@@ -160,12 +150,6 @@ namespace FlyleafLib
             /// </summary>
             public KeysConfig
                             KeyBindings                 { get; set; } = new KeysConfig();
-
-            /// <summary>
-            /// Mouse bindings configuration
-            /// </summary>
-            public MouseConfig  
-                            MouseBindings               { get; set; } = new MouseConfig();
 
             /// <summary>
             /// Fps while the player is not playing

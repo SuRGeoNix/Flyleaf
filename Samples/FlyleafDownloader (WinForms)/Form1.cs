@@ -5,7 +5,6 @@ using System.Windows.Forms;
 using FlyleafLib;
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaStream;
-using FlyleafLib.Plugins;
 
 namespace FlyleafDownloader
 {
