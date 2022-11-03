@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Forms;
 
 namespace FlyleafLib.MediaPlayer
 {
@@ -6,13 +7,9 @@ namespace FlyleafLib.MediaPlayer
     {
         /* Player Activity Mode ( Idle / Active / FullActive )
          * 
-         * Config.Player.ActivityMode
-         * Config.Player.ActivityTimeout
+         * Required Engine's Thread (UIRefresh)
          * 
-         * ActivityRefresh          (KeyUp, Control_MouseDown, Control_MouseMove)
-         * ActivityCheck            (MasterThread)
-         * 
-         * TODO: FlyleafWindow.MouseMove and FlyleafWindow.MouseDown ?
+         * TODO: Static?
          */
 
         public ActivityMode Mode
@@ -43,15 +40,43 @@ namespace FlyleafLib.MediaPlayer
         public long KeyboardTimestamp   { get; internal set; }
         public long MouseTimestamp      { get; internal set; }
 
-        Player player;
-        Config Config => player.Config;
-        static bool     isCursorHidden;
+        /// <summary>
+        /// Should use Timeout to Enable/Disable it. Use this only for temporary disable.
+        /// </summary>
+        public bool IsEnabled           { get => _IsEnabled;
+            set {
 
-        public Activity(Player player)
-        {
-            this.player = player;
-            KeyboardTimestamp = MouseTimestamp = DateTime.UtcNow.Ticks;
-        }
+                if (value && _Timeout <= 0)
+                {
+                    if (_IsEnabled)
+                    {
+                        _IsEnabled = false;
+                        RaiseUI(nameof(IsEnabled));
+                    }
+                    else
+                        _IsEnabled = false;
+                    
+                }
+                else
+                {
+                    if (_IsEnabled == value)
+                        return;
+
+                    if (value)
+                        KeyboardTimestamp = MouseTimestamp = DateTime.UtcNow.Ticks;
+
+                    _IsEnabled = value;
+                    RaiseUI(nameof(IsEnabled));
+                }
+                }
+            }
+        bool _IsEnabled;
+
+        public int  Timeout             { get => _Timeout; set { _Timeout = value; IsEnabled = value > 0; } }
+        int _Timeout;
+
+        Player player;
+        public Activity(Player player) => this.player = player;
 
         /// <summary>
         /// Updates Mode UI value and shows/hides mouse cursor if required
@@ -63,7 +88,7 @@ namespace FlyleafLib.MediaPlayer
             Raise(nameof(Mode));
             player.Log.Debug(mode.ToString());
 
-            if (player.IsFullScreen && player.Config.Player.MouseBindings.HideCursorOnFullScreenIdle && player.Activity.Mode == ActivityMode.Idle)
+            if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle)
             {
                 while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
                 isCursorHidden = true;
@@ -80,13 +105,13 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         internal void RefreshMode()
         {
-            if (!Config.Player.ActivityMode)
+            if (!IsEnabled)
                 mode = ActivityMode.FullActive;
 
-            else if ((DateTime.UtcNow.Ticks - MouseTimestamp  ) / 10000 < Config.Player.ActivityTimeout)
+            else if ((DateTime.UtcNow.Ticks - MouseTimestamp  ) / 10000 < Timeout)
                 mode = ActivityMode.FullActive;
 
-            else if (player.isAnyKeyDown || (DateTime.UtcNow.Ticks - KeyboardTimestamp ) / 10000 < Config.Player.ActivityTimeout)
+            else if (player.isAnyKeyDown || (DateTime.UtcNow.Ticks - KeyboardTimestamp ) / 10000 < Timeout)
                 mode = ActivityMode.Active;
 
             else 
@@ -98,7 +123,8 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void ForceIdle()
         {
-            Mode = ActivityMode.Idle;
+            if (Timeout > 0)
+                Mode = ActivityMode.Idle;
         }
         /// <summary>
         /// Sets Mode to Active
@@ -130,6 +156,33 @@ namespace FlyleafLib.MediaPlayer
         {
             MouseTimestamp = DateTime.UtcNow.Ticks;
         }
+
+        #region Ensures we catch the mouse move even when the Cursor is hidden
+        static bool isCursorHidden;
+        public class GlobalMouseHandler : IMessageFilter
+        {
+            public bool PreFilterMessage(ref Message m)
+            {
+                if (isCursorHidden && m.Msg == 0x0200)
+                {
+                    try
+                    {
+                        while (Utils.NativeMethods.ShowCursor(true) < 0) { }
+                        isCursorHidden = false;
+                        foreach(var player in Engine.Players)
+                            player.Activity.RefreshFullActive();
+                    } catch { }
+                }
+
+                return false;
+            }
+        }
+        static Activity()
+        {
+            GlobalMouseHandler gmh = new GlobalMouseHandler();
+            Application.AddMessageFilter(gmh);
+        }
+        #endregion
     }
 
     public enum ActivityMode

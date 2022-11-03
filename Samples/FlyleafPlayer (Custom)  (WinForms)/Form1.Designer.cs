@@ -29,8 +29,8 @@ namespace FlyleafPlayer__Custom_
         /// </summary>
         private void InitializeComponent()
         {
-            this.flyleaf1 = new FlyleafLib.Controls.Flyleaf();
-            this.flyleaf2 = new FlyleafLib.Controls.Flyleaf();
+            this.flyleaf1 = new FlyleafLib.Controls.WinForms.FlyleafHost();
+            this.flyleaf2 = new FlyleafLib.Controls.WinForms.FlyleafHost();
             this.btnSwap = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -43,16 +43,20 @@ namespace FlyleafPlayer__Custom_
             // flyleaf1
             // 
             this.flyleaf1.BackColor = System.Drawing.Color.Black;
+            this.flyleaf1.IsFullScreen = false;
             this.flyleaf1.Location = new System.Drawing.Point(24, 52);
             this.flyleaf1.Name = "flyleaf1";
+            this.flyleaf1.Player = null;
             this.flyleaf1.Size = new System.Drawing.Size(333, 250);
             this.flyleaf1.TabIndex = 0;
             // 
             // flyleaf2
             // 
             this.flyleaf2.BackColor = System.Drawing.Color.Black;
+            this.flyleaf2.IsFullScreen = false;
             this.flyleaf2.Location = new System.Drawing.Point(405, 52);
             this.flyleaf2.Name = "flyleaf2";
+            this.flyleaf2.Player = null;
             this.flyleaf2.Size = new System.Drawing.Size(333, 250);
             this.flyleaf2.TabIndex = 1;
             // 
@@ -144,8 +148,8 @@ namespace FlyleafPlayer__Custom_
 
         #endregion
 
-        private FlyleafLib.Controls.Flyleaf flyleaf1;
-        private FlyleafLib.Controls.Flyleaf flyleaf2;
+        private FlyleafLib.Controls.WinForms.FlyleafHost flyleaf1;
+        private FlyleafLib.Controls.WinForms.FlyleafHost flyleaf2;
         private System.Windows.Forms.Button btnSwap;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;

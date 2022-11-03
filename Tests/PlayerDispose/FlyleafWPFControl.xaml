@@ -5,14 +5,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DisposePlayer"
         
-        xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
         
         mc:Ignorable="d"
         Title="FlyleafWPFControl" Height="450" Width="800">
     <Grid>
-        <fl:VideoView Player="{Binding Player}">
-            <flwpf:Flyleaf x:Name="flyleafControl"/>
-        </fl:VideoView>
+        <flwpf:FlyleafME x:Name="flyleafControl" Player="{Binding Player}"/>
     </Grid>
 </Window>

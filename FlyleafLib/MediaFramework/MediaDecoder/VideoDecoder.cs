@@ -77,7 +77,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             getHWformat = new AVCodecContext_get_format(get_format);
         }
 
-        public void CreateRenderer(Control control = null)
+        public void CreateRenderer(object control = null)
         {
             if (Renderer == null)
                 Renderer = new Renderer(this, control, UniqueId);
@@ -612,14 +612,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             do
             {
                 // While Packets Queue Empty (Drain | Quit if Demuxer stopped | Wait until we get packets)
-                if (demuxer.VideoPacketsReverse.Count == 0 && curReverseVideoStack.Count == 0 && curReverseVideoPackets.Count == 0)
+                if (demuxer.VideoPacketsReverse.IsEmpty && curReverseVideoStack.IsEmpty && curReverseVideoPackets.Count == 0)
                 {
                     CriticalArea = true;
 
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueEmpty;
                     
-                    while (demuxer.VideoPacketsReverse.Count == 0 && Status == Status.QueueEmpty)
+                    while (demuxer.VideoPacketsReverse.IsEmpty && Status == Status.QueueEmpty)
                     {
                         if (demuxer.Status == Status.Ended) // TODO
                         {
@@ -667,7 +667,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 if (curReverseVideoPackets.Count == 0)
                 {
-                    if (curReverseVideoStack.Count == 0)
+                    if (curReverseVideoStack.IsEmpty)
                         demuxer.VideoPacketsReverse.TryDequeue(out curReverseVideoStack);
 
                     curReverseVideoStack.TryPop(out curReverseVideoPackets);
@@ -795,7 +795,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                     curSpeedFrame = 0;                    
                 }
-                
+
                 // TODO
                 //mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoStream.StartTime;
 

@@ -14,6 +14,8 @@ using Newtonsoft.Json;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
+using static FlyleafLib.Utils;
+
 namespace FlyleafLib.Plugins
 {
     public class YoutubeDL : PluginBase, IOpen, ISuggestExternalAudio, ISuggestExternalVideo

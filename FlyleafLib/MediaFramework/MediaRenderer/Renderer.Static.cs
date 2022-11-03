@@ -10,6 +10,8 @@ using Vortice.DXGI.Debug;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 
+using static FlyleafLib.Utils;
+
 namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public partial class Renderer
@@ -187,32 +189,5 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             } catch { }
         }
         #endif
-        public static void Swap(Renderer renderer1, Renderer renderer2)
-        {
-            lock (renderer1.lockDevice)
-                lock (renderer2.lockDevice)
-                {
-                    renderer1.DisposeSwapChain();
-                    renderer2.DisposeSwapChain();
-
-                    var saveControl = renderer1.Control;
-                    var saveControlHandle = renderer1.ControlHandle;
-
-                    renderer1.Control = renderer2.Control;
-                    renderer1.ControlHandle = renderer2.ControlHandle;
-
-                    renderer2.Control = saveControl;
-                    renderer2.ControlHandle = saveControlHandle;
-
-                    renderer1.InitializeSwapChain();
-                    renderer2.InitializeSwapChain();
-
-                    renderer1.ResizeBuffers(null, null);
-                    renderer2.ResizeBuffers(null, null);
-
-                    renderer1.Present();
-                    renderer2.Present();
-                }
-        }
     }
 }

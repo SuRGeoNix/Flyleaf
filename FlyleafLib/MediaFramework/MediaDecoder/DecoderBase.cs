@@ -39,7 +39,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             else if (this is SubtitlesDecoder)
                 Type = MediaType.Subs;
 
-            threadName = $"Decoder: {Type.ToString().PadLeft(5, ' ')}";
+            threadName = $"Decoder: {Type,5}";
         }
 
         public string Open(StreamBase stream)

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using FlyleafLib.MediaFramework.MediaDecoder;
 
 using static FlyleafLib.Utils;
-using static FlyleafLib.Utils.NativeMethods;
 using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer
@@ -53,7 +52,7 @@ namespace FlyleafLib.MediaPlayer
                 try
                 {
                     TimeBeginPeriod(1);
-                    SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
+                    NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_CONTINUOUS | NativeMethods.EXECUTION_STATE.ES_SYSTEM_REQUIRED | NativeMethods.EXECUTION_STATE.ES_DISPLAY_REQUIRED);
 
                     onBufferingStarted   = 0;
                     onBufferingCompleted = 0;
@@ -97,7 +96,7 @@ namespace FlyleafLib.MediaPlayer
 
                     Audio.ClearBuffer();
                     TimeEndPeriod(1);
-                    SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
+                    NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
                     stoppedWithError = false;
 
                     if (IsPlaying)

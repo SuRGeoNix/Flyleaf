@@ -1,7 +1,7 @@
-﻿<Application x:Class="DoubleVideoViewOverlay.App"
+﻿<Application x:Class="DoubleFlyleafHostOverlay.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:DoubleVideoViewOverlay"
+             xmlns:local="clr-namespace:DoubleFlyleafHostOverlay"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
          

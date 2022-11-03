@@ -25,7 +25,6 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public Language                     Language            { get; internal set; }
         public string                       Title               { get; internal set; }
         public string                       Codec               { get; internal set; }
-        
 
         public AVCodecID                    CodecID             { get; internal set; }
         public long                         StartTime           { get; internal set; }

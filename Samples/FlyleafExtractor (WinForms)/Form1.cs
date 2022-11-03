@@ -135,9 +135,9 @@ namespace FlyleafExtractor
             DecCtx.Start();
 
             int curFrameNumber = start + step;
-            while (curFrameNumber <= end && (VideoDecoder.IsRunning || VideoDecoder.Frames.Count != 0))
+            while (curFrameNumber <= end && (VideoDecoder.IsRunning || !VideoDecoder.Frames.IsEmpty))
             {
-                if (VideoDecoder.Frames.Count == 0) { Thread.Sleep(20); continue; }
+                if (VideoDecoder.Frames.IsEmpty) { Thread.Sleep(20); continue; }
 
                 VideoDecoder.Frames.TryDequeue(out VideoFrame frame);
                 SaveFrame(frame, curFrameNumber);
@@ -197,7 +197,7 @@ namespace FlyleafExtractor
                 Filename = $"flyleafExtractor";
             else
             {
-                if (Filename.Length > 50) Filename = Filename.Substring(0, 50);
+                if (Filename.Length > 50) Filename = Filename[..50];
                 Filename = Utils.GetValidFileName(Filename);
             }
         }

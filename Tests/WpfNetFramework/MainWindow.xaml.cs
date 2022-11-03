@@ -13,7 +13,7 @@ namespace WpfNetFramework
     public partial class MainWindow : Window
     {
         /// <summary>
-        /// Flyleaf Player binded to VideoView
+        /// Flyleaf Player binded to FlyleafHost
         /// </summary>
         public Player Player { get; set; }
         public Config Config { get; set; }
@@ -43,7 +43,7 @@ namespace WpfNetFramework
             // Initializes the Player
             Player = new Player(Config);
 
-            // Allowing VideoView to access our Player
+            // Allowing FlyleafHost to access our Player
             DataContext = this;
 
             InitializeComponent();
@@ -52,7 +52,7 @@ namespace WpfNetFramework
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Giving access to keyboard events on start up
-            //flyleafControl.VideoView.WinFormsHost.Focus();
+            //flyleafControl.FlyleafHost.WinFormsHost.Focus();
         }
     }
 }

@@ -1,0 +1,142 @@
+﻿<Window x:Class="WpfFlyleafHost.MultipleAttached"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfFlyleafHost"
+        xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib" xmlns:fl1="clr-namespace:FlyleafLib.MediaPlayer;assembly=FlyleafLib"
+        mc:Ignorable="d"
+        TextBlock.Foreground="Teal"
+        Title="Attached" Height="600" Width="860" Background="DarkCyan">
+    <Grid>
+        
+        <!-- Notes
+        Each FlyleafHost has three zorder Layers
+            1. Host/Detach Content *User*
+            2. Surface Content *Renderer*
+            3. Video Overlay Content *User*
+        
+        For resize make sure VerticalAlignment="Top" HorizontalAlignment="Left" for now
+        With controltemplates might having some issues with bindings (they will set first on host, then will get null and then back to overlay)
+        So for styling might be faster/better performance to set directly the Content and not the Template (this means it requires x:Shared="False" so no designer for multiple hosts
+        Ideal way for performance and to ensure all resources/datacontext etc... are fine is to use Overlay dp directly with your custom Window (see HostOverlayWindow)
+        TODO: Fix for ZOrder bug while restoring from minimize and possible more zorder functionality
+        -->
+        
+        <!--Overlay Border / Resize on Overlay (Recommended)-->
+        <fl:FlyleafHost Width="140" Height="110" Margin="100 300 0 0" VerticalAlignment="Top" HorizontalAlignment="Left"
+                        DragMoveOnAttach="Self" ResizeMode="Overlay" ResizeOnAttach="True">
+            <Border BorderBrush="DarkBlue" BorderThickness="4">
+                <Viewbox>
+                    <TextBlock Text="Inner Border" Foreground="DarkRed" TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </Viewbox>
+            </Border>
+        </fl:FlyleafHost>
+        
+        <!--Host Border / No Overlay / Resizable (useful when overlay is not required, so we add the border on host)-->
+        <Border x:Name="BorderMarginTarget" Margin="200 100 0 0" VerticalAlignment="Top" HorizontalAlignment="Left"
+                BorderBrush="DarkBlue" BorderThickness="4">
+            <fl:FlyleafHost Width="100" Height="50"
+                            DragMoveOnAttach="Self" ResizeMode="Surface" ResizeOnAttach="True" MarginTarget="{Binding ElementName=BorderMarginTarget}">
+            </fl:FlyleafHost>
+        </Border>
+        
+        <!--Attach / Detach-->
+        <fl:FlyleafHost Margin="300 200 0 0" Width="140" Height="110" VerticalAlignment="Top" HorizontalAlignment="Left"
+                        DragMoveOnAttach="Self" ResizeMode="Overlay" ResizeOnAttach="True" IsAttached="False" TopMost="True"
+                        RememberLastDetachedRect="False" DetachedRect="800 700 300 200">
+            
+            <fl:FlyleafHost.DetachedContent>
+                <Border DataContext="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type fl:FlyleafHost}}}" BorderBrush="DarkBlue" BorderThickness="4">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAttached}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+
+                    <StackPanel>
+                        <TextBlock Text="Detached" Foreground="DarkRed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <ToggleButton Content="Attach / Detach" Foreground="DarkRed" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </fl:FlyleafHost.DetachedContent>
+
+            <Border BorderBrush="DarkBlue" BorderThickness="4">
+                <ToggleButton Content="Attach / Detach" Foreground="DarkRed" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Border>
+        </fl:FlyleafHost>
+        
+        <!--Multiple Hosts with ControlTemplate-->
+        <Grid>
+            <Grid.Resources>
+                <ResourceDictionary>
+                    <Style TargetType="{x:Type fl:FlyleafHost}" BasedOn="{StaticResource {x:Type fl:FlyleafHost}}">
+                        <Setter Property="Width" Value="200"/>
+                        <Setter Property="Height" Value="100"/>
+                        <Setter Property="ResizeMode" Value="Surface"/>
+                        <Setter Property="ResizeOnAttach" Value="True"/>
+                        <Setter Property="DragMoveOnAttach" Value="Self"/>
+                        <Setter Property="VerticalAlignment" Value="Top"/>
+                        <Setter Property="HorizontalAlignment" Value="Left"/>
+                        <Setter Property="Player" Value="{DynamicResource {x:Type fl1:Player}}"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type fl:FlyleafHost}">
+                                    <Grid>
+                                        <TextBlock Text="Detached Content" Foreground="Purple" FontSize="20"/>
+                                        <Grid x:Name="PART_OverlayContent">
+                                            <Grid> <!--Required Grid Here-->
+                                                <TextBlock Text="{Binding HostDataContext.TestDataContext}" Foreground="Green" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+                                            
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="Template Host" Foreground="DarkRed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding IsAttached}" Foreground="Purple" FontSize="20"/>
+                                                    <ToggleButton Content="Attach / Detach" Foreground="DarkRed" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Grid>
+                                    </Grid>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ResourceDictionary>
+            </Grid.Resources>
+
+            <fl:FlyleafHost Margin="600 20 0 0"/>
+            <fl:FlyleafHost Margin="600 200 0 0"/>
+        </Grid>
+        
+        
+        <!--ScrollViewer Clip Rectangle-->
+        <ScrollViewer Background="Bisque" Margin="200 300 0 0" Width="200" Height="100" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel x:Name="FixMyScrollSurfaceOverlay">
+                <fl:FlyleafHost Width="100" Height="150"
+                            DragMoveOnAttach="None" ResizeMode="None" ResizeOnAttach="False" MarginTarget="{Binding ElementName=BorderMarginTarget}">
+                    <Viewbox>
+                        <TextBlock Text="Screen 1" Foreground="DarkRed"/>
+                    </Viewbox>
+                </fl:FlyleafHost>
+                <fl:FlyleafHost Margin="0 20 0 0" Width="100" Height="150"
+                            DragMoveOnAttach="None" ResizeMode="None" ResizeOnAttach="False" MarginTarget="{Binding ElementName=BorderMarginTarget}">
+                    <Viewbox>
+                        <TextBlock Text="Screen 2" Foreground="DarkMagenta"/>
+                    </Viewbox>
+                </fl:FlyleafHost>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!--Fail Sample 1 (Border) - Will not measure the content - Possible allow sometimes Host to follow Overlay's rendersize? -->
+        <Border VerticalAlignment="Top" HorizontalAlignment="Left"
+                BorderBrush="DarkBlue" BorderThickness="4">
+            <fl:FlyleafHost>
+                <TextBlock Text="Fail 1" FontSize="20" Foreground="DarkRed" />
+            </fl:FlyleafHost>
+        </Border>
+    </Grid>
+</Window>

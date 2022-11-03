@@ -6,7 +6,6 @@ using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
 
-
 namespace FlyleafPlayer__Custom___MVVM_
 {
     /// <summary>
@@ -54,9 +53,6 @@ namespace FlyleafPlayer__Custom___MVVM_
 
             // Inform the lib to refresh stats
             Config.Player.Stats = true; 
-
-            // To prevent capturing keys while we type within textboxes etc
-            Config.Player.KeyBindings.FlyleafWindow = false;
 
             Player = new Player(Config);
 

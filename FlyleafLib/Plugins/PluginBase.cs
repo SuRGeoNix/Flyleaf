@@ -7,6 +7,8 @@ using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
+using static FlyleafLib.Utils;
+
 namespace FlyleafLib.Plugins
 {
     public abstract class PluginBase : PluginType, IPlugin

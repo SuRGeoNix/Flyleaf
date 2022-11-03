@@ -63,7 +63,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public ObservableCollection<AudioStream>        AudioStreams    { get; private set; } = new ObservableCollection<AudioStream>();
         public ObservableCollection<VideoStream>        VideoStreams    { get; private set; } = new ObservableCollection<VideoStream>();
         public ObservableCollection<SubtitlesStream>    SubtitlesStreams{ get; private set; } = new ObservableCollection<SubtitlesStream>();
-        object lockStreams = new object();
+        readonly object lockStreams = new object();
 
         public List<int>                EnabledStreams  { get; private set; } = new List<int>();
         public Dictionary<int, StreamBase> 
@@ -167,7 +167,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             CurPackets      = Packets; // Will be updated on stream switch in case of AVS
 
             string typeStr = Type == MediaType.Video ? "Main" : Type.ToString();
-            threadName = $"Demuxer: {typeStr.PadLeft(5, ' ')}";
+            threadName = $"Demuxer: {typeStr,5}";
 
             System.Windows.Data.BindingOperations.EnableCollectionSynchronization(AudioStreams, lockStreams);
             System.Windows.Data.BindingOperations.EnableCollectionSynchronization(VideoStreams, lockStreams);
@@ -353,13 +353,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             AVDictionary *avopt = null;
                             foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
                             AVFormatContext* fmtCtxPtr = fmtCtx;
-                            ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl != null ? deviceUrl : url), inFmt, &avopt);
+                            ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl ?? url), inFmt, &avopt);
                         }
                         #else
                         AVFormatContext* fmtCtxPtr = fmtCtx;
                         AVDictionary *avopt = null;
                         foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
-                        ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl != null ? deviceUrl : url), inFmt, &avopt);
+                        ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl ?? url), inFmt, &avopt);
                         #endif
 
                         if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { fmtCtx = null; return error = "Cancelled"; }
@@ -448,7 +448,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 }
 
                 if (CanDebug)
-                    dump += $"[Chapter {(i+1).ToString().PadRight(2, ' ')}] {Utils.TicksToTime((long)(chp->start * tb) - StartTime)} - {Utils.TicksToTime((long)(chp->end * tb) - StartTime)} | {title}\r\n";
+                    dump += $"[Chapter {i+1,-2}] {Utils.TicksToTime((long)(chp->start * tb) - StartTime)} - {Utils.TicksToTime((long)(chp->end * tb) - StartTime)} | {title}\r\n";
 
                 Chapters.Add(new Chapter()
                 {
@@ -887,7 +887,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                                 curReverseVideoPackets = new List<IntPtr>();
                             }
 
-                            if (curReverseVideoStack.Count > 0)
+                            if (!curReverseVideoStack.IsEmpty)
                             {
                                 VideoPacketsReverse.Enqueue(curReverseVideoStack);
                                 curReverseVideoStack = new ConcurrentStack<List<IntPtr>>();
@@ -966,7 +966,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             curReverseVideoPackets = new List<IntPtr>();
                         }
 
-                        if (curReverseVideoStack.Count > 0)
+                        if (!curReverseVideoStack.IsEmpty)
                         {
                             VideoPacketsReverse.Enqueue(curReverseVideoStack);
                             curReverseVideoStack = new ConcurrentStack<List<IntPtr>>();
@@ -1466,10 +1466,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
          * 1) Review thread safe for Enqueue/Dequeue/Clear
          * 
          */
-        Demuxer demuxer;
-        ConcurrentQueue<IntPtr> packets = new ConcurrentQueue<IntPtr>();
-
-        static int  _FPS_FALLBACK = 30; // in case of negative buffer duration calculate it based on packets count / FPS
+        readonly Demuxer demuxer;
+        readonly ConcurrentQueue<IntPtr> packets = new ConcurrentQueue<IntPtr>();
+        readonly static int  _FPS_FALLBACK = 30; // in case of negative buffer duration calculate it based on packets count / FPS
 
         public long Bytes               { get; private set; }
         public long BufferedDuration    { get; private set; }

@@ -3,9 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
-using FlyleafLib.Controls;
-using FlyleafLib.Controls.WPF;
-
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -16,6 +13,9 @@ using FlyleafLib.MediaFramework.MediaDemuxer;
 using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
 
+using WPFHost = FlyleafLib.Controls.WPF.FlyleafHost;
+using WFHost  = FlyleafLib.Controls.WinForms.FlyleafHost;
+
 namespace FlyleafLib.MediaPlayer
 {
     public unsafe partial class Player : NotifyPropertyChanged, IDisposable
@@ -24,17 +24,18 @@ namespace FlyleafLib.MediaPlayer
         public bool                 IsDisposed          { get; private set; }
 
         /// <summary>
-        /// Flyleaf Control (WinForms)
-        /// (WPF: Normally you should not access this directly <see cref="SwapPlayers(Player, Player)"/>)
-        /// </summary>
-        public Flyleaf              Control             { get => _Control; set { SetControl(_Control, value); } }
-        internal Flyleaf _Control;
-
-        /// <summary>
-        /// The Content Control which hosts WindowsFormsHost (WPF)
+        /// FlyleafHost WinForms
         /// (Normally you should not access this directly)
         /// </summary>
-        public VideoView            VideoView           { get; set; }
+        public WFHost               WFHost              { get => _WFHost;  internal set => Set(ref _WFHost,  value); }
+        WFHost _WFHost;
+
+        /// <summary>
+        /// FlyleafHost WPF
+        /// (Normally you should not access this directly)
+        /// </summary>
+        public WPFHost              WPFHost             { get => _WPFHost; internal set => Set(ref _WPFHost, value); }
+        WPFHost _WPFHost;
 
         /// <summary>
         /// Player's Activity (Idle/Active/FullActive)
@@ -142,12 +143,6 @@ namespace FlyleafLib.MediaPlayer
         internal bool _CanPlay, canPlay;
 
         /// <summary>
-        /// Whether the player's state is in fullscreen mode
-        /// </summary>
-        public bool         IsFullScreen        { get => _IsFullScreen;     private set { if (_IsFullScreen == value) return; _IsFullScreen = value; UI(() => Set(ref _IsFullScreen, value, false)); } }
-        bool _IsFullScreen;
-
-        /// <summary>
         /// The list of chapters
         /// </summary>
         public List<Demuxer.Chapter> 
@@ -160,7 +155,8 @@ namespace FlyleafLib.MediaPlayer
         long _CurTime, curTime;
         internal void UpdateCurTime()
         {
-            if (MainDemuxer == null || seeks.Count != 0) return;
+            if (MainDemuxer == null || !seeks.IsEmpty)
+                return;
 
             if (MainDemuxer.IsHLSLive)
             {
@@ -218,7 +214,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public bool         IsRecording
         {
-            get => decoder != null ? decoder.IsRecording : false;
+            get => decoder != null && decoder.IsRecording;
             private set { if (_IsRecording == value) return; _IsRecording = value; UI(() => Set(ref _IsRecording, value, false)); }
         }
         bool _IsRecording;
@@ -344,15 +340,15 @@ namespace FlyleafLib.MediaPlayer
         #endregion
 
         #region Properties Internal
-        object lockActions  = new object();
-        object lockSubtitles= new object();
+        readonly object lockActions  = new object();
+        readonly object lockSubtitles= new object();
 
         bool taskSeekRuns;
         bool taskPlayRuns;
         bool taskOpenAsyncRuns;
 
-        ConcurrentStack<SeekData>   seeks       = new ConcurrentStack<SeekData>();
-        ConcurrentQueue<Action>     UIActions  = new ConcurrentQueue<Action>();
+        readonly ConcurrentStack<SeekData>   seeks       = new ConcurrentStack<SeekData>();
+        readonly ConcurrentQueue<Action>     UIActions  = new ConcurrentQueue<Action>();
 
         internal AudioFrame     aFrame;
         internal VideoFrame     vFrame;
@@ -360,6 +356,7 @@ namespace FlyleafLib.MediaPlayer
         internal PlayerStats    stats = new PlayerStats();
         internal LogHandler     Log;
 
+        internal bool IsFullScreen;
         internal bool requiresBuffering;
         bool reversePlaybackResync;
 
@@ -423,136 +420,17 @@ namespace FlyleafLib.MediaPlayer
             Reset();
             Log.Debug("Created");
         }
-        private void SetControl(Flyleaf oldValue, Flyleaf newValue)
-        {
-            lock (this)
-            {
-                if (newValue == null)
-                    return;
-
-                if (oldValue != null)
-                {
-                    if (oldValue.Handle == newValue.Handle)
-                    {
-                        SubscribeEvents();
-                        return;
-                    }
-
-                    throw new Exception("Cannot change Player's control");
-                }
-
-                _Control = newValue;
-                _Control.Player = this;
-                SubscribeEvents();
-                VideoDecoder.CreateRenderer(_Control);
-            }   
-        }
-
-        public void SubscribeEvents()
-        {
-            UnsubscribeEvents();
-            Log.Trace($"Subscribing Events to Player #{PlayerId}");
-
-            if (Config.Player.KeyBindings.Enabled)
-            {
-                if (VideoView != null)
-                {
-                    if (Config.Player.KeyBindings.FlyleafWindow && VideoView.WindowFront != null)
-                    {
-                        VideoView.WindowFront.KeyUp     += WindowFront_KeyUp;
-                        VideoView.WindowFront.KeyDown   += WindowFront_KeyDown;
-                    }
-
-                    VideoView.WinFormsHost.KeyUp    += WinFormsHost_KeyUp;
-                    VideoView.WinFormsHost.KeyDown  += WinFormsHost_KeyDown;
-                }
-                else
-                {
-                    _Control.KeyDown += Control_KeyDown;
-                    _Control.KeyUp += Control_KeyUp;
-                }
-            }
-            else if (Config.Player.ActivityMode)
-            {
-                if (VideoView != null)
-                {
-                    if (Config.Player.KeyBindings.FlyleafWindow && VideoView.WindowFront != null)
-                        VideoView.WindowFront.KeyUp += WindowFront_KeyUp;
-
-                    VideoView.WinFormsHost.KeyUp    += WinFormsHost_KeyUp;
-                }
-                else
-                    _Control.KeyUp += Control_KeyUp;
-
-                Config.Player.KeyBindings.Keys.Clear();
-            }
-
-            if (Config.Player.MouseBindings.OpenOnDragAndDrop)
-            {
-                _Control.AllowDrop  = true;
-                _Control.DragEnter += Control_DragEnter;
-                _Control.DragDrop  += Control_DragDrop;
-            }
-
-            if (Config.Player.MouseBindings.ToggleFullScreenOnDoubleClick)
-                _Control.DoubleClick+= Control_DoubleClick;
-
-            if (Config.Player.MouseBindings.PanMoveOnDragAndCtrl)
-            {
-                _Control.MouseDown  += Control_MouseDown;
-                _Control.MouseUp    += Control_MouseUp;
-                _Control.MouseMove  += Control_MouseMove;
-
-            } else if (Config.Player.ActivityMode)
-            {
-                _Control.MouseMove  += Control_MouseMove;
-                _Control.MouseDown  += Control_MouseDown;
-            }
-
-            if (Config.Player.MouseBindings.PanZoomOnWheelAndCtrl)
-                _Control.MouseWheel += Control_MouseWheel;
-        }
-        public void UnsubscribeEvents()
-        {
-            Log.Trace($"Unsubscribing Events from Player #{PlayerId}");
-
-            if (VideoView != null)
-            {
-                if (VideoView.WindowFront != null)
-                {
-                    VideoView.WindowFront.KeyDown   -= WindowFront_KeyDown;
-                    VideoView.WindowFront.KeyUp     -= WindowFront_KeyUp;
-                }
-                
-                VideoView.WinFormsHost.KeyDown  -= WinFormsHost_KeyDown;
-                VideoView.WinFormsHost.KeyUp    -= WinFormsHost_KeyUp;
-            }
-            
-            if (_Control != null)
-            {
-                _Control.KeyDown    -= Control_KeyDown;
-                _Control.KeyUp      -= Control_KeyUp;
-                _Control.DoubleClick-= Control_DoubleClick;
-                _Control.MouseDown  -= Control_MouseDown;
-                _Control.MouseUp    -= Control_MouseUp;
-                _Control.MouseMove  -= Control_MouseMove;
-                _Control.MouseWheel -= Control_MouseWheel;
-                _Control.AllowDrop  = false;
-                _Control.DragEnter  -= Control_DragEnter;
-                _Control.DragDrop   -= Control_DragDrop;
-            }
-        }
 
         /// <summary>
-        /// Disposes the Player and the hosted VideoView if any
+        /// Disposes the Player and the hosted FlyleafHost if any
         /// </summary>
         public void Dispose() { Engine.DisposePlayer(this); }
         internal void DisposeInternal()
         {
             lock (lockActions)
             {
-                if (IsDisposed) return;
-                IsDisposed = true;
+                if (IsDisposed)
+                    return;
 
                 try
                 {
@@ -560,13 +438,16 @@ namespace FlyleafLib.MediaPlayer
                     Audio.Dispose(); 
                     decoder.Dispose();
 
-                    if (VideoView != null)
-                        UI(new Action(() => { VideoView?.Dispose(); GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced); } ));
-                    else
-                        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
+                    // De-assign Player from Host
+                    if (WPFHost != null)
+                        UI(() => WPFHost.Player = null); // UI Required for DP?
+                    else if (WFHost != null)
+                        WFHost.Player = null;
 
                     Log.Info("Disposed");
                 } catch (Exception e) { Log.Warn($"Disposed ({e.Message})"); }
+
+                IsDisposed = true;
             }
         }
         internal void RefreshMaxVideoFrames()
@@ -663,24 +544,9 @@ namespace FlyleafLib.MediaPlayer
         }
         internal void UIAll()
         {
-            while (UIActions.Count > 0)
+            while (!UIActions.IsEmpty)
                 if (UIActions.TryDequeue(out Action action))
                     UI(action);
-        }
-
-        private void TimeBeginPeriod(uint i)
-        {
-            if (Engine.Config.HighPerformaceTimers)
-                return;
-
-            NativeMethods.TimeBeginPeriod(i);
-        }
-        private void TimeEndPeriod(uint i)
-        {
-            if (Engine.Config.HighPerformaceTimers)
-                return;
-
-            NativeMethods.TimeEndPeriod(i);
         }
 
         public override bool Equals(object obj)
@@ -693,10 +559,7 @@ namespace FlyleafLib.MediaPlayer
 
             return false;
         }
-        public override int GetHashCode()
-        {
-            return PlayerId.GetHashCode();
-        }
+        public override int GetHashCode() => PlayerId.GetHashCode();
     }
 
     public enum Status

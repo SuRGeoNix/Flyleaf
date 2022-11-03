@@ -5,11 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FlyleafMultiPlayer__WPF_"
         
-        xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
-        xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
-        
+        xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF" 
         mc:Ignorable="d"
-        Title="Flyleaf MultiPlayer" Height="450" Width="800">
+        Title="Flyleaf MultiPlayer" Height="450" Width="853" Background="Black">
+
+    <Window.Resources>
+        <ResourceDictionary Source="FlyleafMEOverride.xaml"/>
+    </Window.Resources>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_Tests">
@@ -26,30 +28,12 @@
                 <RowDefinition/>
                 <RowDefinition/>
             </Grid.RowDefinitions>
-            <fl:VideoView x:Name="VideoView1" Grid.Row="0"  Grid.Column="0" Player="{Binding PlayerView1}">
-                <Grid>
-                    <flwpf:Flyleaf x:Name="flyleafControl1"/>
-                    <TextBlock Text="{Binding PlayerView1.VideoView.Player.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
-                </Grid>
-            </fl:VideoView>
-            <fl:VideoView x:Name="VideoView2" Grid.Row="0"  Grid.Column="1" Player="{Binding PlayerView2}">
-                <Grid>
-                    <flwpf:Flyleaf x:Name="flyleafControl2"/>
-                    <TextBlock Text="{Binding PlayerView2.VideoView.Player.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
-                </Grid>
-            </fl:VideoView>
-            <fl:VideoView x:Name="VideoView3" Grid.Row="1"  Grid.Column="1" Player="{Binding PlayerView3}">
-                <Grid>
-                    <flwpf:Flyleaf x:Name="flyleafControl3"/>
-                    <TextBlock Text="{Binding PlayerView3.VideoView.Player.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
-                </Grid>
-            </fl:VideoView>
-            <fl:VideoView x:Name="VideoView4" Grid.Row="1"  Grid.Column="0" Player="{Binding PlayerView4}">
-                <Grid>
-                    <flwpf:Flyleaf x:Name="flyleafControl4"/>
-                    <TextBlock Text="{Binding PlayerView4.VideoView.Player.PlayerId, Mode=OneWay}" FontSize="48" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
-                </Grid>
-            </fl:VideoView>
+            
+            <flwpf:FlyleafME Grid.Row="0" Grid.Column="0" Player="{Binding PlayerView1, Mode=TwoWay}"/>
+            <flwpf:FlyleafME Grid.Row="0" Grid.Column="1" Player="{Binding PlayerView2, Mode=TwoWay}"/>
+            <flwpf:FlyleafME Grid.Row="1" Grid.Column="1" Player="{Binding PlayerView3, Mode=TwoWay}"/>
+            <flwpf:FlyleafME Grid.Row="1" Grid.Column="0" Player="{Binding PlayerView4, Mode=TwoWay}"/>
+
         </Grid>
     </DockPanel>
 </Window>
