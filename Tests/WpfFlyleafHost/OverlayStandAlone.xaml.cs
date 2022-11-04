@@ -36,10 +36,9 @@ namespace WpfFlyleafHost
 
             FlyleafHost = new FlyleafHost(this)
             {
-                KeyBindingsMode = AvailableWindows.Both,
-                ResizeMode = AvailableWindows.Both,
+                KeyBindings = AvailableWindows.Both,
+                DetachedResize = AvailableWindows.Both,
                 IsAttached = false,
-                ResizeOnDetach = true,
 
                 Player = Player
             };

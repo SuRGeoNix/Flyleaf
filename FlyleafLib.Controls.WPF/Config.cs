@@ -19,6 +19,8 @@ namespace FlyleafLib.Controls.WPF
         public string       SelectedTheme   { get => _SelectedTheme;    set => Set(ref _SelectedTheme, value); }
         string _SelectedTheme;
 
+        public int          ActivityTimeout { get; set; } // we just store it to file
+
         public string       SubsFontFamily  { get => _SubsFontFamily;   set => Set(ref _SubsFontFamily, value); }
         string _SubsFontFamily;
         public double       SubsFontSize    { get => _SubsFontSize;     set => Set(ref _SubsFontSize, value); }
@@ -45,7 +47,7 @@ namespace FlyleafLib.Controls.WPF
             {
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(UIConfig));
                 flyleaf.UIConfig = (UIConfig) xmlSerializer.Deserialize(fs);
-
+                flyleaf.ActivityTimeout = flyleaf.UIConfig.ActivityTimeout;
                 flyleaf.UIConfig.Loaded = true;
                 flyleaf.UIConfig.flyleaf = flyleaf;
                 foreach(var theme in flyleaf.UIConfig.Themes)
@@ -56,11 +58,14 @@ namespace FlyleafLib.Controls.WPF
         public static void Save(FlyleafME flyleaf, string uiConfigPath, string configPath, string enginePath)
         {
             if (uiConfigPath != null)
+            {
+                flyleaf.UIConfig.ActivityTimeout = flyleaf.ActivityTimeout;
                 using (FileStream fs = new FileStream(uiConfigPath, FileMode.Create))
                 {
                     XmlSerializer xmlSerializer = new XmlSerializer(typeof(UIConfig));
                     xmlSerializer.Serialize(fs, flyleaf.UIConfig);
                 }
+            }
 
             if (configPath != null)
                 flyleaf.Config.Save(configPath);

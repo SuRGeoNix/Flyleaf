@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6-pre</Version>
+	<Version>3.6-pre2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,24 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Introduces FlyleafHost Renderer D3D Surface (WPF VideoView's replacement and Flyleaf's for Winforms)
-		* Early and fast initialization of handles and renderer which will also resolve several issues (related to #204)
-		* Adds Attach / Detach functionality
-		* Self Drag Move also on attach mode (within the host's owner bounds)
-		* Drag n Drop Swap between FlyleafHosts (Shift + Drag)
-		* Custom non-borders resizable windows both on attach and detach mode
-		* Better UI Performance overall (including Swaps and Switching between Normal to Full Screen)
-		* Adds Z-order surfaces support (related to #149)
-		* Resolves several issues when the host's rectangle was clipped (related to #170)
-		* Adds support for WPF Windows to the Renderer in addition to WinForms UserControl
-		* Code clean-up and performance improvements
-		* Resolves several issues with DPI (related to #197)
-
-		- Breaking Changes
-		* VideoView has been renamed to FlyleafHost
-		* Player.IsFullScreen, Config.Player.ActivityTimeout, Config.Player.MouseBindings and Config.Player.KeyBindings.(Enabled/FlyleafWindow) has been transferred to FlyleafHost (see .cs)
-		* Player.ActivityMode has been removed (its the same as ActivityTimeout=0) however Player.Activity.IsEnabled to temporary turn it on/off
-		* Swap has been removed as you can now set directly the Players to FlyleafHosts
+		* WPF.FlyleafHost: Adds support for resize based on Player's aspect ratio
+		* WPF.FlyleafHost: Adds more options for detached positioning/sizing
+		* WPF.FlyleafHost: Adds all the functionality also for the Overlay
+		* WPF.FlyleafHost: Finishes up the new implementation (more renamings, see Controls/WPF/FlyleafHost.cs for details)
 	</PackageReleaseNotes>
   </PropertyGroup>
 

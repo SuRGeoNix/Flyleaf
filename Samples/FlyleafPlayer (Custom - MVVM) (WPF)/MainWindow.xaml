@@ -11,7 +11,7 @@
         Title="Flyleaf Player (Custom - MVVM)" Height="650" Width="800" Background="Black">
     
     <Grid>
-        <fl:FlyleafHost Player="{Binding Player}" KeyBindingsMode="Surface">
+        <fl:FlyleafHost Player="{Binding Player}" KeyBindings="Surface">
             <Grid Margin="50">
                 
                 <!-- NOTE: Window resources will not be within the videoview as it will be on different window -->

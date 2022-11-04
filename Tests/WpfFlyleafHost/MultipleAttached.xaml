@@ -25,7 +25,7 @@
         
         <!--Overlay Border / Resize on Overlay (Recommended)-->
         <fl:FlyleafHost Width="140" Height="110" Margin="100 300 0 0" VerticalAlignment="Top" HorizontalAlignment="Left"
-                        DragMoveOnAttach="Self" ResizeMode="Overlay" ResizeOnAttach="True">
+                        AttachedDragMove="Surface" AttachedResize="Surface">
             <Border BorderBrush="DarkBlue" BorderThickness="4">
                 <Viewbox>
                     <TextBlock Text="Inner Border" Foreground="DarkRed" TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -37,15 +37,25 @@
         <Border x:Name="BorderMarginTarget" Margin="200 100 0 0" VerticalAlignment="Top" HorizontalAlignment="Left"
                 BorderBrush="DarkBlue" BorderThickness="4">
             <fl:FlyleafHost Width="100" Height="50"
-                            DragMoveOnAttach="Self" ResizeMode="Surface" ResizeOnAttach="True" MarginTarget="{Binding ElementName=BorderMarginTarget}">
+                            AttachedDragMove="Surface" AttachedResize="Surface" MarginTarget="{Binding ElementName=BorderMarginTarget}">
             </fl:FlyleafHost>
         </Border>
         
         <!--Attach / Detach-->
-        <fl:FlyleafHost Margin="300 200 0 0" Width="140" Height="110" VerticalAlignment="Top" HorizontalAlignment="Left"
-                        DragMoveOnAttach="Self" ResizeMode="Overlay" ResizeOnAttach="True" IsAttached="False" TopMost="True"
-                        RememberLastDetachedRect="False" DetachedRect="800 700 300 200">
-            
+        <fl:FlyleafHost Player="{Binding Player1}" Margin="300 200 0 0" Width="140" Height="110" VerticalAlignment="Top" HorizontalAlignment="Left"
+                        AttachedDragMove="Surface" AttachedResize="Overlay"
+                        DetachedDragMove="Both" DetachedResize="Overlay" DetachedTopMost="True"
+                        
+                        IsAttached="False"
+                        KeepRatioOnResize="True"
+                        
+                        DetachedRememberPosition="True" DetachedRememberSize="True"
+                        DetachedFixedPosition="100 100" DetachedFixedSize="350 200"
+                        DetachedPosition="BottomRight" DetachedPositionMargin="0 0 10 50"
+                        
+                        PanMoveWithCtrl="None" PanZoomWithCtrlWheel="None"
+                        >
+
             <fl:FlyleafHost.DetachedContent>
                 <Border DataContext="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type fl:FlyleafHost}}}" BorderBrush="DarkBlue" BorderThickness="4">
                     <Border.Style>
@@ -78,9 +88,8 @@
                     <Style TargetType="{x:Type fl:FlyleafHost}" BasedOn="{StaticResource {x:Type fl:FlyleafHost}}">
                         <Setter Property="Width" Value="200"/>
                         <Setter Property="Height" Value="100"/>
-                        <Setter Property="ResizeMode" Value="Surface"/>
-                        <Setter Property="ResizeOnAttach" Value="True"/>
-                        <Setter Property="DragMoveOnAttach" Value="Self"/>
+                        <Setter Property="AttachedResize" Value="Surface"/>
+                        <Setter Property="AttachedDragMove" Value="Surface"/>
                         <Setter Property="VerticalAlignment" Value="Top"/>
                         <Setter Property="HorizontalAlignment" Value="Left"/>
                         <Setter Property="Player" Value="{DynamicResource {x:Type fl1:Player}}"/>
@@ -117,13 +126,13 @@
         <ScrollViewer Background="Bisque" Margin="200 300 0 0" Width="200" Height="100" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Center" HorizontalAlignment="Center">
             <StackPanel x:Name="FixMyScrollSurfaceOverlay">
                 <fl:FlyleafHost Width="100" Height="150"
-                            DragMoveOnAttach="None" ResizeMode="None" ResizeOnAttach="False" MarginTarget="{Binding ElementName=BorderMarginTarget}">
+                            AttachedDragMove="Surface" AttachedResize="Surface">
                     <Viewbox>
                         <TextBlock Text="Screen 1" Foreground="DarkRed"/>
                     </Viewbox>
                 </fl:FlyleafHost>
                 <fl:FlyleafHost Margin="0 20 0 0" Width="100" Height="150"
-                            DragMoveOnAttach="None" ResizeMode="None" ResizeOnAttach="False" MarginTarget="{Binding ElementName=BorderMarginTarget}">
+                            AttachedDragMove="Surface" AttachedResize="Surface">
                     <Viewbox>
                         <TextBlock Text="Screen 2" Foreground="DarkMagenta"/>
                     </Viewbox>

@@ -8,21 +8,29 @@
         <Setter Property="ActivityTimeout" Value="0"/>
         <Setter Property="IsAttached" Value="True"/>
         <Setter Property="IsFullScreen" Value="False"/>
-        <Setter Property="RememberLastDetachedRect" Value="True"/>
-        <Setter Property="TopMost" Value="True"/>
-        <Setter Property="AllowDrop" Value="True"/>
-
-        <Setter Property="DragMoveOnAttach" Value="Owner"/>
-        <Setter Property="DragMoveOnDetach" Value="True"/>
-        <Setter Property="PanMove" Value="True"/>
-        <Setter Property="ToggleFullScreenOnDoubleClick" Value="True"/>
-
-        <Setter Property="ResizeMode" Value="Both"/>
-        <Setter Property="ResizeOnAttach" Value="False"/>
-        <Setter Property="ResizeOnDetach" Value="True"/>
+        <Setter Property="KeyBindings" Value="Surface"/>
+        
+        <Setter Property="OpenOnDrop" Value="Surface"/>
+        <Setter Property="SwapOnDrop" Value="Surface"/>
+        <Setter Property="SwapDragEnterWithShift" Value="Surface"/>
+        
+        <Setter Property="ToggleFullScreenOnDoubleClick" Value="Surface"/>
+        
+        <Setter Property="AttachedResize" Value="None"/>
+        <Setter Property="DetachedResize" Value="Surface"/>
         <Setter Property="ResizeSensitivity" Value="6"/>
-        <Setter Property="KeyBindingsMode" Value="Surface"/>
+        <Setter Property="KeepRatioOnResize" Value="False"/>
 
+        <Setter Property="AttachedDragMove" Value="SurfaceOwner"/>
+        <Setter Property="DetachedDragMove" Value="Surface"/>
+
+        <Setter Property="DetachedRememberPosition" Value="True"/>
+        <Setter Property="DetachedRememberSize" Value="True"/>
+        <Setter Property="DetachedTopMost" Value="False"/>
+        
+        <Setter Property="PanMoveWithCtrl" Value="Surface"/>
+        <Setter Property="PanZoomWithCtrlWheel" Value="Surface"/>
+        
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type fl:FlyleafHost}">

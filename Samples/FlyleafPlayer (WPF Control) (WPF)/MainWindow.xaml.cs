@@ -17,35 +17,20 @@ namespace FlyleafPlayer
         /// <summary>
         /// Flyleaf Player binded to FlyleafME
         /// </summary>
-        public Player       PlayerX     { get; set; }
+        public Player       Player      { get; set; }
 
         /// <summary>
         /// FlyleafME Media Element Control
         /// </summary>
         public FlyleafME    FlyleafME   { get; set; }
 
-        EngineConfig engineConfig;
+        
         Config playerConfig;
+        bool ReversePlaybackChecked;
 
         public MainWindow()
         {
             // NOTE: Loads/Saves configs only in RELEASE mode
-
-            // Ensures that we have enough worker threads to avoid the UI from freezing or not updating on time
-            ThreadPool.GetMinThreads(out int workers, out int ports);
-            ThreadPool.SetMinThreads(workers + 6, ports + 6);
-
-            // Engine's Config
-            #if RELEASE
-            if (File.Exists("Flyleaf.Engine.xml"))
-                try { engineConfig = EngineConfig.Load("Flyleaf.Engine.xml"); } catch { engineConfig = DefaultEngineConfig(); }
-            else
-                engineConfig = DefaultEngineConfig();
-            #else
-            engineConfig = DefaultEngineConfig();
-            #endif
-
-            Engine.Start(engineConfig);
 
             // Player's Config (Cannot be initialized before Engine's initialization)
             #if RELEASE
@@ -59,15 +44,18 @@ namespace FlyleafPlayer
             #endif
             
             // Initializes the Player
-            PlayerX = new Player(playerConfig);
+            Player = new Player(playerConfig);
 
             FlyleafME = new FlyleafME(this)
             {
                 ActivityTimeout = 2000,
-                KeyBindingsMode = AvailableWindows.Both,
-                ResizeMode = AvailableWindows.Overlay,
-                DragMoveOnDetach = true,
-                Player = PlayerX
+                KeyBindings = AvailableWindows.Both,
+                DetachedResize = AvailableWindows.Overlay,
+                DetachedDragMove = AvailableWindows.Both,
+                ToggleFullScreenOnDoubleClick = AvailableWindows.Both,
+                KeepRatioOnResize = true,
+
+                Player = Player
             };
 
             InitializeComponent();
@@ -80,16 +68,8 @@ namespace FlyleafPlayer
             FlyleafME.EnginePath    = "Flyleaf.Engine.xml";
             FlyleafME.UIConfigPath  = "Flyleaf.UIConfig.xml";
 
-            MouseLeftButtonDown += (o, e) =>
-            { 
-                if (e.ClickCount == 2)
-                    FlyleafME.IsFullScreen = !FlyleafME.IsFullScreen;
-                else if (FlyleafME.ResizingSideOverlay == 0 && e.ClickCount == 1) 
-                    DragMove();
-            };
-
             // If the user requests reverse playback allocate more frames once
-            PlayerX.PropertyChanged += (o, e) =>
+            Player.PropertyChanged += (o, e) =>
             {
                 if (e.PropertyName == "ReversePlayback" && !ReversePlaybackChecked)
                 {
@@ -99,31 +79,23 @@ namespace FlyleafPlayer
                     ReversePlaybackChecked = true;
                 }
             };
+
+            // TODO: Extend FlyleafME's PopUp Menu to include those
+            // Ctrl+ N / Ctrl + W (Open New/Close Window)
+            var key = playerConfig.Player.KeyBindings.Get("New Window");
+            if (key != null)
+                key.SetAction(() => (new MainWindow()).Show(), true);
+            else
+                playerConfig.Player.KeyBindings.AddCustom(System.Windows.Input.Key.N, true, () => { (new MainWindow()).Show(); }, "New Window", false, true, false);
+
+            key = playerConfig.Player.KeyBindings.Get("Close Window");
+            if (key != null)
+                key.SetAction(() => Close(), true);
+            else
+                playerConfig.Player.KeyBindings.AddCustom(System.Windows.Input.Key.W, true, () => { Close(); }, "Close Window", false, true, false);
         }
-        bool ReversePlaybackChecked;
 
-        private EngineConfig DefaultEngineConfig()
-        {
-            EngineConfig engineConfig = new EngineConfig();
 
-            engineConfig.PluginsPath    = ":Plugins";
-            engineConfig.FFmpegPath     = ":FFmpeg";
-            engineConfig.HighPerformaceTimers
-                                        = false;
-            engineConfig.UIRefresh      = true;
-
-            #if RELEASE
-            engineConfig.LogOutput      = "Flyleaf.FirstRun.log";
-            engineConfig.LogLevel       = LogLevel.Debug;
-            engineConfig.FFmpegDevices  = true;
-            #else
-            engineConfig.LogOutput      = ":debug";
-            engineConfig.LogLevel       = LogLevel.Debug;
-            engineConfig.FFmpegLogLevel = FFmpegLogLevel.Warning;
-            #endif
-
-            return engineConfig;
-        }
 
         private Config DefaultConfig()
         {
@@ -134,8 +106,17 @@ namespace FlyleafPlayer
             return config;
         }
 
+        static bool runOnce;
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            if (runOnce)
+                return;
+
+            runOnce = true;
+
+            if (App.CmdUrl != null)
+                Player.OpenAsync(App.CmdUrl);
+
             #if RELEASE
             // Save Player's Config (First Run)
             // Ensures that the Control's handle has been created and the renderer has been fully initialized (so we can save also the filters parsed by the library)
@@ -149,13 +130,13 @@ namespace FlyleafPlayer
             }
 
             // Stops Logging (First Run)
-            if (!engineConfig.Loaded)
+            if (!Engine.Config.Loaded)
             {
-                engineConfig.LogOutput      = null;
-                engineConfig.LogLevel       = LogLevel.Quiet;
-                engineConfig.FFmpegDevices  = false;
+                Engine.Config.LogOutput      = null;
+                Engine.Config.LogLevel       = LogLevel.Quiet;
+                Engine.Config.FFmpegDevices  = false;
 
-                try { engineConfig.Save("Flyleaf.Engine.xml"); } catch { }
+                try { Engine.Config.Save("Flyleaf.Engine.xml"); } catch { }
             }
             #endif
         }
@@ -164,15 +145,5 @@ namespace FlyleafPlayer
         private void BtnMaximizeRestore_Checked(object sender, RoutedEventArgs e) => WindowState = WindowState.Maximized;
         private void BtnMaximizeRestore_Unchecked(object sender, RoutedEventArgs e) => WindowState = WindowState.Normal;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-        private void Grid_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-                return;
-            }
-
-            DragMove();
-        }
     }
 }
