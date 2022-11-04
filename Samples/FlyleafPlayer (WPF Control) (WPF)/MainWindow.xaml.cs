@@ -54,7 +54,7 @@ namespace FlyleafPlayer
                 DetachedDragMove = AvailableWindows.Both,
                 ToggleFullScreenOnDoubleClick = AvailableWindows.Both,
                 KeepRatioOnResize = true,
-
+                OpenOnDrop = AvailableWindows.Both,
                 Player = Player
             };
 
