@@ -74,9 +74,6 @@ namespace FlyleafLib.Controls.WPF
         public bool         CanPaste            { get => _CanPaste; set => Set(ref _CanPaste, value); }
         bool _CanPaste;
 
-        public string       SubtitlesFontDesc   { get => _SubtitlesFontDesc; set => Set(ref _SubtitlesFontDesc, value); }
-        string _SubtitlesFontDesc;
-
         public UITheme SelectedTheme
         {
             get => _SelectedTheme;
@@ -309,7 +306,6 @@ namespace FlyleafLib.Controls.WPF
                 if (uitheme.Name == UIConfig.SelectedTheme)
                     SelectedTheme = uitheme;
 
-            SubtitlesFontDesc = $"{UIConfig.SubsFontFamily} ({UIConfig.SubsFontWeight}), {UIConfig.SubsFontSize}";
             subsInitialMargin   = UIConfig.SubsMargin;
 
             if (popUpMenu != null)
@@ -433,8 +429,8 @@ namespace FlyleafLib.Controls.WPF
 
             Player.Activity.IsEnabled = false;
 
-            var prevKeys = KeyBindingsMode;
-            KeyBindingsMode = AvailableWindows.None;
+            var prevKeys = KeyBindings;
+            KeyBindings = AvailableWindows.None;
 
             Dictionary<VideoFilters, int> saveFilterValues = new Dictionary<VideoFilters, int>();
             foreach(var filter in Config.Video.Filters.Values)
@@ -444,7 +440,7 @@ namespace FlyleafLib.Controls.WPF
             var result = await DialogHost.Show(settings, dialogSettingsIdentifier);
 
             Player.Activity.IsEnabled = true;
-            KeyBindingsMode = prevKeys;
+            KeyBindings = prevKeys;
 
             if (result == null) return;
 
@@ -530,8 +526,6 @@ namespace FlyleafLib.Controls.WPF
                 UIConfig.SubsFontStretch= dialog.Font.Stretch.ToString();
                 UIConfig.SubsFontStyle  = dialog.Font.Style.ToString();
                 UIConfig.SubsFontColor  = dialog.Font.BrushColor.Color;
-
-                SubtitlesFontDesc       = $"{UIConfig.SubsFontFamily} ({UIConfig.SubsFontWeight}), {UIConfig.SubsFontSize}";
             }
         }
         #endregion

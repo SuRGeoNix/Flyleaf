@@ -198,6 +198,24 @@ namespace FlyleafLib.MediaPlayer
             }
         }
 
+        public bool Exists(string actionName)
+        {
+            foreach (var keybinding in Keys)
+                if (keybinding.ActionName == actionName)
+                    return true;
+
+            return false;
+        }
+
+        public KeyBinding Get(string actionName)
+        {
+            foreach (var keybinding in Keys)
+                if (keybinding.ActionName == actionName)
+                    return keybinding;
+
+            return null;
+        }
+
         /// <summary>
         /// Removes a binding based on Key/Ctrl combination
         /// </summary>

@@ -4,13 +4,14 @@ using System.Windows;
 using System.Windows.Input;
 
 using FlyleafLib.Controls.WPF;
+using FlyleafLib.MediaPlayer;
 
 namespace WpfFlyleafHost
 {
     public partial class MultipleAttached : Window
     {
         public string TestDataContext { get; set; } = "MainDataContext";
-
+        public Player Player1 { get; set; } = new Player();
         public MultipleAttached()
         {
             InitializeComponent();

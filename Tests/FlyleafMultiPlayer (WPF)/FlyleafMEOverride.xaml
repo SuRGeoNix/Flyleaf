@@ -30,7 +30,7 @@
     
     <Style TargetType="{x:Type flwpf:FlyleafME}" BasedOn="{StaticResource {x:Type fl:FlyleafHost}}" x:Shared="False" x:Key="DISABLED">
         <Setter Property="ActivityTimeout" Value="0"/>
-        <Setter Property="KeyBindingsMode" Value="Both"/>
+        <Setter Property="KeyBindings" Value="Both"/>
         <Setter Property="Content">
             <Setter.Value>
                 <Border BorderThickness="0.6">

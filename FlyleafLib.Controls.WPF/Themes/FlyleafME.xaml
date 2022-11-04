@@ -10,7 +10,7 @@
     
     <Style TargetType="{x:Type flwpf:FlyleafME}" BasedOn="{StaticResource {x:Type fl:FlyleafHost}}" x:Shared="False">
         <Setter Property="ActivityTimeout" Value="6000"/>
-        <Setter Property="KeyBindingsMode" Value="Both"/>
+        <Setter Property="KeyBindings" Value="Both"/>
         <Setter Property="Content">
             <Setter.Value>
                 <Border BorderThickness="0.6">
@@ -57,7 +57,7 @@
                             <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource PrimaryHueLightBrush}" ValueColor="{DynamicResource SecondaryHueLightBrush}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
 
                             <!--Subtitles-->
-                            <TextBlock Margin="{Binding UIConfig.SubsMargin}" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontFamily="{Binding UIConfig.SubsFontFamily}" FontSize="{Binding UIConfig.SubsFontSize}" Foreground="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}" FontWeight="{Binding UIConfig.SubsFontWeight}" Text="{Binding Player.Subtitles.SubsText}">
+                            <TextBlock Margin="{Binding UIConfig.SubsMargin}" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontFamily="{Binding UIConfig.SubsFontFamily}" FontSize="{Binding UIConfig.SubsFontSize}" Foreground="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}" FontWeight="{Binding UIConfig.SubsFontWeight}" FontStyle="{Binding UIConfig.SubsFontStyle}" Text="{Binding Player.Subtitles.SubsText}">
                                 <TextBlock.Effect>
                                     <DropShadowEffect ShadowDepth="2" Direction="0" Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="1.0" BlurRadius="0"/>
                                 </TextBlock.Effect>
@@ -74,7 +74,7 @@
     
     <Style TargetType="{x:Type flwpf:FlyleafME}" BasedOn="{StaticResource {x:Type fl:FlyleafHost}}" x:Key="TBR123">
         <Setter Property="ActivityTimeout" Value="6000"/>
-        <Setter Property="KeyBindingsMode" Value="Both"/>
+        <Setter Property="KeyBindings" Value="Both"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type flwpf:FlyleafME}">

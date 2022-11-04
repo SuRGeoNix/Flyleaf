@@ -191,7 +191,8 @@
                         </StackPanel>
                     </TabItem.Header>
                     <Grid>
-                        <Grid Margin="20" VerticalAlignment="Top">
+                        <ScrollViewer Height="270" Margin="20 20 20 0" VerticalAlignment="Top">
+                            <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200"/>
                                 <ColumnDefinition Width="100"/>
@@ -207,34 +208,39 @@
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
                             </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Text="Read Timeout (ms)" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.ReadTimeout, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
                             
-                            <TextBlock Grid.Row="1" Text="Buffer Duration Min.  (ms)" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Player.MinBufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                            <TextBlock Grid.Row="0" Text="Idle Timeout (ms)" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding ActivityTimeout, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="2" Text="Buffer Duration Max. (ms)" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.BufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                            <TextBlock Grid.Row="1" Text="Read Timeout (ms)" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.ReadTimeout, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                            
+                            <TextBlock Grid.Row="2" Text="Buffer Duration Min. (ms)" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Player.MinBufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                            <TextBlock Grid.Row="3" Text="Audio Frames Max." VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxAudioFrames, UpdateSourceTrigger=Explicit}"/>
+                            <TextBlock Grid.Row="3" Text="Buffer Duration Max. (ms)" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.BufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                            <TextBlock Grid.Row="4" Text="Video Frames Max." VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
+                            <TextBlock Grid.Row="4" Text="Audio Frames Max." VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxAudioFrames, UpdateSourceTrigger=Explicit}"/>
 
-                            <Separator Grid.Row="5" Grid.ColumnSpan="3"/>
+                            <TextBlock Grid.Row="5" Text="Video Frames Max." VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="6" Text="Log File" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Width="260" TextAlignment="Left" Style="{StaticResource FLTextbox}" Text="{Binding ConfigEngine.LogOutput, UpdateSourceTrigger=Explicit}"/>
+                            <Separator Grid.Row="6" Grid.ColumnSpan="3"/>
 
-                            <TextBlock Grid.Row="7" Text="Log Level" VerticalAlignment="Center"/>
-                            <ComboBox  Grid.Row="7" Grid.Column="1" ItemsSource="{Binding Source={StaticResource LogLevelEnum}}" SelectedItem="{Binding ConfigEngine.LogLevel}"/>
+                            <TextBlock Grid.Row="7" Text="Log File" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2" Width="260" TextAlignment="Left" Style="{StaticResource FLTextbox}" Text="{Binding ConfigEngine.LogOutput, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="8" Text="Log Level (FFmpeg)" VerticalAlignment="Center"/>
-                            <ComboBox  Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Source={StaticResource FFmpegLogLevelEnum}}" SelectedItem="{Binding ConfigEngine.FFmpegLogLevel}"/>
+                            <TextBlock Grid.Row="8" Text="Log Level" VerticalAlignment="Center"/>
+                            <ComboBox  Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Source={StaticResource LogLevelEnum}}" SelectedItem="{Binding ConfigEngine.LogLevel}"/>
+
+                            <TextBlock Grid.Row="9" Text="Log Level (FFmpeg)" VerticalAlignment="Center"/>
+                            <ComboBox  Grid.Row="9" Grid.Column="1" ItemsSource="{Binding Source={StaticResource FFmpegLogLevelEnum}}" SelectedItem="{Binding ConfigEngine.FFmpegLogLevel}"/>
                         </Grid>
+                        </ScrollViewer>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <Button Style="{StaticResource SaveButton}"/>
                             <Button Content="Apply" FontWeight="ExtraBold" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="apply"/>
@@ -317,7 +323,13 @@
                             <Button Margin=" 0 15 0 0" Grid.Row="4" Grid.Column="1" Height="auto" MaxHeight="100" Command="{Binding SetSubtitlesFont}">
                                 <StackPanel Orientation="Horizontal" Margin="0 5 0 5">
                                     <Rectangle Margin=" 0 0 10 0" Width="18" Height="18" Fill="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}"/>
-                                    <TextBlock Text="{Binding SubtitlesFontDesc}" TextWrapping="Wrap" MaxWidth="200" VerticalAlignment="Center"/>
+                                    <TextBlock TextWrapping="Wrap" MaxWidth="200" VerticalAlignment="Center">
+                                        <Run Text="{Binding UIConfig.SubsFontFamily}"/>
+                                        <Run Text="("/>
+                                        <Run Text="{Binding UIConfig.SubsFontWeight}"/>
+                                        <Run Text="), "/>
+                                        <Run Text="{Binding UIConfig.SubsFontSize}"/>
+                                    </TextBlock>
                                 </StackPanel>
                             </Button>
                         </Grid>

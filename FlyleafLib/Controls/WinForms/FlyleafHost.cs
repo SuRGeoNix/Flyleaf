@@ -54,6 +54,9 @@ namespace FlyleafLib.Controls.WinForms
         bool _PanMove = true;
         public bool         PanMove         { get => _PanMove; set => Set(ref _PanMove, value); }
 
+        bool _PanZoom = true;
+        public bool         PanZoom         { get => _PanZoom; set => Set(ref _PanZoom, value); }
+
         bool _DragMove = true;
         public bool         DragMove        { get => _DragMove; set => Set(ref _DragMove, value); }
 
@@ -106,7 +109,7 @@ namespace FlyleafLib.Controls.WinForms
         private void Host_DragEnter(object sender, DragEventArgs e) { if (Player != null) e.Effect = DragDropEffects.All; }
         private void Host_MouseWheel(object sender, MouseEventArgs e)
         {
-            if (PanMove && Player != null && e.Delta != 0 && ModifierKeys.HasFlag(Keys.Control))
+            if (PanZoom && Player != null && e.Delta != 0 && ModifierKeys.HasFlag(Keys.Control))
             {
                 Player.Zoom += e.Delta > 0 ? Player.Config.Player.ZoomOffset : -Player.Config.Player.ZoomOffset;
             }
