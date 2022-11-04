@@ -379,6 +379,9 @@ namespace FlyleafLib.Controls.WPF
         #region Events
         private static void OnDetachedTopMostChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
+            if (isDesginMode)
+                return;
+
             FlyleafHost host = d as FlyleafHost;
             host.Surface.Topmost = !host.IsAttached && host.DetachedTopMost;
         }
@@ -398,6 +401,9 @@ namespace FlyleafLib.Controls.WPF
         }
         private static void OnCurResizeRatioChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
+            if (isDesginMode)
+                return;
+
             FlyleafHost host = d as FlyleafHost;
             if (host.KeepRatioOnResize)
             {
@@ -409,6 +415,9 @@ namespace FlyleafLib.Controls.WPF
         }
         private static void OnKeepRatioOnResizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
+            if (isDesginMode)
+                return;
+
             FlyleafHost host = d as FlyleafHost;
             if (host.KeepRatioOnResize)
                 host.CurResizeRatio = host.Player != null && host.Player.Video.AspectRatio.Value > 0 ? host.Player.Video.AspectRatio.Value : (float)(16.0/9.0);
@@ -1299,6 +1308,10 @@ namespace FlyleafLib.Controls.WPF
             Surface.MouseWheel  += Surface_MouseWheel;
             Surface.StateChanged+= Surface_StateChanged;
             Surface.MouseLeave  += Surface_MouseLeave;
+
+            Surface.AllowDrop =
+                OpenOnDrop == AvailableWindows.Surface || OpenOnDrop == AvailableWindows.Both ||
+                SwapOnDrop == AvailableWindows.Surface || SwapOnDrop == AvailableWindows.Both;
         }
         public virtual void SetOverlay()
         {
