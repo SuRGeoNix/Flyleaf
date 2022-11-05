@@ -152,7 +152,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             lock (lockDevice)
             {
-                DisposeSwapChain();
+                DisposeSwapChain(true);
 
                 if (control == null)
                     return;
@@ -432,7 +432,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             ResizeBuffers(ControlWidth, ControlHeight);
             Present();
         }
-        public void DisposeSwapChain()
+        public void DisposeSwapChain(bool includingControls = false)
         {
             lock (lockDevice)
             {
@@ -452,14 +452,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 Log.Info($"Destroying swap chain [Handle: {ControlHandle}]");
                 SCDisposed = true;
 
-                if (WindowRef != null)
-                    WindowRef.SizeChanged -= WindowRef_SizeChanged;
-                else if (ControlRef != null)
-                    ControlRef.SizeChanged -= ControlRef_SizeChanged;
+                // TBR! When Player.Stop we DisposeVA which disposes the renderer and the swap chain, when it tries to initialize we have lost the handles
+                if (includingControls)
+                {
+                    if (WindowRef != null)
+                        WindowRef.SizeChanged -= WindowRef_SizeChanged;
+                    else if (ControlRef != null)
+                        ControlRef.SizeChanged -= ControlRef_SizeChanged;
 
-                WindowRef = null;
-                ControlRef = null;
-                ControlHandle = IntPtr.Zero;
+                    WindowRef = null;
+                    ControlRef = null;
+                    ControlHandle = IntPtr.Zero;
+                }
 
                 vpov?.Dispose();
                 backBufferRtv?.Dispose();

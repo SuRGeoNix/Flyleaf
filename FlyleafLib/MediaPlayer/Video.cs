@@ -103,7 +103,7 @@ namespace FlyleafLib.MediaPlayer
         internal void Reset()
         {
             codec              = null;
-            AspectRatio        = new AspectRatio(0, 0);
+            aspectRatio        = new AspectRatio(0, 0);
             bitRate            = 0;
             fps                = 0;
             pixelFormat        = null;

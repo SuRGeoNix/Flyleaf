@@ -120,6 +120,26 @@
                 </Grid>
 
                 <Grid Grid.Row="1" x:Name="PART_ContextMenuOwner" ContextMenu="{StaticResource PopUpMenu}">
+                    
+                    <!--Error Message-->
+                    <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10">
+                        <TextBox d:Text="Error Message" FontSize="16" IsReadOnly="True" BorderThickness="0" Text="{Binding Player.LastError}" Foreground="{DynamicResource PrimaryHueMidBrush}" TextWrapping="Wrap">
+                            <TextBox.Background>
+                                <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                            </TextBox.Background>
+                            <TextBox.Style>
+                                <Style TargetType="{x:Type TextBox}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Player.LastError}" Value="{x:Null}" d:Value="notnull">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </StackPanel>
+
                     <!--Pop Up Dialog (Settings/Set Values)-->
                     <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
 

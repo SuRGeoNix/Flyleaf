@@ -30,6 +30,7 @@ namespace FlyleafLib.Plugins
                         bitSwarm;
         TorrentOptions  cfg = new TorrentOptions();
         Torrent         torrent;
+        string          errorMsg;
         int             fileIndex;
         int             fileIndexNext;
         bool            downloadNextStarted;
@@ -235,14 +236,19 @@ namespace FlyleafLib.Plugins
                 bitSwarm                    = new SuRGeoNix.BitSwarmLib.BitSwarm(cfg);
                 bitSwarm.MetadataReceived   += MetadataReceived;
                 bitSwarm.OnFinishing        += OnFinishing;
+                bitSwarm.StatusChanged      += BitSwarm_StatusChanged;
 
                 Playlist.InputType = InputType.Torrent;
 
+                errorMsg = null;
                 bitSwarm.Open(Playlist.Url);
                 Log.Info("Starting");
                 bitSwarm.Start();
 
-                while (!torrentReceived && !Handler.Interrupt && openId == Handler.OpenCounter) { Thread.Sleep(35); }
+                while (!torrentReceived && errorMsg == null && !Handler.Interrupt && openId == Handler.OpenCounter) { Thread.Sleep(35); }
+
+                if (!string.IsNullOrEmpty(errorMsg)) { Dispose(); return new OpenResults(errorMsg); }
+
                 if (Handler.Interrupt || openId != Handler.OpenCounter) { Dispose(); return null; }
 
                 if (sortedPaths == null || sortedPaths.Count == 0) { Dispose(); return new OpenResults("No video files found in torrent"); }
@@ -262,11 +268,27 @@ namespace FlyleafLib.Plugins
             }
         }
 
+        private void BitSwarm_StatusChanged(object source, StatusChangedArgs e)
+        {
+            if (e.Status == 2)
+                errorMsg = e.ErrorMsg;
+        }
+
         public OpenResults OpenItem()
         {
-            openItemId = Handler.OpenItemCounter;
             FileName    = GetTag(Selected).ToString();
             fileIndex   = torrent.file.paths.IndexOf(FileName);
+
+            if (Downloaded && !File.Exists(Path.Combine(FolderComplete, FileName)))
+            {
+                var session = bitSwarm.LoadedSessionFile;
+                bitSwarm.Pause();
+                File.Delete(session);
+                bitSwarm.Open(Playlist.Url);
+            }
+
+            openItemId = Handler.OpenItemCounter;
+            
 
             downloadNextStarted     = false;
             bitSwarm.FocusAreInUse  = false;
@@ -310,7 +332,7 @@ namespace FlyleafLib.Plugins
                 if (!DownloadNext()) { Log.Info("Pausing"); bitSwarm.Pause(); }
             }
             else
-                return null;
+                return new OpenResults("File not found");
 
             return new OpenResults();
         }
