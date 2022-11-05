@@ -284,6 +284,33 @@ namespace FlyleafLib.MediaPlayer
         int _Zoom;
 
         /// <summary>
+        /// Sets Renderer's rotation (currently only supported for D3D11 Video Processor
+        /// </summary>
+        public Rotation     Rotation            { get => _Rotation; 
+            set
+            {
+                switch (value)
+                {
+                    case Rotation.Rotation0:
+                        renderer.D3D11VPRotation = Vortice.Direct3D11.VideoProcessorRotation.Identity;
+                        break;
+                    case Rotation.Rotation90:
+                        renderer.D3D11VPRotation = Vortice.Direct3D11.VideoProcessorRotation.Rotation90;
+                        break;
+                    case Rotation.Rotation180:
+                        renderer.D3D11VPRotation = Vortice.Direct3D11.VideoProcessorRotation.Rotation180;
+                        break;
+                    case Rotation.Rotation270:
+                        renderer.D3D11VPRotation = Vortice.Direct3D11.VideoProcessorRotation.Rotation270;
+                        break;
+                }
+
+                Set(ref _Rotation, value);
+            }
+        }
+        Rotation _Rotation;
+
+        /// <summary>
         /// Whether to use reverse playback mode
         /// </summary>
         public bool         ReversePlayback
@@ -577,5 +604,13 @@ namespace FlyleafLib.MediaPlayer
         Audio,
         LowLatencyVideo,
         ZeroLatencyAudioVideo
+    }
+
+    public enum Rotation
+    {
+        Rotation0,
+        Rotation90,
+        Rotation180,
+        Rotation270
     }
 }
