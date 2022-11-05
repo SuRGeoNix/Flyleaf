@@ -62,6 +62,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         int zoom;
         public int              UniqueId        { get; private set; }
 
+        public VideoProcessorRotation D3D11VPRotation 
+                                                { get; set; } = VideoProcessorRotation.Identity;
+
         public Dictionary<VideoFilters, VideoFilter> 
                                 Filters         { get; set; }
         public VideoFrame       LastFrame       { get; set; }
@@ -880,6 +883,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     
                     vpsa[0].InputSurface = vpiv;
                     vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
+                    vc.VideoProcessorSetStreamRotation(vp, 0, true, VideoProcessorRotation.Identity);
                     vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
                     vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
