@@ -400,6 +400,7 @@ namespace FlyleafLib.MediaPlayer
             Speed = 1;
             PanXOffset = 0;
             PanYOffset = 0;
+            Rotation = 0;
             Zoom = 0;
             ReversePlayback = false;
         }

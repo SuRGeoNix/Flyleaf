@@ -740,6 +740,12 @@
             </MenuItem>
             <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Config.Video.VideoAcceleration}"/>
             <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording, Mode=OneWay}" Command="{Binding Player.Commands.ToggleRecording}"/>
+            <MenuItem Header="{Binding Player.Rotation}" HeaderStringFormat="Rotation ({0}°)">
+                <MenuItem Header="0°"       CommandParameter="0"    Command="{Binding Player.Commands.RotationSet}"/>
+                <MenuItem Header="90°"      CommandParameter="90"   Command="{Binding Player.Commands.RotationSet}"/>
+                <MenuItem Header="180°"     CommandParameter="180"  Command="{Binding Player.Commands.RotationSet}"/>
+                <MenuItem Header="270°"     CommandParameter="270"  Command="{Binding Player.Commands.RotationSet}"/>
+            </MenuItem>
             <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
             <MenuItem Header="{Binding Player.Speed}" HeaderStringFormat="Speed ({0})">
                 <MenuItem Header=" x 8"     CommandParameter="8"    Command="{Binding Player.Commands.SpeedSet}"/>

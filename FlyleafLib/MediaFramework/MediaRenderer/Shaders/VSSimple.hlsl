@@ -1,3 +1,7 @@
+cbuffer cBuf : register(b0)
+{
+    matrix mat;
+}
 struct VertexShaderInput
 {
     float4 Position : POSITION;
@@ -10,7 +14,12 @@ struct PixelShaderInput
     float2 Texture  : TEXCOORD;
 };
 
-PixelShaderInput main(VertexShaderInput input)
+PixelShaderInput main(VertexShaderInput vsi)
 {
-    return input;
+    PixelShaderInput psi;
+
+    psi.Position = mul(vsi.Position, mat);
+    psi.Texture = vsi.Texture;
+
+    return psi;
 }
