@@ -165,7 +165,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     if (psError != null && psError.BufferPointer != IntPtr.Zero)
                     {
-                        string[] errors = Utils.BytePtrToStringUTF8((byte*)psError.BufferPointer).Split('\n');
+                        string[] errors = BytePtrToStringUTF8((byte*)psError.BufferPointer).Split('\n');
 
                         foreach (var line in errors)
                             if (!string.IsNullOrWhiteSpace(line) && line.IndexOf("X3571") == -1)

@@ -102,11 +102,11 @@
                     </Grid.Style>
                     
                     <Image Source="Flyleaf.ico" Stretch="UniformToFill" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="Flyleaf v3.6-pre2"/>
-                    
+
                     <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontWeight="Bold" FontStyle="Italic" FontFamily="Mistral" FontSize="34" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                        <ToggleButton Style="{StaticResource MaterialDesignActionToggleButton}" ToolTip="Always on Top" Background="Transparent" Foreground="{DynamicResource PrimaryHueMidBrush}"
+                        <ToggleButton Style="{StaticResource MaterialDesignActionToggleButton}" Focusable="False" ToolTip="Always on Top" Background="Transparent" Foreground="{DynamicResource PrimaryHueMidBrush}"
                                   Content="{materialDesign:PackIcon Kind=PinOutline}" materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=Pin}" IsChecked="{Binding DetachedTopMost}"/>
                         
                         <Button Focusable="False" x:Name="BtnMinimize" Content="{materialDesign:PackIcon Kind=Minimize,Size=30}" VerticalContentAlignment="Bottom" Style="{StaticResource MaterialDesignIconButton}" Click="BtnMinimize_Click"/>

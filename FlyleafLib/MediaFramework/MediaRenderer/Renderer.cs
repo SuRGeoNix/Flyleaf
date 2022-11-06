@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Linq;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -56,14 +56,17 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public int              PanXOffset      { get => panXOffset; set { panXOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int panXOffset;
+
         public int              PanYOffset      { get => panYOffset; set { panYOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int panYOffset;
+
+        public int              Rotation   { get => _RotationAngle; set => SetRotation(value); }
+        int _RotationAngle; VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
+
         public int              Zoom            { get => zoom;       set { zoom       = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int zoom;
-        public int              UniqueId        { get; private set; }
 
-        public VideoProcessorRotation D3D11VPRotation 
-                                                { get; set; } = VideoProcessorRotation.Identity;
+        public int              UniqueId        { get; private set; }
 
         public Dictionary<VideoFilters, VideoFilter> 
                                 Filters         { get; set; }
@@ -364,9 +367,20 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         ByteWidth       = sizeof(PSBufferType)
                     });
                     context.PSSetConstantBuffer(0, psBuffer);
-
                     psBufferData.hdrmethod  = HDRtoSDRMethod.None;
                     context.UpdateSubresource(psBufferData, psBuffer);
+
+                    vsBuffer = Device.CreateBuffer(new BufferDescription() 
+                    {
+                        Usage           = ResourceUsage.Default,
+                        BindFlags       = BindFlags.ConstantBuffer,
+                        CPUAccessFlags  = CpuAccessFlags.None,
+                        ByteWidth       = sizeof(VSBufferType)
+                    });
+
+                    context.VSSetConstantBuffer(0, vsBuffer);
+                    vsBufferData.mat = Matrix4x4.Identity;
+                    context.UpdateSubresource(vsBufferData, vsBuffer);
 
                     InitializeVideoProcessor();
 
@@ -503,6 +517,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 //blendStateAlphaInv?.Dispose();
 
                 psBuffer?.Dispose();
+                vsBuffer?.Dispose();
                 samplerLinear?.Dispose();
                 vertexLayout?.Dispose();
                 vertexBuffer?.Dispose();
@@ -883,7 +898,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     
                     vpsa[0].InputSurface = vpiv;
                     vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
-                    vc.VideoProcessorSetStreamRotation(vp, 0, true, VideoProcessorRotation.Identity);
+                    vc.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
                     vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
                     vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
