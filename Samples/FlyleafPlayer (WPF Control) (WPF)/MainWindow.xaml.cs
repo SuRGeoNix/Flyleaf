@@ -139,9 +139,7 @@ namespace FlyleafPlayer
             #endif
         }
 
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximizeRestore_Checked(object sender, RoutedEventArgs e) => WindowState = WindowState.Maximized;
-        private void BtnMaximizeRestore_Unchecked(object sender, RoutedEventArgs e) => WindowState = WindowState.Normal;
+        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => FlyleafME.IsMinimized = true;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
     }
 }

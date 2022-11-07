@@ -67,6 +67,7 @@ namespace FlyleafLib.Controls.WPF
 
             IsAttached
             IsFullScreen
+            IsMinimized
             IsResizing						[ReadOnly]
             IsSwapping						[ReadOnly]
             IsStandAlone					[ReadOnly]
@@ -77,6 +78,7 @@ namespace FlyleafLib.Controls.WPF
          * 2) PassWheelToOwner (Related with LayoutUpdate performance / ScrollViewer) / ActivityRefresh
          * 3) Review Content/DetachedContent/Template logic
          * 4) Attach to different Owner (Load/Unload) and change Overlay?
+         * 5) WindowStates having issues with Owner Window, should prevent user to change states directly (we currently not forcing overlay -> surface states)
          */
 
         #region Properties / Variables
@@ -96,7 +98,8 @@ namespace FlyleafLib.Controls.WPF
         Grid dMain, dHost, dSurface, dOverlay; // Design Mode Grids
         bool preventContentUpdate;
         int panPrevX, panPrevY;
-        bool preventFullScreenUpdate; // to handle a bug from fullscreen to minimize and back to normal
+        bool ownedRestoreToMaximize;
+        WindowState prevSurfaceWindowState = WindowState.Normal;
 
         Matrix matrix;
         Point mouseLeftDownPoint = new Point(0, 0);
@@ -302,6 +305,14 @@ namespace FlyleafLib.Controls.WPF
         public static readonly DependencyProperty IsAttachedProperty =
             DependencyProperty.Register(nameof(IsAttached), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(true, new PropertyChangedCallback(OnIsAttachedChanged)));
 
+        public bool IsMinimized
+        {
+            get { return (bool)GetValue(IsMinimizedProperty); }
+            set { SetValue(IsMinimizedProperty, value); }
+        }
+        public static readonly DependencyProperty IsMinimizedProperty =
+            DependencyProperty.Register(nameof(IsMinimized), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnIsMinimizedChanged)));
+
         public bool IsFullScreen
         {
             get { return (bool)GetValue(IsFullScreenProperty); }
@@ -442,6 +453,14 @@ namespace FlyleafLib.Controls.WPF
 
             if (host.Player != null)
                 host.Player.IsFullScreen = host.IsFullScreen;
+        }
+        private static void OnIsMinimizedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (isDesginMode)
+                return;
+
+            FlyleafHost host = d as FlyleafHost;
+            host.Surface.WindowState = host.IsMinimized ? WindowState.Minimized : (host.IsFullScreen ? WindowState.Maximized : WindowState.Normal);
         }
         private static void OnIsAttachedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -779,12 +798,41 @@ namespace FlyleafLib.Controls.WPF
         private void Overlay_DragEnter(object sender, DragEventArgs e) { if (Player != null) e.Effects = DragDropEffects.All; }
         private void Surface_StateChanged(object sender, EventArgs e)
         {
-            if (Surface.WindowState == WindowState.Minimized)
-                preventFullScreenUpdate = true;
-            else
+            Overlay.WindowState = Surface.WindowState;
+         
+            switch (Surface.WindowState)
             {
-                preventFullScreenUpdate = false;
-                RefreshNormalFullScreen();
+                case WindowState.Maximized:
+
+                    if (prevSurfaceWindowState == WindowState.Minimized)
+                        ownedRestoreToMaximize = true;
+
+                    IsFullScreen = true;
+                    IsMinimized = false;
+
+                    break;
+
+                case WindowState.Normal:
+
+                    IsFullScreen = false;
+                    IsMinimized = false;
+
+                    break;
+
+                case WindowState.Minimized:
+
+                    IsMinimized = true;
+                    break;
+            }
+
+            prevSurfaceWindowState = Surface.WindowState;
+        }
+        private void Overlay_StateChanged(object sender, EventArgs e)
+        {       
+            if (Overlay.WindowState == WindowState.Normal && ownedRestoreToMaximize)
+            {
+                ownedRestoreToMaximize = false;
+                Overlay.WindowState = WindowState.Maximized;
             }
         }
 
@@ -1363,7 +1411,6 @@ namespace FlyleafLib.Controls.WPF
             Overlay.SetBinding(Window.HeightProperty,       new Binding(nameof(Surface.Height))     { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
             Overlay.SetBinding(Window.LeftProperty,         new Binding(nameof(Surface.Left))       { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
             Overlay.SetBinding(Window.TopProperty,          new Binding(nameof(Surface.Top))        { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
-            Overlay.SetBinding(Window.WindowStateProperty,  new Binding(nameof(Surface.WindowState)){ Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
 
             Overlay.KeyUp       += Overlay_KeyUp;
             Overlay.KeyDown     += Overlay_KeyDown;
@@ -1379,6 +1426,7 @@ namespace FlyleafLib.Controls.WPF
                                 += Overlay_MouseDoubleClick;
             Overlay.Drop        += Overlay_Drop;
             Overlay.DragEnter   += Overlay_DragEnter;
+            Overlay.StateChanged+= Overlay_StateChanged;
 
             // Owner will close the overlay
             Overlay.KeyDown += (o, e) => { if (e.Key == Key.System && e.SystemKey == Key.F4) Surface?.Focus(); };
@@ -1412,6 +1460,9 @@ namespace FlyleafLib.Controls.WPF
         }
         public virtual void Detach()
         {
+            if (IsFullScreen)
+                IsFullScreen = false;
+
             // Calculate Size
             Size newSize;
             if (DetachedRememberSize && rectDetachedLast != Rect.Empty)
@@ -1492,11 +1543,8 @@ namespace FlyleafLib.Controls.WPF
 
         public void RefreshNormalFullScreen()
         {
-            if (preventFullScreenUpdate)
-            {
-                preventFullScreenUpdate = false;
+            if (Surface.WindowState == WindowState.Minimized)
                 return;
-            }
 
             if (IsFullScreen)
             {

@@ -17,8 +17,6 @@ namespace FlyleafLib.MediaPlayer
          * Allows KeyBindingAction.Custom to set an external Action for Key Binding
          */
 
-        internal bool isAnyKeyDown;
-
         /// <summary>
         /// Can be used to route KeyDown events (WPF)
         /// </summary>
@@ -68,7 +66,7 @@ namespace FlyleafLib.MediaPlayer
             if (player == null)
                 return false;
 
-            player.isAnyKeyDown = true;
+            player.Activity.KeyboardTimestamp = DateTime.UtcNow.Ticks;
 
             if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
                 return false;
@@ -92,11 +90,6 @@ namespace FlyleafLib.MediaPlayer
         {
             if (player == null)
                 return false;
-
-            player.isAnyKeyDown = false;
-
-            if (player.Activity.Timeout > 0)
-                player.Activity.KeyboardTimestamp = DateTime.UtcNow.Ticks;
 
             if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
                 return false;
