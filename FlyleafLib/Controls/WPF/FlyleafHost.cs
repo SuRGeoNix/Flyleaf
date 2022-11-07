@@ -839,6 +839,7 @@ namespace FlyleafLib.Controls.WPF
         private void Surface_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             mouseLeftDownPoint = e.GetPosition(Surface);
+            Player?.Activity.RefreshFullActive();
 
             if ((SwapOnDrop == AvailableWindows.Surface || SwapOnDrop == AvailableWindows.Both) && 
                 (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
@@ -868,6 +869,7 @@ namespace FlyleafLib.Controls.WPF
         private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             mouseLeftDownPoint = e.GetPosition(Overlay);
+            Player?.Activity.RefreshFullActive();
             
             if ((SwapOnDrop == AvailableWindows.Overlay || SwapOnDrop == AvailableWindows.Both) && 
                 (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
