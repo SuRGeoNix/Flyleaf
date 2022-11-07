@@ -348,7 +348,6 @@ namespace FlyleafLib.Plugins
                 FolderComplete      = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents") : Path.Combine(Path.GetTempPath(), "Torrents");
                 FolderIncomplete    = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents", "_incomplete") : Path.Combine(Path.GetTempPath(), "Torrents", "_incomplete");
                 FolderTorrents      = FolderIncomplete;
-                FolderSessions      = FolderIncomplete;               
 
                 MaxTotalConnections = 80;
                 MaxNewConnections   = 15;
