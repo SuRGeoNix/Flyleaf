@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6-pre2</Version>
+	<Version>3.6-pre3</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* WPF.FlyleafHost: Adds support for resize based on Player's aspect ratio
-		* WPF.FlyleafHost: Adds more options for detached positioning/sizing
-		* WPF.FlyleafHost: Adds all the functionality also for the Overlay
-		* WPF.FlyleafHost: Finishes up the new implementation (more renamings, see Controls/WPF/FlyleafHost.cs for details)
+		* Player: Adds Rotation support
+		* Player.Commands: Adds RotationSet
+		* Renderer: Fixes an issue after Player.Stop
+		* WPF.FlyleafHost: Fixes issues with Designer, Activity, Resize and Window States
 	</PackageReleaseNotes>
   </PropertyGroup>
 
