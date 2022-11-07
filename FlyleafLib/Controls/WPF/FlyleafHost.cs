@@ -102,9 +102,9 @@ namespace FlyleafLib.Controls.WPF
         WindowState prevSurfaceWindowState = WindowState.Normal;
 
         Matrix matrix;
-        Point mouseLeftDownPoint = new Point(0, 0);
         Point zeroPoint = new Point(0, 0);
-        Point lastOverlayPosition = new Point(0, 0);
+        Point mouseLeftDownPoint = new Point(0, 0);
+        Point mouseMoveLastPoint = new Point(0, 0);
 
         static Rect rectRandom = new Rect(1, 2, 3, 4);
         Rect rectDetachedLast = Rect.Empty;
@@ -924,11 +924,14 @@ namespace FlyleafLib.Controls.WPF
 
         private void Surface_MouseMove(object sender, MouseEventArgs e)
         {
-            Point cur = e.GetPosition(Surface);
+            Point cur = e.GetPosition(Overlay);
              
-            if (Player != null && ActivityTimeout > 0 && cur != lastOverlayPosition)
+            if (Player != null && cur != mouseMoveLastPoint)
+            {
                 Player.Activity.RefreshFullActive();
-            
+                mouseMoveLastPoint = cur;
+            }
+
             // Resize Sides (CanResize + !MouseDown + !FullScreen)
             if (e.MouseDevice.LeftButton != MouseButtonState.Pressed)
             {
@@ -1004,9 +1007,12 @@ namespace FlyleafLib.Controls.WPF
         {
             Point cur = e.GetPosition(Overlay);
              
-            if (Player != null && ActivityTimeout > 0 && cur != lastOverlayPosition)
+            if (Player != null && cur != mouseMoveLastPoint)
+            {
                 Player.Activity.RefreshFullActive();
-            
+                mouseMoveLastPoint = cur;
+            }
+
             // Resize Sides (CanResize + !MouseDown + !FullScreen)
             if (e.MouseDevice.LeftButton != MouseButtonState.Pressed)
             {
@@ -1167,16 +1173,23 @@ namespace FlyleafLib.Controls.WPF
             }
             else if (resizingSide == 1 || resizingSide == 3 || resizingSide == 7)
             {
-                p.Y -= 5;
-                double temp = Window.ActualHeight - p.Y;
-                if (temp > Window.MinHeight && temp < Window.MaxHeight)
+                if (ratio != 0 && resizingSide != 7)
                 {
-                    WindowHeight = temp;
-                    WindowTop += p.Y;
+                    WindowTop += (Window.ActualWidth - WindowWidth) / ratio;
                 }
                 else
                 {
-                    WindowHeight = temp > Window.MinHeight ? Window.MaxHeight : Window.MinHeight;
+                    p.Y -= 5;
+                    double temp = Window.ActualHeight - p.Y;
+                    if (temp > Window.MinHeight && temp < Window.MaxHeight)
+                    {
+                        WindowHeight = temp;
+                        WindowTop += p.Y;
+                    }
+                    else
+                    {
+                        WindowHeight = temp > Window.MinHeight ? Window.MaxHeight : Window.MinHeight;
+                    }
                 }
             }
 
