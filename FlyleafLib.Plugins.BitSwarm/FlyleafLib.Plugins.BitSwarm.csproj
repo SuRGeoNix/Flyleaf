@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BitSwarm" Version="2.4.7" />
+    <PackageReference Include="BitSwarm" Version="2.4.8" />
   </ItemGroup>
 
   <ItemGroup>
