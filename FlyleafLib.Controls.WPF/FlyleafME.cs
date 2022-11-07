@@ -312,8 +312,6 @@ namespace FlyleafLib.Controls.WPF
                 Surface.MouseRightButtonUp += (o, e) => { 
                     popUpMenu.PlacementTarget = Overlay; popUpMenu.DataContext = this; popUpMenu.IsOpen = true; };
 
-            Overlay.MouseDown += (o, e) => { Player?.Activity.RefreshFullActive(); };
-            Overlay.MouseMove += (o, e) => { Player?.Activity.RefreshFullActive(); };
             Overlay.KeyUp += (o, e) =>
             {
                 if (e.Key == Key.Escape && dialogSettingsIdentifier != null && DialogHost.IsDialogOpen(dialogSettingsIdentifier))
