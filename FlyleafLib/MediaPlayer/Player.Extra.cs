@@ -232,6 +232,15 @@ namespace FlyleafLib.MediaPlayer
         {
             Speed = Speed - 0.25 < 0.25 ? 0.25 : Speed - 0.25;
         }
+
+        public void RotateRight()
+        {
+            Rotation = (_Rotation + 90) % 360;
+        }
+        public void RotateLeft()
+        {
+            Rotation = (_Rotation - 90) < 0 ? 360 + (_Rotation - 90) : (_Rotation - 90);
+        }
         
         public void FullScreen()
         {

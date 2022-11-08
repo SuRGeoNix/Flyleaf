@@ -12,7 +12,7 @@ namespace FlyleafLib.Controls.WinForms
     {
         Player _Player;
         public Player       Player          {
-            get => _Player; 
+            get => _Player;
             set {
                 if (_Player == value)
                     return; 
@@ -44,34 +44,50 @@ namespace FlyleafLib.Controls.WinForms
 
         bool _ToggleFullScreenOnDoubleClick = true;
         public bool         ToggleFullScreenOnDoubleClick 
-                                            { get => _ToggleFullScreenOnDoubleClick; set => Set(ref _ToggleFullScreenOnDoubleClick, value); }
+                                                    { get => _ToggleFullScreenOnDoubleClick; set => Set(ref _ToggleFullScreenOnDoubleClick, value); }
 
-        public int          UniqueId        { get; private set; } = -1;
+        public int          UniqueId                { get; private set; } = -1;
 
         bool _KeyBindings = true;
-        public bool         KeyBindings     { get => _KeyBindings; set => Set(ref _KeyBindings, value); }
+        public bool         KeyBindings             { get => _KeyBindings; set => Set(ref _KeyBindings, value); }
 
-        bool _PanMove = true;
-        public bool         PanMove         { get => _PanMove; set => Set(ref _PanMove, value); }
+        bool _PanMoveOnCtrl = true;
+        public bool         PanMoveOnCtrl           { get => _PanMoveOnCtrl; set => Set(ref _PanMoveOnCtrl, value); }
 
-        bool _PanZoom = true;
-        public bool         PanZoom         { get => _PanZoom; set => Set(ref _PanZoom, value); }
+        bool _PanZoomOnCtrlWheel = true;
+        public bool         PanZoomOnCtrlWheel      { get => _PanZoomOnCtrlWheel; set => Set(ref _PanZoomOnCtrlWheel, value); }
 
+        bool _PanRotateOnShiftWheel = true;
+        public bool         PanRotateOnShiftWheel   { get => _PanRotateOnShiftWheel; set => Set(ref _PanRotateOnShiftWheel, value); }
+        
         bool _DragMove = true;
-        public bool         DragMove        { get => _DragMove; set => Set(ref _DragMove, value); }
+        public bool         DragMove                { get => _DragMove; set => Set(ref _DragMove, value); }
+
+        bool _OpenOnDrop;
+        public bool         OpenOnDrop              { get => _OpenOnDrop; set { Set(ref _OpenOnDrop, value); AllowDrop = _SwapOnDrop || _OpenOnDrop; } }
+        
+        bool _SwapOnDrop = true;
+        public bool         SwapOnDrop              { get => _SwapOnDrop; set { Set(ref _SwapOnDrop, value);  AllowDrop = _SwapOnDrop || _OpenOnDrop; } }
+        
+        bool _SwapDragEnterOnShift = true;
+        public bool         SwapDragEnterOnShift    { get => _SwapDragEnterOnShift; set => Set(ref _SwapDragEnterOnShift, value); }
+        
 
         int panPrevX, panPrevY;
         Point mouseLeftDownPoint = new Point(0, 0);
-        bool designMode = (LicenseManager.UsageMode == LicenseUsageMode.Designtime);
+        Point mouseMoveLastPoint;
         Point oldLocation = Point.Empty;
         Size oldSize = Size.Empty;
         FormBorderStyle oldStyle = FormBorderStyle.None;
         Control oldParent = null;
         LogHandler Log;
+        bool designMode = (LicenseManager.UsageMode == LicenseUsageMode.Designtime);
+
+        private class FlyleafHostDropWrap { public FlyleafHost FlyleafHost; } // To allow non FlyleafHosts to drag & drop
 
         public FlyleafHost()
         {
-            AllowDrop = true;
+            AllowDrop = _SwapOnDrop || _OpenOnDrop;
             BackColor = Color.Black;
 
             if (designMode)
@@ -94,6 +110,14 @@ namespace FlyleafLib.Controls.WinForms
             if (Player == null)
                 return;
 
+            FlyleafHostDropWrap hostWrap = (FlyleafHostDropWrap) e.Data.GetData(typeof(FlyleafHostDropWrap));
+
+            if (hostWrap != null)
+            {
+                (hostWrap.FlyleafHost.Player, Player) = (Player, hostWrap.FlyleafHost.Player);
+                return;
+            }
+
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
@@ -109,9 +133,19 @@ namespace FlyleafLib.Controls.WinForms
         private void Host_DragEnter(object sender, DragEventArgs e) { if (Player != null) e.Effect = DragDropEffects.All; }
         private void Host_MouseWheel(object sender, MouseEventArgs e)
         {
-            if (PanZoom && Player != null && e.Delta != 0 && ModifierKeys.HasFlag(Keys.Control))
+            if (Player == null || e.Delta == 0)
+                return;
+
+            if (PanZoomOnCtrlWheel && ModifierKeys.HasFlag(Keys.Control))
             {
                 Player.Zoom += e.Delta > 0 ? Player.Config.Player.ZoomOffset : -Player.Config.Player.ZoomOffset;
+            }
+            else if (PanRotateOnShiftWheel && ModifierKeys.HasFlag(Keys.Shift))
+            {
+                if (e.Delta > 0)
+                    Player.RotateRight();
+                else
+                    Player.RotateLeft();
             }
         }
         private void Host_MouseMove(object sender, MouseEventArgs e)
@@ -119,15 +153,18 @@ namespace FlyleafLib.Controls.WinForms
             if (e.Button != MouseButtons.Left || Player == null)
                 return;
 
-            //if (Player.Config.Player.ActivityMode)
-                //Player.Activity.RefreshFullActive();
-            
-            if (PanMove && ModifierKeys.HasFlag(Keys.Control))
+            if (e.Location != mouseMoveLastPoint)
+            {
+                Player.Activity.RefreshFullActive();
+                mouseMoveLastPoint = e.Location;
+            }
+
+            if (PanMoveOnCtrl && ModifierKeys.HasFlag(Keys.Control))
             {
                 Player.PanXOffset = panPrevX + e.X - mouseLeftDownPoint.X;
                 Player.PanYOffset = panPrevY + e.Y - mouseLeftDownPoint.Y;
             }
-            else if (DragMove && ParentForm != null)// && !mouseLeftDownDeactivated)
+            else if (DragMove && Capture && ParentForm != null)
             {
                 ParentForm.Location  = new Point(ParentForm.Location.X + e.X - mouseLeftDownPoint.X, ParentForm.Location.Y + e.Y - mouseLeftDownPoint.Y);
             }
@@ -138,10 +175,18 @@ namespace FlyleafLib.Controls.WinForms
                 return;
 
             mouseLeftDownPoint = new Point(e.X, e.Y);
+
             if (Player != null)
             {
+                Player.Activity.RefreshFullActive();
+
                 panPrevX = Player.PanXOffset;
                 panPrevY = Player.PanYOffset;
+
+                if (ModifierKeys.HasFlag(Keys.Shift))
+                {
+                    DoDragDrop(new FlyleafHostDropWrap() { FlyleafHost = this }, DragDropEffects.Move);
+                }
             }
         }
         private void Host_DoubleClick(object sender, EventArgs e) { if (!ToggleFullScreenOnDoubleClick) return; IsFullScreen = !IsFullScreen; }

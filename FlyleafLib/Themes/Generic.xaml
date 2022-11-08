@@ -12,7 +12,7 @@
         
         <Setter Property="OpenOnDrop" Value="Surface"/>
         <Setter Property="SwapOnDrop" Value="Surface"/>
-        <Setter Property="SwapDragEnterWithShift" Value="Surface"/>
+        <Setter Property="SwapDragEnterOnShift" Value="Surface"/>
         
         <Setter Property="ToggleFullScreenOnDoubleClick" Value="Surface"/>
         
@@ -28,8 +28,9 @@
         <Setter Property="DetachedRememberSize" Value="True"/>
         <Setter Property="DetachedTopMost" Value="False"/>
         
-        <Setter Property="PanMoveWithCtrl" Value="Surface"/>
-        <Setter Property="PanZoomWithCtrlWheel" Value="Surface"/>
+        <Setter Property="PanMoveOnCtrl" Value="Surface"/>
+        <Setter Property="PanRotateOnShiftWheel" Value="Surface"/>
+        <Setter Property="PanZoomOnCtrlWheel" Value="Surface"/>
         
         <Setter Property="Template">
             <Setter.Value>
