@@ -55,6 +55,8 @@ namespace FlyleafLib.MediaPlayer
         public ICommand ZoomIn                  { get; set; }
         public ICommand ZoomOut                 { get; set; }
         public ICommand RotationSet             { get; set; } 
+        public ICommand RotateLeft              { get; set; } 
+        public ICommand RotateRight             { get; set; } 
         public ICommand ResetAll                { get; set; }
 
         public ICommand SpeedSet                { get; set; }
@@ -111,6 +113,8 @@ namespace FlyleafLib.MediaPlayer
             ZoomIn                  = new RelayCommandSimple(player.ZoomIn);
             ZoomOut                 = new RelayCommandSimple(player.ZoomOut);
             RotationSet             = new RelayCommand(RotationSetAction);
+            RotateLeft              = new RelayCommandSimple(player.RotateLeft);
+            RotateRight             = new RelayCommandSimple(player.RotateRight);
             ResetAll                = new RelayCommandSimple(player.ResetAll);
 
             SpeedSet                = new RelayCommand(SpeedSetAction);

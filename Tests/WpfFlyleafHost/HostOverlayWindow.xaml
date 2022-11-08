@@ -8,10 +8,12 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Window.Resources>
+        <!--Creating a new Instace of OverlayWindow-->
         <local:OverlayWindow x:Key="OverlayWindow"/>
     </Window.Resources>
     
     <Grid Background="Black">
+        <!--Providing the Overlay Window to FlyleafHost-->
         <fl:FlyleafHost Overlay="{StaticResource OverlayWindow}"/>
     </Grid>
 </Window>

@@ -53,7 +53,7 @@
                         DetachedFixedPosition="100 100" DetachedFixedSize="350 200"
                         DetachedPosition="BottomRight" DetachedPositionMargin="0 0 10 50"
                         
-                        PanMoveWithCtrl="None" PanZoomWithCtrlWheel="None"
+                        PanMoveOnCtrl="None" PanZoomOnCtrlWheel="None" PanRotateOnShiftWheel="None"
                         >
 
             <fl:FlyleafHost.DetachedContent>
@@ -92,7 +92,6 @@
                         <Setter Property="AttachedDragMove" Value="Surface"/>
                         <Setter Property="VerticalAlignment" Value="Top"/>
                         <Setter Property="HorizontalAlignment" Value="Left"/>
-                        <Setter Property="Player" Value="{DynamicResource {x:Type fl1:Player}}"/>
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="{x:Type fl:FlyleafHost}">

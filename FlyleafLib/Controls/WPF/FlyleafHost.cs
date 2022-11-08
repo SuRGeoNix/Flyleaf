@@ -32,14 +32,15 @@ namespace FlyleafLib.Controls.WPF
             DataContext						[Set by the user or default inheritance]
             HostDataContext					[Will be set Sync with DataContext as helper to Overlay when we pass this as Overlay's DataContext]
 
-            OpenOnDrop						[None, Surface, Overlay, Both]		| Requires AllowDrop and Player
-            SwapOnDrop						[None, Surface, Overlay, Both]		| Requires AllowDrop and Player
+            OpenOnDrop						[None, Surface, Overlay, Both]		| Requires Player and AllowDrop
+            SwapOnDrop						[None, Surface, Overlay, Both]		| Requires Player and AllowDrop
 
-            SwapDragEnterWithShift			[None, Surface, Overlay, Both]		| Requires SwapOnDrop and Player
+            SwapDragEnterOnShift			[None, Surface, Overlay, Both]		| Requires Player and SwapOnDrop
             ToggleFullScreenOnDoubleClick	[None, Surface, Overlay, Both]
 
-            PanMoveWithCtrl					[None, Surface, Overlay, Both]		| Requires Player and VideoStream Opened
-            PanZoomWithCtrlWheel			[None, Surface, Overlay, Both]		| Requires Player and VideoStream Opened
+            PanMoveOnCtrl					[None, Surface, Overlay, Both]		| Requires Player and VideoStream Opened
+            PanZoomOnCtrlWheel			    [None, Surface, Overlay, Both]		| Requires Player and VideoStream Opened
+            PanRotateOnShiftWheel           [None, Surface, Overlay, Both]      | Requires Player and VideoStream Opened
 
             AttachedDragMove				[None, Surface, Overlay, Both, SurfaceOwner, OverlayOwner, BothOwner]
             DetachedDragMove				[None, Surface, Overlay, Both]
@@ -132,13 +133,13 @@ namespace FlyleafLib.Controls.WPF
         public static readonly DependencyProperty SwapOnDropProperty =
             DependencyProperty.Register(nameof(SwapOnDrop), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface, new PropertyChangedCallback(DropChanged)));
 
-        public AvailableWindows SwapDragEnterWithShift
+        public AvailableWindows SwapDragEnterOnShift
         {
-            get { return (AvailableWindows)GetValue(SwapDragEnterWithShiftProperty); }
-            set { SetValue(SwapDragEnterWithShiftProperty, value); }
+            get { return (AvailableWindows)GetValue(SwapDragEnterOnShiftProperty); }
+            set { SetValue(SwapDragEnterOnShiftProperty, value); }
         }
-        public static readonly DependencyProperty SwapDragEnterWithShiftProperty =
-            DependencyProperty.Register(nameof(SwapDragEnterWithShift), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
+        public static readonly DependencyProperty SwapDragEnterOnShiftProperty =
+            DependencyProperty.Register(nameof(SwapDragEnterOnShift), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
         public AvailableWindows ToggleFullScreenOnDoubleClick
         {
@@ -148,21 +149,29 @@ namespace FlyleafLib.Controls.WPF
         public static readonly DependencyProperty ToggleFullScreenOnDoubleClickProperty =
             DependencyProperty.Register(nameof(ToggleFullScreenOnDoubleClick), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
-        public AvailableWindows PanMoveWithCtrl
+        public AvailableWindows PanMoveOnCtrl
         {
-            get { return (AvailableWindows)GetValue(PanMoveWithCtrlProperty); }
-            set { SetValue(PanMoveWithCtrlProperty, value); }
+            get { return (AvailableWindows)GetValue(PanMoveOnCtrlProperty); }
+            set { SetValue(PanMoveOnCtrlProperty, value); }
         }
-        public static readonly DependencyProperty PanMoveWithCtrlProperty =
-            DependencyProperty.Register(nameof(PanMoveWithCtrl), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
+        public static readonly DependencyProperty PanMoveOnCtrlProperty =
+            DependencyProperty.Register(nameof(PanMoveOnCtrl), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
-        public AvailableWindows PanZoomWithCtrlWheel
+        public AvailableWindows PanRotateOnShiftWheel
         {
-            get { return (AvailableWindows)GetValue(PanZoomWithCtrlWheelProperty); }
-            set { SetValue(PanZoomWithCtrlWheelProperty, value); }
+            get { return (AvailableWindows)GetValue(PanRotateOnShiftWheelProperty); }
+            set { SetValue(PanRotateOnShiftWheelProperty, value); }
         }
-        public static readonly DependencyProperty PanZoomWithCtrlWheelProperty =
-            DependencyProperty.Register(nameof(PanZoomWithCtrlWheel), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
+        public static readonly DependencyProperty PanRotateOnShiftWheelProperty =
+            DependencyProperty.Register(nameof(PanRotateOnShiftWheel), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
+
+        public AvailableWindows PanZoomOnCtrlWheel
+        {
+            get { return (AvailableWindows)GetValue(PanZoomOnCtrlWheelProperty); }
+            set { SetValue(PanZoomOnCtrlWheelProperty, value); }
+        }
+        public static readonly DependencyProperty PanZoomOnCtrlWheelProperty =
+            DependencyProperty.Register(nameof(PanZoomOnCtrlWheel), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
 
         public AttachedDragMoveOptions AttachedDragMove
@@ -523,9 +532,6 @@ namespace FlyleafLib.Controls.WPF
         }
         protected override void OnContentChanged(object oldContent, object newContent) // Can be called before OnApplyTemplate!
         {
-            //base.OnContentChanged(oldContent, newContent);
-            //return;
-
             if (isDesginMode)
             {
                 if (preventContentUpdate)
@@ -533,7 +539,6 @@ namespace FlyleafLib.Controls.WPF
                     base.OnContentChanged(oldContent, newContent);
                     return;
                 }
-                    
 
                 preventContentUpdate = true;
                 Content = null;
@@ -798,7 +803,8 @@ namespace FlyleafLib.Controls.WPF
         private void Overlay_DragEnter(object sender, DragEventArgs e) { if (Player != null) e.Effects = DragDropEffects.All; }
         private void Surface_StateChanged(object sender, EventArgs e)
         {
-            Overlay.WindowState = Surface.WindowState;
+            if (Overlay != null)
+                Overlay.WindowState = Surface.WindowState;
          
             switch (Surface.WindowState)
             {
@@ -839,7 +845,6 @@ namespace FlyleafLib.Controls.WPF
         private void Surface_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             mouseLeftDownPoint = e.GetPosition(Surface);
-            Player?.Activity.RefreshFullActive();
 
             if ((SwapOnDrop == AvailableWindows.Surface || SwapOnDrop == AvailableWindows.Both) && 
                 (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
@@ -859,6 +864,8 @@ namespace FlyleafLib.Controls.WPF
             {
                 if (Player != null)
                 {
+                    Player.Activity.RefreshFullActive();
+
                     panPrevX = Player.PanXOffset;
                     panPrevY = Player.PanYOffset;
                 }
@@ -869,7 +876,6 @@ namespace FlyleafLib.Controls.WPF
         private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             mouseLeftDownPoint = e.GetPosition(Overlay);
-            Player?.Activity.RefreshFullActive();
             
             if ((SwapOnDrop == AvailableWindows.Overlay || SwapOnDrop == AvailableWindows.Both) && 
                 (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
@@ -889,6 +895,8 @@ namespace FlyleafLib.Controls.WPF
             {
                 if (Player != null)
                 {
+                    Player.Activity.RefreshFullActive();
+
                     panPrevX = Player.PanXOffset;
                     panPrevY = Player.PanYOffset;
                 }
@@ -970,7 +978,7 @@ namespace FlyleafLib.Controls.WPF
 
             // Player's Pan Move (Ctrl + Drag Move)
             else if (Player != null && 
-                (PanMoveWithCtrl == AvailableWindows.Surface || PanMoveWithCtrl == AvailableWindows.Both) &&
+                (PanMoveOnCtrl == AvailableWindows.Surface || PanMoveOnCtrl == AvailableWindows.Both) &&
                 (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
             {
                 Player.PanXOffset = panPrevX + (int) (cur.X - mouseLeftDownPoint.X);
@@ -1051,7 +1059,7 @@ namespace FlyleafLib.Controls.WPF
 
             // Player's Pan Move (Ctrl + Drag Move)
             else if (Player != null && 
-                (PanMoveWithCtrl == AvailableWindows.Overlay || PanMoveWithCtrl == AvailableWindows.Both) &&
+                (PanMoveOnCtrl == AvailableWindows.Overlay || PanMoveOnCtrl == AvailableWindows.Both) &&
                 (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
             {
                 Player.PanXOffset = panPrevX + (int) (cur.X - mouseLeftDownPoint.X);
@@ -1095,12 +1103,23 @@ namespace FlyleafLib.Controls.WPF
 
         private void Surface_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (Player != null && e.Delta != 0 && 
-                (PanZoomWithCtrlWheel == AvailableWindows.Surface || PanZoomWithCtrlWheel == AvailableWindows.Both) &&
-                (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
+            if (Player == null || e.Delta == 0)
+                return;
+
+            if      ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) &&
+                (PanZoomOnCtrlWheel == AvailableWindows.Surface || PanZoomOnCtrlWheel == AvailableWindows.Both))
             {
                 Player.Zoom += e.Delta > 0 ? Player.Config.Player.ZoomOffset : -Player.Config.Player.ZoomOffset;
             }
+            else if ((Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)) &&
+                (PanRotateOnShiftWheel == AvailableWindows.Surface || PanZoomOnCtrlWheel == AvailableWindows.Both))
+            {
+                if (e.Delta > 0)
+                    Player.RotateRight();
+                else
+                    Player.RotateLeft();
+            }
+
             //else if (IsAttached) // TBR ScrollViewer
             //{
             //    RaiseEvent(e);
@@ -1108,11 +1127,21 @@ namespace FlyleafLib.Controls.WPF
         }
         private void Overlay_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (Player != null && e.Delta != 0 && 
-                (PanZoomWithCtrlWheel == AvailableWindows.Overlay || PanZoomWithCtrlWheel == AvailableWindows.Both) &&
-                (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
+            if (Player == null || e.Delta == 0)
+                return;
+
+            if      ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) &&
+                (PanZoomOnCtrlWheel == AvailableWindows.Overlay || PanZoomOnCtrlWheel == AvailableWindows.Both))
             {
                 Player.Zoom += e.Delta > 0 ? Player.Config.Player.ZoomOffset : -Player.Config.Player.ZoomOffset;
+            }
+            else if ((Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)) &&
+                (PanRotateOnShiftWheel == AvailableWindows.Overlay || PanZoomOnCtrlWheel == AvailableWindows.Both))
+            {
+                if (e.Delta > 0)
+                    Player.RotateRight();
+                else
+                    Player.RotateLeft();
             }
         }
 
