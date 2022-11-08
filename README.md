@@ -1,6 +1,6 @@
-# *Flyleaf v3.4*: Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)
+# *Flyleaf v3.6*: Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)
 
-![alt text](Images/Flyleafv3.0.png)
+![alt text](Images/Flyleafv3.6.png)
 ---
 
 >Notes<br/>
@@ -23,15 +23,31 @@
 * ***RTSP***: supports RTSP cameras with low latency
 * ***AudioOnly***: supports Audio Player only without the need of Control/Rendering
 * ***HDR to SDR***: supports BT2020 / SMPTE 2084 to BT709 with Aces, Hable and Reinhard methods (still in progress, HDR native not supported yet)
-* ***Slow/Fast Speed***: Change playback speed (x0.0 - x1.0 and x1 - x4)
+* ***Slow/Fast Speed***: Change playback speed (x0.0 - x1.0 and x1 - x16)
 * ***Reverse Playback***: Change playback mode to reverse and still keep the same frame rate (speed x0.0 - x1.0)
 * ***Recorder***: record the currently watching video
 * ***Snapshots***: Take a snapshot of the current frame
-* ***Zoom In/Out***: Zoom In/Out the rendering surface
-* ***Key Bindings***: Assign embedded or custom actions to keys (check [default](https://github.com/SuRGeoNix/Flyleaf/wiki/Player#mouse--key-bindings))
+* ***Pan Move***: Drag move the rendering surface
+* ***Pan Rotation***: Rotate to any angle (0° - 360°) the rendering surface
+* ***Pan Zoom***: Zoom In / Out the rendering surface
+* ***Deinterlace***: Currently supports bob deinterlacing
+* ***Video Filters***: Supports brightness, contrast, hue and saturation filters
+* ***Key Bindings***: Assign embedded or custom actions to keys (check [default](https://github.com/SuRGeoNix/Flyleaf/wiki/Player-(Key-&-Mouse-Bindings)))
 * ***Themes***: WPF Control is based on [Material Design In XAML](http://materialdesigninxaml.net/) and supports already some basic Color Themes
 * ***Downloader***: supports also the plugins so you can download any yt-dlp supported url as well
 * ***Frame Extractor***: Extract video frames to Bmp, Jpeg, Png etc. (All, Specific or by Step)
+
+### [[FlyleafHost]](https://github.com/SuRGeoNix/Flyleaf/wiki/FlyleafHost)
+
+A custom implementation to host the hardware accelerated D3D rendering surface within a WinUI application
+
+* ***Attach / Detach***: Detaches the host and allows to move freely
+* ***Drag Move (Self / Owner)***: Drag move within the window owner's border
+* ***Drag & Drop Swap***: Fast players swap between flyleaf hosts
+* ***Drag & Drop Open***: Open new inputs easily by drag & drop
+* ***Full / Normal Screen***: Fast switch between normal and full screen
+* ***Resize***: Custom resize implementation for transparent non-boarders windows (can respect input's ratio)
+* ***Z-order***: Supports z-order betweeen flyleaf hosts within owner's window
 
 ### [Thanks to]
 *Flyleaf wouldn't exist without them!*
