@@ -67,7 +67,7 @@
 - *Advanced Character Detection and Convert to UTF-8* <sub>SubtitlesConverter plugin</sub>
 - *Languages support* <sub>System's default languages as priorities for subtitles streams</sub>
 
-### **UI Control (FlyleafHost)**<sub>WPF / WinForms (Partialy)</sub>
+### **UI Control (FlyleafHost)**<sub>WPF / WinForms (Partially)</sub>
 - *Attach / Detach*
 - *Activity / Idle Mode*
 - *Drag Move (Self / Owner)*

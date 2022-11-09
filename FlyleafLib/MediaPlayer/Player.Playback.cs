@@ -198,8 +198,6 @@ namespace FlyleafLib.MediaPlayer
             Raise(nameof(CurTime));
             seeks.Push(new SeekData(ms, forward, accurate));
 
-            decoder.OpenedPlugin?.OnBuffering();
-
             if (Status == Status.Playing) return;
 
             lock (lockActions) { if (taskSeekRuns) return; taskSeekRuns = true; }
