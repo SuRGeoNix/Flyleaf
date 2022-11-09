@@ -20,7 +20,7 @@
                 </StackPanel>
 
                 <fl:FlyleafHost x:Name="SeekView" Player="{Binding PlayerSeek}" BorderThickness="3" BorderBrush="Green" Width="100" Height="100" VerticalAlignment="Bottom" Focusable="True" Margin="0 0 0 15"
-                              KeyBindings="None" AttachedDragMove="None" ToggleFullScreenOnDoubleClick="Both" PanMoveWithCtrl="None" PanZoomWithCtrlWheel="None"
+                              KeyBindings="None" AttachedDragMove="None" ToggleFullScreenOnDoubleClick="Both" PanMoveOnCtrl="None" PanZoomOnCtrlWheel="None" PanRotateOnShiftWheel="None"
                               />
 
                 <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center">
