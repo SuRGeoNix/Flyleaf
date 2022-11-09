@@ -15,4 +15,8 @@
     <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" />
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)\Plugins\bin\Plugins.NET6\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
+  </Target>
+
 </Project>

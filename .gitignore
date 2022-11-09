@@ -340,11 +340,8 @@ healthchecksdb
 # XML Documentation
 FlyleafLib/FlyleafLib.xml
 
-# Plugins
-/Plugins.NET4/
-/Plugins.NET5/
-/Plugins.NET6/
-/Plugins/
+# Shared Compiled Plugins
+/Samples/Plugins
 
 # NuGet Pack
 *.nuspec
