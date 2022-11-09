@@ -129,17 +129,21 @@ namespace FlyleafLib.MediaPlayer
             bool shouldStop     = false;
             bool showOneFrame   = Config.Player.MaxLatency == 0;
             int  audioRetries   = 3;
+            int  loops          = 0;
 
             do
             {
+                loops++;
+
                 if (showOneFrame && !VideoDecoder.Frames.IsEmpty)
                 {
                     ShowOneFrame();
-                    if (!seeks.IsEmpty)
-                        return false; 
-
                     showOneFrame = false;
                 }
+
+                // We allo few ms to show a frame before cancelling
+                if ((!showOneFrame || loops > 8) && !seeks.IsEmpty)
+                    return false;
 
                 if (vFrame == null && !VideoDecoder.Frames.IsEmpty)
                 {
@@ -212,7 +216,10 @@ namespace FlyleafLib.MediaPlayer
                 return false;
             }
 
-            while(VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
+            while(seeks.IsEmpty && VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
+
+            if (!seeks.IsEmpty)
+                return false;
 
             vFrame.timestamp= (long) (vFrame.timestamp / Speed);
             videoStartTicks = vFrame.timestamp;
