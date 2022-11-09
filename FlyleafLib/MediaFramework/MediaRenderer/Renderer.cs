@@ -206,7 +206,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
             }
         }
-        private void ControlRef_SizeChanged(object sender, EventArgs e) => ResizeBuffers((int)(ControlRef.Width * Utils.NativeMethods.DpiX), (int)(ControlRef.Height * Utils.NativeMethods.DpiY));
+        private void ControlRef_SizeChanged(object sender, EventArgs e) => ResizeBuffers(ControlRef.Width, ControlRef.Height);
         private void WindowRef_SizeChanged(object sender, SizeChangedEventArgs e) => ResizeBuffers((int)(e.NewSize.Width * Utils.NativeMethods.DpiX), (int)(e.NewSize.Height * Utils.NativeMethods.DpiY));
 
         public void Initialize()
