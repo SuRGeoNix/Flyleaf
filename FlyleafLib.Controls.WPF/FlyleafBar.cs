@@ -19,9 +19,37 @@ namespace FlyleafLib.Controls.WPF
         public static readonly DependencyProperty PlayerProperty =
             DependencyProperty.Register(nameof(Player), typeof(Player), typeof(FlyleafBar), new PropertyMetadata(null, new PropertyChangedCallback(OnPlayerChanged)));
 
-        private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) { }
+
+        ContextMenu popUpMenuSubtitles, popUpMenuVideo;
+        bool initialized = false;
+
+        public override void OnApplyTemplate()
         {
-            
+            base.OnApplyTemplate();
+
+            if (initialized)
+                return;
+
+            initialized = true;
+
+            popUpMenuSubtitles  = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner_Subtitles", this))?.ContextMenu;
+            popUpMenuVideo      = ((FrameworkElement)Template.FindName("PART_ContextMenuOwner_Video", this))?.ContextMenu;
+
+            if (popUpMenuSubtitles != null)
+            {
+                popUpMenuSubtitles.PlacementTarget = this;
+                popUpMenuSubtitles.Opened += (o, e) => { if (Player != null) Player.Activity.IsEnabled = false; };
+                popUpMenuSubtitles.Closed += (o, e) => { if (Player != null) Player.Activity.IsEnabled = true; };
+            }
+
+            if (popUpMenuVideo != null)
+            {
+                popUpMenuVideo.PlacementTarget = this;
+                popUpMenuVideo.Opened += (o, e) => { if (Player != null) Player.Activity.IsEnabled = false; };
+                popUpMenuVideo.Closed += (o, e) => { if (Player != null) Player.Activity.IsEnabled = true; };
+            }
+
         }
 
         static FlyleafBar()
