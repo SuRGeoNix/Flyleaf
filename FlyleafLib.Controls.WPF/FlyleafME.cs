@@ -145,7 +145,7 @@ namespace FlyleafLib.Controls.WPF
         bool initialized;
         internal Settings
                     settings;
-        ContextMenu popUpMenu, popUpMenuSubtitles, popUpMenuVideo;
+        ContextMenu popUpMenu;
         MenuItem    popUpAspectRatio;
         MenuItem    popUpKeepAspectRatio;
         MenuItem    popUpCustomAspectRatio;
@@ -251,8 +251,6 @@ namespace FlyleafLib.Controls.WPF
 
             NamedColors = GetColors();
             popUpMenu           = ((FrameworkElement)LogicalTreeHelper.FindLogicalNode((FrameworkElement)Overlay.Content, "PART_ContextMenuOwner"))?.ContextMenu;
-            popUpMenuSubtitles  = ((FrameworkElement)LogicalTreeHelper.FindLogicalNode((FrameworkElement)Overlay.Content, "PART_ContextMenuOwner_Subtitles"))?.ContextMenu;
-            popUpMenuVideo      = ((FrameworkElement)LogicalTreeHelper.FindLogicalNode((FrameworkElement)Overlay.Content, "PART_ContextMenuOwner_Video"))?.ContextMenu;
 
             var dialogSettings  = (DialogHost)LogicalTreeHelper.FindLogicalNode((FrameworkElement)Overlay.Content, "PART_DialogSettings");
             if (dialogSettings != null)
@@ -326,20 +324,6 @@ namespace FlyleafLib.Controls.WPF
             if (popUpMenu != null)
                 popUpMenu.PlacementTarget = this;
 
-            if (popUpMenuSubtitles != null)
-            {
-                popUpMenuSubtitles.PlacementTarget = this;
-                popUpMenuSubtitles.Opened += (o, e) => { if (Player != null) Player.Activity.IsEnabled = false; };
-                popUpMenuSubtitles.Closed += (o, e) => { if (Player != null) Player.Activity.IsEnabled = true; };
-            }
-
-            if (popUpMenuVideo != null)
-            {
-                popUpMenuVideo.PlacementTarget = this;
-                popUpMenuVideo.Opened += (o, e) => { if (Player != null) Player.Activity.IsEnabled = false; };
-                popUpMenuVideo.Closed += (o, e) => { if (Player != null) Player.Activity.IsEnabled = true; };
-            }
-
             if (popUpMenu != null)
             {
                 var videoItem = from object item in popUpMenu.Items where item is MenuItem && ((MenuItem)item).Header != null && ((MenuItem)item).Header.ToString() == "Video" select item;
@@ -396,8 +380,6 @@ namespace FlyleafLib.Controls.WPF
             ExitApplication     = new RelayCommand(ExitApplicationAction);
             SetSubsPositionY    = new RelayCommand(SetSubsPositionYAction);
             ResetSubsPositionY  = new RelayCommand(ResetSubsPositionYAction);
-            ShowSubtitlesMenu   = new RelayCommand(ShowSubtitlesMenuAction);
-            ShowVideoMenu       = new RelayCommand(ShowVideoMenuAction);
         }
         
         public ICommand OpenFileDialog { get; set; }
@@ -405,11 +387,7 @@ namespace FlyleafLib.Controls.WPF
 
         public ICommand ExitApplication { get ; set; }
         public void ExitApplicationAction(object obj = null) { Application.Current.Shutdown(); }
-        public ICommand ShowSubtitlesMenu { get; set; }
-        public void ShowSubtitlesMenuAction(object obj = null) { popUpMenuSubtitles.IsOpen = true; }
 
-        public ICommand ShowVideoMenu { get; set; }
-        public void ShowVideoMenuAction(object obj = null) { popUpMenuVideo.IsOpen = true; }
         public ICommand OpenSettings        { get; set; }
         public async void OpenSettingsAction(object obj = null)
         {
