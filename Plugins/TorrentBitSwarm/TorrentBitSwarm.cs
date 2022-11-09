@@ -8,16 +8,14 @@ using System.Threading.Tasks;
 
 using SuRGeoNix.BitSwarmLib;
 using SuRGeoNix.BitSwarmLib.BEP;
-
 using static SuRGeoNix.BitSwarmLib.BitSwarm;
 
 using FlyleafLib.MediaFramework.MediaPlaylist;
-
 using static FlyleafLib.Utils;
 
 namespace FlyleafLib.Plugins
 {
-    public class BitSwarm : PluginBase, IOpen
+    public class TorrentBitSwarm : PluginBase, IOpen
     {
         public new int          Priority            { get; set; } = 2000;
 
@@ -26,8 +24,7 @@ namespace FlyleafLib.Plugins
         public string           FileName            { get; private set; }
         public TorrentStream    TorrentStream       { get; private set; }
 
-        SuRGeoNix.BitSwarmLib.BitSwarm
-                        bitSwarm;
+        BitSwarm        bitSwarm;
         TorrentOptions  cfg = new TorrentOptions();
         Torrent         torrent;
         string          errorMsg;
@@ -156,7 +153,7 @@ namespace FlyleafLib.Plugins
                 Playlist.Title = torrent.file.name;
                 Playlist.FolderBase = FolderComplete;
 
-                sortedPaths = Utils.GetMoviesSorted(torrent.file.paths);
+                sortedPaths = GetMoviesSorted(torrent.file.paths);
 
                 foreach (var path in sortedPaths)
                 {
@@ -173,7 +170,7 @@ namespace FlyleafLib.Plugins
                     else
                         item.Title = path;
 
-                    string ext = Utils.GetUrlExtention(item.Title);
+                    string ext = GetUrlExtention(item.Title);
                     if (ext != null && ext.Length < 5)
                         item.Title = item.Title.Substring(0, item.Title.Length - ext.Length -1);
 
@@ -223,7 +220,7 @@ namespace FlyleafLib.Plugins
 
         public bool CanOpen()
         {
-            return ValidateInput(Playlist.Url) != SuRGeoNix.BitSwarmLib.BitSwarm.InputType.Unkown;
+            return ValidateInput(Playlist.Url) != BitSwarm.InputType.Unkown;
         }
 
         public OpenResults Open()
@@ -233,7 +230,7 @@ namespace FlyleafLib.Plugins
                 openId = Handler.OpenCounter;
                 Disposed                    = false;
                 torrentReceived             = false;
-                bitSwarm                    = new SuRGeoNix.BitSwarmLib.BitSwarm(cfg);
+                bitSwarm                    = new BitSwarm(cfg);
                 bitSwarm.MetadataReceived   += MetadataReceived;
                 bitSwarm.OnFinishing        += OnFinishing;
                 bitSwarm.StatusChanged      += BitSwarm_StatusChanged;
@@ -288,8 +285,6 @@ namespace FlyleafLib.Plugins
             }
 
             openItemId = Handler.OpenItemCounter;
-            
-
             downloadNextStarted     = false;
             bitSwarm.FocusAreInUse  = false;
             fileIndexNext           = -1;
@@ -345,8 +340,8 @@ namespace FlyleafLib.Plugins
 
             public TorrentOptions()
             {
-                FolderComplete      = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents") : Path.Combine(Path.GetTempPath(), "Torrents");
-                FolderIncomplete    = Utils.GetUserDownloadPath() != null ? Path.Combine(Utils.GetUserDownloadPath(), "Torrents", "_incomplete") : Path.Combine(Path.GetTempPath(), "Torrents", "_incomplete");
+                FolderComplete      = GetUserDownloadPath() != null ? Path.Combine(GetUserDownloadPath(), "Torrents") : Path.Combine(Path.GetTempPath(), "Torrents");
+                FolderIncomplete    = GetUserDownloadPath() != null ? Path.Combine(GetUserDownloadPath(), "Torrents", "_incomplete") : Path.Combine(Path.GetTempPath(), "Torrents", "_incomplete");
                 FolderTorrents      = FolderIncomplete;
 
                 MaxTotalConnections = 80;

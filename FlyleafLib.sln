@@ -77,13 +77,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WpfFlyleafHost", "Tests\Wpf
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{BF7004C3-CDF7-41B4-980D-36F6A407969B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TorrentBitSwarm", "Plugins\FlyleafLib.Plugins.BitSwarm\TorrentBitSwarm.csproj", "{A5BC96CF-2687-4397-A3DC-9A346366B7D0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TorrentBitSwarm", "Plugins\TorrentBitSwarm\TorrentBitSwarm.csproj", "{A5BC96CF-2687-4397-A3DC-9A346366B7D0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenSubtitlesOrg", "Plugins\FlyleafLib.Plugins.OpenSubtitlesOrg\OpenSubtitlesOrg.csproj", "{80FB4994-6492-49FC-BC8A-1CA768C182A7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenSubtitlesOrg", "Plugins\OpenSubtitlesOrg\OpenSubtitlesOrg.csproj", "{80FB4994-6492-49FC-BC8A-1CA768C182A7}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubtitlesConverter", "Plugins\FlyleafLib.Plugins.SubtitlesConverter\SubtitlesConverter.csproj", "{EBC54F66-FDE1-4119-9A9A-68411A690AFE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubtitlesConverter", "Plugins\SubtitlesConverter\SubtitlesConverter.csproj", "{EBC54F66-FDE1-4119-9A9A-68411A690AFE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YoutubeDL", "Plugins\FlyleafLib.Plugins.YoutubeDL\YoutubeDL.csproj", "{0373A77C-8084-49A3-A55C-616A0786B157}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YoutubeDL", "Plugins\YoutubeDL\YoutubeDL.csproj", "{0373A77C-8084-49A3-A55C-616A0786B157}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
