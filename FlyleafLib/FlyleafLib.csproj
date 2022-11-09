@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6-pre3</Version>
+	<Version>3.6</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,29 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Player: Adds Rotation support
-		* Player.Commands: Adds RotationSet
-		* Renderer: Fixes an issue after Player.Stop
-		* WPF.FlyleafHost: Fixes issues with Designer, Activity, Resize and Window States
+		Introduces FlyleafHost a new DPI aware, hardware accelerated Direct3D Surface (WPF VideoView's replacement and Flyleaf's for Winforms)
+			* Early and fast initialization of handles and renderer which will also resolve several issues
+			* Adds Attach / Detach functionality
+			* Self Drag Move also on attach mode (within the host's owner bounds)
+			* Drag &amp; Drop Swap between FlyleafHosts (Shift + Drag)
+			* Custom non-borders resizable windows both on attach and detach mode (can keep input's ratio)
+			* Adds Z-order surfaces support
+			* Resolves several issues when the host's rectangle was clipped
+			* Adds support for WPF Windows to the Renderer in addition to WinForms UserControl
+			* Resolves several issues with DPI
+			* Better UI performance overall (including swaps and switching between Normal / Full Screen)
+			
+		Player
+			* Adds Rotation Support (Shift + Wheel)
+			* Fixes a UI threading issue that it could cause Player.Initialization to crash
+			* Fixes Activity / Idle mode issues
+			* General code clean-up and performance improvements
+			
+		Breaking Changes
+			* VideoView has been renamed to FlyleafHost
+			* Player.IsFullScreen, Config.Player.ActivityTimeout, Config.Player.MouseBindings and Config.Player.KeyBindings.(Enabled/FlyleafWindow) has been transferred to FlyleafHost
+			* Player.ActivityMode has been removed (its the same as ActivityTimeout=0) however Player.Activity.IsEnabled can be used to temporary turn it on/off
+			* Player.Swap has been removed as you can now set directly the Players to FlyleafHosts
 	</PackageReleaseNotes>
   </PropertyGroup>
 
