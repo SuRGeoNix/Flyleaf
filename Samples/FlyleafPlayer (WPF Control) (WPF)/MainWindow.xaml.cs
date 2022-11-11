@@ -9,7 +9,8 @@ using FlyleafLib.MediaPlayer;
 namespace FlyleafPlayer
 {
     /// <summary>
-    /// FlyleafPlayer (Customization of FlyleafME) Sample
+    /// <para>FlyleafPlayer Sample</para>
+    /// <para>A stand-alone Overlay which uses a customization of FlyleafME control</para>
     /// </summary>
     public partial class MainWindow : Window
     {
@@ -23,7 +24,7 @@ namespace FlyleafPlayer
         /// </summary>
         public FlyleafME    FlyleafME   { get; set; }
 
-        
+        static bool runOnce;
         Config playerConfig;
         bool ReversePlaybackChecked;
 
@@ -94,8 +95,6 @@ namespace FlyleafPlayer
                 playerConfig.Player.KeyBindings.AddCustom(System.Windows.Input.Key.W, true, () => { Close(); }, "Close Window", false, true, false);
         }
 
-
-
         private Config DefaultConfig()
         {
             Config config = new Config();
@@ -105,7 +104,6 @@ namespace FlyleafPlayer
             return config;
         }
 
-        static bool runOnce;
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             if (runOnce)
