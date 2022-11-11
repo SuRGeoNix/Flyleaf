@@ -42,23 +42,43 @@ namespace FlyleafPlayer__Custom_
             // 
             // flyleaf1
             // 
+            this.flyleaf1.AllowDrop = true;
             this.flyleaf1.BackColor = System.Drawing.Color.Black;
+            this.flyleaf1.DragMove = true;
             this.flyleaf1.IsFullScreen = false;
+            this.flyleaf1.KeyBindings = true;
             this.flyleaf1.Location = new System.Drawing.Point(24, 52);
             this.flyleaf1.Name = "flyleaf1";
+            this.flyleaf1.OpenOnDrop = false;
+            this.flyleaf1.PanMoveOnCtrl = true;
+            this.flyleaf1.PanRotateOnShiftWheel = true;
+            this.flyleaf1.PanZoomOnCtrlWheel = true;
             this.flyleaf1.Player = null;
             this.flyleaf1.Size = new System.Drawing.Size(333, 250);
+            this.flyleaf1.SwapDragEnterOnShift = true;
+            this.flyleaf1.SwapOnDrop = true;
             this.flyleaf1.TabIndex = 0;
+            this.flyleaf1.ToggleFullScreenOnDoubleClick = true;
             // 
             // flyleaf2
             // 
+            this.flyleaf2.AllowDrop = true;
             this.flyleaf2.BackColor = System.Drawing.Color.Black;
+            this.flyleaf2.DragMove = true;
             this.flyleaf2.IsFullScreen = false;
+            this.flyleaf2.KeyBindings = true;
             this.flyleaf2.Location = new System.Drawing.Point(405, 52);
             this.flyleaf2.Name = "flyleaf2";
+            this.flyleaf2.OpenOnDrop = false;
+            this.flyleaf2.PanMoveOnCtrl = true;
+            this.flyleaf2.PanRotateOnShiftWheel = true;
+            this.flyleaf2.PanZoomOnCtrlWheel = true;
             this.flyleaf2.Player = null;
             this.flyleaf2.Size = new System.Drawing.Size(333, 250);
+            this.flyleaf2.SwapDragEnterOnShift = true;
+            this.flyleaf2.SwapOnDrop = true;
             this.flyleaf2.TabIndex = 1;
+            this.flyleaf2.ToggleFullScreenOnDoubleClick = true;
             // 
             // btnSwap
             // 

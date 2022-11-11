@@ -295,7 +295,7 @@ namespace FlyleafLib.MediaPlayer
             lock (lockActions)
             {
                 Initialize();
-                VideoDecoder.DisposeVA();
+                renderer.Flush();
             }
         }
     }

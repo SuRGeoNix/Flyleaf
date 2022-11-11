@@ -1338,10 +1338,7 @@ namespace FlyleafLib.Controls.WPF
                 Log.Debug($"De-assign Player #{oldPlayer.PlayerId}");
 
                 oldPlayer.Video.PropertyChanged -= Player_Video_PropertyChanged;
-
-                if (oldPlayer.renderer != null)
-                    oldPlayer.renderer.SetControl(null);
-                
+                oldPlayer.VideoDecoder.DestroySwapChain();
                 oldPlayer.WPFHost = null;
                 oldPlayer.IsFullScreen = false;
             }
@@ -1349,8 +1346,7 @@ namespace FlyleafLib.Controls.WPF
             if (Player == null)
                 return;
 
-            // Set UniqueId (First Player's Id)
-            Log.Prefix  = ("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost #{Player.PlayerId}] ";
+            Log.Prefix = ("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost #{Player.PlayerId}] ";
 
             // De-assign new Player's Handle/FlyleafHost
             if (Player.WPFHost != null)
@@ -1365,7 +1361,9 @@ namespace FlyleafLib.Controls.WPF
             Player.WPFHost = this;
             Player.Activity.Timeout = ActivityTimeout;
             Player.IsFullScreen = IsFullScreen;
-            Player.VideoDecoder.CreateRenderer(Surface);
+            Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
+
+            Surface.Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
 
             Player.Video.PropertyChanged += Player_Video_PropertyChanged;
             if (KeepRatioOnResize && Player.Video.AspectRatio.Value > 0)

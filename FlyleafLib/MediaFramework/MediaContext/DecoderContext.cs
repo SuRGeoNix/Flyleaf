@@ -552,7 +552,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
         public new void Dispose()
         {
             Stop();
-            VideoDecoder.DisposeVA();
+            VideoDecoder.DestroyRenderer();
             base.Dispose();
         }
 
