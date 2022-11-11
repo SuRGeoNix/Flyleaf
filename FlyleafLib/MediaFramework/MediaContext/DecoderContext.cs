@@ -498,7 +498,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                             else if (frame->pts == AV_NOPTS_VALUE)
                                 { av_frame_unref(frame); continue; }
 
-                            if (VideoDecoder.keyFrameRequired && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
+                            if (VideoDecoder.keyFrameRequired && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
                             {
                                 if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                                 av_frame_unref(frame);

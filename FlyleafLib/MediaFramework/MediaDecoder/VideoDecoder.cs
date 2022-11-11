@@ -582,7 +582,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                         if (keyFrameRequired)
                         {
-                            if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I)
+                            if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
                             {
                                 if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                                 av_frame_unref(frame);
