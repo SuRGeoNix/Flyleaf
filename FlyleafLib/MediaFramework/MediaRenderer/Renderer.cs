@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Forms;
-using System.Windows.Interop;
 
 using SharpGen.Runtime;
 
@@ -21,6 +19,7 @@ using Vortice.Mathematics;
 using FlyleafLib.MediaFramework.MediaFrame;
 using VideoDecoder = FlyleafLib.MediaFramework.MediaDecoder.VideoDecoder;
 
+using static FlyleafLib.Utils.NativeMethods;
 using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer
@@ -38,11 +37,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public Config           Config          => VideoDecoder?.Config;
         public int              ControlWidth    { get; private set; }
         public int              ControlHeight   { get; private set; }
-        internal IntPtr         ControlHandle; // When we re-created the swapchain so we don't access the control (which requires UI thread)
-
-        public Window           WindowRef       { get; set; }
-        public Form             FormRef         { get; set; }
-        public UserControl      ControlRef      { get; set; }
+        internal IntPtr         ControlHandle;
 
         public ID3D11Device     Device          { get; private set; }
         public bool             Disposed        { get; private set; } = true;
@@ -118,8 +113,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         long    lastPresentRequestAt= 0;
         float   curRatio            = 1.0f;
 
-        public Renderer(VideoDecoder videoDecoder, object control = null, int uniqueId = -1)
+        private const Int32 WM_SIZE = 0x0005;
+        WndProcDelegate wndProcDelegateNew;
+        IntPtr wndProcOldHandle, wndProcNewHandle;
+
+        public Renderer(VideoDecoder videoDecoder, IntPtr handle = new IntPtr(), int uniqueId = -1)
         {
+            wndProcDelegateNew = new WndProcDelegate(WndProc);
+            wndProcNewHandle = Marshal.GetFunctionPointerForDelegate(wndProcDelegateNew);
+
             UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder = videoDecoder;
             Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
@@ -148,66 +150,22 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 SampleDescription   = new SampleDescription(1, 0)
             };
             
+            ControlHandle = handle;
             Initialize();
-
-            if (control != null)
-                SetControl(control);
         }
 
-        public void SetControl(object control)
+        private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
-            lock (lockDevice)
+            switch (msg)
             {
-                DisposeSwapChain(true);
-
-                if (control == null)
-                    return;
-
-                if (control is Window)
-                {
-                    WindowRef = (Window)control;
-
-                    ControlHandle = new WindowInteropHelper(WindowRef).EnsureHandle();
-                    ControlWidth = (int)WindowRef.ActualWidth;
-                    ControlHeight = (int)WindowRef.ActualHeight;
-
-                    InitializeSwapChain();
-                    Log.Debug("Swap chain with control ready");
-                }
-                else if (control is UserControl)
-                {
-                    ControlRef = (UserControl)control;
-                    ControlWidth = ControlRef.Width;
-                    ControlHeight = ControlRef.Height;
-
-                    if (ControlRef.Handle == IntPtr.Zero)
-                    {
-                        Log.Debug("Waiting for control handle to be created");
-
-                        ControlRef.HandleCreated += (o, e) =>
-                        {
-                            lock (lockDevice)
-                            {
-                                ControlHandle = ControlRef.Handle;
-                                InitializeSwapChain();
-                                Log.Debug("Swap chain with control ready");
-                            }
-                        };
-                    }
-                    else
-                    {
-                        lock (lockDevice)
-                        {
-                            ControlHandle = ControlRef.Handle;
-                            InitializeSwapChain();
-                            Log.Debug("Swap chain with control ready");
-                        }
-                    }
-                }
+                case WM_SIZE:
+                    ResizeBuffers(SignedLOWORD(lParam), SignedHIWORD(lParam));
+                    break;
             }
+
+            // For better performance might prevent Paint/Draw etc. here
+            return CallWindowProc(wndProcOldHandle, hWnd, msg, wParam, lParam);
         }
-        private void ControlRef_SizeChanged(object sender, EventArgs e) => ResizeBuffers(ControlRef.Width, ControlRef.Height);
-        private void WindowRef_SizeChanged(object sender, SizeChangedEventArgs e) => ResizeBuffers((int)(e.NewSize.Width * Utils.NativeMethods.DpiX), (int)(e.NewSize.Height * Utils.NativeMethods.DpiY));
 
         public void Initialize()
         {
@@ -216,6 +174,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 try
                 {
                     if (CanDebug) Log.Debug("Initializing");
+
+                    if (!Disposed)
+                        Dispose();
 
                     Disposed = false;
 
@@ -383,12 +344,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     context.UpdateSubresource(vsBufferData, vsBuffer);
 
                     InitializeVideoProcessor();
+                    InitializeSwapChain(ControlHandle);
 
                     // TBR: Device Removal Event
                     //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
-
-                    if (ControlHandle != IntPtr.Zero)
-                        InitializeSwapChain();
 
                     if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{(int)Device.FeatureLevel >> 8 & 0xf}");
 
@@ -400,61 +359,78 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         
                         Log.Warn($"Initialization failed ({e.Message}). Failling back to WARP device.");
                         Config.Video.GPUAdapter = "WARP";
-                        Dispose();
-                        Initialize();
+                        Flush();
                     }
                     else
                         Log.Error($"Initialization failed ({e.Message})");
                 }
             }
         }
-        public void InitializeSwapChain()
+        public void InitializeSwapChain(IntPtr handle)
         {
-            Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers [Handle: {ControlHandle}]");
+            if (handle == IntPtr.Zero)
+                return;
 
-            SCDisposed = false;
-
-            if (WindowRef != null)
-                WindowRef.SizeChanged += WindowRef_SizeChanged;
-            else if (ControlRef != null)
-                ControlRef.SizeChanged += ControlRef_SizeChanged;
-
-            SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+            lock (lockDevice)
             {
-                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
-                Width       = ControlWidth,
-                Height      = ControlHeight,
-                AlphaMode   = AlphaMode.Ignore,
-                BufferUsage = Usage.RenderTargetOutput,
-                SampleDescription = new SampleDescription(1, 0)
-            };
+                if (!SCDisposed)
+                    DisposeSwapChain();
 
-            if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP"))
-            {
-                swapChainDescription.BufferCount= 1;
-                swapChainDescription.SwapEffect = SwapEffect.Discard;
-                swapChainDescription.Scaling    = Scaling.Stretch;
+                if (Disposed)
+                    Initialize();
+
+                ControlHandle = handle;
+                Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers [Handle: {ControlHandle}]");
+
+                wndProcOldHandle = GetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC);
+                SetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC, wndProcNewHandle);
+
+                RECT rect = new RECT();
+                GetWindowRect(ControlHandle, ref rect);
+                ControlWidth = rect.Right - rect.Left;
+                ControlHeight = rect.Bottom - rect.Top;
+
+                SCDisposed = false;
+
+                SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+                {
+                    Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
+                    Width       = ControlWidth,
+                    Height      = ControlHeight,
+                    AlphaMode   = AlphaMode.Ignore,
+                    BufferUsage = Usage.RenderTargetOutput,
+                    SampleDescription = new SampleDescription(1, 0)
+                };
+
+                if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP"))
+                {
+                    swapChainDescription.BufferCount= 1;
+                    swapChainDescription.SwapEffect = SwapEffect.Discard;
+                    swapChainDescription.Scaling    = Scaling.Stretch;
+                }
+                else
+                {
+                    swapChainDescription.BufferCount= Config.Video.SwapBuffers; // TBR: for hdr output or >=60fps maybe use 6
+                    swapChainDescription.SwapEffect = SwapEffect.FlipDiscard;
+                    swapChainDescription.Scaling    = Scaling.None;
+                }
+
+                swapChain    = Engine.Video.Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, new SwapChainFullscreenDescription() { Windowed = true });
+                backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
+                backBufferRtv= Device.CreateRenderTargetView(backBuffer);
+
+                ResizeBuffers(ControlWidth, ControlHeight);
+                Present();
             }
-            else
-            {
-                swapChainDescription.BufferCount= Config.Video.SwapBuffers; // TBR: for hdr output or >=60fps maybe use 6
-                swapChainDescription.SwapEffect = SwapEffect.FlipDiscard;
-                swapChainDescription.Scaling    = Scaling.None;
-            }
-
-            swapChain    = Engine.Video.Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, new SwapChainFullscreenDescription() { Windowed = true });
-            backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
-            backBufferRtv= Device.CreateRenderTargetView(backBuffer);
-
-            ResizeBuffers(ControlWidth, ControlHeight);
-            Present();
         }
-        public void DisposeSwapChain(bool includingControls = false)
+        public void DisposeSwapChain()
         {
             lock (lockDevice)
             {
-                if (SCDisposed && ControlHandle == IntPtr.Zero)
+                if (SCDisposed)
                     return;
+
+                SCDisposed = true;
 
                 // Clear Screan
                 if (!Disposed && swapChain != null)
@@ -467,20 +443,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
 
                 Log.Info($"Destroying swap chain [Handle: {ControlHandle}]");
-                SCDisposed = true;
 
-                // TBR! When Player.Stop we DisposeVA which disposes the renderer and the swap chain, when it tries to initialize we have lost the handles
-                if (includingControls)
+                // Unassign renderer's WndProc if still there and re-assign the old one
+                if (ControlHandle != IntPtr.Zero)
                 {
-                    if (WindowRef != null)
-                        WindowRef.SizeChanged -= WindowRef_SizeChanged;
-                    else if (ControlRef != null)
-                        ControlRef.SizeChanged -= ControlRef_SizeChanged;
+                    if (wndProcNewHandle == GetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC))
+                        SetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC, wndProcOldHandle);
 
-                    WindowRef = null;
-                    ControlRef = null;
                     ControlHandle = IntPtr.Zero;
                 }
+                wndProcOldHandle = IntPtr.Zero;
 
                 vpov?.Dispose();
                 backBufferRtv?.Dispose();
@@ -496,6 +468,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             {
                 if (Disposed)
                     return;
+
+                Disposed = true;
 
                 if (CanDebug) Log.Debug("Disposing");
 
@@ -561,9 +535,20 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 ReportLiveObjects();
                 #endif
 
-                Disposed = true;
                 curRatio = 1.0f;
                 if (CanInfo) Log.Info("Disposed");
+            }
+        }
+
+        public void Flush()
+        {
+            lock (lockDevice)
+            {
+                var controlHandle = ControlHandle;
+
+                Dispose();
+                ControlHandle = controlHandle;
+                Initialize();
             }
         }
 
@@ -1041,20 +1026,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 try
                 {
                     if (SCDisposed)
-                    {
-                        if (ControlHandle != IntPtr.Zero)
-                        {
-                            // TBR: Requires Layout Update/Refresh
-                            Utils.UI(() =>
-                            {
-                                if (WindowRef != null)
-                                    WindowRef.Background = new System.Windows.Media.SolidColorBrush(Config.Video.BackgroundColor);
-                                else if (ControlRef != null)
-                                    ControlRef.BackColor = Utils.WPFToWinFormsColor(Config.Video.BackgroundColor);
-                            });
-                        }
-                    }
-                    else if (LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
+                        return;
+
+                    if (LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
                         PresentInternal(LastFrame);
                     else
                     {

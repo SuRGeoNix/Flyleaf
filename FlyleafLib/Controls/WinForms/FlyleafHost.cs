@@ -82,18 +82,20 @@ namespace FlyleafLib.Controls.WinForms
         Control oldParent = null;
         LogHandler Log;
         bool designMode = (LicenseManager.UsageMode == LicenseUsageMode.Designtime);
+        static int idGenerator;
 
         private class FlyleafHostDropWrap { public FlyleafHost FlyleafHost; } // To allow non FlyleafHosts to drag & drop
 
         public FlyleafHost()
         {
+            UniqueId  = idGenerator++;
             AllowDrop = _SwapOnDrop || _OpenOnDrop;
             BackColor = Color.Black;
 
             if (designMode)
                 return;
 
-            Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost   ] ");
+            Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
 
             KeyUp       += Host_KeyUp;
             KeyDown     += Host_KeyDown;
@@ -164,7 +166,7 @@ namespace FlyleafLib.Controls.WinForms
                 Player.PanXOffset = panPrevX + e.X - mouseLeftDownPoint.X;
                 Player.PanYOffset = panPrevY + e.Y - mouseLeftDownPoint.Y;
             }
-            else if (DragMove && Capture && ParentForm != null)
+            else if (DragMove && Capture && ParentForm != null && !IsFullScreen)
             {
                 ParentForm.Location  = new Point(ParentForm.Location.X + e.X - mouseLeftDownPoint.X, ParentForm.Location.Y + e.Y - mouseLeftDownPoint.Y);
             }
@@ -195,34 +197,22 @@ namespace FlyleafLib.Controls.WinForms
 
         public void SetPlayer(Player oldPlayer)
         {
-            // Note: We should never get old = new = null
-
             // De-assign old Player's Handle/FlyleafHost
             if (oldPlayer != null)
             {
                 Log.Debug($"De-assign Player #{oldPlayer.PlayerId}");
 
-                if (oldPlayer.renderer != null)
-                    oldPlayer.renderer.SetControl(null);
-                
+                oldPlayer.VideoDecoder.DestroySwapChain();
                 oldPlayer.WFHost = null;
                 oldPlayer.IsFullScreen = false;
             }
 
             if (Player == null)
-            {
                 return;
-            }
 
-            // Set UniqueId (First Player's Id)
-            if (UniqueId == -1)
-            {
-                UniqueId    = Player.PlayerId;
-                Log.Prefix  = ("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost   ] ";
-            }
+            Log.Prefix = ("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost #{Player.PlayerId}] ";
 
             // De-assign new Player's Handle/FlyleafHost
-            //Player.renderer.SetControl(null);
             if (Player.WFHost != null)
                 Player.WFHost.Player = null;
 
@@ -231,7 +221,9 @@ namespace FlyleafLib.Controls.WinForms
 
             Player.WFHost = this;
             Player.IsFullScreen = IsFullScreen;
-            Player.VideoDecoder.CreateRenderer(this);
+            Player.VideoDecoder.CreateSwapChain(Handle);
+
+            BackColor = Utils.WPFToWinFormsColor(Player.Config.Video.BackgroundColor);
         }
 
         public void FullScreen()
@@ -274,6 +266,18 @@ namespace FlyleafLib.Controls.WinForms
             Raise(nameof(IsFullScreen));
         }
 
+        protected override bool IsInputKey(Keys keyData) { return Player != null && Player.WFHost != null; } // Required to allow keybindings such as arrows etc.
+
+        // TBR: Related to Renderer's WndProc
+        protected override void OnPaintBackground(PaintEventArgs pe)
+        {
+            if (Player != null && !Player.renderer.SCDisposed)
+                Player.renderer.Present(); 
+            else
+                base.OnPaintBackground(pe);
+        }            
+        protected override void OnPaint(PaintEventArgs pe) { }
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected bool Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
         {
@@ -287,14 +291,5 @@ namespace FlyleafLib.Controls.WinForms
             return false;
         }
         protected void Raise([CallerMemberName] string propertyName = "") => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        protected override bool IsInputKey(Keys keyData) { return Player != null && Player.WFHost != null; } // Required to allow keybindings such as arrows etc.
-        protected override void OnPaintBackground(PaintEventArgs pe)
-        {
-            if (Player != null && Player.renderer != null)
-                Player?.renderer?.Present(); 
-            else
-                base.OnPaintBackground(pe);
-        }            
-        protected override void OnPaint(PaintEventArgs pe) { }
     }
 }

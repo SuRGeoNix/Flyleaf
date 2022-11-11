@@ -41,6 +41,9 @@ namespace FlyleafLib
             public static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
             [DllImport("user32.dll")]
+            public static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+            [DllImport("user32.dll")]
             public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, UInt32 uFlags);
 
             [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
@@ -128,6 +131,28 @@ namespace FlyleafLib
                 SWP_NOZORDER = 0x0004,
                 SWP_SHOWWINDOW = 0x0040,
             }
+
+            [Flags]
+            public enum WindowLongFlags : int
+            {
+                 GWL_EXSTYLE = -20,
+                 GWLP_HINSTANCE = -6,
+                 GWLP_HWNDPARENT = -8,
+                 GWL_ID = -12,
+                 GWL_STYLE = -16,
+                 GWL_USERDATA = -21,
+                 GWL_WNDPROC = -4,
+                 DWLP_USER = 0x8,
+                 DWLP_MSGRESULT = 0x0,
+                 DWLP_DLGPROC = 0x4
+            }
+
+            public delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+            public static int SignedHIWORD(IntPtr n) => SignedHIWORD(unchecked((int)(long)n));
+            public static int SignedLOWORD(IntPtr n) => SignedLOWORD(unchecked((int)(long)n));
+            public static int SignedHIWORD(int n) => (short)((n >> 16) & 0xffff);
+            public static int SignedLOWORD(int n) => (short)(n & 0xFFFF);
 
             #region DPI
             public static double DpiX, DpiY;

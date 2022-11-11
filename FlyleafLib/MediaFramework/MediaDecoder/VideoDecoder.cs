@@ -71,21 +71,27 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 //AV_PIX_FMT_YUV420P10LE  -= 2;
             }
         }
-
         public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
         {
             getHWformat = new AVCodecContext_get_format(get_format);
         }
 
-        public void CreateRenderer(object control = null)
+        public void CreateRenderer() // TBR: It should be in the constructor but DecoderContext will not work with null VideoDecoder for AudioOnly
         {
             if (Renderer == null)
-                Renderer = new Renderer(this, control, UniqueId);
-            else
-                Renderer.SetControl(control);
+                Renderer = new Renderer(this, IntPtr.Zero, UniqueId);
+            else if (Renderer.Disposed)
+                Renderer.Initialize();
 
             Disposed = false;
         }
+        public void DestroyRenderer() => Renderer?.Dispose();
+        public void CreateSwapChain(IntPtr handle)
+        {
+            CreateRenderer();
+            Renderer.InitializeSwapChain(handle);
+        }
+        public void DestroySwapChain() => Renderer?.DisposeSwapChain();
 
         #region Video Acceleration (Should be disposed seperately)
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
@@ -329,9 +335,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected override int Setup(AVCodec* codec)
         {
-            // We allow public DisposeVA so we re-initialize here if required
-            if (Renderer != null && Renderer.Disposed)
-                Renderer.Initialize();
+            // Ensures we have a renderer (no swap chain is required)
+            CreateRenderer();
             
             VideoAccelerated = false;
 
@@ -1104,7 +1109,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             }
         }
 
-        public void DisposeVA() => Renderer?.Dispose();
         public void DisposeFrames()
         {
             while (!Frames.IsEmpty)
