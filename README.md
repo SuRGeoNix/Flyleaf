@@ -13,8 +13,8 @@
 
 ✅ **Play Everything** <sub>(Audio, Videos, Images, Playlists over any Protocol)</sub>
 
-- *Extends FFmpeg's support for protocols and formats with additional plugins <sub>(YoutubeDL, TorrentBitSwarm)</sub>*
-- *Supports custom I/O stream inputs to extend formats support even further if required*
+- *Extends FFmpeg's supported protocols and formats with additional plugins <sub>(YoutubeDL, TorrentBitSwarm)</sub>*
+- *Accepts Custom I/O Streams and Plugins to handle non-standard protocols / formats*
 	
 ✅ **Play it Smoothly** <sub>(Even with high resolutions 4K / HDR)</sub>
 

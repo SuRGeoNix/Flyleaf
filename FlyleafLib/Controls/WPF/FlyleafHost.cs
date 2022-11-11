@@ -595,7 +595,7 @@ namespace FlyleafLib.Controls.WPF
                 }
             }
         }
-
+        
         private void Host_Unloaded(object sender, RoutedEventArgs e)
         {
             LayoutUpdated   -= Host_LayoutUpdated;
@@ -606,7 +606,7 @@ namespace FlyleafLib.Controls.WPF
             // TODO: Handle owner changed
             var owner = Window.GetWindow(this);
             //if (WPFOwner == owner) return;
-
+            
             Owner =  owner;
             OwnerHandle = new WindowInteropHelper(Owner).EnsureHandle();
             matrix = PresentationSource.FromVisual(Owner).CompositionTarget.TransformFromDevice;
@@ -637,12 +637,6 @@ namespace FlyleafLib.Controls.WPF
 
             LayoutUpdated   += Host_LayoutUpdated;
             IsVisibleChanged+= Host_IsVisibleChanged;
-
-            //if (ControlRequiresPlayer == null && Overlay != null)
-            //    FindIFlyleafHost((Visual)Overlay.Content);
-
-            //if (ControlRequiresPlayer != null && Player != null)
-            //    ControlRequiresPlayer.Player = Player;
         }
         private void Host_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e) 
         {
@@ -717,9 +711,12 @@ namespace FlyleafLib.Controls.WPF
         private void Owner_LocationChanged(object sender, EventArgs e)
         {
             // This is no required from VS for some reason but we need it for release (Layout Update will not be called on release)
+
+            if (!IsVisible || !IsAttached || IsFullScreen || IsResizing)
+                return;
+
             var pos = matrix.Transform(PointToScreen(zeroPoint));
-            if (IsAttached)
-                SetWindowPos(SurfaceHandle, IntPtr.Zero, (int)(pos.X * DpiX), (int)(pos.Y * DpiY), 0, 0, (UInt32)(SetWindowPosFlags.SWP_NOZORDER | (SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE)));
+            SetWindowPos(SurfaceHandle, IntPtr.Zero, (int)(pos.X * DpiX), (int)(pos.Y * DpiY), 0, 0, (UInt32)(SetWindowPosFlags.SWP_NOZORDER | (SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE)));
         }
         private void Player_Video_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -1493,7 +1490,7 @@ namespace FlyleafLib.Controls.WPF
 
             Surface.MinWidth = MinWidth;
             Surface.MinHeight = MinHeight;
-                
+
             Surface.Owner = Owner;
 
             if (Surface.IsVisible)
