@@ -40,9 +40,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         internal IntPtr         ControlHandle;
 
         public ID3D11Device     Device          { get; private set; }
+        public GPUAdapter       GPUAdapter      { get; private set; }
         public bool             Disposed        { get; private set; } = true;
         public bool             SCDisposed      { get; private set; } = true;
-        public RendererInfo     AdapterInfo     { get; internal set; }
         public int              MaxOffScreenTextures
                                                 { get; set; } = 20;
         public VideoDecoder     VideoDecoder    { get; internal set; }
@@ -167,7 +167,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             return CallWindowProc(wndProcOldHandle, hWnd, msg, wParam, lParam);
         }
 
-        public void Initialize()
+        public void Initialize(bool swapChain = true)
         {
             lock (lockDevice)
             {
@@ -211,9 +211,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     // Creating WARP (force by user or us after late failure)
                     if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP")
-                    {
                         D3D11.D3D11CreateDevice(null, DriverType.Warp, DeviceCreationFlags.None, featureLevels, out tempDevice).CheckError();
-                    }
 
                     // Creating User Defined or Default
                     else
@@ -241,8 +239,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     else
                         Device.Tag = adapter.Description.Luid.ToString();
 
-                    RendererInfo.Fill(this, adapter);
-                    if (CanDebug) Log.Debug($"Adapter Info\r\n{AdapterInfo}\r\n");
+                    GPUAdapter = Engine.Video.GPUAdapters[adapter.Description1.Luid];
+                    Config.Video.MaxVerticalResolutionAuto = GPUAdapter.MaxHeight;
+
+                    if (CanDebug)
+                    {
+                        string dump = $"GPU Adapter\r\n{GPUAdapter}\r\n";
+
+                        for (int i=0; i<GPUAdapter.Outputs.Count; i++)
+                            dump += $"[Output #{i+1}] {GPUAdapter.Outputs[i]}\r\n";
+
+                        Log.Debug(dump);
+                    }
 
                     tempDevice.Dispose();
                     adapter.Dispose();
@@ -344,8 +352,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     context.UpdateSubresource(vsBufferData, vsBuffer);
 
                     InitializeVideoProcessor();
-                    InitializeSwapChain(ControlHandle);
-
                     // TBR: Device Removal Event
                     //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
 
@@ -364,6 +370,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     else
                         Log.Error($"Initialization failed ({e.Message})");
                 }
+
+                if (swapChain)
+                    InitializeSwapChain(ControlHandle);
             }
         }
         public void InitializeSwapChain(IntPtr handle)
@@ -377,20 +386,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     DisposeSwapChain();
 
                 if (Disposed)
-                    Initialize();
-
-                ControlHandle = handle;
-                Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers [Handle: {ControlHandle}]");
-
-                wndProcOldHandle = GetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC);
-                SetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC, wndProcNewHandle);
-
-                RECT rect = new RECT();
-                GetWindowRect(ControlHandle, ref rect);
-                ControlWidth = rect.Right - rect.Left;
-                ControlHeight = rect.Bottom - rect.Top;
-
-                SCDisposed = false;
+                    Initialize(false);
 
                 SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
                 {
@@ -415,12 +411,41 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     swapChainDescription.Scaling    = Scaling.None;
                 }
 
-                swapChain    = Engine.Video.Factory.CreateSwapChainForHwnd(Device, ControlHandle, swapChainDescription, new SwapChainFullscreenDescription() { Windowed = true });
+                try
+                {
+                    Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
+                    swapChain = Engine.Video.Factory.CreateSwapChainForHwnd(Device, handle, swapChainDescription, new SwapChainFullscreenDescription() { Windowed = true });
+                } catch (Exception e)
+                {
+                    if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
+                    {
+                        try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
+                        
+                        Log.Warn($"[SwapChain] Initialization failed ({e.Message}). Failling back to WARP device.");
+                        Config.Video.GPUAdapter = "WARP";
+                        ControlHandle = handle;
+                        Flush();
+                    }
+                    else
+                    {
+                        ControlHandle = IntPtr.Zero;
+                        Log.Error($"[SwapChain] Initialization failed ({e.Message})");
+                    }
+
+                    return;
+                }
+                
+                SCDisposed = false;
+                ControlHandle = handle;
                 backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 backBufferRtv= Device.CreateRenderTargetView(backBuffer);
 
-                ResizeBuffers(ControlWidth, ControlHeight);
-                Present();
+                wndProcOldHandle = GetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC);
+                SetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC, wndProcNewHandle);
+
+                RECT rect = new RECT();
+                GetWindowRect(ControlHandle, ref rect);
+                ResizeBuffers(rect.Right - rect.Left, rect.Bottom - rect.Top);
             }
         }
         public void DisposeSwapChain()

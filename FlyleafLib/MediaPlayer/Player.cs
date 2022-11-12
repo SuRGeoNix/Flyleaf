@@ -446,7 +446,7 @@ namespace FlyleafLib.MediaPlayer
 
                 try
                 {
-                    Stop();
+                    Initialize();
                     Audio.Dispose(); 
                     decoder.Dispose();
 

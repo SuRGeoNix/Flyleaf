@@ -107,6 +107,9 @@ namespace FlyleafLib.Controls.WPF
         Point mouseLeftDownPoint = new Point(0, 0);
         Point mouseMoveLastPoint = new Point(0, 0);
 
+        Point beforeFullScreenPos = new Point(100, 100);
+        Size beforeFullScreenSize = new Size(100, 100);
+
         static Rect rectRandom = new Rect(1, 2, 3, 4);
         Rect rectDetachedLast = Rect.Empty;
         Rect rectIntersectLast = rectRandom;
@@ -425,12 +428,22 @@ namespace FlyleafLib.Controls.WPF
                 return;
 
             FlyleafHost host = d as FlyleafHost;
-            if (host.KeepRatioOnResize)
+            if (!host.KeepRatioOnResize || host.CurResizeRatio <= 0)
+                return;
+
+            if (host.IsAttached)
+                host.Height = host.Width / host.CurResizeRatio;
+            else
             {
-                if (host.IsAttached)
-                    host.Height = host.Width / host.CurResizeRatio;
-                else
-                    host.Surface.Height = host.Surface.Width / host.CurResizeRatio;
+                // TBR: CurResizeRatio < 1 should change the Width?
+
+                // Get Current Screen
+                var screen = Engine.Video.GetScreenFromPosition((int)host.Surface.Top, (int)host.Surface.Left);
+
+                if (host.Surface.Top > screen.Height / 2)
+                    host.Surface.Top += (host.Surface.Height - (host.Surface.Width / host.CurResizeRatio));
+
+                host.Surface.Height = host.Surface.Width / host.CurResizeRatio;
             }
         }
         private static void OnKeepRatioOnResizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -1517,41 +1530,43 @@ namespace FlyleafLib.Controls.WPF
                 newPos = new Point(rectDetachedLast.X, rectDetachedLast.Y);
             else
             {
+                var screen = Engine.Video.GetScreenFromPosition((int)Surface.Top, (int)Surface.Left);
+
                 switch (DetachedPosition)
                 {
                     case DetachedPositionOptions.TopLeft:
-                        newPos = new Point(0, 0);
+                        newPos = new Point(screen.Left, screen.Top);
                         break;
                     case DetachedPositionOptions.TopCenter:
-                        newPos = new Point((SystemParameters.PrimaryScreenWidth / 2) - (newSize.Width / 2), 0);
+                        newPos = new Point(screen.Left + (screen.Width / 2) - (newSize.Width / 2), screen.Top);
                         break;
 
                     case DetachedPositionOptions.TopRight:
-                        newPos = new Point(SystemParameters.PrimaryScreenWidth - newSize.Width, 0);
+                        newPos = new Point(screen.Left + screen.Width - newSize.Width, screen.Top);
                         break;
 
                     case DetachedPositionOptions.CenterLeft:
-                        newPos = new Point(0, (SystemParameters.PrimaryScreenHeight / 2) - (newSize.Height / 2));
+                        newPos = new Point(screen.Left, screen.Top + (screen.Height / 2) - (newSize.Height / 2));
                         break;
 
                     case DetachedPositionOptions.CenterCenter:
-                        newPos = new Point((SystemParameters.PrimaryScreenWidth / 2) - (newSize.Width / 2), (SystemParameters.PrimaryScreenHeight / 2) - (newSize.Height / 2));
+                        newPos = new Point(screen.Left + (screen.Width / 2) - (newSize.Width / 2), screen.Top + (screen.Height / 2) - (newSize.Height / 2));
                         break;
 
                     case DetachedPositionOptions.CenterRight:
-                        newPos = new Point(SystemParameters.PrimaryScreenWidth - newSize.Width, (SystemParameters.PrimaryScreenHeight / 2) - (newSize.Height / 2));
+                        newPos = new Point(screen.Left + screen.Width - newSize.Width, screen.Top + (screen.Height / 2) - (newSize.Height / 2));
                         break;
 
                     case DetachedPositionOptions.BottomLeft:
-                        newPos = new Point(0, SystemParameters.PrimaryScreenHeight - newSize.Height);
+                        newPos = new Point(screen.Left, screen.Top + screen.Height - newSize.Height);
                         break;
 
                     case DetachedPositionOptions.BottomCenter:
-                        newPos = new Point((SystemParameters.PrimaryScreenWidth / 2) - (newSize.Width / 2), SystemParameters.PrimaryScreenHeight - newSize.Height);
+                        newPos = new Point(screen.Left + (screen.Width / 2) - (newSize.Width / 2), screen.Top + screen.Height - newSize.Height);
                         break;
 
                     case DetachedPositionOptions.BottomRight:
-                        newPos = new Point(SystemParameters.PrimaryScreenWidth - newSize.Width, SystemParameters.PrimaryScreenHeight - newSize.Height);
+                        newPos = new Point(screen.Left + screen.Width - newSize.Width, screen.Top + screen.Height - newSize.Height);
                         break;
 
                     case DetachedPositionOptions.Custom:
@@ -1582,6 +1597,8 @@ namespace FlyleafLib.Controls.WPF
 
         public void RefreshNormalFullScreen()
         {
+            // Custom (Ensure) Restore: Some kind of bug when the window is near to edges or having an extended desktop with another screen (like it changes window's desktop owner)
+
             if (Surface.WindowState == WindowState.Minimized)
                 return;
 
@@ -1589,7 +1606,12 @@ namespace FlyleafLib.Controls.WPF
             {
                 if (IsAttached)
                     ReSetVisibleRect();
-
+                else
+                {
+                    beforeFullScreenPos = new Point(Surface.Left, Surface.Top);
+                    beforeFullScreenSize= new Size(Surface.ActualWidth, Surface.ActualHeight);
+                }
+                
                 Surface.WindowState = WindowState.Maximized;
             }
             else
@@ -1600,6 +1622,13 @@ namespace FlyleafLib.Controls.WPF
                 {
                     rectInitLast = rectIntersectLast = Rect.Empty;
                     Host_LayoutUpdated(null, null);
+                }
+                else
+                {
+                    Surface.Left    = beforeFullScreenPos.X;
+                    Surface.Top     = beforeFullScreenPos.Y;
+                    Surface.Width   = beforeFullScreenSize.Width;
+                    Surface.Height  = beforeFullScreenSize.Height;
                 }
             }
         }
