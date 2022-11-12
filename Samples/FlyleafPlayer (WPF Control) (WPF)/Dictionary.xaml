@@ -1,0 +1,163 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    
+                    xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
+                    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+                    >
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesign.xaml"/>
+        <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/Converters.xaml"/>
+        <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/PopUpMenu.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+    
+    <!--Overriding FlyleafME's Popup Menu (Using FlyleafME's Tag to pass our DataContext) -->
+    <ContextMenu x:Key="PopUpMenu" Style="{StaticResource FlyleafContextMenu}">
+        <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}"/>
+        <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}" IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}"/>
+        <Separator />
+        
+        <MenuItem Header="New Window" Command="{Binding Tag.OpenWindow}" Icon="{materialDesign:PackIcon Kind=TabPlus}"/>
+        <MenuItem Header="Close Window" Command="{Binding Tag.CloseWindow}" Icon="{materialDesign:PackIcon Kind=TabMinus}"/>
+        <Separator />
+
+        <MenuItem ItemsSource="{Binding Player.Playlist.Items}" Icon="{materialDesign:PackIcon ViewList}">
+            <MenuItem.Header>
+                <MultiBinding Converter="{StaticResource PlaylistItems}">
+                    <Binding Path="Player.Playlist.Items.Count" />
+                    <Binding Path="Player.Playlist.ExpectingItems"/>
+                </MultiBinding>
+            </MenuItem.Header>
+
+            <MenuItem.ItemContainerStyle>
+                <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Command" Value="{Binding DataContext.Player.Commands.Reopen, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type MenuItem}}}"/>
+                    <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                    <Setter Property="IsCheckable" Value="True"/>
+                    <Setter Property="IsChecked" Value="{Binding Enabled, Mode=OneWay}"/>
+                    <Setter Property="Header" Value="{Binding Title}"/>
+                </Style>
+            </MenuItem.ItemContainerStyle>
+        </MenuItem>
+
+        <Separator />
+
+        <MenuItem Header="Audio" Icon="{materialDesign:PackIcon Kind=VolumeLow}">
+            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Config.Audio.Enabled}"/>
+            <MenuItem Header="{Binding Config.Audio.Delay, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
+                <MenuItem Header="Reset..." CommandParameter="0" Command="{Binding Player.Commands.AudioDelaySet}"/>
+                <Separator />
+                <MenuItem Header="-   10"   CommandParameter="-10"      Command="{Binding Player.Commands.AudioDelaySet2}"/>
+                <MenuItem Header="-  100"   CommandParameter="-100"     Command="{Binding Player.Commands.AudioDelaySet2}"/>
+                <MenuItem Header="- 1000"   CommandParameter="-1000"    Command="{Binding Player.Commands.AudioDelaySet2}"/>
+                <MenuItem Header="-10000"   CommandParameter="-10000"   Command="{Binding Player.Commands.AudioDelaySet2}"/>
+                <Separator />
+                <MenuItem Header="+10000"   CommandParameter="10000"    Command="{Binding Player.Commands.AudioDelaySet2}"/>
+                <MenuItem Header="+ 1000"   CommandParameter="1000"     Command="{Binding Player.Commands.AudioDelaySet2}"/>
+                <MenuItem Header="+  100"   CommandParameter="100"      Command="{Binding Player.Commands.AudioDelaySet2}"/>
+                <MenuItem Header="+   10"   CommandParameter="10"       Command="{Binding Player.Commands.AudioDelaySet2}"/>
+            </MenuItem>
+            <MenuItem Header="Streams" ItemsSource="{StaticResource MenuAudioStreams}"/>
+        </MenuItem>
+
+        <MenuItem Header="Subtitles" Icon="{materialDesign:PackIcon Kind=CcOutline}">
+            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Config.Subtitles.Enabled}"/>
+            <MenuItem Header="Fonts..." Command="{Binding SetSubtitlesFont}"/>
+            <MenuItem Header="{Binding Config.Subtitles.Delay, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
+                <MenuItem Header="Reset..." CommandParameter="0" Command="{Binding Player.Commands.SubtitlesDelaySet}"/>
+                <Separator />
+                <MenuItem Header="-   10"   CommandParameter="-10"      Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
+                <MenuItem Header="-  100"   CommandParameter="-100"     Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
+                <MenuItem Header="- 1000"   CommandParameter="-1000"    Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
+                <MenuItem Header="-10000"   CommandParameter="-10000"   Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
+                <Separator />
+                <MenuItem Header="+10000"   CommandParameter="10000"    Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
+                <MenuItem Header="+ 1000"   CommandParameter="1000"     Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
+                <MenuItem Header="+  100"   CommandParameter="100"      Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
+                <MenuItem Header="+   10"   CommandParameter="10"       Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
+            </MenuItem>
+            <MenuItem Header="{Binding UIConfig.SubsMargin.Bottom}" HeaderStringFormat="Position Y ({0})">
+                <MenuItem Header="Reset..." Command="{Binding ResetSubsPositionY}"/>
+                <Separator />
+                <MenuItem Header="Up"        CommandParameter="  2"     Command="{Binding SetSubsPositionY}"/>
+                <MenuItem Header="Up x 10"   CommandParameter=" 20"     Command="{Binding SetSubsPositionY}"/>
+                <MenuItem Header="Down x 10" CommandParameter="-20"     Command="{Binding SetSubsPositionY}"/>
+                <MenuItem Header="Down"      CommandParameter=" -2"     Command="{Binding SetSubsPositionY}"/>
+            </MenuItem>
+            <MenuItem Header="Streams" ItemsSource="{StaticResource MenuSubtitlesStreams}"/>
+            <MenuItem Header="Search Local" IsCheckable="True" IsChecked="{Binding Config.Subtitles.SearchLocal}"/>
+            <MenuItem Header="Search Online" IsCheckable="True" IsChecked="{Binding Config.Subtitles.SearchOnline}"/>
+        </MenuItem>
+
+        <MenuItem Header="Video" Icon="{materialDesign:PackIcon VideoOutline}">
+            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Config.Video.Enabled}"/>
+            <MenuItem Header="Aspect Ratio">
+                <MenuItem.ItemContainerStyle>
+                    <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                        <Setter Property="Command" Value="{Binding DataContext.ChangeAspectRatio, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type MenuItem}}}"/>
+                        <Setter Property="CommandParameter" Value="{Binding RelativeSource={RelativeSource Self}}"/>
+                    </Style>
+                </MenuItem.ItemContainerStyle>
+            </MenuItem>
+            <MenuItem Header="Chapters" ItemsSource="{Binding Player.Chapters}">
+                <MenuItem.ItemContainerStyle>
+                    <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+                        <Setter Property="Command" Value="{Binding DataContext.Player.Commands.SeekToChapter, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type MenuItem}}}"/>
+                        <Setter Property="CommandParameter" Value="{Binding DataContext, RelativeSource={RelativeSource Self}}"/>
+                    </Style>
+                </MenuItem.ItemContainerStyle>
+                <MenuItem.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock>
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat=" [{0}] {1}">
+                                    <Binding Path="StartTime" Converter="{StaticResource TicksToTime}"/>
+                                    <Binding Path="Title"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </DataTemplate>
+                </MenuItem.ItemTemplate>
+            </MenuItem>
+            <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Config.Video.VideoAcceleration}"/>
+            <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording, Mode=OneWay}" Command="{Binding Player.Commands.ToggleRecording}"/>
+            <MenuItem Header="{Binding Player.Rotation}" HeaderStringFormat="Rotation ({0}°)">
+                <MenuItem Header="0°"       CommandParameter="0"    Command="{Binding Player.Commands.RotationSet}"/>
+                <MenuItem Header="90°"      CommandParameter="90"   Command="{Binding Player.Commands.RotationSet}"/>
+                <MenuItem Header="180°"     CommandParameter="180"  Command="{Binding Player.Commands.RotationSet}"/>
+                <MenuItem Header="270°"     CommandParameter="270"  Command="{Binding Player.Commands.RotationSet}"/>
+            </MenuItem>
+            <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
+            <MenuItem Header="{Binding Player.Speed}" HeaderStringFormat="Speed (x{0})">
+                <MenuItem Header=" x 8"     CommandParameter="8"    Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 4"     CommandParameter="4"    Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 2"     CommandParameter="2"    Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 1.75"  CommandParameter="1.75" Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 1.50"  CommandParameter="1.50" Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 1.25"  CommandParameter="1.25" Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 1"     CommandParameter="1"    Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 0.75"  CommandParameter="0.75" Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 0.50"  CommandParameter="0.50" Command="{Binding Player.Commands.SpeedSet}"/>
+                <MenuItem Header=" x 0.25"  CommandParameter="0.25" Command="{Binding Player.Commands.SpeedSet}"/>
+            </MenuItem>
+            <MenuItem Header="Streams" ItemsSource="{StaticResource MenuVideoStreams}"/>
+
+            <MenuItem Header="Take a Snapshot" Command="{Binding Player.Commands.TakeSnapshot}" Icon="{materialDesign:PackIcon Kind=PhotoCamera}"/>
+            <MenuItem Header="V.Sync" IsCheckable="True" IsChecked="{Binding Config.Video.VSync}"/>
+            <MenuItem Header="Zoom">
+                <MenuItem Header="Reset ..." Command="{Binding Player.Commands.ResetAll}"/>
+                <MenuItem Header="Zoom In"   Command="{Binding Player.Commands.ZoomIn}" Icon="{materialDesign:PackIcon Kind=ZoomIn}"/>
+                <MenuItem Header="Zoom out"  Command="{Binding Player.Commands.ZoomOut}" Icon="{materialDesign:PackIcon Kind=ZoomOut}"/>
+            </MenuItem>
+        </MenuItem>
+
+        <Separator />
+        <MenuItem Header="Always on Top" IsCheckable="True" IsChecked="{Binding DetachedTopMost}" Icon="{materialDesign:PackIcon Kind=Resize}"/>
+        <MenuItem Header="Ratio Resize" IsCheckable="True" IsChecked="{Binding KeepRatioOnResize}" Icon="{materialDesign:PackIcon Kind=Resize}"/>
+        <MenuItem Header="Show Debug" IsCheckable="True" IsChecked="{Binding ShowDebug}"/>
+
+        <Separator />
+        <MenuItem Header="Exit" Icon="{materialDesign:PackIcon ExitToApp}" Command="{Binding ExitApplication}"/>
+    </ContextMenu>
+
+</ResourceDictionary>

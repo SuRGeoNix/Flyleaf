@@ -661,7 +661,7 @@
 
         <Separator />
 
-        <MenuItem Header="Audio" Icon="{materialDesign:PackIcon Audio}">
+        <MenuItem Header="Audio" Icon="{materialDesign:PackIcon Kind=VolumeLow}">
             <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Config.Audio.Enabled}"/>
             <MenuItem Header="{Binding Config.Audio.Delay, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
                 <MenuItem Header="Reset..." CommandParameter="0" Command="{Binding Player.Commands.AudioDelaySet}"/>
@@ -679,7 +679,7 @@
             <MenuItem Header="Streams" ItemsSource="{StaticResource MenuAudioStreams}"/>
         </MenuItem>
 
-        <MenuItem Header="Subtitles" Icon="{materialDesign:PackIcon SubtitlesOutline}">
+        <MenuItem Header="Subtitles" Icon="{materialDesign:PackIcon Kind=CcOutline}">
             <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Config.Subtitles.Enabled}"/>
             <MenuItem Header="Fonts..." Command="{Binding SetSubtitlesFont}"/>
             <MenuItem Header="{Binding Config.Subtitles.Delay, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
