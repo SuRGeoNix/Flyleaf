@@ -4,7 +4,7 @@
     <TargetFrameworks>net6.0-windows;net5.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.2</Version>
+    <Version>1.2.1</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2022</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,18 +14,9 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		Introduces FlyleafME WPF Media Element Control (Flyleaf replacement)
-		    * Code clean-up and styles / templates to allow easier override and customization
-		    * Updated with the new FlyleafHost (old ViewView) and gains better performance with more functionality
-		    * Adds Activity Timeout on Settings
-		    * Adds Rotation to Popup menu
-		    * Fixes several issues with DPI
-		    * Fixes issues with Activity / Idle Mode
-		    * Fixes an issue to respect Subtitles FontStyle
-		    * Updates FlyleafLib
-
-		Breaking Changes
-		    * Flyleaf (WPF Control) has been renamed to FlyleafME (Media Element) and does not require a FlyleafHost as it was required previously with the VideoView (it derives from it)
+		Transfers subtitles/video Popup menus to FlyleafBar (it was causing an Activity mode issue)
+		Fixes icons for Popup Menu
+		Updates FlyleafLib
 	</PackageReleaseNotes>
   </PropertyGroup>
 
