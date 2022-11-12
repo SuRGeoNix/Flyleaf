@@ -27,7 +27,7 @@
                 <ResourceDictionary.MergedDictionaries>
                     <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesign.xaml"/>
                     <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/Converters.xaml"/>
-                    <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/PopUpMenu.xaml"/>
+                    <ResourceDictionary Source="Dictionary.xaml"/>
                 </ResourceDictionary.MergedDictionaries>
                 
                 <Storyboard x:Key="fadeIn" Timeline.DesiredFrameRate="10">

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 
 using FlyleafLib;
 using FlyleafLib.Controls.WPF;
@@ -24,12 +25,18 @@ namespace FlyleafPlayer
         /// </summary>
         public FlyleafME    FlyleafME   { get; set; }
 
+        public ICommand     OpenWindow  { get; set; }
+        public ICommand     CloseWindow { get; set; }
+
         static bool runOnce;
         Config playerConfig;
         bool ReversePlaybackChecked;
 
         public MainWindow()
         {
+            OpenWindow  = new RelayCommandSimple(() => (new MainWindow()).Show());
+            CloseWindow = new RelayCommandSimple(() => Close());
+
             // NOTE: Loads/Saves configs only in RELEASE mode
 
             // Player's Config (Cannot be initialized before Engine's initialization)
@@ -48,6 +55,7 @@ namespace FlyleafPlayer
 
             FlyleafME = new FlyleafME(this)
             {
+                Tag = this,
                 ActivityTimeout = 2000,
                 KeyBindings = AvailableWindows.Both,
                 DetachedResize = AvailableWindows.Overlay,
@@ -86,13 +94,13 @@ namespace FlyleafPlayer
             if (key != null)
                 key.SetAction(() => (new MainWindow()).Show(), true);
             else
-                playerConfig.Player.KeyBindings.AddCustom(System.Windows.Input.Key.N, true, () => { (new MainWindow()).Show(); }, "New Window", false, true, false);
+                playerConfig.Player.KeyBindings.AddCustom(Key.N, true, () => { (new MainWindow()).Show(); }, "New Window", false, true, false);
 
             key = playerConfig.Player.KeyBindings.Get("Close Window");
             if (key != null)
                 key.SetAction(() => Close(), true);
             else
-                playerConfig.Player.KeyBindings.AddCustom(System.Windows.Input.Key.W, true, () => { Close(); }, "Close Window", false, true, false);
+                playerConfig.Player.KeyBindings.AddCustom(Key.W, true, () => { Close(); }, "Close Window", false, true, false);
         }
 
         private Config DefaultConfig()
