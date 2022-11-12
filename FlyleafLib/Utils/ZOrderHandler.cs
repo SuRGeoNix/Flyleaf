@@ -53,6 +53,7 @@ namespace FlyleafLib
                     Window.StateChanged += Window_StateChanged;
                     lastState = Window.WindowState;
 
+                    // TBR: Minimize with WindowsKey + D for example will not fire (none of those)
                     //HwndSource source = HwndSource.FromHwnd(WindowHwnd);
                     //source.AddHook(new HwndSourceHook(WndProc));
                 }

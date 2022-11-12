@@ -46,25 +46,47 @@ namespace FlyleafLib
         Disabled    = 2
     }
 
-    public struct GPUOutput
+    
+    public class GPUOutput
     {
+        public static int GPUOutputIdGenerator;
+
+        public int      Id          { get; set; }
         public string   DeviceName  { get; internal set; }
-        public long     Left        { get; internal set; }
-        public long     Top         { get; internal set; }
-        public long     Right       { get; internal set; }
-        public long     Bottom      { get; internal set; }
+        public int      Left        { get; internal set; }
+        public int      Top         { get; internal set; }
+        public int      Right       { get; internal set; }
+        public int      Bottom      { get; internal set; }
+        public int      Width       => Right- Left;
+        public int      Height      => Bottom- Top;
         public bool     IsAttached  { get; internal set; }
         public int      Rotation    { get; internal set; }
 
+        public override string ToString()
+        {
+            var gcd = Utils.GCD(Width, Height);
+            return $"{DeviceName,-20} [Id: {Id,-4}\t, Top: {Top,-4}, Left: {Left,-4}, Width: {Width,-4}, Height: {Height,-4}, Ratio: [" + (gcd > 0 ? $"{Width/gcd}:{Height/gcd}]" : "]");
+        }
     }
 
-    public struct GPUAdapter
+    public class GPUAdapter
     {
-        public string   Description { get; internal set; }
-        public long     Luid        { get; internal set; }
-        public bool     HasOutput   { get; internal set; }
+        public int      MaxHeight       { get; internal set; }
+        public long     SystemMemory    { get; internal set; }
+        public long     VideoMemory     { get; internal set; }
+        public long     SharedMemory    { get; internal set; }
+        
+
+        public int      Id              { get; internal set; }
+        public string   Vendor          { get; internal set; }
+        public string   Description     { get; internal set; }
+        public long     Luid            { get; internal set; }
+        public bool     HasOutput       { get; internal set; }
         public List<GPUOutput> 
-                        Outputs     { get; internal set; }
+                        Outputs         { get; internal set; }
+
+        public override string ToString()
+            => (Vendor + " " + Description).PadRight(40) + $"[ID: {Id,-6}, LUID: {Luid,-6}, DVM: {Utils.GetBytesReadable(VideoMemory),-8}, DSM: {Utils.GetBytesReadable(SystemMemory),-8}, SSM: {Utils.GetBytesReadable(SharedMemory)}]";
     }
     public enum VideoFilters
     {

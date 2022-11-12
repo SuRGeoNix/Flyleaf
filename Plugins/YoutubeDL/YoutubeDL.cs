@@ -73,7 +73,7 @@ namespace FlyleafLib.Plugins
 
             // 1.Default Browser/Profile
             // 2.Forces also ipv4 (ipv6 causes delays for some reason)
-            defaultOptions.Add("ExtraArguments", defaultBrowser == null ? "" : $"-4 --cookies-from-browser {defaultBrowser}");
+            defaultOptions.Add("ExtraArguments", defaultBrowser == null ? "" : $"--cookies-from-browser {defaultBrowser}");
 
             return defaultOptions;
         }
@@ -134,8 +134,8 @@ namespace FlyleafLib.Plugins
             List<Format> results = iresults.ToList();
 
             // Best Resolution
-            int bestWidth = (int)results[0].width;
-            int bestHeight = (int)results[0].height;
+            double bestWidth = results[0].width;
+            double bestHeight = results[0].height;
 
             // Choose from the best resolution (0. with acodec and not blacklisted 1. not blacklisted 2. any)
             int priority = 0;
@@ -143,7 +143,8 @@ namespace FlyleafLib.Plugins
             {
                 for (int i = 0; i < results.Count; i++)
                 {
-                    if (results[i].width != bestWidth || results[i].height != bestHeight) break;
+                    if (results[i].width != bestWidth || results[i].height != bestHeight)
+                        break;
 
                     if (priority == 0 && !IsBlackListed(vCodecsBlacklist, results[i].vcodec) && results[i].acodec != "none")
                         return results[i];
