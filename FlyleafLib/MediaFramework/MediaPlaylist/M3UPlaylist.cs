@@ -61,7 +61,7 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
                             item.Tags.Add(match.Groups[1].Value, match.Groups[2].Value);
                     }
 
-                    item.Title = GetMatch(line, @",\s*([^=,]+)$");
+                    item.Title = GetMatch(line, @",\s*(.*)$");
                     item.OriginalTitle = item.Title;
 
                     if (item.Title.IndexOf(" [Geo-blocked]") >= 0)

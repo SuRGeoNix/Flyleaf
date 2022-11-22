@@ -9,6 +9,10 @@ using FlyleafLib.MediaPlayer;
 
 namespace FlyleafPlayer
 {
+    // TODO: Open New Window with the same size, Popup Menu Playlist will not resize the size?
+    //       Add Play Next/Prev for Playlists (Page Up/Down?) this goes down to Player
+    //       Add easy way to remove all mouseevent from flyleafhost
+
     /// <summary>
     /// <para>FlyleafPlayer Sample</para>
     /// <para>A stand-alone Overlay which uses a customization of FlyleafME control</para>
@@ -75,7 +79,7 @@ namespace FlyleafPlayer
             FlyleafME.ConfigPath    = "Flyleaf.Config.xml";
             FlyleafME.EnginePath    = "Flyleaf.Engine.xml";
             FlyleafME.UIConfigPath  = "Flyleaf.UIConfig.xml";
-
+            
             // If the user requests reverse playback allocate more frames once
             Player.PropertyChanged += (o, e) =>
             {

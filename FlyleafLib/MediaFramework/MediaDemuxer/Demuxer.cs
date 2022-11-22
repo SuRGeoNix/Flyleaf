@@ -22,6 +22,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
     {
         /* TODO
          * 1) Review lockFmtCtx on Enable/Disable Streams causes delay and is not fully required
+         * 2) Include AV_DISPOSITION_ATTACHED_PIC images in streams as VideoStream with flag
+         *      Possible introduce ImageStream and include also video streams with < 1 sec duration (eg. mjpeg etc)
          */
 
         #region Properties
@@ -35,6 +37,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public string                   Extensions      { get; private set; }
         public string                   Extension       { get; private set; }
         public long                     StartTime       { get; private set; }
+        public long                     StartRealTime   { get; private set; }
         public long                     Duration        { get; internal set; }
 
         public Dictionary<string, string>
@@ -405,8 +408,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             if (Name == "mpegts")
                 Extensions = "ts";
 
-            StartTime   = fmtCtx->start_time != AV_NOPTS_VALUE ? fmtCtx->start_time * 10 : 0;
-            Duration    = fmtCtx->duration > 0 ? fmtCtx->duration * 10 : 0;
+            StartTime       = fmtCtx->start_time != AV_NOPTS_VALUE ? fmtCtx->start_time * 10 : 0;
+            StartRealTime   = fmtCtx->start_time_realtime != AV_NOPTS_VALUE ? fmtCtx->start_time_realtime * 10 : 0;
+            Duration        = fmtCtx->duration > 0 ? fmtCtx->duration * 10 : 0;
 
             // TBR: Possible we can get Apple HTTP Live Streaming/hls with HLSPlaylist->finished with Duration != 0
             if (Duration == 0 && Name == "hls" && Environment.Is64BitProcess)
@@ -643,7 +647,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     if (VideoStream != null)
                     {
                         if (CanDebug) Log.Debug($"[Seek({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
-                        ret = av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
+                        
+                        if (ticks == StartTime)
+                            ret = avformat_seek_file(fmtCtx, -1, 0, 0, 0, 0);
+                        else
+                            ret = av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
 
                         curReverseStopPts = AV_NOPTS_VALUE;
                         curReverseStartPts= AV_NOPTS_VALUE;
