@@ -10,6 +10,15 @@ namespace FlyleafLib.Controls.WinForms
 {
     public partial class FlyleafHost : UserControl, INotifyPropertyChanged
     {
+        /* TODO
+         * 
+         * Attached: (UserControl) Host = Surface
+         * Detached: (Form) Surface
+         * (Form) Overlay
+         * 
+         */
+
+        #region Properties / Variables
         Player _Player;
         public Player       Player          {
             get => _Player;
@@ -85,6 +94,7 @@ namespace FlyleafLib.Controls.WinForms
         static int idGenerator;
 
         private class FlyleafHostDropWrap { public FlyleafHost FlyleafHost; } // To allow non FlyleafHosts to drag & drop
+        #endregion
 
         public FlyleafHost()
         {

@@ -160,7 +160,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
                 // Should exclude seek in queue for all "local/fast" files
                 lock (VideoDemuxer.lockActions)
-                if (Playlist.InputType == InputType.Torrent || !seekInQueue || VideoDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
+                if (Playlist.InputType == InputType.Torrent || ms == 0 || !seekInQueue || VideoDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
                 {
                     VideoDemuxer.Interrupter.ForceInterrupt = 1;
                     OpenedPlugin.OnBuffering();

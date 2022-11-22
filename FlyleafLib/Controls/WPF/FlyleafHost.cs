@@ -1598,6 +1598,7 @@ namespace FlyleafLib.Controls.WPF
         public void RefreshNormalFullScreen()
         {
             // Custom (Ensure) Restore: Some kind of bug when the window is near to edges or having an extended desktop with another screen (like it changes window's desktop owner)
+            // TODO: Another weird bug, Overlay maximized on Screen 2 when Surface maximized on Screen 1
 
             if (Surface.WindowState == WindowState.Minimized)
                 return;
