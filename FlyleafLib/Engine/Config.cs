@@ -709,6 +709,11 @@ namespace FlyleafLib
         public bool     FFmpegDevices           { get; set; }
 
         /// <summary>
+        /// Whether to allow HLS live seeking (this can cause segmentation faults in case of incompatible ffmpeg version with library's custom structures)
+        /// </summary>
+        public bool     FFmpegHLSLiveSeek       { get; set; }
+
+        /// <summary>
         /// Sets FFmpeg logger's level
         /// </summary>
         public FFmpegLogLevel 

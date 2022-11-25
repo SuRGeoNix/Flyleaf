@@ -136,24 +136,6 @@ namespace FFmpeg.AutoGen
             public int id3_found; /* ID3 tag found at some point */
             public int id3_changed; /* ID3 tag data has changed at some point */
             public void *id3_deferred_extra; /* stored here until subdemuxer is opened */
-
-            //HLSAudioSetupInfo audio_setup_info;
-
-            //public long seek_timestamp;
-            //public int seek_flags;
-            //public int seek_stream_index; /* into subdemuxer stream array */
-
-            ///* Renditions associated with this playlist, if any.
-            // * Alternative rendition playlists have a single rendition associated
-            // * with them, and variant main Media Playlists may have
-            // * multiple (playlist-less) renditions associated with them. */
-            //public int n_renditions;
-            //public void **renditions;
-
-            ///* Media Initialization Sections (EXT-X-MAP) associated with this
-            // * playlist, if any. */
-            //public int n_init_sections;
-            //public segment **init_sections;
         }
         public unsafe struct HLSPlaylistv5
         {
@@ -211,24 +193,65 @@ namespace FFmpeg.AutoGen
             public int id3_found; /* ID3 tag found at some point */
             public int id3_changed; /* ID3 tag data has changed at some point */
             public void *id3_deferred_extra; /* stored here until subdemuxer is opened */
+        }
+        public unsafe struct HLSPlaylistv5_1
+        {
+            public byte_array4096 url;
+            //public AVIOContext pb;
+            public FFIOContext pb;
+            //public byte* read_buffer; // No idea why! (.dll? autogen?)
+            public AVIOContext *input;
+            public int input_read_done;
+            public AVIOContext *input_next;
+            public int input_next_requested;
+            public AVFormatContext *parent;
+            public int index;
+            public AVFormatContext *ctx;
+            public AVPacket *pkt;
+            public int has_noheader_flag;
 
-            //HLSAudioSetupInfo audio_setup_info;
+            /* main demuxer streams associated with this playlist
+             * indexed by the subdemuxer stream indexes */
+            public AVStream **main_streams;
+            public int n_main_streams;
 
-            //public long seek_timestamp;
-            //public int seek_flags;
-            //public int seek_stream_index; /* into subdemuxer stream array */
+            public int finished;
+            public PlaylistType type;
+            public long target_duration;
+            public long start_seq_no;
+            public int time_offset_flag;    // Added in 5.1
+            public long start_time_offset;  // Added in 5.1
+            public int n_segments;
+            public segment **segments;
+            public int needed;
+            public int broken;
+            public long cur_seq_no;
+            public long last_seq_no;
+            public int m3u8_hold_counters;
+            public long cur_seg_offset;
+            public long last_load_time;
 
-            ///* Renditions associated with this playlist, if any.
-            // * Alternative rendition playlists have a single rendition associated
-            // * with them, and variant main Media Playlists may have
-            // * multiple (playlist-less) renditions associated with them. */
-            //public int n_renditions;
-            //public void **renditions;
+            /* Currently active Media Initialization Section */
+            public void *cur_init_section;
+            public byte *init_sec_buf;
+            public uint init_sec_buf_size;
+            public uint init_sec_data_len;
+            public uint init_sec_buf_read_offset;
 
-            ///* Media Initialization Sections (EXT-X-MAP) associated with this
-            // * playlist, if any. */
-            //public int n_init_sections;
-            //public segment **init_sections;
+            public byte_array4096 key_url;
+            public byte_array16 key;
+
+            /* ID3 timestamp handling (elementary audio streams have ID3 timestamps
+             * (and possibly other ID3 tags) in the beginning of each segment) */
+            public int is_id3_timestamped; /* -1: not yet known */
+            public long id3_mpegts_timestamp; /* in mpegts tb */
+            public long id3_offset; /* in stream original tb */
+            public byte* id3_buf; /* temp buffer for id3 parsing */
+            public uint id3_buf_size;
+            public AVDictionary *id3_initial; /* data from first id3 tag */
+            public int id3_found; /* ID3 tag found at some point */
+            public int id3_changed; /* ID3 tag data has changed at some point */
+            public void *id3_deferred_extra; /* stored here until subdemuxer is opened */
         }
         #endregion
 

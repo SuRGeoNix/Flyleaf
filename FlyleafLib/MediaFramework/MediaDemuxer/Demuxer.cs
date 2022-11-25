@@ -413,7 +413,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Duration        = fmtCtx->duration > 0 ? fmtCtx->duration * 10 : 0;
 
             // TBR: Possible we can get Apple HTTP Live Streaming/hls with HLSPlaylist->finished with Duration != 0
-            if (Duration == 0 && Name == "hls" && Environment.Is64BitProcess)
+            if (Engine.Config.FFmpegHLSLiveSeek && Duration == 0 && Name == "hls" && Environment.Is64BitProcess) // HLSContext cast is not safe
             {
                 hlsCtx = (HLSContext*) fmtCtx->priv_data;
                 StartTime = 0;
