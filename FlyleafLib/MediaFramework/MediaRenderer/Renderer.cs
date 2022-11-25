@@ -49,16 +49,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         public Viewport         GetViewport     { get; private set; }
 
-        public int              PanXOffset      { get => panXOffset; set { panXOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
+        public int              PanXOffset      { get => panXOffset;    set { panXOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int panXOffset;
 
-        public int              PanYOffset      { get => panYOffset; set { panYOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
+        public int              PanYOffset      { get => panYOffset;    set { panYOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int panYOffset;
 
-        public int              Rotation   { get => _RotationAngle; set => SetRotation(value); }
+        public int              Rotation        { get => _RotationAngle;set { SetRotation(value); SetViewport(); } }
         int _RotationAngle; VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
 
-        public int              Zoom            { get => zoom;       set { zoom       = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
+        public int              Zoom            { get => zoom;          set { zoom       = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int zoom;
 
         public int              UniqueId        { get; private set; }
@@ -758,16 +758,17 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             if (Config.Video.AspectRatio == AspectRatio.Keep)
                 ratio = curRatio;
-
             else if (Config.Video.AspectRatio == AspectRatio.Fill)
                 ratio = ControlWidth / (float)ControlHeight;
-
             else if (Config.Video.AspectRatio == AspectRatio.Custom)
                 ratio = Config.Video.CustomAspectRatio.Value;
             else
                 ratio = Config.Video.AspectRatio.Value;
 
             if (ratio <= 0) ratio = 1;
+
+            if (_RotationAngle == 90 || _RotationAngle == 270)
+                ratio = 1 / ratio;
 
             int Height = ControlHeight + (zoom * 2);
             int Width  = ControlWidth  + (zoom * 2);

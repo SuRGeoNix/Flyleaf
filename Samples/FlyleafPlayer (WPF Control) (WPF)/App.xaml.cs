@@ -43,6 +43,8 @@ namespace FlyleafPlayer
 
             engineConfig.PluginsPath    = ":Plugins";
             engineConfig.FFmpegPath     = ":FFmpeg";
+            engineConfig.FFmpegHLSLiveSeek
+                                        = true;
             engineConfig.HighPerformaceTimers
                                         = false;
             engineConfig.UIRefresh      = true;
