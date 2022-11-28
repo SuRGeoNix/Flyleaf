@@ -608,7 +608,7 @@ namespace FlyleafLib
             /// <summary>
             /// Audio languages preference by priority
             /// </summary>
-            public List<Language>   Languages           { get { if (_Languages == null) _Languages = Utils.GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
+            public List<Language>   Languages           { get { if (_Languages == null) _Languages = GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
             List<Language> _Languages;
         }
         public class SubtitlesConfig : NotifyPropertyChanged
@@ -645,7 +645,7 @@ namespace FlyleafLib
             /// <summary>
             /// Subtitle languages preference by priority
             /// </summary>
-            public List<Language>   Languages           { get { if (_Languages == null) _Languages = Utils.GetSystemLanguages(); return _Languages; } set { _Languages = value;} }
+            public List<Language>   Languages           { get { if (_Languages == null) _Languages = GetSystemLanguages(); return _Languages; } set { _Languages = value;} }
             List<Language> _Languages;
 
             /// <summary>

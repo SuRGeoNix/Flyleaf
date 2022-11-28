@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net7.0-windows</TargetFramework>
     <RootNamespace>FlyleafExtractor__WinForms_</RootNamespace>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>FlyleafExtractor</AssemblyName>
@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)\Plugins\bin\Plugins.NET6\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
+    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)\Plugins\bin\Plugins.NET7\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
   </Target>
 
 </Project>
