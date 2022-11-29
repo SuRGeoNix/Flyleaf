@@ -15,8 +15,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
         public Demuxer                      Demuxer             { get; internal set; }
         public AVStream*                    AVStream            { get; internal set; }
-        internal HLSPlaylistv4*             HLSPlaylistv4       { get; set; }
-        internal HLSPlaylistv5*             HLSPlaylistv5       { get; set; }
+        internal HLSPlaylist*               HLSPlaylist         { get; set; }
         public int                          StreamIndex         { get; internal set; } = -1;
         public double                       Timebase            { get; internal set; }
 
@@ -55,33 +54,16 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
             if (Demuxer.hlsCtx != null)
             {
-                if (Engine.FFmpeg.IsVer5)
+                for (int i=0; i<Demuxer.hlsCtx->n_playlists; i++)
                 {
-                    for (int i=0; i<Demuxer.hlsCtx->n_playlists; i++)
-                    {
-                        HLSPlaylistv5** playlists = (HLSPlaylistv5**) Demuxer.hlsCtx->playlists;
-                        for (int l=0; l<playlists[i]->n_main_streams; l++)
-                            if (playlists[i]->main_streams[l]->index == StreamIndex)
-                            {
-                                Demuxer.Log.Debug($"Stream #{StreamIndex} Found in playlist {i}");
-                                HLSPlaylistv5 = playlists[i];
-                                break;
-                            }   
-                    }
-                }
-                else
-                {
-                    for (int i=0; i<Demuxer.hlsCtx->n_playlists; i++)
-                    {
-                        HLSPlaylistv4** playlists = (HLSPlaylistv4**) Demuxer.hlsCtx->playlists;
-                        for (int l=0; l<playlists[i]->n_main_streams; l++)
-                            if (playlists[i]->main_streams[l]->index == StreamIndex)
-                            {
-                                Demuxer.Log.Debug($"Stream #{StreamIndex} Found in playlist {i}");
-                                HLSPlaylistv4 = playlists[i];
-                                break;
-                            }   
-                    }
+                    HLSPlaylist** playlists = (HLSPlaylist**) Demuxer.hlsCtx->playlists;
+                    for (int l=0; l<playlists[i]->n_main_streams; l++)
+                        if (playlists[i]->main_streams[l]->index == StreamIndex)
+                        {
+                            Demuxer.Log.Debug($"Stream #{StreamIndex} Found in playlist {i}");
+                            HLSPlaylist = playlists[i];
+                            break;
+                        }   
                 }
             }
                 
