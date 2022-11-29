@@ -19,6 +19,8 @@ namespace FlyleafPlayer
     /// </summary>
     public partial class MainWindow : Window
     {
+        public static string FlyleafLibVer => "FlyleafLib v" + System.Diagnostics.FileVersionInfo.GetVersionInfo(System.Reflection.Assembly.GetAssembly(typeof(Engine)).Location).ProductVersion;
+
         /// <summary>
         /// Flyleaf Player binded to FlyleafME
         /// </summary>

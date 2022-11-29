@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.1</Version>
+	<Version>3.6.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Player: Improves buffering cancellation while seeking but still gives few ms to show one frame
-		Renderer: Becomes completely independent from WPF/WinForms and requires only a Window Handle (IntPtr)
-		Renderer: GPUAdapters clean-up and improvements (adds Engine.Video.Screens)
-		Renderer: Restores WARP device fallback
-		VideoDecoder: Fixes a rare issue with keyframes
-		FlyleafHost.Wpf: Adds some support for multi-monitors
-		FlyleafHost.Wpf: Fixes a bug during restore from maximized
+		Demuxer: Adds HLS Live Seek support for FFmpeg v5.1.2 and drops supports for older versions
+		Demuxer: Introduces StartRealTime
+		Demuxer: Fixes seeking issue to the very beginning (0)
+		Engine: Introduces Config.FFmpegHLSLiveSeek to manually enable HLS Live Seek (disabled by default as it can cause critical issues if the version doesn't match with the HLSContext structure)
+		Player: Fixes (slow performance) an issues with Frame Stepping backwards on MPEG-TS formats (FFmpeg fails to properly seek backwards)
+		Renderer: Fixes Aspect Ratio on 90 and 270 degrees angle Rotation
+		Renderer: Fixes Rotation for Flyleaf video processor (wasn't rotating clock-wise)
 	</PackageReleaseNotes>
   </PropertyGroup>
 

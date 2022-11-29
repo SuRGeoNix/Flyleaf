@@ -101,7 +101,7 @@
                         </Style>
                     </Grid.Style>
                     
-                    <Image Source="Flyleaf.ico" Stretch="UniformToFill" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="Flyleaf v3.6-pre2"/>
+                    <Image Source="Flyleaf.ico" Stretch="UniformToFill" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="{Binding Tag.FlyleafLibVer}"/>
 
                     <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontWeight="Bold" FontStyle="Italic" FontFamily="Mistral" FontSize="34" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
 
