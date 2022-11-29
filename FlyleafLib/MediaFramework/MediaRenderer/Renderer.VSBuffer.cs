@@ -35,8 +35,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             else if (_RotationAngle < 360)
                 _d3d11vpRotation = VideoProcessorRotation.Rotation270;
             
-            vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (3.14159f / (180f / angle)));
-            vsBufferData.mat = Matrix4x4.Transpose(vsBufferData.mat);
+            vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) ((Math.PI / 180) * angle));
+            //vsBufferData.mat = Matrix4x4.Transpose(vsBufferData.mat); TBR
             context.UpdateSubresource(vsBufferData, vsBuffer);
 
             Present();
