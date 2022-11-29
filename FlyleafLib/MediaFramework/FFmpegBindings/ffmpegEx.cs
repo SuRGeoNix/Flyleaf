@@ -29,18 +29,6 @@ namespace FFmpeg.AutoGen
             public int first_packet;
             public long first_timestamp;
             public long cur_timestamp;
-            
-
-            // Not used
-            //public AVIOInterruptCB *interrupt_callback;
-            //public AVDictionary *avio_opts;
-            ////public  AVDictionary *seg_format_opts;
-            //public byte *allowed_extensions;
-            //public int max_reload;
-            //public int http_persistent;
-            //public int http_multiple;
-            //public int http_seekable;
-            //public AVIOContext *playlist_pb;
         }
 
         public struct segment
@@ -55,19 +43,6 @@ namespace FFmpeg.AutoGen
             /* associated Media Initialization Section, treated as a segment */
             public segment *init_section;
         }
-        
-        //public struct variant
-        //{
-        //    public int bandwidth;
-
-        //    /* every variant contains at least the main Media Playlist in index 0 */
-        //    public int n_playlists;
-        //    public HLSPlaylist **playlists;
-
-        //    public byte_array64 audio_group;
-        //    public byte_array64 video_group;
-        //    public byte_array64 subtitles_group;
-        //};
 
         public enum KeyType : int
         {
@@ -81,120 +56,7 @@ namespace FFmpeg.AutoGen
             PLS_TYPE_EVENT = 1,
             PLS_TYPE_VOD =2
         }
-        public unsafe struct HLSPlaylistv4
-        {
-            public byte_array4096 url;
-            public AVIOContext pb;
-            //public byte* read_buffer; // No idea why! (.dll? autogen?)
-            public AVIOContext *input;
-            public int input_read_done;
-            public AVIOContext *input_next;
-            public int input_next_requested;
-            public AVFormatContext *parent;
-            public int index;
-            public AVFormatContext *ctx;
-            public AVPacket *pkt;
-            public int has_noheader_flag;
-
-            /* main demuxer streams associated with this playlist
-             * indexed by the subdemuxer stream indexes */
-            public AVStream **main_streams;
-            public int n_main_streams;
-
-            public int finished;
-            public PlaylistType type;
-            public long target_duration;
-            public long start_seq_no;
-            public int n_segments;
-            public segment **segments;
-            public int needed;
-            public int broken;
-            public long cur_seq_no;
-            public long last_seq_no;
-            public int m3u8_hold_counters;
-            public long cur_seg_offset;
-            public long last_load_time;
-
-            /* Currently active Media Initialization Section */
-            public void *cur_init_section;
-            public byte *init_sec_buf;
-            public uint init_sec_buf_size;
-            public uint init_sec_data_len;
-            public uint init_sec_buf_read_offset;
-
-            public byte_array4096 key_url;
-            public byte_array16 key;
-
-            /* ID3 timestamp handling (elementary audio streams have ID3 timestamps
-             * (and possibly other ID3 tags) in the beginning of each segment) */
-            public int is_id3_timestamped; /* -1: not yet known */
-            public long id3_mpegts_timestamp; /* in mpegts tb */
-            public long id3_offset; /* in stream original tb */
-            public byte* id3_buf; /* temp buffer for id3 parsing */
-            public uint id3_buf_size;
-            public AVDictionary *id3_initial; /* data from first id3 tag */
-            public int id3_found; /* ID3 tag found at some point */
-            public int id3_changed; /* ID3 tag data has changed at some point */
-            public void *id3_deferred_extra; /* stored here until subdemuxer is opened */
-        }
-        public unsafe struct HLSPlaylistv5
-        {
-            public byte_array4096 url;
-            //public AVIOContext pb;
-            public FFIOContext pb;
-            //public byte* read_buffer; // No idea why! (.dll? autogen?)
-            public AVIOContext *input;
-            public int input_read_done;
-            public AVIOContext *input_next;
-            public int input_next_requested;
-            public AVFormatContext *parent;
-            public int index;
-            public AVFormatContext *ctx;
-            public AVPacket *pkt;
-            public int has_noheader_flag;
-
-            /* main demuxer streams associated with this playlist
-             * indexed by the subdemuxer stream indexes */
-            public AVStream **main_streams;
-            public int n_main_streams;
-
-            public int finished;
-            public PlaylistType type;
-            public long target_duration;
-            public long start_seq_no;
-            public int n_segments;
-            public segment **segments;
-            public int needed;
-            public int broken;
-            public long cur_seq_no;
-            public long last_seq_no;
-            public int m3u8_hold_counters;
-            public long cur_seg_offset;
-            public long last_load_time;
-
-            /* Currently active Media Initialization Section */
-            public void *cur_init_section;
-            public byte *init_sec_buf;
-            public uint init_sec_buf_size;
-            public uint init_sec_data_len;
-            public uint init_sec_buf_read_offset;
-
-            public byte_array4096 key_url;
-            public byte_array16 key;
-
-            /* ID3 timestamp handling (elementary audio streams have ID3 timestamps
-             * (and possibly other ID3 tags) in the beginning of each segment) */
-            public int is_id3_timestamped; /* -1: not yet known */
-            public long id3_mpegts_timestamp; /* in mpegts tb */
-            public long id3_offset; /* in stream original tb */
-            public byte* id3_buf; /* temp buffer for id3 parsing */
-            public uint id3_buf_size;
-            public AVDictionary *id3_initial; /* data from first id3 tag */
-            public int id3_found; /* ID3 tag found at some point */
-            public int id3_changed; /* ID3 tag data has changed at some point */
-            public void *id3_deferred_extra; /* stored here until subdemuxer is opened */
-        }
-        public unsafe struct HLSPlaylistv5_1
+        public unsafe struct HLSPlaylist // latest
         {
             public byte_array4096 url;
             //public AVIOContext pb;

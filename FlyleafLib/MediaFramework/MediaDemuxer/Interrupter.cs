@@ -62,7 +62,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     demuxer.OnTimedOut();
 
                     // Prevent Live Streams from Timeout (while demuxer is at the end)
-                    if (demuxer.Interrupter.Requester == Requester.Read && (demuxer.Duration == 0 || (demuxer.HLSPlaylistv4 != null && demuxer.HLSPlaylistv4->cur_seq_no > demuxer.HLSPlaylistv4->last_seq_no - 2) || (demuxer.HLSPlaylistv5 != null && demuxer.HLSPlaylistv5->cur_seq_no > demuxer.HLSPlaylistv5->last_seq_no - 2)))
+                    if (demuxer.Interrupter.Requester == Requester.Read && (demuxer.Duration == 0 || (demuxer.HLSPlaylist != null && demuxer.HLSPlaylist->cur_seq_no > demuxer.HLSPlaylist->last_seq_no - 2)))
                     {
                         // TBR: Add retries (per input? per thread start?) as it can actually ended and keep reading forever
                         if (CanTrace) demuxer.Log.Trace($"{demuxer.Interrupter.Requester} Timeout !!!! {(DateTime.UtcNow.Ticks - demuxer.Interrupter.Requested) / 10000} ms | Live HLS Excluded");

@@ -446,12 +446,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                 if (!VideoDemuxer.EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
                 if (VideoDemuxer.IsHLSLive)
-                {
-                    if (VideoDemuxer.HLSPlaylistv4 != null)
-                        VideoDemuxer.UpdateHLSTimev4();
-                    else
-                        VideoDemuxer.UpdateHLSTimev5();
-                }
+                    VideoDemuxer.UpdateHLSTime();
 
                 if (CanTrace)
                 {

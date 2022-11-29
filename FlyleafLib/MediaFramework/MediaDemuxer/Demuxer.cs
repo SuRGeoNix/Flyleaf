@@ -77,8 +77,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public SubtitlesStream          SubtitlesStream { get; private set; }
 
         // Audio/Video Stream's HLSPlaylist
-        internal HLSPlaylistv4*         HLSPlaylistv4   { get; private set; }
-        internal HLSPlaylistv5*         HLSPlaylistv5   { get; private set; }
+        internal HLSPlaylist*           HLSPlaylist     { get; private set; }
         
         // Media Packets
         public PacketQueue              Packets         { get; private set; }
@@ -768,12 +767,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
                     if (IsHLSLive)
-                    {
-                        if (HLSPlaylistv4 != null)
-                            UpdateHLSTimev4();
-                        else
-                            UpdateHLSTimev5();
-                    }
+                        UpdateHLSTime();
 
                     if (CanTrace)
                     {
@@ -1106,22 +1100,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         AudioStream = (AudioStream) stream;
                         if (VideoStream == null)
                         {
-                            if (AudioStream.HLSPlaylistv4 != null)
+                            if (AudioStream.HLSPlaylist != null)
                             {
                                 IsHLSLive = true;
-                                HLSPlaylistv4 = AudioStream.HLSPlaylistv4;
-                                UpdateHLSTimev4();
-                            }
-                            else if (AudioStream.HLSPlaylistv5 != null)
-                            {
-                                IsHLSLive = true;
-                                HLSPlaylistv5 = AudioStream.HLSPlaylistv5;
-                                UpdateHLSTimev5();
+                                HLSPlaylist = AudioStream.HLSPlaylist;
+                                UpdateHLSTime();
                             }
                             else
                             {
-                                HLSPlaylistv4 = null;
-                                HLSPlaylistv5 = null;
+                                HLSPlaylist = null;
                                 IsHLSLive = false;
                             }
                         }
@@ -1130,22 +1117,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     case MediaType.Video:
                         VideoStream = (VideoStream) stream;
-                        if (VideoStream.HLSPlaylistv4 != null)
+                        if (VideoStream.HLSPlaylist != null)
                         {
                             IsHLSLive = true;
-                            HLSPlaylistv4 = VideoStream.HLSPlaylistv4;
-                            UpdateHLSTimev4();
-                        }
-                        else if (VideoStream.HLSPlaylistv5 != null)
-                        {
-                            IsHLSLive = true;
-                            HLSPlaylistv5 = VideoStream.HLSPlaylistv5;
-                            UpdateHLSTimev5();
+                            HLSPlaylist = VideoStream.HLSPlaylist;
+                            UpdateHLSTime();
                         }
                         else
                         {
-                            HLSPlaylistv4 = null;
-                            HLSPlaylistv5 = null;
+                            HLSPlaylist = null;
                             IsHLSLive = false;
                         }
 
@@ -1188,26 +1168,18 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         AudioStream = null;
                         if (VideoStream != null)
                         {
-                            if (VideoStream.HLSPlaylistv4 != null)
+                            if (VideoStream.HLSPlaylist != null)
                             {
                                 IsHLSLive = true;
-                                HLSPlaylistv4 = VideoStream.HLSPlaylistv4;
-                                UpdateHLSTimev4();
-                            }
-                            else if (VideoStream.HLSPlaylistv5 != null)
-                            {
-                                IsHLSLive = true;
-                                HLSPlaylistv5 = VideoStream.HLSPlaylistv5;
-                                UpdateHLSTimev5();
+                                HLSPlaylist = VideoStream.HLSPlaylist;
+                                UpdateHLSTime();
                             }
                             else
                             {
-                                HLSPlaylistv4 = null;
-                                HLSPlaylistv5 = null;
+                                HLSPlaylist = null;
                                 IsHLSLive = false;
                             }
                         }
-
 
                         AudioPackets.Clear();
 
@@ -1217,22 +1189,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         VideoStream = null;
                         if (AudioStream != null)
                         {
-                            if (AudioStream.HLSPlaylistv4 != null)
+                            if (AudioStream.HLSPlaylist != null)
                             {
                                 IsHLSLive = true;
-                                HLSPlaylistv4 = AudioStream.HLSPlaylistv4;
-                                UpdateHLSTimev4();
-                            }
-                            else if (AudioStream.HLSPlaylistv5 != null)
-                            {
-                                IsHLSLive = true;
-                                HLSPlaylistv5 = AudioStream.HLSPlaylistv5;
-                                UpdateHLSTimev5();
+                                HLSPlaylist = AudioStream.HLSPlaylist;
+                                UpdateHLSTime();
                             }
                             else
                             {
-                                HLSPlaylistv4 = null;
-                                HLSPlaylistv5 = null;
+                                HLSPlaylist = null;
                                 IsHLSLive = false;
                             }
                         }
@@ -1270,61 +1235,27 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         #endregion
         
         #region Misc
-        internal void UpdateHLSTimev4()
-        {
-            if (hlsPrevSeqNo != HLSPlaylistv4->cur_seq_no)
-            {
-                hlsPrevSeqNo = HLSPlaylistv4->cur_seq_no;
-                hlsStartTime = AV_NOPTS_VALUE;
-
-                hlsCurDuration = 0;
-                long duration = 0;
-
-                for (long i=0; i<HLSPlaylistv4->cur_seq_no - HLSPlaylistv4->start_seq_no; i++)
-                {
-                    hlsCurDuration += HLSPlaylistv4->segments[i]->duration;
-                    duration += HLSPlaylistv4->segments[i]->duration;
-                }
-
-                for (long i=HLSPlaylistv4->cur_seq_no - HLSPlaylistv4->start_seq_no; i<HLSPlaylistv4->n_segments; i++)
-                    duration += HLSPlaylistv4->segments[i]->duration;
-
-                hlsCurDuration *= 10;
-                duration *= 10;
-                Duration = duration;
-            }
-
-            //if (HLSPlaylist->finished == 1) IsLive = false;
-
-            if (hlsStartTime == AV_NOPTS_VALUE && CurPackets.LastTimestamp != AV_NOPTS_VALUE)
-            {
-                hlsStartTime = CurPackets.LastTimestamp - hlsCurDuration;
-                CurPackets.UpdateCurTime();
-            }
-
-            //Log($"[S: {HLSPlaylist->start_seq_no} C: {HLSPlaylist->cur_seq_no} L: {HLSPlaylist->last_seq_no} T:{HLSPlaylist->n_segments} BD: {Utils.TicksToTime(BufferedDuration)} SD: {Utils.TicksToTime(hlsCurDuration)} DUR: {Utils.TicksToTime(Duration)}] [FT: {Utils.TicksToTime(hlsCtx->first_timestamp * 10)} ST: {Utils.TicksToTime(hlsStartTime)} FP: {Utils.TicksToTime(firstPacketTs)} CP: {Utils.TicksToTime(lastPacketTs)} <> {Utils.TicksToTime(lastPacketTs-firstPacketTs)} | CT: {Utils.TicksToTime(CurTime)}]");
-        }
-        internal void UpdateHLSTimev5()
+        internal void UpdateHLSTime()
         {
             // TBR: Access Violation
             // [hls @ 00000269f9cdb400] Media sequence changed unexpectedly: 150070 -> 0
 
-            if (hlsPrevSeqNo != HLSPlaylistv5->cur_seq_no)
+            if (hlsPrevSeqNo != HLSPlaylist->cur_seq_no)
             {
-                hlsPrevSeqNo = HLSPlaylistv5->cur_seq_no;
+                hlsPrevSeqNo = HLSPlaylist->cur_seq_no;
                 hlsStartTime = AV_NOPTS_VALUE;
 
                 hlsCurDuration = 0;
                 long duration = 0;
 
-                for (long i=0; i<HLSPlaylistv5->cur_seq_no - HLSPlaylistv5->start_seq_no; i++)
+                for (long i=0; i<HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no; i++)
                 {
-                    hlsCurDuration += HLSPlaylistv5->segments[i]->duration;
-                    duration += HLSPlaylistv5->segments[i]->duration;
+                    hlsCurDuration += HLSPlaylist->segments[i]->duration;
+                    duration += HLSPlaylist->segments[i]->duration;
                 }
 
-                for (long i=HLSPlaylistv5->cur_seq_no - HLSPlaylistv5->start_seq_no; i<HLSPlaylistv5->n_segments; i++)
-                    duration += HLSPlaylistv5->segments[i]->duration;
+                for (long i=HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no; i<HLSPlaylist->n_segments; i++)
+                    duration += HLSPlaylist->segments[i]->duration;
 
                 hlsCurDuration *= 10;
                 duration *= 10;
