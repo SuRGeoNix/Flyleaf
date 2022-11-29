@@ -9,6 +9,7 @@
         <Setter Property="IsAttached" Value="True"/>
         <Setter Property="IsFullScreen" Value="False"/>
         <Setter Property="KeyBindings" Value="Surface"/>
+        <Setter Property="MouseBindings" Value="Both"/>
         
         <Setter Property="OpenOnDrop" Value="Surface"/>
         <Setter Property="SwapOnDrop" Value="Surface"/>

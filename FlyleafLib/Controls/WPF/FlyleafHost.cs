@@ -60,6 +60,7 @@ namespace FlyleafLib.Controls.WPF
             DetachedTopMost					[False, True] (Surfaces Only Required?)
 
             KeyBindings						[None, Surface, Overlay, Both]
+            MouseBindings                   [None, Surface, Overlay, Both]      | Required for all other mouse events
 
             ActivityTimeout					[0: Disabled]						| Requires Player?
             ActivityRefresh?				[None, Surface, Overlay, Both]		| MouseMove / MouseDown / KeyUp
@@ -100,6 +101,8 @@ namespace FlyleafLib.Controls.WPF
         bool preventContentUpdate;
         int panPrevX, panPrevY;
         bool ownedRestoreToMaximize;
+        bool isMouseBindingsSubscribedSurface;
+        bool isMouseBindingsSubscribedOverlay;
         WindowState prevSurfaceWindowState = WindowState.Normal;
 
         Matrix matrix;
@@ -299,6 +302,13 @@ namespace FlyleafLib.Controls.WPF
         public static readonly DependencyProperty KeyBindingsProperty =
             DependencyProperty.Register(nameof(KeyBindings), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
+        public AvailableWindows MouseBindings
+        {
+            get { return (AvailableWindows)GetValue(MouseBindingsProperty); }
+            set { SetValue(MouseBindingsProperty, value); }
+        }
+        public static readonly DependencyProperty MouseBindingsProperty =
+            DependencyProperty.Register(nameof(MouseBindings), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Both, new PropertyChangedCallback(OnMouseBindings)));
 
         public int ActivityTimeout
         {
@@ -400,6 +410,16 @@ namespace FlyleafLib.Controls.WPF
         #endregion
 
         #region Events
+        private static void OnMouseBindings(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (isDesginMode)
+                return;
+
+            FlyleafHost host = d as FlyleafHost;
+
+            host.SetMouseSurface();
+            host.SetMouseOverlay();
+        }
         private static void OnDetachedTopMostChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (isDesginMode)
@@ -1396,18 +1416,11 @@ namespace FlyleafLib.Controls.WPF
             Surface.Closing     += Surface_Closing;
             Surface.KeyDown     += Surface_KeyDown;
             Surface.KeyUp       += Surface_KeyUp;
-            Surface.MouseLeftButtonDown
-                                += Surface_MouseLeftButtonDown;
-            Surface.MouseLeftButtonUp
-                                += Surface_MouseLeftButtonUp;
-            Surface.MouseMove   += Surface_MouseMove;
-            Surface.MouseDoubleClick
-                                += Surface_MouseDoubleClick;
-            Surface.DragEnter   += Surface_DragEnter;
             Surface.Drop        += Surface_Drop;
-            Surface.MouseWheel  += Surface_MouseWheel;
+            Surface.DragEnter   += Surface_DragEnter;
             Surface.StateChanged+= Surface_StateChanged;
-            Surface.MouseLeave  += Surface_MouseLeave;
+
+            SetMouseSurface();
 
             Surface.AllowDrop =
                 OpenOnDrop == AvailableWindows.Surface || OpenOnDrop == AvailableWindows.Both ||
@@ -1467,18 +1480,11 @@ namespace FlyleafLib.Controls.WPF
             Overlay.KeyUp       += Overlay_KeyUp;
             Overlay.KeyDown     += Overlay_KeyDown;
             Overlay.Closing     += Overlay_Closing;
-            Overlay.MouseLeftButtonDown
-                                += Overlay_MouseLeftButtonDown;
-            Overlay.MouseLeftButtonUp
-                                += Overlay_MouseLeftButtonUp;
-            Overlay.MouseWheel  += Overlay_MouseWheel;
-            Overlay.MouseMove   += Overlay_MouseMove;
-            Overlay.MouseLeave  += Overlay_MouseLeave;
-            Overlay.MouseDoubleClick
-                                += Overlay_MouseDoubleClick;
             Overlay.Drop        += Overlay_Drop;
             Overlay.DragEnter   += Overlay_DragEnter;
             Overlay.StateChanged+= Overlay_StateChanged;
+
+            SetMouseOverlay();
 
             // Owner will close the overlay
             Overlay.KeyDown += (o, e) => { if (e.Key == Key.System && e.SystemKey == Key.F4) Surface?.Focus(); };
@@ -1490,6 +1496,59 @@ namespace FlyleafLib.Controls.WPF
             //??
             if (Surface.IsVisible)
                 Overlay.Visibility = Visibility.Visible;
+        }
+
+        private void SetMouseSurface()
+        {
+            if (Surface == null)
+                return;
+
+            if ((MouseBindings == AvailableWindows.Surface || MouseBindings == AvailableWindows.Both) && !isMouseBindingsSubscribedSurface)
+            {
+                Surface.MouseLeftButtonDown += Surface_MouseLeftButtonDown;
+                Surface.MouseLeftButtonUp   += Surface_MouseLeftButtonUp;
+                Surface.MouseWheel          += Surface_MouseWheel;
+                Surface.MouseMove           += Surface_MouseMove;
+                Surface.MouseLeave          += Surface_MouseLeave;
+                Surface.MouseDoubleClick    += Surface_MouseDoubleClick;
+                isMouseBindingsSubscribedSurface = true;
+            }
+            else if (MouseBindings != AvailableWindows.Surface && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedSurface)
+            {
+                Surface.MouseLeftButtonDown -= Surface_MouseLeftButtonDown;
+                Surface.MouseLeftButtonUp   -= Surface_MouseLeftButtonUp;
+                Surface.MouseWheel          -= Surface_MouseWheel;
+                Surface.MouseMove           -= Surface_MouseMove;
+                Surface.MouseLeave          -= Surface_MouseLeave;
+                Surface.MouseDoubleClick    -= Surface_MouseDoubleClick;
+                isMouseBindingsSubscribedSurface = false;
+            }
+        }
+        private void SetMouseOverlay()
+        {
+            if (Overlay == null)
+                return;
+
+            if ((MouseBindings == AvailableWindows.Overlay || MouseBindings == AvailableWindows.Both) && !isMouseBindingsSubscribedOverlay)
+            {
+                Overlay.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
+                Overlay.MouseLeftButtonUp   += Overlay_MouseLeftButtonUp;
+                Overlay.MouseWheel          += Overlay_MouseWheel;
+                Overlay.MouseMove           += Overlay_MouseMove;
+                Overlay.MouseLeave          += Overlay_MouseLeave;
+                Overlay.MouseDoubleClick    += Overlay_MouseDoubleClick;
+                isMouseBindingsSubscribedOverlay = true;
+            }
+            else if (MouseBindings != AvailableWindows.Overlay && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedOverlay)
+            {
+                Overlay.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
+                Overlay.MouseLeftButtonUp   -= Overlay_MouseLeftButtonUp;
+                Overlay.MouseWheel          -= Overlay_MouseWheel;
+                Overlay.MouseMove           -= Overlay_MouseMove;
+                Overlay.MouseLeave          -= Overlay_MouseLeave;
+                Overlay.MouseDoubleClick    -= Overlay_MouseDoubleClick;
+                isMouseBindingsSubscribedOverlay = false;
+            }
         }
 
         public virtual void Attach()
