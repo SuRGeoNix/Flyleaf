@@ -439,7 +439,9 @@ namespace FlyleafLib
             /// <summary>
             /// Allows video accceleration even in codec's profile mismatch
             /// </summary>
-            public bool             AllowProfileMismatch { get; set; } = false;
+            public bool             AllowProfileMismatch
+                                                    { get => _AllowProfileMismatch; set => SetUI(ref _AllowProfileMismatch, value); }
+            bool _AllowProfileMismatch;
         }
         public class VideoConfig : NotifyPropertyChanged
         {

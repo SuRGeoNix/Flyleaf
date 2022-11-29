@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:FlyleafLib.Controls.WPF"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="800" x:Name="DebugControl">
+             d:DesignHeight="600" d:DesignWidth="800" x:Name="DebugControl" d:Background="White">
     
     <UserControl.Resources>
         <ResourceDictionary>
@@ -126,6 +126,11 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource TextInfo}" Text="PanYOffset"/>
                     <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.PanYOffset}"/>
+                </StackPanel>
+                
+                 <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource TextInfo}" Text="Rotation"/>
+                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Rotation}"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
@@ -259,6 +264,11 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource TextInfo}" Text="FramesTotal"/>
                     <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesTotal, StringFormat={}{0:N0}}"/>
+                </StackPanel>
+                
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource TextInfo}" Text="ProfileMismatch"/>
+                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Config.Decoder.AllowProfileMismatch}"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal">

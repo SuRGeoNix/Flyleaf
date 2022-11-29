@@ -971,6 +971,12 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         public int GetFrameNumber(long timestamp)
         {
+            // Incoming timestamps are zero-base from demuxer start time (not from video stream start time)
+            timestamp -= (VideoStream.StartTime - demuxer.StartTime);
+
+            if (timestamp < 1)
+                return 0;
+
             // offset 2ms
             return (int) ((timestamp + 20000) / VideoStream.FrameDuration);
         }
@@ -986,13 +992,20 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             // Calculation of FrameX timestamp (based on fps/avgFrameDuration) | offset 2ms
             long frameTimestamp = VideoStream.StartTime + (long) (index * VideoStream.FrameDuration) - 20000;
-            //Log($"Searching for {Utils.TicksToTime(frameTimestamp)}");
+            //Log.Debug($"Searching for {Utils.TicksToTime(frameTimestamp)}");
 
-            // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC
             demuxer.Pause();
             Pause();
+
+            // TBR
+            //if (demuxer.FormatContext->pb != null)
+            //    avio_flush(demuxer.FormatContext->pb);
+            //avformat_flush(demuxer.FormatContext);
+
+            // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC
+            // More issues with mpegts seeking backwards (those should be used also in the reverse playback in the demuxer)
             demuxer.Interrupter.Request(MediaDemuxer.Requester.Seek);
-            if (codecCtx->codec_id == AV_CODEC_ID_HEVC)
+            if (codecCtx->codec_id == AV_CODEC_ID_HEVC || demuxer.Name == "mpegts")
                 ret = av_seek_frame(demuxer.FormatContext, -1, Math.Max(VideoStream.StartTime, frameTimestamp - (3 * (long)1000 * 10000)) / 10, AVSEEK_FLAG_ANY);
             else
                 ret = av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
@@ -1013,13 +1026,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 // Skip frames before our actual requested frame
                 if ((long)(frame->pts * VideoStream.Timebase) < frameTimestamp)
                 {
-                    //Log.Debug($"[Skip] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}]");
+                    //Log.Debug($"[Skip] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | [fltime: {Utils.TicksToTime(((long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime))}]");
                     av_frame_unref(frame);
                     checkExtraFrames = true;
                     continue; 
                 }
 
-                //Log.Debug($"[Found] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | {Utils.TicksToTime(VideoStream.StartTime + (index * VideoStream.FrameDuration))}");
+                //Log.Debug($"[Found] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | {Utils.TicksToTime(VideoStream.StartTime + (index * VideoStream.FrameDuration))} | [fltime: {Utils.TicksToTime(((long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime))}]");
                 return ProcessVideoFrame(frame);
             }
 
