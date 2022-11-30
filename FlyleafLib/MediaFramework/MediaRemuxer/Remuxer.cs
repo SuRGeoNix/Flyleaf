@@ -137,13 +137,13 @@ namespace FlyleafLib.MediaFramework.MediaRemuxer
                         mapInStreamToDts.Add(in_stream->index, packet->dts);
                     }
 
-                    packet->pts         = av_rescale_q_rnd(packet->pts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                    packet->dts         = av_rescale_q_rnd(packet->dts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                    packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                    packet->dts = av_rescale_q_rnd(packet->dts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
                 }
                 else
-                {
-                    packet->pts         = av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                    packet->dts         = av_rescale_q_rnd(packet->dts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                {   
+                    packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                    packet->dts = AV_NOPTS_VALUE;
                 }
 
                 packet->duration        = av_rescale_q(packet->duration,in_stream->time_base, out_stream->time_base);

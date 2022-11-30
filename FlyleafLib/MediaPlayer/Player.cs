@@ -474,7 +474,7 @@ namespace FlyleafLib.MediaPlayer
                 VideoDecoder.RefreshMaxVideoFrames();
                 ReSync(decoder.VideoStream, (int) (CurTime / 10000), true);
 
-                if (wasPlaying || Config.Player.AutoPlay)
+                if (wasPlaying)
                     Play();
             }
         }

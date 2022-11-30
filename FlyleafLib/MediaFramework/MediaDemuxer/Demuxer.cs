@@ -404,8 +404,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Name        = Utils.BytePtrToStringUTF8(fmtCtx->iformat->name);
             LongName    = Utils.BytePtrToStringUTF8(fmtCtx->iformat->long_name);
             Extensions  = Utils.BytePtrToStringUTF8(fmtCtx->iformat->extensions);
-            if (Name == "mpegts")
-                Extensions = "ts";
+            Extension   = GetValidExtension();
 
             StartTime       = fmtCtx->start_time != AV_NOPTS_VALUE ? fmtCtx->start_time * 10 : 0;
             StartRealTime   = fmtCtx->start_time_realtime != AV_NOPTS_VALUE ? fmtCtx->start_time_realtime * 10 : 0;
@@ -528,7 +527,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 }
             }
 
-            Extension = GetValidExtension();
             PrintDump();
             return hasVideo;
         }
@@ -835,7 +833,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
             // To demux further for buffering (related to BufferDuration)
             int maxQueueSize = 2;
-            
+            curReverseSeekOffset = av_rescale_q((3 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+
             do
             {
                 // Wait until not QueueFull
@@ -1010,26 +1009,15 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             } while (Status == Status.Running);
         }
 
-        public int EnableReversePlayback(long timestamp)
+        public void EnableReversePlayback(long timestamp)
         {
-            //if (IsReversePlayback) return -1;
             IsReversePlayback = true;
-
-            int ret;
-
-            //Log($"[SEEK <-] {Utils.TicksToTime(timestamp) }");
+            Seek(StartTime + timestamp);
             curReverseStopRequestedPts = av_rescale_q((StartTime + timestamp) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
-
-            Interrupter.Request(Requester.Seek);
-            ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, curReverseStopRequestedPts, AVSEEK_FLAG_BACKWARD);
-            lock (lockStatus) if (Status == Status.Ended) Status = Status.Stopped;
-            curReverseStartPts = AV_NOPTS_VALUE;
-            return ret;
         }
-        public int DisableReversePlayback()
+        public void DisableReversePlayback()
         {
             IsReversePlayback = false;
-            return 0;
         }
         #endregion
 
@@ -1128,8 +1116,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             HLSPlaylist = null;
                             IsHLSLive = false;
                         }
-
-                        curReverseSeekOffset = av_rescale_q((3 * 1000 * 10000) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
 
                         break;
 
@@ -1276,8 +1262,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             // Should check for inner input format (not outer protocol eg. hls/rtsp)
             // Should check for raw codecs it can be mp4/mov but it will not work in mp4 only in mov (or avi for raw)
 
-            if (Extensions == "ts")
+            if (Name == "mpegts")
                 return "ts";
+            else if (Name == "mpeg")
+                return "mpeg";
 
             List<string> supportedOutput = new List<string>() { "mp4", "avi", "flv", "flac", "mpeg", "mpegts", "mkv", "ogg", "ts"};
             string defaultExtenstion = "mp4";
