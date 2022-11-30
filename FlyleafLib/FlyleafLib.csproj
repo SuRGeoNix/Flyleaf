@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.2</Version>
+	<Version>3.6.3</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Demuxer: Adds HLS Live Seek support for FFmpeg v5.1.2 and drops supports for older versions
-		Demuxer: Introduces StartRealTime
-		Demuxer: Fixes seeking issue to the very beginning (0)
-		Engine: Introduces Config.FFmpegHLSLiveSeek to manually enable HLS Live Seek (disabled by default as it can cause critical issues if the version doesn't match with the HLSContext structure)
-		Player: Fixes (slow performance) an issues with Frame Stepping backwards on MPEG-TS formats (FFmpeg fails to properly seek backwards)
-		Renderer: Fixes Aspect Ratio on 90 and 270 degrees angle Rotation
-		Renderer: Fixes Rotation for Flyleaf video processor (wasn't rotating clock-wise)
+		Demuxer: Fixes issues with reverse playback and minor issue with remuxer's extension
+		Decoder: Fixes Frame Stepping with formats that allow timestamp discontinuities
+		Remuxer: Fixes critical issues while dts/pts having no value (AV_NOPTS_VALUE)
+		Player: Improves recording, reverse playback and frame stepping
+		Player.Screamer: Better handling of wrong video timestamps (even when audio timestamps are normal)
 	</PackageReleaseNotes>
   </PropertyGroup>
 

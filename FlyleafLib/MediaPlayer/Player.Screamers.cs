@@ -341,7 +341,7 @@ namespace FlyleafLib.MediaPlayer
                 if (sleepMs < 0) sleepMs = 0;
                 if (sleepMs > 2)
                 {
-                    if (sleepMs > 1000)
+                    if (vDistanceMs > 1000)
                     {   // Probably happens only on hls when it refreshes the m3u8 playlist / segments (and we are before the allowed cache)
                         Log.Warn($"Restarting ... (HLS?) | Distance: {TicksToTime(sleepMs * (long)10000)}");
                         requiresBuffering = true;

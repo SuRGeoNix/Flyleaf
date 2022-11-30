@@ -11,7 +11,6 @@ namespace FlyleafPlayer
 {
     // TODO: Open New Window with the same size, Popup Menu Playlist will not resize the size?
     //       Add Play Next/Prev for Playlists (Page Up/Down?) this goes down to Player
-    //       Add easy way to remove all mouseevent from flyleafhost
 
     /// <summary>
     /// <para>FlyleafPlayer Sample</para>
@@ -19,7 +18,7 @@ namespace FlyleafPlayer
     /// </summary>
     public partial class MainWindow : Window
     {
-        public static string FlyleafLibVer => "FlyleafLib v" + System.Diagnostics.FileVersionInfo.GetVersionInfo(System.Reflection.Assembly.GetAssembly(typeof(Engine)).Location).ProductVersion;
+        public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
 
         /// <summary>
         /// Flyleaf Player binded to FlyleafME
