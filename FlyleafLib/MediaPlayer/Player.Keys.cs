@@ -186,9 +186,7 @@ namespace FlyleafLib.MediaPlayer
             if (player == null)
                 Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, Key = key, IsKeyUp = isKeyUpBinding.Contains(action), Action = action });
             else
-            {
-                Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, IsKeyUp = isKeyUpBinding.Contains(action), Action = action, ActionInternal = GetKeyBindingAction(action) });
-            }
+                Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, Key = key, IsKeyUp = isKeyUpBinding.Contains(action), Action = action, ActionInternal = GetKeyBindingAction(action) });
         }
 
         public bool Exists(string actionName)

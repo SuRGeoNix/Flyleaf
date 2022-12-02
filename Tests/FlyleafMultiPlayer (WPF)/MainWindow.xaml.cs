@@ -27,7 +27,7 @@ namespace FlyleafMultiPlayer__WPF_
         public event PropertyChangedEventHandler PropertyChanged;
 
         public ICommand RotatePlayers { get; set; }
-
+        
         List<Player> Players = new List<Player>();
 
         public MainWindow()
@@ -90,11 +90,13 @@ namespace FlyleafMultiPlayer__WPF_
 
         private void MenuItem_Click(object sender, RoutedEventArgs e)
         {
-            // TBR
-            //MultiPlayer.Children.Remove(FlyleafHost1);
-            //FullScreenWindow fullScreenWindow = new FullScreenWindow();
-            //fullScreenWindow.FullGrid.Children.Add(FlyleafHost1);
-            //fullScreenWindow.ShowDialog();
+            // Testing removing and re-adding FlyleafME
+            var prevPlayer = FlyleafME1.Player;
+            MultiPlayer.Children.Remove(FlyleafME1);
+            FullScreenWindow fullScreenWindow = new FullScreenWindow();
+            fullScreenWindow.FullGrid.Children.Add(FlyleafME1);
+            FlyleafME1.Player = prevPlayer;
+            fullScreenWindow.Show();
         }
     }
 }
