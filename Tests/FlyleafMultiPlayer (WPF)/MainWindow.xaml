@@ -29,7 +29,7 @@
                 <RowDefinition/>
             </Grid.RowDefinitions>
             
-            <flwpf:FlyleafME Grid.Row="0" Grid.Column="0" Player="{Binding PlayerView1, Mode=TwoWay}"/>
+            <flwpf:FlyleafME Grid.Row="0" Grid.Column="0" Player="{Binding PlayerView1, Mode=TwoWay}" x:Name="FlyleafME1"/>
             <flwpf:FlyleafME Grid.Row="0" Grid.Column="1" Player="{Binding PlayerView2, Mode=TwoWay}"/>
             <flwpf:FlyleafME Grid.Row="1" Grid.Column="1" Player="{Binding PlayerView3, Mode=TwoWay}"/>
             <flwpf:FlyleafME Grid.Row="1" Grid.Column="0" Player="{Binding PlayerView4, Mode=TwoWay}"/>
