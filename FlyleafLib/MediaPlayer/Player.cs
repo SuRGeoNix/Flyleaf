@@ -452,7 +452,7 @@ namespace FlyleafLib.MediaPlayer
 
                     // De-assign Player from Host
                     if (WPFHost != null)
-                        UI(() => WPFHost.Player = null); // UI Required for DP?
+                        UI(() => { if (WPFHost != null) WPFHost.Player = null; }); // UI Required for DP?
                     else if (WFHost != null)
                         WFHost.Player = null;
 

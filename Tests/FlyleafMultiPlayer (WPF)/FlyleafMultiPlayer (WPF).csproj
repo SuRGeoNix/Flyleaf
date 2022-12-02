@@ -6,6 +6,7 @@
     <RootNamespace>FlyleafMultiPlayer__WPF_</RootNamespace>
     <Nullable>disable</Nullable>
     <UseWPF>true</UseWPF>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
