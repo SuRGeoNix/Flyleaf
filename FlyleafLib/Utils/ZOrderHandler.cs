@@ -131,7 +131,7 @@ namespace FlyleafLib
                         Application.Current.Dispatcher.Invoke(() =>
                         {
                             for (int i=0; i<SavedZOrder.Count; i++)
-                                if (WindowNamesWindows.TryGetValue(SavedZOrder[i].window, out Window window))
+                                if (WindowNamesWindows.TryGetValue(SavedZOrder[i].window, out Window window) && window.IsVisible)
                                     window.Activate();
 
                             Debug.WriteLine("Restored");
