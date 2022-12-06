@@ -43,6 +43,15 @@ namespace FlyleafLib
             [DllImport("user32.dll")]
             public static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
+            [DllImport("comctl32.dll")]
+            public static extern bool SetWindowSubclass(IntPtr hWnd, SubclassWndProc pfnSubclass, UIntPtr uIdSubclass, UIntPtr dwRefData);
+
+            [DllImport("comctl32.dll")]
+            public static extern bool RemoveWindowSubclass(IntPtr hWnd, SubclassWndProc pfnSubclass, UIntPtr uIdSubclass);
+
+            [DllImport("comctl32.dll")]
+            public static extern IntPtr DefSubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
             [DllImport("user32.dll")]
             public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, UInt32 uFlags);
 
@@ -148,6 +157,7 @@ namespace FlyleafLib
             }
 
             public delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+            public delegate IntPtr SubclassWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData);
 
             public static int SignedHIWORD(IntPtr n) => SignedHIWORD(unchecked((int)(long)n));
             public static int SignedLOWORD(IntPtr n) => SignedLOWORD(unchecked((int)(long)n));

@@ -113,15 +113,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         long    lastPresentRequestAt= 0;
         float   curRatio            = 1.0f;
 
-        private const Int32 WM_SIZE = 0x0005;
-        WndProcDelegate wndProcDelegateNew;
-        IntPtr wndProcOldHandle, wndProcNewHandle;
+        private const Int32 WM_NCDESTROY= 0x0082;
+        private const Int32 WM_SIZE     = 0x0005;
+        SubclassWndProc wndProcDelegate;
 
         public Renderer(VideoDecoder videoDecoder, IntPtr handle = new IntPtr(), int uniqueId = -1)
         {
-            wndProcDelegateNew = new WndProcDelegate(WndProc);
-            wndProcNewHandle = Marshal.GetFunctionPointerForDelegate(wndProcDelegateNew);
-
             UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
             VideoDecoder = videoDecoder;
             Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
@@ -150,21 +147,25 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 SampleDescription   = new SampleDescription(1, 0)
             };
             
+            wndProcDelegate = new(WndProc);
             ControlHandle = handle;
             Initialize();
         }
 
-        private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+        private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)
         {
             switch (msg)
             {
+                case WM_NCDESTROY:
+                    RemoveWindowSubclass(ControlHandle, WndProc, UIntPtr.Zero);
+                    break;
+
                 case WM_SIZE:
                     ResizeBuffers(SignedLOWORD(lParam), SignedHIWORD(lParam));
                     break;
             }
 
-            // For better performance might prevent Paint/Draw etc. here
-            return CallWindowProc(wndProcOldHandle, hWnd, msg, wParam, lParam);
+            return DefSubclassProc(hWnd, msg, wParam, lParam);
         }
 
         public void Initialize(bool swapChain = true)
@@ -440,8 +441,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 backBufferRtv= Device.CreateRenderTargetView(backBuffer);
 
-                wndProcOldHandle = GetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC);
-                SetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC, wndProcNewHandle);
+                SetWindowSubclass(ControlHandle, wndProcDelegate, UIntPtr.Zero, UIntPtr.Zero);
 
                 RECT rect = new RECT();
                 GetWindowRect(ControlHandle, ref rect);
@@ -472,12 +472,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 // Unassign renderer's WndProc if still there and re-assign the old one
                 if (ControlHandle != IntPtr.Zero)
                 {
-                    if (wndProcNewHandle == GetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC))
-                        SetWindowLong(ControlHandle, (int)WindowLongFlags.GWL_WNDPROC, wndProcOldHandle);
-
+                    RemoveWindowSubclass(ControlHandle, WndProc, UIntPtr.Zero);
                     ControlHandle = IntPtr.Zero;
                 }
-                wndProcOldHandle = IntPtr.Zero;
 
                 vpov?.Dispose();
                 backBufferRtv?.Dispose();
