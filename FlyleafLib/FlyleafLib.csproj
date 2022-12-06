@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.3</Version>
+	<Version>3.6.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Demuxer: Fixes issues with reverse playback and minor issue with remuxer's extension
-		Decoder: Fixes Frame Stepping with formats that allow timestamp discontinuities
-		Remuxer: Fixes critical issues while dts/pts having no value (AV_NOPTS_VALUE)
-		Player: Improves recording, reverse playback and frame stepping
-		Player.Screamer: Better handling of wrong video timestamps (even when audio timestamps are normal)
+		Decoder: Fixes frame stepping and reverse playback to the very beginning of the stream
+		Renderer: Implements a safer WndProc subclass
+		Player: Fixes a possible NPE on dispose
+		Player.KeyBindings: Fixes an issue while adding a new embedded action
+		FlyleafHost.Wpf: Fixes a crashing issue during restore from minimize with multiple flyleafhosts if not shown yet
 	</PackageReleaseNotes>
   </PropertyGroup>
 
