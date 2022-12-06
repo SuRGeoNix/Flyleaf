@@ -983,7 +983,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                         //Log($"[][][SEEK] {curReverseStartPts} | {Utils.TicksToTime((long) (curReverseStartPts * VideoStream.Timebase))}");
                         Interrupter.Request(Requester.Seek);
-                        ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, Math.Max(curReverseStartPts - curReverseSeekOffset, VideoStream.StartTimePts), AVSEEK_FLAG_BACKWARD);
+                        ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, Math.Max(curReverseStartPts - curReverseSeekOffset, 0), AVSEEK_FLAG_BACKWARD);
 
                         if (ret != 0)
                         {
