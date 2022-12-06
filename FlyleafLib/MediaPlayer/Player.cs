@@ -332,6 +332,13 @@ namespace FlyleafLib.MediaPlayer
                     else
                     {
                         VideoDemuxer.DisableReversePlayback();
+
+                        if (Status == Status.Ended)
+                        {
+                            status = Status.Paused;
+                            UI(() => Status = Status);
+                        }
+
                         VideoFrame vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime));
                         VideoDecoder.DisposeFrame(vFrame);
                         vFrame = null;
