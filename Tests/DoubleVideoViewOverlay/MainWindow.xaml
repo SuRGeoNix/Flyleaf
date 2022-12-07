@@ -11,7 +11,7 @@
         Title="MainWindow" Height="450" Width="800" Background="Black">
     <Grid>
         <fl:FlyleafHost Player="{Binding Player}">
-            <Grid>
+            <Grid DataContext="{Binding HostDataContext}">
                 <StackPanel Width="450" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0 50 0 0">
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Open" Command="{Binding Player.Commands.Open}" CommandParameter="{Binding Source={x:Reference OpenUrl}, Path=Text}"/>
