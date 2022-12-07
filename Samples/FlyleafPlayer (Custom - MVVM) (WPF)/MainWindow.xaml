@@ -12,7 +12,7 @@
     
     <Grid>
         <fl:FlyleafHost Player="{Binding Player}" KeyBindings="Surface">
-            <Grid Margin="50">
+            <Grid Margin="50" DataContext="{Binding HostDataContext}">
                 
                 <!-- NOTE: Window resources will not be within the videoview as it will be on different window -->
                 <Grid.Resources>
