@@ -88,15 +88,28 @@ namespace FlyleafLib.MediaPlayer
             Raise(nameof(Mode));
             player.Log.Debug(mode.ToString());
 
-            if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle)
+            if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle &&
+                (
+                (player.WPFHost != null && player.WPFHost.Surface != null && player.WPFHost.Surface.IsActive) ||
+                (player.WPFHost != null && player.WPFHost.Overlay != null && player.WPFHost.Overlay.IsActive) ||
+                (player.WFHost != null && player.WFHost != null && player.WFHost.Focused)
+                )
+                )
             {
-                while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
-                isCursorHidden = true;
+                lock (cursorLocker)
+                {
+                    while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
+                    isCursorHidden = true;
+                }
+                
             }    
             else if (isCursorHidden && player.Activity.Mode == ActivityMode.FullActive)
             {
-                while (Utils.NativeMethods.ShowCursor(true) < 0) { }
-                isCursorHidden = false;
+                lock (cursorLocker)
+                {
+                    while (Utils.NativeMethods.ShowCursor(true) < 0) { }
+                    isCursorHidden = false;
+                }
             }
         }
 
@@ -159,6 +172,7 @@ namespace FlyleafLib.MediaPlayer
 
         #region Ensures we catch the mouse move even when the Cursor is hidden
         static bool isCursorHidden;
+        static object cursorLocker = new object();
         public class GlobalMouseHandler : IMessageFilter
         {
             public bool PreFilterMessage(ref Message m)
@@ -167,10 +181,14 @@ namespace FlyleafLib.MediaPlayer
                 {
                     try
                     {
-                        while (Utils.NativeMethods.ShowCursor(true) < 0) { }
-                        isCursorHidden = false;
-                        foreach(var player in Engine.Players)
-                            player.Activity.RefreshFullActive();
+                        lock (cursorLocker)
+                        {
+                            while (Utils.NativeMethods.ShowCursor(true) < 0) { }
+                            isCursorHidden = false;
+                            foreach(var player in Engine.Players)
+                                player.Activity.RefreshFullActive();
+                        }
+                        
                     } catch { }
                 }
 
