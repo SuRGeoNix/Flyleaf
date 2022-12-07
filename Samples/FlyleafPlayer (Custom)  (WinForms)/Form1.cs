@@ -25,6 +25,7 @@ namespace FlyleafPlayer__Custom_
                 FFmpegLogLevel  = FFmpegLogLevel.Warning,
                 #endif
 
+                UIRefresh       = true, // For Activity Mode usage
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
             });
@@ -37,11 +38,12 @@ namespace FlyleafPlayer__Custom_
             Player2 = new Player();
 
             InitializeComponent();
-
+            
             // Parse the control to the Player
             flyleaf1.Player = Player;
             flyleaf1.Player.PropertyChanged += Player_PropertyChanged; // On Swap you should unsubscribe player 1 and subscribe to player 2
             flyleaf2.Player = Player2;
+            flyleaf2.Player.Activity.Timeout = 2000; // Enabled on FlyleafHost 2 (2sec)
 
             //Player.OpenCompleted += // To handle errors
             //Player.BufferingStarted += // To handle buffering

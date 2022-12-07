@@ -162,14 +162,14 @@ namespace FlyleafLib.Controls.WinForms
         }
         private void Host_MouseMove(object sender, MouseEventArgs e)
         {
-            if (e.Button != MouseButtons.Left || Player == null)
-                return;
-
             if (e.Location != mouseMoveLastPoint)
             {
                 Player.Activity.RefreshFullActive();
                 mouseMoveLastPoint = e.Location;
             }
+
+            if (e.Button != MouseButtons.Left || Player == null)
+                return;
 
             if (PanMoveOnCtrl && ModifierKeys.HasFlag(Keys.Control))
             {
