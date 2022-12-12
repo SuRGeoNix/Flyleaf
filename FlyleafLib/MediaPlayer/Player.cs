@@ -382,10 +382,6 @@ namespace FlyleafLib.MediaPlayer
         bool isVideoSwitch;
         bool isAudioSwitch;
         bool isSubsSwitch;
-
-        long elapsedTicks;
-        long startedAtTicks;
-        long videoStartTicks;
         #endregion
 
 		public Player(Config config = null)

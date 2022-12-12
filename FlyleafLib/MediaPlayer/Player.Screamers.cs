@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
@@ -48,6 +49,10 @@ namespace FlyleafLib.MediaPlayer
 
         long onBufferingStarted;
         long onBufferingCompleted;
+
+        long elapsedTicks;
+        long videoStartTicks;
+        Stopwatch sw = new();
 
         private void ShowOneFrame()
         {
@@ -238,7 +243,7 @@ namespace FlyleafLib.MediaPlayer
             int     aDistanceMs;
             int     sDistanceMs;
             int     sleepMs;
-            long    elapsedSec = startedAtTicks;
+            long    elapsedSec = 0;
 
             int     curAudioBuffers = 0;
             int     allowedLateAudioDrops = 7;
@@ -268,8 +273,6 @@ namespace FlyleafLib.MediaPlayer
                 {
                     OnBufferingStarted();
                     MediaBuffer();
-                    allowedLateAudioDrops = 7;
-                    elapsedSec = startedAtTicks;
                     requiresBuffering = false;
                     if (!seeks.IsEmpty)
                         continue;
@@ -290,7 +293,9 @@ namespace FlyleafLib.MediaPlayer
                         AudioDecoder.Frames.TryDequeue(out aFrame);
                     }
 
-                    startedAtTicks  = DateTime.UtcNow.Ticks;
+                    allowedLateAudioDrops = 7;
+                    elapsedSec = 0;
+                    sw.Restart();
                 }
 
                 if (vFrame == null)
@@ -320,7 +325,7 @@ namespace FlyleafLib.MediaPlayer
                         sFrame.timestamp = (long) (sFrame.timestamp / Speed); //sFrame.duration = sFrame.duration / Speed;
                 }
 
-                elapsedTicks= videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
+                elapsedTicks= videoStartTicks + sw.ElapsedTicks;
                 vDistanceMs = (int) ((vFrame.timestamp - elapsedTicks) / 10000);
 
                 if (aFrame != null)
@@ -405,7 +410,8 @@ namespace FlyleafLib.MediaPlayer
                                 _Speed = newSpeed;
                                 UI(() => { Raise(nameof(Speed)); });
                                 videoStartTicks = vFrame.timestamp;
-                                startedAtTicks  = DateTime.UtcNow.Ticks;
+                                sw.Restart();
+                                elapsedSec = 0;
                             }
                         }
                         else if (Speed != 1)
@@ -695,20 +701,17 @@ namespace FlyleafLib.MediaPlayer
                 UI(() => UpdateCurTime());
             }
 
-            while(decoder.AudioStream.Demuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
+            while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
 
-            if (!IsPlaying || AudioDecoder.Frames.IsEmpty)
+            if (!IsPlaying || AudioDecoder.Frames.IsEmpty || !seeks.IsEmpty)
                 return false;
-
-            startedAtTicks  = DateTime.UtcNow.Ticks;
-            videoStartTicks = aFrame.timestamp;
 
             return true;
         }
         private void ScreamerAudioOnly()
         {
             int aDistanceMs;
-            long elapsedSec = startedAtTicks;
+            long elapsedSec = 0;
 
             requiresBuffering = true;
 
@@ -735,7 +738,6 @@ namespace FlyleafLib.MediaPlayer
                 {
                     OnBufferingStarted();
                     AudioBuffer();
-                    elapsedSec = startedAtTicks;
                     requiresBuffering = false;
                     if (!seeks.IsEmpty)
                         continue;
@@ -744,6 +746,10 @@ namespace FlyleafLib.MediaPlayer
 
                     Audio.AddSamples(aFrame);
                     AudioDecoder.Frames.TryDequeue(out aFrame);
+
+                    videoStartTicks = aFrame.timestamp;
+                    sw.Restart();
+                    elapsedSec = 0;
                 }
 
                 if (aFrame == null)
@@ -758,7 +764,7 @@ namespace FlyleafLib.MediaPlayer
 
                 if (Status != Status.Playing) break;
 
-                elapsedTicks = videoStartTicks + (DateTime.UtcNow.Ticks - startedAtTicks);
+                elapsedTicks = videoStartTicks + sw.ElapsedTicks;
                 aDistanceMs  = (int) ((aFrame.timestamp - elapsedTicks) / 10000);
 
                 if (aDistanceMs > 1000 || aDistanceMs < -10)
@@ -801,7 +807,7 @@ namespace FlyleafLib.MediaPlayer
 
         private void ScreamerReverse()
         {
-            long    elapsedSec = startedAtTicks;
+            long    elapsedSec = 0;
             int     vDistanceMs;
             int     sleepMs;
 
@@ -834,17 +840,17 @@ namespace FlyleafLib.MediaPlayer
                     VideoDecoder.Frames.TryDequeue(out vFrame);
                     if (vFrame == null) { Log.Warn("No video frame"); break; }
                     vFrame.timestamp = (long) (vFrame.timestamp / Speed);
+
                     videoStartTicks = vFrame.timestamp;
-                    startedAtTicks  = DateTime.UtcNow.Ticks;
-                    elapsedTicks = videoStartTicks;
-                    elapsedSec = startedAtTicks;
+                    sw.Restart();
+                    elapsedSec = 0;
 
                     if (!MainDemuxer.IsHLSLive && seeks.IsEmpty)
                         curTime = (long) (vFrame.timestamp * Speed);
                     UI(() => UpdateCurTime());
                 }
 
-                elapsedTicks    = videoStartTicks - (DateTime.UtcNow.Ticks - startedAtTicks);
+                elapsedTicks    = videoStartTicks - sw.ElapsedTicks;
                 vDistanceMs     = (int) ((elapsedTicks - vFrame.timestamp) / 10000);
                 sleepMs         = vDistanceMs - 1;
 
