@@ -66,7 +66,7 @@ namespace FlyleafLib.MediaPlayer
             if (player == null)
                 return false;
 
-            player.Activity.KeyboardTimestamp = DateTime.UtcNow.Ticks;
+            player.Activity.RefreshActive();
 
             if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
                 return false;

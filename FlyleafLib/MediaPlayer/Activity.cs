@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Windows.Forms;
 
 namespace FlyleafLib.MediaPlayer
@@ -24,21 +25,18 @@ namespace FlyleafLib.MediaPlayer
 
                 if (value == ActivityMode.Idle)
                 {
-                    KeyboardTimestamp = 0;
-                    MouseTimestamp = 0;
+                    swKeyboard.Reset();
+                    swMouse.Reset();
                 }
                 else if (value == ActivityMode.Active)
-                    KeyboardTimestamp = DateTime.UtcNow.Ticks;
+                    swKeyboard.Restart();
                 else
-                    MouseTimestamp = DateTime.UtcNow.Ticks;
+                    swMouse.Restart();
 
                 Utils.UI(() => SetMode());
                 }
             }
         internal ActivityMode _Mode = ActivityMode.FullActive, mode = ActivityMode.FullActive;
-
-        public long KeyboardTimestamp   { get; internal set; }
-        public long MouseTimestamp      { get; internal set; }
 
         /// <summary>
         /// Should use Timeout to Enable/Disable it. Use this only for temporary disable.
@@ -63,7 +61,10 @@ namespace FlyleafLib.MediaPlayer
                         return;
 
                     if (value)
-                        KeyboardTimestamp = MouseTimestamp = DateTime.UtcNow.Ticks;
+                    {
+                        swKeyboard.Restart();
+                        swMouse.Restart();
+                    }
 
                     _IsEnabled = value;
                     RaiseUI(nameof(IsEnabled));
@@ -76,6 +77,9 @@ namespace FlyleafLib.MediaPlayer
         int _Timeout;
 
         Player player;
+        Stopwatch swKeyboard = new();
+        Stopwatch swMouse = new();
+
         public Activity(Player player) => this.player = player;
 
         /// <summary>
@@ -120,13 +124,10 @@ namespace FlyleafLib.MediaPlayer
         {
             if (!IsEnabled)
                 mode = ActivityMode.FullActive;
-
-            else if ((DateTime.UtcNow.Ticks - MouseTimestamp  ) / 10000 < Timeout)
+            else if (swMouse.IsRunning && swMouse.ElapsedMilliseconds < Timeout)
                 mode = ActivityMode.FullActive;
-
-            else if ((DateTime.UtcNow.Ticks - KeyboardTimestamp ) / 10000 < Timeout)
+            else if (swKeyboard.IsRunning && swKeyboard.ElapsedMilliseconds < Timeout)
                 mode = ActivityMode.Active;
-
             else 
                 mode = ActivityMode.Idle;
         }
@@ -159,7 +160,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void RefreshActive()
         {
-            KeyboardTimestamp = DateTime.UtcNow.Ticks;
+            swKeyboard.Restart();
         }
 
         /// <summary>
@@ -167,7 +168,7 @@ namespace FlyleafLib.MediaPlayer
         /// </summary>
         public void RefreshFullActive()
         {
-            MouseTimestamp = DateTime.UtcNow.Ticks;
+            swMouse.Restart();
         }
 
         #region Ensures we catch the mouse move even when the Cursor is hidden
