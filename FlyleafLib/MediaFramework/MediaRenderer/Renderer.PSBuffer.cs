@@ -38,7 +38,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public void UpdateHDRtoSDR(AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
         {
             if (VideoDecoder.VideoStream == null || VideoDecoder.VideoStream.ColorSpace != "BT2020") return;
-
+            
             float lumin = displayData == null || displayData->has_luminance == 0 ? lastLumin : displayData->max_luminance.num / (float)displayData->max_luminance.den;
             lastLumin = lumin;
 
@@ -52,13 +52,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
             else if (psBufferData.hdrmethod == HDRtoSDRMethod.Aces)
             {
-                psBufferData.g_luminance = lastLumin > 0 ? lastLumin : 400.0f;
+                psBufferData.g_luminance = lastLumin > 1 ? lastLumin : 400.0f;
                 psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
             }
             else if (psBufferData.hdrmethod == HDRtoSDRMethod.Hable)
             {
-                psBufferData.g_luminance = lastLumin > 0 ? lastLumin : 400.0f;
-                psBufferData.g_toneP1 = 10000.0f / psBufferData.g_luminance * (2.0f / Config.Video.HDRtoSDRTone);
+                psBufferData.g_luminance = lastLumin > 1 ? lastLumin : 400.0f;
+                psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / Config.Video.HDRtoSDRTone);
                 psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
             }
 
