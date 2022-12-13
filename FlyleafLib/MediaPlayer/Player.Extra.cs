@@ -94,6 +94,7 @@ namespace FlyleafLib.MediaPlayer
         }
         public void OpenFromFileDialog()
         {
+            bool wasActivityEnabled = Activity.IsEnabled;
             Activity.IsEnabled = false;
             IsOpenFileDialogOpen = true;
 
@@ -103,7 +104,7 @@ namespace FlyleafLib.MediaPlayer
             if(res == System.Windows.Forms.DialogResult.OK)
                 OpenAsync(openFileDialog.FileName);
 
-            Activity.IsEnabled = true;
+            Activity.IsEnabled = wasActivityEnabled;
             IsOpenFileDialogOpen = false;
         }
 
