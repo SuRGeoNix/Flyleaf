@@ -67,6 +67,7 @@ namespace FlyleafLib.Controls.WPF
 
             PassWheelToOwner?				[None, Surface, Overlay, Both]		| When host belongs to ScrollViewer
 
+            TopMost					        [False, True]
             IsAttached
             IsFullScreen
             IsMinimized
@@ -294,6 +295,15 @@ namespace FlyleafLib.Controls.WPF
         public static readonly DependencyProperty DetachedTopMostProperty =
             DependencyProperty.Register(nameof(DetachedTopMost), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnDetachedTopMostChanged)));
 
+        public bool TopMost
+        {
+            get { return (bool)GetValue(TopMostProperty); }
+            set { SetValue(TopMostProperty, value); }
+        }
+        public static readonly DependencyProperty TopMostProperty =
+            DependencyProperty.Register(nameof(TopMost), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnTopMostChanged)));
+
+
         public AvailableWindows KeyBindings
         {
             get { return (AvailableWindows)GetValue(KeyBindingsProperty); }
@@ -420,6 +430,7 @@ namespace FlyleafLib.Controls.WPF
             host.SetMouseSurface();
             host.SetMouseOverlay();
         }
+
         private static void OnDetachedTopMostChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (isDesginMode)
@@ -428,6 +439,19 @@ namespace FlyleafLib.Controls.WPF
             FlyleafHost host = d as FlyleafHost;
             host.Surface.Topmost = !host.IsAttached && host.DetachedTopMost;
         }
+
+        private static void OnTopMostChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (isDesginMode)
+                return;
+
+            FlyleafHost host = d as FlyleafHost;
+            if (host.Surface != null)
+                host.Surface.Topmost = (bool)e.NewValue;
+            if (host.Overlay != null)
+                host.Overlay.Topmost = (bool)e.NewValue;
+        }
+
         private static void DropChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             FlyleafHost host = d as FlyleafHost;
