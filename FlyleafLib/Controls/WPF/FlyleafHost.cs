@@ -1441,13 +1441,8 @@ namespace FlyleafLib.Controls.WPF
 
             OverlayHandle = new WindowInteropHelper(Overlay).EnsureHandle();
 
-            bool wasTopmost = false;
-            if (Surface.Topmost)
-            {
-                wasTopmost = true;
-                Surface.Topmost = false;
-            }
-
+            bool wasTopmost = Surface.Topmost;
+            Surface.Topmost = false;
             Overlay.Owner = Surface;
             Overlay.ShowInTaskbar = false;
             Surface.Topmost = wasTopmost;
@@ -1561,7 +1556,10 @@ namespace FlyleafLib.Controls.WPF
             Surface.MinWidth = MinWidth;
             Surface.MinHeight = MinHeight;
 
+            bool wasTopmost = Owner.Topmost;
+            Owner.Topmost = false;
             Surface.Owner = Owner;
+            Owner.Topmost = wasTopmost;
 
             if (Surface.IsVisible)
                 Surface.Activate();

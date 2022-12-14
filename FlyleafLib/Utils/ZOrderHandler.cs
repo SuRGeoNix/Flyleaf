@@ -148,9 +148,12 @@ namespace FlyleafLib
                     {
                         ZOrder zorder = new ZOrder();
                         IntPtr curHwnd = GetHandle(window);
+                        if (curHwnd == IntPtr.Zero)
+                            continue;
+
                         zorder.window = window.Name;
 
-                        while ((curHwnd = GetWindow(curHwnd, (uint)GetWindow_Cmd.GW_HWNDNEXT)) != WindowHwnd)
+                        while ((curHwnd = GetWindow(curHwnd, (uint)GetWindow_Cmd.GW_HWNDNEXT)) != WindowHwnd && curHwnd != IntPtr.Zero)
                             zorder.order++;
 
                         zorders.Add(zorder);
