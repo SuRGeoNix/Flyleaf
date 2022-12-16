@@ -74,7 +74,7 @@ namespace FlyleafPlayer
             InitializeComponent();
 
             // Allowing FlyleafHost to access our Player
-            DataContext = this;
+            DataContext = FlyleafME;
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
             FlyleafME.ConfigPath    = "Flyleaf.Config.xml";

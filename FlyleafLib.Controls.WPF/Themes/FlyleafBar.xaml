@@ -4,7 +4,7 @@
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
                     xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF">
 
-    <Style TargetType="{x:Type flwpf:FlyleafBar}">
+    <Style x:Key="FlyleafBarDefault" TargetType="{x:Type flwpf:FlyleafBar}">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate>
