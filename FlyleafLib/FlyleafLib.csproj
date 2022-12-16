@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.4</Version>
+	<Version>3.6.5</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Decoder: Fixes frame stepping and reverse playback to the very beginning of the stream
-		Renderer: Implements a safer WndProc subclass
-		Player: Fixes a possible NPE on dispose
-		Player.KeyBindings: Fixes an issue while adding a new embedded action
-		FlyleafHost.Wpf: Fixes a crashing issue during restore from minimize with multiple flyleafhosts if not shown yet
+		Player: Improves performance by replacing DateTime with StopWatch for elapsed time calculation
+		Player.Activity: Hides mouse cursor only when FlyleafHost is focused
+		Renderer: Fixes an issue with Aces/Hable HDRtoSDR method when luminance was less than 1
+		Renderer: Fixes a critical issue with the new WndProc subclass (not properly setting the IntPtr during SetWindowSubclass/RemoveWindowSubclass which could cause FailFast exceptions when multiple add/remove subclass for the same Handle)
+		FlyleafHost.WinForms: Fixes an issue with Activity Mode (it wouldn't refresh on MouseMove)
+		FlyleafHost.Wpf: Proper way to set the Overlay Content and Template through OverlayTemplate DP which fixes performance, design and binding issues during transfer
+		FlyleafHost.Wpf: Fixes stability and disposal issues with Surface/Overlay windows (Player will not be disposed only the swap chain which means that the application must manually dispose it)
+		FlyleafHost.Wpf: Fixes an issue when Owner window has TopMost=true
 	</PackageReleaseNotes>
   </PropertyGroup>
 

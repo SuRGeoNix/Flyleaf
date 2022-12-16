@@ -14,6 +14,6 @@
     
     <Grid Background="Black">
         <!--Providing the Overlay Window to FlyleafHost-->
-        <fl:FlyleafHost Overlay="{StaticResource OverlayWindow}"/>
+        <fl:FlyleafHost d:Overlay="{x:Null}" Overlay="{StaticResource OverlayWindow}"/>
     </Grid>
 </Window>
