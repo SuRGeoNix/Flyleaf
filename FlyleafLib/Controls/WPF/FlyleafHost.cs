@@ -95,7 +95,7 @@ namespace FlyleafLib.Controls.WPF
         public bool         Disposed        { get; private set; }
 
         static int idGenerator;
-        bool surfaceClosed, overlayClosed;
+        bool surfaceClosed, surfaceClosing, overlayClosed;
         static bool isDesginMode;
         int panPrevX, panPrevY;
         bool ownedRestoreToMaximize;
@@ -1129,10 +1129,11 @@ namespace FlyleafLib.Controls.WPF
             surfaceClosed = true;
             Dispose();
         }
+        private void Surface_Closing(object sender, CancelEventArgs e) => surfaceClosing = true;
         private void Overlay_Closed(object sender, EventArgs e)
         {
             overlayClosed = true;
-            if (!surfaceClosed)
+            if (!surfaceClosing)
                 Surface?.Close();
         }
 
@@ -1355,6 +1356,7 @@ namespace FlyleafLib.Controls.WPF
             SurfaceHandle       = new WindowInteropHelper(Surface).EnsureHandle();
 
             Surface.Closed      += Surface_Closed;
+            Surface.Closing     += Surface_Closing;
             Surface.KeyDown     += Surface_KeyDown;
             Surface.KeyUp       += Surface_KeyUp;
             Surface.Drop        += Surface_Drop;
