@@ -21,7 +21,7 @@
         <d:ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml"/>
     </Window.Resources>
 
-    <Border BorderThickness="0.6" DataContext="{Binding FlyleafME}">
+    <Border BorderThickness="0.6">
         <Border.Resources>
             <ResourceDictionary>
                 <ResourceDictionary.MergedDictionaries>

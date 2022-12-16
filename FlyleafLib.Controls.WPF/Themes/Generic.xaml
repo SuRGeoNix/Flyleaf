@@ -1,8 +1,13 @@
-﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+﻿<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF">
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Themes/FlyleafBar.xaml"/>
         <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Themes/FlyleafME.xaml"/>
     </ResourceDictionary.MergedDictionaries>
-    
+
+    <Style TargetType="flwpf:FlyleafME" BasedOn="{StaticResource FlyleafMEDefault}"/>
+    <Style TargetType="flwpf:FlyleafBar" BasedOn="{StaticResource FlyleafBarDefault}"/>
+
 </ResourceDictionary>

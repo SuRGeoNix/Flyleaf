@@ -38,18 +38,7 @@ namespace FlyleafLib.Controls.WPF
                 Source = new Uri("pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml") });
         }
 
-        public FlyleafME(Window standAlone) : base(standAlone)
-        {
-            Overlay.Loaded += (o, e) =>
-            {
-                if (initialized)
-                    return;
-
-                initialized = true;
-                Initialize();
-            };
-            
-        }
+        public FlyleafME(Window standAlone) : base(standAlone) { }
 
         #region Properties
         public string       UIConfigPath        { get; set; }
@@ -226,18 +215,17 @@ namespace FlyleafLib.Controls.WPF
         {
             base.SetOverlay();
 
-            
-        }
-
-        public override void OnApplyTemplate()
-        {
-            base.OnApplyTemplate();
-
-            if (initialized || isDesignMode)
+            if (isDesignMode || Overlay == null)
                 return;
 
-            initialized = true;
-            Initialize();
+            Overlay.Loaded += (o, e) =>
+            {
+                if (initialized)
+                    return;
+
+                initialized = true;
+                Initialize();
+            };
         }
 
         private void Initialize()
@@ -248,11 +236,21 @@ namespace FlyleafLib.Controls.WPF
             Engine.Config.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
             Overlay.Resources.MergedDictionaries.Add(new ResourceDictionary() {
                 Source = new Uri("pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml") });
-
+            
             NamedColors = GetColors();
-            popUpMenu           = ((FrameworkElement)LogicalTreeHelper.FindLogicalNode((FrameworkElement)Overlay.Content, "PART_ContextMenuOwner"))?.ContextMenu;
 
-            var dialogSettings  = (DialogHost)LogicalTreeHelper.FindLogicalNode((FrameworkElement)Overlay.Content, "PART_DialogSettings");
+            DialogHost dialogSettings;
+            if (Overlay.Content != null)
+            {
+                popUpMenu       = ((FrameworkElement)LogicalTreeHelper.FindLogicalNode((FrameworkElement)Overlay.Content, "PART_ContextMenuOwner"))?.ContextMenu;
+                dialogSettings  = (DialogHost)LogicalTreeHelper.FindLogicalNode((FrameworkElement)Overlay.Content, "PART_DialogSettings");
+            }
+            else
+            {
+                popUpMenu       = ((FrameworkElement)Overlay.Template.FindName("PART_ContextMenuOwner", Overlay))?.ContextMenu;
+                dialogSettings  = (DialogHost)Overlay.Template.FindName("PART_DialogSettings", Overlay);
+            }
+            
             if (dialogSettings != null)
             {
                 dialogSettingsIdentifier = $"DialogSettings_{Guid.NewGuid()}";
@@ -285,15 +283,17 @@ namespace FlyleafLib.Controls.WPF
                 
                 ITheme theme = Overlay.Resources.GetTheme();
                 var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, PaperColor = theme.Paper, SurfaceColor = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};
-                UIConfig.Themes = new ObservableCollection<UITheme>();
-                UIConfig.Themes.Add(new UITheme(this, defaultTheme) { Name= "Black & White",       PrimaryColor = Colors.White, SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black });
-                UIConfig.Themes.Add(new UITheme(this, defaultTheme) { Name= "Blue & Red",          PrimaryColor = Colors.DodgerBlue, SecondaryColor = (Color)ColorConverter.ConvertFromString("#e00000"), PaperColor = Colors.Black, SurfaceColor = Colors.Black });
-                UIConfig.Themes.Add(new UITheme(this, defaultTheme) { Name= "Orange",              PrimaryColor = (Color)ColorConverter.ConvertFromString("#ff8300"), SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black });
-                UIConfig.Themes.Add(new UITheme(this, defaultTheme) { Name= "Firebrick",           PrimaryColor = Colors.Firebrick, SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black });
-                UIConfig.Themes.Add(new UITheme(this, defaultTheme) { Name= "Fuchia,Lime & Blue",  PrimaryColor = (Color)ColorConverter.ConvertFromString("#e615e6"), SecondaryColor = Colors.Lime, PaperColor =(Color)ColorConverter.ConvertFromString("#0f1034"), SurfaceColor = (Color)ColorConverter.ConvertFromString("#0f1034") });
-                UIConfig.Themes.Add(new UITheme(this, defaultTheme) { Name= "Gold & Chocolate",    PrimaryColor = (Color)ColorConverter.ConvertFromString("#ffc73b"), SecondaryColor = Colors.Chocolate, PaperColor = (Color)ColorConverter.ConvertFromString("#3b1212"), SurfaceColor = (Color)ColorConverter.ConvertFromString("#3b1212") });
-                UIConfig.Themes.Add(new UITheme(this, defaultTheme) { Name= "Green & Brown",       PrimaryColor = (Color)ColorConverter.ConvertFromString("#24b03b"), SecondaryColor = (Color)ColorConverter.ConvertFromString("#e66102"), PaperColor = Colors.Black, SurfaceColor = Colors.Black });
-                UIConfig.Themes.Add(new UITheme(this, defaultTheme) { Name= "Custom",              PrimaryColor = Colors.Orange, SecondaryColor = Colors.White, SurfaceColor = Colors.Black });
+                UIConfig.Themes = new ObservableCollection<UITheme>
+                {
+                    new UITheme(this, defaultTheme) { Name = "Black & White", PrimaryColor = Colors.White, SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Blue & Red", PrimaryColor = Colors.DodgerBlue, SecondaryColor = (Color)ColorConverter.ConvertFromString("#e00000"), PaperColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Orange", PrimaryColor = (Color)ColorConverter.ConvertFromString("#ff8300"), SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Firebrick", PrimaryColor = Colors.Firebrick, SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Fuchia,Lime & Blue", PrimaryColor = (Color)ColorConverter.ConvertFromString("#e615e6"), SecondaryColor = Colors.Lime, PaperColor = (Color)ColorConverter.ConvertFromString("#0f1034"), SurfaceColor = (Color)ColorConverter.ConvertFromString("#0f1034") },
+                    new UITheme(this, defaultTheme) { Name = "Gold & Chocolate", PrimaryColor = (Color)ColorConverter.ConvertFromString("#ffc73b"), SecondaryColor = Colors.Chocolate, PaperColor = (Color)ColorConverter.ConvertFromString("#3b1212"), SurfaceColor = (Color)ColorConverter.ConvertFromString("#3b1212") },
+                    new UITheme(this, defaultTheme) { Name = "Green & Brown", PrimaryColor = (Color)ColorConverter.ConvertFromString("#24b03b"), SecondaryColor = (Color)ColorConverter.ConvertFromString("#e66102"), PaperColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Custom", PrimaryColor = Colors.Orange, SecondaryColor = Colors.White, SurfaceColor = Colors.Black }
+                };
 
                 UIConfig.SelectedTheme = "Firebrick";
 

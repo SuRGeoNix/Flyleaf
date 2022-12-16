@@ -116,7 +116,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         private const Int32 WM_NCDESTROY= 0x0082;
         private const Int32 WM_SIZE     = 0x0005;
         SubclassWndProc wndProcDelegate;
-
+        IntPtr wndProcDelegatePtr;
         public Renderer(VideoDecoder videoDecoder, IntPtr handle = new IntPtr(), int uniqueId = -1)
         {
             UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
@@ -148,6 +148,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             };
             
             wndProcDelegate = new(WndProc);
+            wndProcDelegatePtr = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
             ControlHandle = handle;
             Initialize();
         }
@@ -157,7 +158,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             switch (msg)
             {
                 case WM_NCDESTROY:
-                    RemoveWindowSubclass(ControlHandle, WndProc, UIntPtr.Zero);
+                    if (SCDisposed)
+                        RemoveWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero);
+                    else
+                        DisposeSwapChain();
                     break;
 
                 case WM_SIZE:
@@ -441,7 +445,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 backBufferRtv= Device.CreateRenderTargetView(backBuffer);
 
-                SetWindowSubclass(ControlHandle, wndProcDelegate, UIntPtr.Zero, UIntPtr.Zero);
+                SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
 
                 RECT rect = new RECT();
                 GetWindowRect(ControlHandle, ref rect);
@@ -472,7 +476,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 // Unassign renderer's WndProc if still there and re-assign the old one
                 if (ControlHandle != IntPtr.Zero)
                 {
-                    RemoveWindowSubclass(ControlHandle, WndProc, UIntPtr.Zero);
+                    RemoveWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero);
                     ControlHandle = IntPtr.Zero;
                 }
 

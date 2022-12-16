@@ -437,7 +437,7 @@ namespace FlyleafLib.MediaPlayer
         }
 
         /// <summary>
-        /// Disposes the Player and the hosted FlyleafHost if any
+        /// Disposes the Player and de-assigns it from FlyleafHost
         /// </summary>
         public void Dispose() { Engine.DisposePlayer(this); }
         internal void DisposeInternal()
@@ -455,7 +455,12 @@ namespace FlyleafLib.MediaPlayer
 
                     // De-assign Player from Host
                     if (WPFHost != null)
-                        UI(() => { if (WPFHost != null) WPFHost.Player = null; }); // UI Required for DP?
+                    {
+                        if (Thread.CurrentThread.ManagedThreadId == System.Windows.Threading.Dispatcher.CurrentDispatcher.Thread.ManagedThreadId)
+                             WPFHost.Player = null;
+                        else
+                            UI(() => { if (WPFHost != null) WPFHost.Player = null; }); // UI Required for DP?
+                    }
                     else if (WFHost != null)
                         WFHost.Player = null;
 

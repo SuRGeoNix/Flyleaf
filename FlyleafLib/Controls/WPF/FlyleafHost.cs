@@ -95,10 +95,8 @@ namespace FlyleafLib.Controls.WPF
         public bool         Disposed        { get; private set; }
 
         static int idGenerator;
-        bool isSurfaceClosing;
+        bool surfaceClosed, overlayClosed;
         static bool isDesginMode;
-        Grid dMain, dHost, dSurface, dOverlay; // Design Mode Grids
-        bool preventContentUpdate;
         int panPrevX, panPrevY;
         bool ownedRestoreToMaximize;
         bool isMouseBindingsSubscribedSurface;
@@ -390,7 +388,7 @@ namespace FlyleafLib.Controls.WPF
             set { SetValue(DetachedContentProperty, value); }
         }
         public static readonly DependencyProperty DetachedContentProperty =
-            DependencyProperty.Register(nameof(DetachedContent), typeof(object), typeof(FlyleafHost), new PropertyMetadata(null, new PropertyChangedCallback(OnDetachedContentChanged)));
+            DependencyProperty.Register(nameof(DetachedContent), typeof(object), typeof(FlyleafHost), new PropertyMetadata(null));
 
         public Player Player
         {
@@ -399,6 +397,14 @@ namespace FlyleafLib.Controls.WPF
         }
         public static readonly DependencyProperty PlayerProperty =
             DependencyProperty.Register(nameof(Player), typeof(Player), typeof(FlyleafHost), new PropertyMetadata(null, OnPlayerChanged));
+
+        public ControlTemplate OverlayTemplate
+        {
+            get { return (ControlTemplate)GetValue(OverlayTemplateProperty); }
+            set { SetValue(OverlayTemplateProperty, value); }
+        }
+        public static readonly DependencyProperty OverlayTemplateProperty =
+            DependencyProperty.Register(nameof(OverlayTemplate), typeof(ControlTemplate), typeof(FlyleafHost), new PropertyMetadata(null, new PropertyChangedCallback(OnOverlayTemplateChanged)));
 
         public Window Overlay
         {
@@ -522,27 +528,6 @@ namespace FlyleafLib.Controls.WPF
             else
                 host.Detach();
         }
-        private static void OnDetachedContentChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            FlyleafHost host = d as FlyleafHost;
-
-            if (isDesginMode)
-            {
-                host.preventContentUpdate = true;
-                host.Content = null;
-                host.dHost.Children.Clear();
-                if (e.NewValue != null)
-                    host.dHost.Children.Add((UIElement)e.NewValue);
-                host.Content = host.dMain;
-                host.preventContentUpdate = false;
-            }
-            else
-            {
-                host.preventContentUpdate = true;
-                host.Content = e.NewValue;
-                host.preventContentUpdate = false;
-            }
-        }
         private static void OnActivityTimeoutChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             FlyleafHost host = d as FlyleafHost;
@@ -551,6 +536,18 @@ namespace FlyleafLib.Controls.WPF
                 return;
 
             host.Player.Activity.Timeout = host.ActivityTimeout;
+        }
+        private static void OnOverlayTemplateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (isDesginMode)
+                return;
+
+            FlyleafHost host = d as FlyleafHost;
+
+            if (host.Overlay == null)
+                host.Overlay = new Window();
+
+            host.Overlay.Template = host.OverlayTemplate;
         }
         private static void OnOverlayChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -563,70 +560,20 @@ namespace FlyleafLib.Controls.WPF
                 // XSurface.Wpf.Window (can this work on designer?
             }
         }
-        protected override void OnContentChanged(object oldContent, object newContent) // Can be called before OnApplyTemplate!
+        private static object OnContentChanging(DependencyObject d, object baseValue)
         {
             if (isDesginMode)
-            {
-                if (preventContentUpdate)
-                {
-                    base.OnContentChanged(oldContent, newContent);
-                    return;
-                }
+                return baseValue;
 
-                preventContentUpdate = true;
-                Content = null;
-                dOverlay.Children.Clear();
-                if (newContent != null)
-                    dOverlay.Children.Add((UIElement)newContent);
-                Content = dMain;
-                preventContentUpdate = false;
+            FlyleafHost host = d as FlyleafHost;
+            
+            if (baseValue != null && host.Overlay == null)
+                host.Overlay = new Window();
 
-                if (oldContent != dMain)
-                    base.OnContentChanged(oldContent, dMain);
+            if (host.Overlay != null)
+                host.Overlay.Content = baseValue;
 
-                return;
-            }
-
-            if (preventContentUpdate)
-            {
-                if (oldContent != DetachedContent)
-                    base.OnContentChanged(oldContent, DetachedContent);
-
-                return;
-            }
-
-            preventContentUpdate = true;
-            Content = DetachedContent;
-            preventContentUpdate = false;
-
-            if (Overlay == null)
-                Overlay = new Window();
-
-            Overlay.Content = newContent;
-
-            base.OnContentChanged(oldContent, DetachedContent);
-        }
-        public override void OnApplyTemplate()
-        {
-            base.OnApplyTemplate();
-
-            if (isDesginMode)
-                return;
-
-            var overlayGrid = GetTemplateChild("PART_OverlayContent") as Grid;
-            if (overlayGrid != null)
-            {
-                var overlayContent = overlayGrid.Children.Count > 0 ? overlayGrid.Children[0] : null;
-                overlayGrid.Children.Clear();
-
-                if (overlayContent != null)
-                {
-                    if (Overlay == null)
-                        Overlay = new Window();
-
-                    Overlay.Content = overlayContent;
-                }
-            }
+            return host.DetachedContent;
         }
         
         private void Host_Unloaded(object sender, RoutedEventArgs e)
@@ -636,10 +583,12 @@ namespace FlyleafLib.Controls.WPF
         }
         private void Host_Loaded(object sender, RoutedEventArgs e)
         {
+            if (Disposed)
+                return;
+
             // TODO: Handle owner changed
             var owner = Window.GetWindow(this);
-            //if (WPFOwner == owner) return;
-            
+
             Owner =  owner;
             OwnerHandle = new WindowInteropHelper(Owner).EnsureHandle();
             matrix = PresentationSource.FromVisual(Owner).CompositionTarget.TransformFromDevice;
@@ -1175,11 +1124,21 @@ namespace FlyleafLib.Controls.WPF
             }
         }
 
-        private void Surface_Closing(object sender, CancelEventArgs e) { isSurfaceClosing = true; Dispose(); }
-        private void Overlay_Closing(object sender, CancelEventArgs e) { if (isSurfaceClosing) return; e.Cancel = true; Surface.Close(); }
+        private void Surface_Closed(object sender, EventArgs e)
+        {
+            surfaceClosed = true;
+            Dispose();
+        }
+        private void Overlay_Closed(object sender, EventArgs e)
+        {
+            overlayClosed = true;
+            if (!surfaceClosed)
+                Surface?.Close();
+        }
 
         private void Overlay_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
-        { // Stand Alone Only (Main control has the overlay)
+        {
+            // Stand Alone Only (Main control has the overlay)
             if (Overlay.IsVisible)
             {
                 Surface?.Show();
@@ -1188,11 +1147,6 @@ namespace FlyleafLib.Controls.WPF
             {
                 Surface?.Hide();
             }
-        }
-        private void Overlay_Loaded(object sender, RoutedEventArgs e)
-        {
-            if (Overlay.IsVisible)
-                Surface.Show();
         }
 
         public static void Resize(Window Window, IntPtr WindowHandle, Point p, int resizingSide, double ratio = 0.0)
@@ -1316,29 +1270,14 @@ namespace FlyleafLib.Controls.WPF
         static FlyleafHost()
         {
             DefaultStyleKeyProperty.OverrideMetadata(typeof(FlyleafHost), new FrameworkPropertyMetadata(typeof(FlyleafHost)));
+            ContentProperty.OverrideMetadata(typeof(FlyleafHost), new FrameworkPropertyMetadata(null, new CoerceValueCallback(OnContentChanging)));
         }
         public FlyleafHost()
         {
             UniqueId = idGenerator++;
             isDesginMode = DesignerProperties.GetIsInDesignMode(this);
-            //isDesginMode = true;
             if (isDesginMode)
-            {
-                dMain   = new Grid();
-                dHost   = new Grid();
-                dSurface= new Grid();
-                dOverlay= new Grid();
-
-                Panel.SetZIndex(dHost, 0);
-                Panel.SetZIndex(dSurface, 1);
-                Panel.SetZIndex(dOverlay, 2);
-
-                dMain.Children.Add(dHost);
-                dMain.Children.Add(dSurface);
-                dMain.Children.Add(dOverlay);
-
                 return;
-            }
 
             MarginTarget = this;
 
@@ -1359,6 +1298,8 @@ namespace FlyleafLib.Controls.WPF
             IsAttached = false;
             SetSurface();
             Overlay = standAloneOverlay;
+            if (Overlay.IsLoaded && Overlay.IsVisible)
+                Surface.Show();
         }
         #endregion
 
@@ -1413,7 +1354,7 @@ namespace FlyleafLib.Controls.WPF
 
             SurfaceHandle       = new WindowInteropHelper(Surface).EnsureHandle();
 
-            Surface.Closing     += Surface_Closing;
+            Surface.Closed      += Surface_Closed;
             Surface.KeyDown     += Surface_KeyDown;
             Surface.KeyUp       += Surface_KeyUp;
             Surface.Drop        += Surface_Drop;
@@ -1428,9 +1369,6 @@ namespace FlyleafLib.Controls.WPF
         }
         public virtual void SetOverlay()
         {
-            //if (OverlayHandle == new WindowInteropHelper(overlay).Handle) // Don't create it yet
-                //DisposeOverlay();
-
             if (Overlay == null)
                 return;
 
@@ -1451,7 +1389,6 @@ namespace FlyleafLib.Controls.WPF
             {
                 Overlay.IsVisibleChanged 
                                 += Overlay_IsVisibleChanged;
-                Overlay.Loaded  += Overlay_Loaded;
                 Surface.Width   = Overlay.Width;
                 Surface.Height  = Overlay.Height;
                 Surface.Icon    = Overlay.Icon;
@@ -1474,7 +1411,7 @@ namespace FlyleafLib.Controls.WPF
 
             Overlay.KeyUp       += Overlay_KeyUp;
             Overlay.KeyDown     += Overlay_KeyDown;
-            Overlay.Closing     += Overlay_Closing;
+            Overlay.Closed      += Overlay_Closed;
             Overlay.Drop        += Overlay_Drop;
             Overlay.DragEnter   += Overlay_DragEnter;
             Overlay.StateChanged+= Overlay_StateChanged;
@@ -1708,6 +1645,9 @@ namespace FlyleafLib.Controls.WPF
                 SetWindowRgn(OverlayHandle, CreateRectRgn((int)(rect.X * DpiX), (int)(rect.Y * DpiY), (int)(rect.Right * DpiX), (int)(rect.Bottom * DpiY)), true);
         }
 
+        /// <summary>
+        /// Disposes the Surface and Overlay Windows and de-assigns the Player
+        /// </summary>
         public void Dispose()
         {
             lock (this)
@@ -1716,12 +1656,9 @@ namespace FlyleafLib.Controls.WPF
                     return;
 
                 Disposed = true;
-
-                if (Surface != null)
-                {
-                    Surface.MouseMove -= Surface_MouseMove;
-                    Surface.MouseLeave -= Surface_MouseLeave;
-                }
+                
+                // Disposes SwapChain Only
+                Player = null;
 
                 if (Overlay != null)
                 {
@@ -1729,10 +1666,20 @@ namespace FlyleafLib.Controls.WPF
                     Overlay.MouseLeave -= Overlay_MouseLeave;
                 }
 
-                if (Player != null)
+                if (Surface != null)
                 {
-                    Player.WPFHost = null;
-                    Player.Dispose();
+                    Surface.MouseMove -= Surface_MouseMove;
+                    Surface.MouseLeave -= Surface_MouseLeave;
+
+                    // If not shown yet app will not close properly
+                    if (!surfaceClosed)
+                    {
+                        Surface.Width = Surface.Height = 1;
+                        Surface.Show();
+                        if (!overlayClosed)
+                            Overlay?.Show();
+                        Surface.Close();
+                    }
                 }
 
                 SurfaceHandle   = IntPtr.Zero;
@@ -1742,7 +1689,6 @@ namespace FlyleafLib.Controls.WPF
                 Surface = null;
                 Overlay = null;
                 Owner   = null;
-                Player  = null;
             }
         }
         #endregion

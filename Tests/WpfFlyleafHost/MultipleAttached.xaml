@@ -18,8 +18,6 @@
             3. Video Overlay Content *User*
         
         For resize make sure VerticalAlignment="Top" HorizontalAlignment="Left" for now
-        With controltemplates might having some issues with bindings (they will set first on host, then will get null and then back to overlay)
-        So for styling might be faster/better performance to set directly the Content and not the Template (this means it requires x:Shared="False" so no designer for multiple hosts
         Ideal way for performance and to ensure all resources/datacontext etc... are fine is to use Overlay dp directly with your custom Window (see HostOverlayWindow)
         TODO: Fix for ZOrder bug while restoring from minimize and possible more zorder functionality
         -->
@@ -58,7 +56,7 @@
                         >
 
             <fl:FlyleafHost.DetachedContent>
-                <Border DataContext="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type fl:FlyleafHost}}}" BorderBrush="DarkBlue" BorderThickness="4">
+                <Border Width="140" Height="110" DataContext="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type fl:FlyleafHost}}}" BorderBrush="DarkBlue" BorderThickness="4">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Visible"/>
@@ -93,22 +91,22 @@
                         <Setter Property="AttachedDragMove" Value="Surface"/>
                         <Setter Property="VerticalAlignment" Value="Top"/>
                         <Setter Property="HorizontalAlignment" Value="Left"/>
-                        <Setter Property="Template">
+                        <Setter Property="DetachedContent">
                             <Setter.Value>
-                                <ControlTemplate TargetType="{x:Type fl:FlyleafHost}">
+                                <TextBlock Text="Detached Content" Foreground="Purple" FontSize="20"/>
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="OverlayTemplate">
+                            <Setter.Value>
+                                <ControlTemplate>
                                     <Grid>
-                                        <TextBlock Text="Detached Content" Foreground="Purple" FontSize="20"/>
-                                        <Grid x:Name="PART_OverlayContent">
-                                            <Grid> <!--Required Grid Here-->
-                                                <TextBlock Text="{Binding HostDataContext.TestDataContext}" Foreground="Green" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{Binding HostDataContext.TestDataContext}" Foreground="Green" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
                                             
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="Template Host" Foreground="DarkRed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                                    <TextBlock Text="{Binding IsAttached}" Foreground="Purple" FontSize="20"/>
-                                                    <ToggleButton Content="Attach / Detach" Foreground="DarkRed" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Grid>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Template Host" Foreground="DarkRed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding IsAttached}" Foreground="Purple" FontSize="20"/>
+                                            <ToggleButton Content="Attach / Detach" Foreground="DarkRed" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                        </StackPanel>
                                     </Grid>
                                 </ControlTemplate>
                             </Setter.Value>
