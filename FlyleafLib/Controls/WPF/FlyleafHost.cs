@@ -101,6 +101,7 @@ namespace FlyleafLib.Controls.WPF
         bool ownedRestoreToMaximize;
         bool isMouseBindingsSubscribedSurface;
         bool isMouseBindingsSubscribedOverlay;
+        MouseButtonEventHandler overlayMouseUp;
         WindowState prevSurfaceWindowState = WindowState.Normal;
 
         Matrix matrix;
@@ -908,7 +909,6 @@ namespace FlyleafLib.Controls.WPF
             }
             mouseLeftDownPoint.X = -1;
             IsSwapping = false;
-            Overlay.ReleaseMouseCapture();
         }
 
         private void Surface_MouseMove(object sender, MouseEventArgs e)
@@ -1003,7 +1003,7 @@ namespace FlyleafLib.Controls.WPF
             }
 
             // Resize Sides (CanResize + !MouseDown + !FullScreen)
-            if (e.MouseDevice.LeftButton != MouseButtonState.Pressed)
+            if (e.MouseDevice.LeftButton != MouseButtonState.Pressed && cur != zeroPoint)
             {
                 if ( Overlay.WindowState != WindowState.Maximized && 
                     ((IsAttached && (AttachedResize == AvailableWindows.Overlay || AttachedResize == AvailableWindows.Both)) ||
@@ -1137,17 +1137,20 @@ namespace FlyleafLib.Controls.WPF
                 Surface?.Close();
         }
 
+        // Stand Alone Only (Main control has the overlay)
+        private void Overlay_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (Overlay.IsVisible)
+                Surface.Show();
+
+            Overlay.IsVisibleChanged += Overlay_IsVisibleChanged;
+        }
         private void Overlay_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            // Stand Alone Only (Main control has the overlay)
             if (Overlay.IsVisible)
-            {
                 Surface?.Show();
-            }
             else
-            {
                 Surface?.Hide();
-            }
         }
 
         public static void Resize(Window Window, IntPtr WindowHandle, Point p, int resizingSide, double ratio = 0.0)
@@ -1299,8 +1302,11 @@ namespace FlyleafLib.Controls.WPF
             IsAttached = false;
             SetSurface();
             Overlay = standAloneOverlay;
-            if (Overlay.IsLoaded && Overlay.IsVisible)
-                Surface.Show();
+            
+            if (!Overlay.IsLoaded)
+                Overlay.Loaded += Overlay_Loaded;
+            else
+                Overlay_Loaded(null, null);
         }
         #endregion
 
@@ -1389,8 +1395,6 @@ namespace FlyleafLib.Controls.WPF
 
             if (IsStandAlone)
             {
-                Overlay.IsVisibleChanged 
-                                += Overlay_IsVisibleChanged;
                 Surface.Width   = Overlay.Width;
                 Surface.Height  = Overlay.Height;
                 Surface.Icon    = Overlay.Icon;
@@ -1465,6 +1469,10 @@ namespace FlyleafLib.Controls.WPF
 
             if ((MouseBindings == AvailableWindows.Overlay || MouseBindings == AvailableWindows.Both) && !isMouseBindingsSubscribedOverlay)
             {
+                if (overlayMouseUp == null)
+                    overlayMouseUp = new MouseButtonEventHandler((o, e) => Overlay.ReleaseMouseCapture());
+
+                Mouse.AddPreviewMouseUpOutsideCapturedElementHandler(Overlay, overlayMouseUp);
                 Overlay.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
                 Overlay.MouseLeftButtonUp   += Overlay_MouseLeftButtonUp;
                 Overlay.MouseWheel          += Overlay_MouseWheel;
@@ -1475,6 +1483,7 @@ namespace FlyleafLib.Controls.WPF
             }
             else if (MouseBindings != AvailableWindows.Overlay && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedOverlay)
             {
+                Mouse.RemovePreviewMouseUpOutsideCapturedElementHandler(Overlay, overlayMouseUp);
                 Overlay.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
                 Overlay.MouseLeftButtonUp   -= Overlay_MouseLeftButtonUp;
                 Overlay.MouseWheel          -= Overlay_MouseWheel;
@@ -1484,7 +1493,7 @@ namespace FlyleafLib.Controls.WPF
                 isMouseBindingsSubscribedOverlay = false;
             }
         }
-
+        
         public virtual void Attach()
         {
             rectDetachedLast = new Rect(Surface.Left, Surface.Top, Surface.Width, Surface.Height);
