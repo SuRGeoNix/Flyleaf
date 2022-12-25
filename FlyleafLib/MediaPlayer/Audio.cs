@@ -285,7 +285,7 @@ namespace FlyleafLib.MediaPlayer
         {
             try
             {
-                SamplesAddeded.Invoke(this, aFrame);
+                SamplesAddeded?.Invoke(this, aFrame);
                 sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
             } catch (Exception e) // Happens on audio device changed/removed
             {
