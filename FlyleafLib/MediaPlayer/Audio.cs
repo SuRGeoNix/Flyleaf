@@ -16,6 +16,9 @@ namespace FlyleafLib.MediaPlayer
 {
     public class Audio : NotifyPropertyChanged
     {
+
+        public event EventHandler<AudioFrame> SamplesAddeded;
+
         #region Properties
         /// <summary>
         /// Embedded Streams
@@ -282,6 +285,7 @@ namespace FlyleafLib.MediaPlayer
         {
             try
             {
+                SamplesAddeded.Invoke(this, aFrame);
                 sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
             } catch (Exception e) // Happens on audio device changed/removed
             {
@@ -394,4 +398,5 @@ namespace FlyleafLib.MediaPlayer
             Volume = Math.Max(Volume - Config.Player.VolumeOffset, 0);
         }
     }
+
 }
