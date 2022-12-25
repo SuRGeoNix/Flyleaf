@@ -23,19 +23,19 @@ namespace FlyleafLib.Plugins
                     foreach (var stream in streams)
                         if (stream.Language == lang)
                         {
-                            if (stream.Demuxer.Programs.Length < 2)
+                            if (stream.Demuxer.Programs.Count < 2)
                             {
                                 Log.Info($"Audio based on language");
                                 return stream;
                             }
 
-                            for (int i = 0; i < stream.Demuxer.Programs.Length; i++)
+                            for (int i = 0; i < stream.Demuxer.Programs.Count; i++)
                             {
                                 bool aExists = false, vExists = false;
-                                foreach (int pstream in stream.Demuxer.Programs[i])
+                                foreach (var pstream in stream.Demuxer.Programs[i].Streams)
                                 {
-                                    if (pstream == stream.StreamIndex) aExists = true;
-                                    else if (pstream == stream.Demuxer.VideoStream?.StreamIndex) vExists = true;
+                                    if (pstream.StreamIndex == stream.StreamIndex) aExists = true;
+                                    else if (pstream.StreamIndex == stream.Demuxer.VideoStream?.StreamIndex) vExists = true;
                                 }
 
                                 if (aExists && vExists)

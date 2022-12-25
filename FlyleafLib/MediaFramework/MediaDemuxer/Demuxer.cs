@@ -15,6 +15,7 @@ using FlyleafLib.MediaFramework.MediaStream;
 
 using static FlyleafLib.Config;
 using static FlyleafLib.Logger;
+using FlyleafLib.MediaFramework.MediaProgram;
 
 namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
@@ -60,7 +61,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public CustomIOContext          CustomIOContext { get; private set; }
 
         // Media Programs
-        public int[][]                  Programs        { get; private set; } = new int[0][];
+        //public int[][]                  Programs        { get; private set; } = new int[0][];
+        public ObservableCollection<Program> Programs { get; private set; } = new ObservableCollection<Program>();
 
         // Media Streams
         public ObservableCollection<AudioStream>        AudioStreams    { get; private set; } = new ObservableCollection<AudioStream>();
@@ -234,7 +236,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 Url = null;
                 hlsCtx = null;
-                Programs = new int[0][];
+                if (Programs.Count>0)
+                    Programs.Clear();
 
                 IsReversePlayback   = false;
                 curReverseStopPts   = AV_NOPTS_VALUE;
@@ -513,20 +516,17 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     if (SubtitlesStreams[i].Language.Culture == null && SubtitlesStreams[i].Language.OriginalInput == null)
                         SubtitlesStreams[i].Language = Language.English;
 
-            Programs = new int[0][];
+            if (Programs.Count>0)
+                Programs.Clear();
             if (fmtCtx->nb_programs > 0)
             {
-                Programs = new int[fmtCtx->nb_programs][];
-                for (int i=0; i<fmtCtx->nb_programs; i++)
+                for (int i = 0; i < fmtCtx->nb_programs; i++)
                 {
                     fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_ALL;
-                    Programs[i] = new int[fmtCtx->programs[i]->nb_stream_indexes];
-
-                    for (int l=0; l<Programs[i].Length; l++)
-                        Programs[i][l] = (int) fmtCtx->programs[i]->stream_index[l];
+                    var program = new Program(fmtCtx->programs[i], this);
+                    Programs.Add(program);
                 }
             }
-
             PrintDump();
             return hasVideo;
         }
@@ -1024,9 +1024,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         #region Switch Programs / Streams
         public bool IsProgramEnabled(StreamBase stream)
         {
-            for (int i=0; i<Programs.Length; i++)
-                for (int l=0; l<Programs[i].Length; l++)
-                    if (Programs[i][l] == stream.StreamIndex && fmtCtx->programs[i]->discard != AVDiscard.AVDISCARD_ALL)
+            for (int i=0; i<Programs.Count; i++)
+                for (int l=0; l<Programs[i].Streams.Count; l++)
+                    if (Programs[i].Streams[l].StreamIndex == stream.StreamIndex && fmtCtx->programs[i]->discard != AVDiscard.AVDISCARD_ALL)
                         return true;
 
             return false;
@@ -1039,9 +1039,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 return;
             }
 
-            for (int i=0; i<Programs.Length; i++)
-                for (int l=0; l<Programs[i].Length; l++)
-                    if (Programs[i][l] == stream.StreamIndex)
+            for (int i=0; i<Programs.Count; i++)
+                for (int l=0; l<Programs[i].Streams.Count; l++)
+                    if (Programs[i].Streams[l].StreamIndex == stream.StreamIndex)
                     {
                         if (CanDebug) Log.Debug($"[Stream #{stream.StreamIndex}] Enables program #{i}");
                         fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_DEFAULT;
@@ -1050,14 +1050,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         }
         public void DisableProgram(StreamBase stream)
         {
-            for (int i=0; i<Programs.Length; i++)
-                for (int l=0; l<Programs[i].Length; l++)
-                    if (Programs[i][l] == stream.StreamIndex && fmtCtx->programs[i]->discard != AVDiscard.AVDISCARD_ALL)
+            for (int i=0; i<Programs.Count; i++)
+                for (int l=0; l<Programs[i].Streams.Count; l++)
+                    if (Programs[i].Streams[l].StreamIndex == stream.StreamIndex && fmtCtx->programs[i]->discard != AVDiscard.AVDISCARD_ALL)
                     {
                         bool isNeeded = false;
-                        for (int l2=0; l2<Programs[i].Length; l2++)
+                        for (int l2=0; l2<Programs[i].Streams.Count; l2++)
                         {
-                            if (Programs[i][l2] != stream.StreamIndex && EnabledStreams.Contains(Programs[i][l2]))
+                            if (Programs[i].Streams[l2].StreamIndex != stream.StreamIndex && EnabledStreams.Contains(Programs[i].Streams[l2].StreamIndex))
                                 {isNeeded = true; break; }
                         }
 
