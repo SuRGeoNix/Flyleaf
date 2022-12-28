@@ -16,7 +16,6 @@ namespace FlyleafLib.MediaPlayer
 {
     public class Audio : NotifyPropertyChanged
     {
-
         public event EventHandler<AudioFrame> SamplesAddeded;
 
         #region Properties
@@ -198,6 +197,7 @@ namespace FlyleafLib.MediaPlayer
         IXAudio2SourceVoice     sourceVoice;
         WaveFormat              waveFormat = new WaveFormat(48000, 16, 2); // Output Audio Device
         #endregion
+
         public Audio(Player player)
         {
             this.player = player;
