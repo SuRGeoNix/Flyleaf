@@ -1,14 +1,28 @@
-﻿using FFmpeg.AutoGen;
+﻿using System.Collections.Generic;
+using System.Linq;
+
+using FFmpeg.AutoGen;
+using static FFmpeg.AutoGen.ffmpeg;
+
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
-using System.Collections.Generic;
-using System.Linq;
-using static FFmpeg.AutoGen.ffmpeg;
 
 namespace FlyleafLib.MediaFramework.MediaProgram
 {
     public class Program
     {
+        public int      ProgramNumber   { get; internal set; }
+
+        public int      ProgramId       { get; internal set; }
+
+        public IReadOnlyDictionary<string, string>
+                        Metadata        { get; internal set; }
+
+        public IReadOnlyList<StreamBase> 
+                        Streams         { get; internal set; }
+
+        public string   Name            => Metadata.ContainsKey("name") ? Metadata["name"] : string.Empty;
+
         public unsafe Program(AVProgram* program, Demuxer demuxer)
         {
             ProgramNumber = program->program_num;
@@ -46,16 +60,5 @@ namespace FlyleafLib.MediaFramework.MediaProgram
             }
             Metadata = metadata;
         }
-
-        public int ProgramNumber { get; internal set; }
-
-        public int ProgramId { get; internal set; }
-
-        public IReadOnlyDictionary<string, string> Metadata { get; internal set; }
-
-        public IReadOnlyList<StreamBase> Streams { get; internal set; }
-
-        public string Name => Metadata.ContainsKey("name") ? Metadata["name"] : string.Empty;
-
     }
 }

@@ -5,17 +5,18 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Windows.Data;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.AVMediaType;
 using static FFmpeg.AutoGen.ffmpeg;
 using static FFmpeg.AutoGen.ffmpegEx;
 
+using FlyleafLib.MediaFramework.MediaProgram;
 using FlyleafLib.MediaFramework.MediaStream;
 
 using static FlyleafLib.Config;
 using static FlyleafLib.Logger;
-using FlyleafLib.MediaFramework.MediaProgram;
 
 namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
@@ -61,13 +62,16 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         public CustomIOContext          CustomIOContext { get; private set; }
 
         // Media Programs
-        //public int[][]                  Programs        { get; private set; } = new int[0][];
-        public ObservableCollection<Program> Programs { get; private set; } = new ObservableCollection<Program>();
+        public ObservableCollection<Program> 
+                                        Programs        { get; private set; } = new ObservableCollection<Program>();
 
         // Media Streams
-        public ObservableCollection<AudioStream>        AudioStreams    { get; private set; } = new ObservableCollection<AudioStream>();
-        public ObservableCollection<VideoStream>        VideoStreams    { get; private set; } = new ObservableCollection<VideoStream>();
-        public ObservableCollection<SubtitlesStream>    SubtitlesStreams{ get; private set; } = new ObservableCollection<SubtitlesStream>();
+        public ObservableCollection<AudioStream>        
+                                        AudioStreams    { get; private set; } = new ObservableCollection<AudioStream>();
+        public ObservableCollection<VideoStream>        
+                                        VideoStreams    { get; private set; } = new ObservableCollection<VideoStream>();
+        public ObservableCollection<SubtitlesStream>    
+                                        SubtitlesStreams{ get; private set; } = new ObservableCollection<SubtitlesStream>();
         readonly object lockStreams = new object();
 
         public List<int>                EnabledStreams  { get; private set; } = new List<int>();
@@ -173,9 +177,10 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             string typeStr = Type == MediaType.Video ? "Main" : Type.ToString();
             threadName = $"Demuxer: {typeStr,5}";
 
-            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(AudioStreams, lockStreams);
-            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(VideoStreams, lockStreams);
-            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(SubtitlesStreams, lockStreams);
+            BindingOperations.EnableCollectionSynchronization(Programs,         lockStreams);
+            BindingOperations.EnableCollectionSynchronization(AudioStreams,     lockStreams);
+            BindingOperations.EnableCollectionSynchronization(VideoStreams,     lockStreams);
+            BindingOperations.EnableCollectionSynchronization(SubtitlesStreams, lockStreams);
         }
         #endregion
 
@@ -236,8 +241,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                 Url = null;
                 hlsCtx = null;
-                if (Programs.Count>0)
-                    Programs.Clear();
 
                 IsReversePlayback   = false;
                 curReverseStopPts   = AV_NOPTS_VALUE;
@@ -246,14 +249,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 lastSeekTime        = 0;
 
                 // Free Streams
-                if (AudioStreams.Count != 0 || VideoStreams.Count != 0 || SubtitlesStreams.Count != 0)
+                lock (lockStreams)
                 {
-                    lock (lockStreams)
-                    {
-                        AudioStreams.Clear();
-                        VideoStreams.Clear();
-                        SubtitlesStreams.Clear();
-                    }
+                    AudioStreams.Clear();
+                    VideoStreams.Clear();
+                    SubtitlesStreams.Clear();
+                    Programs.Clear();
                 }
                 EnabledStreams.Clear();
                 AudioStream = null;
@@ -468,7 +469,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             bool audioHasEng = false;
             bool subsHasEng = false;
 
-            lock (lockStreams) {  
+            lock (lockStreams)
+            {  
                 for (int i=0; i<fmtCtx->nb_streams; i++)
                 {
                     fmtCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
@@ -504,29 +506,28 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             break;
                     }
                 }
-            }
 
-            if (!audioHasEng)
-                for (int i=0; i<AudioStreams.Count; i++)
-                    if (AudioStreams[i].Language.Culture == null && AudioStreams[i].Language.OriginalInput == null)
-                        AudioStreams[i].Language = Language.English;
+                if (!audioHasEng)
+                    for (int i=0; i<AudioStreams.Count; i++)
+                        if (AudioStreams[i].Language.Culture == null && AudioStreams[i].Language.OriginalInput == null)
+                            AudioStreams[i].Language = Language.English;
 
-            if (!subsHasEng && Type == MediaType.Video)
-                for (int i=0; i<SubtitlesStreams.Count; i++)
-                    if (SubtitlesStreams[i].Language.Culture == null && SubtitlesStreams[i].Language.OriginalInput == null)
-                        SubtitlesStreams[i].Language = Language.English;
+                if (!subsHasEng && Type == MediaType.Video)
+                    for (int i=0; i<SubtitlesStreams.Count; i++)
+                        if (SubtitlesStreams[i].Language.Culture == null && SubtitlesStreams[i].Language.OriginalInput == null)
+                            SubtitlesStreams[i].Language = Language.English;
 
-            if (Programs.Count>0)
-                Programs.Clear();
-            if (fmtCtx->nb_programs > 0)
-            {
-                for (int i = 0; i < fmtCtx->nb_programs; i++)
+                if (fmtCtx->nb_programs > 0)
                 {
-                    fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_ALL;
-                    var program = new Program(fmtCtx->programs[i], this);
-                    Programs.Add(program);
+                    for (int i = 0; i < fmtCtx->nb_programs; i++)
+                    {
+                        fmtCtx->programs[i]->discard = AVDiscard.AVDISCARD_ALL;
+                        var program = new Program(fmtCtx->programs[i], this);
+                        Programs.Add(program);
+                    }
                 }
             }
+
             PrintDump();
             return hasVideo;
         }
