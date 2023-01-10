@@ -42,6 +42,36 @@ namespace FlyleafPlayer
             OpenWindow  = new RelayCommandSimple(() => (new MainWindow()).Show());
             CloseWindow = new RelayCommandSimple(() => Close());
 
+            FlyleafME = new FlyleafME(this)
+            {
+                Tag = this,
+                ActivityTimeout = 2000,
+                KeyBindings = AvailableWindows.Both,
+                DetachedResize = AvailableWindows.Overlay,
+                DetachedDragMove = AvailableWindows.Both,
+                ToggleFullScreenOnDoubleClick = AvailableWindows.Both,
+                KeepRatioOnResize = true,
+                OpenOnDrop = AvailableWindows.Both,
+                //Player = Player
+            };
+
+            InitializeComponent();
+
+            // Allowing FlyleafHost to access our Player
+            DataContext = FlyleafME;
+        }
+
+        private Config DefaultConfig()
+        {
+            Config config = new Config();
+            config.Subtitles.SearchLocal = true;
+            config.Video.GPUAdapter = ""; // Set it empty so it will include it when we save it
+
+            return config;
+        }
+
+        private void LoadPlayer()
+        {
             // NOTE: Loads/Saves configs only in RELEASE mode
 
             // Player's Config (Cannot be initialized before Engine's initialization)
@@ -57,24 +87,6 @@ namespace FlyleafPlayer
             
             // Initializes the Player
             Player = new Player(playerConfig);
-
-            FlyleafME = new FlyleafME(this)
-            {
-                Tag = this,
-                ActivityTimeout = 2000,
-                KeyBindings = AvailableWindows.Both,
-                DetachedResize = AvailableWindows.Overlay,
-                DetachedDragMove = AvailableWindows.Both,
-                ToggleFullScreenOnDoubleClick = AvailableWindows.Both,
-                KeepRatioOnResize = true,
-                OpenOnDrop = AvailableWindows.Both,
-                Player = Player
-            };
-
-            InitializeComponent();
-
-            // Allowing FlyleafHost to access our Player
-            DataContext = FlyleafME;
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
             FlyleafME.ConfigPath    = "Flyleaf.Config.xml";
@@ -108,17 +120,22 @@ namespace FlyleafPlayer
                 playerConfig.Player.KeyBindings.AddCustom(Key.W, true, () => { Close(); }, "Close Window", false, true, false);
         }
 
-        private Config DefaultConfig()
-        {
-            Config config = new Config();
-            config.Subtitles.SearchLocal = true;
-            config.Video.GPUAdapter = ""; // Set it empty so it will include it when we save it
-
-            return config;
-        }
-
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            if (Engine.IsLoaded)
+            {
+                LoadPlayer();
+                FlyleafME.Player = Player;
+            }
+            else
+            {
+                Engine.Loaded += (o, e) =>
+                {
+                    LoadPlayer();
+                    Utils.UIInvokeIfRequired(() => FlyleafME.Player = Player);
+                };
+            }
+
             if (runOnce)
                 return;
 

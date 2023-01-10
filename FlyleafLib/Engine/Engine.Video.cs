@@ -26,6 +26,7 @@ namespace FlyleafLib
         public List<GPUOutput>  Screens     { get; private set; } = new List<GPUOutput>();
 
         internal IDXGIFactory2 Factory;
+        internal object lockCapDevices = new();
 
         internal VideoEngine()
         {

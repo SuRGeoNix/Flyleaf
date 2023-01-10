@@ -83,10 +83,22 @@ namespace FlyleafLib
         }
 
         /// <summary>
-        /// Invokes the UI thread if required to execute the specified action
+        /// Invokes the UI thread to execute the specified action
         /// </summary>
         /// <param name="action"></param>
         public static void UIInvoke(Action action) => Application.Current.Dispatcher.Invoke(action);
+
+        /// <summary>
+        /// Invokes the UI thread if required to execute the specified action
+        /// </summary>
+        /// <param name="action"></param>
+        public static void UIInvokeIfRequired(Action action)
+        {
+            if (Thread.CurrentThread.ManagedThreadId == System.Windows.Threading.Dispatcher.CurrentDispatcher.Thread.ManagedThreadId)
+                action();
+            else
+                Application.Current.Dispatcher.Invoke(action);
+        }
 
         public static void TimeBeginPeriod(uint i)
         {

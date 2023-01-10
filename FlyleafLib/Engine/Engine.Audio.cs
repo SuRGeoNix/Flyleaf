@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Windows.Data;
 
 using SharpGen.Runtime;
 using SharpGen.Runtime.Win32;
@@ -46,6 +47,9 @@ namespace FlyleafLib
         /// </summary>
         public ObservableCollection<string> Devices { get; private set; } = new ObservableCollection<string>();
 
+        internal object lockCapDevices = new();
+        object lockDevices = new();
+
         public string GetDeviceId(string deviceName)
         {
             if (deviceName == DefaultDeviceName)
@@ -88,6 +92,9 @@ namespace FlyleafLib
                 return;
             }
 
+            BindingOperations.EnableCollectionSynchronization(CapDevices, lockCapDevices);
+            BindingOperations.EnableCollectionSynchronization(Devices, lockDevices);
+
             try
             {
                 deviceEnum = new IMMDeviceEnumerator();
@@ -99,10 +106,13 @@ namespace FlyleafLib
                     return;
                 }
 
-                Devices.Clear();
-                Devices.Add(DefaultDeviceName);
-                foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
-                    Devices.Add(device.FriendlyName);
+                lock (lockDevices)
+                {
+                    Devices.Clear();
+                    Devices.Add(DefaultDeviceName);
+                    foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+                        Devices.Add(device.FriendlyName);
+                }
 
                 CurrentDeviceId     = defaultDevice.Id;
                 CurrentDeviceName   = defaultDevice.FriendlyName;
@@ -132,13 +142,15 @@ namespace FlyleafLib
             // Refresh Devices and initialize audio players if requried
             lock (locker)
             {
-
-                Utils.UI(() =>
+                Utils.UIInvokeIfRequired(() =>
                 {
-                    Devices.Clear();
-                    Devices.Add(DefaultDeviceName);
-                    foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
-                        Devices.Add(device.FriendlyName);
+                    lock (lockDevices)
+                    {
+                        Devices.Clear();
+                        Devices.Add(DefaultDeviceName);
+                        foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+                            Devices.Add(device.FriendlyName);
+                    }
 
                     foreach(var player in Engine.Players)
                     {
