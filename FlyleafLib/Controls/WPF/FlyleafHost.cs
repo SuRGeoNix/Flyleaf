@@ -101,7 +101,7 @@ namespace FlyleafLib.Controls.WPF
         bool ownedRestoreToMaximize;
         bool isMouseBindingsSubscribedSurface;
         bool isMouseBindingsSubscribedOverlay;
-        MouseButtonEventHandler overlayMouseUp;
+        MouseButtonEventHandler surfaceMouseUp, overlayMouseUp;
         WindowState prevSurfaceWindowState = WindowState.Normal;
 
         Matrix matrix;
@@ -885,20 +885,7 @@ namespace FlyleafLib.Controls.WPF
             Overlay.CaptureMouse();
         }
 
-        private void Surface_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (IsResizing)
-            {
-                ResizingSide = 0;
-                Surface.Cursor = Cursors.Arrow;
-                IsResizing = false;
-                Host_LayoutUpdated(null, null); // When attached to restore the clipped rect
-            }
-            mouseLeftDownPoint.X = -1;
-            IsSwapping = false;
-            Surface.ReleaseMouseCapture();
-        }
-        private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void ReleaseMouseCaptureSO()
         {
             if (IsResizing)
             {
@@ -910,6 +897,9 @@ namespace FlyleafLib.Controls.WPF
             mouseLeftDownPoint.X = -1;
             IsSwapping = false;
         }
+
+        private void ReleaseMouseCapture1(object sender, MouseButtonEventArgs e) => ReleaseMouseCaptureSO();
+        private void ReleaseMouseCapture2(object sender, MouseEventArgs e) => ReleaseMouseCaptureSO();
 
         private void Surface_MouseMove(object sender, MouseEventArgs e)
         {
@@ -1443,8 +1433,13 @@ namespace FlyleafLib.Controls.WPF
 
             if ((MouseBindings == AvailableWindows.Surface || MouseBindings == AvailableWindows.Both) && !isMouseBindingsSubscribedSurface)
             {
+                if (surfaceMouseUp == null)
+                    surfaceMouseUp = new MouseButtonEventHandler((o, e) => Surface.ReleaseMouseCapture());
+                Mouse.AddPreviewMouseUpOutsideCapturedElementHandler(Surface, surfaceMouseUp);
+                Surface.LostMouseCapture    += ReleaseMouseCapture2;
+
                 Surface.MouseLeftButtonDown += Surface_MouseLeftButtonDown;
-                Surface.MouseLeftButtonUp   += Surface_MouseLeftButtonUp;
+                Surface.MouseLeftButtonUp   += ReleaseMouseCapture1;
                 Surface.MouseWheel          += Surface_MouseWheel;
                 Surface.MouseMove           += Surface_MouseMove;
                 Surface.MouseLeave          += Surface_MouseLeave;
@@ -1453,8 +1448,10 @@ namespace FlyleafLib.Controls.WPF
             }
             else if (MouseBindings != AvailableWindows.Surface && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedSurface)
             {
+                Mouse.RemovePreviewMouseUpOutsideCapturedElementHandler(Surface, surfaceMouseUp);
+                Surface.LostMouseCapture    -= ReleaseMouseCapture2;
                 Surface.MouseLeftButtonDown -= Surface_MouseLeftButtonDown;
-                Surface.MouseLeftButtonUp   -= Surface_MouseLeftButtonUp;
+                Surface.MouseLeftButtonUp   -= ReleaseMouseCapture1;
                 Surface.MouseWheel          -= Surface_MouseWheel;
                 Surface.MouseMove           -= Surface_MouseMove;
                 Surface.MouseLeave          -= Surface_MouseLeave;
@@ -1471,10 +1468,11 @@ namespace FlyleafLib.Controls.WPF
             {
                 if (overlayMouseUp == null)
                     overlayMouseUp = new MouseButtonEventHandler((o, e) => Overlay.ReleaseMouseCapture());
-
                 Mouse.AddPreviewMouseUpOutsideCapturedElementHandler(Overlay, overlayMouseUp);
+                Overlay.LostMouseCapture    += ReleaseMouseCapture2;
+
                 Overlay.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
-                Overlay.MouseLeftButtonUp   += Overlay_MouseLeftButtonUp;
+                Overlay.MouseLeftButtonUp   += ReleaseMouseCapture1;
                 Overlay.MouseWheel          += Overlay_MouseWheel;
                 Overlay.MouseMove           += Overlay_MouseMove;
                 Overlay.MouseLeave          += Overlay_MouseLeave;
@@ -1484,8 +1482,9 @@ namespace FlyleafLib.Controls.WPF
             else if (MouseBindings != AvailableWindows.Overlay && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedOverlay)
             {
                 Mouse.RemovePreviewMouseUpOutsideCapturedElementHandler(Overlay, overlayMouseUp);
+                Overlay.LostMouseCapture    -= ReleaseMouseCapture2;
                 Overlay.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
-                Overlay.MouseLeftButtonUp   -= Overlay_MouseLeftButtonUp;
+                Overlay.MouseLeftButtonUp   -= ReleaseMouseCapture1;
                 Overlay.MouseWheel          -= Overlay_MouseWheel;
                 Overlay.MouseMove           -= Overlay_MouseMove;
                 Overlay.MouseLeave          -= Overlay_MouseLeave;
@@ -1618,7 +1617,16 @@ namespace FlyleafLib.Controls.WPF
                     beforeFullScreenSize= new Size(Surface.ActualWidth, Surface.ActualHeight);
                 }
                 
-                Surface.WindowState = WindowState.Maximized;
+                if (Overlay != null)
+                {
+                    bool overlayWasVisible = Overlay.IsVisible;
+                    Overlay.Hide();
+                    Surface.WindowState = WindowState.Maximized;
+                    if (overlayWasVisible)
+                        Overlay.Show();
+                }
+                else
+                    Surface.WindowState = WindowState.Maximized;
             }
             else
             {
