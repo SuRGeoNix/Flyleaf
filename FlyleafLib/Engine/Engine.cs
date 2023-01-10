@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Threading;
+using System.Windows;
 
 using Vortice.MediaFoundation;
 
@@ -15,9 +17,9 @@ namespace FlyleafLib
     public static class Engine
     {
         /// <summary>
-        /// Engine has been started and is ready for use
+        /// Engine has been loaded and is ready for use
         /// </summary>
-        public static bool              Started         { get; private set; }
+        public static bool              IsLoaded        { get; private set; }
 
         /// <summary>
         /// Engine's configuration
@@ -49,61 +51,90 @@ namespace FlyleafLib
         /// </summary>
         public static List<Player>      Players         { get; private set; }
 
+
+        public static event EventHandler Loaded;
+
         internal static LogHandler Log;
 
         static Thread   tMaster;
         static object   lockEngine      = new object();
+        static bool isLoading;
 
         /// <summary>
         /// Initializes Flyleaf's Engine
         /// </summary>
         /// <param name="config">Engine's configuration</param>
-        public static void Start(EngineConfig config = null)
+        public static void Start(EngineConfig config = null) => StartInternal(config);
+
+        /// <summary>
+        /// Initializes Flyleaf's Engine Async
+        /// </summary>
+        /// <param name="config">Engine's configuration</param>
+        public static void StartAsync(EngineConfig config = null) => StartInternal(config, true);
+
+        private static void StartInternal(EngineConfig config = null, bool async = false)
         {
             lock (lockEngine)
             {
-                if (Started)
-                    throw new Exception("Engine has already been started");
+                if (isLoading)
+                    return;
 
-                if (System.Windows.Application.Current == null)
-                    new System.Windows.Application();
-
-                System.Windows.Application.Current.Exit += (o, e) =>
-                {
-                    Config.UIRefresh = false;
-                    Config.UIRefreshInterval = 1;
-                    
-                    while (Players.Count != 0)
-                        Players[0].Dispose();
-                };
+                isLoading = true;
 
                 Config = config == null ? new EngineConfig() : config;
 
-                if (Config.HighPerformaceTimers)
-                    Utils.NativeMethods.TimeBeginPeriod(1);
+                Utils.UIInvokeIfRequired(() => StartInternalUI());
 
-                Logger.SetOutput();
-
-                Log     = new LogHandler("[FlyleafEngine] ");
-                var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                Log.Info($"FlyleafLib {version.Major }.{version.Minor}.{version.Build}");
-
-                FFmpeg  = new FFmpegEngine();
-                Video   = new VideoEngine();
-                Audio   = new AudioEngine();
-                Plugins = new PluginsEngine();
-                Players = new List<Player>();
-
-                if (Config.FFmpegDevices)
-                    EnumerateCapDevices();
-
-                Renderer.Start();
-
-                Started = true;
-
-                if (Config.UIRefresh)
-                    StartThread();
+                if (async)
+                    Task.Run(() => StartInternalNonUI());
+                else
+                    StartInternalNonUI();
             }
+        }
+
+        private static void StartInternalUI()
+        {
+            if (Application.Current == null)
+                new Application();
+
+            Application.Current.Exit += (o, e) =>
+            {
+                Config.UIRefresh = false;
+                Config.UIRefreshInterval = 1;
+                    
+                while (Players.Count != 0)
+                    Players[0].Dispose();
+            };
+
+            if (Config.HighPerformaceTimers)
+                Utils.NativeMethods.TimeBeginPeriod(1);
+
+            Logger.SetOutput();
+
+            Log = new LogHandler("[FlyleafEngine] ");
+        }
+
+        private static void StartInternalNonUI()
+        {
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            Log.Info($"FlyleafLib {version.Major }.{version.Minor}.{version.Build}");
+
+            FFmpeg  = new FFmpegEngine();
+            Video   = new VideoEngine();
+            Audio   = new AudioEngine();
+            Plugins = new PluginsEngine();
+            Players = new List<Player>();
+
+            if (Config.FFmpegDevices)
+                EnumerateCapDevices();
+
+            Renderer.Start();
+
+            IsLoaded = true;
+            Loaded?.Invoke(null, null);
+
+            if (Config.UIRefresh)
+                StartThread();
         }
 
         private unsafe static void EnumerateCapDevices()
@@ -117,12 +148,16 @@ namespace FlyleafLib
 
                 capAttrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeAudcap);
                 capDevices = MediaFactory.MFEnumDeviceSources(capAttrs);
-
-                foreach (IMFActivate capDevice in capDevices)
+                
+                lock (Audio.lockCapDevices)
                 {
-                    if (i == 1) dump = "Audio Cap Devices\r\n";
-                    dump += $"[#{i}] {capDevice.FriendlyName}\r\n";
-                    i++;
+                    foreach (IMFActivate capDevice in capDevices)
+                    {
+                        if (i == 1) dump = "Audio Cap Devices\r\n";
+                        dump += $"[#{i}] {capDevice.FriendlyName}\r\n";
+                        Audio.CapDevices.Add(capDevice.FriendlyName);
+                        i++;
+                    }
                 }
 
                 if (dump != null)
@@ -133,12 +168,16 @@ namespace FlyleafLib
                 dump = null; i = 1;
                 capAttrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeVidcap);
                 capDevices = MediaFactory.MFEnumDeviceSources(capAttrs);
-               
-                foreach (IMFActivate capDevice in capDevices)
+
+                lock (Video.lockCapDevices)
                 {
-                    if (i == 1) dump = "Video Cap Devices\r\n";
-                    dump += $"[#{i}] {capDevice.FriendlyName}\r\n";
-                    i++;
+                    foreach (IMFActivate capDevice in capDevices)
+                    {
+                        if (i == 1) dump = "Video Cap Devices\r\n";
+                        dump += $"[#{i}] {capDevice.FriendlyName}\r\n";
+                        Video.CapDevices.Add(capDevice.FriendlyName);
+                        i++;
+                    }
                 }
 
                 if (dump != null)

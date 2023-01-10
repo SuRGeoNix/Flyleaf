@@ -719,7 +719,7 @@ namespace FlyleafLib
         /// Sets FFmpeg logger's level
         /// </summary>
         public FFmpegLogLevel 
-                        FFmpegLogLevel          { get => _FFmpegLogLevel; set { _FFmpegLogLevel = value; if (Engine.Started) Engine.FFmpeg.SetLogLevel(); } }
+                        FFmpegLogLevel          { get => _FFmpegLogLevel; set { _FFmpegLogLevel = value; if (Engine.IsLoaded) Engine.FFmpeg.SetLogLevel(); } }
         FFmpegLogLevel _FFmpegLogLevel = FFmpegLogLevel.Quiet;
 
         /// <summary>
@@ -746,7 +746,7 @@ namespace FlyleafLib
         /// <para>:console -> System.Console</para>
         /// <para>&lt;path&gt; -> Absolute or relative file path</para>
         /// </summary>
-        public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.Started) Logger.SetOutput(); } }
+        public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.IsLoaded) Logger.SetOutput(); } }
         string _LogOutput = "";
         
         /// <summary>
@@ -785,7 +785,7 @@ namespace FlyleafLib
         /// <para>Activates Master Thread to monitor all the players and perform the required updates</para>
         /// <para>Required for Activity Mode, Stats &amp; Buffered Duration on Pause</para>
         /// </summary>
-        public bool     UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; if (value && Engine.Started) Engine.StartThread(); } }
+        public bool     UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; if (value && Engine.IsLoaded) Engine.StartThread(); } }
         static bool _UIRefresh;
 
         /// <summary>
