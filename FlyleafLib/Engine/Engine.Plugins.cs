@@ -14,55 +14,63 @@ namespace FlyleafLib
 
         public string   Folder      { get; private set; }
 
+        private Type pluginBaseType = typeof(PluginBase);
+
         internal PluginsEngine()
         {
+            Folder = string.IsNullOrEmpty(Engine.Config.PluginsPath) ? null : Utils.GetFolderPath(Engine.Config.PluginsPath);
+
             LoadAssemblies();
         }
 
         internal void LoadAssemblies()
         {
-            string path = string.IsNullOrEmpty(Engine.Config.PluginsPath) ? null : Utils.GetFolderPath(Engine.Config.PluginsPath);
+            // Load FlyleafLib's Embedded Plugins
+            LoadPlugin(Assembly.GetExecutingAssembly());
 
-            // Load .dll Assemblies
-            if (path != null && Directory.Exists(path))
+            // Load External Plugins Folder
+            if (Folder != null && Directory.Exists(Folder))
             {
-                string[] dirs = Directory.GetDirectories(path);
+                string[] dirs = Directory.GetDirectories(Folder);
 
                 foreach(string dir in dirs)
                     foreach(string file in Directory.GetFiles(dir, "*.dll"))
-                        try { Assembly.LoadFrom(Path.GetFullPath(file));}
-                        catch (Exception e) { Engine.Log.Error($"[PluginHandler] [Error] Failed to load assembly ({e.Message} {Utils.GetRecInnerException(e)})"); }
+                        LoadPlugin(Assembly.LoadFrom(Path.GetFullPath(file)));
             }
             else
             {
                 Engine.Log.Info($"[PluginHandler] No external plugins found");
             }
+        }
 
-            // Load PluginBase Types
-            Type pluginBaseType = typeof(PluginBase);
-            Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        /// <summary>
+        /// Manually load plugins
+        /// </summary>
+        /// <param name="assembly">The assembly to search for plugins</param>
+        public void LoadPlugin(Assembly assembly)
+        {
+            try 
+            { 
+                Type[] types = assembly.GetTypes();
 
-            foreach (var assembly in assemblies)
-                try
+                foreach (var type in types)
                 {
-                    Type[] types = assembly.GetTypes();
-                    foreach (var type in types)
-                        if (pluginBaseType.IsAssignableFrom(type) && type.IsClass && !type.IsAbstract)
+                    if (pluginBaseType.IsAssignableFrom(type) && type.IsClass && !type.IsAbstract)
+                    {
+                        // Force static constructors to execute (For early load, will be useful with c# 8.0 and static properties for interfaces eg. DefaultOptions)
+                        // System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+
+                        if (!Types.ContainsKey(type.Name))
                         {
-                            // Force static constructors to execute (For early load, will be useful with c# 8.0 and static properties for interfaces eg. DefaultOptions)
-                            // System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
-
-                            if (!Types.ContainsKey(type.Name))
-                            {
-                                Types.Add(type.Name, new PluginType() { Name = type.Name, Type = type, Version = assembly.GetName().Version});
-                                Engine.Log.Info($"Plugin loaded ({type.Name} - {assembly.GetName().Version})");
-                            }
-                            else
-                                Engine.Log.Info($"Plugin already exists ({type.Name} - {assembly.GetName().Version})");
+                            Types.Add(type.Name, new PluginType() { Name = type.Name, Type = type, Version = assembly.GetName().Version});
+                            Engine.Log.Info($"Plugin loaded ({type.Name} - {assembly.GetName().Version})");
                         }
-                } catch (Exception e) { Engine.Log.Error($"Plugin failed to load plugin type ({e.Message})"); }
-
-            Folder = path;
+                        else
+                            Engine.Log.Info($"Plugin already exists ({type.Name} - {assembly.GetName().Version})");
+                    }
+                }
+            }
+            catch (Exception e) { Engine.Log.Error($"[PluginHandler] [Error] Failed to load assembly ({e.Message} {Utils.GetRecInnerException(e)})"); }
         }
     }
 }
