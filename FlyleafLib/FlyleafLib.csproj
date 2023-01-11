@@ -50,14 +50,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="MediaFramework\MediaRenderer\Shaders\FlyleafPS.blob" />
     <None Remove="MediaFramework\MediaRenderer\Shaders\FlyleafPS.hlsl" />
+    <None Remove="MediaFramework\MediaRenderer\Shaders\PSSimple.blob" />
     <None Remove="MediaFramework\MediaRenderer\Shaders\PSSimple.hlsl" />
+    <None Remove="MediaFramework\MediaRenderer\Shaders\VSSimple.blob" />
     <None Remove="MediaFramework\MediaRenderer\Shaders\VSSimple.hlsl" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\FlyleafPS.blob" />
     <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\FlyleafPS.hlsl" />
+    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\PSSimple.blob" />
     <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\PSSimple.hlsl" />
+    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\VSSimple.blob" />
     <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\VSSimple.hlsl" />
   </ItemGroup>
 

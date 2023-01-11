@@ -104,7 +104,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         internal static void Start()
         {
-            CompileEmbeddedShaders();
+            //CompileEmbeddedShaders();
+            LoadShaders();
 
             List<FeatureLevel> features = new List<FeatureLevel>();
             List<FeatureLevel> featuresAll = new List<FeatureLevel>();
@@ -133,10 +134,36 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
         }
 
-        public unsafe static void CompileEmbeddedShaders()
+        // Loads compiled blob shaders 
+        private static void LoadShaders()
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
-            string[] shaders = assembly.GetManifestResourceNames().Where(x => Utils.GetUrlExtention(x) == "hlsl").ToArray();
+            string[] shaders = assembly.GetManifestResourceNames().Where(x => GetUrlExtention(x) == "blob").ToArray();
+            string tempFile = Path.GetTempFileName();
+
+            foreach (string shader in shaders)
+            {
+                using (Stream stream = assembly.GetManifestResourceStream(shader))
+                {
+                    var shaderName = shader.Substring(0, shader.Length - 5);
+                    shaderName = shaderName.Substring(shaderName.LastIndexOf('.') + 1);
+
+                    byte[] bytes = new byte[stream.Length];
+                    stream.Read(bytes, 0, bytes.Length);
+
+                    Dictionary<string, Blob> curShaders = shaderName.Substring(0, 2).ToLower() == "vs" ? VSShaderBlobs : PSShaderBlobs;
+
+                    File.WriteAllBytes(tempFile, bytes);
+                    curShaders.Add(shaderName, Compiler.ReadFileToBlob(tempFile));
+                }
+            }
+        }
+
+        // Use this to update blob compiled shaders if you change them (add them as embedded resources)
+        private unsafe static void CompileEmbeddedShaders()
+        {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            string[] shaders = assembly.GetManifestResourceNames().Where(x => GetUrlExtention(x) == "hlsl").ToArray();
             string profileExt = "_4_0_level_9_3";
 
             foreach (string shader in shaders)
@@ -159,7 +186,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     byte[] bytes = new byte[stream.Length];
                     stream.Read(bytes, 0, bytes.Length);
-
+                    
                     Compiler.Compile(bytes, null, null, "main", null, $"{psOrvs}{profileExt}", 
                         ShaderFlags.OptimizationLevel3, out Blob shaderBlob, out Blob psError);
 
@@ -173,7 +200,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     if (shaderBlob != null)
+                    {
+                        Compiler.WriteBlobToFile(shaderBlob, shaderName + ".blob", true);
                         curShaders.Add(shaderName, shaderBlob);
+                    }
                 }
         }
         #if DEBUG
