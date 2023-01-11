@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.5</Version>
+	<Version>3.6.6</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Player: Improves performance by replacing DateTime with StopWatch for elapsed time calculation
-		Player.Activity: Hides mouse cursor only when FlyleafHost is focused
-		Renderer: Fixes an issue with Aces/Hable HDRtoSDR method when luminance was less than 1
-		Renderer: Fixes a critical issue with the new WndProc subclass (not properly setting the IntPtr during SetWindowSubclass/RemoveWindowSubclass which could cause FailFast exceptions when multiple add/remove subclass for the same Handle)
-		FlyleafHost.WinForms: Fixes an issue with Activity Mode (it wouldn't refresh on MouseMove)
-		FlyleafHost.Wpf: Proper way to set the Overlay Content and Template through OverlayTemplate DP which fixes performance, design and binding issues during transfer
-		FlyleafHost.Wpf: Fixes stability and disposal issues with Surface/Overlay windows (Player will not be disposed only the swap chain which means that the application must manually dispose it)
-		FlyleafHost.Wpf: Fixes an issue when Owner window has TopMost=true
+		Audio: Introduces SamplesAdded event which informs of the currently playing audio samples
+		Demuxer: Programs improvements
+		Engine: Boot load performance improvements
+		Engine: Introduces StartAsync method and Loaded event which allows faster boot of the application without blocking the UI thread
+		FlyleafHost.Wpf: Fixes possible issues with release mouse capture
+		FlyleafHost.Wpf: Fullscreen performance improvements
+		FlyleafHost.Wpf: In Standalone mode will show the Surface only when the Overlay has been fully loaded
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -69,11 +68,11 @@
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.1.32" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.1.32" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.4.18" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="2.1.32" />
-    <PackageReference Include="Vortice.XAudio2" Version="2.1.32" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="2.2.0" />
+    <PackageReference Include="Vortice.Direct3D11" Version="2.2.0" />
+    <PackageReference Include="Vortice.Mathematics" Version="1.4.25" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="2.2.0" />
+    <PackageReference Include="Vortice.XAudio2" Version="2.2.0" />
   </ItemGroup>
   
   <ItemGroup>
