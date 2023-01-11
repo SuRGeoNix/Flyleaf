@@ -16,7 +16,7 @@ namespace FlyleafLib.MediaPlayer
 {
     public class Audio : NotifyPropertyChanged
     {
-        public event EventHandler<AudioFrame> SamplesAddeded;
+        public event EventHandler<AudioFrame> SamplesAdded;
 
         #region Properties
         /// <summary>
@@ -285,7 +285,7 @@ namespace FlyleafLib.MediaPlayer
         {
             try
             {
-                SamplesAddeded?.Invoke(this, aFrame);
+                SamplesAdded?.Invoke(this, aFrame);
                 sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
             } catch (Exception e) // Happens on audio device changed/removed
             {
