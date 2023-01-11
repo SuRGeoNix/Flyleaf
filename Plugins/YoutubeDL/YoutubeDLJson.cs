@@ -105,7 +105,7 @@ namespace FlyleafLib.Plugins
         public long     filesize    { get; set; }
         public string   format_id   { get; set; }   
         public string   format_note { get; set; }
-        public int      quality     { get; set; }
+        public double   quality     { get; set; }
         public double   tbr         { get; set; }
         public string   url         { get; set; }
         public string   manifest_url{ get; set; }
