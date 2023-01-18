@@ -70,6 +70,7 @@
     <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
     <PackageReference Include="Vortice.D3DCompiler" Version="2.2.0" />
     <PackageReference Include="Vortice.Direct3D11" Version="2.2.0" />
+    <PackageReference Include="Vortice.DirectComposition" Version="2.2.0" />
     <PackageReference Include="Vortice.Mathematics" Version="1.4.25" />
     <PackageReference Include="Vortice.MediaFoundation" Version="2.2.0" />
     <PackageReference Include="Vortice.XAudio2" Version="2.2.0" />

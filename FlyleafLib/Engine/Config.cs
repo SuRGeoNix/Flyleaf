@@ -567,6 +567,64 @@ namespace FlyleafLib
             /// </summary>
             public int              SwapBuffers                 { get; set; } = 2;
 
+            public float TopLeftRadiusX
+            {
+                get => _TopLeftRadiusX;
+                set { if (Set(ref _TopLeftRadiusX, value)) player?.renderer?.UpdateCornerRadius(); }
+            }
+
+            float _TopLeftRadiusX = 0;
+
+            public float TopLeftRadiusY
+            {
+                get => _TopLeftRadiusY;
+                set { if (Set(ref _TopLeftRadiusY, value)) player?.renderer.UpdateCornerRadius(); }
+            }
+
+            float _TopLeftRadiusY = 0;
+
+            public float TopRightRadiusX
+            {
+                get => _TopRightRadiusX;
+                set { if (Set(ref _TopRightRadiusX, value)) player?.renderer?.UpdateCornerRadius(); }
+            }
+            float _TopRightRadiusX = 0;
+
+            public float TopRightRadiusY
+            {
+                get => _TopRightRadiusY;
+                set { if (Set(ref _TopRightRadiusY, value)) player?.renderer?.UpdateCornerRadius(); }
+            }
+            float _TopRightRadiusY = 0;
+
+            public float BottomLeftRadiusX
+            {
+                get => _BottomLeftRadiusX; 
+                set { if (Set(ref _BottomLeftRadiusX, value)) player?.renderer?.UpdateCornerRadius(); }
+            }
+            float _BottomLeftRadiusX = 0;
+
+            public float BottomLeftRadiusY
+            {
+                get => _BottomLeftRadiusY;
+                set { if (Set(ref _BottomLeftRadiusY, value)) player?.renderer?.UpdateCornerRadius(); }
+            }
+            float _BottomLeftRadiusY = 0;
+
+            public float BottomRightRadiusX
+            {
+                get => _BottomRightRadiusX;
+                set { if (Set(ref _BottomRightRadiusX, value)) player?.renderer?.UpdateCornerRadius(); }
+            }
+            float _BottomRightRadiusX = 0;
+
+            public float BottomRightRadiusY
+            {
+                get => _BottomRightRadiusY;
+                set { if (Set(ref _BottomRightRadiusY, value)) player?.renderer?.UpdateCornerRadius(); }
+            }
+            float _BottomRightRadiusY = 0;
+            
             public SerializableDictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
 
             public static SerializableDictionary<VideoFilters, VideoFilter> DefaultFilters()

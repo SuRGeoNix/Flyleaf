@@ -414,6 +414,14 @@ namespace FlyleafLib.Controls.WPF
         }
         public static readonly DependencyProperty OverlayProperty =
             DependencyProperty.Register(nameof(Overlay), typeof(Window), typeof(FlyleafHost), new PropertyMetadata(null, new PropertyChangedCallback(OnOverlayChanged)));
+
+        public CornerRadius CornerRadius
+        {
+            get { return (CornerRadius)GetValue(CornerRadiusProperty); }
+            set { SetValue(CornerRadiusProperty, value); }
+        }
+        public static readonly DependencyProperty CornerRadiusProperty =
+            DependencyProperty.Register(nameof(CornerRadius), typeof(CornerRadius), typeof(FlyleafHost), new PropertyMetadata(new CornerRadius(0), new PropertyChangedCallback(OnCornerRadiusChanged)));
         #endregion
 
         #region Events
@@ -560,6 +568,24 @@ namespace FlyleafLib.Controls.WPF
             {
                 // XSurface.Wpf.Window (can this work on designer?
             }
+        }
+        private static void OnCornerRadiusChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (isDesginMode)
+                return;
+
+            FlyleafHost host = d as FlyleafHost;
+
+            if (host?.Player == null) return;
+
+            host.Player.Config.Video.TopLeftRadiusX = (float)((CornerRadius)e.NewValue).TopLeft;
+            host.Player.Config.Video.TopLeftRadiusY = (float)((CornerRadius)e.NewValue).TopLeft;
+            host.Player.Config.Video.TopRightRadiusX = (float)((CornerRadius)e.NewValue).TopRight;
+            host.Player.Config.Video.TopRightRadiusY = (float)((CornerRadius)e.NewValue).TopRight;
+            host.Player.Config.Video.BottomLeftRadiusX = (float)((CornerRadius)e.NewValue).BottomLeft;
+            host.Player.Config.Video.BottomLeftRadiusY = (float)((CornerRadius)e.NewValue).BottomLeft;
+            host.Player.Config.Video.BottomRightRadiusX = (float)((CornerRadius)e.NewValue).BottomRight;
+            host.Player.Config.Video.BottomRightRadiusY = (float)((CornerRadius)e.NewValue).BottomRight;
         }
         private static object OnContentChanging(DependencyObject d, object baseValue)
         {
@@ -1332,9 +1358,17 @@ namespace FlyleafLib.Controls.WPF
             Player.WPFHost = this;
             Player.Activity.Timeout = ActivityTimeout;
             Player.IsFullScreen = IsFullScreen;
+            Player.Config.Video.TopLeftRadiusX = (float)CornerRadius.TopLeft;
+            Player.Config.Video.TopLeftRadiusY = (float)CornerRadius.TopLeft;
+            Player.Config.Video.TopRightRadiusX = (float)CornerRadius.TopRight;
+            Player.Config.Video.TopRightRadiusY = (float)CornerRadius.TopRight;
+            Player.Config.Video.BottomLeftRadiusX = (float)CornerRadius.BottomLeft;
+            Player.Config.Video.BottomLeftRadiusY = (float)CornerRadius.BottomLeft;
+            Player.Config.Video.BottomRightRadiusX = (float)CornerRadius.BottomRight;
+            Player.Config.Video.BottomRightRadiusY = (float)CornerRadius.BottomRight;
             Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
 
-            Surface.Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
+            ((Border)Surface.Content).Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
 
             Player.Video.PropertyChanged += Player_Video_PropertyChanged;
             if (KeepRatioOnResize && Player.Video.AspectRatio.Value > 0)
@@ -1344,10 +1378,20 @@ namespace FlyleafLib.Controls.WPF
         {
             Surface = new Window();
             Surface.ShowInTaskbar = IsStandAlone;
-            Surface.Background  = Brushes.Black;
             Surface.WindowStyle = WindowStyle.None;
             Surface.ResizeMode  = ResizeMode.NoResize;
             Surface.Width       = Surface.Height = 1; // Will be set on loaded
+            Surface.AllowsTransparency = true;
+            Surface.Background  = Brushes.Transparent;
+            
+            var surfaceBackground = new Border()
+            {
+                Background = Brushes.Black,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+            };
+            surfaceBackground.SetBinding(Border.CornerRadiusProperty, new Binding("CornerRadius") { Source = this });
+            Surface.Content = surfaceBackground;
 
             SurfaceHandle       = new WindowInteropHelper(Surface).EnsureHandle();
 
@@ -1627,6 +1671,15 @@ namespace FlyleafLib.Controls.WPF
                 }
                 else
                     Surface.WindowState = WindowState.Maximized;
+
+                Player.Config.Video.TopLeftRadiusX = 0;
+                Player.Config.Video.TopLeftRadiusY = 0;
+                Player.Config.Video.TopRightRadiusX = 0;
+                Player.Config.Video.TopRightRadiusY = 0;
+                Player.Config.Video.BottomLeftRadiusX = 0;
+                Player.Config.Video.BottomLeftRadiusY = 0;
+                Player.Config.Video.BottomRightRadiusX = 0;
+                Player.Config.Video.BottomRightRadiusY = 0;
             }
             else
             {
@@ -1644,6 +1697,15 @@ namespace FlyleafLib.Controls.WPF
                     Surface.Width   = beforeFullScreenSize.Width;
                     Surface.Height  = beforeFullScreenSize.Height;
                 }
+                
+                Player.Config.Video.TopLeftRadiusX = (float)CornerRadius.TopLeft;
+                Player.Config.Video.TopLeftRadiusY = (float)CornerRadius.TopLeft;
+                Player.Config.Video.TopRightRadiusX = (float)CornerRadius.TopRight;
+                Player.Config.Video.TopRightRadiusY = (float)CornerRadius.TopRight;
+                Player.Config.Video.BottomLeftRadiusX = (float)CornerRadius.BottomLeft;
+                Player.Config.Video.BottomLeftRadiusY = (float)CornerRadius.BottomLeft;
+                Player.Config.Video.BottomRightRadiusX = (float)CornerRadius.BottomRight;
+                Player.Config.Video.BottomRightRadiusY = (float)CornerRadius.BottomRight;
             }
         }
         public void SetRect(Rect rect)
