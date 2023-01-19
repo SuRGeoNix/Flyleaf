@@ -389,9 +389,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         public void InitializeSwapChain(IntPtr handle)
         {
-            if (handle == IntPtr.Zero)
-                return;
-
             if (((Config.Video.TopLeftRadiusX != 0 && Config.Video.TopLeftRadiusY != 0) ||
                  (Config.Video.TopRightRadiusX != 0 && Config.Video.TopRightRadiusY != 0) ||
                  Config.Video.BottomLeftRadiusX != 0 ||
@@ -401,6 +398,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 InitializeCompositionSwapChain(handle);
                 return;
             }
+            
+            if (handle == IntPtr.Zero)
+                return;
 
             lock (lockDevice)
             {
@@ -417,6 +417,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Height      = ControlHeight,
                     AlphaMode   = AlphaMode.Ignore,
                     BufferUsage = Usage.RenderTargetOutput,
+                    SampleDescription = new SampleDescription(1, 0)
                 };
 
                 if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP"))
@@ -436,12 +437,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
                     swapChain = Engine.Video.Factory.CreateSwapChainForHwnd(Device, handle, swapChainDescription, new SwapChainFullscreenDescription() { Windowed = true });
-                }catch (Exception e)
+                } catch (Exception e)
                 {
                     if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
                         try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
-
+                        
                         Log.Warn($"[SwapChain] Initialization failed ({e.Message}). Failling back to WARP device.");
                         Config.Video.GPUAdapter = "WARP";
                         ControlHandle = handle;
@@ -455,7 +456,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     return;
                 }
-
+                
                 SCDisposed = false;
                 ControlHandle = handle;
                 backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
@@ -579,13 +580,17 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     RemoveWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero);
                     ControlHandle = IntPtr.Zero;
                 }
+                
+                dCompVisual?.Dispose();
+                dCompTarget?.Dispose();
+                dCompVisual = null;
+                dCompTarget = null;
 
                 vpov?.Dispose();
                 backBufferRtv?.Dispose();
                 backBuffer?.Dispose();
                 swapChain?.Dispose();
-                dCompVisual?.Dispose();
-                dCompTarget?.Dispose();
+
                 if (Device != null)
                     context?.Flush();
             }
@@ -656,7 +661,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     context.Flush();
                     context.Dispose();
                     Device.Dispose();
-                    dCompDevice.Dispose();
+                    dCompDevice?.Dispose();
                     Device = null;
                 }
 
