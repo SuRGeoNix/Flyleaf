@@ -565,7 +565,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         {
                             context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
                             swapChain.Present(Config.Video.VSync, PresentFlags.None);
-                            dCompVisual.SetContent(swapChain);
                             dCompDevice.Commit();
                         }
                     }
@@ -1046,7 +1045,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     
                     if (dCompVisual != null)
                     {
-                        dCompVisual.SetContent(swapChain);
                         dCompDevice.Commit();
                     }
 
@@ -1086,7 +1084,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
                     if (dCompVisual != null)
                     {
-                        dCompVisual.SetContent(swapChain);
                         dCompDevice.Commit();
                     }
 
@@ -1117,7 +1114,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 swapChain.Present(Config.Video.VSync, PresentFlags.None);
                 if (dCompVisual != null)
                 {
-                    dCompVisual.SetContent(swapChain);
                     dCompDevice.Commit();
                 }
 
@@ -1243,7 +1239,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         swapChain.Present(Config.Video.VSync, PresentFlags.None);
                         if (dCompVisual != null)
                         {
-                            dCompVisual.SetContent(swapChain);
                             dCompDevice.Commit();
                         }
                     }
