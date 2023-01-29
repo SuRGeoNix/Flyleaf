@@ -1373,7 +1373,10 @@ namespace FlyleafLib.Controls.WPF
             Overlay.Background = Brushes.Transparent;
             Overlay.WindowStyle = WindowStyle.None;
             Overlay.ResizeMode = ResizeMode.NoResize;
-            Overlay.AllowsTransparency = true;
+            if (!Overlay.AllowsTransparency)
+            {
+                Overlay.AllowsTransparency = true;
+            }
 
             OverlayHandle = new WindowInteropHelper(Overlay).EnsureHandle();
 
