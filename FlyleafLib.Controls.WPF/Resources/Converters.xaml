@@ -1,25 +1,24 @@
-﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    
-                    xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF"
-                    xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
-                    >
-    
-    <fl:StringToRationalConverter x:Key="StringToRational"/>
-    <fl:TicksToTimeConverter x:Key="TicksToTime"/>
+﻿<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
+    xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF">
+
+    <fl:StringToRationalConverter x:Key="StringToRational" />
+    <fl:TicksToTimeConverter x:Key="TicksToTime" />
     <fl:TicksToSecondsConverter x:Key="TicksToSeconds" />
-    <fl:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
-    <fl:BooleanToVisibilityConverter x:Key="BooleanToVisibility"/>
-    
-    <flwpf:VolumeToLevelsConverter x:Key="VolumeToLevels"/>
-    <flwpf:QualityToLevelsConverter x:Key="QualityToLevels"/>
-    <flwpf:CheckNullConverter x:Key="CheckNull"/>
-    <flwpf:SumConverter x:Key="SumConverter"/>
-    <flwpf:GetDictionaryItemConverter x:Key="GetDictionaryItem"/>
-    <flwpf:MarginConverter x:Key="MarginConverter"/>
-    <flwpf:BrushToHexConverter x:Key="BrushToHex"/>
-    <flwpf:ColorToBrushConverter x:Key="ColorToBrush"/>
-    <flwpf:ColorToHexConverter x:Key="ColorToHex"/>
-    <flwpf:PlaylistItemsConverter x:Key="PlaylistItems"/>
-    
+    <fl:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds" />
+    <fl:BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
+
+    <flwpf:VolumeToLevelsConverter x:Key="VolumeToLevels" />
+    <flwpf:QualityToLevelsConverter x:Key="QualityToLevels" />
+    <flwpf:CheckNullConverter x:Key="CheckNull" />
+    <flwpf:SumConverter x:Key="SumConverter" />
+    <flwpf:GetDictionaryItemConverter x:Key="GetDictionaryItem" />
+    <flwpf:MarginConverter x:Key="MarginConverter" />
+    <flwpf:BrushToHexConverter x:Key="BrushToHex" />
+    <flwpf:ColorToBrushConverter x:Key="ColorToBrush" />
+    <flwpf:ColorToHexConverter x:Key="ColorToHex" />
+    <flwpf:PlaylistItemsConverter x:Key="PlaylistItems" />
+
 </ResourceDictionary>
