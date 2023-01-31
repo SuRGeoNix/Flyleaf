@@ -217,15 +217,22 @@ namespace FlyleafLib.Controls.WPF
 
             if (isDesignMode || Overlay == null)
                 return;
-
-            Overlay.Loaded += (o, e) =>
+            if (Overlay.IsLoaded&& !initialized)
             {
-                if (initialized)
-                    return;
-
-                initialized = true;
-                Initialize();
-            };
+                    initialized = true;
+                    Initialize();
+            }
+            else
+            {
+                Overlay.Loaded += (o, e) =>
+                {
+                    if (!initialized)
+                    {
+                        initialized = true;
+                        Initialize();
+                    }
+                };
+            }
         }
 
         private void Initialize()
