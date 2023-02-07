@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 
 using SharpGen.Runtime;
 
@@ -49,6 +50,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public VideoDecoder     VideoDecoder    { get; internal set; }
 
         public Viewport         GetViewport     { get; private set; }
+
+        public CornerRadius     CornerRadius    { get => cornerRadius;  set { if (cornerRadius == value) return; cornerRadius = value; UpdateCornerRadius(); } }
+        CornerRadius cornerRadius = new CornerRadius(0);
+        CornerRadius zeroCornerRadius = new CornerRadius(0);
 
         public int              PanXOffset      { get => panXOffset;    set { panXOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
         int panXOffset;
@@ -389,11 +394,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         public void InitializeSwapChain(IntPtr handle)
         {
-            if (((Config.Video.TopLeftRadiusX != 0 && Config.Video.TopLeftRadiusY != 0) ||
-                 (Config.Video.TopRightRadiusX != 0 && Config.Video.TopRightRadiusY != 0) ||
-                 Config.Video.BottomLeftRadiusX != 0 ||
-                 Config.Video.BottomRightRadiusX != 0) &&
-                (Device.FeatureLevel >= FeatureLevel.Level_10_0 && (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")))
+            if (cornerRadius != zeroCornerRadius && (Device.FeatureLevel >= FeatureLevel.Level_10_0 && (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")))
             {
                 InitializeCompositionSwapChain(handle);
                 return;
@@ -840,20 +841,22 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         internal void UpdateCornerRadius()
         {
-            if (dCompVisual == null) return;
+            if (dCompVisual == null)
+                return;
+
             dCompDevice.CreateRectangleClip(out var clip).CheckError();
             clip.SetLeft(0);
             clip.SetRight(ControlWidth);
             clip.SetTop(0);
             clip.SetBottom(ControlHeight);
-            clip.SetTopLeftRadiusX(Config.Video.TopLeftRadiusX);
-            clip.SetTopLeftRadiusY(Config.Video.TopLeftRadiusY);
-            clip.SetTopRightRadiusX(Config.Video.TopRightRadiusX);
-            clip.SetTopRightRadiusY(Config.Video.TopRightRadiusY);
-            clip.SetBottomLeftRadiusX(Config.Video.BottomLeftRadiusX);
-            clip.SetBottomLeftRadiusY(Config.Video.BottomLeftRadiusY);
-            clip.SetBottomRightRadiusX(Config.Video.BottomRightRadiusX);
-            clip.SetBottomRightRadiusY(Config.Video.BottomRightRadiusY);
+            clip.SetTopLeftRadiusX((float)cornerRadius.TopLeft);
+            clip.SetTopLeftRadiusY((float)cornerRadius.TopLeft);
+            clip.SetTopRightRadiusX((float)cornerRadius.TopRight);
+            clip.SetTopRightRadiusY((float)cornerRadius.TopRight);
+            clip.SetBottomLeftRadiusX((float)cornerRadius.BottomLeft);
+            clip.SetBottomLeftRadiusY((float)cornerRadius.BottomLeft);
+            clip.SetBottomRightRadiusX((float)cornerRadius.BottomRight);
+            clip.SetBottomRightRadiusY((float)cornerRadius.BottomRight);
             dCompVisual.SetClip(clip).CheckError();
             clip.Dispose();
             dCompDevice.Commit().CheckError();
