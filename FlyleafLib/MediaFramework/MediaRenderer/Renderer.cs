@@ -14,6 +14,7 @@ using Vortice;
 using Vortice.DXGI;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
+using Vortice.DirectComposition;
 using Vortice.Mathematics;
 
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -44,7 +45,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public bool             Disposed        { get; private set; } = true;
         public bool             SCDisposed      { get; private set; } = true;
         public int              MaxOffScreenTextures
-                                                { get; set; } = 20;
+        { get; set; } = 20;
         public VideoDecoder     VideoDecoder    { get; internal set; }
 
         public Viewport         GetViewport     { get; private set; }
@@ -70,6 +71,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         ID3D11DeviceContext                     context;
         IDXGISwapChain1                         swapChain;
+        IDCompositionDevice                     dCompDevice;
+        IDCompositionVisual                     dCompVisual;
+        IDCompositionTarget                     dCompTarget;
 
         ID3D11Texture2D                         backBuffer;
         ID3D11RenderTargetView                  backBufferRtv;
@@ -80,7 +84,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         ID3D11Texture2D                         singleGpu;
         ID3D11RenderTargetView                  singleGpuRtv;
         Viewport                                singleViewport;
-        
+
         // Used for parallel off screen rendering
         ID3D11RenderTargetView[]                rtv2;
         ID3D11Texture2D[]                       backBuffer2;
@@ -146,7 +150,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 BindFlags   = BindFlags.RenderTarget | BindFlags.ShaderResource,
                 SampleDescription   = new SampleDescription(1, 0)
             };
-            
+
             wndProcDelegate = new(WndProc);
             wndProcDelegatePtr = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
             ControlHandle = handle;
@@ -233,6 +237,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     Device = tempDevice.QueryInterface<ID3D11Device1>();
                     context= Device.ImmediateContext;
 
+                    using (var dxgiDevice = tempDevice.QueryInterface<IDXGIDevice>())
+                        dCompDevice = DComp.DCompositionCreateDevice<IDCompositionDevice>(dxgiDevice);
+
                     // Gets the default adapter from the D3D11 Device
                     if (adapter == null)
                     {
@@ -259,7 +266,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     tempDevice.Dispose();
                     adapter.Dispose();
-            
+
                     using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
                     using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
 
@@ -268,7 +275,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         -1.0f,  -1.0f,  0,      0.0f, 1.0f,
                         -1.0f,   1.0f,  0,      0.0f, 0.0f,
                          1.0f,  -1.0f,  0,      1.0f, 1.0f,
-                
+
                          1.0f,  -1.0f,  0,      1.0f, 1.0f,
                         -1.0f,   1.0f,  0,      0.0f, 0.0f,
                          1.0f,   1.0f,  0,      1.0f, 0.0f
@@ -327,13 +334,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     // Pixel Shaders
-                    foreach(var shader in PSShaderBlobs)
+                    foreach (var shader in PSShaderBlobs)
                         PSShaders.Add(shader.Key, Device.CreatePixelShader(shader.Value));
 
                     context.PSSetShader(PSShaders["PSSimple"]);
                     context.PSSetSampler(0, samplerLinear);
 
-                    psBuffer = Device.CreateBuffer(new BufferDescription() 
+                    psBuffer = Device.CreateBuffer(new BufferDescription()
                     {
                         Usage           = ResourceUsage.Default,
                         BindFlags       = BindFlags.ConstantBuffer,
@@ -341,10 +348,10 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         ByteWidth       = sizeof(PSBufferType)
                     });
                     context.PSSetConstantBuffer(0, psBuffer);
-                    psBufferData.hdrmethod  = HDRtoSDRMethod.None;
+                    psBufferData.hdrmethod = HDRtoSDRMethod.None;
                     context.UpdateSubresource(psBufferData, psBuffer);
 
-                    vsBuffer = Device.CreateBuffer(new BufferDescription() 
+                    vsBuffer = Device.CreateBuffer(new BufferDescription()
                     {
                         Usage           = ResourceUsage.Default,
                         BindFlags       = BindFlags.ConstantBuffer,
@@ -367,7 +374,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
                     {
                         try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
-                        
+
                         Log.Warn($"Initialization failed ({e.Message}). Failling back to WARP device.");
                         Config.Video.GPUAdapter = "WARP";
                         Flush();
@@ -382,6 +389,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         public void InitializeSwapChain(IntPtr handle)
         {
+            if (((Config.Video.TopLeftRadiusX != 0 && Config.Video.TopLeftRadiusY != 0) ||
+                 (Config.Video.TopRightRadiusX != 0 && Config.Video.TopRightRadiusY != 0) ||
+                 Config.Video.BottomLeftRadiusX != 0 ||
+                 Config.Video.BottomRightRadiusX != 0) &&
+                (Device.FeatureLevel >= FeatureLevel.Level_10_0 && (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")))
+            {
+                InitializeCompositionSwapChain(handle);
+                return;
+            }
+            
             if (handle == IntPtr.Zero)
                 return;
 
@@ -452,6 +469,80 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 ResizeBuffers(rect.Right - rect.Left, rect.Bottom - rect.Top);
             }
         }
+        public void InitializeCompositionSwapChain(IntPtr handle)
+        {
+            if (handle == IntPtr.Zero)
+                return;
+
+            lock (lockDevice)
+            {
+                if (!SCDisposed)
+                    DisposeSwapChain();
+
+                if (Disposed)
+                    Initialize(false);
+
+                RECT rect = new RECT();
+                GetWindowRect(handle, ref rect);
+                ControlWidth = rect.Right - rect.Left;
+                ControlHeight = rect.Bottom - rect.Top;
+
+                SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+                {
+                    Format = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
+                    Width = ControlWidth,
+                    Height = ControlHeight,
+                    AlphaMode = AlphaMode.Premultiplied,
+                    BufferUsage = Usage.RenderTargetOutput,
+                    SwapEffect = SwapEffect.FlipSequential,
+                    Scaling = Scaling.Stretch,
+                    BufferCount = Config.Video.SwapBuffers,
+                    SampleDescription = new SampleDescription(1, 0),
+                };
+                
+                try
+                {
+                    Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} composition swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
+                    swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, swapChainDescription);
+                    dCompDevice.CreateTargetForHwnd(handle, true, out dCompTarget).CheckError();
+                    dCompDevice.CreateVisual(out dCompVisual).CheckError();
+                    dCompVisual.SetContent(swapChain).CheckError();
+                    dCompTarget.SetRoot(dCompVisual).CheckError();
+                    dCompDevice.Commit().CheckError();
+                }
+                catch (Exception e)
+                {
+                    if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
+                    {
+                        try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
+
+                        Log.Warn($"[SwapChain] Initialization failed ({e.Message}). Failling back to WARP device.");
+                        Config.Video.GPUAdapter = "WARP";
+                        ControlHandle = handle;
+                        Flush();
+                    }
+                    else
+                    {
+                        ControlHandle = IntPtr.Zero;
+                        Log.Error($"[SwapChain] Initialization failed ({e.Message})");
+                    }
+
+                    return;
+                }
+
+                SCDisposed = false;
+                ControlHandle = handle;
+                backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
+                backBufferRtv = Device.CreateRenderTargetView(backBuffer);
+
+                var styleEx = GetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE).ToInt32();
+                styleEx |= 0x00200000; // WS_EX_NOREDIRECTIONBITMAP 
+                SetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE, new IntPtr(styleEx));
+                SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
+
+                ResizeBuffers(ControlWidth, ControlHeight);
+            }
+        }
         public void DisposeSwapChain()
         {
             lock (lockDevice)
@@ -466,9 +557,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     try
                     {
-                        context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                        swapChain.Present(Config.Video.VSync, PresentFlags.None);
-                    } catch { }
+                        if (dCompVisual == null)
+                        {
+                            context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                        }
+                        else
+                        {
+                            context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
+                            swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                            dCompDevice.Commit();
+                        }
+                    }
+                    catch { }
                 }
 
                 Log.Info($"Destroying swap chain [Handle: {ControlHandle}]");
@@ -479,11 +579,17 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     RemoveWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero);
                     ControlHandle = IntPtr.Zero;
                 }
+                
+                dCompVisual?.Dispose();
+                dCompTarget?.Dispose();
+                dCompVisual = null;
+                dCompTarget = null;
 
                 vpov?.Dispose();
                 backBufferRtv?.Dispose();
                 backBuffer?.Dispose();
                 swapChain?.Dispose();
+
                 if (Device != null)
                     context?.Flush();
             }
@@ -554,6 +660,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     context.Flush();
                     context.Dispose();
                     Device.Dispose();
+                    dCompDevice?.Dispose();
                     Device = null;
                 }
 
@@ -591,7 +698,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 var oldVP = videoProcessor;
                 VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (Config.Video.VideoProcessor == VideoProcessors.Auto && isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
-                
+
                 if (videoProcessor == VideoProcessors.Flyleaf)
                 {
                     // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
@@ -641,7 +748,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     psBufferData.format = VideoDecoder.VideoAccelerated ? PSFormat.Y_UV : ((VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled ? PSFormat.Y_U_V : PSFormat.RGB));
-                
+
                     lastLumin = 0;
                     psBufferData.hdrmethod = HDRtoSDRMethod.None;
 
@@ -731,8 +838,28 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
             }
         }
+        internal void UpdateCornerRadius()
+        {
+            if (dCompVisual == null) return;
+            dCompDevice.CreateRectangleClip(out var clip).CheckError();
+            clip.SetLeft(0);
+            clip.SetRight(ControlWidth);
+            clip.SetTop(0);
+            clip.SetBottom(ControlHeight);
+            clip.SetTopLeftRadiusX(Config.Video.TopLeftRadiusX);
+            clip.SetTopLeftRadiusY(Config.Video.TopLeftRadiusY);
+            clip.SetTopRightRadiusX(Config.Video.TopRightRadiusX);
+            clip.SetTopRightRadiusY(Config.Video.TopRightRadiusY);
+            clip.SetBottomLeftRadiusX(Config.Video.BottomLeftRadiusX);
+            clip.SetBottomLeftRadiusY(Config.Video.BottomLeftRadiusY);
+            clip.SetBottomRightRadiusX(Config.Video.BottomRightRadiusX);
+            clip.SetBottomRightRadiusY(Config.Video.BottomRightRadiusY);
+            dCompVisual.SetClip(clip).CheckError();
+            clip.Dispose();
+            dCompDevice.Commit().CheckError();
+        }
         internal void ResizeBuffers(int width, int height)
-        {   
+        {
             lock (lockDevice)
             {
                 if (Disposed)
@@ -745,6 +872,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 vpov?.Dispose();
                 backBuffer.Dispose();
                 swapChain.ResizeBuffers(0, ControlWidth, ControlHeight, Format.Unknown, SwapChainFlags.None);
+                UpdateCornerRadius();
                 backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
                 backBufferRtv = Device.CreateRenderTargetView(backBuffer);
                 if (videoProcessor == VideoProcessors.D3D11)
@@ -797,12 +925,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         Height = VideoRect.Bottom;
 
                     if (GetViewport.X + GetViewport.Width > ControlWidth)
-                        Width = (int) (VideoRect.Right  - ((GetViewport.X + GetViewport.Width - ControlWidth)  * (VideoRect.Right / GetViewport.Width)));
+                        Width  = (int) (VideoRect.Right  - ((GetViewport.X + GetViewport.Width - ControlWidth)  * (VideoRect.Right / GetViewport.Width)));
                     else
                         Width  = VideoRect.Right;
 
                     src = new RawRect((int) (Math.Min(GetViewport.X, 0f) * ((float)VideoRect.Right / (float)GetViewport.Width) * -1f), (int) (Math.Min(GetViewport.Y, 0f) * ((float)VideoRect.Bottom / (float)GetViewport.Height) * -1f), Width, Height);
-                    dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));   
+                    dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));
                 }
 
                 vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
@@ -812,7 +940,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             Present();
         }
-        
+
         public bool Present(VideoFrame frame)
         {
             if (Monitor.TryEnter(lockDevice, 5))
@@ -834,7 +962,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         vpiv.Dispose();
 
                     if (curSRVs != null)
-                        for (int i=0; i<curSRVs.Length; i++)
+                        for (int i = 0; i < curSRVs.Length; i++)
                             curSRVs[i].Dispose();
 
                     return false;
@@ -907,13 +1035,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         vpivd.Texture2D.ArraySlice = 0;
                         vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
                     }
-                    
+
                     vpsa[0].InputSurface = vpiv;
                     vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
                     vc.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
                     vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
                     vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                    
+                    if (dCompVisual != null)
+                    {
+                        dCompDevice.Commit();
+                    }
 
                     vpiv.Dispose();
                 }
@@ -935,13 +1068,24 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     context.OMSetRenderTargets(backBufferRtv);
-                    context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                    if (dCompVisual == null)
+                    {
+                        context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                    }
+                    else
+                    {
+                        context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
+                    }
                     context.RSSetViewport(GetViewport);
                     context.PSSetShader(PSShaders["FlyleafPS"]);
                     context.PSSetSampler(0, samplerLinear);
                     context.PSSetShaderResources(0, curSRVs);
                     context.Draw(6, 0);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                    if (dCompVisual != null)
+                    {
+                        dCompDevice.Commit();
+                    }
 
                     for (int i=0; i<curSRVs.Length; i++)
                         curSRVs[i].Dispose();
@@ -954,13 +1098,24 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     curSRVs[i] = Device.CreateShaderResourceView(frame.textures[i]);
 
                 context.OMSetRenderTargets(backBufferRtv);
-                context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                if (dCompVisual == null)
+                {
+                    context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                }
+                else
+                {
+                    context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
+                }
                 context.RSSetViewport(GetViewport);
                 context.PSSetShader(PSShaders["FlyleafPS"]);
                 context.PSSetSampler(0, samplerLinear);
                 context.PSSetShaderResources(0, curSRVs);
                 context.Draw(6, 0);
                 swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                if (dCompVisual != null)
+                {
+                    dCompDevice.Commit();
+                }
 
                 for (int i=0; i<curSRVs.Length; i++)
                     curSRVs[i].Dispose();
@@ -989,8 +1144,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         vpivd.Texture2D.ArraySlice = 0;
                         vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
                     }
-                    
-                    vpsa[0].InputSurface = vpiv;                    
+
+                    vpsa[0].InputSurface = vpiv;
 
                     vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
                     vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
@@ -1016,7 +1171,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     context.OMSetRenderTargets(rtv);
-                    context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
+                    if (dCompVisual == null)
+                    {
+                        context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
+                    }
+                    else
+                    {
+                        context.ClearRenderTargetView(rtv, new Color4(0, 0, 0, 0));
+                    }
                     context.RSSetViewport(viewport);
                     context.PSSetShader(PSShaders["FlyleafPS"]);
                     context.PSSetSampler(0, samplerLinear);
@@ -1034,14 +1196,21 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     curSRVs[i] = Device.CreateShaderResourceView(frame.textures[i]);
 
                 context.OMSetRenderTargets(rtv);
-                context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
+                if (dCompVisual == null)
+                {
+                    context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
+                }
+                else
+                {
+                    context.ClearRenderTargetView(rtv, new Color4(0, 0, 0, 0));
+                }
                 context.RSSetViewport(viewport);
                 context.PSSetShader(PSShaders["FlyleafPS"]);
                 context.PSSetSampler(0, samplerLinear);
                 context.PSSetShaderResources(0, curSRVs);
                 context.Draw(6, 0);
 
-                for (int i=0; i<curSRVs.Length; i++)
+                for (int i = 0; i < curSRVs.Length; i++)
                     curSRVs[i].Dispose();
             }
         }
@@ -1059,8 +1228,19 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         PresentInternal(LastFrame);
                     else
                     {
-                        context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                        if (dCompVisual == null)
+                        {
+                            context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                        }
+                        else
+                        {
+                            context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
+                        }
                         swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                        if (dCompVisual != null)
+                        {
+                            dCompDevice.Commit();
+                        }
                     }
                 }
                 catch (Exception e)
@@ -1100,13 +1280,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     if (width == -1 && height == -1)
                     {
-                        width   = VideoRect.Right;
-                        height  = VideoRect.Bottom;
+                        width  = VideoRect.Right;
+                        height = VideoRect.Bottom;
                     }
                     else if (width != -1 && height == -1)
-                        height  = (int) (width / curRatio);
+                        height = (int)(width / curRatio);
                     else if (height != -1 && width == -1)
-                        width   = (int) (height * curRatio);
+                        width  = (int)(height * curRatio);
 
                     if (singleStageDesc.Width != width || singleStageDesc.Height != height)
                     {
@@ -1124,7 +1304,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         singleGpuRtv= Device.CreateRenderTargetView(singleGpu);
 
                         singleViewport = new Viewport(width, height);
-                    } 
+                    }
 
                     PresentOffline(frame, singleGpuRtv, singleViewport);
 
@@ -1146,7 +1326,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             Bitmap bitmap   = new Bitmap(stageTexture.Description.Width, stageTexture.Description.Height);
             var db          = context.Map(stageTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
             var bitmapData  = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-            
+
             if (db.RowPitch == bitmapData.Stride)
                 MemoryHelpers.CopyMemory(bitmapData.Scan0, db.DataPointer, bitmap.Width * bitmap.Height * 4);
             else
