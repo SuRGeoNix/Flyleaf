@@ -10,15 +10,15 @@
         Title="Flyleaf Player (Custom - Rounded Corners)"
         Width="960" Height="540"
         
-        AllowsTransparency="True"
+        
         Background="Transparent"
         WindowStyle="None"
         ResizeMode="CanResize">
 
     <Grid>
-        <Border Background="Black" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1" CornerRadius="30, 30, 30, 30">
-            <fl:FlyleafHost Player="{Binding Player}" KeyBindings="Surface" CornerRadius="30, 30, 30, 30">
-                <Grid Margin="50" DataContext="{Binding HostDataContext}">
+        <!--<Border Background="Black" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1" CornerRadius="30, 30, 30, 30">-->
+            <!--<fl:FlyleafHost Player="{Binding Player}" AttachedResize="Surface" KeyBindings="Surface" CornerRadius="30, 30, 30, 30">-->
+                <Grid Margin="50">
 
                     <!-- NOTE: Window resources will not be within the videoview as it will be on different window -->
                     <Grid.Resources>
@@ -120,7 +120,7 @@
                         <Slider Width="400" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Player.SeekOffset}" LargeChange="{Binding Player.Config.Player.SeekOffset2}"/>
                     </StackPanel>
                 </Grid>
-            </fl:FlyleafHost>
-        </Border>
+            <!--</fl:FlyleafHost>-->
+        <!--</Border>-->
     </Grid>
 </Window>

@@ -85,7 +85,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubtitlesConverter", "Plugi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YoutubeDL", "Plugins\YoutubeDL\YoutubeDL.csproj", "{0373A77C-8084-49A3-A55C-616A0786B157}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlyleafPlayer (Custom - Rounded Corners) (WPF)", "FlyleafPlayer (Custom - Rounded Corners) (WPF)\FlyleafPlayer (Custom - Rounded Corners) (WPF).csproj", "{DD34970E-D31E-4EBE-B5CF-367844EBD153}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlyleafPlayer (Custom - Rounded Corners) (WPF)", "Samples\FlyleafPlayer (Custom - Rounded Corners) (WPF)\FlyleafPlayer (Custom - Rounded Corners) (WPF).csproj", "{DD34970E-D31E-4EBE-B5CF-367844EBD153}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

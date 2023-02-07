@@ -25,6 +25,8 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
 
         public ICommand ToggleDebug { get; set; }
 
+        public FlyleafHost FlyleafHost { get; set; }
+
         public MainWindow()
         {
             // Initializes Engine (Specifies FFmpeg libraries path which is required)
@@ -45,7 +47,16 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
                 UICurTimePerSecond = false // If set to true it updates when the actual timestamps second change rather than a fixed interval
             });
 
+            FlyleafHost =  new FlyleafHost(this)
+            {
+                CornerRadius = new CornerRadius(30),
+                KeyBindings = AvailableWindows.Surface,
+                DetachedResize = AvailableWindows.Surface,
+            };
+
             ToggleDebug = new RelayCommandSimple(new Action(() => { ShowDebug = !ShowDebug; }));
+
+            
 
             InitializeComponent();
 
@@ -55,9 +66,9 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
             Config.Player.Stats = true; 
 
             Player = new Player(Config);
-
+            FlyleafHost.Player = Player;
             DataContext = this;
-
+            //DataContext = FlyleafHost;
             // Keep track of error messages
             Player.OpenCompleted += (o, e) => { LastError = e.Error; };
             Player.BufferingCompleted += (o, e) => { LastError = e.Error; };

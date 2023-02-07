@@ -105,6 +105,7 @@ namespace FlyleafLib.Controls.WPF
         WindowState prevSurfaceWindowState = WindowState.Normal;
 
         Matrix matrix;
+        CornerRadius zeroCornerRadius = new CornerRadius(0);
         Point zeroPoint = new Point(0, 0);
         Point mouseLeftDownPoint = new Point(0, 0);
         Point mouseMoveLastPoint = new Point(0, 0);
@@ -576,16 +577,28 @@ namespace FlyleafLib.Controls.WPF
 
             FlyleafHost host = d as FlyleafHost;
 
-            if (host?.Player == null) return;
+            if (host.Surface == null)
+                return;
 
-            host.Player.Config.Video.TopLeftRadiusX = (float)((CornerRadius)e.NewValue).TopLeft;
-            host.Player.Config.Video.TopLeftRadiusY = (float)((CornerRadius)e.NewValue).TopLeft;
-            host.Player.Config.Video.TopRightRadiusX = (float)((CornerRadius)e.NewValue).TopRight;
-            host.Player.Config.Video.TopRightRadiusY = (float)((CornerRadius)e.NewValue).TopRight;
-            host.Player.Config.Video.BottomLeftRadiusX = (float)((CornerRadius)e.NewValue).BottomLeft;
-            host.Player.Config.Video.BottomLeftRadiusY = (float)((CornerRadius)e.NewValue).BottomLeft;
-            host.Player.Config.Video.BottomRightRadiusX = (float)((CornerRadius)e.NewValue).BottomRight;
-            host.Player.Config.Video.BottomRightRadiusY = (float)((CornerRadius)e.NewValue).BottomRight;
+            if (host.CornerRadius == host.zeroCornerRadius)
+                host.Surface.Background  = Brushes.Black;
+            else
+            {
+                host.Surface.Background  = Brushes.Transparent;
+                host.Surface.Content = new Border()
+                {
+                    Background = Brushes.Black,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    CornerRadius = host.CornerRadius,
+                };
+            }
+
+            if (host?.Player == null)
+                return;
+
+            host.Player.renderer.CornerRadius = (CornerRadius)e.NewValue;
+
         }
         private static object OnContentChanging(DependencyObject d, object baseValue)
         {
@@ -944,7 +957,7 @@ namespace FlyleafLib.Controls.WPF
                     ((IsAttached && (AttachedResize == AvailableWindows.Surface || AttachedResize == AvailableWindows.Both)) ||
                     (!IsAttached && (DetachedResize == AvailableWindows.Surface || DetachedResize == AvailableWindows.Both))))
                 {
-                    ResizingSide = ResizeSides(Surface, cur, ResizeSensitivity);
+                    ResizingSide = ResizeSides(Surface, cur, ResizeSensitivity, CornerRadius);
                 }
             }
             else if (IsSwapping)
@@ -1025,7 +1038,7 @@ namespace FlyleafLib.Controls.WPF
                     ((IsAttached && (AttachedResize == AvailableWindows.Overlay || AttachedResize == AvailableWindows.Both)) ||
                     (!IsAttached && (DetachedResize == AvailableWindows.Overlay || DetachedResize == AvailableWindows.Both))))
                 {
-                    ResizingSide = ResizeSides(Overlay, cur, ResizeSensitivity);
+                    ResizingSide = ResizeSides(Overlay, cur, ResizeSensitivity, CornerRadius);
                 }
             }
             else if (IsSwapping)
@@ -1236,24 +1249,24 @@ namespace FlyleafLib.Controls.WPF
             else
                 SetWindowPos(WindowHandle, IntPtr.Zero, (int)(WindowLeft * DpiX), (int)(WindowTop * DpiY), (int)(WindowWidth * DpiX), (int)((WindowWidth / ratio) * DpiY), (UInt32)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
         }
-        public static int ResizeSides(Window Window, Point p, int ResizeSensitivity)
+        public static int ResizeSides(Window Window, Point p, int ResizeSensitivity, CornerRadius cornerRadius)
         {
-            if (p.X <= ResizeSensitivity && p.Y <= ResizeSensitivity)
+            if (p.X <= ResizeSensitivity + cornerRadius.TopLeft / 2 && p.Y <= ResizeSensitivity + cornerRadius.TopLeft / 2)
             {
                 Window.Cursor = Cursors.SizeNWSE;
                 return 1;
             }
-            else if (p.X + ResizeSensitivity >= Window.ActualWidth && p.Y + ResizeSensitivity >= Window.ActualHeight)
+            else if (p.X + ResizeSensitivity + cornerRadius.BottomRight / 2 >= Window.ActualWidth && p.Y + ResizeSensitivity + cornerRadius.BottomRight / 2 >= Window.ActualHeight)
             {
                 Window.Cursor = Cursors.SizeNWSE;
                 return 2;
             }
-            else if (p.X + ResizeSensitivity >= Window.ActualWidth && p.Y <= ResizeSensitivity)
+            else if (p.X + ResizeSensitivity + cornerRadius.TopRight / 2 >= Window.ActualWidth && p.Y <= ResizeSensitivity + cornerRadius.TopRight / 2)
             {
                 Window.Cursor = Cursors.SizeNESW;
                 return 3;
             }
-            else if (p.X <= ResizeSensitivity && p.Y + ResizeSensitivity >= Window.ActualHeight)
+            else if (p.X <= ResizeSensitivity + cornerRadius.BottomLeft / 2 && p.Y + ResizeSensitivity + cornerRadius.BottomLeft / 2  >= Window.ActualHeight)
             {
                 Window.Cursor = Cursors.SizeNESW;
                 return 4;
@@ -1358,18 +1371,14 @@ namespace FlyleafLib.Controls.WPF
             Player.WPFHost = this;
             Player.Activity.Timeout = ActivityTimeout;
             Player.IsFullScreen = IsFullScreen;
-            Player.Config.Video.TopLeftRadiusX = (float)CornerRadius.TopLeft;
-            Player.Config.Video.TopLeftRadiusY = (float)CornerRadius.TopLeft;
-            Player.Config.Video.TopRightRadiusX = (float)CornerRadius.TopRight;
-            Player.Config.Video.TopRightRadiusY = (float)CornerRadius.TopRight;
-            Player.Config.Video.BottomLeftRadiusX = (float)CornerRadius.BottomLeft;
-            Player.Config.Video.BottomLeftRadiusY = (float)CornerRadius.BottomLeft;
-            Player.Config.Video.BottomRightRadiusX = (float)CornerRadius.BottomRight;
-            Player.Config.Video.BottomRightRadiusY = (float)CornerRadius.BottomRight;
+            Player.renderer.CornerRadius = IsFullScreen ? zeroCornerRadius : CornerRadius;
+
+            if (CornerRadius == zeroCornerRadius)
+                Surface.Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
+            else
+                ((Border)Surface.Content).Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
+
             Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
-
-            ((Border)Surface.Content).Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
-
             Player.Video.PropertyChanged += Player_Video_PropertyChanged;
             if (KeepRatioOnResize && Player.Video.AspectRatio.Value > 0)
                 CurResizeRatio = Player.Video.AspectRatio.Value;
@@ -1382,16 +1391,20 @@ namespace FlyleafLib.Controls.WPF
             Surface.ResizeMode  = ResizeMode.NoResize;
             Surface.Width       = Surface.Height = 1; // Will be set on loaded
             Surface.AllowsTransparency = true;
-            Surface.Background  = Brushes.Transparent;
-            
-            var surfaceBackground = new Border()
+
+            if (CornerRadius == zeroCornerRadius)
+                Surface.Background  = Brushes.Black;
+            else
             {
-                Background = Brushes.Black,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch,
-            };
-            surfaceBackground.SetBinding(Border.CornerRadiusProperty, new Binding("CornerRadius") { Source = this });
-            Surface.Content = surfaceBackground;
+                Surface.Background  = Brushes.Transparent;
+                Surface.Content = new Border()
+                {
+                    Background = Brushes.Black,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    CornerRadius = CornerRadius,
+                };
+            }
 
             SurfaceHandle       = new WindowInteropHelper(Surface).EnsureHandle();
 
@@ -1672,14 +1685,9 @@ namespace FlyleafLib.Controls.WPF
                 else
                     Surface.WindowState = WindowState.Maximized;
 
-                Player.Config.Video.TopLeftRadiusX = 0;
-                Player.Config.Video.TopLeftRadiusY = 0;
-                Player.Config.Video.TopRightRadiusX = 0;
-                Player.Config.Video.TopRightRadiusY = 0;
-                Player.Config.Video.BottomLeftRadiusX = 0;
-                Player.Config.Video.BottomLeftRadiusY = 0;
-                Player.Config.Video.BottomRightRadiusX = 0;
-                Player.Config.Video.BottomRightRadiusY = 0;
+                
+                if (Player != null)
+                    Player.renderer.CornerRadius = zeroCornerRadius;
             }
             else
             {
@@ -1697,15 +1705,9 @@ namespace FlyleafLib.Controls.WPF
                     Surface.Width   = beforeFullScreenSize.Width;
                     Surface.Height  = beforeFullScreenSize.Height;
                 }
-                
-                Player.Config.Video.TopLeftRadiusX = (float)CornerRadius.TopLeft;
-                Player.Config.Video.TopLeftRadiusY = (float)CornerRadius.TopLeft;
-                Player.Config.Video.TopRightRadiusX = (float)CornerRadius.TopRight;
-                Player.Config.Video.TopRightRadiusY = (float)CornerRadius.TopRight;
-                Player.Config.Video.BottomLeftRadiusX = (float)CornerRadius.BottomLeft;
-                Player.Config.Video.BottomLeftRadiusY = (float)CornerRadius.BottomLeft;
-                Player.Config.Video.BottomRightRadiusX = (float)CornerRadius.BottomRight;
-                Player.Config.Video.BottomRightRadiusY = (float)CornerRadius.BottomRight;
+
+                if (Player != null)
+                    Player.renderer.CornerRadius = CornerRadius;
             }
         }
         public void SetRect(Rect rect)
