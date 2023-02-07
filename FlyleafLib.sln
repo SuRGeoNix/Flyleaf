@@ -85,6 +85,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubtitlesConverter", "Plugi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YoutubeDL", "Plugins\YoutubeDL\YoutubeDL.csproj", "{0373A77C-8084-49A3-A55C-616A0786B157}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlyleafPlayer (Custom - Rounded Corners) (WPF)", "FlyleafPlayer (Custom - Rounded Corners) (WPF)\FlyleafPlayer (Custom - Rounded Corners) (WPF).csproj", "{DD34970E-D31E-4EBE-B5CF-367844EBD153}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -298,6 +300,18 @@ Global
 		{0373A77C-8084-49A3-A55C-616A0786B157}.Release|x64.Build.0 = Release|Any CPU
 		{0373A77C-8084-49A3-A55C-616A0786B157}.Release|x86.ActiveCfg = Release|Any CPU
 		{0373A77C-8084-49A3-A55C-616A0786B157}.Release|x86.Build.0 = Release|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Debug|x64.Build.0 = Debug|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Debug|x86.Build.0 = Debug|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Release|x64.ActiveCfg = Release|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Release|x64.Build.0 = Release|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Release|x86.ActiveCfg = Release|Any CPU
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -321,6 +335,7 @@ Global
 		{80FB4994-6492-49FC-BC8A-1CA768C182A7} = {BF7004C3-CDF7-41B4-980D-36F6A407969B}
 		{EBC54F66-FDE1-4119-9A9A-68411A690AFE} = {BF7004C3-CDF7-41B4-980D-36F6A407969B}
 		{0373A77C-8084-49A3-A55C-616A0786B157} = {BF7004C3-CDF7-41B4-980D-36F6A407969B}
+		{DD34970E-D31E-4EBE-B5CF-367844EBD153} = {6029F6A2-3EB6-475B-B7DB-048C4992B772}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EA552D17-7796-4337-8E9D-A206F3AAE077}
