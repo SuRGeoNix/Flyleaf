@@ -52,11 +52,10 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
                 CornerRadius = new CornerRadius(30),
                 KeyBindings = AvailableWindows.Surface,
                 DetachedResize = AvailableWindows.Surface,
+                KeepRatioOnResize = true,
             };
 
             ToggleDebug = new RelayCommandSimple(new Action(() => { ShowDebug = !ShowDebug; }));
-
-            
 
             InitializeComponent();
 
@@ -67,8 +66,9 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
 
             Player = new Player(Config);
             FlyleafHost.Player = Player;
+
             DataContext = this;
-            //DataContext = FlyleafHost;
+
             // Keep track of error messages
             Player.OpenCompleted += (o, e) => { LastError = e.Error; };
             Player.BufferingCompleted += (o, e) => { LastError = e.Error; };

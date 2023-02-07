@@ -1674,7 +1674,13 @@ namespace FlyleafLib.Controls.WPF
                     beforeFullScreenPos = new Point(Surface.Left, Surface.Top);
                     beforeFullScreenSize= new Size(Surface.ActualWidth, Surface.ActualHeight);
                 }
+
+                if (Player != null)
+                    Player.renderer.CornerRadius = zeroCornerRadius;
                 
+                if (CornerRadius != zeroCornerRadius)
+                    ((Border)Surface.Content).CornerRadius = zeroCornerRadius;
+
                 if (Overlay != null)
                 {
                     bool overlayWasVisible = Overlay.IsVisible;
@@ -1685,10 +1691,6 @@ namespace FlyleafLib.Controls.WPF
                 }
                 else
                     Surface.WindowState = WindowState.Maximized;
-
-                
-                if (Player != null)
-                    Player.renderer.CornerRadius = zeroCornerRadius;
             }
             else
             {
@@ -1709,6 +1711,9 @@ namespace FlyleafLib.Controls.WPF
 
                 if (Player != null)
                     Player.renderer.CornerRadius = CornerRadius;
+
+                if (CornerRadius != zeroCornerRadius)
+                    ((Border)Surface.Content).CornerRadius = CornerRadius;
             }
         }
         public void SetRect(Rect rect)
