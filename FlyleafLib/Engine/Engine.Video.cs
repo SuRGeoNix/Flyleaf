@@ -21,7 +21,7 @@ namespace FlyleafLib
                                 GPUAdapters { get; private set; }
 
         /// <summary>
-        /// List of GPU Outputs from default GPU Adapter
+        /// List of GPU Outputs from default GPU Adapter (Note: will no be updated on screen connect/disconnect)
         /// </summary>
         public List<GPUOutput>  Screens     { get; private set; } = new List<GPUOutput>();
 
@@ -101,6 +101,7 @@ namespace FlyleafLib
             return adapters;
         }
 
+        // Use instead System.Windows.Forms.Screen.FromPoint
         public GPUOutput GetScreenFromPosition(int top, int left)
         {
             foreach(var screen in Screens)

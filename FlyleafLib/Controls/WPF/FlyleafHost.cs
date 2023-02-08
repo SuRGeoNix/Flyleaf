@@ -472,9 +472,7 @@ namespace FlyleafLib.Controls.WPF
             else
             {
                 // TBR: CurResizeRatio < 1 should change the Width?
-
-                // Get Current Screen
-                var screen = Engine.Video.GetScreenFromPosition((int)host.Surface.Top, (int)host.Surface.Left);
+                var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)host.Surface.Top, (int)host.Surface.Left)).Bounds;
 
                 if (host.Surface.Top > screen.Height / 2)
                     host.Surface.Top += (host.Surface.Height - (host.Surface.Width / host.CurResizeRatio));
@@ -1592,7 +1590,7 @@ namespace FlyleafLib.Controls.WPF
                 newPos = new Point(rectDetachedLast.X, rectDetachedLast.Y);
             else
             {
-                var screen = Engine.Video.GetScreenFromPosition((int)Surface.Top, (int)Surface.Left);
+                var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)Surface.Top, (int)Surface.Left)).Bounds;
 
                 switch (DetachedPosition)
                 {
