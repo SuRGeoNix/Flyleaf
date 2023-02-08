@@ -905,35 +905,60 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             int Height = ControlHeight + (zoom * 2);
             int Width  = ControlWidth  + (zoom * 2);
 
-            if (Width / ratio > Height)
-                GetViewport = new Viewport(((ControlWidth - (Height * ratio)) / 2) + PanXOffset, 0 - zoom + PanYOffset, Height * ratio, Height, 0.0f, 1.0f);
-            else
-                GetViewport = new Viewport(0 - zoom + PanXOffset, ((ControlHeight - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
+            GetViewport = Width / ratio > Height ?
+                new Viewport(((ControlWidth - (Height * ratio)) / 2) + PanXOffset, 0 - zoom + PanYOffset, Height * ratio, Height, 0.0f, 1.0f) :
+                new Viewport(0 - zoom + PanXOffset, ((ControlHeight - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
 
             if (videoProcessor == VideoProcessors.D3D11)
             {
                 RawRect src, dst;
 
-                if (GetViewport.X + GetViewport.Width <= 0 || GetViewport.X >= ControlWidth || GetViewport.Y + GetViewport.Height <= 0 || GetViewport.Y >= ControlHeight)
-                {
-                    //Log.Debug("Out of screen");
+                if (GetViewport.Width < 1 || GetViewport.X + GetViewport.Width <= 0 || GetViewport.X >= ControlWidth || GetViewport.Y + GetViewport.Height <= 0 || GetViewport.Y >= ControlHeight)
+                { // Out of screen
                     src = new RawRect();
                     dst = new RawRect();
                 }
                 else
                 {
-                    if (GetViewport.Y + GetViewport.Height > ControlHeight)
-                        Height = (int) (VideoRect.Bottom- ((GetViewport.Y + GetViewport.Height - ControlHeight)* (VideoRect.Bottom / GetViewport.Height)));
-                    else
-                        Height = VideoRect.Bottom;
+                    int cropLeft    = GetViewport.X < 0 ? (int) GetViewport.X * -1 : 0;
+                    int cropRight   = GetViewport.X + GetViewport.Width > ControlWidth ? (int) ((GetViewport.X + GetViewport.Width) - ControlWidth) : 0;
+                    int cropTop     = GetViewport.Y < 0 ? (int) GetViewport.Y * -1 : 0;
+                    int cropBottom  = GetViewport.Y + GetViewport.Height > ControlHeight ? (int) ((GetViewport.Y + GetViewport.Height) - ControlHeight) : 0;
 
-                    if (GetViewport.X + GetViewport.Width > ControlWidth)
-                        Width  = (int) (VideoRect.Right  - ((GetViewport.X + GetViewport.Width - ControlWidth)  * (VideoRect.Right / GetViewport.Width)));
-                    else
-                        Width  = VideoRect.Right;
-
-                    src = new RawRect((int) (Math.Min(GetViewport.X, 0f) * ((float)VideoRect.Right / (float)GetViewport.Width) * -1f), (int) (Math.Min(GetViewport.Y, 0f) * ((float)VideoRect.Bottom / (float)GetViewport.Height) * -1f), Width, Height);
                     dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));
+                    
+                    if (_RotationAngle == 90)
+                    {
+                        src = new RawRect(
+                            (int) (cropTop * ((float)VideoRect.Right / GetViewport.Height)),
+                            (int) (cropRight * ((float)VideoRect.Bottom / GetViewport.Width)),
+                            VideoRect.Right - ((int) ((cropBottom) * ((float)VideoRect.Right / GetViewport.Height))),
+                            VideoRect.Bottom - ((int) ((cropLeft) * ((float)VideoRect.Bottom / GetViewport.Width))));
+                    }
+                    else if (_RotationAngle == 270)
+                    {
+                        src = new RawRect(
+                            (int) (cropBottom * ((float)VideoRect.Right / GetViewport.Height)),
+                            (int) (cropLeft * ((float)VideoRect.Bottom / GetViewport.Width)),
+                            VideoRect.Right - ((int) ((cropTop) * ((float)VideoRect.Right / GetViewport.Height))),
+                            VideoRect.Bottom - ((int) ((cropRight) * ((float)VideoRect.Bottom / GetViewport.Width))));
+                    }
+                    else if (_RotationAngle == 180)
+                    {
+                        src = new RawRect(
+                            (int) (cropRight * ((float)VideoRect.Right / (float)GetViewport.Width)),
+                            (int) (cropBottom * ((float)VideoRect.Bottom / (float)GetViewport.Height)),
+                            VideoRect.Right - ((int) ((cropLeft) * ((float)VideoRect.Right / (float)GetViewport.Width))),
+                            VideoRect.Bottom - ((int) ((cropTop) * ((float)VideoRect.Bottom / (float)GetViewport.Height))));
+                    }
+                    else
+                    {
+                        src = new RawRect(
+                            (int) (cropLeft * ((float)VideoRect.Right / (float)GetViewport.Width)),
+                            (int) (cropTop * ((float)VideoRect.Bottom / (float)GetViewport.Height)),
+                            VideoRect.Right - ((int) ((cropRight) * ((float)VideoRect.Right / (float)GetViewport.Width))),
+                            VideoRect.Bottom - ((int) ((cropBottom) * ((float)VideoRect.Bottom / (float)GetViewport.Height))));
+                    }
                 }
 
                 vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
@@ -1003,6 +1028,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
             Task.Run(() =>
             {
+                long presentingAt;
                 do
                 {
                     long sleepMs = DateTime.UtcNow.Ticks - lastPresentAt;
@@ -1010,11 +1036,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     if (sleepMs > 2)
                         Thread.Sleep((int)sleepMs);
 
+                    presentingAt = DateTime.UtcNow.Ticks;
                     RefreshLayout();
-
                     lastPresentAt = DateTime.UtcNow.Ticks;
 
-                } while (lastPresentRequestAt > lastPresentAt);
+                } while (lastPresentRequestAt > presentingAt);
 
                 isPresenting = false;
             });
