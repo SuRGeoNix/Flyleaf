@@ -4,7 +4,7 @@
     <TargetFrameworks>net7.0-windows;net6.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.2.4</Version>
+    <Version>1.2.5</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2022</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,6 +14,7 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
+		Fixes an issue during initialization when Overlay is already loaded
 		Updates FlyleafLib
 	</PackageReleaseNotes>
   </PropertyGroup>
