@@ -51,8 +51,7 @@ namespace FlyleafPlayer
                 DetachedDragMove = AvailableWindows.Both,
                 ToggleFullScreenOnDoubleClick = AvailableWindows.Both,
                 KeepRatioOnResize = true,
-                OpenOnDrop = AvailableWindows.Both,
-                //Player = Player
+                OpenOnDrop = AvailableWindows.Both
             };
 
             InitializeComponent();
@@ -87,6 +86,9 @@ namespace FlyleafPlayer
             
             // Initializes the Player
             Player = new Player(playerConfig);
+
+            // Dispose Player on Window Close
+            Closed += (o, e) => Player?.Dispose();
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
             FlyleafME.ConfigPath    = "Flyleaf.Config.xml";
