@@ -94,7 +94,7 @@ namespace FlyleafLib
         /// <param name="action"></param>
         public static void UIInvokeIfRequired(Action action)
         {
-            if (Thread.CurrentThread.ManagedThreadId == System.Windows.Threading.Dispatcher.CurrentDispatcher.Thread.ManagedThreadId)
+            if (Thread.CurrentThread.ManagedThreadId == Application.Current.Dispatcher.Thread.ManagedThreadId)
                 action();
             else
                 Application.Current.Dispatcher.Invoke(action);
