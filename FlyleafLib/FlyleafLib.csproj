@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.7</Version>
+	<Version>3.6.8</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,12 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Renderer: Introduces Composition and currently supports CornerRadius windows (thanks to @xmine64)
-		Renderer: Improves D3D11 Pan Move/Zoom and fixes issues when combined with rotation (fixes #241)
-		Renderer: Fixes an idle rendering issue
-		FlyleafHost.Wpf: Introduces CornerRadius
-		FlyleafHost.Wpf: Fixes a possible NPE issue with multiple monitors
-		FlyleafHost.Wpf: Fixes an issue with AllowsTransparency when is already set (thanks to @afunc233)
+		Fixes a possible crashing issue with threading and ObservableCollections (it could happen on audio device changes)
 	</PackageReleaseNotes>
   </PropertyGroup>
 

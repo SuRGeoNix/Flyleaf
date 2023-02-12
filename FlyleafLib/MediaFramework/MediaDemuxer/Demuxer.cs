@@ -177,10 +177,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             string typeStr = Type == MediaType.Video ? "Main" : Type.ToString();
             threadName = $"Demuxer: {typeStr,5}";
 
-            BindingOperations.EnableCollectionSynchronization(Programs,         lockStreams);
-            BindingOperations.EnableCollectionSynchronization(AudioStreams,     lockStreams);
-            BindingOperations.EnableCollectionSynchronization(VideoStreams,     lockStreams);
-            BindingOperations.EnableCollectionSynchronization(SubtitlesStreams, lockStreams);
+            Utils.UIInvokeIfRequired(() =>
+            {
+                BindingOperations.EnableCollectionSynchronization(Programs,         lockStreams);
+                BindingOperations.EnableCollectionSynchronization(AudioStreams,     lockStreams);
+                BindingOperations.EnableCollectionSynchronization(VideoStreams,     lockStreams);
+                BindingOperations.EnableCollectionSynchronization(SubtitlesStreams, lockStreams);
+            });
         }
         #endregion
 

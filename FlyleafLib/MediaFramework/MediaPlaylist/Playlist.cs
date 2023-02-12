@@ -62,7 +62,7 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
         public Playlist(int uniqueId)
         {
             Log = new LogHandler(("[#" + uniqueId + "]").PadRight(8, ' ') + " [Playlist] ");
-            UI(() => System.Windows.Data.BindingOperations.EnableCollectionSynchronization(Items, lockItems));
+            UIInvokeIfRequired(() => System.Windows.Data.BindingOperations.EnableCollectionSynchronization(Items, lockItems));
         }
 
         public void Reset()
@@ -112,7 +112,7 @@ namespace FlyleafLib.MediaFramework.MediaPlaylist
 
             decoder.ScrapeItem(item);
 
-            UI(() =>
+            UIInvokeIfRequired(() =>
             {
                 System.Windows.Data.BindingOperations.EnableCollectionSynchronization(item.ExternalAudioStreams, item.lockExternalStreams);
                 System.Windows.Data.BindingOperations.EnableCollectionSynchronization(item.ExternalVideoStreams, item.lockExternalStreams);
