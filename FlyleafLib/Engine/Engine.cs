@@ -61,13 +61,13 @@ namespace FlyleafLib
         static bool isLoading;
 
         /// <summary>
-        /// Initializes Flyleaf's Engine
+        /// Initializes Flyleaf's Engine (Must be called from UI thread)
         /// </summary>
         /// <param name="config">Engine's configuration</param>
         public static void Start(EngineConfig config = null) => StartInternal(config);
 
         /// <summary>
-        /// Initializes Flyleaf's Engine Async
+        /// Initializes Flyleaf's Engine Async (Must be called from UI thread)
         /// </summary>
         /// <param name="config">Engine's configuration</param>
         public static void StartAsync(EngineConfig config = null) => StartInternal(config, true);
@@ -83,7 +83,10 @@ namespace FlyleafLib
 
                 Config = config == null ? new EngineConfig() : config;
 
-                Utils.UIInvokeIfRequired(() => StartInternalUI());
+                if (Application.Current == null)
+                    new Application();
+
+                StartInternalUI();
 
                 if (async)
                     Task.Run(() => StartInternalNonUI());
@@ -94,9 +97,6 @@ namespace FlyleafLib
 
         private static void StartInternalUI()
         {
-            if (Application.Current == null)
-                new Application();
-
             Application.Current.Exit += (o, e) =>
             {
                 Config.UIRefresh = false;
