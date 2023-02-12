@@ -112,6 +112,8 @@ namespace FlyleafLib
             Logger.SetOutput();
 
             Log = new LogHandler("[FlyleafEngine] ");
+
+            Audio   = new AudioEngine();
         }
 
         private static void StartInternalNonUI()
@@ -121,7 +123,6 @@ namespace FlyleafLib
 
             FFmpeg  = new FFmpegEngine();
             Video   = new VideoEngine();
-            Audio   = new AudioEngine();
             Plugins = new PluginsEngine();
             Players = new List<Player>();
 
