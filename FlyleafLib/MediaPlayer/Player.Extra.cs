@@ -395,16 +395,38 @@ namespace FlyleafLib.MediaPlayer
         /// <returns></returns>
         public Bitmap TakeSnapshotToBitmap(int width = -1, int height = -1, VideoFrame frame = null) => renderer == null ? null : renderer.GetBitmap(width, height, frame);
 
-        public void ZoomIn()
-        {
-            Zoom += Config.Player.ZoomOffset;
-        }
-        public void ZoomOut()
-        {
-            Zoom -= Config.Player.ZoomOffset;
+        public void ZoomIn() => ZoomTimes++;
+        public void ZoomOut() => ZoomTimes--;
 
-            if (renderer.GetViewport.Width < 0 || renderer.GetViewport.Height < 0)
-                Zoom += Config.Player.ZoomOffset;
+        public void ZoomIn(System.Windows.Point p)
+        {
+            var prev = renderer.GetViewport;
+
+            if (p.X < prev.X || p.X > prev.X + prev.Width || p.Y < prev.Y || p.Y > prev.Y + prev.Height)
+            {
+                ZoomIn();
+                return;
+            }
+
+            SetZoom(_ZoomTimes + 1, false);
+            renderer.SetPanX((int)(PanXOffset - renderer.GetViewport.X) + (int)(p.X - ((p.X - prev.X) * renderer.GetViewport.Width / prev.Width)), false);
+            PanYOffset = (int)(PanYOffset - renderer.GetViewport.Y) + (int)(p.Y - ((p.Y - prev.Y) * renderer.GetViewport.Height / prev.Height));
+        }
+
+        public void ZoomOut(System.Windows.Point p)
+        {
+
+            var prev = renderer.GetViewport;
+
+            if (p.X < prev.X || p.X > prev.X + prev.Width || p.Y < prev.Y || p.Y > prev.Y + prev.Height)
+            {
+                ZoomOut();
+                return;
+            }
+
+            SetZoom(_ZoomTimes - 1, false);
+            renderer.SetPanX((int)(PanXOffset - renderer.GetViewport.X) + (int)(p.X - ((p.X - prev.X) * renderer.GetViewport.Width / prev.Width)), false);
+            PanYOffset = (int)(PanYOffset - renderer.GetViewport.Y) + (int)(p.Y - ((p.Y - prev.Y) * renderer.GetViewport.Height / prev.Height));
         }
 
         public void ResetAll()
@@ -413,7 +435,7 @@ namespace FlyleafLib.MediaPlayer
             PanXOffset = 0;
             PanYOffset = 0;
             Rotation = 0;
-            Zoom = 0;
+            Zoom = 100;
             ReversePlayback = false;
         }
     }

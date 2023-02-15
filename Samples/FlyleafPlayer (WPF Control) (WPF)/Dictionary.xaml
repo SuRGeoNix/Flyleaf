@@ -144,7 +144,7 @@
 
             <MenuItem Header="Take a Snapshot" Command="{Binding Player.Commands.TakeSnapshot}" Icon="{materialDesign:PackIcon Kind=PhotoCamera}"/>
             <MenuItem Header="V.Sync" IsCheckable="True" IsChecked="{Binding Config.Video.VSync}"/>
-            <MenuItem Header="Zoom">
+            <MenuItem Header="{Binding Player.Zoom}" HeaderStringFormat="Zoom ({0}%)">
                 <MenuItem Header="Reset ..." Command="{Binding Player.Commands.ResetAll}"/>
                 <MenuItem Header="Zoom In"   Command="{Binding Player.Commands.ZoomIn}" Icon="{materialDesign:PackIcon Kind=ZoomIn}"/>
                 <MenuItem Header="Zoom out"  Command="{Binding Player.Commands.ZoomOut}" Icon="{materialDesign:PackIcon Kind=ZoomOut}"/>
