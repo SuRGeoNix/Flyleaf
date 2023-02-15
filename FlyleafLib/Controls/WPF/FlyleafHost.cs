@@ -1115,7 +1115,12 @@ namespace FlyleafLib.Controls.WPF
             if      ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) &&
                 (PanZoomOnCtrlWheel == AvailableWindows.Surface || PanZoomOnCtrlWheel == AvailableWindows.Both))
             {
-                Player.Zoom += e.Delta > 0 ? Player.Config.Player.ZoomOffset : -Player.Config.Player.ZoomOffset;
+                Point cur = e.GetPosition(Surface);
+                Point curDpi = new Point(cur.X * DpiX, cur.Y * DpiY);
+                if (e.Delta > 0)
+                    Player.ZoomIn(curDpi);
+                else
+                    Player.ZoomOut(curDpi);
             }
             else if ((Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)) &&
                 (PanRotateOnShiftWheel == AvailableWindows.Surface || PanZoomOnCtrlWheel == AvailableWindows.Both))
@@ -1139,7 +1144,12 @@ namespace FlyleafLib.Controls.WPF
             if      ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) &&
                 (PanZoomOnCtrlWheel == AvailableWindows.Overlay || PanZoomOnCtrlWheel == AvailableWindows.Both))
             {
-                Player.Zoom += e.Delta > 0 ? Player.Config.Player.ZoomOffset : -Player.Config.Player.ZoomOffset;
+                Point cur = e.GetPosition(Surface);
+                Point curDpi = new Point(cur.X * DpiX, cur.Y * DpiY);
+                if (e.Delta > 0)
+                    Player.ZoomIn(curDpi);
+                else
+                    Player.ZoomOut(curDpi);
             }
             else if ((Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)) &&
                 (PanRotateOnShiftWheel == AvailableWindows.Overlay || PanZoomOnCtrlWheel == AvailableWindows.Both))

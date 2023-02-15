@@ -55,19 +55,52 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         CornerRadius cornerRadius = new CornerRadius(0);
         CornerRadius zeroCornerRadius = new CornerRadius(0);
 
-        public int              PanXOffset      { get => panXOffset;    set { panXOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
+        public int              PanXOffset      { get => panXOffset;    set => SetPanX(value); }
         int panXOffset;
 
-        public int              PanYOffset      { get => panYOffset;    set { panYOffset = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
+        public int              PanYOffset      { get => panYOffset;    set => SetPanY(value); }
         int panYOffset;
 
         public int              Rotation        { get => _RotationAngle;set { SetRotation(value); SetViewport(); } }
         int _RotationAngle; VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
 
-        public int              Zoom            { get => zoom;          set { zoom       = value; lock(lockDevice) { if (Disposed) return; SetViewport(); } } }
-        int zoom;
+        public int              Zoom            { get => zoom;          set => SetZoom(value); }
+        int zoom = 100;
 
         public int              UniqueId        { get; private set; }
+
+        public void SetPanX(int panX, bool refresh = true)
+        {
+            panXOffset = panX;
+
+            lock(lockDevice)
+            {
+                if (Disposed) return;
+                SetViewport(refresh);
+            }
+        }
+
+        public void SetPanY(int panY, bool refresh = true)
+        {
+            panYOffset = panY;
+
+            lock(lockDevice)
+            {
+                if (Disposed) return;
+                SetViewport(refresh);
+            }
+        }
+
+        public void SetZoom(int zoom, bool refresh = true)
+        {
+            this.zoom = zoom;
+
+            lock(lockDevice)
+            {
+                if (Disposed) return;
+                SetViewport(refresh);
+            }
+        }
 
         public Dictionary<VideoFilters, VideoFilter> 
                                 Filters         { get; set; }
@@ -120,7 +153,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         bool    isPresenting;
         long    lastPresentAt       = 0;
         long    lastPresentRequestAt= 0;
-        float   curRatio            = 1.0f;
+        internal float   curRatio            = 1.0f;
 
         private const Int32 WM_NCDESTROY= 0x0082;
         private const Int32 WM_SIZE     = 0x0005;
@@ -884,7 +917,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 SetViewport();
             }
         }
-        public void SetViewport()
+        public void SetViewport(bool refresh = true)
         {
             float ratio;
 
@@ -902,12 +935,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             if (_RotationAngle == 90 || _RotationAngle == 270)
                 ratio = 1 / ratio;
 
-            int Height = ControlHeight + (zoom * 2);
-            int Width  = ControlWidth  + (zoom * 2);
-
-            GetViewport = Width / ratio > Height ?
-                new Viewport(((ControlWidth - (Height * ratio)) / 2) + PanXOffset, 0 - zoom + PanYOffset, Height * ratio, Height, 0.0f, 1.0f) :
-                new Viewport(0 - zoom + PanXOffset, ((ControlHeight - (Width / ratio)) / 2) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
+            if (ratio < ControlWidth / (float)ControlHeight)
+            {
+                int yZoomPixels = (int)(ControlHeight * zoom/100.0) - ControlHeight;
+                int Height = ControlHeight + yZoomPixels;
+                GetViewport = new Viewport(((ControlWidth - (ControlHeight * ratio)) / 2) - ((yZoomPixels / 2) * ratio) + PanXOffset, 0 - (yZoomPixels / 2) + PanYOffset, Height * ratio, Height, 0.0f, 1.0f);
+            }
+            else
+            {
+                int xZoomPixels = (int)(ControlWidth * zoom/100.0) - ControlWidth;
+                int Width  = ControlWidth + xZoomPixels;
+                GetViewport = new Viewport(0 - (xZoomPixels / 2) + PanXOffset, ((ControlHeight - (ControlWidth / ratio)) / 2) - ((xZoomPixels / 2) / ratio) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
+            }
 
             if (videoProcessor == VideoProcessors.D3D11)
             {
@@ -966,7 +1005,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, ControlWidth, ControlHeight));
             }
 
-            Present();
+            if (refresh)
+                Present();
         }
 
         public bool Present(VideoFrame frame)

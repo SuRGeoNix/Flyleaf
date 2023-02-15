@@ -274,14 +274,41 @@ namespace FlyleafLib.MediaPlayer
         double _Speed = 1;
 
         /// <summary>
-        /// Pan zoom in/out per pixel of each side (should be based on Control's width/height)
+        /// Custom pan zoom percentage (Note: Prefer ZoomIn/ZoomOut and Config.Player.ZoomOffset instead of this)
         /// </summary>
         public int          Zoom
         {
             get => renderer.Zoom;
-            set { if (renderer.Zoom == value) return; renderer.Zoom = value; UI(() => Set(ref _Zoom, renderer.Zoom, false)); }
+            set { _ZoomTimes = 0; if (renderer.Zoom == value) return; renderer.Zoom = value; UI(() => Set(ref _Zoom, renderer.Zoom, false)); }
         }
-        int _Zoom;
+        int _Zoom = 100;
+
+        public int ZoomTimes { get => _ZoomTimes; private set => SetZoom(value); }
+        int _ZoomTimes = 0;
+
+        private void SetZoom(int value, bool refresh = true)
+        {
+            _ZoomTimes = value;
+            int zoom = 100 + (Config.Player.ZoomOffset * _ZoomTimes);
+
+            if (_Zoom == zoom)
+                return;
+
+            if (zoom < 1)
+            {
+                _ZoomTimes++;
+                zoom = 1;
+            }
+
+            _Zoom = zoom;
+            renderer.SetZoom(zoom, refresh);
+
+            UIInvokeIfRequired(() =>
+            {
+                Raise(nameof(Zoom));
+                Raise(nameof(_Zoom));
+            });
+        }
 
         /// <summary>
         /// Pan rotation angle (for D3D11 VP allowed values are 0, 90, 180, 270 only)

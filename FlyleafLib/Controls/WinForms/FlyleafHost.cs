@@ -150,7 +150,11 @@ namespace FlyleafLib.Controls.WinForms
 
             if (PanZoomOnCtrlWheel && ModifierKeys.HasFlag(Keys.Control))
             {
-                Player.Zoom += e.Delta > 0 ? Player.Config.Player.ZoomOffset : -Player.Config.Player.ZoomOffset;
+                System.Windows.Point curDpi = new System.Windows.Point(e.Location.X, e.Location.Y);
+                if (e.Delta > 0)
+                    Player.ZoomIn(curDpi);
+                else
+                    Player.ZoomOut(curDpi);
             }
             else if (PanRotateOnShiftWheel && ModifierKeys.HasFlag(Keys.Shift))
             {
