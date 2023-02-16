@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.9</Version>
+	<Version>3.6.10</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2022</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Fixes a possible crashing issue with threading and ObservableCollections (it could happen on audio device changes)
+		Player: Changes Zoom from pixels to percentage
+        Player: Introduces ZoomIn, ZoomOut based on specific Point
+        Config: Changes Player.ZoomOffset from 50 to 10 (as now indicates percentage instead of pixels)
+        FlyleafHost (WPF/WinForms): Improves Zoom with Ctrl+MouseWheel to use mouse pointer as center
 	</PackageReleaseNotes>
   </PropertyGroup>
 

@@ -249,7 +249,9 @@ namespace FlyleafLib
             public long     SubtitlesDelayOffset2       { get; set; } = 1000 * 10000;
             public long     SeekOffset                  { get; set; } = 5 * (long)1000 * 10000;
             public long     SeekOffset2                 { get; set; } = 15 * (long)1000 * 10000;
-            public int      ZoomOffset                  { get; set; } = 10;
+            public int      ZoomOffset                  { get => _ZoomOffset; set { if (Set(ref _ZoomOffset, value)) player?.ResetAll(); } }
+            int _ZoomOffset = 10;
+
             public int      VolumeOffset                { get; set; } = 5;
         }
         public class DemuxerConfig : NotifyPropertyChanged
