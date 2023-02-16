@@ -1144,7 +1144,7 @@ namespace FlyleafLib.Controls.WPF
             if      ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) &&
                 (PanZoomOnCtrlWheel == AvailableWindows.Overlay || PanZoomOnCtrlWheel == AvailableWindows.Both))
             {
-                Point cur = e.GetPosition(Surface);
+                Point cur = e.GetPosition(Overlay);
                 Point curDpi = new Point(cur.X * DpiX, cur.Y * DpiY);
                 if (e.Delta > 0)
                     Player.ZoomIn(curDpi);
