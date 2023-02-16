@@ -397,7 +397,6 @@ namespace FlyleafLib.MediaPlayer
 
         public void ZoomIn() => ZoomTimes++;
         public void ZoomOut() => ZoomTimes--;
-
         public void ZoomIn(System.Windows.Point p)
         {
             var prev = renderer.GetViewport;
@@ -412,10 +411,8 @@ namespace FlyleafLib.MediaPlayer
             renderer.SetPanX((int)(PanXOffset - renderer.GetViewport.X) + (int)(p.X - ((p.X - prev.X) * renderer.GetViewport.Width / prev.Width)), false);
             PanYOffset = (int)(PanYOffset - renderer.GetViewport.Y) + (int)(p.Y - ((p.Y - prev.Y) * renderer.GetViewport.Height / prev.Height));
         }
-
         public void ZoomOut(System.Windows.Point p)
         {
-
             var prev = renderer.GetViewport;
 
             if (p.X < prev.X || p.X > prev.X + prev.Width || p.Y < prev.Y || p.Y > prev.Y + prev.Height)

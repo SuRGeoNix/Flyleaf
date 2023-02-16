@@ -153,7 +153,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         bool    isPresenting;
         long    lastPresentAt       = 0;
         long    lastPresentRequestAt= 0;
-        internal float   curRatio            = 1.0f;
+        float   curRatio            = 1.0f;
 
         private const Int32 WM_NCDESTROY= 0x0082;
         private const Int32 WM_SIZE     = 0x0005;
