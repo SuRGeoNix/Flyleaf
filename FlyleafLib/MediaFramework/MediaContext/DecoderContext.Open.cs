@@ -545,6 +545,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             
             try
             {
+                lock (stream.Demuxer.lockActions)
                 lock (stream.Demuxer.lockFmtCtx)
                 {
                     StreamBase oldStream = stream.Type == MediaType.Video ? (StreamBase)VideoStream : (stream.Type == MediaType.Audio ? (StreamBase)AudioStream : (StreamBase)SubtitlesStream);
