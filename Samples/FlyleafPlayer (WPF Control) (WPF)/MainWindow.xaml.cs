@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 
+using FFmpeg.AutoGen;
 using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
@@ -19,7 +20,7 @@ namespace FlyleafPlayer
     public partial class MainWindow : Window
     {
         public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
-
+        
         /// <summary>
         /// Flyleaf Player binded to FlyleafME
         /// </summary>

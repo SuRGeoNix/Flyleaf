@@ -24,13 +24,13 @@ namespace FlyleafLib
                 uint ver= avformat_version();
                 IsVer5  = ver >> 16 > 58;
                 Version = $"{ver >> 16}.{ver >> 8 & 255}.{ver & 255}";
-
+                
                 if (Engine.Config.FFmpegDevices)
                     try { avdevice_register_all(); } catch { Engine.Log.Error("FFmpeg failed to load avdevices/avfilters/postproc"); }
-
+                
                 SetLogLevel();
 
-                Engine.Log.Info($"FFmpeg Loaded (Location: {Folder}, Ver: {Version}, #Files: {LoadedLibraries.Count})");
+                Engine.Log.Info($"FFmpeg Loaded (Location: {Folder}, Ver: {Version})");
             } catch (Exception e)
             {
                 Engine.Log.Error($"Loading FFmpeg libraries '{Engine.Config.FFmpegPath}' failed\r\n{e.Message}\r\n{e.StackTrace}");
