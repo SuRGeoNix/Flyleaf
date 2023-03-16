@@ -32,6 +32,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
      *      we might have issue with bufRef / ffmpeg texture array on zero copy
      *      
      * 2) Use different context/video processor for off rendering so we dont have to reset pixel shaders/viewports etc (review also rtvs for extractor)
+     * 
+     * 3) Add Crop (Left/Right/Top/Bottom) -on Source- support per pixels (easy implemantation with D3D11VP, FlyleafVP requires more research)
      */
 
     public unsafe partial class Renderer : NotifyPropertyChanged, IDisposable

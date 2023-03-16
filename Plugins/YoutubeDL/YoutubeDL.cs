@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 //using System.Management;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
-
-using Newtonsoft.Json;
 
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -29,8 +29,8 @@ namespace FlyleafLib.Plugins
 
         static string               plugin_path     = "yt-dlp.exe";
 
-        static JsonSerializerSettings
-                                    jsonSettings    = new JsonSerializerSettings();
+        static JsonSerializerOptions
+                                    jsonSettings    = new JsonSerializerOptions();
         static string               defaultBrowser;
 
         FileSystemWatcher watcher;
@@ -64,7 +64,8 @@ namespace FlyleafLib.Plugins
             else if (Directory.Exists(Path.Combine(appdata, @"Microsoft\Edge\User Data")))
                 defaultBrowser = "edge";
 
-            jsonSettings.NullValueHandling = NullValueHandling.Ignore;
+            
+            jsonSettings.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         }
 
         public override SerializableDictionary<string, string> GetDefaultOptions()
@@ -267,7 +268,7 @@ namespace FlyleafLib.Plugins
                 break;
             }
             
-            var ytdl = JsonConvert.DeserializeObject<YoutubeDLJson>(json, jsonSettings);
+            var ytdl = JsonSerializer.Deserialize<YoutubeDLJson>(json, jsonSettings);
             if (ytdl == null)
                 return;
 
