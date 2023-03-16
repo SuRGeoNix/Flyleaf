@@ -4,8 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-
-using Newtonsoft.Json;
+using System.Text.Json;
 
 using FlyleafLib.MediaFramework.MediaStream;
 
@@ -160,7 +159,7 @@ namespace FlyleafLib.Plugins
                 {
                     Log.Debug($"Searching for /moviebytesize-{length}/moviehash-{hash}");
                     resp = client.PostAsync($"{restUrl}/moviebytesize-{length}/moviehash-{hash}", null).Result.Content.ReadAsStringAsync().Result;
-                    subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
+                    subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
                     Log.Debug($"Search Results {subs.Count}");
                     cache.Add(hash + "|" + length, subs);
                     foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
@@ -197,7 +196,7 @@ namespace FlyleafLib.Plugins
 
                     Log.Debug($"Searching for {query}");
                     resp = client.PostAsync($"{restUrl}{query}", null).Result.Content.ReadAsStringAsync().Result;
-                    subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
+                    subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
                     Log.Debug($"Search Results {subs.Count}");
 
                     cache.Add(imdbid + "|" + season + "|" + episode + lang, subs);
@@ -231,7 +230,7 @@ namespace FlyleafLib.Plugins
                 {
                     Log.Debug($"Searching for /query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}");
                     resp = client.PostAsync($"{restUrl}/query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}", null).Result.Content.ReadAsStringAsync().Result;
-                    subs = JsonConvert.DeserializeObject<List<OpenSubtitlesOrgJson>>(resp);
+                    subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
                     Log.Debug($"Search Results {subs.Count}");
 
                     cache.Add(name + "|" + lang, subs);

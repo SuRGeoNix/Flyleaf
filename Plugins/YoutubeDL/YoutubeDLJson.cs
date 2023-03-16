@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 using static FlyleafLib.Plugins.YoutubeDLJson;
 
@@ -67,17 +66,17 @@ namespace FlyleafLib.Plugins
 
         public class HttpHeaders
         {
-            [JsonProperty("User-Agent")]
+            [JsonPropertyName("User-Agent")]
             public string UserAgent     { get; set; }
 
-            [JsonProperty("Accept-Charset")]
+            [JsonPropertyName("Accept-Charset")]
             public string AcceptCharset { get; set; }
             public string Accept        { get; set; }
 
-            [JsonProperty("Accept-Encoding")]
+            [JsonPropertyName("Accept-Encoding")]
             public string AcceptEncoding{ get; set; }
 
-            [JsonProperty("Accept-Language")]
+            [JsonPropertyName("Accept-Language")]
             public string AcceptLanguage{ get; set; }
         }
 
