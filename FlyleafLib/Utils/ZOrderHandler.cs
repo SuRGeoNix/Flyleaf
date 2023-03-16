@@ -50,6 +50,12 @@ namespace FlyleafLib
                 {
                     Window = window;
                     WindowHwnd = windowHwnd;
+
+                    // TBR: Stand alone
+                    //if (Window.Owner != null)
+                    //    Window.Owner.StateChanged += Window_StateChanged;
+                    //else
+
                     Window.StateChanged += Window_StateChanged;
                     lastState = Window.WindowState;
 

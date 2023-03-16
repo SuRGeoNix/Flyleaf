@@ -1177,6 +1177,8 @@ namespace FlyleafLib.Controls.WPF
         // Stand Alone Only (Main control has the overlay)
         private void Overlay_Loaded(object sender, RoutedEventArgs e)
         {
+            Surface.Title   = Overlay.Title;
+
             if (Overlay.IsVisible)
                 Surface.Show();
 
