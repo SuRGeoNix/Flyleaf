@@ -323,7 +323,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     samplerLinear = Device.CreateSamplerState(new SamplerDescription()
                     {
-                        ComparisonFunction = ComparisonFunction.Never,
+                        ComparisonFunc = ComparisonFunction.Never,
                         AddressU = TextureAddressMode.Clamp,
                         AddressV = TextureAddressMode.Clamp,
                         AddressW = TextureAddressMode.Clamp,
