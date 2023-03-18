@@ -49,7 +49,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
             Height          = AVStream->codecpar->height;
             FPS             = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
             FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
-            TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (int) (Demuxer.Duration / FrameDuration);
+            TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
 
             var gcd = Utils.GCD(Width, Height);
             if (gcd != 0)

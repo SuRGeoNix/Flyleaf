@@ -16,6 +16,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public AVSampleFormat   SampleFormat        { get; set; }
         public string           SampleFormatStr     { get; set; }
         public int              SampleRate          { get; set; }
+        public AVCodecID        CodecIDOrig         { get; set; }
 
         public override string GetDump() { return $"[{Type} #{StreamIndex}-{Language.IdSubLanguage}{(Title != null ? "(" + Title + ")" : "")}] {Codec} {SampleFormatStr}@{Bits} {SampleRate/1000}KHz {ChannelLayoutStr} | [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
 
@@ -37,6 +38,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
             Bits            = AVStream->codecpar->bits_per_coded_sample;
 
             // https://trac.ffmpeg.org/ticket/7321
+            CodecIDOrig = CodecID;
             if (CodecID == AVCodecID.AV_CODEC_ID_MP2 && (SampleFormat == AVSampleFormat.AV_SAMPLE_FMT_FLTP || SampleFormat == AVSampleFormat.AV_SAMPLE_FMT_FLT))
                 CodecID = AVCodecID.AV_CODEC_ID_MP3; // OR? st->codecpar->format = (int) AVSampleFormat.AV_SAMPLE_FMT_S16P;
 

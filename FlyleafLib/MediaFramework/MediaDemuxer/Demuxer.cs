@@ -375,9 +375,12 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (ret < 0) { fmtCtx = null; return error = $"[avformat_open_input] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})"; }
 
                         // Find Streams Info
-                        ret = avformat_find_stream_info(fmtCtx, null);
-                        if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) return error = "Cancelled";
-                        if (ret < 0) return error = $"[avformat_find_stream_info] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
+                        if (Config.AllowFindStreamInfo)
+                        {
+                            ret = avformat_find_stream_info(fmtCtx, null);
+                            if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) return error = "Cancelled";
+                            if (ret < 0) return error = $"[avformat_find_stream_info] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
+                        }
 
                         // Prevent Multiple Immediate exit requested on eof (maybe should not use avio_feof() to test for the end)
                         if (fmtCtx->pb != null)
@@ -1395,6 +1398,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
         /* TODO
          * 
          * 1) Review thread safe for Enqueue/Dequeue/Clear
+         * 2) DTS might not be available without avformat_find_stream_info (should changed based on packet->duration and fallback should be removed)
          * 
          */
         readonly Demuxer demuxer;
@@ -1442,9 +1446,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             {
                 packets.Enqueue((IntPtr)packet);
 
-                if (packet->dts != AV_NOPTS_VALUE)
+                if (packet->dts != AV_NOPTS_VALUE || packet->pts != AV_NOPTS_VALUE)
                 {
-                    LastTimestamp = (long)(packet->dts * demuxer.AVStreamToStream[packet->stream_index].Timebase);
+                    LastTimestamp = packet->dts != AV_NOPTS_VALUE ?
+                        (long)(packet->dts * demuxer.AVStreamToStream[packet->stream_index].Timebase): 
+                        (long)(packet->pts * demuxer.AVStreamToStream[packet->stream_index].Timebase);
 
                     if (FirstTimestamp == AV_NOPTS_VALUE)
                     {
@@ -1470,9 +1476,11 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 {
                     AVPacket* packet = (AVPacket*)packetPtr;
 
-                    if (packet->dts != AV_NOPTS_VALUE)
+                    if (packet->dts != AV_NOPTS_VALUE || packet->pts != AV_NOPTS_VALUE)
                     {
-                        FirstTimestamp = (long)(packet->dts * demuxer.AVStreamToStream[packet->stream_index].Timebase);
+                        FirstTimestamp = packet->dts != AV_NOPTS_VALUE ?
+                            (long)(packet->dts * demuxer.AVStreamToStream[packet->stream_index].Timebase):
+                            (long)(packet->pts * demuxer.AVStreamToStream[packet->stream_index].Timebase);
                         UpdateCurTime();
                     }
 
