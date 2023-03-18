@@ -8,19 +8,20 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.10</Version>
+	<Version>3.6.11</Version>
 	<Authors>SuRGeoNix</Authors>
-	<Copyright>SuRGeoNix © 2022</Copyright>
+	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
 	<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework download extract ffmpeg vortice directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Player: Changes Zoom from pixels to percentage
-        Player: Introduces ZoomIn, ZoomOut based on specific Point
-        Config: Changes Player.ZoomOffset from 50 to 10 (as now indicates percentage instead of pixels)
-        FlyleafHost (WPF/WinForms): Improves Zoom with Ctrl+MouseWheel to use mouse pointer as center
+		DecoderContext: Fixes a rare dead lock while opening a stream and seeking
+		Demuxer: Introduces Config.Demuxer.AllowFindStreamInfo which can be disabled for faster opening of the input
+		Engine: Adds FFmpeg.Autogen latest 5.1.2.1 support (removes deprecated LoadedLibraries)
+		Engine: Improves High Performance Timers for multiple players and enables them only when required
+		Updates Vortice
 	</PackageReleaseNotes>
   </PropertyGroup>
 
