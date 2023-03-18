@@ -725,12 +725,6 @@ namespace FlyleafLib
         FFmpegLogLevel _FFmpegLogLevel = FFmpegLogLevel.Quiet;
 
         /// <summary>
-        /// <para>Disable this to use high performance timers only when required (useful for single player)</para>
-        /// <para>Must be set before calling RegisterFFmpeg</para>
-        /// </summary>
-        public bool     HighPerformaceTimers    { get; set; } = true;
-
-        /// <summary>
         /// Whether configuration has been loaded from file
         /// </summary>
         [XmlIgnore]

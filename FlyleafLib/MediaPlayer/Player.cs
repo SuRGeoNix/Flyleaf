@@ -546,13 +546,13 @@ namespace FlyleafLib.MediaPlayer
             {
                 try
                 {
-                    TimeBeginPeriod(1);
+                    Engine.TimeBeginPeriod1();
 
                     this.status = status;
                     canPlay = false;
                     isVideoSwitch = false;
                     seeks.Clear();
-                
+
                     while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
 
                     if (andDecoder)
@@ -575,7 +575,7 @@ namespace FlyleafLib.MediaPlayer
 
                 } finally
                 {
-                    TimeEndPeriod(1);
+                    Engine.TimeEndPeriod1();
                 }
             }
         }

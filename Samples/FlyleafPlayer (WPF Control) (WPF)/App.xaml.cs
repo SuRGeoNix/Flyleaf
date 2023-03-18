@@ -45,8 +45,6 @@ namespace FlyleafPlayer
             engineConfig.FFmpegPath     = ":FFmpeg";
             engineConfig.FFmpegHLSLiveSeek
                                         = true;
-            engineConfig.HighPerformaceTimers
-                                        = false;
             engineConfig.UIRefresh      = true;
 
             #if RELEASE
