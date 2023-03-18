@@ -38,14 +38,22 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         protected override unsafe int Setup(AVCodec* codec)
         {
+            keyFrameRequired = !VideoDecoder.Disposed;
+            filledFromCodec = false;
+
+            return 0;
+        }
+
+        private int Setup2()
+        {
             int ret;
+
+            circularBufferPos   = 0;
+            circularBuffer      = new byte[2 * 1024 * 1024]; // TBR: Should be based on max audio frames, max samples buffer size & max buffers used by xaudio2
+            circularFrame       = av_frame_alloc();
 
             if (swrCtx == null)
                 swrCtx = swr_alloc();
-
-            circularBufferPos = 0;
-            circularBuffer  = new byte[2 * 1024 * 1024]; // TBR: Should be based on max audio frames, max samples buffer size & max buffers used by xaudio2
-            circularFrame   = av_frame_alloc();
 
             av_opt_set_int(swrCtx,           "in_channel_layout",   (int)codecCtx->channel_layout, 0);
             av_opt_set_int(swrCtx,           "in_channel_count",         codecCtx->channels, 0);
@@ -60,8 +68,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             ret = swr_init(swrCtx);
             if (ret < 0)
                 Log.Error($"Swr setup failed {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
-
-            keyFrameRequired = !VideoDecoder.Disposed;
 
             return ret;
         }
@@ -248,23 +254,23 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         private AudioFrame ProcessAudioFrame(AVFrame* frame)
         {
             // TBR: AVStream doesn't refresh, we can get the updated info only from codecCtx (what about timebase, what about re-opening the codec?)
-            if (AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.CodecID != codecCtx->codec_id || AudioStream.Channels != codecCtx->channels)
+            bool codecChanged = AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.CodecIDOrig != codecCtx->codec_id || AudioStream.Channels != codecCtx->channels;
+
+            if (!filledFromCodec || codecChanged)
             {
+                filledFromCodec = true;
+
                 if (Disposed)
                     return null;
 
-                Log.Warn($"Codec changed {AudioStream.CodecID} {AudioStream.SampleRate} => {codecCtx->codec_id} {codecCtx->sample_rate}");
+                if (codecChanged && !filledFromCodec)
+                    Log.Warn($"Codec changed {AudioStream.CodecID} {AudioStream.SampleRate} => {codecCtx->codec_id} {codecCtx->sample_rate}");
 
                 DisposeInternal();
-                
-                AudioStream.SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), codecCtx->sample_fmt);
-                AudioStream.SampleFormatStr = AudioStream.SampleFormat.ToString().Replace("AV_SAMPLE_FMT_","").ToLower();
-                AudioStream.SampleRate      = codecCtx->sample_rate;
-                AudioStream.ChannelLayout   = codecCtx->channel_layout;
-                AudioStream.Channels        = codecCtx->channels;
-                AudioStream.Bits            = codecCtx->bits_per_coded_sample;
+                avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
+                AudioStream.Refresh();
 
-                Setup(codecCtx->codec);
+                Setup2();
                 CodecChanged?.Invoke(this);
             }
 

@@ -1033,7 +1033,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     if (curSRVs != null)
                         for (int i = 0; i < curSRVs.Length; i++)
-                            curSRVs[i].Dispose();
+                            curSRVs[i]?.Dispose();
 
                     return false;
 

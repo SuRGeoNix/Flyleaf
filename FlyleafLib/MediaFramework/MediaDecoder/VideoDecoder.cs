@@ -215,10 +215,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                         hw_device_ctx = null;
                         codecCtx->hw_device_ctx = null;
-                        textDesc.Format = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth > 8 ? Format.R16_UNorm : Format.R8_UNorm;
-                        CodecChanged?.Invoke(this);
-                        Renderer?.FrameResized();
-
+                        filledFromCodec = false;
                         disableGetFormat = true;
                     }
 
@@ -231,27 +228,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (ret == 2)
                 {
                     Log.Warn($"Codec changed {VideoStream.CodecID} {VideoStream.Width}x{VideoStream.Height} => {codecCtx->codec_id} {codecCtx->width}x{codecCtx->height}");
-
-                    // Change can be seen only through codecCtx (not AVStreams) - codecCtx changes byitself (we can't destory it and re-create it)
-                    //VideoStream.Refresh(); // No reason as AVStreams will be the same
-                    textDesc.Width      = codecCtx->width;
-                    textDesc.Height     = codecCtx->height;
-                    textDescUV.Width    = codecCtx->width  >> VideoStream.PixelFormatDesc->log2_chroma_w;
-                    textDescUV.Height   = codecCtx->height >> VideoStream.PixelFormatDesc->log2_chroma_h;
-                    VideoStream.Width   = codecCtx->width;
-                    VideoStream.Height  = codecCtx->height;
-
-                    var gcd = Utils.GCD(VideoStream.Width, VideoStream.Height);
-                    if (gcd != 0)
-                        VideoStream.AspectRatio = new AspectRatio(VideoStream.Width / gcd , VideoStream.Height / gcd);
-
-                    VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : VideoStream.FPS;
-                    VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
-                    //VideoStream.Timebase    = av_q2d(codecCtx->time_base) * 10000.0 * 1000.0;
-                    //VideoStream.TotalFrames     = VideoStream.AVStream->duration > 0 && VideoStream.FrameDuration > 0 ? (int) (AVStream->duration * VideoStream.Timebase / VideoStream.FrameDuration) : (int) (Demuxer.Duration / VideoStream.FrameDuration);
-
-                    Renderer?.FrameResized();
-                    CodecChanged?.Invoke(this);
+                    filledFromCodec = false;
                 }
 
                 return (AVPixelFormat)HW_PIX_FMT;
@@ -311,8 +288,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     textureFFmpeg   = new ID3D11Texture2D((IntPtr) va_frames_ctx->texture);
                     textDesc.Format = textureFFmpeg.Description.Format;
                     ZeroCopy = Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Enabled || (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto && codecCtx->width == textureFFmpeg.Description.Width && codecCtx->height == textureFFmpeg.Description.Height);
-                    Renderer?.FrameResized();
-                    CodecChanged?.Invoke(this);
+                    filledFromCodec = false;
                 }
             }
 
@@ -339,7 +315,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             CreateRenderer();
             
             VideoAccelerated = false;
-
             if (Config.Video.VideoAcceleration && Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0)
             {
                 if (CheckCodecSupport(codec))
@@ -357,40 +332,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             else
                 Log.Debug("VA Disabled");
 
-            int bits = 8;
-            try
-            {
-                bits = VideoStream.PixelFormatDesc->comp.ToArray()[0].depth;
-            } catch { }
-
-            textDesc = new Texture2DDescription()
-            {
-                Usage               = ResourceUsage.Default,
-                BindFlags           = Renderer.Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0 ? BindFlags.ShaderResource : BindFlags.ShaderResource | BindFlags.RenderTarget,
-
-                Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
-                Width               = codecCtx->width,
-                Height              = codecCtx->height,
-
-                SampleDescription   = new SampleDescription(1, 0),
-                ArraySize           = 1,
-                MipLevels           = 1
-            };
-
-            textDescUV = new Texture2DDescription()
-            {
-                Usage               = ResourceUsage.Default,
-                BindFlags           = Renderer.Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0 ? BindFlags.ShaderResource : BindFlags.ShaderResource | BindFlags.RenderTarget,
-
-                Format              = bits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
-                Width               = codecCtx->width  >> VideoStream.PixelFormatDesc->log2_chroma_w,
-                Height              = codecCtx->height >> VideoStream.PixelFormatDesc->log2_chroma_h,
-
-                SampleDescription   = new SampleDescription(1, 0),
-                ArraySize           = 1,
-                MipLevels           = 1
-            };
-            
             // Can't get data from here?
             //var t1 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_MASTERING_DISPLAY_METADATA, null);
             //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
@@ -398,6 +339,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             HDRDataSent = false;
             keyFrameRequired = true;
             ZeroCopy = false;
+            filledFromCodec = false;
 
             if (VideoAccelerated)
             {
@@ -414,7 +356,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
                 codecCtx->thread_type  = 0;
-                Renderer?.FrameResized();
             }
 
             return 0;
@@ -792,6 +733,56 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             try
             {
+                if (!filledFromCodec)
+                {
+                    filledFromCodec = true;
+
+                    avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
+                    Stream.AVStream->codecpar->format = (int)codecCtx->sw_pix_fmt;
+                    VideoStream.Refresh();
+                    
+                    if (VideoStream.PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
+                    {
+                        textDesc = new Texture2DDescription()
+                        {
+                            Usage               = ResourceUsage.Default,
+                            BindFlags           = Renderer.Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0 ? BindFlags.ShaderResource : BindFlags.ShaderResource | BindFlags.RenderTarget,
+
+                            Width               = codecCtx->width,
+                            Height              = codecCtx->height,
+
+                            SampleDescription   = new SampleDescription(1, 0),
+                            ArraySize           = 1,
+                            MipLevels           = 1
+                        };
+
+                        textDesc.Format = VideoAccelerated ? textureFFmpeg.Description.Format : (VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm);
+
+                        textDescUV = new Texture2DDescription()
+                        {
+                            Usage               = ResourceUsage.Default,
+                            BindFlags           = Renderer.Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0 ? BindFlags.ShaderResource : BindFlags.ShaderResource | BindFlags.RenderTarget,
+
+                            Format              = VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm,
+                            Width               = codecCtx->width  >> VideoStream.PixelFormatDesc->log2_chroma_w,
+                            Height              = codecCtx->height >> VideoStream.PixelFormatDesc->log2_chroma_h,
+
+                            SampleDescription   = new SampleDescription(1, 0),
+                            ArraySize           = 1,
+                            MipLevels           = 1
+                        };
+                    }
+
+                    if (!(VideoStream.FPS > 0)) // NaN
+                    {
+                        VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : 0;
+                        VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
+                    }
+
+                    Renderer?.FrameResized();
+                    CodecChanged?.Invoke(this);
+                }
+
                 if (Speed != 1)
                 {
                     curSpeedFrame++;

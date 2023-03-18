@@ -20,7 +20,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public Config                   Config          { get; protected set; }
         public int                      Speed           { get; set; } = 1;
 
-
+        protected bool              filledFromCodec;
         protected int               curSpeedFrame = 1;
         protected AVFrame*          frame;
         protected AVCodecContext*   codecCtx;

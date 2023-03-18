@@ -278,6 +278,11 @@ namespace FlyleafLib
             internal Config config;
 
             /// <summary>
+            /// Whethere to allow avformat_find_stream_info during open (avoiding this can open the input faster but it could cause other issues)
+            /// </summary>
+            public bool             AllowFindStreamInfo { get; set; } = true;
+
+            /// <summary>
             /// Whether to enable demuxer's custom interrupt callback (for timeouts and interrupts)
             /// </summary>
             public bool             AllowInterrupts     { get; set; } = true;
