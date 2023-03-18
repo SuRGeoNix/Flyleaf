@@ -100,21 +100,6 @@ namespace FlyleafLib
                 Application.Current.Dispatcher.Invoke(action);
         }
 
-        public static void TimeBeginPeriod(uint i)
-        {
-            if (Engine.Config.HighPerformaceTimers)
-                return;
-
-            NativeMethods.TimeBeginPeriod(i);
-        }
-        public static void TimeEndPeriod(uint i)
-        {
-            if (Engine.Config.HighPerformaceTimers)
-                return;
-
-            NativeMethods.TimeEndPeriod(i);
-        }
-
         public static int Align(int num, int align)
         {
             int mod = num % align;

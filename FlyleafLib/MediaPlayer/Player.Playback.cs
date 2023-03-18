@@ -51,7 +51,7 @@ namespace FlyleafLib.MediaPlayer
             {
                 try
                 {
-                    TimeBeginPeriod(1);
+                    Engine.TimeBeginPeriod1();
                     NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_CONTINUOUS | NativeMethods.EXECUTION_STATE.ES_SYSTEM_REQUIRED | NativeMethods.EXECUTION_STATE.ES_DISPLAY_REQUIRED);
 
                     onBufferingStarted   = 0;
@@ -95,7 +95,7 @@ namespace FlyleafLib.MediaPlayer
                     }
 
                     Audio.ClearBuffer();
-                    TimeEndPeriod(1);
+                    Engine.TimeEndPeriod1();
                     NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
                     stoppedWithError = false;
 
@@ -209,7 +209,7 @@ namespace FlyleafLib.MediaPlayer
 
                 try
                 {
-                    TimeBeginPeriod(1);
+                    Engine.TimeBeginPeriod1();
                     
                     while (seeks.TryPop(out SeekData seekData) && CanPlay && !IsPlaying)
                     {
@@ -270,7 +270,7 @@ namespace FlyleafLib.MediaPlayer
                 } finally
                 {
                     decoder.OpenedPlugin?.OnBufferingCompleted();
-                    TimeEndPeriod(1);
+                    Engine.TimeEndPeriod1();
                     lock (lockActions) taskSeekRuns = false;
                     if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError)
                         Play();

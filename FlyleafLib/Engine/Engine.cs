@@ -51,14 +51,14 @@ namespace FlyleafLib
         /// </summary>
         public static List<Player>      Players         { get; private set; }
 
-
         public static event EventHandler Loaded;
 
         internal static LogHandler Log;
 
-        static Thread   tMaster;
-        static object   lockEngine      = new object();
+        static Thread tMaster;
+        static object lockEngine = new object();
         static bool isLoading;
+        static int timePeriod;
 
         /// <summary>
         /// Initializes Flyleaf's Engine (Must be called from UI thread)
@@ -71,6 +71,40 @@ namespace FlyleafLib
         /// </summary>
         /// <param name="config">Engine's configuration</param>
         public static void StartAsync(EngineConfig config = null) => StartInternal(config, true);
+
+        /// <summary>
+        /// Requests timeBeginPeriod(1) - You should call TimeEndPeriod1 when not required anymore
+        /// </summary>
+        public static void TimeBeginPeriod1()
+        {
+            lock (lockEngine)
+            {
+                timePeriod++;
+
+                if (timePeriod == 1)
+                {
+                    Log.Trace("timeBeginPeriod(1)");
+                    Utils.NativeMethods.TimeBeginPeriod(1);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Stops previously requested timeBeginPeriod(1)
+        /// </summary>
+        public static void TimeEndPeriod1()
+        {
+            lock (lockEngine)
+            {
+                timePeriod--;
+
+                if (timePeriod == 0)
+                {
+                    Log.Trace("timeEndPeriod(1)");
+                    Utils.NativeMethods.TimeEndPeriod(1);
+                }
+            }
+        }
 
         private static void StartInternal(EngineConfig config = null, bool async = false)
         {
@@ -106,14 +140,11 @@ namespace FlyleafLib
                     Players[0].Dispose();
             };
 
-            if (Config.HighPerformaceTimers)
-                Utils.NativeMethods.TimeBeginPeriod(1);
-
             Logger.SetOutput();
 
             Log = new LogHandler("[FlyleafEngine] ");
 
-            Audio   = new AudioEngine();
+            Audio = new AudioEngine();
         }
 
         private static void StartInternalNonUI()
