@@ -379,7 +379,9 @@ namespace FlyleafLib.MediaPlayer
         }
         bool _ReversePlayback;
 
-        public object       Tag                 { get; set; }
+        public object       Tag                 { get => tag; set => Set(ref  tag, value); }
+        object tag;
+
         public string       LastError           { get => lastError; set => Set(ref _LastError, value); } 
         string _LastError, lastError;
         bool decoderHasEnded => decoder != null && (VideoDecoder.Status == MediaFramework.Status.Ended || (VideoDecoder.Disposed && AudioDecoder.Status == MediaFramework.Status.Ended));
@@ -442,7 +444,7 @@ namespace FlyleafLib.MediaPlayer
             }
 
             Engine.AddPlayer(this);
-            decoder = new DecoderContext(Config, PlayerId);
+            decoder = new DecoderContext(Config, PlayerId) { Tag = this };
 
             //decoder.OpenPlaylistItemCompleted              += Decoder_OnOpenExternalSubtitlesStreamCompleted;
             

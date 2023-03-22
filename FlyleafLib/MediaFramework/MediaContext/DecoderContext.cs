@@ -37,7 +37,8 @@ namespace FlyleafLib.MediaFramework.MediaContext
          */
 
         #region Properties
-        public bool                 EnableDecoding      { get ; set; }
+        public object               Tag                 { get; set; } // Upper Layer Object (eg. Player, Downloader) - mainly for plugins to access it
+        public bool                 EnableDecoding      { get; set; }
         public new bool             Interrupt
         { 
             get => base.Interrupt;

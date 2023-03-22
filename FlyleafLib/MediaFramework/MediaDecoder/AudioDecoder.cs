@@ -24,8 +24,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 Frames              { get; protected set; } = new ConcurrentQueue<AudioFrame>();
 
         static AVSampleFormat   AOutSampleFormat    = AVSampleFormat.AV_SAMPLE_FMT_S16;
-        static int              AOutChannelLayout   = AV_CH_LAYOUT_STEREO;
-        static int              AOutChannels        = av_get_channel_layout_nb_channels((ulong)AOutChannelLayout);
+        static ulong            AOutChannelLayout   = AV_CH_LAYOUT_STEREO;
+        static int              AOutChannels        = av_get_channel_layout_nb_channels(AOutChannelLayout);
 
         SwrContext*             swrCtx;
         byte[]                  circularBuffer;
@@ -60,7 +60,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             av_opt_set_int(swrCtx,           "in_sample_rate",           codecCtx->sample_rate, 0);
             av_opt_set_sample_fmt(swrCtx,    "in_sample_fmt",            codecCtx->sample_fmt, 0);
 
-            av_opt_set_int(swrCtx,           "out_channel_layout",       AOutChannelLayout, 0);
+            av_opt_set_int(swrCtx,           "out_channel_layout",       (long)AOutChannelLayout, 0);
             av_opt_set_int(swrCtx,           "out_channel_count",        AOutChannels, 0);
             av_opt_set_int(swrCtx,           "out_sample_rate",          codecCtx->sample_rate, 0);
             av_opt_set_sample_fmt(swrCtx,    "out_sample_fmt",           AOutSampleFormat, 0);

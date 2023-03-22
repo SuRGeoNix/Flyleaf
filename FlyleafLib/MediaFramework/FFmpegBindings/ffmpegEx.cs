@@ -31,7 +31,7 @@ namespace FFmpeg.AutoGen
             public long cur_timestamp;
         }
 
-        public struct segment
+        public struct Segment
         {
             public long duration;
             public long url_offset;
@@ -41,7 +41,7 @@ namespace FFmpeg.AutoGen
             public KeyType key_type;
             public byte_array16 iv;
             /* associated Media Initialization Section, treated as a segment */
-            public segment *init_section;
+            public Segment *init_section;
         }
 
         public enum KeyType : int
@@ -84,7 +84,7 @@ namespace FFmpeg.AutoGen
             public int time_offset_flag;    // Added in 5.1
             public long start_time_offset;  // Added in 5.1
             public int n_segments;
-            public segment **segments;
+            public Segment **segments;
             public int needed;
             public int broken;
             public long cur_seq_no;
