@@ -63,7 +63,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         static VideoDecoder()
         {
-            if (Engine.FFmpeg.IsVer5)
+            if (Engine.FFmpeg.IsVer5OrGreater)
             {
                 HW_PIX_FMT              -= 2;
                 //AV_PIX_FMT_P010LE       -= 2;
