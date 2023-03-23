@@ -61,13 +61,13 @@ namespace FlyleafLib.MediaPlayer
             e.Handled = KeyUp(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
         }
 
-        private static bool KeyDown(Player player, Key key)
+        public static bool KeyDown(Player player, Key key)
         {
             if (player == null)
                 return false;
 
             player.Activity.RefreshActive();
-
+            
             if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
                 return false;
 
@@ -86,7 +86,7 @@ namespace FlyleafLib.MediaPlayer
 
             return false;
         }
-        private static bool KeyUp(Player player, Key key)
+        public static bool KeyUp(Player player, Key key)
         {
             if (player == null)
                 return false;

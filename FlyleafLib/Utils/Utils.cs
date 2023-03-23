@@ -314,7 +314,7 @@ namespace FlyleafLib
 
         public static string FindFileBelow(string filename)
         {
-            string current = Directory.GetCurrentDirectory();
+            string current = AppDomain.CurrentDomain.BaseDirectory;
 
             while (current != null)
             {
@@ -342,7 +342,7 @@ namespace FlyleafLib
 
         public static string FindFolderBelow(string folder)
         {
-            string current = Directory.GetCurrentDirectory();
+            string current = AppDomain.CurrentDomain.BaseDirectory;
 
             while (current != null)
             {
