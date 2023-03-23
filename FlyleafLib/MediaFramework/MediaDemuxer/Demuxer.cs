@@ -347,8 +347,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         #if NET6_0_OR_GREATER
                         // Workaround to fix a weird issue while opening gdigrab from an non-UI thread after 20-40 sec. of demuxing
                         // [gdigrab @ 0000019affe3f2c0] Failed to capture image (error 6) or (error 8)
+                        // Update: Same happens with other av device formats (such as decklink)
                         
-                        if (inFmt != null && Utils.BytePtrToStringUTF8(inFmt->name) == "gdigrab")
+                        if (inFmt != null)
                             Utils.UIInvoke(() =>
                             {
                                 // Parse Options to AV Dictionary Format Options
