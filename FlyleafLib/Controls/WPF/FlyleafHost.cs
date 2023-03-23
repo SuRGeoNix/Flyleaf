@@ -631,10 +631,10 @@ namespace FlyleafLib.Controls.WPF
             OwnerHandle = new WindowInteropHelper(Owner).EnsureHandle();
             matrix = PresentationSource.FromVisual(Owner).CompositionTarget.TransformFromDevice;
             HostDataContext = DataContext;
-            Owner.LocationChanged += Owner_LocationChanged;
+            //Owner.LocationChanged += Owner_LocationChanged;
 
             ZOrderHandler.Register(Owner);
-
+            
             if (IsVisible)
             {
                 Surface.Show();
@@ -693,12 +693,12 @@ namespace FlyleafLib.Controls.WPF
             if (!IsVisible || !IsAttached || IsFullScreen || IsResizing)
                 return;
 
-            Rect rectInit = new Rect(matrix.Transform(PointToScreen(zeroPoint)), RenderSize);
+            Rect rectInit = new Rect(TranslatePoint(zeroPoint, Owner), RenderSize);
             Rect rectIntersect = rectInit;
 
             FrameworkElement parent = this;
             while ((parent = VisualTreeHelper.GetParent(parent) as FrameworkElement) != null)
-                rectIntersect.Intersect(new Rect(matrix.Transform(parent.PointToScreen(zeroPoint)), parent.RenderSize));
+                rectIntersect.Intersect(new Rect(TranslatePoint(zeroPoint, Owner), parent.RenderSize));
 
             if (rectInit != rectInitLast)
             {
@@ -1045,17 +1045,17 @@ namespace FlyleafLib.Controls.WPF
             // Resize (MouseDown + ResizeSide != 0)
             else if (IsResizing)
             {
-                Point x1 = new Point(Overlay.Left, Overlay.Top);
+                Point x1 = new Point(Surface.Left, Surface.Top);
 
-                Resize(Overlay, OverlayHandle, cur, ResizingSide, CurResizeRatio);
+                Resize(Surface, SurfaceHandle, cur, ResizingSide, CurResizeRatio);
 
                 if (IsAttached)
                 {
-                    Point x2 = new Point(Overlay.Left, Overlay.Top);
+                    Point x2 = new Point(Surface.Left, Surface.Top);
                     
                     MarginTarget.Margin = new Thickness(MarginTarget.Margin.Left + x2.X - x1.X, MarginTarget.Margin.Top + x2.Y - x1.Y, MarginTarget.Margin.Right, MarginTarget.Margin.Bottom);
-                    Width = Overlay.Width;
-                    Height = Overlay.Height;
+                    Width = Surface.Width;
+                    Height = Surface.Height;
                 }
             }
 
@@ -1094,8 +1094,8 @@ namespace FlyleafLib.Controls.WPF
                 {
                     if (DetachedDragMove == AvailableWindows.Overlay || DetachedDragMove == AvailableWindows.Both)
                     {
-                        Overlay.Left  += cur.X - mouseLeftDownPoint.X;
-                        Overlay.Top   += cur.Y - mouseLeftDownPoint.Y;
+                        Surface.Left  += cur.X - mouseLeftDownPoint.X;
+                        Surface.Top   += cur.Y - mouseLeftDownPoint.Y;
                     }
                 }
             }
@@ -1451,6 +1451,10 @@ namespace FlyleafLib.Controls.WPF
             Overlay.ShowInTaskbar = false;
             Surface.Topmost = wasTopmost;
 
+            SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, (IntPtr)(WindowStyles.WS_CHILD | WindowStyles.WS_VISIBLE));
+            SetParent(OverlayHandle, SurfaceHandle);
+            SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, 0, 0, (UInt32)(SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
+            
             if (IsStandAlone)
             {
                 Surface.Width   = Overlay.Width;
@@ -1470,9 +1474,9 @@ namespace FlyleafLib.Controls.WPF
             Overlay.SetBinding(Window.MaxHeightProperty,    new Binding(nameof(Surface.MaxHeight))  { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
             Overlay.SetBinding(Window.WidthProperty,        new Binding(nameof(Surface.Width))      { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
             Overlay.SetBinding(Window.HeightProperty,       new Binding(nameof(Surface.Height))     { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
-            Overlay.SetBinding(Window.LeftProperty,         new Binding(nameof(Surface.Left))       { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
-            Overlay.SetBinding(Window.TopProperty,          new Binding(nameof(Surface.Top))        { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
-
+            //Overlay.SetBinding(Window.LeftProperty,         new Binding(nameof(Surface.Left))       { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
+            //Overlay.SetBinding(Window.TopProperty,          new Binding(nameof(Surface.Top))        { Source = Surface, Mode = System.Windows.Data.BindingMode.TwoWay });
+            
             Overlay.KeyUp       += Overlay_KeyUp;
             Overlay.KeyDown     += Overlay_KeyDown;
             Overlay.Closed      += Overlay_Closed;
@@ -1568,6 +1572,9 @@ namespace FlyleafLib.Controls.WPF
             if (DetachedTopMost)
                 Surface.Topmost = false;
 
+            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, (IntPtr)(WindowStyles.WS_CHILD | WindowStyles.WS_VISIBLE));
+            SetParent(SurfaceHandle, OwnerHandle);
+
             Surface.MinWidth = MinWidth;
             Surface.MinHeight = MinHeight;
 
@@ -1655,6 +1662,9 @@ namespace FlyleafLib.Controls.WPF
             }
             Rect final = new Rect(newPos.X, newPos.Y, newSize.Width, newSize.Height);
 
+            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, (IntPtr)(WindowStyles.WS_BORDER | WindowStyles.WS_VISIBLE));
+            SetParent(SurfaceHandle, IntPtr.Zero);
+
             SetRect(final);
             ReSetVisibleRect();
 
@@ -1678,7 +1688,12 @@ namespace FlyleafLib.Controls.WPF
             if (IsFullScreen)
             {
                 if (IsAttached)
+                {
+                    SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, (IntPtr)(WindowStyles.WS_BORDER | WindowStyles.WS_VISIBLE));
+                    SetParent(SurfaceHandle, IntPtr.Zero);
+                    
                     ReSetVisibleRect();
+                }
                 else
                 {
                     beforeFullScreenPos = new Point(Surface.Left, Surface.Top);
@@ -1708,6 +1723,9 @@ namespace FlyleafLib.Controls.WPF
 
                 if (IsAttached)
                 {
+                    SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, (IntPtr)(WindowStyles.WS_CHILD | WindowStyles.WS_VISIBLE));
+                    SetParent(SurfaceHandle, OwnerHandle);
+                    
                     rectInitLast = rectIntersectLast = Rect.Empty;
                     Host_LayoutUpdated(null, null);
                 }
@@ -1741,7 +1759,7 @@ namespace FlyleafLib.Controls.WPF
             SetWindowRgn(SurfaceHandle, CreateRectRgn((int)(rect.X * DpiX), (int)(rect.Y * DpiY), (int)(rect.Right * DpiX), (int)(rect.Bottom * DpiY)), true);
 
             if (OverlayHandle != IntPtr.Zero)
-                SetWindowRgn(OverlayHandle, CreateRectRgn((int)(rect.X * DpiX), (int)(rect.Y * DpiY), (int)(rect.Right * DpiX), (int)(rect.Bottom * DpiY)), true);
+                SetWindowRgn(OverlayHandle, CreateRectRgn(0, 0, (int)(rect.Width * DpiX), (int)(rect.Height * DpiY)), true);
         }
 
         /// <summary>
