@@ -427,6 +427,51 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     InitializeSwapChain(ControlHandle);
             }
         }
+        public IDXGISwapChain2 InitializeWinUISwapChain()
+        {
+            lock (lockDevice)
+            {
+                if (!SCDisposed)
+                    DisposeSwapChain();
+
+                if (Disposed)
+                    Initialize(false);
+
+                SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+                {
+                    Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
+                    Width       = 1,
+                    Height      = 1,
+                    AlphaMode   = AlphaMode.Ignore,
+                    BufferUsage = Usage.RenderTargetOutput,
+                    SwapEffect  = SwapEffect.FlipSequential,
+                    Scaling     = Scaling.Stretch,
+                    BufferCount = Config.Video.SwapBuffers,
+                    SampleDescription = new SampleDescription(1, 0)
+                };
+                Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers");
+
+                try
+                {
+                    swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, swapChainDescription);
+                } catch (Exception e)
+                {
+                    Log.Error($"Initialization failed [{e.Message}]"); 
+
+                    // TODO fallback to WARP?
+
+                    return null;
+                }
+
+                backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
+                backBufferRtv = Device.CreateRenderTargetView(backBuffer);
+                SCDisposed = false;
+                ResizeBuffers(1, 1);
+
+                return swapChain.QueryInterface<IDXGISwapChain2>();
+            }
+            
+        }
         public void InitializeSwapChain(IntPtr handle)
         {
             if (cornerRadius != zeroCornerRadius && (Device.FeatureLevel >= FeatureLevel.Level_10_0 && (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")))
@@ -525,13 +570,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                 SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
                 {
-                    Format = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
-                    Width = ControlWidth,
-                    Height = ControlHeight,
-                    AlphaMode = AlphaMode.Premultiplied,
+                    Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
+                    Width       = ControlWidth,
+                    Height      = ControlHeight,
+                    AlphaMode   = AlphaMode.Premultiplied,
                     BufferUsage = Usage.RenderTargetOutput,
-                    SwapEffect = SwapEffect.FlipSequential,
-                    Scaling = Scaling.Stretch,
+                    SwapEffect  = SwapEffect.FlipSequential,
+                    Scaling     = Scaling.Stretch,
                     BufferCount = Config.Video.SwapBuffers,
                     SampleDescription = new SampleDescription(1, 0),
                 };
@@ -896,7 +941,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             clip.Dispose();
             dCompDevice.Commit().CheckError();
         }
-        internal void ResizeBuffers(int width, int height)
+        public void ResizeBuffers(int width, int height)
         {
             lock (lockDevice)
             {

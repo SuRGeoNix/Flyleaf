@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "FlyleafPlayer (WinUI) (Package)": {
+      "commandName": "MsixPackage",
+      "nativeDebugging": false
+    },
+    "FlyleafPlayer (WinUI) (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

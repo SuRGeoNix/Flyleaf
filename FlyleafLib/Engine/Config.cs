@@ -200,13 +200,13 @@ namespace FlyleafLib
             /// <summary>
             /// Folder to save recordings (when filename is not specified)
             /// </summary>
-            public string   FolderRecordings            { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Recordings");
+            public string   FolderRecordings            { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Recordings");
 
             /// <summary>
             /// Folder to save snapshots (when filename is not specified)
             /// </summary>
 
-            public string   FolderSnapshots             { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "Snapshots");
+            public string   FolderSnapshots             { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapshots");
 
             /// <summary>
             /// Forces CurTime/SeekBackward/SeekForward to seek accurate on video

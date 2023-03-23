@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+	<TargetFrameworks>net6.0-windows10.0.19041.0;net7.0-windows10.0.19041.0</TargetFrameworks>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>FlyleafLib.Controls.WinUI</RootNamespace>
+    <RuntimeIdentifiers>win10-x86;win10-x64;win10-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+      <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.2.221109.1" />
+      <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.755" />
+      <PackageReference Include="Vortice.WinUI" Version="2.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FlyleafLib\FlyleafLib.csproj" />
+  </ItemGroup>
+</Project>

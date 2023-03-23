@@ -1,0 +1,24 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:FlyleafLib.Controls.WinUI">
+
+    <Style TargetType="local:FlyleafHost" >
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:FlyleafHost">
+                    <!--<Border
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}">-->
+
+                    <SwapChainPanel x:Name="SCP">
+                        <local:KeyboardFocusControl x:Name="KFC" HorizontalAlignment="Left" Height="0" VerticalAlignment="Top" Width="0"/>
+                    </SwapChainPanel>
+
+                    <!--</Border>-->
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>
