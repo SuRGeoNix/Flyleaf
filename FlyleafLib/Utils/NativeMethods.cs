@@ -93,6 +93,9 @@ namespace FlyleafLib
             [DllImport("user32.dll")]
             public static extern bool GetWindowInfo(IntPtr hwnd, ref WINDOWINFO pwi);
 
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern void SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
+
             [StructLayout(LayoutKind.Sequential)]
             public struct WINDOWINFO
             {
@@ -154,6 +157,14 @@ namespace FlyleafLib
                  DWLP_USER = 0x8,
                  DWLP_MSGRESULT = 0x0,
                  DWLP_DLGPROC = 0x4
+            }
+
+            [Flags]
+            public enum WindowStyles : int
+            {
+                WS_BORDER = 0x800000,
+                WS_CHILD = 0x40000000,
+                WS_VISIBLE = 0x10000000,
             }
 
             public delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
