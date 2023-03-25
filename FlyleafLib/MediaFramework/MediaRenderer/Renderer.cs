@@ -42,6 +42,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         public int              ControlWidth    { get; private set; }
         public int              ControlHeight   { get; private set; }
         internal IntPtr         ControlHandle;
+        internal Action<IDXGISwapChain2> 
+                                SwapChainWinUIClbk;
 
         public ID3D11Device     Device          { get; private set; }
         public GPUAdapter       GPUAdapter      { get; private set; }
@@ -424,64 +426,22 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 }
 
                 if (swapChain)
-                    InitializeSwapChain(ControlHandle);
-            }
-        }
-        public IDXGISwapChain2 InitializeWinUISwapChain()
-        {
-            lock (lockDevice)
-            {
-                if (!SCDisposed)
-                    DisposeSwapChain();
-
-                if (Disposed)
-                    Initialize(false);
-
-                SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
                 {
-                    Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
-                    Width       = 1,
-                    Height      = 1,
-                    AlphaMode   = AlphaMode.Ignore,
-                    BufferUsage = Usage.RenderTargetOutput,
-                    SwapEffect  = SwapEffect.FlipSequential,
-                    Scaling     = Scaling.Stretch,
-                    BufferCount = Config.Video.SwapBuffers,
-                    SampleDescription = new SampleDescription(1, 0)
-                };
-                Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers");
-
-                try
-                {
-                    swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, swapChainDescription);
-                } catch (Exception e)
-                {
-                    Log.Error($"Initialization failed [{e.Message}]"); 
-
-                    // TODO fallback to WARP?
-
-                    return null;
+                    if (ControlHandle != IntPtr.Zero)
+                        InitializeSwapChain(ControlHandle);
+                    else if (SwapChainWinUIClbk != null)
+                        InitializeWinUISwapChain();
                 }
-
-                backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
-                backBufferRtv = Device.CreateRenderTargetView(backBuffer);
-                SCDisposed = false;
-                ResizeBuffers(1, 1);
-
-                return swapChain.QueryInterface<IDXGISwapChain2>();
             }
-            
         }
-        public void InitializeSwapChain(IntPtr handle)
+        
+        internal void InitializeSwapChain(IntPtr handle)
         {
             if (cornerRadius != zeroCornerRadius && (Device.FeatureLevel >= FeatureLevel.Level_10_0 && (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")))
             {
                 InitializeCompositionSwapChain(handle);
                 return;
             }
-            
-            if (handle == IntPtr.Zero)
-                return;
 
             lock (lockDevice)
             {
@@ -550,11 +510,54 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 ResizeBuffers(rect.Right - rect.Left, rect.Bottom - rect.Top);
             }
         }
-        public void InitializeCompositionSwapChain(IntPtr handle)
+        internal void InitializeWinUISwapChain()
         {
-            if (handle == IntPtr.Zero)
-                return;
+            lock (lockDevice)
+            {
+                if (!SCDisposed)
+                    DisposeSwapChain();
 
+                if (Disposed)
+                    Initialize(false);
+
+                SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+                {
+                    Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
+                    Width       = 1,
+                    Height      = 1,
+                    AlphaMode   = AlphaMode.Ignore,
+                    BufferUsage = Usage.RenderTargetOutput,
+                    SwapEffect  = SwapEffect.FlipSequential,
+                    Scaling     = Scaling.Stretch,
+                    BufferCount = Config.Video.SwapBuffers,
+                    SampleDescription = new SampleDescription(1, 0)
+                };
+                Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers");
+
+                try
+                {
+                    swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, swapChainDescription);
+                } catch (Exception e)
+                {
+                    Log.Error($"Initialization failed [{e.Message}]"); 
+
+                    // TODO fallback to WARP?
+
+                    SwapChainWinUIClbk?.Invoke(null);
+                    return;
+                }
+
+                backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
+                backBufferRtv = Device.CreateRenderTargetView(backBuffer);
+                SCDisposed = false;
+                ResizeBuffers(1, 1);
+
+                SwapChainWinUIClbk?.Invoke(swapChain.QueryInterface<IDXGISwapChain2>());
+            }
+            
+        }
+        private void InitializeCompositionSwapChain(IntPtr handle)
+        {
             lock (lockDevice)
             {
                 if (!SCDisposed)
@@ -660,6 +663,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     RemoveWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero);
                     ControlHandle = IntPtr.Zero;
                 }
+
+                SwapChainWinUIClbk = null;
                 
                 dCompVisual?.Dispose();
                 dCompTarget?.Dispose();
@@ -759,9 +764,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             lock (lockDevice)
             {
                 var controlHandle = ControlHandle;
+                var swapChainClbk = SwapChainWinUIClbk;
 
                 Dispose();
                 ControlHandle = controlHandle;
+                SwapChainWinUIClbk = swapChainClbk;
                 Initialize();
             }
         }
@@ -881,7 +888,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 VideoDecoder.DisposeFrame(LastFrame);
                 VideoRect = new RawRect(0, 0, VideoDecoder.VideoStream.Width, VideoDecoder.VideoStream.Height);
 
-                if (ControlHandle != IntPtr.Zero)
+                if (ControlHandle != IntPtr.Zero || SwapChainWinUIClbk != null)
                     SetViewport();
                 else
                 {
@@ -945,9 +952,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             lock (lockDevice)
             {
-                if (Disposed)
+                if (SCDisposed)
                     return;
-
+                
                 ControlWidth = width;
                 ControlHeight = height;
 
@@ -1095,7 +1102,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         public void Present()
         {
-            if (ControlHandle == IntPtr.Zero)
+            if (SCDisposed)
                 return;
 
             // NOTE: We don't have TimeBeginPeriod, FpsForIdle will not be accurate
@@ -1345,18 +1352,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     else
                     {
                         if (dCompVisual == null)
-                        {
                             context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                        }
                         else
-                        {
                             context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
-                        }
+
                         swapChain.Present(Config.Video.VSync, PresentFlags.None);
                         if (dCompVisual != null)
-                        {
                             dCompDevice.Commit();
-                        }
                     }
                 }
                 catch (Exception e)

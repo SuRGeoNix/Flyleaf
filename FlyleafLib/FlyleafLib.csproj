@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.11</Version>
+	<Version>3.6.12</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		DecoderContext: Fixes a rare dead lock while opening a stream and seeking
-		Demuxer: Introduces Config.Demuxer.AllowFindStreamInfo which can be disabled for faster opening of the input
-		Engine: Adds FFmpeg.Autogen latest 5.1.2.1 support (removes deprecated LoadedLibraries)
-		Engine: Improves High Performance Timers for multiple players and enables them only when required
-		Updates Vortice
+		Demuxer: Fixes an issue with avdevices that require to open the input in UI thread (eg. decklink)
+		Engine: Adds FFmpeg v6 support (by adding latest FFmpeg.Autogen Nuget to your app)
+		Renderer: Adds WinUI 3.0 support (for SwapChainPanel)
+		Player: Renames WPFHost/WFHost to Host which now includes also the WinUI Host
 	</PackageReleaseNotes>
   </PropertyGroup>
 

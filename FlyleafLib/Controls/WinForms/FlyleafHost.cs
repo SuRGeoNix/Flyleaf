@@ -8,7 +8,7 @@ using FlyleafLib.MediaPlayer;
 
 namespace FlyleafLib.Controls.WinForms
 {
-    public partial class FlyleafHost : UserControl, INotifyPropertyChanged
+    public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChanged
     {
         /* TODO
          * 
@@ -45,9 +45,6 @@ namespace FlyleafLib.Controls.WinForms
                     FullScreen();
                 else
                     NormalScreen();
-
-                if (Player != null)
-                    Player.IsFullScreen = _IsFullScreen;
                 } 
             }
 
@@ -217,8 +214,7 @@ namespace FlyleafLib.Controls.WinForms
                 Log.Debug($"De-assign Player #{oldPlayer.PlayerId}");
 
                 oldPlayer.VideoDecoder.DestroySwapChain();
-                oldPlayer.WFHost = null;
-                oldPlayer.IsFullScreen = false;
+                oldPlayer.Host = null;
             }
 
             if (Player == null)
@@ -227,14 +223,13 @@ namespace FlyleafLib.Controls.WinForms
             Log.Prefix = ("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost #{Player.PlayerId}] ";
 
             // De-assign new Player's Handle/FlyleafHost
-            if (Player.WFHost != null)
-                Player.WFHost.Player = null;
+            Player.Host?.Player_Disposed();
+                
 
             // Assign new Player's (Handle/FlyleafHost)
             Log.Debug($"Assign Player #{Player.PlayerId}");
 
-            Player.WFHost = this;
-            Player.IsFullScreen = IsFullScreen;
+            Player.Host = this;
             Player.VideoDecoder.CreateSwapChain(Handle);
 
             BackColor = Utils.WPFToWinFormsColor(Player.Config.Video.BackgroundColor);
@@ -280,7 +275,12 @@ namespace FlyleafLib.Controls.WinForms
             Raise(nameof(IsFullScreen));
         }
 
-        protected override bool IsInputKey(Keys keyData) { return Player != null && Player.WFHost != null; } // Required to allow keybindings such as arrows etc.
+        public bool Player_CanHideCursor() => Focused;
+        public bool Player_GetFullScreen() => IsFullScreen;
+        public void Player_SetFullScreen(bool value) => IsFullScreen = value;
+        public void Player_Disposed() => Player = null;
+
+        protected override bool IsInputKey(Keys keyData) { return Player != null && Player.Host != null; } // Required to allow keybindings such as arrows etc.
 
         // TBR: Related to Renderer's WndProc
         protected override void OnPaintBackground(PaintEventArgs pe)

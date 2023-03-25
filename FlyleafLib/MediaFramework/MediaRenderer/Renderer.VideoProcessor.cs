@@ -56,22 +56,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             try
             {
-                if (VideoDecoder.VideoStream != null)
-                {
-                    vpcd.InputWidth = VideoDecoder.VideoStream.Width;
-                    vpcd.InputHeight= VideoDecoder.VideoStream.Height;
-                }
-                else if (ControlHandle != IntPtr.Zero)
-                {
-                    vpcd.InputWidth = ControlWidth;
-                    vpcd.InputHeight= ControlHeight;
-                }
-                else
-                {
-                    vpcd.InputWidth = 1280;
-                    vpcd.InputHeight= 720;
-                }
-                
+                vpcd.InputWidth = 1;
+                vpcd.InputHeight= 1;
                 vpcd.OutputWidth = vpcd.InputWidth;
                 vpcd.OutputHeight= vpcd.InputHeight;
 

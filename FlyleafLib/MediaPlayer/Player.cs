@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
+using FlyleafLib.Controls;
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -13,9 +14,6 @@ using FlyleafLib.MediaFramework.MediaDemuxer;
 using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
 
-using WPFHost = FlyleafLib.Controls.WPF.FlyleafHost;
-using WFHost  = FlyleafLib.Controls.WinForms.FlyleafHost;
-
 namespace FlyleafLib.MediaPlayer
 {
     public unsafe partial class Player : NotifyPropertyChanged, IDisposable
@@ -24,18 +22,10 @@ namespace FlyleafLib.MediaPlayer
         public bool                 IsDisposed          { get; private set; }
 
         /// <summary>
-        /// FlyleafHost WinForms
-        /// (Normally you should not access this directly)
+        /// FlyleafHost (WinForms, WPF or WinUI)
         /// </summary>
-        public WFHost               WFHost              { get => _WFHost;  internal set => Set(ref _WFHost,  value); }
-        WFHost _WFHost;
-
-        /// <summary>
-        /// FlyleafHost WPF
-        /// (Normally you should not access this directly)
-        /// </summary>
-        public WPFHost              WPFHost             { get => _WPFHost; internal set => Set(ref _WPFHost, value); }
-        WPFHost _WPFHost;
+        public IHostPlayer          Host                { get => _Host; set => Set(ref _Host, value); }
+        IHostPlayer _Host;
 
         /// <summary>
         /// Player's Activity (Idle/Active/FullActive)
@@ -404,7 +394,6 @@ namespace FlyleafLib.MediaPlayer
         internal PlayerStats    stats = new PlayerStats();
         internal LogHandler     Log;
 
-        internal bool IsFullScreen;
         internal bool requiresBuffering;
         bool reversePlaybackResync;
 
@@ -481,13 +470,7 @@ namespace FlyleafLib.MediaPlayer
                     Initialize();
                     Audio.Dispose(); 
                     decoder.Dispose();
-
-                    // De-assign Player from Host
-                    if (WPFHost != null)
-                        UIInvokeIfRequired(() => { if (WPFHost != null) WPFHost.Player = null; }); // UI Required for DP
-                    else if (WFHost != null)
-                        WFHost.Player = null;
-
+                    Host?.Player_Disposed();
                     Log.Info("Disposed");
                 } catch (Exception e) { Log.Warn($"Disposed ({e.Message})"); }
 

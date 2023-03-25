@@ -199,7 +199,7 @@
 
                                 <!--Toggle Fullscreen Button-->
                                 <ToggleButton Grid.Column="6" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Background="Transparent" Focusable="False"
-                                                          IsChecked="{Binding Player.WPFHost.IsFullScreen}" 
+                                                          IsChecked="{Binding Player.Host.IsFullScreen}" 
                                                           Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}" 
                                                           materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=FullscreenExit, Size=28}"/>
                             </Grid>

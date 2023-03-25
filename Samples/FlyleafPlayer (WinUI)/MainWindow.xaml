@@ -5,11 +5,73 @@
     xmlns:local="using:FlyleafPlayer__WinUI_"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    
     xmlns:winui="using:FlyleafLib.Controls.WinUI"
+
     mc:Ignorable="d">
 
     <Grid x:Name="rootGrid">
-        <winui:FlyleafHost Player="{Binding Player}"/>
-        <TextBlock Text="Overlay" FontSize="44" Foreground="DarkRed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        <Grid.Resources>
+            <winui:TicksToTimeConverter x:Key="TicksToTime"/>
+            <winui:TicksToSecondsConverter x:Key="TicksToSeconds" />
+        </Grid.Resources>
+        
+        <winui:FullScreenContainer x:Name="FSC">
+            <winui:FlyleafHost x:Name="flyleafHost" Player="{Binding Player}">
+                <Grid VerticalAlignment="Bottom" Background="#A3000000" Margin="0 0 0 0" AllowFocusOnInteraction="False">
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="8,0,8,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!--Current Time | Slider | Duration-->
+                        <TextBlock Grid.Column="0"
+                                   HorizontalAlignment="Left" 
+                                   VerticalAlignment="Center"
+                                   Text="{Binding Player.CurTime, Converter={StaticResource TicksToTime}}"/>
+                        
+                        <Slider IsTabStop="False" Grid.Column="1" Margin="10,0,10,0" 
+                                VerticalAlignment="Center"
+                                IsThumbToolTipEnabled="False"
+                                Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" 
+                                Maximum="{Binding Player.Duration, Converter={StaticResource TicksToSeconds}}"/>
+                        
+                        <TextBlock Grid.Column="2"
+                                   HorizontalAlignment="Center" 
+                                   VerticalAlignment="Center"
+                                   Text="{Binding Player.Duration, Converter={StaticResource TicksToTime}}"/>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="btnPlayback" IsTabStop="False" Command="{Binding Player.Commands.TogglePlayPause}" IsEnabled="{Binding Player.CanPlay, Mode=OneWay}"/>
+                            <Button IsTabStop="False" Command="{Binding Player.Commands.Stop}" Margin="4 0">
+                                <SymbolIcon Symbol="Stop"/>
+                            </Button>
+                        </StackPanel>
+                        
+                        <TextBlock Grid.Column="1" Text="{Binding Player.Playlist.Selected.Title}" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="16"/>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Slider IsTabStop="False" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" Value="{Binding Player.Audio.Volume, Mode=TwoWay}" Width="100"/>
+                            <Button x:Name="btnFullScreen" IsTabStop="False" Margin="18 0 0 0" Command="{Binding Player.Commands.ToggleFullScreen}"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </winui:FlyleafHost>
+        </winui:FullScreenContainer>
     </Grid>
 </Window>

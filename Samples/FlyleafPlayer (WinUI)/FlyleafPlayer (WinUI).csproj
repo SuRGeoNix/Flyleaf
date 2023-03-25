@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="5.1.2.1" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.2.221109.1" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.3.230202101-experimental1" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.755" />
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>

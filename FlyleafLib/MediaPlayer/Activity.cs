@@ -92,13 +92,7 @@ namespace FlyleafLib.MediaPlayer
             Raise(nameof(Mode));
             player.Log.Debug(mode.ToString());
 
-            if (player.IsFullScreen && player.Activity.Mode == ActivityMode.Idle &&
-                (
-                (player.WPFHost != null && player.WPFHost.Surface != null && player.WPFHost.Surface.IsActive) ||
-                (player.WPFHost != null && player.WPFHost.Overlay != null && player.WPFHost.Overlay.IsActive) ||
-                (player.WFHost != null && player.WFHost != null && player.WFHost.Focused)
-                )
-                )
+            if (player.Activity.Mode == ActivityMode.Idle && player.Host != null && player.Host.Player_GetFullScreen() && player.Host.Player_CanHideCursor())
             {
                 lock (cursorLocker)
                 {

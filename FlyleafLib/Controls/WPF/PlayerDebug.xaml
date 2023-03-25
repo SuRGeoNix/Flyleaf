@@ -100,7 +100,7 @@
 
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource TextInfo}" Text="IsFullScreen"/>
-                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.WPFHost.IsFullScreen}"/>
+                    <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Host.IsFullScreen}"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal">
