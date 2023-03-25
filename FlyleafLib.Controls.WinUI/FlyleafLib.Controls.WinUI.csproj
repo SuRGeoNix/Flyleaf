@@ -6,10 +6,25 @@
     <RuntimeIdentifiers>win10-x86;win10-x64;win10-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
+    <Authors>SuRGeoNix</Authors>
+    <Version>1.0.0-pre</Version>
+    <Copyright>SuRGeoNix © 2023</Copyright>
+    <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
+    <PackageIcon>Flyleaf.png</PackageIcon>
+    <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageTags>flyleaf flyleaflib flyleafhost video audio winui media player element control</PackageTags>
+    <Description>FlyleafHost.WinUI: Direct3D 11 Hardware Accelerated Media Surface (based on FlyleafLib)</Description>
+    <PackageReleaseNotes>Initial version of FlyleafHost to support WinUI 3.0</PackageReleaseNotes>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\Images\Flyleaf.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
-      <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.2.221109.1" />
+      <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.3.230202101-experimental1" />
       <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.755" />
       <PackageReference Include="Vortice.WinUI" Version="2.4.2" />
   </ItemGroup>

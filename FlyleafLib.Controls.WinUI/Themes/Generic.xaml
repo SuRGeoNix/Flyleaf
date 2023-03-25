@@ -7,16 +7,22 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:FlyleafHost">
-                    <!--<Border
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}">-->
+                    <Grid>
+                        <SwapChainPanel x:Name="SCP">
+                            <local:KeyboardFocusControl x:Name="KFC" HorizontalAlignment="Left" Height="0" VerticalAlignment="Top" Width="0"/>
+                        </SwapChainPanel>
+                        <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
-                    <SwapChainPanel x:Name="SCP">
-                        <local:KeyboardFocusControl x:Name="KFC" HorizontalAlignment="Left" Height="0" VerticalAlignment="Top" Width="0"/>
-                    </SwapChainPanel>
-
-                    <!--</Border>-->
+    <Style TargetType="local:FullScreenContainer" >
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:FullScreenContainer">
+                    <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

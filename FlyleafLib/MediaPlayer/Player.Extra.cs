@@ -247,24 +247,21 @@ namespace FlyleafLib.MediaPlayer
         
         public void FullScreen()
         {
-            if (WPFHost != null)
-                WPFHost.IsFullScreen = true;
-            else if (WFHost != null)
-                WFHost.IsFullScreen = true;
+            Host?.Player_SetFullScreen(true);
         }
         public void NormalScreen()
         {
-            if (WPFHost != null)
-                WPFHost.IsFullScreen = false;
-            else if (WFHost != null)
-                WFHost.IsFullScreen = false;
+            Host?.Player_SetFullScreen(false);
         }
         public void ToggleFullScreen()
         {
-            if (IsFullScreen)
-                NormalScreen();
+            if (Host == null)
+                return;
+
+            if (Host.Player_GetFullScreen())
+                Host.Player_SetFullScreen(false);
             else
-                FullScreen();
+                Host.Player_SetFullScreen(true);
         }
 
         /// <summary>

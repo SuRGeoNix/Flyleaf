@@ -46,10 +46,10 @@
                     <Trigger Property="IsMouseOver" Value="True">
                         <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
                     </Trigger>
-                    <DataTrigger Binding="{Binding Player.WPFHost.Surface.IsMouseOver}" Value="True">
+                    <DataTrigger Binding="{Binding Player.Host.Surface.IsMouseOver}" Value="True">
                         <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
                     </DataTrigger>
-                    <DataTrigger Binding="{Binding Player.WPFHost.IsFullScreen}" Value="True">
+                    <DataTrigger Binding="{Binding Player.Host.IsFullScreen}" Value="True">
                         <Setter Property="BorderBrush" Value="#01000000"/>
                     </DataTrigger>
                     <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Active">
@@ -58,7 +58,7 @@
                     <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
                         <Setter Property="BorderBrush" Value="#01000000"/>
                     </DataTrigger>
-                    <DataTrigger Binding="{Binding Player.WPFHost.IsResizing}" Value="True">
+                    <DataTrigger Binding="{Binding Player.Host.IsResizing}" Value="True">
                         <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
                     </DataTrigger>
                 </Style.Triggers>
@@ -111,7 +111,7 @@
                         
                         <Button Focusable="False" x:Name="BtnMinimize" Content="{materialDesign:PackIcon Kind=Minimize,Size=30}" VerticalContentAlignment="Bottom" Style="{StaticResource MaterialDesignIconButton}" Click="BtnMinimize_Click"/>
                         <ToggleButton Grid.Column="6" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Background="Transparent" Focusable="False"
-                                                          IsChecked="{Binding Player.WPFHost.IsFullScreen}" 
+                                                          IsChecked="{Binding Player.Host.IsFullScreen}" 
                                                           Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}" 
                                                           materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=FullscreenExit, Size=28}"/>
                         <Button x:Name="BtnClose" Click="BtnClose_Click" Content="{materialDesign:PackIcon Kind=Close,Size=30}" Style="{StaticResource MaterialDesignIconButton}" />

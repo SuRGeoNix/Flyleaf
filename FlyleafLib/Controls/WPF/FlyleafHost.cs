@@ -13,11 +13,10 @@ using static FlyleafLib.Utils.NativeMethods;
 
 using Binding = System.Windows.Data.Binding;
 using Brushes = System.Windows.Media.Brushes;
-using Panel = System.Windows.Controls.Panel;
 
 namespace FlyleafLib.Controls.WPF
 {
-    public class FlyleafHost : ContentControl, IDisposable
+    public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     {
         /* -= FlyleafHost Properties Notes =-
 
@@ -506,9 +505,6 @@ namespace FlyleafLib.Controls.WPF
 
             FlyleafHost host = d as FlyleafHost;
             host.RefreshNormalFullScreen();
-
-            if (host.Player != null)
-                host.Player.IsFullScreen = host.IsFullScreen;
         }
         private static void OnIsMinimizedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -1359,8 +1355,7 @@ namespace FlyleafLib.Controls.WPF
 
                 oldPlayer.Video.PropertyChanged -= Player_Video_PropertyChanged;
                 oldPlayer.VideoDecoder.DestroySwapChain();
-                oldPlayer.WPFHost = null;
-                oldPlayer.IsFullScreen = false;
+                oldPlayer.Host = null;
             }
 
             if (Player == null)
@@ -1369,8 +1364,7 @@ namespace FlyleafLib.Controls.WPF
             Log.Prefix = ("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost #{Player.PlayerId}] ";
 
             // De-assign new Player's Handle/FlyleafHost
-            if (Player.WPFHost != null)
-                Player.WPFHost.Player = null;
+            Player.Host?.Player_Disposed();    
 
             if (Player == null) // We might just de-assign our Player
                 return;
@@ -1378,9 +1372,8 @@ namespace FlyleafLib.Controls.WPF
             // Assign new Player's (Handle/FlyleafHost)
             Log.Debug($"Assign Player #{Player.PlayerId}");
 
-            Player.WPFHost = this;
+            Player.Host = this;
             Player.Activity.Timeout = ActivityTimeout;
-            Player.IsFullScreen = IsFullScreen;
             Player.renderer.CornerRadius = IsFullScreen ? zeroCornerRadius : CornerRadius;
 
             if (CornerRadius == zeroCornerRadius)
@@ -1790,6 +1783,11 @@ namespace FlyleafLib.Controls.WPF
                 Owner   = null;
             }
         }
+
+        public bool Player_CanHideCursor() => (Surface != null && Surface.IsActive) || (Overlay != null && Overlay.IsActive);
+        public bool Player_GetFullScreen() => IsFullScreen;
+        public void Player_SetFullScreen(bool value) => IsFullScreen = value;
+        public void Player_Disposed() => UIInvokeIfRequired(() => Player = null);
         #endregion
     }
 

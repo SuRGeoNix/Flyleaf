@@ -91,6 +91,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             CreateRenderer();
             Renderer.InitializeSwapChain(handle);
         }
+        public void CreateSwapChain(Action<IDXGISwapChain2> swapChainWinUIClbk)
+        {
+            Renderer.SwapChainWinUIClbk = swapChainWinUIClbk;
+            if (Renderer.SwapChainWinUIClbk != null)
+                Renderer.InitializeWinUISwapChain();
+
+        }
         public void DestroySwapChain() => Renderer?.DisposeSwapChain();
 
         #region Video Acceleration (Should be disposed seperately)
