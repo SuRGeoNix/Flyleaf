@@ -1,9 +1,8 @@
 using Microsoft.UI;
-using Microsoft.UI.Content;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Hosting;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,6 +14,11 @@ namespace FlyleafLib.Controls.WinUI;
 
 public sealed class FullScreenContainer : ContentControl
 {
+    public event EventHandler<EventArgs>? FullScreenEntering;
+    public event EventHandler<EventArgs>? FullScreenEnter;
+    public event EventHandler<EventArgs>? FullScreenExiting;
+    public event EventHandler<EventArgs>? FullScreenExit;
+
     public bool IsFullScreen
     {
         get { return (bool)GetValue(IsFullScreenProperty); }
@@ -35,6 +39,14 @@ public sealed class FullScreenContainer : ContentControl
             host.ExitFullScreen();
     }
 
+    public AppWindow Owner
+    {
+        get { return (AppWindow)GetValue(OwnerProperty); }
+        set { SetValue(OwnerProperty, value); }
+    }
+    public static readonly DependencyProperty OwnerProperty =
+        DependencyProperty.Register(nameof(Owner), typeof(AppWindow), typeof(FullScreenContainer), new PropertyMetadata(null));
+
     public static Window?       FSW;
     public static AppWindow?    FSWApp;
     private static Grid         FSWGrid = new();
@@ -43,15 +55,15 @@ public sealed class FullScreenContainer : ContentControl
                                 FSCInUse; // Each monitor should have one
 
     public static int           FSCCounter;
-
-    public AppWindow?           Owner;
-
     
     public static event EventHandler? CustomizeFullScreenWindow;
 
     public FullScreenContainer()
     {
         DefaultStyleKey = typeof(FullScreenContainer);
+        IsTabStop = false;
+        
+
         Loaded += (o, e) => FSCCounter++;
         Unloaded += (o, e) =>
         {
@@ -64,25 +76,44 @@ public sealed class FullScreenContainer : ContentControl
     protected override void OnApplyTemplate()
     {
         base.OnApplyTemplate();
-        
-        var visual = ElementCompositionPreview.GetElementVisual(this);
-        visual.Compositor.DispatcherQueue.TryEnqueue(() =>
-        {
-            var contentIsland = ContentIsland.FindByVisual(visual);
-            
-            foreach (IntPtr hWnd in EnumerateProcessWindowHandles(Process.GetCurrentProcess().Id))
-            {
-                WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
-                var appWin = AppWindow.GetFromWindowId(wndId);
-                
-                if (wndId == contentIsland.Window.WindowId)
-                    Owner = appWin;
-            }
 
-        });
+        // Requires WindowsAppSDK 1.3.230202101-experimental1 (Let the user set it for now or use Main/Core window)
+        //var visual = ElementCompositionPreview.GetElementVisual(this);
+        //visual.Compositor.DispatcherQueue.TryEnqueue(() =>
+        //{
+        //    var contentIsland = ContentIsland.FindByVisual(visual);
+            
+        //    foreach (IntPtr hWnd in EnumerateProcessWindowHandles(Process.GetCurrentProcess().Id))
+        //    {
+        //        WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
+        //        var appWin = AppWindow.GetFromWindowId(wndId);
+                
+        //        if (wndId == contentIsland.Window.WindowId)
+        //            Owner = appWin;
+        //    }
+        //});
+
+        if (Owner == null)
+            FindOwner();
 
         if (FSW == null)
             CreateFSW();
+    }
+
+    private void FindOwner()
+    {
+        IntPtr FSWhWnd = FSW != null ? WindowNative.GetWindowHandle(FSW) : IntPtr.Zero;
+
+        foreach (IntPtr hWnd in EnumerateProcessWindowHandles(Process.GetCurrentProcess().Id))
+        {
+            if (hWnd == FSWhWnd)
+                continue;
+
+            WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            Owner = AppWindow.GetFromWindowId(wndId);
+            break;
+                
+        }
     }
     
     private void CreateFSW()
@@ -99,7 +130,7 @@ public sealed class FullScreenContainer : ContentControl
         op.IsMinimizable = false;
         op.IsResizable = false;
         
-        FSWApp.IsShownInSwitchers = false;
+        FSWApp.IsShownInSwitchers = true;
         FSWApp.Resize(new(1,1));
         FSWApp.Hide();
 
@@ -120,6 +151,7 @@ public sealed class FullScreenContainer : ContentControl
             return;
 
         FSCInUse = this;
+        FullScreenEntering?.Invoke(this, new());
 
         // Move FSW to current FSC before FullScreen to ensure right Screen?
         var p = GetPosition();
@@ -137,12 +169,16 @@ public sealed class FullScreenContainer : ContentControl
         FSWGrid.DataContext = DataContext;
         FSWGrid.Children.Add(content);
         FSW.Activate();
+
+        FullScreenEnter?.Invoke(this, new());
     }
 
     public void ExitFullScreen()
     {
         if (FSW == null || FSWApp == null || FSCInUse == null)
             return;
+
+        FullScreenExiting?.Invoke(this, new());
 
         // Move Content from FSW to FSCInuse
         UIElement content = FSWGrid.Children[0];
@@ -158,6 +194,8 @@ public sealed class FullScreenContainer : ContentControl
         FSCInUse = null;
 
         // OwnerWindow.Activate() ?
+
+        FullScreenExit?.Invoke(this, new());
     }
 
     private PointInt32 GetPosition()

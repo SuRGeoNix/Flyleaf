@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Windowing;
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 
 using WinRT.Interop;
@@ -23,6 +25,9 @@ public sealed partial class MainWindow : Window
     SymbolIcon iconFullScreen = new SymbolIcon(Symbol.FullScreen);
     SymbolIcon iconPlay = new SymbolIcon(Symbol.Play);
     SymbolIcon iconPause = new SymbolIcon(Symbol.Pause);
+
+    LogHandler Log = new LogHandler("[Main] ");
+    AppWindow MainAppWindow;
 
     public MainWindow()
     {
@@ -50,40 +55,44 @@ public sealed partial class MainWindow : Window
 
         btnFullScreen.Content = FSC.IsFullScreen ? iconNormal : iconFullScreen;
         btnPlayback.Content = Player.Status == Status.Paused ? iconPlay : iconPause;
-
         Player.PropertyChanged += Player_PropertyChanged;
-        FSC.RegisterPropertyChangedCallback(FullScreenContainer.IsFullScreenProperty, FSC_IsFullScreenChanged);
 
         InitDragMove();
+
+        IntPtr hWnd = WindowNative.GetWindowHandle(this);
+        WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
+        MainAppWindow = AppWindow.GetFromWindowId(wndId);
+
+        FSC.FullScreenEnter += (o, e) =>
+        {
+            btnFullScreen.Content = iconNormal;
+            MainAppWindow.IsShownInSwitchers = false;
+            flyleafHost.KFC.Focus(FocusState.Keyboard);
+        };
+
+        FSC.FullScreenExit += (o, e) =>
+        {
+            btnFullScreen.Content = iconFullScreen;
+            MainAppWindow.IsShownInSwitchers = true;
+            Task.Run(() => { Thread.Sleep(10); Utils.UIInvoke(() => flyleafHost.KFC.Focus(FocusState.Keyboard)); });
+        };
+
+        #if DEBUG
+        FocusManager.GotFocus += (o, e) =>
+        {
+            if (e.NewFocusedElement is FrameworkElement fe)
+                Log.Info($"Focus to {fe.GetType()} | {fe.Name}");
+            else
+                Log.Info($"Focus to null");
+        };
+        #endif
     }
 
     private void FullScreenContainer_CustomizeFullScreenWindow(object sender, EventArgs e)
     {
-        FullScreenContainer.FSW.AppWindow.Title = Title + " (FS)";
-        FullScreenContainer.FSW.AppWindow.IsShownInSwitchers = true;
+        FullScreenContainer.FSWApp.Title = Title + " (FS)";
         FullScreenContainer.FSW.Closed += (o, e) => Close();
     }
-
-    private void FSC_IsFullScreenChanged(DependencyObject sender, DependencyProperty dp)
-    {
-        if (FSC.IsFullScreen)
-        {
-            btnFullScreen.Content = iconNormal;
-            ((OverlappedPresenter)AppWindow.Presenter).Minimize();
-            FullScreenContainer.FSW.Activate();
-            AppWindow.IsShownInSwitchers = false;
-        }
-        else
-        {
-            btnFullScreen.Content = iconFullScreen;
-            AppWindow.IsShownInSwitchers = true;
-            ((OverlappedPresenter)AppWindow.Presenter).Restore();
-            Activate();
-        }
-
-        flyleafHost.KFC.Focus(FocusState.Keyboard);
-    }
-        
 
     private void Player_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {

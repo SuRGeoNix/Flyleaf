@@ -3,6 +3,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 
+using System;
+
 using Vortice.DXGI;
 
 using FlyleafLib.MediaPlayer;
@@ -13,8 +15,18 @@ namespace FlyleafLib.Controls.WinUI;
 [TemplatePart(Name = nameof(SCP), Type = typeof(SwapChainPanel))]
 public sealed class FlyleafHost : ContentControl, IHostPlayer
 {
+    /*
+     * Fix issue with key events / focus (in combination of those we have the issue with DoubleTap for FullScreen)
+     * Note: On PointerReleased we can't set the focus element as it will change it after that (that's why a dispatcher is required... for delay)
+     * 
+     *  1) https://github.com/microsoft/microsoft-ui-xaml/issues/7330
+     *  2) https://github.com/microsoft/microsoft-ui-xaml/issues/3986
+     *  3) https://github.com/microsoft/microsoft-ui-xaml/issues/6179
+     * 
+     */
+
     public SwapChainPanel           SCP         { get; set; } = null!;
-    public KeyboardFocusControl     KFC         { get; set; } = null!;
+    public KeyboardFocusControl?    KFC         { get; set; } = null!;
 
     public FullScreenContainer?     FSC
     {
@@ -40,6 +52,14 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
 
         host.PlayerChanged((Player)e.OldValue);
     }
+
+    public bool KeyBindings
+    {
+        get { return (bool)GetValue(KeyBindingsProperty); }
+        set { SetValue(KeyBindingsProperty, value); }
+    }
+    public static readonly DependencyProperty KeyBindingsProperty =
+        DependencyProperty.Register(nameof(KeyBindings), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(true));
 
     public int          UniqueId        { get; private set; }
 
@@ -69,7 +89,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
             }
         }
 
-        if (GetTemplateChild(nameof(KFC)) is KeyboardFocusControl kfc)
+        if (GetTemplateChild(nameof(KFC)) is KeyboardFocusControl kfc && KeyBindings)
         {
             KFC = kfc;
             KFC.KeyDown += KFC_KeyDown;
@@ -81,18 +101,27 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
         {
             SCP = scp;
             SCP.SizeChanged += SCP_SizeChanged;
-            SCP.PointerPressed += Scp_PointerPressed;
-            SCP.PointerReleased += SCP_PointerReleased;
-            SCP.DoubleTapped += SCP_DoubleTapped;
-            if (Player != null)
-                PlayerChanged(null);
+
+            if (KeyBindings) // Currently used only for keys which causes issues with KFC focus
+            {
+                SCP.PointerPressed += Scp_PointerPressed;
+                SCP.PointerReleased += SCP_PointerReleased;
+            }
+            
+            //SCP.DoubleTapped += SCP_DoubleTapped; // Disabled causes issues
         }
+        else
+            throw new Exception("SCP not found");
+
+
+        if (Player != null)
+                PlayerChanged(null);
     }
 
     private void KFC_KeyDown(object sender, KeyRoutedEventArgs e)
-        => Player.KeyDown(Player, System.Windows.Input.KeyInterop.KeyFromVirtualKey((int)e.Key));
+        { if (KeyBindings) Player.KeyDown(Player, System.Windows.Input.KeyInterop.KeyFromVirtualKey((int)e.Key)); }
     private void KFC_KeyUp(object sender, KeyRoutedEventArgs e)
-        => Player.KeyUp(Player, System.Windows.Input.KeyInterop.KeyFromVirtualKey((int)e.Key));
+        { if (KeyBindings) Player.KeyUp(Player, System.Windows.Input.KeyInterop.KeyFromVirtualKey((int)e.Key)); }
 
     private void SCP_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
@@ -112,7 +141,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
     private void SCP_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
         ((UIElement)sender).ReleasePointerCaptures();
-        DispatcherQueue.TryEnqueue(() => KFC.Focus(FocusState.Keyboard));
+        DispatcherQueue.TryEnqueue(() => KFC!.Focus(FocusState.Programmatic));
     }
     private void SCP_SizeChanged(object sender, SizeChangedEventArgs e)
     {
