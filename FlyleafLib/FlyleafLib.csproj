@@ -7,7 +7,7 @@
 	<PackageIcon>Flyleaf.png</PackageIcon>
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
-	<Description>Media Player .NET Library for WPF/WinForms (based on FFmpeg/DirectX)</Description>
+	<Description>Media Player .NET Library for WinUI/WPF/WinForms (based on FFmpeg/DirectX)</Description>
 	<Version>3.6.12</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
