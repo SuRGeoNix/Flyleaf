@@ -888,15 +888,14 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         long totalSize = frame->linesize.ToArray()[0] * textDesc.Height;
 
                         byte* dataPtr = frame->data.ToArray()[0];
-                        AVComponentDescriptor[] comps = VideoStream.PixelFormatDesc->comp.ToArray();
 
-                        for (int i=comps[0].offset; i<totalSize; i+=comps[0].step)
+                        for (int i=VideoStream.Comps[0].offset; i<totalSize; i+=VideoStream.Comps[0].step)
                             dsY.WriteByte(*(dataPtr + i));
 
-                        for (int i=comps[1].offset; i<totalSize; i+=comps[1].step)
+                        for (int i=VideoStream.Comps[1].offset; i<totalSize; i+=VideoStream.Comps[1].step)
                             dsU.WriteByte(*(dataPtr + i));
 
-                        for (int i=comps[2].offset; i<totalSize; i+=comps[2].step)
+                        for (int i=VideoStream.Comps[2].offset; i<totalSize; i+=VideoStream.Comps[2].step)
                             dsV.WriteByte(*(dataPtr + i));
 
                         mFrame.textures[0] = Renderer.Device.CreateTexture2D(textDesc,   new SubresourceData[] { dbY });
