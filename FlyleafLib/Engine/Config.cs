@@ -353,6 +353,11 @@ namespace FlyleafLib
             public long             SeekTimeout     { get; set; } =  8 * 1000 * 10000;
 
             /// <summary>
+            /// Forces Input Format
+            /// </summary>
+            public string           ForceFormat     { get; set; }
+
+            /// <summary>
             /// FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
             /// eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
             /// </summary>

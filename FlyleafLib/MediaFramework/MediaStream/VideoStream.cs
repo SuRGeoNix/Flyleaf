@@ -12,9 +12,6 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public AspectRatio                  AspectRatio         { get; set; }
         public string                       ColorRange          { get; set; }
         public string                       ColorSpace          { get; set; }
-        public int                          Comp0Step           { get; set; }
-        public int                          Comp1Step           { get; set; }
-        public int                          Comp2Step           { get; set; }
         public double                       FPS                 { get; set; }
         public long                         FrameDuration       { get ;set; }
         public int                          Height              { get; set; }
@@ -37,11 +34,11 @@ namespace FlyleafLib.MediaFramework.MediaStream
             Refresh();
         }
 
-        public override void Refresh()
+        public void Refresh(AVPixelFormat format = AVPixelFormat.AV_PIX_FMT_NONE)
         {
             base.Refresh();
 
-            PixelFormat     = (AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), AVStream->codecpar->format);
+            PixelFormat     = format == AVPixelFormat.AV_PIX_FMT_NONE ? (AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), AVStream->codecpar->format) : format;
             PixelFormatStr  = PixelFormat.ToString().Replace("AV_PIX_FMT_","").ToLower();
             PixelFormatType = PixelFormatType.Software_Sws;
 
@@ -82,10 +79,6 @@ namespace FlyleafLib.MediaFramework.MediaStream
                 PixelBits= comp0.depth;
                 IsPlanar = (pixFmtDesc->flags & AV_PIX_FMT_FLAG_PLANAR) != 0;
                 IsRGB    = (pixFmtDesc->flags & AV_PIX_FMT_FLAG_RGB   ) != 0;
-
-                Comp0Step = comp0.step;
-                Comp1Step = comp1.step;
-                Comp2Step = comp2.step;
                     
                 bool isYuv = System.Text.RegularExpressions.Regex.IsMatch(PixelFormat.ToString(), "YU|YV", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
