@@ -324,6 +324,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                     if (stream != null)
                         CustomIOContext.Initialize(stream);
+
+                    if (Config.ForceFormat != null)
+                    {
+                        inFmt = av_find_input_format(Config.ForceFormat);
+                        if (inFmt == null)
+                            return error = $"[av_find_input_format] {Config.ForceFormat} not found";
+                    }
                     else if (Engine.Config.FFmpegDevices && url.StartsWith("device://"))
                     {
                         Uri uri = new Uri(url);
@@ -349,10 +356,9 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         // [gdigrab @ 0000019affe3f2c0] Failed to capture image (error 6) or (error 8)
                         // Update: Same happens with other av device formats (such as decklink)
                         
-                        if (inFmt != null)
+                        if (deviceUrl != null)
                             Utils.UIInvoke(() =>
                             {
-                                // Parse Options to AV Dictionary Format Options
                                 AVDictionary *avopt = null;
                                 foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
                                 AVFormatContext* fmtCtxPtr = fmtCtx;
@@ -360,16 +366,13 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             });
                         else
                         {
+                        #endif
                             AVDictionary *avopt = null;
                             foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
                             AVFormatContext* fmtCtxPtr = fmtCtx;
                             ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl ?? url), inFmt, &avopt);
+                        #if NET6_0_OR_GREATER
                         }
-                        #else
-                        AVFormatContext* fmtCtxPtr = fmtCtx;
-                        AVDictionary *avopt = null;
-                        foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
-                        ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl ?? url), inFmt, &avopt);
                         #endif
 
                         if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { fmtCtx = null; return error = "Cancelled"; }
@@ -497,7 +500,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
 
                             VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
                             AVStreamToStream.Add(fmtCtx->streams[i]->index, VideoStreams[VideoStreams.Count-1]);
-                            hasVideo = VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE;
+                            hasVideo = !Config.AllowFindStreamInfo || VideoStreams[VideoStreams.Count-1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE;
 
                             break;
 

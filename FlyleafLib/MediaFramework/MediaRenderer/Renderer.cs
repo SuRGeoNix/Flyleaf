@@ -1167,9 +1167,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
                     
                     if (dCompVisual != null)
-                    {
                         dCompDevice.Commit();
-                    }
 
                     vpiv.Dispose();
                 }
@@ -1191,14 +1189,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     context.OMSetRenderTargets(backBufferRtv);
-                    if (dCompVisual == null)
-                    {
-                        context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                    }
-                    else
-                    {
-                        context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
-                    }
+                    context.ClearRenderTargetView(backBufferRtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
                     context.RSSetViewport(GetViewport);
                     context.PSSetShader(PSShaders["FlyleafPS"]);
                     context.PSSetSampler(0, samplerLinear);
@@ -1206,9 +1197,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     context.Draw(6, 0);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
                     if (dCompVisual != null)
-                    {
                         dCompDevice.Commit();
-                    }
 
                     for (int i=0; i<curSRVs.Length; i++)
                         curSRVs[i].Dispose();
@@ -1221,14 +1210,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     curSRVs[i] = Device.CreateShaderResourceView(frame.textures[i]);
 
                 context.OMSetRenderTargets(backBufferRtv);
-                if (dCompVisual == null)
-                {
-                    context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                }
-                else
-                {
-                    context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
-                }
+                context.ClearRenderTargetView(backBufferRtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
                 context.RSSetViewport(GetViewport);
                 context.PSSetShader(PSShaders["FlyleafPS"]);
                 context.PSSetSampler(0, samplerLinear);
@@ -1236,9 +1218,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 context.Draw(6, 0);
                 swapChain.Present(Config.Video.VSync, PresentFlags.None);
                 if (dCompVisual != null)
-                {
                     dCompDevice.Commit();
-                }
 
                 for (int i=0; i<curSRVs.Length; i++)
                     curSRVs[i].Dispose();
@@ -1294,14 +1274,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     }
 
                     context.OMSetRenderTargets(rtv);
-                    if (dCompVisual == null)
-                    {
-                        context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
-                    }
-                    else
-                    {
-                        context.ClearRenderTargetView(rtv, new Color4(0, 0, 0, 0));
-                    }
+                    context.ClearRenderTargetView(rtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
                     context.RSSetViewport(viewport);
                     context.PSSetShader(PSShaders["FlyleafPS"]);
                     context.PSSetSampler(0, samplerLinear);
@@ -1319,14 +1292,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     curSRVs[i] = Device.CreateShaderResourceView(frame.textures[i]);
 
                 context.OMSetRenderTargets(rtv);
-                if (dCompVisual == null)
-                {
-                    context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
-                }
-                else
-                {
-                    context.ClearRenderTargetView(rtv, new Color4(0, 0, 0, 0));
-                }
+                context.ClearRenderTargetView(rtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
                 context.RSSetViewport(viewport);
                 context.PSSetShader(PSShaders["FlyleafPS"]);
                 context.PSSetSampler(0, samplerLinear);

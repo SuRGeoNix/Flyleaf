@@ -745,8 +745,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     filledFromCodec = true;
 
                     avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
-                    Stream.AVStream->codecpar->format = (int)codecCtx->sw_pix_fmt;
-                    VideoStream.Refresh();
+                    VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.AV_PIX_FMT_NONE ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt);
                     
                     if (VideoStream.PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
                     {
@@ -891,13 +890,13 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         byte* dataPtr = frame->data.ToArray()[0];
                         AVComponentDescriptor[] comps = VideoStream.PixelFormatDesc->comp.ToArray();
 
-                        for (int i=0; i<totalSize; i+=VideoStream.Comp0Step)
+                        for (int i=comps[0].offset; i<totalSize; i+=comps[0].step)
                             dsY.WriteByte(*(dataPtr + i));
 
-                        for (int i=1; i<totalSize; i+=VideoStream.Comp1Step)
+                        for (int i=comps[1].offset; i<totalSize; i+=comps[1].step)
                             dsU.WriteByte(*(dataPtr + i));
 
-                        for (int i=3; i<totalSize; i+=VideoStream.Comp2Step)
+                        for (int i=comps[2].offset; i<totalSize; i+=comps[2].step)
                             dsV.WriteByte(*(dataPtr + i));
 
                         mFrame.textures[0] = Renderer.Device.CreateTexture2D(textDesc,   new SubresourceData[] { dbY });
