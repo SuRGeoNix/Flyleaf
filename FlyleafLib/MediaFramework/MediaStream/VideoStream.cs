@@ -12,6 +12,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public AspectRatio                  AspectRatio         { get; set; }
         public string                       ColorRange          { get; set; }
         public string                       ColorSpace          { get; set; }
+        public AVComponentDescriptor[]      Comps               { get; set; }
         public double                       FPS                 { get; set; }
         public long                         FrameDuration       { get ;set; }
         public int                          Height              { get; set; }
@@ -72,18 +73,15 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
                 AVPixFmtDescriptor* pixFmtDesc = av_pix_fmt_desc_get((AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), PixelFormat));
                 PixelFormatDesc = pixFmtDesc;
-                var comp0 = pixFmtDesc->comp.ToArray()[0];
-                var comp1 = pixFmtDesc->comp.ToArray()[1];
-                var comp2 = pixFmtDesc->comp.ToArray()[2];
-
-                PixelBits= comp0.depth;
+                Comps = PixelFormatDesc->comp.ToArray();
+                PixelBits= Comps[0].depth;
                 IsPlanar = (pixFmtDesc->flags & AV_PIX_FMT_FLAG_PLANAR) != 0;
                 IsRGB    = (pixFmtDesc->flags & AV_PIX_FMT_FLAG_RGB   ) != 0;
                     
                 bool isYuv = System.Text.RegularExpressions.Regex.IsMatch(PixelFormat.ToString(), "YU|YV", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 // YUV Planar or Packed with half U/V (No Semi-Planar Support for Software)
-                if (isYuv && pixFmtDesc->nb_components == 3 && (comp0.depth == 8 && comp1.depth == 8 && comp2.depth == 8))
+                if (isYuv && pixFmtDesc->nb_components == 3 && (Comps[0].depth == 8 && Comps[1].depth == 8 && Comps[2].depth == 8))
                     PixelFormatType = PixelFormatType.Software_Handled;
             }
         }
