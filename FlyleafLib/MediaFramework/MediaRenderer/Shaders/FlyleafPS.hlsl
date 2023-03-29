@@ -28,6 +28,8 @@ struct PixelShaderInput
 static const int RGB        = 1;
 static const int Y_UV       = 2;
 static const int Y_U_V      = 3;
+static const int YUYV       = 4;
+static const int UYVY       = 5;
 
 // hdrmethod enum
 static const int Aces       = 1;
@@ -116,6 +118,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 {
     float4 color;
     
+    // TODO: dynamic recompile without format/coefs
     if (format == Y_UV)
     {
         color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).r, TextureU_UV.Sample(Sampler, input.Texture).rg, 1.0);
@@ -124,6 +127,17 @@ float4 main(PixelShaderInput input) : SV_TARGET
     else if (format == Y_U_V)
     {
         color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).r, TextureU_UV.Sample(Sampler, input.Texture).r, TextureV.Sample(Sampler, input.Texture).r, 1.0);
+        color = mul(color, coefs[coefsIndex]);
+    }
+    // TBR (YUYV/UYVY): 4 bytes => 6 bytes RGB (should check odd/even? rga/bga | grb/arb)
+    else if (format == YUYV)
+    {
+        color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).r, TextureRGB_Y.Sample(Sampler, input.Texture).g, TextureRGB_Y.Sample(Sampler, input.Texture).a, 1.0f);
+        color = mul(color, coefs[coefsIndex]);
+    }
+    else if (format == UYVY)
+    {
+        color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).g, TextureRGB_Y.Sample(Sampler, input.Texture).r, TextureRGB_Y.Sample(Sampler, input.Texture).b, 1.0);
         color = mul(color, coefs[coefsIndex]);
     }
     else // RGB

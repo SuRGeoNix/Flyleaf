@@ -33,11 +33,13 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             RGB     = 1,
             Y_UV    = 2,
-            Y_U_V   = 3
+            Y_U_V   = 3,
+            YUYV    = 4,
+            UYVY    = 5
         }
         public void UpdateHDRtoSDR(AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
         {
-            if (VideoDecoder.VideoStream == null || VideoDecoder.VideoStream.ColorSpace != "BT2020") return;
+            if (VideoDecoder.VideoStream == null || VideoDecoder.VideoStream.ColorSpace != ColorSpace.BT2020) return;
             
             float lumin = displayData == null || displayData->has_luminance == 0 ? lastLumin : displayData->max_luminance.num / (float)displayData->max_luminance.den;
             lastLumin = lumin;

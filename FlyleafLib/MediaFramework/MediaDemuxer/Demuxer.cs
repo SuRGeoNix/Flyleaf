@@ -418,7 +418,6 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             Name        = Utils.BytePtrToStringUTF8(fmtCtx->iformat->name);
             LongName    = Utils.BytePtrToStringUTF8(fmtCtx->iformat->long_name);
             Extensions  = Utils.BytePtrToStringUTF8(fmtCtx->iformat->extensions);
-            Extension   = GetValidExtension();
 
             StartTime       = fmtCtx->start_time != AV_NOPTS_VALUE ? fmtCtx->start_time * 10 : 0;
             StartRealTime   = fmtCtx->start_time_realtime != AV_NOPTS_VALUE ? fmtCtx->start_time_realtime * 10 : 0;
@@ -536,6 +535,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         Programs.Add(program);
                     }
                 }
+
+                Extension = GetValidExtension();
             }
 
             PrintDump();

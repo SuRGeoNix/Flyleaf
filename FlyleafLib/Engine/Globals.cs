@@ -45,6 +45,19 @@ namespace FlyleafLib
         Enabled     = 1,
         Disabled    = 2
     }
+    public enum ColorSpace : int
+    {
+        None        = 0,
+        BT601       = 1,
+        BT709       = 2,
+        BT2020      = 3
+    }
+    public enum ColorRange : int
+    {
+        None        = 0,
+        Full        = 1,
+        Limited     = 2
+    }
 
     
     public class GPUOutput
