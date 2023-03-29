@@ -10,8 +10,8 @@ namespace FlyleafLib.MediaFramework.MediaStream
     public unsafe class VideoStream : StreamBase
     {
         public AspectRatio                  AspectRatio         { get; set; }
-        public string                       ColorRange          { get; set; }
-        public string                       ColorSpace          { get; set; }
+        public ColorRange                   ColorRange          { get; set; }
+        public ColorSpace                   ColorSpace          { get; set; }
         public AVComponentDescriptor[]      Comps               { get; set; }
         public double                       FPS                 { get; set; }
         public long                         FrameDuration       { get ;set; }
@@ -55,20 +55,20 @@ namespace FlyleafLib.MediaFramework.MediaStream
 
             if (PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
             {
-                ColorRange = AVStream->codecpar->color_range == AVColorRange.AVCOL_RANGE_JPEG ? "FULL" : "LIMITED";
+                ColorRange = AVStream->codecpar->color_range == AVColorRange.AVCOL_RANGE_JPEG ? ColorRange.Full : ColorRange.Limited;
 
                 if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT470BG)
-                    ColorSpace = "BT601";
+                    ColorSpace = ColorSpace.BT601;
                 else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT709)
-                    ColorSpace = "BT709";
+                    ColorSpace = ColorSpace.BT709;
                 else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL)
-                    ColorSpace = "BT2020";
+                    ColorSpace = ColorSpace.BT2020;
                 else
                 {
                     if (Width > 1024 || Height >= 600)
-                        ColorSpace = "BT709";
+                        ColorSpace = ColorSpace.BT709;
                     else
-                        ColorSpace = "BT601";
+                        ColorSpace = ColorSpace.BT601;
                 }
 
                 AVPixFmtDescriptor* pixFmtDesc = av_pix_fmt_desc_get((AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), PixelFormat));
@@ -77,11 +77,13 @@ namespace FlyleafLib.MediaFramework.MediaStream
                 PixelBits= Comps[0].depth;
                 IsPlanar = (pixFmtDesc->flags & AV_PIX_FMT_FLAG_PLANAR) != 0;
                 IsRGB    = (pixFmtDesc->flags & AV_PIX_FMT_FLAG_RGB   ) != 0;
-                    
+                // TODO: Keep HW Formats & AV_PIX_FMT_FLAG_HWACCEL
+
                 bool isYuv = System.Text.RegularExpressions.Regex.IsMatch(PixelFormat.ToString(), "YU|YV", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+                // TODO: Check non-handled YUV to fallback properly on sws
                 // YUV Planar or Packed with half U/V (No Semi-Planar Support for Software)
-                if (isYuv && pixFmtDesc->nb_components == 3 && (Comps[0].depth == 8 && Comps[1].depth == 8 && Comps[2].depth == 8))
+                if (isYuv)// && pixFmtDesc->nb_components == 3 && (Comps[0].depth == 8 && Comps[1].depth == 8 && Comps[2].depth == 8))
                     PixelFormatType = PixelFormatType.Software_Handled;
             }
         }

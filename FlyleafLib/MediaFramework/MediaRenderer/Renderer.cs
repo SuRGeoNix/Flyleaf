@@ -146,7 +146,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
 
         ID3D11ShaderResourceView[]              curSRVs;
-        ShaderResourceViewDescription           srvDescR, srvDescRG;
+        ShaderResourceViewDescription[]         curSRVsDesc;
 
         VideoProcessorColorSpace                inputColorSpace;
         VideoProcessorColorSpace                outputColorSpace;
@@ -782,7 +782,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     return;
 
                 curRatio = VideoDecoder.VideoStream.AspectRatio.Value;
-                IsHDR = VideoDecoder.VideoStream.ColorSpace == "BT2020";
+                IsHDR = VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020;
 
                 var oldVP = videoProcessor;
                 VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (Config.Video.VideoProcessor == VideoProcessors.Auto && isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
@@ -796,47 +796,81 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
                     }
 
-                    srvDescR = new ShaderResourceViewDescription();
-                    srvDescR.Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm;
-
-                    srvDescRG = new ShaderResourceViewDescription();
-                    srvDescRG.Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16G16_UNorm : Format.R8G8_UNorm;
-
-                    if (VideoDecoder.ZeroCopy)
+                    if (VideoDecoder.VideoAccelerated)
                     {
-                        srvDescR.ViewDimension = ShaderResourceViewDimension.Texture2DArray;
-                        srvDescR.Texture2DArray = new Texture2DArrayShaderResourceView()
-                        {
-                            ArraySize = 1,
-                            MipLevels = 1
-                        };
+                        curSRVsDesc  = new ShaderResourceViewDescription[2];
+                        curSRVsDesc[0].Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16_UNorm   : Format.R8_UNorm;
+                        curSRVsDesc[1].Format = VideoDecoder.VideoStream.PixelBits > 8 ? Format.R16G16_UNorm: Format.R8G8_UNorm;
+                        psBufferData.format = PSFormat.Y_UV;
 
-                        srvDescRG.ViewDimension = ShaderResourceViewDimension.Texture2DArray;
-                        srvDescRG.Texture2DArray = new Texture2DArrayShaderResourceView()
+                        if (VideoDecoder.ZeroCopy)
                         {
-                            ArraySize = 1,
-                            MipLevels = 1
-                        };
+                            for (int i=0; i<curSRVsDesc.Length; i++)
+                            {
+                                curSRVsDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2DArray;
+                                curSRVsDesc[i].Texture2DArray = new Texture2DArrayShaderResourceView()
+                                {
+                                    ArraySize = 1,
+                                    MipLevels = 1
+                                };
+                            }
+                        }
+                        else
+                        {
+                            for (int i=0; i<curSRVsDesc.Length; i++)
+                            {
+                                curSRVsDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2D;
+                                curSRVsDesc[i].Texture2D = new Texture2DShaderResourceView()
+                                {
+                                    MipLevels = 1,
+                                    MostDetailedMip = 0
+                                };
+                            }
+                        }
                     }
                     else
                     {
-                        srvDescR.ViewDimension = ShaderResourceViewDimension.Texture2D;
-                        srvDescR.Texture2D = new Texture2DShaderResourceView()
+                        if (VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
                         {
-                            MipLevels = 1,
-                            MostDetailedMip = 0
-                        };
+                            if (VideoDecoder.VideoStream.IsPlanar)
+                            {
+                                curSRVsDesc  = new ShaderResourceViewDescription[3];
+                                psBufferData.format = PSFormat.Y_U_V;
+                            }
+                            else
+                            {
+                                curSRVsDesc  = new ShaderResourceViewDescription[1];
 
-                        srvDescRG.ViewDimension = ShaderResourceViewDimension.Texture2D;
-                        srvDescRG.Texture2D = new Texture2DShaderResourceView()
+                                switch (VideoDecoder.VideoStream.PixelFormat)
+                                {
+                                    case FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_YUYV422:
+                                        curSRVsDesc[0].Format = Format.R8G8B8A8_UNorm;
+                                        psBufferData.format = PSFormat.YUYV;
+                                        break;
+                                    case FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_UYVY422:
+                                        curSRVsDesc[0].Format = Format.R8G8_B8G8_UNorm;
+                                        psBufferData.format = PSFormat.UYVY;
+                                        break;
+                                }
+                            }
+                        }
+                        else
                         {
-                            MipLevels = 1,
-                            MostDetailedMip = 0
-                        };
+                            curSRVsDesc  = new ShaderResourceViewDescription[1];
+                            psBufferData.format = PSFormat.RGB;
+                        }
+
+                        for (int i=0; i<curSRVsDesc.Length; i++)
+                        {
+                            curSRVsDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2D;
+                            curSRVsDesc[i].Texture2D = new Texture2DShaderResourceView()
+                            {
+                                MipLevels = 1,
+                                MostDetailedMip = 0
+                            };
+                        }
                     }
-
-                    psBufferData.format = VideoDecoder.VideoAccelerated ? PSFormat.Y_UV : ((VideoDecoder.VideoStream.PixelFormatType == PixelFormatType.Software_Handled ? PSFormat.Y_U_V : PSFormat.RGB));
-
+                    
                     lastLumin = 0;
                     psBufferData.hdrmethod = HDRtoSDRMethod.None;
 
@@ -845,9 +879,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         psBufferData.coefsIndex = 0;
                         UpdateHDRtoSDR(null, false);
                     }
-                    else if (VideoDecoder.VideoStream.ColorSpace == "BT709")
+                    else if (VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT709)
                         psBufferData.coefsIndex = 1;
-                    else if (VideoDecoder.VideoStream.ColorSpace == "BT601")
+                    else if (VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT601)
                         psBufferData.coefsIndex = 2;
                     else
                         psBufferData.coefsIndex = 2;
@@ -870,7 +904,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                     {
                         Usage           = 0,
                         RGB_Range       = VideoDecoder.VideoStream.AVStream->codecpar->color_range == FFmpeg.AutoGen.AVColorRange.AVCOL_RANGE_JPEG ? (uint) 0 : 1,
-                        YCbCr_Matrix    = VideoDecoder.VideoStream.ColorSpace != "BT601" ? (uint) 1 : 0,
+                        YCbCr_Matrix    = VideoDecoder.VideoStream.ColorSpace != ColorSpace.BT601 ? (uint) 1 : 0,
                         YCbCr_xvYCC     = 0,
                         Nominal_Range   = VideoDecoder.VideoStream.AVStream->codecpar->color_range == FFmpeg.AutoGen.AVColorRange.AVCOL_RANGE_JPEG ? (uint) 2 : 1
                     };
@@ -1144,70 +1178,52 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             if (SCDisposed)
                 return;
 
-            if (VideoDecoder.VideoAccelerated)
+            if (videoProcessor == VideoProcessors.D3D11)
             {
-                if (videoProcessor == VideoProcessors.D3D11)
+                if (frame.bufRef != null)
                 {
-                    if (frame.bufRef != null)
-                    {
-                        vpivd.Texture2D.ArraySlice = frame.subresource;
-                        vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
-                    }
-                    else
-                    {
-                        vpivd.Texture2D.ArraySlice = 0;
-                        vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
-                    }
-
-                    vpsa[0].InputSurface = vpiv;
-                    vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
-                    vc.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
-                    vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
-                    vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
-                    swapChain.Present(Config.Video.VSync, PresentFlags.None);
-                    
-                    if (dCompVisual != null)
-                        dCompDevice.Commit();
-
-                    vpiv.Dispose();
+                    vpivd.Texture2D.ArraySlice = frame.subresource;
+                    vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
                 }
                 else
                 {
-                    curSRVs = new ID3D11ShaderResourceView[2];
-
-                    if (frame.bufRef != null)
-                    {
-                        srvDescR. Texture2DArray.FirstArraySlice = frame.subresource;
-                        srvDescRG.Texture2DArray.FirstArraySlice = frame.subresource;
-                        curSRVs[0] = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescR);
-                        curSRVs[1] = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescRG);
-                    }
-                    else
-                    {
-                        curSRVs[0] = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
-                        curSRVs[1] = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
-                    }
-
-                    context.OMSetRenderTargets(backBufferRtv);
-                    context.ClearRenderTargetView(backBufferRtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
-                    context.RSSetViewport(GetViewport);
-                    context.PSSetShader(PSShaders["FlyleafPS"]);
-                    context.PSSetSampler(0, samplerLinear);
-                    context.PSSetShaderResources(0, curSRVs);
-                    context.Draw(6, 0);
-                    swapChain.Present(Config.Video.VSync, PresentFlags.None);
-                    if (dCompVisual != null)
-                        dCompDevice.Commit();
-
-                    for (int i=0; i<curSRVs.Length; i++)
-                        curSRVs[i].Dispose();
+                    vpivd.Texture2D.ArraySlice = 0;
+                    vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
                 }
+
+                vpsa[0].InputSurface = vpiv;
+                vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
+                vc.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
+                vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
+                vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
+                swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                    
+                if (dCompVisual != null)
+                    dCompDevice.Commit();
+
+                vpiv.Dispose();
             }
             else
             {
-                curSRVs = new ID3D11ShaderResourceView[frame.textures.Length];
-                for (int i=0; i<frame.textures.Length; i++)
-                    curSRVs[i] = Device.CreateShaderResourceView(frame.textures[i]);
+                curSRVs = new ID3D11ShaderResourceView[curSRVsDesc.Length];
+
+                if (frame.bufRef != null)
+                {
+                    for (int i=0; i<curSRVs.Length; i++)
+                    {
+                        curSRVsDesc[i].Texture2DArray.FirstArraySlice = frame.subresource;
+                        curSRVs[i] = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, curSRVsDesc[i]);
+                    }
+                }
+                else
+                {
+                    for (int i=0; i<frame.textures.Length; i++)
+                        curSRVs[i] = Device.CreateShaderResourceView(frame.textures[i], curSRVsDesc[i]);
+
+                    // TODO
+                    if (curSRVs.Length > frame.textures.Length)
+                        curSRVs[^1] = Device.CreateShaderResourceView(frame.textures[^1], curSRVsDesc[^1]);
+                }
 
                 context.OMSetRenderTargets(backBufferRtv);
                 context.ClearRenderTargetView(backBufferRtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
@@ -1217,6 +1233,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 context.PSSetShaderResources(0, curSRVs);
                 context.Draw(6, 0);
                 swapChain.Present(Config.Video.VSync, PresentFlags.None);
+
                 if (dCompVisual != null)
                     dCompDevice.Commit();
 
@@ -1226,70 +1243,55 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
         internal void PresentOffline(VideoFrame frame, ID3D11RenderTargetView rtv, Viewport viewport)
         {
-            if (VideoDecoder.VideoAccelerated)
+            if (videoProcessor == VideoProcessors.D3D11)
             {
-                if (videoProcessor == VideoProcessors.D3D11)
+                vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out ID3D11VideoProcessorOutputView vpov);
+
+                RawRect rect = new RawRect((int)viewport.X, (int)viewport.Y, (int)(viewport.Width + viewport.X), (int)(viewport.Height + viewport.Y));
+                vc.VideoProcessorSetStreamSourceRect(vp, 0, true, VideoRect);
+                vc.VideoProcessorSetStreamDestRect(vp, 0, true, rect);
+                vc.VideoProcessorSetOutputTargetRect(vp, true, rect);
+
+                if (frame.bufRef != null)
                 {
-                    vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out ID3D11VideoProcessorOutputView vpov);
-
-                    RawRect rect = new RawRect((int)viewport.X, (int)viewport.Y, (int)(viewport.Width + viewport.X), (int)(viewport.Height + viewport.Y));
-                    vc.VideoProcessorSetStreamSourceRect(vp, 0, true, VideoRect);
-                    vc.VideoProcessorSetStreamDestRect(vp, 0, true, rect);
-                    vc.VideoProcessorSetOutputTargetRect(vp, true, rect);
-
-                    if (frame.bufRef != null)
-                    {
-                        vpivd.Texture2D.ArraySlice = frame.subresource;
-                        vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
-                    }
-                    else
-                    {
-                        vpivd.Texture2D.ArraySlice = 0;
-                        vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
-                    }
-
-                    vpsa[0].InputSurface = vpiv;
-
-                    vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
-                    vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
-                    vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
-                    vpiv.Dispose();
-                    vpov.Dispose();
+                    vpivd.Texture2D.ArraySlice = frame.subresource;
+                    vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
                 }
                 else
                 {
-                    curSRVs = new ID3D11ShaderResourceView[2];
-
-                    if (frame.bufRef != null)
-                    {
-                        srvDescR. Texture2DArray.FirstArraySlice = frame.subresource;
-                        srvDescRG.Texture2DArray.FirstArraySlice = frame.subresource;
-                        curSRVs[0] = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescR);
-                        curSRVs[1] = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDescRG);
-                    }
-                    else
-                    {
-                        curSRVs[0] = Device.CreateShaderResourceView(frame.textures[0], srvDescR);
-                        curSRVs[1] = Device.CreateShaderResourceView(frame.textures[0], srvDescRG);
-                    }
-
-                    context.OMSetRenderTargets(rtv);
-                    context.ClearRenderTargetView(rtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
-                    context.RSSetViewport(viewport);
-                    context.PSSetShader(PSShaders["FlyleafPS"]);
-                    context.PSSetSampler(0, samplerLinear);
-                    context.PSSetShaderResources(0, curSRVs);
-                    context.Draw(6, 0);
-
-                    for (int i=0; i<curSRVs.Length; i++)
-                        curSRVs[i].Dispose();
+                    vpivd.Texture2D.ArraySlice = 0;
+                    vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
                 }
+
+                vpsa[0].InputSurface = vpiv;
+
+                vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
+                vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
+                vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
+                vpiv.Dispose();
+                vpov.Dispose();
             }
             else
             {
-                curSRVs = new ID3D11ShaderResourceView[frame.textures.Length];
-                for (int i=0; i<frame.textures.Length; i++)
-                    curSRVs[i] = Device.CreateShaderResourceView(frame.textures[i]);
+                curSRVs = new ID3D11ShaderResourceView[curSRVsDesc.Length];
+
+                if (frame.bufRef != null)
+                {
+                    for (int i=0; i<curSRVs.Length; i++)
+                    {
+                        curSRVsDesc[i].Texture2DArray.FirstArraySlice = frame.subresource;
+                        curSRVs[i] = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, curSRVsDesc[i]);
+                    }
+                }
+                else
+                {
+                    for (int i=0; i<frame.textures.Length; i++)
+                        curSRVs[i] = Device.CreateShaderResourceView(frame.textures[i], curSRVsDesc[i]);
+
+                    // TODO
+                    if (curSRVs.Length > frame.textures.Length)
+                        curSRVs[^1] = Device.CreateShaderResourceView(frame.textures[^1], curSRVsDesc[^1]);
+                }
 
                 context.OMSetRenderTargets(rtv);
                 context.ClearRenderTargetView(rtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
