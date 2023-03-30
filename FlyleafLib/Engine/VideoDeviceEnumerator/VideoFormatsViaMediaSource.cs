@@ -43,8 +43,8 @@ public static class VideoFormatsViaMediaSource
                                 {
                                     var videoFormat = GetVideoFormatFromMediaType(friendlyName,
                                         workingMediaType);
-                                    // NV12 and YUY2 are not playable TODO check support for video formats,
-                                    if (videoFormat.SubType != "NV12" && videoFormat.SubType != "YUY2")
+                                    // NV12 is not playable TODO check support for video formats
+                                    if (videoFormat.SubType != "NV12")
                                         formatList.Add(videoFormat);
                                 }
                         }
