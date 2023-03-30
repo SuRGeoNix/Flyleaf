@@ -3,7 +3,8 @@
                     
                     xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-                    >
+                    xmlns:videoDeviceEnumerator="clr-namespace:FlyleafLib.VideoDeviceEnumerator;assembly=FlyleafLib"
+                    xmlns:flyleafLib="clr-namespace:FlyleafLib;assembly=FlyleafLib">
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesign.xaml"/>
@@ -635,9 +636,37 @@
         </MenuItem>
     </collections:ArrayList>
 
+    <HierarchicalDataTemplate x:Key="VideoDeviceMenuHierarchyTemplate"
+                              DataType="{x:Type videoDeviceEnumerator:IVideoDevice}" ItemsSource="{Binding Formats}">
+        <TextBlock Text="{Binding FriendlyName}">
+            <TextBlock.InputBindings>
+                <MouseBinding
+                    Command="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
+                    CommandParameter="{Binding DefaultVideoFormatUri }"
+                    MouseAction="LeftClick" />
+            </TextBlock.InputBindings>
+        </TextBlock>
+        <HierarchicalDataTemplate.ItemTemplate>
+            <DataTemplate DataType="{x:Type videoDeviceEnumerator:IVideoFormat}">
+                <TextBlock Text="{Binding }" >
+                    <TextBlock.InputBindings>
+                        <MouseBinding
+                            Command="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
+                            CommandParameter="{Binding Uri }"
+                            MouseAction="LeftClick" />
+                    </TextBlock.InputBindings>
+                </TextBlock>
+            </DataTemplate>
+        </HierarchicalDataTemplate.ItemTemplate>
+    </HierarchicalDataTemplate>
+
     <ContextMenu x:Key="PopUpMenu" Style="{StaticResource FlyleafContextMenu}">
-        <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}"/>
-        <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}" IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}"/>
+        <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}" />
+        <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}"
+                  IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}" />
+        <MenuItem Header="Open Device" Icon="{materialDesign:PackIcon VideoOutline}" IsEnabled="{Binding VideoDevices.Count, Source={x:Static flyleafLib:Engine.Video}}"
+                  ItemsSource="{Binding VideoDevices, Source={x:Static flyleafLib:Engine.Video}}"
+                  ItemTemplate="{StaticResource VideoDeviceMenuHierarchyTemplate}" />
         <Separator />
 
         <MenuItem ItemsSource="{Binding Player.Playlist.Items}" Icon="{materialDesign:PackIcon ViewList}">
