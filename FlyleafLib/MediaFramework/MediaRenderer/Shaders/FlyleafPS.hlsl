@@ -28,8 +28,7 @@ struct PixelShaderInput
 static const int RGB        = 1;
 static const int Y_UV       = 2;
 static const int Y_U_V      = 3;
-static const int YUYV       = 4;
-static const int UYVY       = 5;
+static const int YUY2       = 4;
 
 // hdrmethod enum
 static const int Aces       = 1;
@@ -130,14 +129,9 @@ float4 main(PixelShaderInput input) : SV_TARGET
         color = mul(color, coefs[coefsIndex]);
     }
     // TBR (YUYV/UYVY): 4 bytes => 6 bytes RGB (should check odd/even? rga/bga | grb/arb)
-    else if (format == YUYV)
+    else if (format == YUY2)
     {
-        color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).r, TextureRGB_Y.Sample(Sampler, input.Texture).g, TextureRGB_Y.Sample(Sampler, input.Texture).a, 1.0f);
-        color = mul(color, coefs[coefsIndex]);
-    }
-    else if (format == UYVY)
-    {
-        color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).g, TextureRGB_Y.Sample(Sampler, input.Texture).r, TextureRGB_Y.Sample(Sampler, input.Texture).b, 1.0);
+        color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).grb, 1.0f);
         color = mul(color, coefs[coefsIndex]);
     }
     else // RGB
