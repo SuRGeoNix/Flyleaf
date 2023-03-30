@@ -16,6 +16,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 {
     public partial class Renderer
     {   
+        #if DEBUG
+        // Should work at least from main Samples => FlyleafPlayer (WPF Control) (WPF)
+        static string EmbeddedShadersFolder = @"..\..\..\..\..\..\FlyleafLib\MediaFramework\MediaRenderer\Shaders";
+        #endif
+
         static InputElementDescription[] inputElements =
         {
             new InputElementDescription("POSITION", 0, Format.R32G32B32_Float,     0),
@@ -104,22 +109,31 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
         internal static void Start()
         {
-            //CompileEmbeddedShaders();
+            #if DEBUG
+            if (Directory.Exists(EmbeddedShadersFolder))
+                CompileEmbeddedShaders();
+            else
+                LoadShaders();
+            #else
             LoadShaders();
+            #endif
+            
+            List<FeatureLevel> featuresAll = new List<FeatureLevel>
+            {
+                FeatureLevel.Level_12_1,
+                FeatureLevel.Level_12_0,
+                FeatureLevel.Level_11_1
+            };
 
-            List<FeatureLevel> features = new List<FeatureLevel>();
-            List<FeatureLevel> featuresAll = new List<FeatureLevel>();
-
-            featuresAll.Add(FeatureLevel.Level_12_1);
-            featuresAll.Add(FeatureLevel.Level_12_0);
-            featuresAll.Add(FeatureLevel.Level_11_1);
-
-            features.Add(FeatureLevel.Level_11_0);
-            features.Add(FeatureLevel.Level_10_1);
-            features.Add(FeatureLevel.Level_10_0);
-            features.Add(FeatureLevel.Level_9_3);
-            features.Add(FeatureLevel.Level_9_2);
-            features.Add(FeatureLevel.Level_9_1);
+            List<FeatureLevel> features = new List<FeatureLevel>
+            {
+                FeatureLevel.Level_11_0,
+                FeatureLevel.Level_10_1,
+                FeatureLevel.Level_10_0,
+                FeatureLevel.Level_9_3,
+                FeatureLevel.Level_9_2,
+                FeatureLevel.Level_9_1
+            };
 
             featureLevels = new FeatureLevel[features.Count];
             featureLevelsAll = new FeatureLevel[features.Count + featuresAll.Count];
@@ -159,6 +173,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             }
         }
 
+        #if DEBUG
         // Use this to update blob compiled shaders if you change them (add them as embedded resources)
         private unsafe static void CompileEmbeddedShaders()
         {
@@ -171,6 +186,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                 {
                     var shaderName = shader.Substring(0, shader.Length - 5);
                     shaderName = shaderName.Substring(shaderName.LastIndexOf('.') + 1);
+
+                    Engine.Log.Debug($"[ShaderCompiler] {shaderName}");
+
                     string psOrvs;
                     Dictionary<string, Blob> curShaders;
                     if (shaderName.Substring(0, 2).ToLower() == "vs")
@@ -201,12 +219,12 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
 
                     if (shaderBlob != null)
                     {
-                        Compiler.WriteBlobToFile(shaderBlob, shaderName + ".blob", true);
+                        Compiler.WriteBlobToFile(shaderBlob, Path.Combine(EmbeddedShadersFolder, shaderName + ".blob"), true);
                         curShaders.Add(shaderName, shaderBlob);
                     }
                 }
         }
-        #if DEBUG
+        
         public static void ReportLiveObjects()
         {
             try

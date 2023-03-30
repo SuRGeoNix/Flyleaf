@@ -34,8 +34,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             RGB     = 1,
             Y_UV    = 2,
             Y_U_V   = 3,
-            YUYV    = 4,
-            UYVY    = 5
+            YUY2    = 4
         }
         public void UpdateHDRtoSDR(AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
         {

@@ -844,12 +844,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                                 switch (VideoDecoder.VideoStream.PixelFormat)
                                 {
                                     case FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_YUYV422:
-                                        curSRVsDesc[0].Format = Format.R8G8B8A8_UNorm;
-                                        psBufferData.format = PSFormat.YUYV;
-                                        break;
                                     case FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_UYVY422:
-                                        curSRVsDesc[0].Format = Format.R8G8_B8G8_UNorm;
-                                        psBufferData.format = PSFormat.UYVY;
+                                        psBufferData.format = PSFormat.YUY2;
                                         break;
                                 }
                             }
