@@ -157,9 +157,6 @@ namespace FlyleafLib
             Plugins = new PluginsEngine();
             Players = new List<Player>();
 
-            if (Config.FFmpegDevices)
-                EnumerateCapDevices();
-
             Renderer.Start();
 
             IsLoaded = true;
@@ -168,62 +165,6 @@ namespace FlyleafLib
             if (Config.UIRefresh)
                 StartThread();
         }
-
-        private unsafe static void EnumerateCapDevices()
-        {
-            try
-            {
-                string dump = null; int i = 1;
-
-                IMFAttributes capAttrs = MediaFactory.MFCreateAttributes(1);
-                IMFActivateCollection capDevices;
-
-                capAttrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeAudcap);
-                capDevices = MediaFactory.MFEnumDeviceSources(capAttrs);
-                
-                lock (Audio.lockCapDevices)
-                {
-                    foreach (IMFActivate capDevice in capDevices)
-                    {
-                        if (i == 1) dump = "Audio Cap Devices\r\n";
-                        dump += $"[#{i}] {capDevice.FriendlyName}\r\n";
-                        Audio.CapDevices.Add(capDevice.FriendlyName);
-                        i++;
-                    }
-                }
-
-                if (dump != null)
-                    Log.Debug(dump);
-
-                capDevices.Dispose();
-
-                dump = null; i = 1;
-                capAttrs.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeVidcap);
-                capDevices = MediaFactory.MFEnumDeviceSources(capAttrs);
-
-                lock (Video.lockCapDevices)
-                {
-                    foreach (IMFActivate capDevice in capDevices)
-                    {
-                        if (i == 1) dump = "Video Cap Devices\r\n";
-                        dump += $"[#{i}] {capDevice.FriendlyName}\r\n";
-                        Video.CapDevices.Add(capDevice.FriendlyName);
-                        i++;
-                    }
-                }
-
-                if (dump != null)
-                    Log.Debug(dump);
-
-                capAttrs.Dispose();
-                capDevices.Dispose();
-
-            } catch (Exception e)
-            {
-                Log.Error($"Failed to enumerate capture devices ({e.Message})");
-            }
-        }
-
         internal static void AddPlayer(Player player)
         {
             lock (Players)

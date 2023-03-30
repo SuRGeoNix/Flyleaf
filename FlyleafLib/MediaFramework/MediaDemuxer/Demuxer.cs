@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Data;
@@ -17,6 +18,8 @@ using FlyleafLib.MediaFramework.MediaStream;
 
 using static FlyleafLib.Config;
 using static FlyleafLib.Logger;
+using Microsoft.Extensions.Primitives;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
@@ -301,6 +304,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 int ret = -1;
                 string error = null;
                 string deviceUrl = null;
+                Dictionary<string, StringValues> deviceParameters = null;
                 AVInputFormat* inFmt = null;
                 Url = url;
 
@@ -334,10 +338,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     else if (Engine.Config.FFmpegDevices && url.StartsWith("device://"))
                     {
                         Uri uri = new Uri(url);
-                        deviceUrl = Uri.UnescapeDataString(uri.Query).TrimStart('?');
                         inFmt = av_find_input_format(uri.Host);
                         if (inFmt == null)
                             return error = $"[av_find_input_format] {uri.Host} not found";
+                        var queryParameters = QueryHelpers.ParseQuery(uri.Query);
+                        deviceUrl = $"video={queryParameters["video"]}";
+                        deviceParameters = queryParameters
+                            .Where(kvp => kvp.Key != "video")
+                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
                     }
 
                     lock (lockFmtCtx)
@@ -359,16 +367,20 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (deviceUrl != null)
                             Utils.UIInvoke(() =>
                             {
-                                AVDictionary *avopt = null;
+                                // TODO use ffmpeg.av_dict_free(ref AVDictionary*) to dispose of avopt?
+                                AVDictionary* avopt = null;
                                 foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                                foreach (var deviceParameter in deviceParameters) av_dict_set(&avopt, deviceParameter.Key, deviceParameter.Value, 0);
                                 AVFormatContext* fmtCtxPtr = fmtCtx;
                                 ret = avformat_open_input(&fmtCtxPtr, deviceUrl, inFmt, &avopt);
                             });
                         else
                         {
-                        #endif
-                            AVDictionary *avopt = null;
+#endif
+                            // TODO use ffmpeg.av_dict_free(ref AVDictionary*) to dispose of avopt?
+                            AVDictionary* avopt = null;
                             foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                            foreach (var deviceParameter in deviceParameters) av_dict_set(&avopt, deviceParameter.Key, deviceParameter.Value, 0);
                             AVFormatContext* fmtCtxPtr = fmtCtx;
                             ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl ?? url), inFmt, &avopt);
                         #if NET6_0_OR_GREATER
