@@ -111,7 +111,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         {
             #if DEBUG
             if (Directory.Exists(EmbeddedShadersFolder))
-                CompileEmbeddedShaders();
+                CompileFileShaders();
             else
                 LoadShaders();
             #else
@@ -174,55 +174,69 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         }
 
         #if DEBUG
-        // Use this to update blob compiled shaders if you change them (add them as embedded resources)
-        private unsafe static void CompileEmbeddedShaders()
+        private static void CompileEmbeddedShaders() // Not Used
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             string[] shaders = assembly.GetManifestResourceNames().Where(x => GetUrlExtention(x) == "hlsl").ToArray();
-            string profileExt = "_4_0_level_9_3";
 
             foreach (string shader in shaders)
                 using (Stream stream = assembly.GetManifestResourceStream(shader))
                 {
-                    var shaderName = shader.Substring(0, shader.Length - 5);
+                    string shaderName = shader.Substring(0, shader.Length - 5);
                     shaderName = shaderName.Substring(shaderName.LastIndexOf('.') + 1);
-
-                    Engine.Log.Debug($"[ShaderCompiler] {shaderName}");
-
-                    string psOrvs;
-                    Dictionary<string, Blob> curShaders;
-                    if (shaderName.Substring(0, 2).ToLower() == "vs")
-                    {
-                        curShaders = VSShaderBlobs;
-                        psOrvs = "vs";
-                    }
-                    else
-                    {
-                        curShaders = PSShaderBlobs;
-                        psOrvs = "ps";
-                    }
 
                     byte[] bytes = new byte[stream.Length];
                     stream.Read(bytes, 0, bytes.Length);
-                    
-                    Compiler.Compile(bytes, null, null, "main", null, $"{psOrvs}{profileExt}", 
-                        ShaderFlags.OptimizationLevel3, out Blob shaderBlob, out Blob psError);
 
-                    if (psError != null && psError.BufferPointer != IntPtr.Zero)
-                    {
-                        string[] errors = BytePtrToStringUTF8((byte*)psError.BufferPointer).Split('\n');
-
-                        foreach (var line in errors)
-                            if (!string.IsNullOrWhiteSpace(line) && line.IndexOf("X3571") == -1)
-                                Engine.Log.Error($"[Renderer] [{shaderName}]: {line}");
-                    }
-
-                    if (shaderBlob != null)
-                    {
-                        Compiler.WriteBlobToFile(shaderBlob, Path.Combine(EmbeddedShadersFolder, shaderName + ".blob"), true);
-                        curShaders.Add(shaderName, shaderBlob);
-                    }
+                    CompileShader(bytes, shaderName);
                 }
+        }
+
+        private unsafe static void CompileFileShaders()
+        {
+            List<string> shaders = Directory.EnumerateFiles(EmbeddedShadersFolder, "*.hlsl").ToList();
+            foreach (string shader in shaders)
+            {
+                string shaderName = shader.Substring(0, shader.Length - 5);
+                shaderName = shaderName.Substring(shaderName.LastIndexOf('\\') + 1);
+
+                CompileShader(File.ReadAllBytes(shader), shaderName);
+            }
+        }
+
+        private unsafe static void CompileShader(byte[] bytes, string shaderName)
+        {
+            Engine.Log.Debug($"[ShaderCompiler] {shaderName}");
+
+            string psOrvs;
+            Dictionary<string, Blob> curShaders;
+            if (shaderName.Substring(0, 2).ToLower() == "vs")
+            {
+                curShaders = VSShaderBlobs;
+                psOrvs = "vs";
+            }
+            else
+            {
+                curShaders = PSShaderBlobs;
+                psOrvs = "ps";
+            }
+
+            Compiler.Compile(bytes, null, null, "main", null, $"{psOrvs}_4_0_level_9_3", ShaderFlags.OptimizationLevel3, out Blob shaderBlob, out Blob psError);
+
+            if (psError != null && psError.BufferPointer != IntPtr.Zero)
+            {
+                string[] errors = BytePtrToStringUTF8((byte*)psError.BufferPointer).Split('\n');
+
+                foreach (var line in errors)
+                    if (!string.IsNullOrWhiteSpace(line) && line.IndexOf("X3571") == -1)
+                        Engine.Log.Error($"[Renderer] [{shaderName}]: {line}");
+            }
+
+            if (shaderBlob != null)
+            {
+                Compiler.WriteBlobToFile(shaderBlob, Path.Combine(EmbeddedShadersFolder, shaderName + ".blob"), true);
+                curShaders.Add(shaderName, shaderBlob);
+            }
         }
         
         public static void ReportLiveObjects()
