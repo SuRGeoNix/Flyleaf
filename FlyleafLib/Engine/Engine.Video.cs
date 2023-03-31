@@ -17,7 +17,7 @@ namespace FlyleafLib
         /// List of Video Capture Devices
         /// </summary>
         public ObservableCollection<IVideoDevice>
-            VideoDevices => _videoDeviceEnumerator?.VideoDevices;
+            CapDevices => _videoDeviceEnumerator?.VideoDevices;
 
         /// <summary>
         /// List of GPU Adpaters <see cref="Config.VideoConfig.GPUAdapter"/>
