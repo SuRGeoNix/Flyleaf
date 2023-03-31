@@ -16,6 +16,8 @@ cbuffer         Config 		    : register(b0)
     float g_luminance;
     float g_toneP1;
     float g_toneP2;
+
+    float texWidth;
 };
 
 struct PixelShaderInput
@@ -28,7 +30,8 @@ struct PixelShaderInput
 static const int RGB        = 1;
 static const int Y_UV       = 2;
 static const int Y_U_V      = 3;
-static const int YUY2       = 4;
+static const int YUYV       = 4;
+static const int UYVY       = 5;
 
 // hdrmethod enum
 static const int Aces       = 1;
@@ -129,9 +132,42 @@ float4 main(PixelShaderInput input) : SV_TARGET
         color = mul(color, coefs[coefsIndex]);
     }
     // TBR (YUYV/UYVY): 4 bytes => 6 bytes RGB (should check odd/even? rga/bga | grb/arb)
-    else if (format == YUY2)
+    else if (format == YUYV)
     {
-        color = float4(TextureRGB_Y.Sample(Sampler, input.Texture).grb, 1.0f);
+        float  posx     = input.Texture.x - (texWidth * 0.25);
+        float  fx       = frac(posx / texWidth);
+        float  pos1     = posx + ((0.5 - fx) * texWidth);
+        float  pos2     = posx + ((1.5 - fx) * texWidth);
+
+        float4 c1       = TextureRGB_Y.Sample(Sampler, float2(pos1, input.Texture.y));
+        float4 c2       = TextureRGB_Y.Sample(Sampler, float2(pos2, input.Texture.y));
+
+        float  leftY    = lerp(c1.r, c1.b, fx * 2.0);
+        float  rightY   = lerp(c1.b, c2.r, fx * 2.0 - 1.0);
+        float2 outUV    = lerp(c1.ga, c2.ga, fx);
+        float  outY     = lerp(leftY, rightY, step(0.5, fx));
+
+        color = float4(outY, outUV, 1.0);
+
+        color = mul(color, coefs[coefsIndex]);
+    }
+    else if (format == UYVY)
+    {
+        float  posx     = input.Texture.x - (texWidth * 0.25);
+        float  fx       = frac(posx / texWidth);
+        float  pos1     = posx + ((0.5 - fx) * texWidth);
+        float  pos2     = posx + ((1.5 - fx) * texWidth);
+
+        float4 c1       = TextureRGB_Y.Sample(Sampler, float2(pos1, input.Texture.y));
+        float4 c2       = TextureRGB_Y.Sample(Sampler, float2(pos2, input.Texture.y));
+
+        float  leftY    = lerp(c1.g, c1.a, fx * 2.0);
+        float  rightY   = lerp(c1.a, c2.g, fx * 2.0 - 1.0);
+        float2 outUV    = lerp(c1.rb, c2.rb, fx);
+        float  outY     = lerp(leftY, rightY, step(0.5, fx));
+
+        color = float4(outY, outUV, 1.0);
+
         color = mul(color, coefs[coefsIndex]);
     }
     else // RGB
