@@ -423,11 +423,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                         switch (VideoStream.PixelFormat)
                         {
                             case AVPixelFormat.AV_PIX_FMT_YUYV422:
-                                textDesc.Format = Format.G8R8_G8B8_UNorm;
-                                break;
-
                             case AVPixelFormat.AV_PIX_FMT_UYVY422:
-                                textDesc.Format = Format.R8G8_B8G8_UNorm;
+                                textDesc.Format = Format.YUY2;
                                 break;
 
                             default:

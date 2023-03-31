@@ -16,8 +16,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
         [StructLayout(LayoutKind.Sequential)]
         struct PSBufferType
         {
-            // size needs to be multiple of 16
-
             public PSFormat format;
             public int coefsIndex;
             public HDRtoSDRMethod hdrmethod;
@@ -28,13 +26,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
             public float g_luminance;
             public float g_toneP1;
             public float g_toneP2;
+
+            public float texWidth;
         }
         enum PSFormat : int
         {
             RGB     = 1,
             Y_UV    = 2,
             Y_U_V   = 3,
-            YUY2    = 4
+            YUYV    = 4,
+            UYUV    = 5,
         }
         public void UpdateHDRtoSDR(AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
         {

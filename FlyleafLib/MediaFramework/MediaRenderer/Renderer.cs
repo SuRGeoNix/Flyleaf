@@ -387,7 +387,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         Usage           = ResourceUsage.Default,
                         BindFlags       = BindFlags.ConstantBuffer,
                         CPUAccessFlags  = CpuAccessFlags.None,
-                        ByteWidth       = sizeof(PSBufferType)
+                        ByteWidth       = sizeof(PSBufferType) + (16 - (sizeof(PSBufferType) % 16))
                     });
                     context.PSSetConstantBuffer(0, psBuffer);
                     psBufferData.hdrmethod = HDRtoSDRMethod.None;
@@ -398,7 +398,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                         Usage           = ResourceUsage.Default,
                         BindFlags       = BindFlags.ConstantBuffer,
                         CPUAccessFlags  = CpuAccessFlags.None,
-                        ByteWidth       = sizeof(VSBufferType)
+                        ByteWidth       = sizeof(VSBufferType) + (16 - (sizeof(VSBufferType) % 16))
                     });
 
                     context.VSSetConstantBuffer(0, vsBuffer);
@@ -844,8 +844,15 @@ namespace FlyleafLib.MediaFramework.MediaRenderer
                                 switch (VideoDecoder.VideoStream.PixelFormat)
                                 {
                                     case FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_YUYV422:
+                                        curSRVsDesc[0].Format = Format.R8G8B8A8_UNorm;
+                                        psBufferData.format = PSFormat.YUYV;
+                                        psBufferData.texWidth = 1.0f / (VideoDecoder.VideoStream.Width >> 1);
+                                        break;
+
                                     case FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_UYVY422:
-                                        psBufferData.format = PSFormat.YUY2;
+                                        curSRVsDesc[0].Format = Format.R8G8B8A8_UNorm;
+                                        psBufferData.format = PSFormat.UYUV;
+                                        psBufferData.texWidth = 1.0f / (VideoDecoder.VideoStream.Width >> 1);
                                         break;
                                 }
                             }
