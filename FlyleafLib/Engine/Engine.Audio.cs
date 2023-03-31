@@ -47,8 +47,8 @@ namespace FlyleafLib
         /// </summary>
         public ObservableCollection<string> Devices { get; private set; } = new ObservableCollection<string>();
 
-        internal object lockCapDevices = new();
-        object lockDevices = new();
+        private readonly object lockCapDevices = new();
+        private readonly object lockDevices = new();
 
         public string GetDeviceId(string deviceName)
         {
@@ -93,8 +93,40 @@ namespace FlyleafLib
             }
 
             BindingOperations.EnableCollectionSynchronization(CapDevices, lockCapDevices);
-            BindingOperations.EnableCollectionSynchronization(Devices, lockDevices);
+            EnumerateCapDevices();
 
+            BindingOperations.EnableCollectionSynchronization(Devices, lockDevices);
+            EnumerateDevices();
+        }
+
+        private void EnumerateCapDevices()
+        {
+            try
+            {
+                string dump = null; var i = 1;
+
+                using (var capDevices = MediaFactory.MFEnumAudioDeviceSources())
+                {
+                    foreach (IMFActivate capDevice in capDevices)
+                    {
+                        if (i == 1) dump = "Audio Cap Devices\r\n";
+                        dump += $"[#{i}] {capDevice.FriendlyName}\r\n";
+                        CapDevices.Add(capDevice.FriendlyName);
+                        i++;
+                    }
+
+                    if (dump != null)
+                        Engine.Log.Debug(dump);
+                }
+            }
+            catch (Exception e)
+            {
+                Engine.Log.Error($"Failed to enumerate audio capture devices ({e.Message})");
+            }
+        }
+
+        private void EnumerateDevices()
+        {
             try
             {
                 deviceEnum = new IMMDeviceEnumerator();
@@ -110,7 +142,7 @@ namespace FlyleafLib
                 {
                     Devices.Clear();
                     Devices.Add(DefaultDeviceName);
-                    foreach(var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
+                    foreach (var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
                         Devices.Add(device.FriendlyName);
                 }
 

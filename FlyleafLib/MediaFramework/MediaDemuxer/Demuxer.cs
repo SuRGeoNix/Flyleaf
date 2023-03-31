@@ -359,7 +359,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         
                         Interrupter.Request(Requester.Open);
 
-                        #if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
                         // Workaround to fix a weird issue while opening gdigrab from an non-UI thread after 20-40 sec. of demuxing
                         // [gdigrab @ 0000019affe3f2c0] Failed to capture image (error 6) or (error 8)
                         // Update: Same happens with other av device formats (such as decklink)
@@ -370,19 +370,23 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                                 // TODO use ffmpeg.av_dict_free(ref AVDictionary*) to dispose of avopt?
                                 AVDictionary* avopt = null;
                                 foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
-                                foreach (var deviceParameter in deviceParameters) av_dict_set(&avopt, deviceParameter.Key, deviceParameter.Value, 0);
+                                if (deviceParameters != null)
+                                    foreach (var deviceParameter in deviceParameters)
+                                        av_dict_set(&avopt, deviceParameter.Key, deviceParameter.Value, 0);
                                 AVFormatContext* fmtCtxPtr = fmtCtx;
                                 ret = avformat_open_input(&fmtCtxPtr, deviceUrl, inFmt, &avopt);
                             });
                         else
                         {
 #endif
-                            // TODO use ffmpeg.av_dict_free(ref AVDictionary*) to dispose of avopt?
-                            AVDictionary* avopt = null;
-                            foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
-                            foreach (var deviceParameter in deviceParameters) av_dict_set(&avopt, deviceParameter.Key, deviceParameter.Value, 0);
-                            AVFormatContext* fmtCtxPtr = fmtCtx;
-                            ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl ?? url), inFmt, &avopt);
+                        // TODO use ffmpeg.av_dict_free(ref AVDictionary*) to dispose of avopt?
+                        AVDictionary* avopt = null;
+                        foreach (var optKV in curFormats) av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                        if (deviceParameters != null)
+                            foreach (var deviceParameter in deviceParameters)
+                                av_dict_set(&avopt, deviceParameter.Key, deviceParameter.Value, 0);
+                        AVFormatContext* fmtCtxPtr = fmtCtx;
+                        ret = avformat_open_input(&fmtCtxPtr, stream != null ? null : (deviceUrl ?? url), inFmt, &avopt);
                         #if NET6_0_OR_GREATER
                         }
                         #endif

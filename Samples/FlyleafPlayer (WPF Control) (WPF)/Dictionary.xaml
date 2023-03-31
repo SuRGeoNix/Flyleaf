@@ -15,8 +15,8 @@
         <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}" />
         <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}"
                   IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}" />
-        <MenuItem Header="Open Device" Icon="{materialDesign:PackIcon VideoOutline}" IsEnabled="{Binding VideoDevices.Count, Source={x:Static flyleafLib:Engine.Video}}"
-                  ItemsSource="{Binding VideoDevices, Source={x:Static flyleafLib:Engine.Video}}"
+        <MenuItem Header="Open Device" Icon="{materialDesign:PackIcon VideoOutline}" IsEnabled="{Binding CapDevices.Count, Source={x:Static flyleafLib:Engine.Video}}"
+                  ItemsSource="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Video}}"
                   ItemTemplate="{StaticResource VideoDeviceMenuHierarchyTemplate}" />
         <Separator />
         
