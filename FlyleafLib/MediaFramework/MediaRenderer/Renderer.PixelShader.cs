@@ -491,7 +491,7 @@ color = float4(
                 }
             }
 
-            if (!Device.CheckFormatSupport(textDesc[0].Format).HasFlag(FormatSupport.Texture2D))
+            if (textDesc[0].Format != Format.Unknown && !Device.CheckFormatSupport(textDesc[0].Format).HasFlag(FormatSupport.Texture2D))
             {
                 Log.Warn($"GPU does not support {textDesc[0].Format} texture format");
                 curPSCase = PSCase.None;
