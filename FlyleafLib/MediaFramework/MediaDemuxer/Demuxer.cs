@@ -2,14 +2,13 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Data;
+using System.Web;
 
-using Microsoft.Extensions.Primitives;
-using Microsoft.AspNetCore.WebUtilities;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.AVMediaType;
@@ -305,7 +304,8 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                 int ret = -1;
                 string error = null;
                 string deviceUrl = null;
-                Dictionary<string, StringValues> deviceParameters = null;
+                Dictionary<string, string> deviceParameters = null;
+                
                 AVInputFormat* inFmt = null;
                 Url = url;
 
@@ -336,22 +336,56 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         if (inFmt == null)
                             return error = $"[av_find_input_format] {Config.ForceFormat} not found";
                     }
+
+                    // device://$format$[/]?$input$&$options$
                     else if (Engine.Config.FFmpegDevices && url.StartsWith("device://"))
                     {
-                        Uri uri = new Uri(url);
-                        inFmt = av_find_input_format(uri.Host);
+                        int queryStarts = url.IndexOf('?');
+                        string fmtStr = "";
+
+                        if (queryStarts == -1)
+                            fmtStr = url.Substring(10);
+                        else
+                        {
+                            fmtStr = url.Substring(9, queryStarts - 9);
+                            string query = url.Substring(queryStarts + 1);
+                            var inputEnds = query.IndexOf('&');
+                            var firstEquals = query.IndexOf('=');
+
+                            if (inputEnds != -1 && (firstEquals == -1 || firstEquals > inputEnds))
+                            {
+                                deviceUrl = query.Substring(0, inputEnds);
+                                query = query.Substring(inputEnds + 1);
+
+                                NameValueCollection qp = HttpUtility.ParseQueryString(query);
+                                deviceParameters = new();
+                                foreach (string p in qp)
+                                {
+                                    switch (p)
+                                    {
+                                        case "audio": // dshow
+                                        case "video": // dshow
+                                        case "title": // gdigrap
+                                        case "movie": // lavfi
+                                        case "amovie":// lavfi
+                                            deviceUrl = $"{p}={qp[p]}";
+                                            break;
+                                        default:
+                                            deviceParameters.Add(p, qp[p]);
+                                            break;
+                                    }
+                                }
+                            }
+                            else
+                                deviceUrl = query;
+                        }
+
+                        fmtStr = fmtStr.Replace("/", "");
+
+                        Uri uri = new Uri(url);   
+                        inFmt = av_find_input_format(fmtStr);
                         if (inFmt == null)
-                            return error = $"[av_find_input_format] {uri.Host} not found";
-
-                        // temp fix for #272
-                        deviceUrl = Uri.UnescapeDataString(uri.Query).TrimStart('?');
-
-                        //Should separate Url/Options based on https://ffmpeg.org/ffmpeg-devices.html
-                        //var queryParameters = QueryHelpers.ParseQuery(uri.Query);
-                        //deviceUrl = $"video={queryParameters["video"]}"; // should also contain audio*
-                        //deviceParameters = queryParameters
-                        //    .Where(kvp => kvp.Key != "video")
-                        //    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                            return error = $"[av_find_input_format] {fmtStr} not found";
                     }
 
                     lock (lockFmtCtx)
