@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-
+using FlyleafLib.VideoDeviceEnumerator;
 using Vortice.DXGI;
 
 namespace FlyleafLib
@@ -9,10 +9,15 @@ namespace FlyleafLib
     public class VideoEngine
     {
         /// <summary>
+        /// Enumerator of Video Capture Devices
+        /// </summary>
+        private readonly VideoDeviceEnumerator.VideoDeviceEnumerator _videoDeviceEnumerator;
+
+        /// <summary>
         /// List of Video Capture Devices
         /// </summary>
-        public ObservableCollection<string>
-                                CapDevices  { get; private set; } = new ObservableCollection<string>();
+        public ObservableCollection<IVideoDevice>
+            CapDevices => _videoDeviceEnumerator?.VideoDevices;
 
         /// <summary>
         /// List of GPU Adpaters <see cref="Config.VideoConfig.GPUAdapter"/>
@@ -26,7 +31,6 @@ namespace FlyleafLib
         public List<GPUOutput>  Screens     { get; private set; } = new List<GPUOutput>();
 
         internal IDXGIFactory2 Factory;
-        internal object lockCapDevices = new();
 
         internal VideoEngine()
         {
@@ -34,6 +38,11 @@ namespace FlyleafLib
                 throw new InvalidOperationException("Cannot create IDXGIFactory1");
 
             GPUAdapters = GetAdapters();
+
+            if (Engine.Config.FFmpegDevices)
+            {
+                _videoDeviceEnumerator = new VideoDeviceEnumerator.VideoDeviceEnumerator();
+            }
         }
 
         private Dictionary<long, GPUAdapter> GetAdapters()
