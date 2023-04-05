@@ -454,7 +454,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     StreamBase stream = VideoDemuxer.AVStreamToStream[packet->stream_index];
                     long dts = packet->dts == AV_NOPTS_VALUE ? -1 : (long)(packet->dts * stream.Timebase);
                     long pts = packet->pts == AV_NOPTS_VALUE ? -1 : (long)(packet->pts * stream.Timebase);
-                    Log.Trace($"[{stream.Type}] DTS: {(dts == -1 ? "-" : Utils.TicksToTime(dts))} PTS: {(pts == -1 ? "-" : Utils.TicksToTime(pts))} | FLPTS: {(pts == -1 ? "-" : Utils.TicksToTime(pts - VideoDemuxer.StartTime))} | CurTime: {Utils.TicksToTime(VideoDemuxer.CurTime)} | Buffered: {Utils.TicksToTime(VideoDemuxer.BufferedDuration)}");
+                    Log.Trace($"[{stream.Type}] DTS: {(dts == -1 ? "-" : TicksToTime(dts))} PTS: {(pts == -1 ? "-" : TicksToTime(pts))} | FLPTS: {(pts == -1 ? "-" : TicksToTime(pts - VideoDemuxer.StartTime))} | CurTime: {TicksToTime(VideoDemuxer.CurTime)} | Buffered: {TicksToTime(VideoDemuxer.BufferedDuration)}");
                 }
 
                 switch (VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type)
@@ -513,7 +513,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                             //if (CanInfo) Info($"Asked for {Utils.TicksToTime(timestamp)} and got {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime)} | Diff {Utils.TicksToTime(timestamp - ((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime))}");
                             VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
 
-                            VideoFrame mFrame = VideoDecoder.ProcessVideoFrame(frame);
+                            VideoFrame mFrame = VideoDecoder.Renderer.FillPlanes(frame);
                             if (mFrame == null) return -1;
 
                             if (mFrame != null)
@@ -525,7 +525,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
                                     frame = av_frame_alloc();
                                     ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                                     if (ret != 0) break;
-                                    VideoFrame mFrame2 = VideoDecoder.ProcessVideoFrame(frame);
+                                    VideoFrame mFrame2 = VideoDecoder.Renderer.FillPlanes(frame);
                                     if (mFrame2 != null) VideoDecoder.Frames.Enqueue(mFrame);
                                 }
 

@@ -1,6 +1,4 @@
-﻿using System;
-
-using FFmpeg.AutoGen;
+﻿using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
@@ -12,17 +10,18 @@ namespace FlyleafLib.MediaFramework.MediaStream
         public AspectRatio                  AspectRatio         { get; set; }
         public ColorRange                   ColorRange          { get; set; }
         public ColorSpace                   ColorSpace          { get; set; }
-        public AVComponentDescriptor[]      Comps               { get; set; }
         public double                       FPS                 { get; set; }
         public long                         FrameDuration       { get ;set; }
         public int                          Height              { get; set; }
-        public bool                         IsPlanar            { get; set; }
         public bool                         IsRGB               { get; set; }
-        public int                          PixelBits           { get; set; }
+        public AVComponentDescriptor[]      PixelComps          { get; set; }
+        public int                          PixelComp0Depth     { get; set; }
         public AVPixelFormat                PixelFormat         { get; set; }
         public AVPixFmtDescriptor*          PixelFormatDesc     { get; set; }
         public string                       PixelFormatStr      { get; set; }
-        public PixelFormatType              PixelFormatType     { get; set; }
+        public int                          PixelPlanes         { get; set; }
+        public bool                         PixelSameDepth      { get; set; }
+        public bool                         PixelInterleaved    { get; set; }
         public int                          TotalFrames         { get; set; }
         public int                          Width               { get; set; }
 
@@ -39,10 +38,8 @@ namespace FlyleafLib.MediaFramework.MediaStream
         {
             base.Refresh();
 
-            PixelFormat     = format == AVPixelFormat.AV_PIX_FMT_NONE ? (AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), AVStream->codecpar->format) : format;
+            PixelFormat     = format == AVPixelFormat.AV_PIX_FMT_NONE ? (AVPixelFormat)AVStream->codecpar->format : format;
             PixelFormatStr  = PixelFormat.ToString().Replace("AV_PIX_FMT_","").ToLower();
-            PixelFormatType = PixelFormatType.Software_Sws;
-
             Width           = AVStream->codecpar->width;
             Height          = AVStream->codecpar->height;
             FPS             = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
@@ -65,26 +62,38 @@ namespace FlyleafLib.MediaFramework.MediaStream
                     ColorSpace = ColorSpace.BT2020;
                 else
                 {
-                    if (Width > 1024 || Height >= 600)
+                    if (/*Width > 1024 ||*/ Height > 576)
                         ColorSpace = ColorSpace.BT709;
                     else
                         ColorSpace = ColorSpace.BT601;
                 }
+                
+                PixelFormatDesc = av_pix_fmt_desc_get(PixelFormat);
+                var comps       = PixelFormatDesc->comp.ToArray();
+                PixelComps      = new AVComponentDescriptor[PixelFormatDesc->nb_components];
+                for (int i=0; i<PixelComps.Length; i++)
+                    PixelComps[i] = comps[i];
 
-                AVPixFmtDescriptor* pixFmtDesc = av_pix_fmt_desc_get((AVPixelFormat) Enum.ToObject(typeof(AVPixelFormat), PixelFormat));
-                PixelFormatDesc = pixFmtDesc;
-                Comps = PixelFormatDesc->comp.ToArray();
-                PixelBits= Comps[0].depth;
-                IsPlanar = (pixFmtDesc->flags & AV_PIX_FMT_FLAG_PLANAR) != 0;
-                IsRGB    = (pixFmtDesc->flags & AV_PIX_FMT_FLAG_RGB   ) != 0;
-                // TODO: Keep HW Formats & AV_PIX_FMT_FLAG_HWACCEL
+                PixelInterleaved= PixelFormatDesc->log2_chroma_w != PixelFormatDesc->log2_chroma_h;
+                IsRGB           = (PixelFormatDesc->flags & AV_PIX_FMT_FLAG_RGB   ) != 0;
 
-                bool isYuv = System.Text.RegularExpressions.Regex.IsMatch(PixelFormat.ToString(), "YU|YV", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                PixelSameDepth  = true;
+                PixelPlanes     = 0;
+                if (PixelComps.Length > 0)
+                {
+                    PixelComp0Depth = PixelComps[0].depth;
+                    int prevBit     = PixelComp0Depth;
+                    for (int i=0; i<PixelComps.Length; i++)
+                    {
+                        if (PixelComps[i].plane > PixelPlanes)
+                            PixelPlanes = PixelComps[i].plane;
 
-                // TODO: Check non-handled YUV to fallback properly on sws
-                // YUV Planar or Packed with half U/V (No Semi-Planar Support for Software)
-                if (isYuv)// && pixFmtDesc->nb_components == 3 && (Comps[0].depth == 8 && Comps[1].depth == 8 && Comps[2].depth == 8))
-                    PixelFormatType = PixelFormatType.Software_Handled;
+                        if (prevBit != PixelComps[i].depth)
+                            PixelSameDepth = false;
+                    }
+
+                    PixelPlanes++;
+                }
             }
         }
     }

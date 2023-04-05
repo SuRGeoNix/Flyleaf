@@ -157,16 +157,6 @@ namespace FlyleafLib
             public double   IdleFps                     { get; set; } = 60.0;
 
             /// <summary>
-            /// Limit before dropping frames. Lower value means lower latency (>=1)
-            /// </summary>
-            public int      LowLatencyMaxVideoFrames    { get; set; } = 2;
-
-            /// <summary>
-            /// Limit before dropping frames. Lower value means lower latency (>=0)
-            /// </summary>
-            public int      LowLatencyMaxVideoPackets   { get; set; } = 2;
-
-            /// <summary>
             /// Max Latency (ticks) forces playback to stay at the end of the live network stream (default: 0 - disabled)
             /// </summary>
             public long     MaxLatency {
@@ -524,6 +514,11 @@ namespace FlyleafLib
             /// In case of no hardware accelerated or post process accelerated pixel formats will use FFmpeg's SwsScale
             /// </summary>
             public bool             SwsHighQuality              { get; set; } = false;
+
+            /// <summary>
+            /// Forces SwsScale instead of FlyleafVP for non HW decoded frames
+            /// </summary>
+            public bool             SwsForce                    { get; set; } = false;
 
             /// <summary>
             /// Activates Direct3D video acceleration (decoding)

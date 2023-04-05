@@ -63,11 +63,7 @@ namespace FlyleafLib.MediaPlayer
                         UI(() => LastError = LastError);
                     }
 
-                    if (Config.Player.Usage == Usage.LowLatencyVideo)
-                        ScreamerLowLatency();
-                    else if (Config.Player.Usage == Usage.ZeroLatencyAudioVideo)
-                        ScreamerZeroLatencyWithAudio();
-                    else if (Config.Player.Usage == Usage.Audio || !Video.IsOpened)
+                    if (Config.Player.Usage == Usage.Audio || !Video.IsOpened)
                         ScreamerAudioOnly();
                     else
                     {
