@@ -330,6 +330,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                     if (stream != null)
                         CustomIOContext.Initialize(stream);
 
+                    // Force Format (url as input and Config.FormatOpt for options)
                     if (Config.ForceFormat != null)
                     {
                         inFmt = av_find_input_format(Config.ForceFormat);
@@ -337,22 +338,36 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                             return error = $"[av_find_input_format] {Config.ForceFormat} not found";
                     }
 
-                    // device://$format$[/]?$input$&$options$
-                    else if (Engine.Config.FFmpegDevices && url.StartsWith("device://"))
+                    /* Force Format with Url syntax to support format, url and options within the input url
+                     * 
+                     * fmt://$format$[/]?$input$&$options$
+                     * 
+                     * deprecate support for device://
+                     * 
+                     * Examples:
+                     *  See: https://ffmpeg.org/ffmpeg-devices.html for devices formats and options
+                     * 
+                     * 1. fmt://gdigrab?title=Command Prompt&framerate=2
+                     * 2. fmt://gdigrab?desktop
+                     * 3. fmt://dshow?audio=Microphone (Relatek):video=Lenovo Camera
+                     * 4. fmt://rawvideo?C:\root\dev\Flyleaf\VideoSamples\rawfile.raw&pixel_format=uyvy422&video_size=1920x1080&framerate=60
+                     * 
+                     */
+                    else if (url.StartsWith("fmt://") || url.StartsWith("device://"))
                     {
                         int queryStarts = url.IndexOf('?');
+                        int fmtStarts = url.IndexOf('/') + 2;
                         string fmtStr = "";
 
                         if (queryStarts == -1)
-                            fmtStr = url.Substring(10);
+                            fmtStr = url.Substring(fmtStarts);
                         else
                         {
-                            fmtStr = url.Substring(9, queryStarts - 9);
+                            fmtStr = url.Substring(fmtStarts, queryStarts - fmtStarts);
                             string query = url.Substring(queryStarts + 1);
                             var inputEnds = query.IndexOf('&');
-                            var firstEquals = query.IndexOf('=');
 
-                            if (inputEnds != -1 && (firstEquals == -1 || firstEquals > inputEnds))
+                            if (inputEnds != -1)
                             {
                                 deviceUrl = query.Substring(0, inputEnds);
                                 query = query.Substring(inputEnds + 1);
