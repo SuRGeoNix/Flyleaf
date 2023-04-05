@@ -8,6 +8,9 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Data;
 
+using Microsoft.Extensions.Primitives;
+using Microsoft.AspNetCore.WebUtilities;
+
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.AVMediaType;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -18,8 +21,6 @@ using FlyleafLib.MediaFramework.MediaStream;
 
 using static FlyleafLib.Config;
 using static FlyleafLib.Logger;
-using Microsoft.Extensions.Primitives;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace FlyleafLib.MediaFramework.MediaDemuxer
 {
@@ -341,11 +342,16 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                         inFmt = av_find_input_format(uri.Host);
                         if (inFmt == null)
                             return error = $"[av_find_input_format] {uri.Host} not found";
-                        var queryParameters = QueryHelpers.ParseQuery(uri.Query);
-                        deviceUrl = $"video={queryParameters["video"]}";
-                        deviceParameters = queryParameters
-                            .Where(kvp => kvp.Key != "video")
-                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+                        // temp fix for #272
+                        deviceUrl = Uri.UnescapeDataString(uri.Query).TrimStart('?');
+
+                        //Should separate Url/Options based on https://ffmpeg.org/ffmpeg-devices.html
+                        //var queryParameters = QueryHelpers.ParseQuery(uri.Query);
+                        //deviceUrl = $"video={queryParameters["video"]}"; // should also contain audio*
+                        //deviceParameters = queryParameters
+                        //    .Where(kvp => kvp.Key != "video")
+                        //    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
                     }
 
                     lock (lockFmtCtx)
