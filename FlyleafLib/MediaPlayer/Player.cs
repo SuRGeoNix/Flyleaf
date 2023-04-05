@@ -601,8 +601,6 @@ namespace FlyleafLib.MediaPlayer
     public enum Usage
     {
         AVS,
-        Audio,
-        LowLatencyVideo,
-        ZeroLatencyAudioVideo
+        Audio
     }
 }

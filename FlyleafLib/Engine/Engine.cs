@@ -157,8 +157,6 @@ namespace FlyleafLib
             Plugins = new PluginsEngine();
             Players = new List<Player>();
 
-            Renderer.Start();
-
             IsLoaded = true;
             Loaded?.Invoke(null, null);
 

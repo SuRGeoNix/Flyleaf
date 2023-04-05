@@ -3,16 +3,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Windows.Forms;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 using static FFmpeg.AutoGen.AVCodecID;
 
-using Vortice;
 using Vortice.DXGI;
 using Vortice.Direct3D11;
-using Vortice.Mathematics;
 
 using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
@@ -40,20 +37,18 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
         // Hardware & Software_Handled (Y_UV | Y_U_V)
         Texture2DDescription    textDesc, textDescUV;
+        const AVPixelFormat     PIX_FMT_HWACCEL = AVPixelFormat.AV_PIX_FMT_D3D11;
 
         // Software_Sws (RGBA)
-        const AVPixelFormat     VOutPixelFormat = AVPixelFormat.AV_PIX_FMT_RGBA;
         const int               SCALING_HQ = SWS_ACCURATE_RND | SWS_BITEXACT | SWS_LANCZOS | SWS_FULL_CHR_H_INT | SWS_FULL_CHR_H_INP;
         const int               SCALING_LQ = SWS_BICUBIC;
 
-        SwsContext*             swsCtx;
-        IntPtr                  outBufferPtr;
-        int                     outBufferSize;
-        byte_ptrArray4          outData;
-        int_array4              outLineSize;
+        internal SwsContext*    swsCtx;
+        IntPtr                  swsBufferPtr;
+        internal byte_ptrArray4 swsData;
+        internal int_array4     swsLineSize;
 
         internal bool           keyFrameRequired;
-        bool HDRDataSent;
 
         // Reverse Playback
         ConcurrentStack<List<IntPtr>>   curReverseVideoStack    = new ConcurrentStack<List<IntPtr>>();
@@ -61,16 +56,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         List<VideoFrame>                curReverseVideoFrames   = new List<VideoFrame>();
         int                             curReversePacketPos     = 0;
 
-        static VideoDecoder()
-        {
-            if (Engine.FFmpeg.IsVer5OrGreater)
-            {
-                HW_PIX_FMT              -= 2;
-                //AV_PIX_FMT_P010LE       -= 2;
-                //AV_PIX_FMT_P010BE       -= 2;
-                //AV_PIX_FMT_YUV420P10LE  -= 2;
-            }
-        }
         public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
         {
             getHWformat = new AVCodecContext_get_format(get_format);
@@ -104,12 +89,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
         const AVHWDeviceType    HW_DEVICE   = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA; // To fully support Win7/8 should consider AV_HWDEVICE_TYPE_DXVA2
 
-        // We can't use AVPixelFormat enum as it is different between ffmpeg v4 and v5 (two new entries after 44 so we need -2 for >46 )
-        static int HW_PIX_FMT               = (int)AVPixelFormat.AV_PIX_FMT_D3D11;
-        //static int AV_PIX_FMT_P010LE        = (int)AVPixelFormat.AV_PIX_FMT_P010LE;
-        //static int AV_PIX_FMT_P010BE        = (int)AVPixelFormat.AV_PIX_FMT_P010BE;
-        //static int AV_PIX_FMT_YUV420P10LE   = (int)AVPixelFormat.AV_PIX_FMT_YUV420P10LE;
-
         internal ID3D11Texture2D
                                 textureFFmpeg;
         AVCodecContext_get_format 
@@ -126,7 +105,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (config == null) break;
                 if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) == 0 || config->pix_fmt == AVPixelFormat.AV_PIX_FMT_NONE) continue;
                 
-                if (config->device_type == HW_DEVICE && (int)config->pix_fmt == HW_PIX_FMT) return true;
+                if (config->device_type == HW_DEVICE && config->pix_fmt == PIX_FMT_HWACCEL) return true;
             }
 
             return false;
@@ -176,7 +155,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             {
                 if (CanTrace) Log.Trace($"{*pix_fmts}");
 
-                if ((int)(*pix_fmts) == HW_PIX_FMT)
+                if ((*pix_fmts) == PIX_FMT_HWACCEL)
                 {
                     foundHWformat = true;
                     break;
@@ -196,7 +175,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 textDesc.Format = textureFFmpeg.Description.Format;
 
-                return (AVPixelFormat)HW_PIX_FMT;
+                return PIX_FMT_HWACCEL;
             }
 
             lock (lockCodecCtx)
@@ -238,7 +217,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                     filledFromCodec = false;
                 }
 
-                return (AVPixelFormat)HW_PIX_FMT;
+                return PIX_FMT_HWACCEL;
             }
         }
         private int ShouldAllocateNew() // 0: No, 1: Yes, 2: Yes+Codec Changed
@@ -276,7 +255,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             if (codecCtx->hw_frames_ctx != null)
                 av_buffer_unref(&codecCtx->hw_frames_ctx);
 
-            if (avcodec_get_hw_frames_parameters(codecCtx, codecCtx->hw_device_ctx, (AVPixelFormat)HW_PIX_FMT, &codecCtx->hw_frames_ctx) != 0)
+            if (avcodec_get_hw_frames_parameters(codecCtx, codecCtx->hw_device_ctx, PIX_FMT_HWACCEL, &codecCtx->hw_frames_ctx) != 0)
                 return -1;
 
             AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)(codecCtx->hw_frames_ctx->data);
@@ -309,7 +288,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 ZeroCopy = VideoAccelerated && (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Enabled || (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto && codecCtx->width == textureFFmpeg.Description.Width && codecCtx->height == textureFFmpeg.Description.Height));
                 if (save != ZeroCopy)
                 {
-                    Renderer?.FrameResized();
+                    Renderer?.ConfigPlanes();
                     CodecChanged?.Invoke(this);
                 }
             }
@@ -343,7 +322,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
             //var t1 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_MASTERING_DISPLAY_METADATA, null);
             //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
 
-            HDRDataSent = false;
             keyFrameRequired = true;
             ZeroCopy = false;
             filledFromCodec = false;
@@ -355,7 +333,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (Config.Decoder.AllowProfileMismatch)
                     codecCtx->hwaccel_flags |= AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH;
 
-                codecCtx->pix_fmt = (AVPixelFormat)HW_PIX_FMT;
+                codecCtx->pix_fmt = PIX_FMT_HWACCEL;
                 codecCtx->get_format = getHWformat;
                 disableGetFormat = false;
             }
@@ -367,93 +345,25 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             return 0;
         }
-
-        private bool PrepareProcess(AVFrame* frame)
+        internal bool SetupSws()
         {
-            try
+            Marshal.FreeHGlobal(swsBufferPtr);
+            AVPixelFormat fmt = AVPixelFormat.AV_PIX_FMT_RGBA;
+            swsData = new byte_ptrArray4();
+            swsLineSize = new int_array4();
+            int outBufferSize = av_image_get_buffer_size(fmt, codecCtx->width, codecCtx->height, 1);
+            swsBufferPtr = Marshal.AllocHGlobal(outBufferSize);
+            av_image_fill_arrays(ref swsData, ref swsLineSize, (byte*) swsBufferPtr, fmt, codecCtx->width, codecCtx->height, 1);
+            swsCtx = sws_getContext(codecCtx->coded_width, codecCtx->coded_height, codecCtx->pix_fmt, codecCtx->width, codecCtx->height, fmt, Config.Video.SwsHighQuality ? SCALING_HQ : SCALING_LQ, null, null, null);
+
+            if (swsCtx == null)
             {
-                filledFromCodec = true;
-
-                avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
-                VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.AV_PIX_FMT_NONE ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt);
-
-                if (VideoStream.PixelFormat == AVPixelFormat.AV_PIX_FMT_NONE)
-                {
-                    Log.Error("[Pixel Format] Unknown");
-                    return false;
-                }
-                
-                textDesc = new Texture2DDescription()
-                {
-                    Usage               = ResourceUsage.Default,
-                    BindFlags           = BindFlags.ShaderResource,
-
-                    Width               = codecCtx->width,
-                    Height              = codecCtx->height,
-
-                    SampleDescription   = new SampleDescription(1, 0),
-                    ArraySize           = 1,
-                    MipLevels           = 1
-                };
-
-                if (VideoAccelerated)
-                    textDesc.Format = textureFFmpeg.Description.Format;
-                else if (VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
-                {
-                    textDescUV = new Texture2DDescription()
-                    {
-                        Usage               = ResourceUsage.Default,
-                        BindFlags           = BindFlags.ShaderResource,
-
-                        Width               = codecCtx->width  >> VideoStream.PixelFormatDesc->log2_chroma_w,
-                        Height              = codecCtx->height >> VideoStream.PixelFormatDesc->log2_chroma_h,
-
-                        SampleDescription   = new SampleDescription(1, 0),
-                        ArraySize           = 1,
-                        MipLevels           = 1
-                    };
-
-                    if (VideoStream.IsPlanar)
-                    {
-                        textDesc.Format = VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm;
-                        textDescUV.Format = VideoStream.PixelBits > 8 ? Format.R16_UNorm : Format.R8_UNorm;
-                    }
-                    else
-                    {
-                        switch (VideoStream.PixelFormat)
-                        {
-                            case AVPixelFormat.AV_PIX_FMT_YUYV422:
-                            case AVPixelFormat.AV_PIX_FMT_UYVY422:
-                                textDesc.Format = Format.YUY2;
-                                break;
-
-                            default:
-                                Log.Error($"Unsupported pixel format {VideoStream.PixelFormatStr}");
-                                return false;
-                        }
-                    }
-                }
-                else
-                    textDesc.Format = Format.R8G8B8A8_UNorm;
-
-                if (!(VideoStream.FPS > 0)) // NaN
-                {
-                    VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : 0;
-                    VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
-                }
-
-                Renderer?.FrameResized();
-                CodecChanged?.Invoke(this);
-
-                return true;
-
-            } catch (Exception ex)
-            {
-                Log.Error($"PrepareProcess failed with {ex.Message}");
+                Log.Error($"Failed to allocate SwsContext");
                 return false;
             }
-        }
 
+            return true;
+        }
         internal void Flush()
         {
             lock (lockActions)
@@ -629,15 +539,43 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                                 keyFrameRequired = false;
                             }
                         }
-
-                        if (!filledFromCodec && !PrepareProcess(frame))
+                        
+                        if (Speed != 1)
                         {
-                            av_frame_unref(frame);
-                            Status = Status.Stopping;
-                            break;
+                            curSpeedFrame++;
+                            if (curSpeedFrame < Speed)
+                            {
+                                av_frame_unref(frame);
+                                continue;
+                            }
+                            curSpeedFrame = 0; 
                         }
 
-                        VideoFrame mFrame = ProcessVideoFrame(frame);
+                        if (!filledFromCodec)
+                        {
+                            filledFromCodec = true;
+
+                            avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
+                            VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.AV_PIX_FMT_NONE ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt);
+
+                            if (!(VideoStream.FPS > 0)) // NaN
+                            {
+                                VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : 0;
+                                VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
+                            }
+
+                            CodecChanged?.Invoke(this);
+
+                            if (!Renderer.ConfigPlanes())
+                            {
+                                Log.Error("[Pixel Format] Unknown");
+                                av_frame_unref(frame);
+                                Status = Status.Stopping;
+                                break;
+                            }
+                        }
+
+                        VideoFrame mFrame = Renderer.FillPlanes(frame);
                         if (mFrame != null) Frames.Enqueue(mFrame);
                     }
 
@@ -795,7 +733,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                             {
                                 av_packet_free(&packet);
                                 curReverseVideoPackets[curReversePacketPos - 1] = IntPtr.Zero;
-                                VideoFrame mFrame = ProcessVideoFrame(frame);
+                                VideoFrame mFrame = Renderer.FillPlanes(frame);
                                 if (mFrame != null) curReverseVideoFrames.Add(mFrame);
                             }
                             else
@@ -828,141 +766,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
             if (Status != Status.Pausing && Status != Status.Paused)
                 curReversePacketPos = 0;
-        }
-        
-        internal VideoFrame ProcessVideoFrame(AVFrame* frame)
-        {
-            try
-            {
-                if (Speed != 1)
-                {
-                    curSpeedFrame++;
-                    if (curSpeedFrame < Speed)
-                        return null;
-
-                    curSpeedFrame = 0;                    
-                }
-
-                // TODO
-                //mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoStream.StartTime;
-
-                VideoFrame mFrame = new VideoFrame();
-                mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
-                if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
-
-                if (!HDRDataSent && frame->side_data != null && *frame->side_data != null)
-                {
-                    HDRDataSent = true;
-                    AVFrameSideData* sideData = *frame->side_data;
-                    if (sideData->type == AVFrameSideDataType.AV_FRAME_DATA_MASTERING_DISPLAY_METADATA)
-                        Renderer?.UpdateHDRtoSDR((AVMasteringDisplayMetadata*)sideData->data);
-                }
-
-                // Hardware Frame (D3D11 => NV12|P010)   | CopySubresourceRegion FFmpeg Texture Array -> Device Texture[1] (NV12|P010) / SRV (RX_RXGX) -> PixelShader (Y_UV)
-                if (VideoAccelerated)
-                {
-
-                    // TBR: It is possible that FFmpeg will decide to re-create a new hw frames pool (if we provide wrong threads/initial pool size etc?)
-                    //if ((IntPtr) frame->data.ToArray()[0] != (IntPtr) (((AVD3D11VAFramesContext *)((AVHWFramesContext*)hwframes->data)->hwctx)->texture))
-                        //textureFFmpeg = new ID3D11Texture2D((IntPtr) frame->data.ToArray()[0]);
-
-                    // YUV Semi-Planar [Y0....][U0V0...]
-                    if (ZeroCopy)
-                    {
-                        mFrame.bufRef       = av_buffer_ref(frame->buf.ToArray()[0]);
-                        mFrame.subresource  = (int) frame->data.ToArray()[1];
-                    }
-                    else
-                    {
-                        mFrame.textures     = new ID3D11Texture2D[1];
-                        mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc);
-                        Renderer.Device.ImmediateContext.CopySubresourceRegion(
-                            mFrame.textures[0], 0, 0, 0, 0, // dst
-                            textureFFmpeg, (int)frame->data.ToArray()[1],  // src
-                            new Box(0, 0, 0, mFrame.textures[0].Description.Width, mFrame.textures[0].Description.Height, 1)); // crop decoder's padding
-                    }
-                }
-
-                // Software Frame (8-bit YUV)   | YUV byte* -> Device Texture[3] (RX) / SRV (RX_RX_RX) -> PixelShader (Y_U_V)
-                else if (VideoStream.PixelFormatType == PixelFormatType.Software_Handled)
-                {
-                    /* TODO
-                     * Check which formats are suported from DXGI textures and the possibility to upload them directly so we can just blit them to rgba
-                     * If not supported from DXGI just uploaded to one supported and process it on GPU with pixelshader
-                     * Support > 8 bit
-                     * Semi-Planar (SP) ? [Y0....][U0V0....]
-                     */
-
-                    // YUV Planar [Y0 ...] [U0 ...] [V0 ....]
-                    if (VideoStream.IsPlanar)
-                    {
-                        mFrame.textures = new ID3D11Texture2D[3];
-
-                        SubresourceData db  = new SubresourceData();
-                        db.DataPointer      = (IntPtr)frame->data.ToArray()[0];
-                        db.RowPitch         = frame->linesize.ToArray()[0];
-                        mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc, new SubresourceData[] { db });
-                        
-                        db                  = new SubresourceData();
-                        db.DataPointer      = (IntPtr)frame->data.ToArray()[1];
-                        db.RowPitch         = frame->linesize.ToArray()[1];
-                        mFrame.textures[1]  = Renderer.Device.CreateTexture2D(textDescUV, new SubresourceData[] { db });
-
-                        db                  = new SubresourceData();
-                        db.DataPointer      = (IntPtr)frame->data.ToArray()[2];
-                        db.RowPitch         = frame->linesize.ToArray()[2];
-                        mFrame.textures[2]  = Renderer.Device.CreateTexture2D(textDescUV, new SubresourceData[] { db });
-                    }
-                    
-                    // YUV Packed / Interleaved ([Y0U0Y1V0] ....)
-                    else
-                    {
-                        mFrame.textures     = new ID3D11Texture2D[1];
-
-                        SubresourceData db  = new SubresourceData();
-                        db.DataPointer      = (IntPtr)frame->data.ToArray()[0];
-                        db.RowPitch         = frame->linesize.ToArray()[0];
-                        mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc, new SubresourceData[] { db });
-                    }
-                }
-
-                // Software Frame (OTHER/sws_scale) | X byte* -> Sws_Scale RGBA -> Device Texture[1] (RGBA) / SRV (RGBA) -> PixelShader (RGBA)
-                else
-                {
-                    if (swsCtx == null)
-                    {
-                        outData         = new byte_ptrArray4();
-                        outLineSize     = new int_array4();
-                        outBufferSize   = av_image_get_buffer_size(VOutPixelFormat, codecCtx->width, codecCtx->height, 1);
-                        Marshal.FreeHGlobal(outBufferPtr);
-                        outBufferPtr    = Marshal.AllocHGlobal(outBufferSize);
-                        av_image_fill_arrays(ref outData, ref outLineSize, (byte*) outBufferPtr, VOutPixelFormat, codecCtx->width, codecCtx->height, 1);
-                        
-                        int vSwsOptFlags= Config.Video.SwsHighQuality ? SCALING_HQ : SCALING_LQ;
-                        swsCtx          = sws_getContext(codecCtx->coded_width, codecCtx->coded_height, codecCtx->pix_fmt, codecCtx->width, codecCtx->height, VOutPixelFormat, vSwsOptFlags, null, null, null);
-                        if (swsCtx == null) { Log.Error($"Failed to allocate SwsContext"); return null; }
-                    }
-
-                    sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, outData, outLineSize);
-
-                    SubresourceData db  = new SubresourceData();
-                    db.DataPointer      = (IntPtr)outData.ToArray()[0];
-                    db.RowPitch         = outLineSize[0];
-                    mFrame.textures     = new ID3D11Texture2D[1];
-                    mFrame.textures[0]  = Renderer.Device.CreateTexture2D(textDesc, new SubresourceData[] { db });
-                }
-
-                av_frame_unref(frame);
-
-                return mFrame;
-
-            } catch (Exception e)
-            {
-                Log.Error($"Failed to process frame ({e.Message})");
-                av_frame_unref(frame);
-
-                return null; 
-            }
         }
 
         public void RefreshMaxVideoFrames()
@@ -1048,7 +851,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 }
 
                 //Log.Debug($"[Found] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | {Utils.TicksToTime(VideoStream.StartTime + (index * VideoStream.FrameDuration))} | [fltime: {Utils.TicksToTime(((long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime))}]");
-                return ProcessVideoFrame(frame);
+                return Renderer.FillPlanes(frame);
             }
 
             return null;
@@ -1063,7 +866,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         {
             if (GetFrameNext(true) != 0) return null;
 
-            return ProcessVideoFrame(frame);
+            return Renderer.FillPlanes(frame);
         }
 
         /// <summary>
@@ -1183,10 +986,15 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 for (int i=0; i<frame.textures.Length; i++)
                     frame.textures[i].Dispose();
 
+            if (frame.srvs != null)
+                for (int i=0; i<frame.srvs.Length; i++)
+                    frame.srvs[i].Dispose();
+
             if (frame.bufRef != null)
                 fixed (AVBufferRef** ptr = &frame.bufRef)
                     av_buffer_unref(ptr);
 
+            frame.srvs      = null;
             frame.textures  = null;
             frame.bufRef    = null;
         }
@@ -1214,7 +1022,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
 
                 if (swsCtx != null)
                     sws_freeContext(swsCtx);
-                
+
                 hwframes    = null;
                 swsCtx      = null;
                 StartTime   = AV_NOPTS_VALUE;

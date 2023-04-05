@@ -62,6 +62,11 @@ namespace FlyleafLib.Plugins
                 {
                     //FileInfo fi = new FileInfo(Handler.Playlist.Url);
                     string prefix = Selected.Title.Substring(0, Math.Min(Selected.Title.Length, 4));
+
+                    string folder = Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs");
+                    if (!Directory.Exists(folder))
+                        return;
+
                     string[] filesCur = Directory.GetFiles(Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs"), $"{prefix}*{lang.IdSubLanguage}.utf8*.srt");
                     foreach(var file in filesCur)
                     {

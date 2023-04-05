@@ -46,21 +46,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="MediaFramework\MediaRenderer\Shaders\FlyleafPS.blob" />
-    <None Remove="MediaFramework\MediaRenderer\Shaders\PSSimple.blob" />
-    <None Remove="MediaFramework\MediaRenderer\Shaders\VSSimple.blob" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\FlyleafPS.blob" />
-    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\PSSimple.blob" />
-    <EmbeddedResource Include="MediaFramework\MediaRenderer\Shaders\VSSimple.blob" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="FFmpeg.AutoGen" Version="4.4.1.1" />
-    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
-    <PackageReference Include="System.Management" Version="7.0.0" />
+    <PackageReference Include="FFmpeg.AutoGen" Version="5.1.2.1" />
+	<PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
+	<PackageReference Include="System.Management" Version="7.0.0" />
     <PackageReference Include="Vortice.D3DCompiler" Version="2.4.2" />
     <PackageReference Include="Vortice.Direct3D11" Version="2.4.2" />
     <PackageReference Include="Vortice.DirectComposition" Version="2.4.2" />
