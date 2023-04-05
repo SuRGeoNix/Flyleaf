@@ -1,9 +1,8 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     
-                    xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-                    >
+                    xmlns:flyleafLib="clr-namespace:FlyleafLib;assembly=FlyleafLib">
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesign.xaml"/>
@@ -13,8 +12,12 @@
     
     <!--Overriding FlyleafME's Popup Menu (Using FlyleafME's Tag to pass our DataContext) -->
     <ContextMenu x:Key="PopUpMenu" Style="{StaticResource FlyleafContextMenu}">
-        <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}"/>
-        <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}" IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}"/>
+        <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}" />
+        <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}"
+                  IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}" />
+        <MenuItem Header="Open Device" Icon="{materialDesign:PackIcon VideoOutline}" IsEnabled="{Binding CapDevices.Count, Source={x:Static flyleafLib:Engine.Video}}"
+                  ItemsSource="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Video}}"
+                  ItemTemplate="{StaticResource VideoDeviceMenuHierarchyTemplate}" />
         <Separator />
         
         <MenuItem Header="New Window" Command="{Binding Tag.OpenWindow}" Icon="{materialDesign:PackIcon Kind=TabPlus}"/>
