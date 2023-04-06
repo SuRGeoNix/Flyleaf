@@ -7,8 +7,8 @@
 	<PackageIcon>Flyleaf.png</PackageIcon>
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
-	<Description>Media Player .NET Library for WinUI/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.6.12</Version>
+	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
+	<Version>3.7.0</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,20 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Demuxer: Fixes an issue with avdevices that require to open the input in UI thread (eg. decklink)
-		Engine: Adds FFmpeg v6 support (by adding latest FFmpeg.Autogen Nuget to your app)
-		Renderer: Adds WinUI 3.0 support (for SwapChainPanel)
-		Player: Renames WPFHost/WFHost to Host which now includes also the WinUI Host
+		Renderer: New implementation for FlyleafVP's pixel shaders which now supports almost all YUV/RGB formats (GPU process instead of SwsScale CPU)
+		Config: Adds Video.SwsForce to bypass FlyleafVP if required
+		Demuxer: Improves Url syntax which combines force format with devices in one and allows to pass optons (fmt://$format$[/]?$input$&amp;opt1=val1&amp;opt2=val2) to force a specific format for an input and pass options directly
+		Demuxer: Introduces Config.Demuxer.ForceFormat to force a specific input format
+		Demuxer: Fixes an issue when FindStreamInfo is disabled it wouldn't find the video stream
+		Demuxer: Fixes an issue with Extension which could cause Remuxer(Downloader/Recorder) to fail
+		Engine: Improves Video Cap Devices by including all the supported streams/formats
+		Player: Allows slower FPS (it could cause issues with 1fps)
+		Player: Fixes a null reference issue with AudioOnly screamer
+
+		Breaking Changes
+		1) Drops support for FFmpeg v4 (it had different values for AVPixelFormats and could cause issues)
+		2) Drops support for Player.Usage.LowLatencyVideo/ZeroLatencyAudioVideo as they have been replaced with Config.Player.MaxLatency
+		3) Reduces default value for Config.Demuxer.BufferDuration from 2min to 30sec
 	</PackageReleaseNotes>
   </PropertyGroup>
 

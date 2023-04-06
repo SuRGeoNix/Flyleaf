@@ -1,4 +1,4 @@
-﻿# *Flyleaf v3.6*: Media Player .NET Library for WPF / WinForms (based on FFmpeg/DirectX)
+﻿# *Flyleaf v3.7*: Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)
 
 ![alt text](Images/Flyleafv3.6.png)
 
@@ -32,7 +32,8 @@
 ### **FFmpeg**
 - *HLS Live Seeking* <sub>Might the 1st FFmpeg player which does that</sub>
 - *Pached for [HLS issue](https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=1018)* <sub>Use recommended FFmpeg libraries which can be found on GitHub releases</sub>
-- *Supports both FFmpeg v4 and v5* <sub>Even if the library uses FFmpeg.Autogen v4, it supports and you can use v5 **in your application**</sub>
+- *Capture Devices* <sub>Pass the format, input and options with a single Url eg. fmt://gdigrab?desktop&framerate=30</sub>
+- *Supports FFmpeg v5+*
 
 ### **Playback**
 - *Open / Play / Pause / Stop*
@@ -67,7 +68,7 @@
 - *Advanced Character Detection and Convert to UTF-8* <sub>SubtitlesConverter plugin</sub>
 - *Languages support* <sub>System's default languages as priorities for subtitles streams</sub>
 
-### **UI Control (FlyleafHost)**<sub>WPF / WinForms (Partially)</sub>
+### **UI Control (FlyleafHost)**<sub>WPF / WinUI &amp; WinForms (Partially)</sub>
 - *Attach / Detach*
 - *Activity / Idle Mode*
 - *Drag Move (Self / Owner)*
