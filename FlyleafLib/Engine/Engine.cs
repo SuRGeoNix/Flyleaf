@@ -4,9 +4,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Windows;
 
-using Vortice.MediaFoundation;
-
-using FlyleafLib.MediaFramework.MediaRenderer;
+using FlyleafLib.MediaFramework.MediaDevice;
 using FlyleafLib.MediaPlayer;
 
 namespace FlyleafLib
@@ -51,14 +49,16 @@ namespace FlyleafLib
         /// </summary>
         public static List<Player>      Players         { get; private set; }
 
-        public static event EventHandler Loaded;
+        public static event EventHandler 
+                        Loaded;
 
-        internal static LogHandler Log;
+        internal static LogHandler 
+                        Log;
 
-        static Thread tMaster;
-        static object lockEngine = new object();
-        static bool isLoading;
-        static int timePeriod;
+        static Thread   tMaster;
+        static object   lockEngine = new object();
+        static bool     isLoading;
+        static int      timePeriod;
 
         /// <summary>
         /// Initializes Flyleaf's Engine (Must be called from UI thread)
@@ -145,6 +145,8 @@ namespace FlyleafLib
             Log = new LogHandler("[FlyleafEngine] ");
 
             Audio = new AudioEngine();
+            if (Config.FFmpegDevices)
+                AudioDevice.RefreshDevices();
         }
 
         private static void StartInternalNonUI()
@@ -154,6 +156,8 @@ namespace FlyleafLib
 
             FFmpeg  = new FFmpegEngine();
             Video   = new VideoEngine();
+            if (Config.FFmpegDevices)
+                VideoDevice.RefreshDevices();
             Plugins = new PluginsEngine();
             Players = new List<Player>();
 

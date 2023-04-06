@@ -3,7 +3,7 @@
                     
                     xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-                    xmlns:videoDeviceEnumerator="clr-namespace:FlyleafLib.VideoDeviceEnumerator;assembly=FlyleafLib"
+                    xmlns:devices="clr-namespace:FlyleafLib.MediaFramework.MediaDevice;assembly=FlyleafLib"
                     xmlns:flyleafLib="clr-namespace:FlyleafLib;assembly=FlyleafLib">
 
     <ResourceDictionary.MergedDictionaries>
@@ -636,24 +636,23 @@
         </MenuItem>
     </collections:ArrayList>
 
-    <HierarchicalDataTemplate x:Key="VideoDeviceMenuHierarchyTemplate"
-                              DataType="{x:Type videoDeviceEnumerator:IVideoDevice}" ItemsSource="{Binding Formats}">
+    <HierarchicalDataTemplate x:Key="DeviceMenuHierarchyTemplate" DataType="{x:Type devices:DeviceBase}" ItemsSource="{Binding Streams}">
         <TextBlock Text="{Binding FriendlyName}">
             <TextBlock.InputBindings>
                 <MouseBinding
                     Command="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
-                    CommandParameter="{Binding DefaultVideoFormatUri }"
-                    MouseAction="LeftClick" />
+                    CommandParameter="{Binding Url}"
+                    MouseAction="LeftClick"/>
             </TextBlock.InputBindings>
         </TextBlock>
         <HierarchicalDataTemplate.ItemTemplate>
-            <DataTemplate DataType="{x:Type videoDeviceEnumerator:IVideoFormat}">
-                <TextBlock Text="{Binding }" >
+            <DataTemplate DataType="{x:Type devices:DeviceStreamBase}">
+                <TextBlock Text="{Binding}" >
                     <TextBlock.InputBindings>
                         <MouseBinding
                             Command="{Binding DataContext.Player.Commands.Open, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
-                            CommandParameter="{Binding Uri }"
-                            MouseAction="LeftClick" />
+                            CommandParameter="{Binding Url}"
+                            MouseAction="LeftClick"/>
                     </TextBlock.InputBindings>
                 </TextBlock>
             </DataTemplate>
@@ -664,9 +663,7 @@
         <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}" />
         <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}"
                   IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}" />
-        <MenuItem Header="Open Device" Icon="{materialDesign:PackIcon VideoOutline}" IsEnabled="{Binding CapDevices.Count, Source={x:Static flyleafLib:Engine.Video}}"
-                  ItemsSource="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Video}}"
-                  ItemTemplate="{StaticResource VideoDeviceMenuHierarchyTemplate}" />
+        
         <Separator />
 
         <MenuItem ItemsSource="{Binding Player.Playlist.Items}" Icon="{materialDesign:PackIcon ViewList}">
@@ -704,6 +701,21 @@
                 <MenuItem Header="+ 1000"   CommandParameter="1000"     Command="{Binding Player.Commands.AudioDelaySet2}"/>
                 <MenuItem Header="+  100"   CommandParameter="100"      Command="{Binding Player.Commands.AudioDelaySet2}"/>
                 <MenuItem Header="+   10"   CommandParameter="10"       Command="{Binding Player.Commands.AudioDelaySet2}"/>
+            </MenuItem>
+            <MenuItem Header="Devices" ItemsSource="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Audio}}" ItemTemplate="{StaticResource DeviceMenuHierarchyTemplate}">
+                <MenuItem.Style>
+                    <Style TargetType="MenuItem" BasedOn="{StaticResource MaterialDesignMenuItem}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Audio}}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding CapDevices.Count, Source={x:Static flyleafLib:Engine.Audio}}" Value="0">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </MenuItem.Style>
             </MenuItem>
             <MenuItem Header="Streams" ItemsSource="{StaticResource MenuAudioStreams}"/>
         </MenuItem>
@@ -766,6 +778,21 @@
                         </TextBlock>
                     </DataTemplate>
                 </MenuItem.ItemTemplate>
+            </MenuItem>
+            <MenuItem Header="Devices" ItemsSource="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Video}}" ItemTemplate="{StaticResource DeviceMenuHierarchyTemplate}">
+                <MenuItem.Style>
+                    <Style TargetType="MenuItem" BasedOn="{StaticResource MaterialDesignMenuItem}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Video}}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding CapDevices.Count, Source={x:Static flyleafLib:Engine.Video}}" Value="0">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </MenuItem.Style>
             </MenuItem>
             <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Config.Video.VideoAcceleration}"/>
             <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording, Mode=OneWay}" Command="{Binding Player.Commands.ToggleRecording}"/>

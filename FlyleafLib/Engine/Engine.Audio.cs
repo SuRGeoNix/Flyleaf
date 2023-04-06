@@ -8,9 +8,11 @@ using SharpGen.Runtime.Win32;
 using Vortice.MediaFoundation;
 using static Vortice.XAudio2.XAudio2;
 
+using FlyleafLib.MediaFramework.MediaDevice;
+
 namespace FlyleafLib
 {
-    public class AudioEngine : CallbackBase, IMMNotificationClient//, INotifyPropertyChanged
+    public class AudioEngine : CallbackBase, IMMNotificationClient
     {
         /* TODO
          * 
@@ -40,14 +42,17 @@ namespace FlyleafLib
         /// <summary>
         /// List of Audio Capture Devices
         /// </summary>
-        public ObservableCollection<string> CapDevices { get; private set; } = new ObservableCollection<string>();
+        public ObservableCollection<AudioDevice> 
+                            CapDevices          { get; set; } = new();
+
+        public void         RefreshCapDevices() => AudioDevice.RefreshDevices();
 
         /// <summary>
         /// List of Audio Devices
         /// </summary>
-        public ObservableCollection<string> Devices { get; private set; } = new ObservableCollection<string>();
+        public ObservableCollection<string> 
+                            Devices             { get; private set; } = new();
 
-        private readonly object lockCapDevices = new();
         private readonly object lockDevices = new();
 
         public string GetDeviceId(string deviceName)
@@ -82,8 +87,9 @@ namespace FlyleafLib
         }
         #endregion
 
-        IMMDeviceEnumerator  deviceEnum;
-        private object locker = new object();
+        IMMDeviceEnumerator deviceEnum;
+        private object      locker = new();
+
         public AudioEngine()
         {
             if (Engine.Config.DisableAudio)
@@ -92,37 +98,8 @@ namespace FlyleafLib
                 return;
             }
 
-            BindingOperations.EnableCollectionSynchronization(CapDevices, lockCapDevices);
-            EnumerateCapDevices();
-
             BindingOperations.EnableCollectionSynchronization(Devices, lockDevices);
             EnumerateDevices();
-        }
-
-        private void EnumerateCapDevices()
-        {
-            try
-            {
-                string dump = null; var i = 1;
-
-                using (var capDevices = MediaFactory.MFEnumAudioDeviceSources())
-                {
-                    foreach (IMFActivate capDevice in capDevices)
-                    {
-                        if (i == 1) dump = "Audio Cap Devices\r\n";
-                        dump += $"[#{i}] {capDevice.FriendlyName}\r\n";
-                        CapDevices.Add(capDevice.FriendlyName);
-                        i++;
-                    }
-
-                    if (dump != null)
-                        Engine.Log.Debug(dump);
-                }
-            }
-            catch (Exception e)
-            {
-                Engine.Log.Error($"Failed to enumerate audio capture devices ({e.Message})");
-            }
         }
 
         private void EnumerateDevices()
@@ -168,7 +145,6 @@ namespace FlyleafLib
 
             } catch { Failed = true; }
         }
-
         private void RefreshDevices()
         {
             // Refresh Devices and initialize audio players if requried

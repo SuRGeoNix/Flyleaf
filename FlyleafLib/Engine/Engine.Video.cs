@@ -1,36 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using FlyleafLib.VideoDeviceEnumerator;
+
 using Vortice.DXGI;
+
+using FlyleafLib.MediaFramework.MediaDevice;
 
 namespace FlyleafLib
 {
     public class VideoEngine
     {
         /// <summary>
-        /// Enumerator of Video Capture Devices
-        /// </summary>
-        private readonly VideoDeviceEnumerator.VideoDeviceEnumerator _videoDeviceEnumerator;
-
-        /// <summary>
         /// List of Video Capture Devices
         /// </summary>
-        public ObservableCollection<IVideoDevice>
-            CapDevices => _videoDeviceEnumerator?.VideoDevices;
+        public ObservableCollection<VideoDevice>
+                                CapDevices          { get; set; } = new();
+        public void             RefreshCapDevices() => VideoDevice.RefreshDevices();
 
         /// <summary>
         /// List of GPU Adpaters <see cref="Config.VideoConfig.GPUAdapter"/>
         /// </summary>
         public Dictionary<long, GPUAdapter>
-                                GPUAdapters { get; private set; }
+                                GPUAdapters         { get; private set; }
 
         /// <summary>
         /// List of GPU Outputs from default GPU Adapter (Note: will no be updated on screen connect/disconnect)
         /// </summary>
-        public List<GPUOutput>  Screens     { get; private set; } = new List<GPUOutput>();
+        public List<GPUOutput>  Screens             { get; private set; } = new List<GPUOutput>();
 
-        internal IDXGIFactory2 Factory;
+        internal IDXGIFactory2  Factory;
 
         internal VideoEngine()
         {
@@ -38,11 +36,6 @@ namespace FlyleafLib
                 throw new InvalidOperationException("Cannot create IDXGIFactory1");
 
             GPUAdapters = GetAdapters();
-
-            if (Engine.Config.FFmpegDevices)
-            {
-                _videoDeviceEnumerator = new VideoDeviceEnumerator.VideoDeviceEnumerator();
-            }
         }
 
         private Dictionary<long, GPUAdapter> GetAdapters()
