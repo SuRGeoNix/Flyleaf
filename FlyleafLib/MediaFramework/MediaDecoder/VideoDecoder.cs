@@ -35,13 +35,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
         public long             StartTime           { get; internal set; } = AV_NOPTS_VALUE;
         public long             StartRecordTime     { get; internal set; } = AV_NOPTS_VALUE;
 
-        // Hardware & Software_Handled (Y_UV | Y_U_V)
-        Texture2DDescription    textDesc, textDescUV;
-        const AVPixelFormat     PIX_FMT_HWACCEL = AVPixelFormat.AV_PIX_FMT_D3D11;
-
-        // Software_Sws (RGBA)
-        const int               SCALING_HQ = SWS_ACCURATE_RND | SWS_BITEXACT | SWS_LANCZOS | SWS_FULL_CHR_H_INT | SWS_FULL_CHR_H_INP;
-        const int               SCALING_LQ = SWS_BICUBIC;
+        const AVPixelFormat     PIX_FMT_HWACCEL     = AVPixelFormat.AV_PIX_FMT_D3D11;
+        const int               SCALING_HQ          = SWS_ACCURATE_RND | SWS_BITEXACT | SWS_LANCZOS | SWS_FULL_CHR_H_INT | SWS_FULL_CHR_H_INP;
+        const int               SCALING_LQ          = SWS_BICUBIC;
 
         internal SwsContext*    swsCtx;
         IntPtr                  swsBufferPtr;
@@ -173,8 +169,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 if (hwframes != null && codecCtx->hw_frames_ctx == null)
                     codecCtx->hw_frames_ctx = av_buffer_ref(hwframes);
 
-                textDesc.Format = textureFFmpeg.Description.Format;
-
                 return PIX_FMT_HWACCEL;
             }
 
@@ -272,7 +266,6 @@ namespace FlyleafLib.MediaFramework.MediaDecoder
                 lock (Renderer.lockDevice)
                 {
                     textureFFmpeg   = new ID3D11Texture2D((IntPtr) va_frames_ctx->texture);
-                    textDesc.Format = textureFFmpeg.Description.Format;
                     ZeroCopy = Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Enabled || (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto && codecCtx->width == textureFFmpeg.Description.Width && codecCtx->height == textureFFmpeg.Description.Height);
                     filledFromCodec = false;
                 }

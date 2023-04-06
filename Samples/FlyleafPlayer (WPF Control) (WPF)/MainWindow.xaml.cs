@@ -163,7 +163,7 @@ namespace FlyleafPlayer
             {
                 Engine.Config.LogOutput      = null;
                 Engine.Config.LogLevel       = LogLevel.Quiet;
-                Engine.Config.FFmpegDevices  = false;
+                //Engine.Config.FFmpegDevices  = false;
 
                 try { Engine.Config.Save("Flyleaf.Engine.xml"); } catch { }
             }
