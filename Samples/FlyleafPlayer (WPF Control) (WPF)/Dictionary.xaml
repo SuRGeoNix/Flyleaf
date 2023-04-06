@@ -15,9 +15,6 @@
         <MenuItem Header="Open File" Command="{Binding OpenFileDialog}" Icon="{materialDesign:PackIcon FolderOutline}" />
         <MenuItem Header="Paste Url" Command="{Binding Player.Commands.OpenFromClipboard}"
                   IsEnabled="{Binding CanPaste}" Icon="{materialDesign:PackIcon ContentPaste}" />
-        <MenuItem Header="Open Device" Icon="{materialDesign:PackIcon VideoOutline}" IsEnabled="{Binding CapDevices.Count, Source={x:Static flyleafLib:Engine.Video}}"
-                  ItemsSource="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Video}}"
-                  ItemTemplate="{StaticResource VideoDeviceMenuHierarchyTemplate}" />
         <Separator />
         
         <MenuItem Header="New Window" Command="{Binding Tag.OpenWindow}" Icon="{materialDesign:PackIcon Kind=TabPlus}"/>
@@ -59,6 +56,21 @@
                 <MenuItem Header="+ 1000"   CommandParameter="1000"     Command="{Binding Player.Commands.AudioDelaySet2}"/>
                 <MenuItem Header="+  100"   CommandParameter="100"      Command="{Binding Player.Commands.AudioDelaySet2}"/>
                 <MenuItem Header="+   10"   CommandParameter="10"       Command="{Binding Player.Commands.AudioDelaySet2}"/>
+            </MenuItem>
+            <MenuItem Header="Devices" ItemsSource="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Audio}}" ItemTemplate="{StaticResource DeviceMenuHierarchyTemplate}">
+                <MenuItem.Style>
+                    <Style TargetType="MenuItem" BasedOn="{StaticResource MaterialDesignMenuItem}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Audio}}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding CapDevices.Count, Source={x:Static flyleafLib:Engine.Audio}}" Value="0">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </MenuItem.Style>
             </MenuItem>
             <MenuItem Header="Streams" ItemsSource="{StaticResource MenuAudioStreams}"/>
         </MenuItem>
@@ -121,6 +133,21 @@
                         </TextBlock>
                     </DataTemplate>
                 </MenuItem.ItemTemplate>
+            </MenuItem>
+            <MenuItem Header="Devices" ItemsSource="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Video}}" ItemTemplate="{StaticResource DeviceMenuHierarchyTemplate}">
+                <MenuItem.Style>
+                    <Style TargetType="MenuItem" BasedOn="{StaticResource MaterialDesignMenuItem}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CapDevices, Source={x:Static flyleafLib:Engine.Video}}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding CapDevices.Count, Source={x:Static flyleafLib:Engine.Video}}" Value="0">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </MenuItem.Style>
             </MenuItem>
             <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Config.Video.VideoAcceleration}"/>
             <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording, Mode=OneWay}" Command="{Binding Player.Commands.ToggleRecording}"/>

@@ -605,11 +605,11 @@ namespace FlyleafLib.MediaPlayer
                         continue;
                     OnBufferingCompleted();
                     if (aFrame == null) { Log.Warn("[MediaBuffer] No audio frame"); break; }
+                    videoStartTicks = aFrame.timestamp;
 
                     Audio.AddSamples(aFrame);
                     AudioDecoder.Frames.TryDequeue(out aFrame);
-
-                    videoStartTicks = aFrame.timestamp;
+                    
                     sw.Restart();
                     elapsedSec = 0;
                 }

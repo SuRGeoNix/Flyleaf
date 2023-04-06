@@ -9,7 +9,6 @@ using System.Threading;
 using System.Windows.Data;
 using System.Web;
 
-
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.AVMediaType;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -299,7 +298,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
             {
                 Dispose();
 
-                if (String.IsNullOrEmpty(url) && stream == null) return "Invalid empty/null input";
+                if (string.IsNullOrEmpty(url) && stream == null) return "Invalid empty/null input";
 
                 int ret = -1;
                 string error = null;
@@ -353,7 +352,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                      * 4. fmt://rawvideo?C:\root\dev\Flyleaf\VideoSamples\rawfile.raw&pixel_format=uyvy422&video_size=1920x1080&framerate=60
                      * 
                      */
-                    else if (url.StartsWith("fmt://") || url.StartsWith("device://"))
+                    else if (url != null & (url.StartsWith("fmt://") || url.StartsWith("device://")))
                     {
                         int queryStarts = url.IndexOf('?');
                         int fmtStarts = url.IndexOf('/') + 2;
