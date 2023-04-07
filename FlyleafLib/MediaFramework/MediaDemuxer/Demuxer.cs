@@ -352,7 +352,7 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer
                      * 4. fmt://rawvideo?C:\root\dev\Flyleaf\VideoSamples\rawfile.raw&pixel_format=uyvy422&video_size=1920x1080&framerate=60
                      * 
                      */
-                    else if (url != null & (url.StartsWith("fmt://") || url.StartsWith("device://")))
+                    else if (url != null && (url.StartsWith("fmt://") || url.StartsWith("device://")))
                     {
                         int queryStarts = url.IndexOf('?');
                         int fmtStarts = url.IndexOf('/') + 2;
