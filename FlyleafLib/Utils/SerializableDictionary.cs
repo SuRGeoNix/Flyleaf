@@ -9,137 +9,136 @@ using System.Xml.Schema;
 using System.Xml.Serialization;
 using System.Xml;
 
-namespace FlyleafLib
+namespace FlyleafLib;
+
+public static partial class Utils
 {
-    public static partial class Utils
+    [Serializable] // https://scatteredcode.net/c-serializable-dictionary/
+    public class SerializableDictionary<TKey, TVal> : Dictionary<TKey, TVal>, IXmlSerializable, ISerializable, INotifyPropertyChanged, INotifyCollectionChanged
     {
-        [Serializable] // https://scatteredcode.net/c-serializable-dictionary/
-        public class SerializableDictionary<TKey, TVal> : Dictionary<TKey, TVal>, IXmlSerializable, ISerializable, INotifyPropertyChanged, INotifyCollectionChanged
+        #region Private Properties
+        protected XmlSerializer ValueSerializer
         {
-            #region Private Properties
-            protected XmlSerializer ValueSerializer
+            get { return _valueSerializer ?? (_valueSerializer = new XmlSerializer(typeof(TVal))); }
+        }
+        private XmlSerializer KeySerializer
+        {
+            get { return _keySerializer ?? (_keySerializer = new XmlSerializer(typeof(TKey))); }
+        }
+        #endregion
+        #region Private Members
+        private XmlSerializer _keySerializer;
+        private XmlSerializer _valueSerializer;
+        #endregion
+        #region Constructors
+        public SerializableDictionary()
+        {
+        }
+        public SerializableDictionary(IDictionary<TKey, TVal> dictionary) : base(dictionary) { }
+        public SerializableDictionary(IEqualityComparer<TKey> comparer) : base(comparer) { }
+        public SerializableDictionary(int capacity) : base(capacity) { }
+        public SerializableDictionary(IDictionary<TKey, TVal> dictionary, IEqualityComparer<TKey> comparer)
+            : base(dictionary, comparer) { }
+        public SerializableDictionary(int capacity, IEqualityComparer<TKey> comparer)
+            : base(capacity, comparer) { }
+        #endregion
+        #region ISerializable Members
+        protected SerializableDictionary(SerializationInfo info, StreamingContext context)
+        {
+            int itemCount = info.GetInt32("itemsCount");
+            for (int i = 0; i < itemCount; i++)
             {
-                get { return _valueSerializer ?? (_valueSerializer = new XmlSerializer(typeof(TVal))); }
+                KeyValuePair<TKey, TVal> kvp = (KeyValuePair<TKey, TVal>)info.GetValue(String.Format(CultureInfo.InvariantCulture, "Item{0}", i), typeof(KeyValuePair<TKey, TVal>));
+                Add(kvp.Key, kvp.Value);
             }
-            private XmlSerializer KeySerializer
+        }
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            info.AddValue("itemsCount", Count);
+            int itemIdx = 0; foreach (KeyValuePair<TKey, TVal> kvp in this)
             {
-                get { return _keySerializer ?? (_keySerializer = new XmlSerializer(typeof(TKey))); }
+                info.AddValue(String.Format(CultureInfo.InvariantCulture, "Item{0}", itemIdx), kvp, typeof(KeyValuePair<TKey, TVal>));
+                itemIdx++;
             }
-            #endregion
-            #region Private Members
-            private XmlSerializer _keySerializer;
-            private XmlSerializer _valueSerializer;
-            #endregion
-            #region Constructors
-            public SerializableDictionary()
+        }
+        #endregion
+        #region IXmlSerializable Members
+        void IXmlSerializable.WriteXml(XmlWriter writer)
+        {
+            foreach (KeyValuePair<TKey, TVal> kvp in this)
             {
+                writer.WriteStartElement("item");
+                writer.WriteStartElement("key");
+                KeySerializer.Serialize(writer, kvp.Key);
+                writer.WriteEndElement();
+                writer.WriteStartElement("value");
+                ValueSerializer.Serialize(writer, kvp.Value);
+                writer.WriteEndElement();
+                writer.WriteEndElement();
             }
-            public SerializableDictionary(IDictionary<TKey, TVal> dictionary) : base(dictionary) { }
-            public SerializableDictionary(IEqualityComparer<TKey> comparer) : base(comparer) { }
-            public SerializableDictionary(int capacity) : base(capacity) { }
-            public SerializableDictionary(IDictionary<TKey, TVal> dictionary, IEqualityComparer<TKey> comparer)
-                : base(dictionary, comparer) { }
-            public SerializableDictionary(int capacity, IEqualityComparer<TKey> comparer)
-                : base(capacity, comparer) { }
-            #endregion
-            #region ISerializable Members
-            protected SerializableDictionary(SerializationInfo info, StreamingContext context)
+        }
+        void IXmlSerializable.ReadXml(XmlReader reader)
+        {
+            if (reader.IsEmptyElement)
             {
-                int itemCount = info.GetInt32("itemsCount");
-                for (int i = 0; i < itemCount; i++)
-                {
-                    KeyValuePair<TKey, TVal> kvp = (KeyValuePair<TKey, TVal>)info.GetValue(String.Format(CultureInfo.InvariantCulture, "Item{0}", i), typeof(KeyValuePair<TKey, TVal>));
-                    Add(kvp.Key, kvp.Value);
-                }
+                return;
             }
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+            // Move past container
+            if (reader.NodeType == XmlNodeType.Element && !reader.Read())
+                throw new XmlException("Error in De serialization of SerializableDictionary");
+            while (reader.NodeType != XmlNodeType.EndElement)
             {
-                info.AddValue("itemsCount", Count);
-                int itemIdx = 0; foreach (KeyValuePair<TKey, TVal> kvp in this)
-                {
-                    info.AddValue(String.Format(CultureInfo.InvariantCulture, "Item{0}", itemIdx), kvp, typeof(KeyValuePair<TKey, TVal>));
-                    itemIdx++;
-                }
+                reader.ReadStartElement("item");
+                reader.ReadStartElement("key");
+                TKey key = (TKey)KeySerializer.Deserialize(reader);
+                reader.ReadEndElement();
+                reader.ReadStartElement("value");
+                TVal value = (TVal)ValueSerializer.Deserialize(reader);
+                reader.ReadEndElement();
+                reader.ReadEndElement();
+                Add(key, value);
+                reader.MoveToContent();
             }
-            #endregion
-            #region IXmlSerializable Members
-            void IXmlSerializable.WriteXml(XmlWriter writer)
+            // Move past container
+            if (reader.NodeType == XmlNodeType.EndElement)
             {
-                foreach (KeyValuePair<TKey, TVal> kvp in this)
-                {
-                    writer.WriteStartElement("item");
-                    writer.WriteStartElement("key");
-                    KeySerializer.Serialize(writer, kvp.Key);
-                    writer.WriteEndElement();
-                    writer.WriteStartElement("value");
-                    ValueSerializer.Serialize(writer, kvp.Value);
-                    writer.WriteEndElement();
-                    writer.WriteEndElement();
-                }
+                reader.ReadEndElement();
             }
-            void IXmlSerializable.ReadXml(XmlReader reader)
+            else
             {
-                if (reader.IsEmptyElement)
+                throw new XmlException("Error in Deserialization of SerializableDictionary");
+            }
+        }
+        XmlSchema IXmlSerializable.GetSchema()
+        {
+            return null;
+        }
+        #endregion
+
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        public event NotifyCollectionChangedEventHandler CollectionChanged;
+
+        public new TVal this[TKey key]
+        {
+            get => base[key];
+        
+            set
+            {
+                if (ContainsKey(key) && base[key].Equals(value)) return;
+
+                if (CollectionChanged != null)
                 {
-                    return;
-                }
-                // Move past container
-                if (reader.NodeType == XmlNodeType.Element && !reader.Read())
-                    throw new XmlException("Error in De serialization of SerializableDictionary");
-                while (reader.NodeType != XmlNodeType.EndElement)
-                {
-                    reader.ReadStartElement("item");
-                    reader.ReadStartElement("key");
-                    TKey key = (TKey)KeySerializer.Deserialize(reader);
-                    reader.ReadEndElement();
-                    reader.ReadStartElement("value");
-                    TVal value = (TVal)ValueSerializer.Deserialize(reader);
-                    reader.ReadEndElement();
-                    reader.ReadEndElement();
-                    Add(key, value);
-                    reader.MoveToContent();
-                }
-                // Move past container
-                if (reader.NodeType == XmlNodeType.EndElement)
-                {
-                    reader.ReadEndElement();
+                    KeyValuePair<TKey, TVal> oldItem = new KeyValuePair<TKey, TVal>(key, base[key]);
+                    KeyValuePair<TKey, TVal> newItem = new KeyValuePair<TKey, TVal>(key, value);
+                    base[key] = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(key.ToString()));
+                    CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, newItem, oldItem, this.ToList().IndexOf(newItem)));
                 }
                 else
                 {
-                    throw new XmlException("Error in Deserialization of SerializableDictionary");
-                }
-            }
-            XmlSchema IXmlSerializable.GetSchema()
-            {
-                return null;
-            }
-            #endregion
-
-
-            public event PropertyChangedEventHandler PropertyChanged;
-            public event NotifyCollectionChangedEventHandler CollectionChanged;
-
-            public new TVal this[TKey key]
-            {
-                get => base[key];
-            
-                set
-                {
-                    if (ContainsKey(key) && base[key].Equals(value)) return;
-
-                    if (CollectionChanged != null)
-                    {
-                        KeyValuePair<TKey, TVal> oldItem = new KeyValuePair<TKey, TVal>(key, base[key]);
-                        KeyValuePair<TKey, TVal> newItem = new KeyValuePair<TKey, TVal>(key, value);
-                        base[key] = value;
-                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(key.ToString()));
-                        CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, newItem, oldItem, this.ToList().IndexOf(newItem)));
-                    }
-                    else
-                    {
-                        base[key] = value;
-                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(key.ToString()));
-                    }
+                    base[key] = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(key.ToString()));
                 }
             }
         }

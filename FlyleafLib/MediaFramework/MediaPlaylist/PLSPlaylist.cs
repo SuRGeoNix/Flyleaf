@@ -5,61 +5,60 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FlyleafLib.MediaFramework.MediaPlaylist
+namespace FlyleafLib.MediaFramework.MediaPlaylist;
+
+public class PLSPlaylist
 {
-    public class PLSPlaylist
+    [DllImport("kernel32")]
+    private static extern long WritePrivateProfileString(string name, string key, string val, string filePath);
+    [DllImport("kernel32")]
+    private static extern int GetPrivateProfileString(string section, string key, string def, StringBuilder retVal, int size, string filePath);
+
+    public string path;
+
+    public static List<PLSPlaylistItem> Parse(string filename)
     {
-        [DllImport("kernel32")]
-        private static extern long WritePrivateProfileString(string name, string key, string val, string filePath);
-        [DllImport("kernel32")]
-        private static extern int GetPrivateProfileString(string section, string key, string def, StringBuilder retVal, int size, string filePath);
+        List<PLSPlaylistItem> items = new List<PLSPlaylistItem>();
+        string res;
+        int entries = 1000;
 
-        public string path;
+        if ((res = GetINIAttribute("playlist", "NumberOfEntries", filename)) != null)
+            entries = int.Parse(res);
 
-        public static List<PLSPlaylistItem> Parse(string filename)
+        for (int i=1; i<=entries; i++)
         {
-            List<PLSPlaylistItem> items = new List<PLSPlaylistItem>();
-            string res;
-            int entries = 1000;
+            if ((res = GetINIAttribute("playlist", $"File{i}", filename)) == null)
+                break;
 
-            if ((res = GetINIAttribute("playlist", "NumberOfEntries", filename)) != null)
-                entries = int.Parse(res);
+            PLSPlaylistItem item = new PLSPlaylistItem();
 
-            for (int i=1; i<=entries; i++)
-            {
-                if ((res = GetINIAttribute("playlist", $"File{i}", filename)) == null)
-                    break;
+            item.Url = res;
 
-                PLSPlaylistItem item = new PLSPlaylistItem();
+            if ((res = GetINIAttribute("playlist", $"Title{i}", filename)) != null)
+                item.Title = res;
 
-                item.Url = res;
+            if ((res = GetINIAttribute("playlist", $"Length{i}", filename)) != null)
+                item.Duration = int.Parse(res);
 
-                if ((res = GetINIAttribute("playlist", $"Title{i}", filename)) != null)
-                    item.Title = res;
-
-                if ((res = GetINIAttribute("playlist", $"Length{i}", filename)) != null)
-                    item.Duration = int.Parse(res);
-
-                items.Add(item);
-            }
-
-            return items;
+            items.Add(item);
         }
 
-        public static string GetINIAttribute(string name, string key, string path)
-        {
-            StringBuilder sb = new StringBuilder(255);
-            if (GetPrivateProfileString(name, key, "", sb, 255, path) > 0)
-                return sb.ToString();
-            else
-                return null;
-        }
+        return items;
     }
 
-    public class PLSPlaylistItem
+    public static string GetINIAttribute(string name, string key, string path)
     {
-        public int      Duration    { get; set; }
-        public string   Title       { get; set; }
-        public string   Url         { get; set; }
+        StringBuilder sb = new StringBuilder(255);
+        if (GetPrivateProfileString(name, key, "", sb, 255, path) > 0)
+            return sb.ToString();
+        else
+            return null;
     }
+}
+
+public class PLSPlaylistItem
+{
+    public int      Duration    { get; set; }
+    public string   Title       { get; set; }
+    public string   Url         { get; set; }
 }

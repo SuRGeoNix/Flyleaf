@@ -1,10 +1,9 @@
 ﻿using System;
 
-namespace FlyleafLib.MediaFramework.MediaFrame
+namespace FlyleafLib.MediaFramework.MediaFrame;
+
+public unsafe class FrameBase
 {
-    public unsafe class FrameBase
-    {
-        public long         timestamp;
-        //public long         pts;
-    }
+    public long         timestamp;
+    //public long         pts;
 }
