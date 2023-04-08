@@ -7,11 +7,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Platforms>AnyCPU;x86;x64</Platforms>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="FFmpeg.AutoGen" Version="5.1.2.1" />
-  </ItemGroup>
-
+	
   <ItemGroup>
     <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" />
   </ItemGroup>

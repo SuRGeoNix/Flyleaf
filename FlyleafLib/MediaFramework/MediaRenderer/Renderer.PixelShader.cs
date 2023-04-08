@@ -71,7 +71,7 @@ unsafe public partial class Renderer
 
     internal bool ConfigPlanes(bool isNewInput = true)
     {
-        bool vLockActions = false, vLockCodecCtx = false, rLockDevice = false;
+        bool vLockCodecCtx = false, rLockDevice = false;
         bool error = false;
 
         try
