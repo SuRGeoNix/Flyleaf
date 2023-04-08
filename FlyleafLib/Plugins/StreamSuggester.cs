@@ -9,144 +9,143 @@ using static FFmpeg.AutoGen.ffmpeg;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
-namespace FlyleafLib.Plugins
+namespace FlyleafLib.Plugins;
+
+public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggestAudioStream, ISuggestVideoStream, ISuggestSubtitlesStream, ISuggestSubtitles, ISuggestBestExternalSubtitles
 {
-    public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggestAudioStream, ISuggestVideoStream, ISuggestSubtitlesStream, ISuggestSubtitles, ISuggestBestExternalSubtitles
+    public new int Priority { get; set; } = 3000;
+
+    public AudioStream SuggestAudio(ObservableCollection<AudioStream> streams)
     {
-        public new int Priority { get; set; } = 3000;
-
-        public AudioStream SuggestAudio(ObservableCollection<AudioStream> streams)
+        lock (streams[0].Demuxer.lockActions)
         {
-            lock (streams[0].Demuxer.lockActions)
-            {
-                foreach (var lang in Config.Audio.Languages)
-                    foreach (var stream in streams)
-                        if (stream.Language == lang)
+            foreach (var lang in Config.Audio.Languages)
+                foreach (var stream in streams)
+                    if (stream.Language == lang)
+                    {
+                        if (stream.Demuxer.Programs.Count < 2)
                         {
-                            if (stream.Demuxer.Programs.Count < 2)
-                            {
-                                Log.Info($"Audio based on language");
-                                return stream;
-                            }
-
-                            for (int i = 0; i < stream.Demuxer.Programs.Count; i++)
-                            {
-                                bool aExists = false, vExists = false;
-                                foreach (var pstream in stream.Demuxer.Programs[i].Streams)
-                                {
-                                    if (pstream.StreamIndex == stream.StreamIndex) aExists = true;
-                                    else if (pstream.StreamIndex == stream.Demuxer.VideoStream?.StreamIndex) vExists = true;
-                                }
-
-                                if (aExists && vExists)
-                                {
-                                    Log.Info($"Audio based on language and same program #{i}");
-                                    return stream;
-                                }
-                            }
+                            Log.Info($"Audio based on language");
+                            return stream;
                         }
 
-                // Fall-back to FFmpeg's default
-                int streamIndex;
-                lock (streams[0].Demuxer.lockFmtCtx)
-                    streamIndex = av_find_best_stream(streams[0].Demuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, streams[0].Demuxer.VideoStream != null ? streams[0].Demuxer.VideoStream.StreamIndex : -1, null, 0);
+                        for (int i = 0; i < stream.Demuxer.Programs.Count; i++)
+                        {
+                            bool aExists = false, vExists = false;
+                            foreach (var pstream in stream.Demuxer.Programs[i].Streams)
+                            {
+                                if (pstream.StreamIndex == stream.StreamIndex) aExists = true;
+                                else if (pstream.StreamIndex == stream.Demuxer.VideoStream?.StreamIndex) vExists = true;
+                            }
 
-                foreach (var stream in streams)
-                    if (stream.StreamIndex == streamIndex)
-                    {
-                        Log.Info($"Audio based on av_find_best_stream");
-                        return stream;
+                            if (aExists && vExists)
+                            {
+                                Log.Info($"Audio based on language and same program #{i}");
+                                return stream;
+                            }
+                        }
                     }
 
-                return null;
-            }
-        }
+            // Fall-back to FFmpeg's default
+            int streamIndex;
+            lock (streams[0].Demuxer.lockFmtCtx)
+                streamIndex = av_find_best_stream(streams[0].Demuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, streams[0].Demuxer.VideoStream != null ? streams[0].Demuxer.VideoStream.StreamIndex : -1, null, 0);
 
-        public VideoStream SuggestVideo(ObservableCollection<VideoStream> streams)
-        {
-            // Try to find best video stream based on current screen resolution
-            var iresults =
-                from vstream in streams
-                where vstream.Type == MediaType.Video && vstream.Height <= Config.Video.MaxVerticalResolution //Decoder.VideoDecoder.Renderer.Info.ScreenBounds.Height
-                orderby vstream.Height descending
-                select vstream;
-
-            var results = iresults.ToList();
-
-            if (results.Count != 0)
-                return iresults.ToList()[0];
-            else
-            {
-                // Fall-back to FFmpeg's default
-                int streamIndex;
-                lock (streams[0].Demuxer.lockFmtCtx)
-                    streamIndex = av_find_best_stream(streams[0].Demuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
-                if (streamIndex < 0) return null;
-
-                foreach (var vstream in streams)
-                    if (vstream.StreamIndex == streamIndex)
-                        return vstream;
-            }
+            foreach (var stream in streams)
+                if (stream.StreamIndex == streamIndex)
+                {
+                    Log.Info($"Audio based on av_find_best_stream");
+                    return stream;
+                }
 
             return null;
         }
+    }
 
-        public PlaylistItem SuggestItem()
+    public VideoStream SuggestVideo(ObservableCollection<VideoStream> streams)
+    {
+        // Try to find best video stream based on current screen resolution
+        var iresults =
+            from vstream in streams
+            where vstream.Type == MediaType.Video && vstream.Height <= Config.Video.MaxVerticalResolution //Decoder.VideoDecoder.Renderer.Info.ScreenBounds.Height
+            orderby vstream.Height descending
+            select vstream;
+
+        var results = iresults.ToList();
+
+        if (results.Count != 0)
+            return iresults.ToList()[0];
+        else
         {
-            return Playlist.Items[0];
+            // Fall-back to FFmpeg's default
+            int streamIndex;
+            lock (streams[0].Demuxer.lockFmtCtx)
+                streamIndex = av_find_best_stream(streams[0].Demuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
+            if (streamIndex < 0) return null;
+
+            foreach (var vstream in streams)
+                if (vstream.StreamIndex == streamIndex)
+                    return vstream;
         }
 
-        public void SuggestSubtitles(out SubtitlesStream stream, out ExternalSubtitlesStream extStream)
+        return null;
+    }
+
+    public PlaylistItem SuggestItem()
+    {
+        return Playlist.Items[0];
+    }
+
+    public void SuggestSubtitles(out SubtitlesStream stream, out ExternalSubtitlesStream extStream)
+    {
+        stream = null;
+        extStream = null;
+
+        List<Language> langs = new List<Language>();
+
+        foreach (var lang in Config.Subtitles.Languages)
+            langs.Add(lang);
+
+        langs.Add(Language.Unknown);
+
+        var extStreams = Selected.ExternalSubtitlesStreams.OrderBy(x => x.Language.ToString()).ThenByDescending(x => x.Rating).ThenBy(x => x.Downloaded);
+
+        foreach (var lang in langs)
         {
-            stream = null;
-            extStream = null;
+            foreach(var embStream in decoder.VideoDemuxer.SubtitlesStreams)
+                if (embStream.Language == lang)
+                {
+                    stream = embStream;
+                    return;
+                }
 
-            List<Language> langs = new List<Language>();
-
-            foreach (var lang in Config.Subtitles.Languages)
-                langs.Add(lang);
-
-            langs.Add(Language.Unknown);
-
-            var extStreams = Selected.ExternalSubtitlesStreams.OrderBy(x => x.Language.ToString()).ThenByDescending(x => x.Rating).ThenBy(x => x.Downloaded);
-
-            foreach (var lang in langs)
-            {
-                foreach(var embStream in decoder.VideoDemuxer.SubtitlesStreams)
-                    if (embStream.Language == lang)
-                    {
-                        stream = embStream;
-                        return;
-                    }
-
-                foreach(var extStream2 in extStreams)
-                    if (extStream2.Language == lang)
-                    {
-                        extStream = extStream2;
-                        return;
-                    }
-            }
+            foreach(var extStream2 in extStreams)
+                if (extStream2.Language == lang)
+                {
+                    extStream = extStream2;
+                    return;
+                }
         }
+    }
 
-        public ExternalSubtitlesStream SuggestBestExternalSubtitles()
-        {
-            var extStreams = Selected.ExternalSubtitlesStreams.OrderBy(x => x.Language.ToString()).ThenByDescending(x => x.Rating).ThenBy(x => x.Downloaded);
+    public ExternalSubtitlesStream SuggestBestExternalSubtitles()
+    {
+        var extStreams = Selected.ExternalSubtitlesStreams.OrderBy(x => x.Language.ToString()).ThenByDescending(x => x.Rating).ThenBy(x => x.Downloaded);
 
-            foreach(var extStream in extStreams)
-                if (extStream.Language == Config.Subtitles.Languages[0])
-                    return extStream;
+        foreach(var extStream in extStreams)
+            if (extStream.Language == Config.Subtitles.Languages[0])
+                return extStream;
 
-            return null;
-        }
+        return null;
+    }
 
-        public SubtitlesStream SuggestSubtitles(ObservableCollection<SubtitlesStream> streams, List<Language> langs)
-        {
-            foreach(var lang in langs)
-                foreach(var stream in streams)
-                    if (lang == stream.Language)
-                        return stream;
+    public SubtitlesStream SuggestSubtitles(ObservableCollection<SubtitlesStream> streams, List<Language> langs)
+    {
+        foreach(var lang in langs)
+            foreach(var stream in streams)
+                if (lang == stream.Language)
+                    return stream;
 
-            return null;
-        }
+        return null;
     }
 }
