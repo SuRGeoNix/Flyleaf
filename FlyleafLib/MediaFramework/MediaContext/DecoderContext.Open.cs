@@ -343,6 +343,12 @@ namespace FlyleafLib.MediaFramework.MediaContext
                     Playlist.Selected.Enabled = false;
                 }
 
+                if (item == null)
+                {
+                    args.Error = "Cancelled";
+                    return args;
+                }
+
                 Playlist.Selected = item;
                 Playlist.Selected.Enabled = true;
 

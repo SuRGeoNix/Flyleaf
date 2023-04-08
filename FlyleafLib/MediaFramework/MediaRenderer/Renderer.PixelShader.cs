@@ -76,7 +76,6 @@ unsafe public partial class Renderer
 
         try
         {
-            Monitor.Enter(VideoDecoder.lockActions, ref vLockActions);
             Monitor.Enter(VideoDecoder.lockCodecCtx, ref vLockCodecCtx);
             Monitor.Enter(lockDevice, ref rLockDevice);
 
@@ -546,7 +545,6 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             }
             if (rLockDevice)    Monitor.Exit(lockDevice);
             if (vLockCodecCtx)  Monitor.Exit(VideoDecoder.lockCodecCtx);
-            if (vLockActions)   Monitor.Exit(VideoDecoder.lockActions);
         }
     }
     internal VideoFrame FillPlanes(AVFrame* frame)
