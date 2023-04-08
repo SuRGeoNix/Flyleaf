@@ -152,7 +152,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
             if (ms == -1) ms = GetCurTimeMs();
 
             // Review decoder locks (lockAction should be added to avoid dead locks with flush mainly before lockCodecCtx)
-            AudioDecoder.keyFrameRequired = false; // Temporary to avoid dead lock on AudioDecoder.lockCodecCtx
+            AudioDecoder.resyncWithVideoRequired = false; // Temporary to avoid dead lock on AudioDecoder.lockCodecCtx
             lock (VideoDecoder.lockCodecCtx)
             lock (AudioDecoder.lockCodecCtx)
             lock (SubtitlesDecoder.lockCodecCtx)
@@ -208,7 +208,7 @@ namespace FlyleafLib.MediaFramework.MediaContext
 
             long seekTimestamp = CalcSeekTimestamp(AudioDemuxer, ms, ref forward);
 
-            AudioDecoder.keyFrameRequired = false; // Temporary to avoid dead lock on AudioDecoder.lockCodecCtx
+            AudioDecoder.resyncWithVideoRequired = false; // Temporary to avoid dead lock on AudioDecoder.lockCodecCtx
             lock (AudioDecoder.lockActions)
             lock (AudioDecoder.lockCodecCtx)
             {

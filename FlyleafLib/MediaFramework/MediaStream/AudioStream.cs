@@ -33,8 +33,8 @@ namespace FlyleafLib.MediaFramework.MediaStream
             SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), AVStream->codecpar->format);
             SampleFormatStr = SampleFormat.ToString().Replace("AV_SAMPLE_FMT_","").ToLower();
             SampleRate      = AVStream->codecpar->sample_rate;
-            ChannelLayout   = AVStream->codecpar->channel_layout;
-            Channels        = AVStream->codecpar->channels;
+            ChannelLayout   = AVStream->codecpar->ch_layout.u.mask;
+            Channels        = AVStream->codecpar->ch_layout.nb_channels;
             Bits            = AVStream->codecpar->bits_per_coded_sample;
 
             // https://trac.ffmpeg.org/ticket/7321
@@ -45,7 +45,7 @@ namespace FlyleafLib.MediaFramework.MediaStream
             byte[] buf = new byte[50];
             fixed (byte* bufPtr = buf)
             {
-                av_get_channel_layout_string(bufPtr, 50, Channels, ChannelLayout);
+                av_get_channel_layout_string(bufPtr, 50, Channels, AVStream->codecpar->channel_layout); // TODO
                 ChannelLayoutStr = Utils.BytePtrToStringUTF8(bufPtr);
             }
         }

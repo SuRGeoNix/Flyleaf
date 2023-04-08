@@ -246,7 +246,7 @@ namespace FlyleafLib.MediaPlayer
                     {
                         masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : (@"\\?\swd#mmdevapi#" + Engine.Audio.GetDeviceId(_Device).ToLower() + @"#{e6327cad-dcec-4949-ae8a-991e976a79d2}")); 
                     }
-                    sourceVoice = xaudio2.CreateSourceVoice(waveFormat, true);
+                    sourceVoice = xaudio2.CreateSourceVoice(waveFormat, false);
                     sourceVoice.SetSourceSampleRate(SampleRate);
                     sourceVoice.Start();
 
