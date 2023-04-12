@@ -47,15 +47,18 @@ public unsafe class VideoDecoder : DecoderBase
     internal bool           keyFrameRequired;
 
     // Reverse Playback
-    ConcurrentStack<List<IntPtr>>   curReverseVideoStack    = new ConcurrentStack<List<IntPtr>>();
-    List<IntPtr>                    curReverseVideoPackets  = new List<IntPtr>();
-    List<VideoFrame>                curReverseVideoFrames   = new List<VideoFrame>();
-    int                             curReversePacketPos     = 0;
+    ConcurrentStack<List<IntPtr>>
+                            curReverseVideoStack    = new ConcurrentStack<List<IntPtr>>();
+    List<IntPtr>            curReverseVideoPackets  = new List<IntPtr>();
+    List<VideoFrame>        curReverseVideoFrames   = new List<VideoFrame>();
+    int                     curReversePacketPos     = 0;
 
     public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
     {
         getHWformat = new AVCodecContext_get_format(get_format);
     }
+
+    protected override void OnSpeedChanged() => speed = speed < 1 ? 1 : (int)speed;
 
     public void CreateRenderer() // TBR: It should be in the constructor but DecoderContext will not work with null VideoDecoder for AudioOnly
     {
@@ -372,7 +375,7 @@ public unsafe class VideoDecoder : DecoderBase
             
             keyFrameRequired = true;
             StartTime = AV_NOPTS_VALUE;
-            curSpeedFrame = Speed;
+            curSpeedFrame = (int)speed;
         }
     }
 
@@ -533,10 +536,10 @@ public unsafe class VideoDecoder : DecoderBase
                         }
                     }
                     
-                    if (Speed != 1)
+                    if (speed != 1)
                     {
                         curSpeedFrame++;
-                        if (curSpeedFrame < Speed)
+                        if (curSpeedFrame < speed)
                         {
                             av_frame_unref(frame);
                             continue;
@@ -549,6 +552,7 @@ public unsafe class VideoDecoder : DecoderBase
                         filledFromCodec = true;
 
                         avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
+                        VideoStream.AVStream->time_base = codecCtx->pkt_timebase;
                         VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.AV_PIX_FMT_NONE ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt);
 
                         if (!(VideoStream.FPS > 0)) // NaN
@@ -933,6 +937,7 @@ public unsafe class VideoDecoder : DecoderBase
         }
     }
 
+    #region Dispose
     public void DisposeFrames()
     {
         while (!Frames.IsEmpty)
@@ -1025,7 +1030,9 @@ public unsafe class VideoDecoder : DecoderBase
             #endif
         }
     }
+    #endregion
 
+    #region Recording
     internal Action<MediaType> recCompleted;
     Remuxer curRecorder;
     bool recGotKeyframe;
@@ -1040,9 +1047,9 @@ public unsafe class VideoDecoder : DecoderBase
         recGotKeyframe      = false;
         isRecording         = true;
     }
-
     internal void StopRecording()
     {
         isRecording = false;
     }
+    #endregion
 }

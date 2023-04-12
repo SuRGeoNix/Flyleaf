@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 
+using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
@@ -621,6 +622,24 @@ public class Config : NotifyPropertyChanged
         internal void SetEnabled(bool enabled) { Set(ref _Enabled, enabled, true, nameof(Enabled)); }
 
         /// <summary>
+        /// <para>
+        /// Whether to process samples with Filters or SWR (experimental)
+        /// 1. Requires FFmpeg avfilter lib
+        /// 2. Currently SWR performs better if you dont need filters
+        /// </para>
+        /// </summary>
+        public bool             FiltersEnabled      { get => _FiltersEnabled; set => _FiltersEnabled = value && Engine.FFmpeg.FiltersLoaded; }
+        bool _FiltersEnabled = false;
+
+        /// <summary>
+        /// <para>
+        /// List of filters for post processing the audio samples (experimental)
+        /// (Requires FiltersEnabled)
+        /// </para>
+        /// </summary>
+        public List<Filter>     Filters             { get; set; }
+
+        /// <summary>
         /// Audio languages preference by priority
         /// </summary>
         public List<Language>   Languages           { get { if (_Languages == null) _Languages = GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
@@ -732,7 +751,7 @@ public class EngineConfig
     /// Sets FFmpeg logger's level
     /// </summary>
     public FFmpegLogLevel 
-                    FFmpegLogLevel          { get => _FFmpegLogLevel; set { _FFmpegLogLevel = value; if (Engine.IsLoaded) Engine.FFmpeg.SetLogLevel(); } }
+                    FFmpegLogLevel          { get => _FFmpegLogLevel; set { _FFmpegLogLevel = value; if (Engine.IsLoaded) FFmpegEngine.SetLogLevel(); } }
     FFmpegLogLevel _FFmpegLogLevel = FFmpegLogLevel.Quiet;
 
     /// <summary>

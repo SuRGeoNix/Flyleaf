@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Threading;
-using System.Security;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -14,34 +13,28 @@ using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
-public unsafe class AudioDecoder : DecoderBase
+public unsafe partial class AudioDecoder : DecoderBase
 {
     public AudioStream      AudioStream         => (AudioStream) Stream;
-
-    public VideoDecoder     VideoDecoder        { get; internal set; } // For Resync
-
+    public readonly 
+            VideoDecoder    VideoDecoder;
     public ConcurrentQueue<AudioFrame>
-                            Frames              { get; protected set; } = new ConcurrentQueue<AudioFrame>();
+                            Frames              { get; protected set; } = new();
 
     static AVSampleFormat   AOutSampleFormat    = AVSampleFormat.AV_SAMPLE_FMT_S16;
+    static string           AOutSampleFormatStr = av_get_sample_fmt_name(AOutSampleFormat);
     static AVChannelLayout  AOutChannelLayout   = new AVChannelLayout() { order = AVChannelOrder.AV_CHANNEL_ORDER_NATIVE, nb_channels = 2, u = new AVChannelLayout_u() { mask = AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT} };
     static int              AOutChannels        = AOutChannelLayout.nb_channels;
     static int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
-
-    SwrContext*             swrCtx;
-    byte[]                  circularBuffer;
-    int                     circularBufferPos;
-    int                     maxSrcSamples;
-
+    byte[]                  cBuf;
+    int                     cBufPos;
+    int                     cBufSamples;
     internal bool           resyncWithVideoRequired;
+    SwrContext*             swrCtx;
 
-    public AudioDecoder(Config config, int uniqueId = -1, VideoDecoder syncDecoder = null) : base(config, uniqueId) { VideoDecoder = syncDecoder; }
+    public AudioDecoder(Config config, int uniqueId = -1, VideoDecoder syncDecoder = null) : base(config, uniqueId) => VideoDecoder = syncDecoder;
 
-    protected override unsafe int Setup(AVCodec* codec)
-    {
-        return 0;
-    }
-
+    protected override int Setup(AVCodec* codec) => 0;
     private int SetupSwr()
     {
         int ret;
@@ -64,26 +57,30 @@ public unsafe class AudioDecoder : DecoderBase
 
         return ret;
     }
+    private void DisposeSwr()
+    {
+        if (swrCtx == null)
+            return;
+
+        swr_close(swrCtx);
+
+        fixed(SwrContext** ptr = &swrCtx)
+            swr_free(ptr);
+
+        swrCtx = null;
+    }
 
     protected override void DisposeInternal()
     {
         DisposeFrames();
+        DisposeSwr();
+        DisposeFilters();
 
-        if (swrCtx != null)
-        {
-            swr_close(swrCtx);
-            fixed(SwrContext** ptr = &swrCtx)
-                swr_free(ptr);
-            swrCtx = null;
-        }
-
-        circularBuffer  = null;
+        cBuf            = null;
+        cBufSamples     = 0;
         filledFromCodec = false;
-        maxSrcSamples   = 0;
     }
-
-    public void DisposeFrames() => Frames = new ConcurrentQueue<AudioFrame>();
-
+    public void DisposeFrames() => Frames = new();
     public void Flush()
     {
         lock (lockActions)
@@ -97,16 +94,22 @@ public unsafe class AudioDecoder : DecoderBase
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
 
+                //av_buffersrc_close(abufferCtx, AV_NOPTS_VALUE, 0);
+                //if (av_buffersrc_add_frame(abufferCtx, null) < 0) { Status = Status.Stopping; return; }
+                SetupFilters();
+
+                // Ensure no frames left in bufferSink //av_buffersrc_add_frame(abufferCtx, null); //while (av_buffersink_get_frame(abufferSinkCtx, frame) >= 0) ;
                 resyncWithVideoRequired = !VideoDecoder.Disposed;
-                curSpeedFrame = Speed;
+                curSpeedFrame = (int)speed;
             }
     }
+
     protected override void RunInternal()
     {
         int ret = 0;
         int allowedErrors = Config.Decoder.MaxErrors;
         AVPacket *packet;
-
+        
         do
         {
             // Wait until Queue not Full or Stopped
@@ -211,7 +214,7 @@ public unsafe class AudioDecoder : DecoderBase
                         continue;
                     }
                 }
-
+                
                 while (true)
                 {
                     ret = avcodec_receive_frame(codecCtx, frame);
@@ -222,108 +225,132 @@ public unsafe class AudioDecoder : DecoderBase
                     else if (frame->pts == AV_NOPTS_VALUE)
                         { av_frame_unref(frame); continue; }
 
-                    AudioFrame mFrame = ProcessAudioFrame(frame);
-                    if (mFrame != null) Frames.Enqueue(mFrame);
+                    bool codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
 
-                    av_frame_unref(frame);
+                    if (!filledFromCodec || codecChanged)
+                    {
+                        if (codecChanged && filledFromCodec)
+                        {
+                            byte[] buf = new byte[50];
+                            fixed (byte* bufPtr = buf)
+                            {
+                                av_channel_layout_describe(&codecCtx->ch_layout, bufPtr, (ulong)buf.Length);
+                                Log.Warn($"Codec changed {AudioStream.CodecIDOrig} {AudioStream.SampleFormat} {AudioStream.SampleRate} {AudioStream.ChannelLayoutStr} => {codecCtx->codec_id} {codecCtx->sample_fmt} {codecCtx->sample_rate} {Utils.BytePtrToStringUTF8(bufPtr)}");
+                            }
+                        }
+
+                        DisposeInternal();
+                        filledFromCodec = true;
+
+                        avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
+                        AudioStream.AVStream->time_base = codecCtx->pkt_timebase;
+                        AudioStream.Refresh();
+                        resyncWithVideoRequired = !VideoDecoder.Disposed;
+
+                        if (Config.Audio.FiltersEnabled)
+                            ret = SetupFilters();
+                        else
+                            ret = SetupSwr();
+
+                        CodecChanged?.Invoke(this);
+
+                        if (ret != 0)
+                            { Status = Status.Stopping; break; }
+                    }
+
+                    if (resyncWithVideoRequired) // frame->pts can be NAN here
+                    {
+                        // TODO: in case of long distance will spin (CPU issue), possible reseek?
+
+                        var ts = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+                        while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning && resyncWithVideoRequired) Thread.Sleep(10);
+
+                        if (ts < VideoDecoder.StartTime)
+                        {
+                            if (CanTrace) Log.Trace($"Drops {Utils.TicksToTime(ts)} (< V: {Utils.TicksToTime(VideoDecoder.StartTime)})");
+                            av_frame_unref(frame);
+                            continue;
+                        }
+                        else
+                            resyncWithVideoRequired = false;
+                    }
+
+                    if (Config.Audio.FiltersEnabled)
+                        ProcessWithFilters(frame);
+                    else
+                        Process(frame);
                 }
             }
             
         } while (Status == Status.Running);
 
         if (isRecording) { StopRecording(); recCompleted(MediaType.Audio); }
-    }
-
-    [SecurityCritical]
-    private AudioFrame ProcessAudioFrame(AVFrame* frame)
+    }    
+    private void Process(AVFrame* frame)
     {
         try
         {
-            // TBR: AVStream doesn't refresh, we can get the updated info only from codecCtx (what about timebase, what about re-opening the codec?)
-            bool codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
-
-            if (!filledFromCodec || codecChanged)
-            {
-                if (codecChanged && filledFromCodec)
-                    Log.Warn($"Codec changed {AudioStream.CodecIDOrig} {AudioStream.SampleFormat} {AudioStream.SampleRate} {AudioStream.ChannelLayout} => {codecCtx->codec_id} {codecCtx->sample_fmt} {codecCtx->sample_rate} {codecCtx->ch_layout.u.mask}");
-
-                DisposeInternal();
-                filledFromCodec = true;
-
-                avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
-                AudioStream.Refresh();
-                resyncWithVideoRequired = !VideoDecoder.Disposed;
-                SetupSwr();
-                CodecChanged?.Invoke(this);
-            }
-
-            // TODO: based on VideoStream's StartTime and not Demuxer's
-            //mFrame.timestamp = (long)(frame->pts * AudioStream.Timebase) - AudioStream.StartTime - (VideoDecoder.VideoStream.StartTime - AudioStream.StartTime) + Config.Audio.Delay;
-
-            AudioFrame mFrame = new AudioFrame();
-            mFrame.timestamp  = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
-            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
-
-            // Resync with VideoDecoder if required (drop early timestamps)
-            if (resyncWithVideoRequired)
-            {
-                while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning && resyncWithVideoRequired) Thread.Sleep(10);
-                if (mFrame.timestamp < VideoDecoder.StartTime)
-                {
-                    // TODO: in case of long distance will spin (CPU issue), possible reseek?
-                
-                    if (CanTrace) Log.Trace($"Drops {Utils.TicksToTime(mFrame.timestamp)} (< V: {Utils.TicksToTime(VideoDecoder.StartTime)})");
-                    return null;
-                }
-                else
-                    resyncWithVideoRequired = false;
-            }
-
-            if (Speed != 1)
+            if (speed != 1)
             {
                 curSpeedFrame++;
-                if (curSpeedFrame < Speed) return null;
+
+                if (curSpeedFrame < speed)
+                    return;
+
                 curSpeedFrame = 0;    
             }
 
-            if (frame->nb_samples > maxSrcSamples)
+            AudioFrame mFrame   = new();
+            mFrame.timestamp    = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+            mFrame.dataLen      = frame->nb_samples * ASampleBytes;
+            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
+
+            if (frame->nb_samples > cBufSamples)
             {
-                int bufferSize      = (Config.Decoder.MaxAudioFrames * frame->nb_samples * ASampleBytes) * 2;
-                Log.Debug($"Re-allocating circular buffer ({frame->nb_samples} > {maxSrcSamples}) with {bufferSize}bytes");
-                maxSrcSamples       = frame->nb_samples;
-                circularBuffer      = new byte[bufferSize];
-                circularBufferPos   = 0;
+                /* TBR
+                 * 1. If we change to different in/out sample rates we need to calculate delay
+                 * 2. By destorying the cBuf can create critical issues while the audio decoder reads the data? (add lock)
+                 * 3. Recalculate on Config.Decoder.MaxAudioFrames change (greater)
+                 */
+
+                int size    = (Config.Decoder.MaxAudioFrames * mFrame.dataLen) * 10;
+                Log.Debug($"Re-allocating circular buffer ({frame->nb_samples} > {cBufSamples}) with {size}bytes");
+                cBuf        = new byte[size];
+                cBufPos     = 0;
+                cBufSamples = frame->nb_samples * 10;
             }
+            else if (cBufPos + mFrame.dataLen >= cBuf.Length)
+                cBufPos     = 0;
 
-            mFrame.dataLen = frame->nb_samples * ASampleBytes;
-            if (circularBufferPos + mFrame.dataLen > circularBuffer.Length)
-                circularBufferPos = 0;
-
-            fixed (byte *circularBufferPosPtr = &circularBuffer[circularBufferPos])
+            fixed (byte *circularBufferPosPtr = &cBuf[cBufPos])
             {
                 int ret = swr_convert(swrCtx, &circularBufferPosPtr, frame->nb_samples, (byte**)&frame->data, frame->nb_samples);
                 if (ret < 0)
-                    return null;
-                
-                
+                    return;
+
                 mFrame.dataPtr = (IntPtr)circularBufferPosPtr;
             }
 
-            circularBufferPos += mFrame.dataLen;
-
-            return mFrame;
-
+            cBufPos += mFrame.dataLen;
+            Frames.Enqueue(mFrame);
         }
         catch (Exception e)
         {
             Log.Error($"Failed to process frame ({e.Message})");
-            return null;
+            
+            return;
+        }
+        finally
+        {
+            av_frame_unref(frame);
         }
     }
 
-    internal Action<MediaType> recCompleted;
+    #region Recording
+    internal Action<MediaType> 
+            recCompleted;
     Remuxer curRecorder;
-    bool recGotKeyframe;
+    bool    recGotKeyframe;
     internal bool isRecording;
     internal void StartRecording(Remuxer remuxer)
     {
@@ -337,4 +364,5 @@ public unsafe class AudioDecoder : DecoderBase
     {
         isRecording = false;
     }
+    #endregion
 }

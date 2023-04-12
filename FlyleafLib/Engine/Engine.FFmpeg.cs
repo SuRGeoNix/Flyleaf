@@ -12,7 +12,10 @@ public class FFmpegEngine
     public string   Version         { get; private set; }
     public bool     IsVer5OrGreater { get; private set; }
 
-    public static int AV_LOG_BUFFER_SIZE = 5 * 1024;
+    public bool     FiltersLoaded   { get; set; }
+    public bool     DevicesLoaded   { get; set; }
+
+    const int       AV_LOG_BUFFER_SIZE = 5 * 1024;
 
     internal FFmpegEngine()
     {
@@ -26,11 +29,13 @@ public class FFmpegEngine
             Version = $"{ver >> 16}.{ver >> 8 & 255}.{ver & 255}";
             
             if (Engine.Config.FFmpegDevices)
-                try { avdevice_register_all(); } catch { Engine.Log.Error("FFmpeg failed to load avdevices/avfilters/postproc"); }
+                try { avdevice_register_all(); DevicesLoaded = true; } catch { Engine.Log.Error("FFmpeg failed to load avdevices/avfilters/postproc"); }
             
-            SetLogLevel();
+            try { avfilter_version(); FiltersLoaded = true; } catch { FiltersLoaded = false; }
 
-            Engine.Log.Info($"FFmpeg Loaded (Location: {Folder}, Ver: {Version})");
+            SetLogLevel();
+            
+            Engine.Log.Info($"FFmpeg Loaded (Location: {Folder}, Ver: {Version}) [Devices: {(DevicesLoaded ? "yes" : "no")}, Filters: {(FiltersLoaded ? "yes" : "no")}]");
         } catch (Exception e)
         {
             Engine.Log.Error($"Loading FFmpeg libraries '{Engine.Config.FFmpegPath}' failed\r\n{e.Message}\r\n{e.StackTrace}");
@@ -38,7 +43,7 @@ public class FFmpegEngine
         }
     }
 
-    internal void SetLogLevel()
+    internal static void SetLogLevel()
     {
         if (Engine.Config.FFmpegLogLevel != FFmpegLogLevel.Quiet)
         {
@@ -61,7 +66,7 @@ public class FFmpegEngine
         av_log_format_line2(p0, level, format, vl, buffer, AV_LOG_BUFFER_SIZE, &printPrefix);
         var line = Marshal.PtrToStringAnsi((IntPtr)buffer);
 
-        Logger.Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | FFmpeg | {((FFmpegLogLevel)level).ToString().PadRight(7, ' ')} | {line.Trim()}");
+        Logger.Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | FFmpeg | {(FFmpegLogLevel)level,-7} | {line.Trim()}");
     };
 
     internal unsafe static string ErrorCodeToMsg(int error)

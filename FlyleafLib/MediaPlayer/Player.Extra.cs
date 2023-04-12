@@ -233,7 +233,7 @@ unsafe partial class Player
     }
     public void SpeedDown()
     {
-        Speed = Speed - 0.25 < 0.25 ? 0.25 : Speed - 0.25;
+        Speed = Speed - 0.25 < 0.5 ? 0.5 : Speed - 0.25;
     }
 
     public void RotateRight()

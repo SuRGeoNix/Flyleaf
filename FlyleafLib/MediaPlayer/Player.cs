@@ -227,38 +227,27 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         set
         {
             double newValue = value;
-            if (value <= 0 )
-                newValue = 0.25;
+            if (value < 0.5)
+                newValue = 0.5;
             else if (value > 16)
                 newValue = 16;
 
             if (newValue == _Speed || newValue > 1 && ReversePlayback)
                 return;
-
-            isSubsSwitch = true;
-            isAudioSwitch = true;
-
-            int decodersSpeed = newValue < 1 ? 1 : (int)newValue;
-
-            VideoDecoder.Speed      = decodersSpeed;
-            AudioDecoder.Speed      = decodersSpeed;// + (newValue % 1 == 0 ? 0 : 1);
-            //SubtitlesDecoder.Speed  = decodersSpeed;
-
-            Subtitles.subsText = "";
-            _Speed = newValue;
+            
+            AudioDecoder.Speed      = newValue;
+            VideoDecoder.Speed      = newValue;
+            _Speed                  = newValue;
+            decoder.RequiresResync  = true;
+            requiresBuffering       = true;
+            Subtitles.subsText      = "";
+            //AudioDecoder.DisposeFrames();
 
             UI(() =>
             {
                 Subtitles.SubsText = Subtitles.SubsText;
                 Raise(nameof(Speed));
             });
-
-            aFrame = null;
-            sFrame = null;
-            sFramePrev = null;
-
-            isSubsSwitch = false;
-            isAudioSwitch = false;
         }
     }
     double _Speed = 1;
@@ -402,7 +391,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     bool isSubsSwitch;
     #endregion
 
-		public Player(Config config = null)
+	public Player(Config config = null)
     {
         if (config != null)
         {

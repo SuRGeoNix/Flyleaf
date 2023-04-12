@@ -813,7 +813,6 @@
                 <MenuItem Header=" x 1"     CommandParameter="1"    Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 0.75"  CommandParameter="0.75" Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 0.50"  CommandParameter="0.50" Command="{Binding Player.Commands.SpeedSet}"/>
-                <MenuItem Header=" x 0.25"  CommandParameter="0.25" Command="{Binding Player.Commands.SpeedSet}"/>
             </MenuItem>
             <MenuItem Header="Streams" ItemsSource="{StaticResource MenuVideoStreams}"/>
 

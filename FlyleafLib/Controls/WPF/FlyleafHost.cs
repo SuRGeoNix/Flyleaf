@@ -1374,7 +1374,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         Player.Host = this;
         Player.Activity.Timeout = ActivityTimeout;
-        Player.renderer.CornerRadius = IsFullScreen ? zeroCornerRadius : CornerRadius;
+        if (Player.renderer != null) // TBR: using as AudioOnly with a Control*
+            Player.renderer.CornerRadius = IsFullScreen ? zeroCornerRadius : CornerRadius;
 
         if (CornerRadius == zeroCornerRadius)
             Surface.Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
