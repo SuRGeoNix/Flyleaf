@@ -28,22 +28,22 @@ public class Audio : NotifyPropertyChanged
     /// <summary>
     /// Whether the input has audio and it is configured
     /// </summary>
-    public bool     IsOpened        { get => isOpened;      internal set => Set(ref _IsOpened, value); }
+    public bool     IsOpened        { get => isOpened;          internal set => Set(ref _IsOpened, value); }
     internal bool   _IsOpened, isOpened;
 
-    public string   Codec           { get => codec;         internal set => Set(ref _Codec, value); }
+    public string   Codec           { get => codec;             internal set => Set(ref _Codec, value); }
     internal string _Codec, codec;
 
     ///// <summary>
     ///// Audio bitrate (Kbps)
     ///// </summary>
-    public double   BitRate         { get => bitRate;       internal set => Set(ref _BitRate, value); }
+    public double   BitRate         { get => bitRate;           internal set => Set(ref _BitRate, value); }
     internal double _BitRate, bitRate;
 
-    public int      Bits            { get => bits;          internal set => Set(ref _Bits, value); }
+    public int      Bits            { get => bits;              internal set => Set(ref _Bits, value); }
     internal int    _Bits, bits;
 
-    public int      Channels        { get => channels;      internal set => Set(ref _Channels, value); }
+    public int      Channels        { get => channels;          internal set => Set(ref _Channels, value); }
     internal int    _Channels, channels;
 
     /// <summary>
@@ -51,7 +51,7 @@ public class Audio : NotifyPropertyChanged
     /// </summary>
     public int      ChannelsOut     { get; } = 2;
 
-    public string   ChannelLayout   { get => channelLayout; internal set => Set(ref _ChannelLayout, value); }
+    public string   ChannelLayout   { get => channelLayout;     internal set => Set(ref _ChannelLayout, value); }
     internal string _ChannelLayout, channelLayout;
 
     ///// <summary>
@@ -63,13 +63,13 @@ public class Audio : NotifyPropertyChanged
     public int      FramesDisplayed { get => framesDisplayed;   internal set => Set(ref _FramesDisplayed, value); }
     internal int    _FramesDisplayed, framesDisplayed;
 
-    public string   SampleFormat    { get => sampleFormat;  internal set => Set(ref _SampleFormat, value); }
+    public string   SampleFormat    { get => sampleFormat;      internal set => Set(ref _SampleFormat, value); }
     internal string _SampleFormat, sampleFormat;
 
     /// <summary>
     /// Audio sample rate (in/out)
     /// </summary>
-    public int      SampleRate      { get => sampleRate;    internal set => Set(ref _SampleRate, value); }
+    public int      SampleRate      { get => sampleRate;        internal set => Set(ref _SampleRate, value); }
     internal int    _SampleRate, sampleRate;
 
     /// <summary>
@@ -193,9 +193,12 @@ public class Audio : NotifyPropertyChanged
     readonly object         locker = new object();
 
     IXAudio2                xaudio2;
-    internal IXAudio2MasteringVoice  masteringVoice;
-    IXAudio2SourceVoice     sourceVoice;
+    internal IXAudio2MasteringVoice
+                            masteringVoice;
+    internal IXAudio2SourceVoice
+                            sourceVoice;
     WaveFormat              waveFormat = new WaveFormat(48000, 16, 2); // Output Audio Device
+    double                  deviceDelayTimebase;
     #endregion
 
     public Audio(Player player)
@@ -213,8 +216,8 @@ public class Audio : NotifyPropertyChanged
             SampleFormat    = SampleFormat;
             SampleRate      = SampleRate;
 
-            FramesDisplayed     = FramesDisplayed;
-            FramesDropped       = FramesDropped;
+            FramesDisplayed = FramesDisplayed;
+            FramesDropped   = FramesDropped;
         };
 
         Volume = Config.Player.VolumeMax / 2;
@@ -232,16 +235,16 @@ public class Audio : NotifyPropertyChanged
             }
 
             sampleRate = decoder != null && decoder.AudioStream != null && decoder.AudioStream.SampleRate > 0 ? decoder.AudioStream.SampleRate : 48000;
-
             player.Log.Info($"Initialiazing audio ({Device} @ {SampleRate}Hz)");
 
             Dispose();
+
             try
             {
                 xaudio2 = XAudio2Create();
                 try
                 {
-	                    masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : Engine.Audio.GetDeviceId(_Device));
+	                masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : Engine.Audio.GetDeviceId(_Device));
                 } catch (Exception) // Win 7/8 compatibility issue https://social.msdn.microsoft.com/Forums/en-US/4989237b-814c-4a7a-8a35-00714d36b327/xaudio2-how-to-get-device-id-for-mastering-voice?forum=windowspro-audiodevelopment
                 {
                     masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDeviceName ? null : (@"\\?\swd#mmdevapi#" + Engine.Audio.GetDeviceId(_Device).ToLower() + @"#{e6327cad-dcec-4949-ae8a-991e976a79d2}")); 
@@ -250,10 +253,11 @@ public class Audio : NotifyPropertyChanged
                 sourceVoice.SetSourceSampleRate(SampleRate);
                 sourceVoice.Start();
 
-                masteringVoice.Volume = Config.Player.VolumeMax / 100.0f;
-                bool oldMute = mute;
-                Volume = _Volume;
-                Mute = oldMute;
+                deviceDelayTimebase     = (1000 * 10000.0) / sampleRate;
+                masteringVoice.Volume   = Config.Player.VolumeMax / 100.0f;
+                bool oldMute    = mute;
+                Volume          = _Volume;
+                Mute            = oldMute;
 
             } catch (Exception e)
             {
@@ -292,6 +296,7 @@ public class Audio : NotifyPropertyChanged
             if (CanDebug) player.Log.Debug($"[Audio] Add samples failed ({e.Message})");
         }
     }
+    internal long GetDeviceDelay() => (long) (xaudio2.PerformanceData.CurrentLatencyInSamples * deviceDelayTimebase);
     internal void ClearBuffer()
     {
         lock (locker)
@@ -397,4 +402,22 @@ public class Audio : NotifyPropertyChanged
         if (Volume == 0) return;
         Volume = Math.Max(Volume - Config.Player.VolumeOffset, 0);
     }
+
+    /// <summary>
+    /// Reloads filters from Config.Audio.Filters (experimental)
+    /// </summary>
+    /// <returns>0 on success</returns>
+    public int ReloadFilters() => player.AudioDecoder.ReloadFilters();
+
+    /// <summary>
+    /// <para>
+    /// Updates filter's property (experimental)
+    /// Note: This will not update the property value in Config.Audio.Filters
+    /// </para>
+    /// </summary>
+    /// <param name="filterId">Filter's unique id specified in Config.Audio.Filters</param>
+    /// <param name="key">Filter's property to change</param>
+    /// <param name="value">Filter's property value</param>
+    /// <returns>0 on success</returns>
+    public int UpdateFilter(string filterId, string key, string value) => player.AudioDecoder.UpdateFilter(filterId, key, value);
 }

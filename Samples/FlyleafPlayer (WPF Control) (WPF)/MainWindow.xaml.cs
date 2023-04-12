@@ -45,13 +45,14 @@ namespace FlyleafPlayer
             FlyleafME = new FlyleafME(this)
             {
                 Tag = this,
-                ActivityTimeout = 2000,
-                KeyBindings = AvailableWindows.Both,
-                DetachedResize = AvailableWindows.Overlay,
-                DetachedDragMove = AvailableWindows.Both,
-                ToggleFullScreenOnDoubleClick = AvailableWindows.Both,
-                KeepRatioOnResize = true,
-                OpenOnDrop = AvailableWindows.Both
+                ActivityTimeout     = 2000,
+                KeyBindings         = AvailableWindows.Both,
+                DetachedResize      = AvailableWindows.Overlay,
+                DetachedDragMove    = AvailableWindows.Both,
+                ToggleFullScreenOnDoubleClick 
+                                    = AvailableWindows.Both,
+                KeepRatioOnResize   = true,
+                OpenOnDrop          = AvailableWindows.Both
             };
 
             InitializeComponent();
@@ -63,9 +64,9 @@ namespace FlyleafPlayer
         private Config DefaultConfig()
         {
             Config config = new Config();
-            config.Subtitles.SearchLocal = true;
-            config.Video.GPUAdapter = ""; // Set it empty so it will include it when we save it
-
+            config.Audio.FiltersEnabled     = true;         // To allow embedded atempo filter for speed
+            config.Video.GPUAdapter         = "";           // Set it empty so it will include it when we save it
+            config.Subtitles.SearchLocal    = true;
             return config;
         }
 
@@ -83,7 +84,7 @@ namespace FlyleafPlayer
             #else
                 playerConfig = DefaultConfig();
             #endif
-            
+
             // Initializes the Player
             Player = new Player(playerConfig);
 
@@ -107,7 +108,6 @@ namespace FlyleafPlayer
                 }
             };
 
-            // TODO: Extend FlyleafME's PopUp Menu to include those
             // Ctrl+ N / Ctrl + W (Open New/Close Window)
             var key = playerConfig.Player.KeyBindings.Get("New Window");
             if (key != null)

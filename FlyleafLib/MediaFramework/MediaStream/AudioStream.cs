@@ -31,7 +31,7 @@ public unsafe class AudioStream : StreamBase
         base.Refresh();
 
         SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), AVStream->codecpar->format);
-        SampleFormatStr = SampleFormat.ToString().Replace("AV_SAMPLE_FMT_","").ToLower();
+        SampleFormatStr = av_get_sample_fmt_name(SampleFormat);
         SampleRate      = AVStream->codecpar->sample_rate;
         ChannelLayout   = AVStream->codecpar->ch_layout.u.mask;
         Channels        = AVStream->codecpar->ch_layout.nb_channels;
@@ -45,7 +45,7 @@ public unsafe class AudioStream : StreamBase
         byte[] buf = new byte[50];
         fixed (byte* bufPtr = buf)
         {
-            av_get_channel_layout_string(bufPtr, 50, Channels, AVStream->codecpar->channel_layout); // TODO
+            av_channel_layout_describe(&AVStream->codecpar->ch_layout, bufPtr, (ulong)buf.Length);
             ChannelLayoutStr = Utils.BytePtrToStringUTF8(bufPtr);
         }
     }

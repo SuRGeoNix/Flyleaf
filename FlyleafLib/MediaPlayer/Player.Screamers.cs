@@ -96,8 +96,13 @@ unsafe partial class Player
         VideoDemuxer.Start();
         VideoDecoder.Start();
          
+        long curAudioDeviceDelay = 0;
+
         if (Config.Audio.Enabled)
         {
+            curAudioDeviceDelay = Audio.GetDeviceDelay();
+            Audio.sourceVoice.FlushSourceBuffers();
+
             if (AudioDecoder.OnVideoDemuxer)
                 AudioDecoder.Start();
             else if (!decoder.RequiresResync)
@@ -133,7 +138,7 @@ unsafe partial class Player
         bool gotVideo       = false;
         bool shouldStop     = false;
         bool showOneFrame   = Config.Player.MaxLatency == 0;
-        int  audioRetries   = 3;
+        int  audioRetries   = 4;
         int  loops          = 0;
 
         do
@@ -168,7 +173,7 @@ unsafe partial class Player
                 {
                     for (int i=0; i<Math.Min(20, AudioDecoder.Frames.Count); i++)
                     {
-                        if (aFrame == null || aFrame.timestamp + 20000 > vFrame.timestamp || vFrame.timestamp > Duration) { gotAudio = true; break; }
+                        if (aFrame == null || aFrame.timestamp - curAudioDeviceDelay + 20000 > vFrame.timestamp || vFrame.timestamp > Duration) { gotAudio = true; break; }
 
                         if (CanInfo) Log.Info($"Drop aFrame {TicksToTime(aFrame.timestamp)}");
                         AudioDecoder.Frames.TryDequeue(out aFrame);
@@ -177,9 +182,14 @@ unsafe partial class Player
                     // Avoid infinite loop in case of all audio timestamps wrong
                     if (!gotAudio)
                     {
-                        gotAudio = true;
-                        aFrame = null;
-                        Log.Warn($"Audio Exhausted 1");
+                        audioRetries--;
+
+                        if (audioRetries < 1)
+                        {
+                            gotAudio = true;
+                            aFrame = null;
+                            Log.Warn($"Audio Exhausted 1");
+                        }
                     }
                 }
             }
@@ -226,16 +236,17 @@ unsafe partial class Player
         if (!seeks.IsEmpty)
             return false;
 
+        if (CanInfo) Log.Info($"Started [V: {TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {TicksToTime(aFrame.timestamp)}]"));
+
         vFrame.timestamp= (long) (vFrame.timestamp / Speed);
         videoStartTicks = vFrame.timestamp;
-        if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed);
+        if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed) - curAudioDeviceDelay;
         if (sFrame != null) sFrame.timestamp = (long) (sFrame.timestamp / Speed);
 
         decoder.OpenedPlugin.OnBufferingCompleted();
-        if (CanInfo) Log.Info($"Started [V: {TicksToTime(vFrame.timestamp)}]" + (aFrame == null ? "" : $" [A: {TicksToTime(aFrame.timestamp)}]"));
 
         return true;
-    }    
+    }
     private void Screamer()
     {
         int     ret;
@@ -268,7 +279,7 @@ unsafe partial class Player
                 else if (seekData.accurate)
                     decoder.GetVideoFrame(seekData.ms * (long)10000);
             }
-
+            
             if (requiresBuffering)
             {
                 OnBufferingStarted();
@@ -286,7 +297,7 @@ unsafe partial class Player
                     break;
                 }
                 OnBufferingCompleted();
-
+                
                 if (aFrame != null && Math.Abs(vFrame.timestamp - aFrame.timestamp) < 2)
                 {
                     Audio.AddSamples(aFrame);
@@ -310,12 +321,12 @@ unsafe partial class Player
 
             if (Status != Status.Playing)
                 break;
-
+            
             if (aFrame == null && !isAudioSwitch)
             {
                 AudioDecoder.Frames.TryDequeue(out aFrame);
                 if (aFrame != null)
-                    aFrame.timestamp = (long) (aFrame.timestamp / Speed);
+                    aFrame.timestamp = (long) (aFrame.timestamp / Speed) - Audio.GetDeviceDelay();
             }
 
             if (sFrame == null && !isSubsSwitch )
@@ -440,7 +451,7 @@ unsafe partial class Player
 
             if (aFrame != null) // Should use different thread for better accurancy (renderer might delay it on high fps) | also on high offset we will have silence between samples
             {
-                if (Math.Abs(aDistanceMs - sleepMs) <= 2)
+                if (Math.Abs(aDistanceMs - sleepMs) <= 5)
                 {
                     if (curAudioBuffers < 5)
                     {
@@ -457,7 +468,7 @@ unsafe partial class Player
 
                     AudioDecoder.Frames.TryDequeue(out aFrame);
                     if (aFrame != null)
-                        aFrame.timestamp = (long)(aFrame.timestamp / Speed);
+                        aFrame.timestamp = (long)(aFrame.timestamp / Speed) - Audio.GetDeviceDelay();
                 }
                 else if (aDistanceMs > 1000) // Drops few audio frames in case of wrong timestamps
                 {
@@ -468,12 +479,12 @@ unsafe partial class Player
                         if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs}");
                         AudioDecoder.Frames.TryDequeue(out aFrame);
                         if (aFrame != null)
-                            aFrame.timestamp = (long)(aFrame.timestamp / Speed);
+                            aFrame.timestamp = (long)(aFrame.timestamp / Speed) - Audio.GetDeviceDelay();
                     }
                     //else
                         //if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs} | limit reached");
                 }
-                else if (aDistanceMs < -2) // Will be transfered back to decoder to drop invalid timestamps
+                else if (aDistanceMs < -5) // Will be transfered back to decoder to drop invalid timestamps
                 {
                     if (VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
                     {
@@ -499,7 +510,7 @@ unsafe partial class Player
                             Audio.framesDropped++;
                             AudioDecoder.Frames.TryDequeue(out aFrame);
                             if (aFrame != null)
-                                aFrame.timestamp = (long)(aFrame.timestamp / Speed);
+                                aFrame.timestamp = (long)(aFrame.timestamp / Speed) - Audio.GetDeviceDelay();
                             aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
 
                             if (aDistanceMs > 0)
@@ -523,7 +534,7 @@ unsafe partial class Player
                 {
                     Subtitles.subsText = sFrame.text;
                     UI(() => Subtitles.SubsText = Subtitles.SubsText);
-
+                    
                     sFramePrev = sFrame;
                     sFrame = null;
                     SubtitlesDecoder.Frames.TryDequeue(out SubtitlesFrame devnull);

@@ -18,7 +18,9 @@ public abstract unsafe class DecoderBase : RunThreadBase
     public AVCodecContext*          CodecCtx        => codecCtx;
     public Action<DecoderBase>      CodecChanged    { get; set; }
     public Config                   Config          { get; protected set; }
-    public int                      Speed           = 1;
+    public double                   Speed           { get => speed; set { if (speed == value) return; oldSpeed = speed; speed = value; OnSpeedChanged(); } }
+    protected double speed = 1, oldSpeed = 1;
+    protected virtual void OnSpeedChanged() { }
 
     protected bool              filledFromCodec;
     protected int               curSpeedFrame = 1;
@@ -152,12 +154,11 @@ public abstract unsafe class DecoderBase : RunThreadBase
                 fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
             }
             
-            demuxer = null;
-            Stream = null;
-            Status = Status.Stopped;
-            curSpeedFrame = Speed;
-
-            Disposed = true;
+            demuxer         = null;
+            Stream          = null;
+            Status          = Status.Stopped;
+            curSpeedFrame   = (int)speed;
+            Disposed        = true;
             Log.Info("Disposed");
         }
     }
