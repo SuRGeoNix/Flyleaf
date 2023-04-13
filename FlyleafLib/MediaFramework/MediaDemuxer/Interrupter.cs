@@ -16,7 +16,7 @@ public unsafe class Interrupter
     public Requester    Requester       { get; private set; }
     public int          Interrupted     { get; private set; }
 
-    public AVIOInterruptCB_callback_func GetCallBackFunc() { return interruptClbk; }
+    public AVIOInterruptCB_callback_func GetCallBackFunc() => interruptClbk;
     AVIOInterruptCB_callback_func   interruptClbk = new();     
     AVIOInterruptCB_callback        InterruptClbk = (opaque) =>
     {

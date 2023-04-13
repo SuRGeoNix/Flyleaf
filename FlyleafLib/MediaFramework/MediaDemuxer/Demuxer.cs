@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Data;
 using System.Web;
 
@@ -95,11 +96,9 @@ public unsafe class Demuxer : RunThreadBase
 
     public bool                     UseAVSPackets   { get; private set; }
     public PacketQueue GetPacketsPtr(MediaType type)
-        {
-        return !UseAVSPackets
-            ? Packets
-            : type == MediaType.Audio ? AudioPackets : (type == MediaType.Video ? VideoPackets : SubtitlesPackets);
-    }
+        => !UseAVSPackets
+        ? Packets
+        : type == MediaType.Audio ? AudioPackets : (type == MediaType.Video ? VideoPackets : SubtitlesPackets);
 
     public ConcurrentQueue<ConcurrentStack<List<IntPtr>>>
                                     VideoPacketsReverse
@@ -123,15 +122,11 @@ public unsafe class Demuxer : RunThreadBase
     public event EventHandler AudioLimit;
     bool audioBufferLimitFired;
     void OnAudioLimit()
-    {
-        System.Threading.Tasks.Task.Run(() => AudioLimit?.Invoke(this, new EventArgs()));
-    }
+        => Task.Run(() => AudioLimit?.Invoke(this, new EventArgs()));
 
     public event EventHandler TimedOut;
     internal void OnTimedOut()
-    {
-        System.Threading.Tasks.Task.Run(() => TimedOut?.Invoke(this, new EventArgs()));
-    }
+        => Task.Run(() => TimedOut?.Invoke(this, new EventArgs()));
     #endregion
 
     #region Constructor / Declaration
@@ -294,8 +289,8 @@ public unsafe class Demuxer : RunThreadBase
     #endregion
 
     #region Open / Seek / Run
-    public string Open(string url)     { return Open(url, null); }
-    public string Open(Stream stream)  { return Open(null, stream); }
+    public string Open(string url)      => Open(url, null);
+    public string Open(Stream stream)   => Open(null, stream);
     public string Open(string url, Stream stream)
     {
         bool    gotLockActions  = false;
@@ -1100,10 +1095,7 @@ public unsafe class Demuxer : RunThreadBase
         Seek(StartTime + timestamp);
         curReverseStopRequestedPts = av_rescale_q((StartTime + timestamp) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
     }
-    public void DisableReversePlayback()
-    {
-        IsReversePlayback = false;
-    }
+    public void DisableReversePlayback() => IsReversePlayback = false;
     #endregion
 
     #region Switch Programs / Streams
@@ -1492,9 +1484,7 @@ public unsafe class PacketQueue
     public long LastTimestamp       { get; private set; } = AV_NOPTS_VALUE;
 
     public PacketQueue(Demuxer demuxer)
-    {
-        this.demuxer = demuxer;
-    }
+        => this.demuxer = demuxer;
 
     public void Clear()
     {
@@ -1569,11 +1559,9 @@ public unsafe class PacketQueue
     }
 
     public AVPacket* Peek()
-    {
-        return packets.TryPeek(out IntPtr packetPtr)
-            ? (AVPacket*)packetPtr
-            : (AVPacket*)null;
-    }
+        => packets.TryPeek(out IntPtr packetPtr)
+        ? (AVPacket*)packetPtr
+        : (AVPacket*)null;
 
     internal void UpdateCurTime()
     {

@@ -280,7 +280,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
     public void Player_SetFullScreen(bool value) => IsFullScreen = value;
     public void Player_Disposed() => Player = null;
 
-    protected override bool IsInputKey(Keys keyData) { return Player != null && Player.Host != null; } // Required to allow keybindings such as arrows etc.
+    protected override bool IsInputKey(Keys keyData) => Player != null && Player.Host != null;  // Required to allow keybindings such as arrows etc.
 
     // TBR: Related to Renderer's WndProc
     protected override void OnPaintBackground(PaintEventArgs pe)

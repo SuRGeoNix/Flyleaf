@@ -167,9 +167,7 @@ public class LogHandler
     public string Prefix;
 
     public LogHandler(string prefix = "")
-    {
-        Prefix = prefix;
-    }
+        => Prefix = prefix;
     public void Error(string msg) => Logger.Log($"{Prefix}{msg}", LogLevel.Error);
     public void Info(string msg) => Logger.Log($"{Prefix}{msg}", LogLevel.Info);
     public void Warn(string msg) => Logger.Log($"{Prefix}{msg}", LogLevel.Warn);

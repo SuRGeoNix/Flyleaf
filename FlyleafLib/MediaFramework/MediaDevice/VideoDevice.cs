@@ -11,7 +11,7 @@ public class VideoDevice : DeviceBase
     {
         Streams = VideoDeviceStream.GetVideoFormatsForVideoDevice(friendlyName, symbolicLink);
         Url = Streams.OfType<VideoDeviceStream>().Where(f => f.SubType.Contains("MJPG") && f.FrameRate >= 30).OrderByDescending(f => f.FrameSizeHeight).FirstOrDefault().Url;
-    }   
+    }
 
     public static void RefreshDevices()
     {

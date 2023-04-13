@@ -72,13 +72,13 @@ public unsafe partial class DecoderContext : PluginHandler
     public Demuxer              AudioDemuxer        { get; private set; }
     public Demuxer              VideoDemuxer        { get; private set; }
     public Demuxer              SubtitlesDemuxer    { get; private set; }
-    public Demuxer      GetDemuxerPtr(MediaType type)   { return type == MediaType.Audio ? AudioDemuxer : (type == MediaType.Video ? VideoDemuxer : SubtitlesDemuxer); }
+    public Demuxer      GetDemuxerPtr(MediaType type) => type == MediaType.Audio ? AudioDemuxer : (type == MediaType.Video ? VideoDemuxer : SubtitlesDemuxer);
 
     // Decoders
     public AudioDecoder         AudioDecoder        { get; private set; }
     public VideoDecoder         VideoDecoder        { get; internal set;}
     public SubtitlesDecoder     SubtitlesDecoder    { get; private set; }
-    public DecoderBase  GetDecoderPtr(MediaType type)   { return type == MediaType.Audio ? AudioDecoder : (type == MediaType.Video ? VideoDecoder : SubtitlesDecoder); }
+    public DecoderBase  GetDecoderPtr(MediaType type) => type == MediaType.Audio ? AudioDecoder : (type == MediaType.Video ? VideoDecoder : SubtitlesDecoder);
 
     // Streams
     public AudioStream          AudioStream         => (VideoDemuxer?.AudioStream) ?? AudioDemuxer.AudioStream;
@@ -254,14 +254,8 @@ public unsafe partial class DecoderContext : PluginHandler
         return ret;
     }
 
-    public long GetCurTime()
-    {
-        return !VideoDemuxer.Disposed ? VideoDemuxer.CurTime : !AudioDemuxer.Disposed ? AudioDemuxer.CurTime: 0;
-    }
-    public int GetCurTimeMs()
-    {
-        return !VideoDemuxer.Disposed ? (int)(VideoDemuxer.CurTime / 10000) : (!AudioDemuxer.Disposed ? (int)(AudioDemuxer.CurTime / 10000): 0);
-    }
+    public long GetCurTime()    => !VideoDemuxer.Disposed ? VideoDemuxer.CurTime : !AudioDemuxer.Disposed ? AudioDemuxer.CurTime : 0;
+    public int GetCurTimeMs()   => !VideoDemuxer.Disposed ? (int)(VideoDemuxer.CurTime / 10000) : (!AudioDemuxer.Disposed ? (int)(AudioDemuxer.CurTime / 10000) : 0);
 
     private long CalcSeekTimestamp(Demuxer demuxer, long ms, ref bool forward)
     {
@@ -570,10 +564,7 @@ public unsafe partial class DecoderContext : PluginHandler
     #region Recorder
     Remuxer Recorder;
     public event EventHandler RecordingCompleted;
-    public bool IsRecording
-    {
-        get => VideoDecoder.isRecording || AudioDecoder.isRecording;
-    }
+    public bool IsRecording => VideoDecoder.isRecording || AudioDecoder.isRecording;
     int oldMaxAudioFrames;
     bool recHasVideo;
     public void StartRecording(ref string filename, bool useRecommendedExtension = true)

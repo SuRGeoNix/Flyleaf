@@ -77,15 +77,13 @@ unsafe public partial class Renderer
         }
     }
     internal static VideoFilter ConvertFromVideoProcessorFilterRange(VideoProcessorFilterRange filter)
-    {
-        return new VideoFilter()
+        => new()
         {
             Minimum = filter.Minimum,
             Maximum = filter.Maximum,
             Value   = filter.Default,
             Step    = filter.Multiplier
         };
-    }
 
     VideoColor                          D3D11VPBackgroundColor;
     ID3D11VideoDevice1                  vd1;
@@ -524,10 +522,11 @@ public class VideoFilter : NotifyPropertyChanged
     public int          Value       { get => _Value;        set { if (Set(ref _Value, value)) renderer?.UpdateFilterValue(this); } }
     int _Value = 50;
 
-    internal void SetValue(int value) { SetUI(ref _Value, value, true, nameof(Value)); }
+    internal void SetValue(int value) => SetUI(ref _Value, value, true, nameof(Value));
 
     public VideoFilter() { }
-    public VideoFilter(VideoFilters filter, Player player = null) { Filter = filter; }
+    public VideoFilter(VideoFilters filter, Player player = null)
+        => Filter = filter;
 }
 
 public class VideoProcessorCapsCache

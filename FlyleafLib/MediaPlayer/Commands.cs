@@ -149,14 +149,10 @@ public class Commands
     }
 
     private void RotationSetAction(object obj)
-    {
-        player.Rotation = int.Parse(obj.ToString());
-    }
+        => player.Rotation = int.Parse(obj.ToString());
 
     private void ResetFilterAction(object filter)
-    {
-        player.Config.Video.Filters[(VideoFilters)filter].Value = player.Config.Video.Filters[(VideoFilters)filter].DefaultValue;
-    }
+        => player.Config.Video.Filters[(VideoFilters)filter].Value = player.Config.Video.Filters[(VideoFilters)filter].DefaultValue;
 
     public void SpeedSetAction(object speed)
     {
@@ -166,21 +162,13 @@ public class Commands
     }
 
     public void AudioDelaySetAction(object delay)
-    {
-        player.Config.Audio.Delay = int.Parse(delay.ToString()) * (long)10000;
-    }
+        => player.Config.Audio.Delay = int.Parse(delay.ToString()) * (long)10000;
     public void AudioDelaySetAction2(object delay)
-    {
-        player.Config.Audio.Delay += int.Parse(delay.ToString()) * (long)10000;
-    }
+        => player.Config.Audio.Delay += int.Parse(delay.ToString()) * (long)10000;
     public void SubtitlesDelaySetAction(object delay)
-    {
-        player.Config.Subtitles.Delay = int.Parse(delay.ToString()) * (long)10000;
-    }
+        => player.Config.Subtitles.Delay = int.Parse(delay.ToString()) * (long)10000;
     public void SubtitlesDelaySetAction2(object delay)
-    {
-        player.Config.Subtitles.Delay += int.Parse(delay.ToString()) * (long)10000;
-    }
+        => player.Config.Subtitles.Delay += int.Parse(delay.ToString()) * (long)10000;
 
     public void TakeSnapshotAction() => Task.Run(() => { try { player.TakeSnapshotToFile(); } catch { } });
 

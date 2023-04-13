@@ -390,9 +390,7 @@ public class Config : NotifyPropertyChanged
         }
 
         public SerializableDictionary<string, string> GetFormatOptPtr(MediaType type)
-        {
-            return type == MediaType.Video ? FormatOpt : type == MediaType.Audio ? AudioFormatOpt : SubtitlesFormatOpt;
-        }
+            => type == MediaType.Video ? FormatOpt : type == MediaType.Audio ? AudioFormatOpt : SubtitlesFormatOpt;
     }
     public class DecoderConfig : NotifyPropertyChanged
     {
@@ -493,7 +491,7 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public bool             Enabled                     { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.Video.Enable(); else player?.Video.Disable(); } }
         bool    _Enabled = true;
-        internal void SetEnabled(bool enabled) { Set(ref _Enabled, enabled, true, nameof(Enabled)); }
+        internal void SetEnabled(bool enabled)              => Set(ref _Enabled, enabled, true, nameof(Enabled));
 
         /// <summary>
         /// The max resolution that the current system can achieve and will be used from the input/stream suggester plugins
@@ -606,14 +604,14 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public long             Delay               { get => _Delay;            set { if (player != null && !player.Audio.IsOpened) return;  if (Set(ref _Delay, value)) player?.ReSync(player.decoder.AudioStream); } }
         long _Delay;
-        internal void SetDelay(long delay) { Set(ref _Delay, delay, true, nameof(Delay)); }
+        internal void SetDelay(long delay)          => Set(ref _Delay, delay, true, nameof(Delay));
 
         /// <summary>
         /// Whether audio should allowed
         /// </summary>
         public bool             Enabled             { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.Audio.Enable(); else player?.Audio.Disable(); } }
         bool    _Enabled = true;
-        internal void SetEnabled(bool enabled) { Set(ref _Enabled, enabled, true, nameof(Enabled)); }
+        internal void SetEnabled(bool enabled)      => Set(ref _Enabled, enabled, true, nameof(Enabled));
 
         /// <summary>
         /// <para>
@@ -636,7 +634,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Audio languages preference by priority
         /// </summary>
-        public List<Language>   Languages           { get { _Languages ??= GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
+        public List<Language>   Languages { get { _Languages ??= GetSystemLanguages(); return _Languages; } set => _Languages = value; }
         List<Language> _Languages;
     }
     public class SubtitlesConfig : NotifyPropertyChanged
@@ -659,27 +657,27 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Subtitle delay ticks (will be reseted to 0 for every new subtitle stream)
         /// </summary>
-        public long             Delay               { get => _Delay;            set { if (player != null && !player.Subtitles.IsOpened) return; if (Set(ref _Delay, value)) player?.ReSync(player.decoder.SubtitlesStream); } }
+        public long             Delay               { get => _Delay; set { if (player != null && !player.Subtitles.IsOpened) return; if (Set(ref _Delay, value)) player?.ReSync(player.decoder.SubtitlesStream); } }
         long _Delay;
-        internal void SetDelay(long delay) { Set(ref _Delay, delay, true, nameof(Delay)); }
+        internal void SetDelay(long delay)          => Set(ref _Delay, delay, true, nameof(Delay));
 
         /// <summary>
         /// Whether subtitles should be allowed
         /// </summary>
-        public bool             Enabled             { get => _Enabled;          set { if(Set(ref _Enabled, value)) if (value) player?.Subtitles.Enable(); else player?.Subtitles.Disable(); } }
+        public bool             Enabled             { get => _Enabled; set { if(Set(ref _Enabled, value)) if (value) player?.Subtitles.Enable(); else player?.Subtitles.Disable(); } }
         bool    _Enabled = true;
-        internal void SetEnabled(bool enabled) { Set(ref _Enabled, enabled, true, nameof(Enabled)); }
+        internal void SetEnabled(bool enabled)      => Set(ref _Enabled, enabled, true, nameof(Enabled));
 
         /// <summary>
         /// Subtitle languages preference by priority
         /// </summary>
-        public List<Language>   Languages           { get { _Languages ??= GetSystemLanguages(); return _Languages; } set { _Languages = value;} }
+        public List<Language>   Languages           { get { _Languages ??= GetSystemLanguages(); return _Languages; } set => _Languages = value; }
         List<Language> _Languages;
 
         /// <summary>
         /// Whether to use local search plugins (see also <see cref="SearchLocalOnInputType"/>)
         /// </summary>
-        public bool             SearchLocal         { get => _SearchLocal;      set { Set(ref _SearchLocal, value); } }
+        public bool             SearchLocal         { get => _SearchLocal; set => Set(ref _SearchLocal, value); }
         bool _SearchLocal = false;
 
         /// <summary>
@@ -691,7 +689,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Whether to use online search plugins (see also <see cref="SearchOnlineOnInputType"/>)
         /// </summary>
-        public bool             SearchOnline        { get => _SearchOnline;     set { Set(ref _SearchOnline, value); } }
+        public bool             SearchOnline        { get => _SearchOnline; set => Set(ref _SearchOnline, value); }
         bool _SearchOnline = false;
 
         /// <summary>

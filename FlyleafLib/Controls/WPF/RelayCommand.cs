@@ -34,10 +34,10 @@ public class RelayCommand : ICommand
         }
     }
 
-    private static bool DefaultCanExecute(object parameter) { return true; }
-    public bool CanExecute(object parameter) { return canExecute != null && canExecute(parameter); }
+    private static bool DefaultCanExecute(object parameter) => true;
+    public bool CanExecute(object parameter) => canExecute != null && canExecute(parameter);
 
-    public void Execute(object parameter) { execute(parameter); }
+    public void Execute(object parameter) => execute(parameter);
 
     public void OnCanExecuteChanged()
     {

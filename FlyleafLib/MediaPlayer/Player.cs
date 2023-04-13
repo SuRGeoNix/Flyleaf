@@ -177,11 +177,8 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// <summary>
     /// The current buffered duration in the demuxer
     /// </summary>
-    public long         BufferedDuration    { get 
-        {
-            return MainDemuxer == null ? 0 : MainDemuxer.BufferedDuration;
-        }
-        internal set => Set(ref _BufferedDuration, value); }
+    public long         BufferedDuration    { get => MainDemuxer == null ? 0 : MainDemuxer.BufferedDuration;
+                                                                        internal set => Set(ref _BufferedDuration, value); }
     long _BufferedDuration;
 
     /// <summary>
@@ -443,7 +440,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// <summary>
     /// Disposes the Player and de-assigns it from FlyleafHost
     /// </summary>
-    public void Dispose() { Engine.DisposePlayer(this); }
+    public void Dispose() => Engine.DisposePlayer(this);
     internal void DisposeInternal()
     {
         lock (lockActions)
@@ -551,10 +548,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         }
     }
 
-    internal void UIAdd(Action action)
-    {
-        UIActions.Enqueue(action);
-    }
+    internal void UIAdd(Action action) => UIActions.Enqueue(action);
     internal void UIAll()
     {
         while (!UIActions.IsEmpty)
@@ -563,9 +557,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     }
 
     public override bool Equals(object obj)
-    {
-        return obj == null || !(obj is Player) ? false : ((Player)obj).PlayerId == PlayerId;
-    }
+        => obj == null || !(obj is Player) ? false : ((Player)obj).PlayerId == PlayerId;
     public override int GetHashCode() => PlayerId.GetHashCode();
 }
 

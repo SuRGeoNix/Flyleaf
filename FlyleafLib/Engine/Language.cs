@@ -53,10 +53,7 @@ public class Language : IEquatable<Language>
         return lang.IdSubLanguage == IdSubLanguage; // TBR: top level will be equal with lower
     }
 
-    public static bool operator ==(Language lang1, Language lang2)
-    {
-        return lang1 is null ? lang2 is null ? true : false : lang1.Equals(lang2);
-    }
+    public static bool operator ==(Language lang1, Language lang2) => lang1 is null ? lang2 is null ? true : false : lang1.Equals(lang2);
 
     public static bool operator !=(Language lang1, Language lang2) => !(lang1 == lang2);
 

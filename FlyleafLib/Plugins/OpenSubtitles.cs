@@ -41,10 +41,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
         return new OpenSubtitlesResults(newExtStream);
     }
 
-    public OpenSubtitlesResults Open(Stream iostream)
-    {
-        return null;
-    }
+    public OpenSubtitlesResults Open(Stream iostream) => null;
 
     public void SearchLocalSubtitles()
     {

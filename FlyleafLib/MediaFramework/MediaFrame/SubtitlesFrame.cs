@@ -11,9 +11,7 @@ public class SubtitlesFrame : FrameBase
     public List<SubStyle> subStyles;
 
     public SubtitlesFrame(string text)
-    {
-        this.text = text;
-    }
+        => this.text = text;
 }
 
 public struct SubStyle

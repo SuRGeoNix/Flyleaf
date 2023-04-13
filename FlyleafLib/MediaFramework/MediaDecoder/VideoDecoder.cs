@@ -54,9 +54,7 @@ public unsafe class VideoDecoder : DecoderBase
     int                     curReversePacketPos     = 0;
 
     public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
-    {
-        getHWformat = new AVCodecContext_get_format(get_format);
-    }
+        => getHWformat = new AVCodecContext_get_format(get_format);
 
     protected override void OnSpeedChanged() => speed = speed < 1 ? 1 : (int)speed;
 
@@ -860,9 +858,7 @@ public unsafe class VideoDecoder : DecoderBase
     /// <returns>0 on success</returns>
     /// 
     public VideoFrame GetFrameNext()
-    {
-        return GetFrameNext(true) != 0 ? null : Renderer.FillPlanes(frame);
-    }
+        => GetFrameNext(true) != 0 ? null : Renderer.FillPlanes(frame);
 
     /// <summary>
     /// Pushes the demuxer and the decoder to the next available video frame
@@ -1045,9 +1041,6 @@ public unsafe class VideoDecoder : DecoderBase
         recGotKeyframe      = false;
         isRecording         = true;
     }
-    internal void StopRecording()
-    {
-        isRecording = false;
-    }
+    internal void StopRecording() => isRecording = false;
     #endregion
 }

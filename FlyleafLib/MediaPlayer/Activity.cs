@@ -133,33 +133,21 @@ public class Activity : NotifyPropertyChanged
     /// <summary>
     /// Sets Mode to Active
     /// </summary>
-    public void ForceActive()
-    {
-        Mode = ActivityMode.Active;
-    }
+    public void ForceActive()       => Mode = ActivityMode.Active;
     /// <summary>
     /// Sets Mode to Full Active
     /// </summary>
-    public void ForceFullActive()
-    {
-        Mode = ActivityMode.FullActive;
-    }
+    public void ForceFullActive()   => Mode = ActivityMode.FullActive;
 
     /// <summary>
     /// Updates Active Timestamp
     /// </summary>
-    public void RefreshActive()
-    {
-        swKeyboard.Restart();
-    }
+    public void RefreshActive()     => swKeyboard.Restart();
 
     /// <summary>
     /// Updates Full Active Timestamp
     /// </summary>
-    public void RefreshFullActive()
-    {
-        swMouse.Restart();
-    }
+    public void RefreshFullActive() => swMouse.Restart();
 
     #region Ensures we catch the mouse move even when the Cursor is hidden
     static bool isCursorHidden;

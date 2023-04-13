@@ -359,9 +359,6 @@ public unsafe partial class AudioDecoder : DecoderBase
         isRecording     = true;
         recGotKeyframe  = VideoDecoder.Disposed || VideoDecoder.Stream == null;
     }
-    internal void StopRecording()
-    {
-        isRecording = false;
-    }
+    internal void StopRecording() => isRecording = false;
     #endregion
 }

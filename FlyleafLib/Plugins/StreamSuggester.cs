@@ -91,9 +91,7 @@ public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggest
     }
 
     public PlaylistItem SuggestItem()
-    {
-        return Playlist.Items[0];
-    }
+        => Playlist.Items[0];
 
     public void SuggestSubtitles(out SubtitlesStream stream, out ExternalSubtitlesStream extStream)
     {
