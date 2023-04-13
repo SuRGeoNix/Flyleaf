@@ -148,7 +148,7 @@ unsafe partial class Player
     #region Open Implementation
     private OpenCompletedArgs OpenInternal(object url_iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
     {
-        OpenCompletedArgs args = new OpenCompletedArgs();
+        OpenCompletedArgs args = new();
 
         try
         {
@@ -161,7 +161,7 @@ unsafe partial class Player
             if (CanInfo) Log.Info($"Opening {url_iostream}");
 
             Initialize(Status.Opening);
-            MediaFramework.MediaContext.DecoderContext.OpenCompletedArgs args2 = decoder.Open(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+            var args2 = decoder.Open(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
             
             args.Url = args2.Url;
             args.IOStream = args2.IOStream;
@@ -211,7 +211,7 @@ unsafe partial class Player
     }
     private OpenCompletedArgs OpenSubtitles(string url)
     {
-        OpenCompletedArgs args = new OpenCompletedArgs(url, null, null, true);
+        OpenCompletedArgs args = new(url, null, null, true);
 
         try
         {
@@ -253,10 +253,9 @@ unsafe partial class Player
     /// <returns></returns>
     public OpenCompletedArgs Open(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
     {
-        if (ExtensionsSubtitles.Contains(GetUrlExtention(url)))
-            return OpenSubtitles(url);
-        else
-            return OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+        return ExtensionsSubtitles.Contains(GetUrlExtention(url))
+            ? OpenSubtitles(url)
+            : OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
     }
 
     /// <summary>
@@ -308,12 +307,11 @@ unsafe partial class Player
     /// <returns></returns>
     public OpenSessionCompletedArgs Open(Session session)
     {
-        OpenSessionCompletedArgs args = new OpenSessionCompletedArgs(session);
+        OpenSessionCompletedArgs args = new(session);
 
         try
         {
-            if (Playlist.Selected != null)
-                Playlist.Selected.AddTag(GetCurrentSession(), playerSessionTag);
+            Playlist.Selected?.AddTag(GetCurrentSession(), playerSessionTag);
 
             Initialize(Status.Opening);
             args.Error = decoder.Open(session).Error;
@@ -369,12 +367,11 @@ unsafe partial class Player
     /// <returns></returns>
     public OpenPlaylistItemCompletedArgs Open(PlaylistItem item, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
     {
-        OpenPlaylistItemCompletedArgs args = new OpenPlaylistItemCompletedArgs(item, Playlist.Selected);
+        OpenPlaylistItemCompletedArgs args = new(item, Playlist.Selected);
 
         try
         {
-            if (Playlist.Selected != null)
-                Playlist.Selected.AddTag(GetCurrentSession(), playerSessionTag);
+            Playlist.Selected?.AddTag(GetCurrentSession(), playerSessionTag);
 
             Initialize(Status.Opening, true, true);
 
@@ -570,12 +567,12 @@ unsafe partial class Player
     /// <returns></returns>
     public StreamOpenedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
     {
-        StreamOpenedArgs args = new StreamOpenedArgs();
+        StreamOpenedArgs args = new();
 
         try
         {
             long delay = DateTime.UtcNow.Ticks;
-            long fromEnd = (Duration - CurTime);
+            long fromEnd = Duration - CurTime;
 
             if (stream.Demuxer.Type == MediaType.Video)
             {
@@ -604,7 +601,7 @@ unsafe partial class Player
                     while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3)
                         System.Threading.Thread.Sleep(20);
 
-                    ReSync(stream, (int) (((Duration - fromEnd) - (DateTime.UtcNow.Ticks - delay))/ 10000));
+                    ReSync(stream, (int) ((Duration - fromEnd - (DateTime.UtcNow.Ticks - delay))/ 10000));
                 }
                 else
                     ReSync(stream, (int) (CurTime / 10000), true);
@@ -648,16 +645,15 @@ unsafe partial class Player
     /// <returns></returns>
     public Session GetSession(PlaylistItem item = null)
     {
-        if (Playlist.Selected != null && (item == null || item.Index == Playlist.Selected.Index))
-            return GetCurrentSession();
-
-        return item != null && item.GetTag(playerSessionTag) != null ? (Session)item.GetTag(playerSessionTag) : null;
+        return Playlist.Selected != null && (item == null || item.Index == Playlist.Selected.Index)
+            ? GetCurrentSession()
+            : item != null && item.GetTag(playerSessionTag) != null ? (Session)item.GetTag(playerSessionTag) : null;
     }
     string playerSessionTag = "_session";
     private Session GetCurrentSession()
     {
-        Session session = new Session();
-        PlaylistItem item = Playlist.Selected;
+        Session session = new();
+        var item = Playlist.Selected;
 
         session.Url = Playlist.Url;
         session.PlaylistItem = item.Index;
@@ -775,7 +771,7 @@ unsafe partial class Player
 
             while (true)
             {
-                if (openInputs.TryPop(out OpenAsyncData data))
+                if (openInputs.TryPop(out var data))
                 {
                     openInputs.Clear();
                     decoder.Interrupt = true;
@@ -922,12 +918,12 @@ unsafe partial class Player
         }
     }
     
-    ConcurrentStack<OpenAsyncData> openInputs   = new ConcurrentStack<OpenAsyncData>();
-    ConcurrentStack<OpenAsyncData> openSessions = new ConcurrentStack<OpenAsyncData>();
-    ConcurrentStack<OpenAsyncData> openItems    = new ConcurrentStack<OpenAsyncData>();
-    ConcurrentStack<OpenAsyncData> openVideo    = new ConcurrentStack<OpenAsyncData>();
-    ConcurrentStack<OpenAsyncData> openAudio    = new ConcurrentStack<OpenAsyncData>();
-    ConcurrentStack<OpenAsyncData> openSubtitles= new ConcurrentStack<OpenAsyncData>();
+    ConcurrentStack<OpenAsyncData> openInputs   = new();
+    ConcurrentStack<OpenAsyncData> openSessions = new();
+    ConcurrentStack<OpenAsyncData> openItems    = new();
+    ConcurrentStack<OpenAsyncData> openVideo    = new();
+    ConcurrentStack<OpenAsyncData> openAudio    = new();
+    ConcurrentStack<OpenAsyncData> openSubtitles= new();
     #endregion
 }
 

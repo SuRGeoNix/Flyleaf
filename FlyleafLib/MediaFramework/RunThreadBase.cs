@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 
 using static FlyleafLib.Logger;
 
@@ -36,7 +35,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
     public bool                 PauseOnQueueFull{ get; set; }
 
     protected Thread            thread;
-    protected AutoResetEvent    threadARE       = new AutoResetEvent(false);
+    protected AutoResetEvent    threadARE       = new(false);
     protected string            threadName      { 
         get => _threadName;
         set
@@ -48,8 +47,8 @@ public abstract class RunThreadBase : NotifyPropertyChanged
     string _threadName;
 
     internal LogHandler         Log;
-    internal object             lockActions     = new object();
-    internal object             lockStatus      = new object();
+    internal object             lockActions     = new();
+    internal object             lockStatus      = new();
 
     public RunThreadBase(int uniqueId = -1)
     {

@@ -40,20 +40,20 @@ public class VideoEngine
 
     private Dictionary<long, GPUAdapter> GetAdapters()
     {
-        Dictionary<long, GPUAdapter> adapters = new Dictionary<long, GPUAdapter>();
+        Dictionary<long, GPUAdapter> adapters = new();
         
         string dump = "";
 
-        for (int i=0; Factory.EnumAdapters1(i, out IDXGIAdapter1 adapter).Success; i++)
+        for (int i=0; Factory.EnumAdapters1(i, out var adapter).Success; i++)
         {
             bool hasOutput = false;
 
-            List<GPUOutput> outputs = new List<GPUOutput>();
+            List<GPUOutput> outputs = new();
 
             int maxHeight = 0;
-            for (int o=0; adapter.EnumOutputs(o, out IDXGIOutput output).Success; o++)
+            for (int o=0; adapter.EnumOutputs(o, out var output).Success; o++)
             {
-                GPUOutput gpout = new GPUOutput()
+                GPUOutput gpout = new()
                 {
                     Id        = GPUOutput.GPUOutputIdGenerator++,
                     DeviceName= output.Description.DeviceName,

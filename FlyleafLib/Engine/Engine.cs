@@ -56,7 +56,7 @@ public static class Engine
                     Log;
 
     static Thread   tMaster;
-    static object   lockEngine = new object();
+    static object   lockEngine = new();
     static bool     isLoading;
     static int      timePeriod;
 
@@ -115,7 +115,7 @@ public static class Engine
 
             isLoading = true;
 
-            Config = config == null ? new EngineConfig() : config;
+            Config = config ?? new EngineConfig();
 
             if (Application.Current == null)
                 new Application();
@@ -194,7 +194,7 @@ public static class Engine
             int pos = GetPlayerPos(playerId);
             if (pos == -1) return;
 
-            Player player = Players[pos];
+            var player = Players[pos];
             player.DisposeInternal();
             Players.RemoveAt(pos);
             Log.Trace($"Disposed {playerId}");
@@ -206,9 +206,11 @@ public static class Engine
         if (!Config.UIRefresh || (tMaster != null && tMaster.IsAlive))
             return;
 
-        tMaster = new Thread(() => { MasterThread(); });
-        tMaster.Name = "FlyleafEngine";
-        tMaster.IsBackground = true;
+        tMaster = new Thread(() => { MasterThread(); })
+        {
+            Name = "FlyleafEngine",
+            IsBackground = true
+        };
         tMaster.Start();
     }
     internal static void MasterThread()
@@ -233,13 +235,13 @@ public static class Engine
                 curLoop++;
                 if (curLoop == secondLoops)
                 {
-                    var curTicks = DateTime.UtcNow.Ticks;
+                    long curTicks = DateTime.UtcNow.Ticks;
                     curSecond = (curTicks - prevTicks) / 10000000.0;
                     prevTicks = curTicks;
                 }
 
                 lock (Players)
-                    foreach (Player player in Players)
+                    foreach (var player in Players)
                     {
                         /* Every UIRefreshInterval */
                         player.Activity.RefreshMode();
@@ -278,7 +280,7 @@ public static class Engine
                 {
                     try
                     {
-                        foreach (Player player in Players)
+                        foreach (var player in Players)
                         {
                             /* Every UIRefreshInterval */
 

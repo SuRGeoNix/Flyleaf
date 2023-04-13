@@ -29,18 +29,17 @@ public class Program
         ProgramId = program->id;
 
         // Load stream info
-        var streams = new List<StreamBase>(3);
-        for(var s = 0; s<program->nb_stream_indexes; s++)
+        List<StreamBase> streams = new(3);
+        for(int s = 0; s<program->nb_stream_indexes; s++)
         {
-            var streamIndex = program->stream_index[s];
+            uint streamIndex = program->stream_index[s];
             StreamBase stream = null;
             stream =  demuxer.AudioStreams.FirstOrDefault(it=>it.StreamIndex == streamIndex);
 
             if (stream == null)
             {
                 stream = demuxer.VideoStreams.FirstOrDefault(it => it.StreamIndex == streamIndex);
-                if (stream == null)
-                    stream = demuxer.SubtitlesStreams.FirstOrDefault(it => it.StreamIndex == streamIndex);
+                stream ??= demuxer.SubtitlesStreams.FirstOrDefault(it => it.StreamIndex == streamIndex);
             }
             if (stream!=null)
             {
@@ -50,7 +49,7 @@ public class Program
         Streams = streams;
 
         // Load metadata
-        var metadata = new Dictionary<string, string>();
+        Dictionary<string, string> metadata = new();
         AVDictionaryEntry* b = null;
         while (true)
         {

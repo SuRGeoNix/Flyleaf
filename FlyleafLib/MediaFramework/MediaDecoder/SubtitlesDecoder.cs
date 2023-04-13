@@ -124,7 +124,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 if (Status == Status.Stopped || demuxer.SubtitlesPackets.Count == 0) continue;
                 packet = demuxer.SubtitlesPackets.Dequeue();
                 int gotFrame = 0;
-                AVSubtitle sub = new AVSubtitle();
+                AVSubtitle sub = new();
                 ret = avcodec_decode_subtitle2(codecCtx, &sub, &gotFrame, packet);
                 if (ret < 0)
                 {
@@ -139,7 +139,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 if (gotFrame < 1 || sub.num_rects < 1 ) continue;
                 if (packet->pts == AV_NOPTS_VALUE) { avsubtitle_free(&sub); av_packet_free(&packet); continue; }
 
-                SubtitlesFrame mFrame = ProcessSubtitlesFrame(packet, &sub);
+                var mFrame = ProcessSubtitlesFrame(packet, &sub);
                 if (mFrame != null) Frames.Enqueue(mFrame);
 
                 avsubtitle_free(&sub);
@@ -153,10 +153,10 @@ public unsafe class SubtitlesDecoder : DecoderBase
 
         try
         {
-            string line = "";
-            byte[] buffer;
-            AVSubtitleRect** rects = sub->rects;
-            AVSubtitleRect* cur = rects[0];
+            string  line    = "";
+            byte[]  buffer;
+            var     rects   = sub->rects;
+            var     cur     = rects[0];
             
             switch (cur->type)
             {
@@ -173,10 +173,12 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     return null;
             }
 
-            var mFrame = new SubtitlesFrame(line);
-            mFrame.duration = (int) (sub->end_display_time - sub->start_display_time);
-            mFrame.timestamp= ((long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime) + Config.Subtitles.Delay;
-            
+            SubtitlesFrame mFrame = new(line)
+            {
+                duration    = (int)(sub->end_display_time - sub->start_display_time),
+                timestamp   = (long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime + Config.Subtitles.Delay
+            };
+
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
             Config.Subtitles.Parser(mFrame);

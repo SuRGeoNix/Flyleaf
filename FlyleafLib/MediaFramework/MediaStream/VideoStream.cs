@@ -25,7 +25,7 @@ public unsafe class VideoStream : StreamBase
     public int                          TotalFrames         { get; set; }
     public int                          Width               { get; set; }
 
-    public override string GetDump() { return $"[{Type} #{StreamIndex}] {Codec} {PixelFormatStr} {Width}x{Height} @ {FPS.ToString("#.###")} | [Color: {ColorSpace}] [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
+    public override string GetDump() { return $"[{Type} #{StreamIndex}] {Codec} {PixelFormatStr} {Width}x{Height} @ {FPS:#.###} | [Color: {ColorSpace}] [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}"; }
     public VideoStream() { }
     public VideoStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
     {
@@ -46,7 +46,7 @@ public unsafe class VideoStream : StreamBase
         FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
         TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
 
-        var gcd = Utils.GCD(Width, Height);
+        int gcd = Utils.GCD(Width, Height);
         if (gcd != 0)
             AspectRatio = new AspectRatio(Width / gcd , Height / gcd);
 
@@ -58,16 +58,10 @@ public unsafe class VideoStream : StreamBase
                 ColorSpace = ColorSpace.BT601;
             else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT709)
                 ColorSpace = ColorSpace.BT709;
-            else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL)
-                ColorSpace = ColorSpace.BT2020;
-            else
-            {
-                if (/*Width > 1024 ||*/ Height > 576)
-                    ColorSpace = ColorSpace.BT709;
-                else
-                    ColorSpace = ColorSpace.BT601;
-            }
-            
+            else ColorSpace = AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL
+                ? ColorSpace.BT2020
+                : Height > 576 ? ColorSpace.BT709 : ColorSpace.BT601;
+
             PixelFormatDesc = av_pix_fmt_desc_get(PixelFormat);
             var comps       = PixelFormatDesc->comp.ToArray();
             PixelComps      = new AVComponentDescriptor[PixelFormatDesc->nb_components];

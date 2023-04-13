@@ -77,7 +77,7 @@ public class GPUOutput
 
     public override string ToString()
     {
-        var gcd = Utils.GCD(Width, Height);
+        int gcd = Utils.GCD(Width, Height);
         return $"{DeviceName,-20} [Id: {Id,-4}\t, Top: {Top,-4}, Left: {Left,-4}, Width: {Width,-4}, Height: {Height,-4}, Ratio: [" + (gcd > 0 ? $"{Width/gcd}:{Height/gcd}]" : "]");
     }
 }
@@ -117,12 +117,12 @@ public enum VideoFilters
 
 public struct AspectRatio
 {
-    public static readonly AspectRatio Keep     = new AspectRatio(-1, 1);
-    public static readonly AspectRatio Fill     = new AspectRatio(-2, 1);
-    public static readonly AspectRatio Custom   = new AspectRatio(-3, 1);
-    public static readonly AspectRatio Invalid  = new AspectRatio(-999, 1);
+    public static readonly AspectRatio Keep     = new(-1, 1);
+    public static readonly AspectRatio Fill     = new(-2, 1);
+    public static readonly AspectRatio Custom   = new(-3, 1);
+    public static readonly AspectRatio Invalid  = new(-999, 1);
 
-    public static readonly List<AspectRatio> AspectRatios = new List<AspectRatio>()
+    public static readonly List<AspectRatio> AspectRatios = new()
     {
         Keep,
         Fill,
@@ -134,7 +134,7 @@ public struct AspectRatio
         new AspectRatio(2.35f, 1),
     };
 
-    public static implicit operator AspectRatio(string value) { return (new AspectRatio(value)); }
+    public static implicit operator AspectRatio(string value) { return new AspectRatio(value); }
 
     public float Num { get; set; }
     public float Den { get; set; }
@@ -157,10 +157,7 @@ public struct AspectRatio
 
     public override bool Equals(object obj)
     {
-        if ((obj == null) || ! GetType().Equals(obj.GetType()))
-            return false;
-        else
-            return Num == ((AspectRatio)obj).Num && Den == ((AspectRatio)obj).Den;
+        return (obj == null) || ! GetType().Equals(obj.GetType()) ? false : Num == ((AspectRatio)obj).Num && Den == ((AspectRatio)obj).Den;
     }
     public static bool operator ==(AspectRatio a, AspectRatio b) => a.Equals(b);
     public static bool operator !=(AspectRatio a, AspectRatio b) => !(a == b);

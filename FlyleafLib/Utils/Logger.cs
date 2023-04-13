@@ -29,16 +29,16 @@ public static class Logger
     public static bool CanTrace => Engine.Config.LogLevel >= LogLevel.Trace;
 
     internal static Action<string>
-                            Output = DevNullPtr;
-    static string lastOutput = "";
+                        Output = DevNullPtr;
+    static string       lastOutput = "";
 
     static ConcurrentQueue<byte[]>
-                            fileData = new ConcurrentQueue<byte[]>();
-    static bool fileTaskRunning;
-    static FileStream fileStream;
-    static object lockFileStream = new object();
+                        fileData = new();
+    static bool         fileTaskRunning;
+    static FileStream   fileStream;
+    static object       lockFileStream = new();
     static Dictionary<LogLevel, string>
-                            logLevels = new Dictionary<LogLevel, string>();
+                        logLevels = new();
 
     static Logger()
     {
@@ -62,7 +62,7 @@ public static class Logger
 
     internal static void SetOutput()
     {
-        var output = Engine.Config.LogOutput;
+        string output = Engine.Config.LogOutput;
 
         if (string.IsNullOrEmpty(output))
         {

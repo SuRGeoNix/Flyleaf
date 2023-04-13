@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace FlyleafLib.MediaFramework.MediaPlaylist;
 
@@ -18,7 +15,7 @@ public class PLSPlaylist
 
     public static List<PLSPlaylistItem> Parse(string filename)
     {
-        List<PLSPlaylistItem> items = new List<PLSPlaylistItem>();
+        List<PLSPlaylistItem> items = new();
         string res;
         int entries = 1000;
 
@@ -30,9 +27,7 @@ public class PLSPlaylist
             if ((res = GetINIAttribute("playlist", $"File{i}", filename)) == null)
                 break;
 
-            PLSPlaylistItem item = new PLSPlaylistItem();
-
-            item.Url = res;
+            PLSPlaylistItem item = new() { Url = res };
 
             if ((res = GetINIAttribute("playlist", $"Title{i}", filename)) != null)
                 item.Title = res;
@@ -48,11 +43,9 @@ public class PLSPlaylist
 
     public static string GetINIAttribute(string name, string key, string path)
     {
-        StringBuilder sb = new StringBuilder(255);
-        if (GetPrivateProfileString(name, key, "", sb, 255, path) > 0)
-            return sb.ToString();
-        else
-            return null;
+        StringBuilder sb = new(255);
+        return GetPrivateProfileString(name, key, "", sb, 255, path) > 0 
+            ? sb.ToString() : null;
     }
 }
 

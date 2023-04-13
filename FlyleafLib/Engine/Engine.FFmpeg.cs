@@ -26,7 +26,7 @@ public class FFmpegEngine
             RootPath= Folder;
             uint ver= avformat_version();
             IsVer5OrGreater  = ver >> 16 > 58;
-            Version = $"{ver >> 16}.{ver >> 8 & 255}.{ver & 255}";
+            Version = $"{ver >> 16}.{(ver >> 8) & 255}.{ver & 255}";
             
             if (Engine.Config.FFmpegDevices)
                 try { avdevice_register_all(); DevicesLoaded = true; } catch { Engine.Log.Error("FFmpeg failed to load avdevices/avfilters/postproc"); }
@@ -61,10 +61,10 @@ public class FFmpegEngine
     {
         if (level > av_log_get_level()) return;
 
-        var buffer = stackalloc byte[AV_LOG_BUFFER_SIZE];
-        var printPrefix = 1;
+        byte*   buffer = stackalloc byte[AV_LOG_BUFFER_SIZE];
+        int     printPrefix = 1;
         av_log_format_line2(p0, level, format, vl, buffer, AV_LOG_BUFFER_SIZE, &printPrefix);
-        var line = Marshal.PtrToStringAnsi((IntPtr)buffer);
+        string  line = Marshal.PtrToStringAnsi((IntPtr)buffer);
 
         Logger.Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | FFmpeg | {(FFmpegLogLevel)level,-7} | {line.Trim()}");
     };
@@ -72,7 +72,7 @@ public class FFmpegEngine
     internal unsafe static string ErrorCodeToMsg(int error)
     {
         byte* buffer = stackalloc byte[AV_LOG_BUFFER_SIZE];
-        av_strerror(error, buffer, (ulong)AV_LOG_BUFFER_SIZE);
+        av_strerror(error, buffer, AV_LOG_BUFFER_SIZE);
         return Marshal.PtrToStringAnsi((IntPtr)buffer);
     }
 }

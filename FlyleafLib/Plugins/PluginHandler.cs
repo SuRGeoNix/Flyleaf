@@ -6,8 +6,6 @@ using System.Linq;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
-using static FlyleafLib.Logger;
-
 namespace FlyleafLib.Plugins;
 
 public class PluginHandler
@@ -93,8 +91,8 @@ public class PluginHandler
         {
             try
             {
-                PluginBase plugin = CreatePluginInstance(type, this);
-                plugin.Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{plugin.Name.PadRight(14, ' ')}] ");
+                var plugin = CreatePluginInstance(type, this);
+                plugin.Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{plugin.Name,-14}] ");
                 Plugins.Add(plugin.Name, plugin);
             } catch (Exception e) { Log.Error($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
             }
@@ -187,7 +185,7 @@ public class PluginHandler
     #region Audio / Video
     public OpenResults Open()
     {
-        var sessionId = OpenCounter;
+        long sessionId = OpenCounter;
         var plugins = PluginsOpen.Values.OrderBy(x => x.Priority);
         foreach(var plugin in plugins)
         {
@@ -197,7 +195,7 @@ public class PluginHandler
             if (!plugin.CanOpen())
                 continue;
 
-            OpenResults res = plugin.Open();
+            var res = plugin.Open();
             if (res == null)
                 continue;
 
@@ -215,14 +213,10 @@ public class PluginHandler
     }
     public OpenResults OpenItem()
     {
-        var sessionId = OpenItemCounter;
-        OpenResults res = OpenedPlugin.OpenItem();
+        long sessionId = OpenItemCounter;
+        var res = OpenedPlugin.OpenItem();
 
-        if (res == null)
-        {
-            res = new OpenResults();
-            res.Error = "Cancelled";
-        }
+        res ??= new OpenResults { Error = "Cancelled" };
 
         if (sessionId != OpenItemCounter)
             res.Error = "Cancelled";
@@ -264,7 +258,7 @@ public class PluginHandler
             if (Interrupt)
                 return null;
 
-            PlaylistItem item = plugin.SuggestItem();
+            var item = plugin.SuggestItem();
             if (item != null)
             {
                 Log.Info($"SuggestItem #{item.Index} - {item.Title}");
@@ -387,7 +381,7 @@ public class PluginHandler
         var plugins = PluginsOpenSubtitles.Values.OrderBy(x => x.Priority);
         foreach(var plugin in plugins)
         {
-            OpenSubtitlesResults res = plugin.Open(url);
+            var res = plugin.Open(url);
             if (res == null)
                 continue;
 
@@ -452,7 +446,7 @@ public class PluginHandler
             if (Interrupt)
                 return null;
 
-            ExternalSubtitlesStream extStream = plugin.SuggestBestExternalSubtitles();
+            var extStream = plugin.SuggestBestExternalSubtitles();
             if (extStream != null)
                 return extStream;
         }

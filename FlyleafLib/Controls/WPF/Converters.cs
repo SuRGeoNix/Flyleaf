@@ -13,15 +13,15 @@ public class TicksToTimeSpanConverter : IValueConverter
 
 public class TicksToTimeConverter : IValueConverter
 {
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)     { return (string) new TimeSpan((long)value).ToString(@"hh\:mm\:ss"); }
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)     { return new TimeSpan((long)value).ToString(@"hh\:mm\:ss"); }
 		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
 	}
 
 public class TicksToSecondsConverter : IValueConverter
 {
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)     { return (double) ((long)value / 10000000.0); }
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)     { return (long)value / 10000000.0; }
 
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { return (long) ((double)value * (long)10000000); }
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { return (long) ((double)value * 10000000); }
 	}
 
 public class TicksToMilliSecondsConverter : IValueConverter

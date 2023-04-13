@@ -75,7 +75,6 @@
 	</ItemGroup>
   
   <ItemGroup>
-    <None Include="..\.editorconfig" Link=".editorconfig" />
     <None Include="..\Images\Flyleaf.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>

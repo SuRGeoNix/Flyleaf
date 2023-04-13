@@ -179,12 +179,9 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// </summary>
     public long         BufferedDuration    { get 
         {
-            if (MainDemuxer == null)
-                return 0;
-            
-            return MainDemuxer.BufferedDuration;
-        } 
-                                                                        internal set => Set(ref _BufferedDuration, value); }
+            return MainDemuxer == null ? 0 : MainDemuxer.BufferedDuration;
+        }
+        internal set => Set(ref _BufferedDuration, value); }
     long _BufferedDuration;
 
     /// <summary>
@@ -232,7 +229,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             else if (value > 16)
                 newValue = 16;
 
-            if (newValue == _Speed || newValue > 1 && ReversePlayback)
+            if (newValue == _Speed || (newValue > 1 && ReversePlayback))
                 return;
             
             AudioDecoder.Speed      = newValue;
@@ -345,7 +342,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
                         UI(() => Status = Status);
                     }
 
-                    VideoFrame vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime));
+                    var vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime));
                     VideoDecoder.DisposeFrame(vFrame);
                     vFrame = null;
                     decoder.RequiresResync = true;
@@ -367,20 +364,20 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     #endregion
 
     #region Properties Internal
-    readonly object lockActions  = new object();
-    readonly object lockSubtitles= new object();
+    readonly object lockActions  = new();
+    readonly object lockSubtitles= new();
 
     bool taskSeekRuns;
     bool taskPlayRuns;
     bool taskOpenAsyncRuns;
 
-    readonly ConcurrentStack<SeekData>   seeks       = new ConcurrentStack<SeekData>();
-    readonly ConcurrentQueue<Action>     UIActions  = new ConcurrentQueue<Action>();
+    readonly ConcurrentStack<SeekData>   seeks      = new();
+    readonly ConcurrentQueue<Action>     UIActions  = new();
 
     internal AudioFrame     aFrame;
     internal VideoFrame     vFrame;
     internal SubtitlesFrame sFrame, sFramePrev;
-    internal PlayerStats    stats = new PlayerStats();
+    internal PlayerStats    stats = new();
     internal LogHandler     Log;
 
     internal bool requiresBuffering;
@@ -561,19 +558,13 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     internal void UIAll()
     {
         while (!UIActions.IsEmpty)
-            if (UIActions.TryDequeue(out Action action))
+            if (UIActions.TryDequeue(out var action))
                 UI(action);
     }
 
     public override bool Equals(object obj)
     {
-        if (obj == null || !(obj is Player))
-            return false;
-
-        if (((Player)obj).PlayerId == PlayerId)
-            return true;
-
-        return false;
+        return obj == null || !(obj is Player) ? false : ((Player)obj).PlayerId == PlayerId;
     }
     public override int GetHashCode() => PlayerId.GetHashCode();
 }

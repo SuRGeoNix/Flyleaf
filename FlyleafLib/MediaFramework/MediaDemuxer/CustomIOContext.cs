@@ -51,13 +51,13 @@ public unsafe class CustomIOContext
         stream = null;
     }
 
-    avio_alloc_context_read_packet_func ioread  = new avio_alloc_context_read_packet_func();    
-    avio_alloc_context_seek_func        ioseek  = new avio_alloc_context_seek_func();
+    avio_alloc_context_read_packet_func ioread  = new();    
+    avio_alloc_context_seek_func        ioseek  = new();
 
     avio_alloc_context_read_packet IORead = (opaque, buffer, bufferSize) =>
     {
         int ret;
-        GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
+        GCHandle demuxerHandle = (GCHandle)(IntPtr)opaque;
         Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
         if (demuxer.Interrupter.ShouldInterrupt(demuxer) != 0) return AVERROR_EXIT;
@@ -74,13 +74,13 @@ public unsafe class CustomIOContext
 
     avio_alloc_context_seek IOSeek = (opaque, offset, wehnce) =>
     {
-        GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
+        GCHandle demuxerHandle = (GCHandle)(IntPtr)opaque;
         Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
         //System.Diagnostics.Debug.WriteLine($"** S | {decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position}");
 
-        if (wehnce == AVSEEK_SIZE) return demuxer.CustomIOContext.stream.Length;
-
-        return demuxer.CustomIOContext.stream.Seek(offset, (SeekOrigin) wehnce);
+        return wehnce == AVSEEK_SIZE
+            ? demuxer.CustomIOContext.stream.Length
+            : demuxer.CustomIOContext.stream.Seek(offset, (SeekOrigin) wehnce);
     };
 }

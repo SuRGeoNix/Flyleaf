@@ -48,9 +48,9 @@ public unsafe class VideoDecoder : DecoderBase
 
     // Reverse Playback
     ConcurrentStack<List<IntPtr>>
-                            curReverseVideoStack    = new ConcurrentStack<List<IntPtr>>();
-    List<IntPtr>            curReverseVideoPackets  = new List<IntPtr>();
-    List<VideoFrame>        curReverseVideoFrames   = new List<VideoFrame>();
+                            curReverseVideoStack    = new();
+    List<IntPtr>            curReverseVideoPackets  = new();
+    List<VideoFrame>        curReverseVideoFrames   = new();
     int                     curReversePacketPos     = 0;
 
     public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
@@ -100,7 +100,7 @@ public unsafe class VideoDecoder : DecoderBase
     {
         for (int i = 0; ; i++)
         {
-            AVCodecHWConfig* config = avcodec_get_hw_config(codec, i);
+            var config = avcodec_get_hw_config(codec, i);
             if (config == null) break;
             if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) == 0 || config->pix_fmt == AVPixelFormat.AV_PIX_FMT_NONE) continue;
             
@@ -222,7 +222,7 @@ public unsafe class VideoDecoder : DecoderBase
         if (hwframes == null)
             return 1;
 
-        var t2 = (AVHWFramesContext*) hwframes->data;
+        AVHWFramesContext* t2 = (AVHWFramesContext*) hwframes->data;
 
         if (codecCtx->coded_width != t2->width)
             return 2;
@@ -255,7 +255,7 @@ public unsafe class VideoDecoder : DecoderBase
         if (avcodec_get_hw_frames_parameters(codecCtx, codecCtx->hw_device_ctx, PIX_FMT_HWACCEL, &codecCtx->hw_frames_ctx) != 0)
             return -1;
 
-        AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)(codecCtx->hw_frames_ctx->data);
+        AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)codecCtx->hw_frames_ctx->data;
         hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames;
 
         AVD3D11VAFramesContext *va_frames_ctx = (AVD3D11VAFramesContext *)hw_frames_ctx->hwctx;
@@ -344,13 +344,14 @@ public unsafe class VideoDecoder : DecoderBase
     internal bool SetupSws()
     {
         Marshal.FreeHGlobal(swsBufferPtr);
-        AVPixelFormat fmt = AVPixelFormat.AV_PIX_FMT_RGBA;
-        swsData = new byte_ptrArray4();
-        swsLineSize = new int_array4();
-        int outBufferSize = av_image_get_buffer_size(fmt, codecCtx->width, codecCtx->height, 1);
-        swsBufferPtr = Marshal.AllocHGlobal(outBufferSize);
+        var fmt         = AVPixelFormat.AV_PIX_FMT_RGBA;
+        swsData         = new byte_ptrArray4();
+        swsLineSize     = new int_array4();
+        int outBufferSize
+                        = av_image_get_buffer_size(fmt, codecCtx->width, codecCtx->height, 1);
+        swsBufferPtr    = Marshal.AllocHGlobal(outBufferSize);
         av_image_fill_arrays(ref swsData, ref swsLineSize, (byte*) swsBufferPtr, fmt, codecCtx->width, codecCtx->height, 1);
-        swsCtx = sws_getContext(codecCtx->coded_width, codecCtx->coded_height, codecCtx->pix_fmt, codecCtx->width, codecCtx->height, fmt, Config.Video.SwsHighQuality ? SCALING_HQ : SCALING_LQ, null, null, null);
+        swsCtx          = sws_getContext(codecCtx->coded_width, codecCtx->coded_height, codecCtx->pix_fmt, codecCtx->width, codecCtx->height, fmt, Config.Video.SwsHighQuality ? SCALING_HQ : SCALING_LQ, null, null, null);
 
         if (swsCtx == null)
         {
@@ -425,7 +426,7 @@ public unsafe class VideoDecoder : DecoderBase
                             // TODO: let the demuxer push the draining packet
                             Log.Debug("Draining");
                             Status = Status.Draining;
-                            AVPacket* drainPacket = av_packet_alloc();
+                            var drainPacket = av_packet_alloc();
                             drainPacket->data = null;
                             drainPacket->size = 0;
                             demuxer.VideoPackets.Enqueue(drainPacket);
@@ -572,7 +573,7 @@ public unsafe class VideoDecoder : DecoderBase
                         }
                     }
 
-                    VideoFrame mFrame = Renderer.FillPlanes(frame);
+                    var mFrame = Renderer.FillPlanes(frame);
                     if (mFrame != null) Frames.Enqueue(mFrame);
                 }
 
@@ -730,7 +731,7 @@ public unsafe class VideoDecoder : DecoderBase
                         {
                             av_packet_free(&packet);
                             curReverseVideoPackets[curReversePacketPos - 1] = IntPtr.Zero;
-                            VideoFrame mFrame = Renderer.FillPlanes(frame);
+                            var mFrame = Renderer.FillPlanes(frame);
                             if (mFrame != null) curReverseVideoFrames.Add(mFrame);
                         }
                         else
@@ -787,7 +788,7 @@ public unsafe class VideoDecoder : DecoderBase
     public int GetFrameNumber(long timestamp)
     {
         // Incoming timestamps are zero-base from demuxer start time (not from video stream start time)
-        timestamp -= (VideoStream.StartTime - demuxer.StartTime);
+        timestamp -= VideoStream.StartTime - demuxer.StartTime;
 
         if (timestamp < 1)
             return 0;
@@ -806,7 +807,7 @@ public unsafe class VideoDecoder : DecoderBase
         int ret;
 
         // Calculation of FrameX timestamp (based on fps/avgFrameDuration) | offset 2ms
-        long frameTimestamp = VideoStream.StartTime + (long) (index * VideoStream.FrameDuration) - 20000;
+        long frameTimestamp = VideoStream.StartTime + (index * VideoStream.FrameDuration) - 20000;
         //Log.Debug($"Searching for {Utils.TicksToTime(frameTimestamp)}");
 
         demuxer.Pause();
@@ -820,10 +821,9 @@ public unsafe class VideoDecoder : DecoderBase
         // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC
         // More issues with mpegts seeking backwards (those should be used also in the reverse playback in the demuxer)
         demuxer.Interrupter.Request(MediaDemuxer.Requester.Seek);
-        if (codecCtx->codec_id == AV_CODEC_ID_HEVC || (demuxer.FormatContext->iformat != null && demuxer.FormatContext->iformat->read_seek.Pointer == IntPtr.Zero))
-            ret = av_seek_frame(demuxer.FormatContext, -1, Math.Max(0, frameTimestamp - (3 * (long)1000 * 10000)) / 10, AVSEEK_FLAG_ANY);
-        else
-            ret = av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
+        ret = codecCtx->codec_id == AV_CODEC_ID_HEVC || (demuxer.FormatContext->iformat != null && demuxer.FormatContext->iformat->read_seek.Pointer == IntPtr.Zero)
+            ? av_seek_frame(demuxer.FormatContext, -1, Math.Max(0, frameTimestamp - (3 * (long)1000 * 10000)) / 10, AVSEEK_FLAG_ANY)
+            : av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
 
         demuxer.DisposePackets();
 
@@ -861,9 +861,7 @@ public unsafe class VideoDecoder : DecoderBase
     /// 
     public VideoFrame GetFrameNext()
     {
-        if (GetFrameNext(true) != 0) return null;
-
-        return Renderer.FillPlanes(frame);
+        return GetFrameNext(true) != 0 ? null : Renderer.FillPlanes(frame);
     }
 
     /// <summary>
@@ -942,7 +940,7 @@ public unsafe class VideoDecoder : DecoderBase
     {
         while (!Frames.IsEmpty)
         {
-            Frames.TryDequeue(out VideoFrame frame);
+            Frames.TryDequeue(out var frame);
             DisposeFrame(frame);
         }
 

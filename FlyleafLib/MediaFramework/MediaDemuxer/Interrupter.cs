@@ -17,10 +17,10 @@ public unsafe class Interrupter
     public int          Interrupted     { get; private set; }
 
     public AVIOInterruptCB_callback_func GetCallBackFunc() { return interruptClbk; }
-    AVIOInterruptCB_callback_func   interruptClbk = new AVIOInterruptCB_callback_func();     
+    AVIOInterruptCB_callback_func   interruptClbk = new();     
     AVIOInterruptCB_callback        InterruptClbk = (opaque) =>
     {
-        GCHandle demuxerHandle = (GCHandle)((IntPtr)opaque);
+        GCHandle demuxerHandle = (GCHandle)(IntPtr)opaque;
         Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
         return demuxer.Interrupter.ShouldInterrupt(demuxer);

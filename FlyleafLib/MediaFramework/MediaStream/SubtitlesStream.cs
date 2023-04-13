@@ -1,6 +1,4 @@
-﻿using System;
-
-using FFmpeg.AutoGen;
+﻿using FFmpeg.AutoGen;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
 

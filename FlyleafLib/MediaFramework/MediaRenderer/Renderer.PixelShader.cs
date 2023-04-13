@@ -150,8 +150,8 @@ unsafe public partial class Renderer
                 if (oldVP != videoProcessor)
                 {
                     VideoDecoder.DisposeFrames();
-                    Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
-                    Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
+                    Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + ((Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2);
+                    Config.Video.Filters[VideoFilters.Contrast].Value   = Config.Video.Filters[VideoFilters.Contrast].Minimum + ((Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2);
                 }
 
                 if (IsHDR)
@@ -551,14 +551,14 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
     {
         try
         {
-            VideoFrame mFrame = new VideoFrame();
+            VideoFrame mFrame = new();
             mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoDecoder.Demuxer.StartTime;
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
             if (checkHDR && hdrData == null && frame->side_data != null && *frame->side_data != null)
             {
                 checkHDR = false;
-                AVFrameSideData* sideData = *frame->side_data;
+                var sideData = *frame->side_data;
                 if (sideData->type == AVFrameSideDataType.AV_FRAME_DATA_MASTERING_DISPLAY_METADATA)
                 {
                     hdrData = (AVMasteringDisplayMetadata*)sideData->data;

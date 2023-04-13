@@ -36,8 +36,7 @@ public partial class Renderer
                 if (CanWarn) Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
                 VideoDecoder.DisposeFrame(frame);
 
-                if (vpiv != null)
-                    vpiv.Dispose();
+                vpiv?.Dispose();
 
                 return false;
 

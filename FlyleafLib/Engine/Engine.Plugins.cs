@@ -51,7 +51,7 @@ public class PluginsEngine
     {
         try 
         { 
-            Type[] types = assembly.GetTypes();
+            var types = assembly.GetTypes();
 
             foreach (var type in types)
             {

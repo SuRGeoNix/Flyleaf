@@ -34,13 +34,13 @@ internal static class ShaderCompiler
             if (cache.Count > MAXSIZE)
             {
                 Engine.Log.Trace($"[ShaderCompiler] Clears cache");
-                foreach (BlobWrapper bw1 in cache.Values)
+                foreach (var bw1 in cache.Values)
                     bw1.blob.Dispose();
 
                 cache.Clear();
             }
 
-            cache.TryGetValue(uniqueId, out BlobWrapper bw2);
+            cache.TryGetValue(uniqueId, out var bw2);
             if (bw2 != null)
             {
                 Engine.Log.Trace($"[ShaderCompiler] Found in cache {uniqueId}");
@@ -53,9 +53,9 @@ internal static class ShaderCompiler
             cache.Add(uniqueId, bw);
         }
 
-        Blob blob = Compile(PS_HEADER + hlslSample + PS_FOOTER, true, defines);
+        var blob = Compile(PS_HEADER + hlslSample + PS_FOOTER, true, defines);
         bw.blob = blob;
-        ID3D11PixelShader ps = device.CreatePixelShader(bw.blob);
+        var ps = device.CreatePixelShader(bw.blob);
         Monitor.Exit(bw);
 
         Engine.Log.Trace($"[ShaderCompiler] Compiled {uniqueId}");
@@ -78,13 +78,13 @@ internal static class ShaderCompiler
     internal static unsafe Blob Compile(byte[] bytes, bool isPS = true, ShaderMacro[] defines = null)
     {
         string psOrvs = isPS ? "ps" : "vs";
-        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}_4_0_level_9_3", ShaderFlags.OptimizationLevel3, out Blob shaderBlob, out Blob psError);
+        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}_4_0_level_9_3", ShaderFlags.OptimizationLevel3, out var shaderBlob, out var psError);
 
         if (psError != null && psError.BufferPointer != IntPtr.Zero)
         {
             string[] errors = BytePtrToStringUTF8((byte*)psError.BufferPointer).Split('\n');
 
-            foreach (var line in errors)
+            foreach (string line in errors)
                 Engine.Log.Error($"[ShaderCompile] {line}");
         }
 

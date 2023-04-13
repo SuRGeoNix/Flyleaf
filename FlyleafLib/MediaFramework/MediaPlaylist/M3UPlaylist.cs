@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -29,32 +28,32 @@ public class M3UPlaylist
         if (downStr == null)
             return null;
 
-        using (StringReader reader = new StringReader(downStr))
-            return Parse(reader);
+        using StringReader reader = new(downStr);
+        return Parse(reader);
     }
 
     public static List<M3UPlaylistItem> ParseFromString(string text)
     {
-        using (StringReader reader = new StringReader(text))
-            return Parse(reader);
+        using StringReader reader = new(text);
+        return Parse(reader);
     }
 
     public static List<M3UPlaylistItem> Parse(string filename)
     {
-        using (StreamReader reader = new StreamReader(filename))
-            return Parse(reader);
+        using StreamReader reader = new(filename);
+        return Parse(reader);
     }
     private static List<M3UPlaylistItem> Parse(TextReader reader)
     {
         string line;
-        List<M3UPlaylistItem> items = new List<M3UPlaylistItem>();
+        List<M3UPlaylistItem> items = new();
 
         while ((line = reader.ReadLine()) != null)
         {
             if (line.StartsWith("#EXTINF"))
             {
-                M3UPlaylistItem item = new M3UPlaylistItem();
-                MatchCollection matches = Regex.Matches(line, " ([^\\s=]+)=\"([^\\s\"]+)\"");
+                M3UPlaylistItem item = new();
+                var matches = Regex.Matches(line, " ([^\\s=]+)=\"([^\\s\"]+)\"");
                 foreach (Match match in matches)
                 {
                     if (match.Groups.Count == 3 && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
@@ -108,10 +107,7 @@ public class M3UPlaylist
 
     private static string GetMatch(string text, string pattern)
     {
-        Match match = Regex.Match(text, pattern);
-        if (match.Success && match.Groups.Count > 1)
-            return match.Groups[1].Value;
-
-        return null;
+        var match = Regex.Match(text, pattern);
+        return match.Success && match.Groups.Count > 1 ? match.Groups[1].Value : null;
     }
 }

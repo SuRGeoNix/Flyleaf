@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows.Forms;
 
 namespace FlyleafLib.MediaPlayer;
@@ -118,12 +117,9 @@ public class Activity : NotifyPropertyChanged
     {
         if (!IsEnabled)
             mode = ActivityMode.FullActive;
-        else if (swMouse.IsRunning && swMouse.ElapsedMilliseconds < Timeout)
-            mode = ActivityMode.FullActive;
-        else if (swKeyboard.IsRunning && swKeyboard.ElapsedMilliseconds < Timeout)
-            mode = ActivityMode.Active;
-        else 
-            mode = ActivityMode.Idle;
+        else mode = swMouse.IsRunning && swMouse.ElapsedMilliseconds < Timeout
+            ? ActivityMode.FullActive
+            : swKeyboard.IsRunning && swKeyboard.ElapsedMilliseconds < Timeout ? ActivityMode.Active : ActivityMode.Idle;
     }
 
     /// <summary>
@@ -167,7 +163,7 @@ public class Activity : NotifyPropertyChanged
 
     #region Ensures we catch the mouse move even when the Cursor is hidden
     static bool isCursorHidden;
-    static object cursorLocker = new object();
+    static object cursorLocker = new();
     public class GlobalMouseHandler : IMessageFilter
     {
         public bool PreFilterMessage(ref Message m)
@@ -192,7 +188,7 @@ public class Activity : NotifyPropertyChanged
     }
     static Activity()
     {
-        GlobalMouseHandler gmh = new GlobalMouseHandler();
+        GlobalMouseHandler gmh = new();
         Application.AddMessageFilter(gmh);
     }
     #endregion

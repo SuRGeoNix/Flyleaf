@@ -35,7 +35,7 @@ public class VideoDeviceStream : DeviceStreamBase
         foreach (var property in type.GetFields(BindingFlags.Public | BindingFlags.Static))
             if (property.FieldType == typeof(Guid))
             {
-                var temp = property.GetValue(null);
+                object temp = property.GetValue(null);
                 if (temp is Guid value)
                     if (value == guid)
                         return property.Name.ToUpper();
@@ -63,44 +63,40 @@ public class VideoDeviceStream : DeviceStreamBase
     #region VideoFormatsViaMediaSource
     public static IEnumerable<DeviceStreamBase> GetVideoFormatsForVideoDevice(string friendlyName, string symbolicLink)
     {
-        var formatList = new List<VideoDeviceStream>();
+        List<VideoDeviceStream> formatList = new();
 
         using (var mediaSource = GetMediaSourceFromVideoDevice(symbolicLink))
         {
             if (mediaSource == null)
                 return null;
 
-            using (var sourcePresentationDescriptor = mediaSource.CreatePresentationDescriptor())
-            {
-                var sourceStreamCount = sourcePresentationDescriptor.StreamDescriptorCount;
+            using var sourcePresentationDescriptor = mediaSource.CreatePresentationDescriptor();
+            int sourceStreamCount = sourcePresentationDescriptor.StreamDescriptorCount;
 
-                for (var i=0; i<sourceStreamCount; i++)
+            for (int i = 0; i < sourceStreamCount; i++)
+            {
+                var guidMajorType = GetMajorMediaTypeFromPresentationDescriptor(sourcePresentationDescriptor, i);
+                if (guidMajorType != MediaTypeGuids.Video)
+                    continue;
+
+                sourcePresentationDescriptor.GetStreamDescriptorByIndex(i, out var streamIsSelected, out var videoStreamDescriptor);
+
+                using (videoStreamDescriptor)
                 {
-                    var guidMajorType = GetMajorMediaTypeFromPresentationDescriptor(sourcePresentationDescriptor, i);
-                    if (guidMajorType != MediaTypeGuids.Video)
+                    if (streamIsSelected == false)
                         continue;
 
-                    sourcePresentationDescriptor.GetStreamDescriptorByIndex(i, out var streamIsSelected, out var videoStreamDescriptor);
+                    using var typeHandler = videoStreamDescriptor.MediaTypeHandler;
+                    int mediaTypeCount = typeHandler.MediaTypeCount;
 
-                    using (videoStreamDescriptor)
-                    {
-                        if (streamIsSelected == false)
-                            continue;
-
-                        using (var typeHandler = videoStreamDescriptor.MediaTypeHandler)
+                    for (int mediaTypeId = 0; mediaTypeId < mediaTypeCount; mediaTypeId++)
+                        using (var workingMediaType = typeHandler.GetMediaTypeByIndex(mediaTypeId))
                         {
-                            var mediaTypeCount = typeHandler.MediaTypeCount;
+                            var videoFormat = GetVideoFormatFromMediaType(friendlyName, workingMediaType);
 
-                            for (var mediaTypeId = 0; mediaTypeId < mediaTypeCount; mediaTypeId++)
-                                using (var workingMediaType = typeHandler.GetMediaTypeByIndex(mediaTypeId))
-                                {
-                                    var videoFormat = GetVideoFormatFromMediaType(friendlyName, workingMediaType);
-
-                                    if (videoFormat.SubType != "NV12") // NV12 is not playable TODO check support for video formats
-                                        formatList.Add(videoFormat);
-                                }
+                            if (videoFormat.SubType != "NV12") // NV12 is not playable TODO check support for video formats
+                                formatList.Add(videoFormat);
                         }
-                    }
                 }
             }
         }
@@ -110,16 +106,16 @@ public class VideoDeviceStream : DeviceStreamBase
 
     private static IMFMediaSource GetMediaSourceFromVideoDevice(string symbolicLink)
     {
-        using (var attributeContainer = MediaFactory.MFCreateAttributes(2))
-        {
-            attributeContainer.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeVidcap);
-            attributeContainer.Set(CaptureDeviceAttributeKeys.SourceTypeVidcapSymbolicLink, symbolicLink);
+        using var attributeContainer = MediaFactory.MFCreateAttributes(2);
+        attributeContainer.Set(CaptureDeviceAttributeKeys.SourceType, CaptureDeviceAttributeKeys.SourceTypeVidcap);
+        attributeContainer.Set(CaptureDeviceAttributeKeys.SourceTypeVidcapSymbolicLink, symbolicLink);
 
-            IMFMediaSource ret = null;
-            try { ret = MediaFactory.MFCreateDeviceSource(attributeContainer); } catch (Exception) { }
+        IMFMediaSource ret = null;
+        try
+        { ret = MediaFactory.MFCreateDeviceSource(attributeContainer); }
+        catch (Exception) { }
 
-            return ret;
-        }
+        return ret;
     }
 
     private static Guid GetMajorMediaTypeFromPresentationDescriptor(IMFPresentationDescriptor presentationDescriptor, int streamIndex)
@@ -132,12 +128,10 @@ public class VideoDeviceStream : DeviceStreamBase
 
     private static Guid GetMajorMediaTypeFromStreamDescriptor(IMFStreamDescriptor streamDescriptor)
     {
-        using (var pHandler = streamDescriptor.MediaTypeHandler)
-        {
-            var guidMajorType = pHandler.MajorType;
+        using var pHandler = streamDescriptor.MediaTypeHandler;
+        var guidMajorType = pHandler.MajorType;
 
-            return guidMajorType;
-        }
+        return guidMajorType;
     }
 
     private static VideoDeviceStream GetVideoFormatFromMediaType(string videoDeviceName, IMFMediaType mediaType)
@@ -152,15 +146,15 @@ public class VideoDeviceStream : DeviceStreamBase
 
         // MF_MT_FRAME_SIZE
         // the Width and height of a video frame, in pixels
-        MediaFactory.MFGetAttributeSize(mediaType, MediaTypeAttributeKeys.FrameSize, out var frameSizeWidth, out var frameSizeHeight);
+        MediaFactory.MFGetAttributeSize(mediaType, MediaTypeAttributeKeys.FrameSize, out uint frameSizeWidth, out uint frameSizeHeight);
 
         // MF_MT_FRAME_RATE
         // The frame rate is expressed as a ratio.The upper 32 bits of the attribute value contain the numerator and the lower 32 bits contain the denominator. 
         // For example, if the frame rate is 30 frames per second(fps), the ratio is 30 / 1.If the frame rate is 29.97 fps, the ratio is 30,000 / 1001.
         // we report this back to the user as a decimal
-        MediaFactory.MFGetAttributeRatio(mediaType, MediaTypeAttributeKeys.FrameRate, out var frameRate, out var frameRateDenominator);
+        MediaFactory.MFGetAttributeRatio(mediaType, MediaTypeAttributeKeys.FrameRate, out uint frameRate, out uint frameRateDenominator);
 
-        var videoFormat = new VideoDeviceStream(videoDeviceName, majorType, subType, (int)frameSizeWidth,
+        VideoDeviceStream videoFormat = new(videoDeviceName, majorType, subType, (int)frameSizeWidth,
             (int)frameSizeHeight,
             (int)frameRate,
             (int)frameRateDenominator);

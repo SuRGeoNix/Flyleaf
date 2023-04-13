@@ -26,7 +26,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
     protected int               curSpeedFrame = 1;
     protected AVFrame*          frame;
     protected AVCodecContext*   codecCtx;
-    internal  object            lockCodecCtx    = new object();
+    internal  object            lockCodecCtx    = new();
 
     protected Demuxer           demuxer;
 
@@ -48,7 +48,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
     {
         lock (lockActions)
         {
-            StreamBase prevStream = Stream;
+            var prevStream = Stream;
             Dispose();
             int ret = -1;
             string error = null;
@@ -65,7 +65,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                     Stream  = stream;
                     demuxer = stream.Demuxer;
 
-                    AVCodec* codec = avcodec_find_decoder(stream.CodecID);
+                    var codec = avcodec_find_decoder(stream.CodecID);
                     if (codec == null)
                         return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
 

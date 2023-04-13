@@ -26,8 +26,7 @@ public unsafe partial class AudioDecoder
         AVFilterContext*    filterCtx;
         AVFilter*           filter;
 
-        if (id == null)
-            id = name;
+        id ??= name;
 
         filter  = avfilter_get_by_name(name);
         if (filter == null)
@@ -41,10 +40,10 @@ public unsafe partial class AudioDecoder
             return filterCtx;
 
         ret     = avfilter_link(prevCtx, 0, filterCtx, 0);
-        if (ret != 0)
-            throw new Exception($"[Filter {name}] avfilter_link failed ({FFmpegEngine.ErrorCodeToMsg(ret)})");
 
-        return filterCtx;
+        return ret != 0
+            ? throw new Exception($"[Filter {name}] avfilter_link failed ({FFmpegEngine.ErrorCodeToMsg(ret)})")
+            : filterCtx;
     }
     private int SetupFilters()
     {
@@ -66,7 +65,7 @@ public unsafe partial class AudioDecoder
 
             // USER DEFINED
             if (Config.Audio.Filters != null)
-                foreach (Filter filter in Config.Audio.Filters)
+                foreach (var filter in Config.Audio.Filters)
                     try
                     {
                         linkCtx = CreateFilter(filter.Name, filter.Args, linkCtx, filter.Id);
@@ -93,9 +92,10 @@ public unsafe partial class AudioDecoder
             
             // GRAPH CONFIG
             ret = avfilter_graph_config(filterGraph, null);
-            if (ret < 0) throw new Exception($"[FilterGraph] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-            return 0;
+            return ret < 0 
+                ? throw new Exception($"[FilterGraph] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})") 
+                : 0;
         }
         catch (Exception e)
         {
@@ -232,7 +232,7 @@ public unsafe partial class AudioDecoder
                  * 2. When we go over the limit we overwrite prev sample bytes in the circular buffer
                  */
 
-                int size    = (Config.Decoder.MaxAudioFrames * mFrame.dataLen) * 10;
+                int size    = Config.Decoder.MaxAudioFrames * mFrame.dataLen * 10;
                 Log.Debug($"Re-allocating circular buffer ({frame->nb_samples} > {cBufSamples}) with {size}bytes");
                 cBuf        = new byte[size];
                 cBufPos     = 0;

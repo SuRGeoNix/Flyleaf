@@ -39,13 +39,15 @@ public class Config : NotifyPropertyChanged
     }
     public Config Clone()
     {
-        Config config   = new Config();
-        config.Audio    = Audio.Clone();
-        config.Video    = Video.Clone();
-        config.Subtitles= Subtitles.Clone();
-        config.Demuxer  = Demuxer.Clone();
-        config.Decoder  = Decoder.Clone();
-        config.Player   = Player.Clone();
+        Config config = new()
+        {
+            Audio       = Audio.Clone(),
+            Video       = Video.Clone(),
+            Subtitles   = Subtitles.Clone(),
+            Demuxer     = Demuxer.Clone(),
+            Decoder     = Decoder.Clone(),
+            Player      = Player.Clone()
+        };
 
         config.Player.config = config;
         config.Demuxer.config = config;
@@ -54,15 +56,14 @@ public class Config : NotifyPropertyChanged
     }
     public static Config Load(string path)
     {
-        using (FileStream fs = new FileStream(path, FileMode.Open))
-        {
-            XmlSerializer xmlSerializer = new XmlSerializer(typeof(Config));
-            Config config       = (Config) xmlSerializer.Deserialize(fs);
-            config.Loaded       = true;
-            config.LoadedPath   = path;
+        using FileStream fs = new(path, FileMode.Open);
+        XmlSerializer xmlSerializer
+                            = new(typeof(Config));
+        Config config       = (Config) xmlSerializer.Deserialize(fs);
+        config.Loaded       = true;
+        config.LoadedPath   = path;
 
-            return config;
-        }
+        return config;
     }
     public void Save(string path = null)
     {
@@ -74,11 +75,9 @@ public class Config : NotifyPropertyChanged
             path = LoadedPath;
         }
 
-        using (FileStream fs = new FileStream(path, FileMode.Create))
-        {
-            XmlSerializer xmlSerializer = new XmlSerializer(GetType());
-            xmlSerializer.Serialize(fs, this);
-        }
+        using FileStream fs = new(path, FileMode.Create);
+        XmlSerializer xmlSerializer = new(GetType());
+        xmlSerializer.Serialize(fs, this);
     }
 
     internal void SetPlayer(Player player)
@@ -112,7 +111,7 @@ public class Config : NotifyPropertyChanged
     public SubtitlesConfig  Subtitles   { get; set; } = new SubtitlesConfig();
 
     public SerializableDictionary<string, SerializableDictionary<string, string>>
-                            Plugins     = new SerializableDictionary<string, SerializableDictionary<string, string>>();
+                            Plugins = new();
     public class PlayerConfig : NotifyPropertyChanged
     {
         public PlayerConfig Clone()
@@ -392,12 +391,7 @@ public class Config : NotifyPropertyChanged
 
         public SerializableDictionary<string, string> GetFormatOptPtr(MediaType type)
         {
-            if (type == MediaType.Video)
-                return FormatOpt;
-            else if (type == MediaType.Audio)
-                return AudioFormatOpt;
-            else
-                return SubtitlesFormatOpt;
+            return type == MediaType.Video ? FormatOpt : type == MediaType.Audio ? AudioFormatOpt : SubtitlesFormatOpt;
         }
     }
     public class DecoderConfig : NotifyPropertyChanged
@@ -480,7 +474,7 @@ public class Config : NotifyPropertyChanged
         /// Custom aspect ratio (AspectRatio must be set to Custom to have an effect)
         /// </summary>
         public AspectRatio      CustomAspectRatio           { get => _CustomAspectRatio;  set { if (Set(ref _CustomAspectRatio, value)) AspectRatio = AspectRatio.Custom; } }
-        AspectRatio    _CustomAspectRatio = new AspectRatio(16, 9);
+        AspectRatio    _CustomAspectRatio = new(16, 9);
 
         /// <summary>
         /// Background color of the player's control
@@ -585,11 +579,11 @@ public class Config : NotifyPropertyChanged
 
         public static SerializableDictionary<VideoFilters, VideoFilter> DefaultFilters()
         {
-            var filters = new SerializableDictionary<VideoFilters, VideoFilter>();
+            SerializableDictionary<VideoFilters, VideoFilter> filters = new();
 
             var available = Enum.GetValues(typeof(VideoFilters));
 
-            foreach(var filter in available)
+            foreach(object filter in available)
                 filters.Add((VideoFilters)filter, new VideoFilter((VideoFilters)filter));
 
             return filters;
@@ -642,14 +636,14 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Audio languages preference by priority
         /// </summary>
-        public List<Language>   Languages           { get { if (_Languages == null) _Languages = GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
+        public List<Language>   Languages           { get { _Languages ??= GetSystemLanguages();  return _Languages; } set { _Languages = value;} }
         List<Language> _Languages;
     }
     public class SubtitlesConfig : NotifyPropertyChanged
     {
         public SubtitlesConfig Clone()
         {
-            SubtitlesConfig subs = new SubtitlesConfig();
+            SubtitlesConfig subs = new();
             subs = (SubtitlesConfig) MemberwiseClone();
 
             subs.Languages = new List<Language>();
@@ -679,7 +673,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Subtitle languages preference by priority
         /// </summary>
-        public List<Language>   Languages           { get { if (_Languages == null) _Languages = GetSystemLanguages(); return _Languages; } set { _Languages = value;} }
+        public List<Language>   Languages           { get { _Languages ??= GetSystemLanguages(); return _Languages; } set { _Languages = value;} }
         List<Language> _Languages;
 
         /// <summary>
@@ -827,15 +821,14 @@ public class EngineConfig
     /// <returns></returns>
     public static EngineConfig Load(string path)
     {
-        using (FileStream fs = new FileStream(path, FileMode.Open))
-        {
-            XmlSerializer xmlSerializer = new XmlSerializer(typeof(EngineConfig));
-            EngineConfig config = (EngineConfig)xmlSerializer.Deserialize(fs);
-            config.Loaded = true;
-            config.LoadedPath = path;
+        using FileStream fs = new(path, FileMode.Open);
+        XmlSerializer xmlSerializer
+                            = new(typeof(EngineConfig));
+        EngineConfig config = (EngineConfig)xmlSerializer.Deserialize(fs);
+        config.Loaded       = true;
+        config.LoadedPath   = path;
 
-            return config;
-        }
+        return config;
     }
 
     /// <summary>
@@ -852,10 +845,10 @@ public class EngineConfig
             path = LoadedPath;
         }
 
-        using (FileStream fs = new FileStream(path, FileMode.Create))
-        {
-            XmlSerializer xmlSerializer = new XmlSerializer(GetType());
-            xmlSerializer.Serialize(fs, this);
-        }
+        using FileStream fs = new(path, FileMode.Create);
+        XmlSerializer xmlSerializer
+                            = new(GetType());
+
+        xmlSerializer.Serialize(fs, this);
     }
 }

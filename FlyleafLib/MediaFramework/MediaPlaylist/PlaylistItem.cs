@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -39,14 +37,14 @@ public class PlaylistItem : DemuxerInput
     /// Item's title
     /// (can be updated from scrapers)
     /// </summary>
-    public string   Title                   { get => _Title; set { if (_Title == "") OriginalTitle = value; SetUI(ref _Title, value == null ? "" : value, false);} }
+    public string   Title                   { get => _Title; set { if (_Title == "") OriginalTitle = value; SetUI(ref _Title, value ?? "", false);} }
     string _Title = "";
 
     /// <summary>
     /// Item's original title
     /// (setted by opened plugin)
     /// </summary>
-    public string   OriginalTitle           { get => _OriginalTitle; set => SetUI(ref _OriginalTitle, value == null ? "" : value, false); }
+    public string   OriginalTitle           { get => _OriginalTitle; set => SetUI(ref _OriginalTitle, value ?? "", false); }
     string _OriginalTitle = "";
 
     public int      Season                  { get; set; }
@@ -64,10 +62,7 @@ public class PlaylistItem : DemuxerInput
 
     public object GetTag(string pluginName)
     {
-        if (Tag.ContainsKey(pluginName))
-            return Tag[pluginName];
-        else
-            return null;
+        return Tag.ContainsKey(pluginName) ? Tag[pluginName] : null;
     }
 
     public bool     SearchedLocal           { get; set; }
@@ -93,7 +88,7 @@ public class PlaylistItem : DemuxerInput
                     ExternalAudioStreams    { get; set; } = new ObservableCollection<ExternalAudioStream>();
     public ObservableCollection<ExternalSubtitlesStream> 
                     ExternalSubtitlesStreams{ get; set; } = new ObservableCollection<ExternalSubtitlesStream>();
-    internal object lockExternalStreams = new object();
+    internal object lockExternalStreams = new();
 
     public void AddExternalStream(ExternalStream extStream, PlaylistItem item, string pluginName, object tag = null)
     {
