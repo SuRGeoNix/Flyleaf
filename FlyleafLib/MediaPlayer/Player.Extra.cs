@@ -65,14 +65,12 @@ unsafe partial class Player
         }
     }
 
-    public void SeekToChapter(Demuxer.Chapter chapter)
-    {
+    public void SeekToChapter(Demuxer.Chapter chapter) =>
         /* TODO
-         * Accurate pts required (backward/forward check)
-         * Get current chapter implementation + next/prev
-         */
-        Seek((int) (chapter.StartTime / 10000.0), true);
-    }
+* Accurate pts required (backward/forward check)
+* Get current chapter implementation + next/prev
+*/
+        Seek((int)(chapter.StartTime / 10000.0), true);
 
     public void CopyToClipboard()
     {
@@ -89,9 +87,7 @@ unsafe partial class Player
             System.Windows.Clipboard.SetText(decoder.Playlist.Selected.DirectUrl);
     }
     public void OpenFromClipboard()
-    {
-        OpenAsync(System.Windows.Clipboard.GetText());
-    }
+        => OpenAsync(System.Windows.Clipboard.GetText());
     public void OpenFromFileDialog()
     {
         bool wasActivityEnabled = Activity.IsEnabled;
@@ -230,28 +226,13 @@ unsafe partial class Player
 
         Speed = Speed + 0.25 > 16 ? 16 : Speed + 0.25;
     }
-    public void SpeedDown()
-    {
-        Speed = Speed - 0.25 < 0.5 ? 0.5 : Speed - 0.25;
-    }
+    public void SpeedDown()     => Speed = Speed - 0.25 < 0.5 ? 0.5 : Speed - 0.25;
 
-    public void RotateRight()
-    {
-        Rotation = (_Rotation + 90) % 360;
-    }
-    public void RotateLeft()
-    {
-        Rotation = (_Rotation - 90) < 0 ? 360 + (_Rotation - 90) : (_Rotation - 90);
-    }
-    
-    public void FullScreen()
-    {
-        Host?.Player_SetFullScreen(true);
-    }
-    public void NormalScreen()
-    {
-        Host?.Player_SetFullScreen(false);
-    }
+    public void RotateRight()   => Rotation = (_Rotation + 90) % 360;
+    public void RotateLeft()    => Rotation = (_Rotation - 90) < 0 ? 360 + (_Rotation - 90) : (_Rotation - 90);
+
+    public void FullScreen()    => Host?.Player_SetFullScreen(true);
+    public void NormalScreen()  => Host?.Player_SetFullScreen(false);
     public void ToggleFullScreen()
     {
         if (Host == null)

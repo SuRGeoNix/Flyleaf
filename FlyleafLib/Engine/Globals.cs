@@ -134,7 +134,7 @@ public struct AspectRatio
         new AspectRatio(2.35f, 1),
     };
 
-    public static implicit operator AspectRatio(string value) { return new AspectRatio(value); }
+    public static implicit operator AspectRatio(string value) => new AspectRatio(value);
 
     public float Num { get; set; }
     public float Den { get; set; }
@@ -155,14 +155,11 @@ public struct AspectRatio
     public AspectRatio(float num, float den) { Num = num; Den = den; }
     public AspectRatio(string value) { Num = Invalid.Num; Den = Invalid.Den; FromString(value); }
 
-    public override bool Equals(object obj)
-    {
-        return (obj == null) || ! GetType().Equals(obj.GetType()) ? false : Num == ((AspectRatio)obj).Num && Den == ((AspectRatio)obj).Den;
-    }
+    public override bool Equals(object obj) => (obj == null) || !GetType().Equals(obj.GetType()) ? false : Num == ((AspectRatio)obj).Num && Den == ((AspectRatio)obj).Den;
     public static bool operator ==(AspectRatio a, AspectRatio b) => a.Equals(b);
     public static bool operator !=(AspectRatio a, AspectRatio b) => !(a == b);
 
-    public override int GetHashCode() { return (int) (Value * 1000); }
+    public override int GetHashCode() => (int)(Value * 1000);
 
     public void FromString(string value)
     {
@@ -193,7 +190,7 @@ public struct AspectRatio
         else
             { Num = Invalid.Num; Den = Invalid.Den; }
     }
-    public override string ToString() { return this == Keep ? "Keep" : (this == Fill ? "Fill" : (this == Custom ? "Custom" : (this == Invalid ? "Invalid" : $"{Num}:{Den}"))); }
+    public override string ToString() => this == Keep ? "Keep" : (this == Fill ? "Fill" : (this == Custom ? "Custom" : (this == Invalid ? "Invalid" : $"{Num}:{Den}")));
 }
 
 class PlayerStats
@@ -243,15 +240,11 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
 
         return false;
     }
-    protected void Raise([CallerMemberName] string propertyName = "")
-    {
-        //if (!DisableNotifications)
+    protected void Raise([CallerMemberName] string propertyName = "") =>
+            //if (!DisableNotifications)
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 
-    protected void RaiseUI([CallerMemberName] string propertyName = "")
-    {
-        //if (!DisableNotifications)
+    protected void RaiseUI([CallerMemberName] string propertyName = "") =>
+            //if (!DisableNotifications)
             Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
-    }
 }

@@ -35,9 +35,7 @@ partial class Player
     /// <param name="player"></param>
     /// <param name="e"></param>
     public static void KeyDown(Player player, System.Windows.Forms.KeyEventArgs e)
-    {
-        e.Handled = KeyDown(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
-    }
+        => e.Handled = KeyDown(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
 
     /// <summary>
     /// Can be used to route KeyUp events (WPF)
@@ -57,9 +55,7 @@ partial class Player
     /// <param name="player"></param>
     /// <param name="e"></param>
     public static void KeyUp(Player player, System.Windows.Forms.KeyEventArgs e)
-    {
-        e.Handled = KeyUp(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
-    }
+        => e.Handled = KeyUp(player, KeyInterop.KeyFromVirtualKey((int)e.KeyCode));
 
     public static bool KeyDown(Player player, Key key)
     {
@@ -245,10 +241,7 @@ public class KeysConfig
     /// <summary>
     /// Removes all the bindings
     /// </summary>
-    public void RemoveAll()
-    {
-        Keys.Clear();
-    }
+    public void RemoveAll() => Keys.Clear();
 
     /// <summary>
     /// Resets to default bindings

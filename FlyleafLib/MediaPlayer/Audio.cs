@@ -147,7 +147,7 @@ public class Audio : NotifyPropertyChanged
         }
     }
     internal string _Device = Engine.Audio.DefaultDeviceName;
-    internal void RaiseDevice() { Utils.UI(() => Raise(nameof(Device))); } // Required for Selected Items on the Devices observation list (as we clear it everytime)
+    internal void RaiseDevice() => Utils.UI(() => Raise(nameof(Device)));  // Required for Selected Items on the Devices observation list (as we clear it everytime)
 
     public string DeviceId
     {
@@ -361,30 +361,12 @@ public class Audio : NotifyPropertyChanged
         player.UIAll();
     }
 
-    public void DelayAdd()
-    {
-        Config.Audio.Delay += Config.Player.AudioDelayOffset;
-    }
-    public void DelayAdd2()
-    {
-        Config.Audio.Delay += Config.Player.AudioDelayOffset2;
-    }
-    public void DelayRemove()
-    {
-        Config.Audio.Delay -= Config.Player.AudioDelayOffset;
-    }
-    public void DelayRemove2()
-    {
-        Config.Audio.Delay -= Config.Player.AudioDelayOffset2;
-    }
-    public void Toggle()
-    {
-        Config.Audio.Enabled = !Config.Audio.Enabled;
-    }
-    public void ToggleMute()
-    {
-        Mute = !Mute;
-    }
+    public void DelayAdd()      => Config.Audio.Delay += Config.Player.AudioDelayOffset;
+    public void DelayAdd2()     => Config.Audio.Delay += Config.Player.AudioDelayOffset2;
+    public void DelayRemove()   => Config.Audio.Delay -= Config.Player.AudioDelayOffset;
+    public void DelayRemove2()  => Config.Audio.Delay -= Config.Player.AudioDelayOffset2;
+    public void Toggle()        => Config.Audio.Enabled = !Config.Audio.Enabled;
+    public void ToggleMute()    => Mute = !Mute;
     public void VolumeUp()
     {
         if (Volume == Config.Player.VolumeMax) return;

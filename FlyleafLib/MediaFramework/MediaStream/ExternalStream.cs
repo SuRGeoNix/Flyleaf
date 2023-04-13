@@ -24,9 +24,7 @@ public class ExternalStream : DemuxerInput
             Tag.Add(pluginName, tag);
     }
     public object GetTag(string pluginName)
-    {
-        return Tag.ContainsKey(pluginName) ? Tag[pluginName] : null;
-    }
+        => Tag.ContainsKey(pluginName) ? Tag[pluginName] : null;
 
     /// <summary>
     /// Whether the item is currently enabled or not
@@ -40,8 +38,5 @@ public class ExternalStream : DemuxerInput
     public int      OpenedCounter   { get; set; }
 
     public MediaType
-                    Type            { get
-    {
-            return this is ExternalAudioStream ? MediaType.Audio : this is ExternalVideoStream ? MediaType.Video : MediaType.Subs;
-        } }
+                    Type => this is ExternalAudioStream ? MediaType.Audio : this is ExternalVideoStream ? MediaType.Video : MediaType.Subs;
 }

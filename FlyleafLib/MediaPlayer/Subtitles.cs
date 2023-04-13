@@ -85,24 +85,9 @@ public class Subtitles : NotifyPropertyChanged
         player.UIAll();
     }
 
-    public void DelayRemove()
-    {
-        Config.Subtitles.Delay -= Config.Player.SubtitlesDelayOffset;
-    }
-    public void DelayAdd()
-    {
-        Config.Subtitles.Delay += Config.Player.SubtitlesDelayOffset;
-    }
-    public void DelayRemove2()
-    {
-        Config.Subtitles.Delay -= Config.Player.SubtitlesDelayOffset2;
-    }
-    public void DelayAdd2()
-    {
-        Config.Subtitles.Delay += Config.Player.SubtitlesDelayOffset2;
-    }
-    public void Toggle()
-    {
-        Config.Subtitles.Enabled = !Config.Subtitles.Enabled;
-    }
+    public void DelayRemove()   => Config.Subtitles.Delay -= Config.Player.SubtitlesDelayOffset;
+    public void DelayAdd()      => Config.Subtitles.Delay += Config.Player.SubtitlesDelayOffset;
+    public void DelayRemove2()  => Config.Subtitles.Delay -= Config.Player.SubtitlesDelayOffset2;
+    public void DelayAdd2()     => Config.Subtitles.Delay += Config.Player.SubtitlesDelayOffset2;
+    public void Toggle()        => Config.Subtitles.Enabled = !Config.Subtitles.Enabled;
 }

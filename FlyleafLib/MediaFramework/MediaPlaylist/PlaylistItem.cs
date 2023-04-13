@@ -61,9 +61,7 @@ public class PlaylistItem : DemuxerInput
     }
 
     public object GetTag(string pluginName)
-    {
-        return Tag.ContainsKey(pluginName) ? Tag[pluginName] : null;
-    }
+        => Tag.ContainsKey(pluginName) ? Tag[pluginName] : null;
 
     public bool     SearchedLocal           { get; set; }
     public bool     SearchedOnline          { get; set; }

@@ -51,9 +51,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
     internal object             lockStatus      = new();
 
     public RunThreadBase(int uniqueId = -1)
-    {
-        UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
-    }
+        => UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
 
     public void Pause()
     {

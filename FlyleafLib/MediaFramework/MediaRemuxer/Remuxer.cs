@@ -25,11 +25,9 @@ public unsafe class Remuxer
 
     AVFormatContext* fmtCtx;
     AVOutputFormat* fmt;
-    
+
     public Remuxer(int uniqueId = -1)
-    {
-        UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
-    }
+        => UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
 
     public int Open(string filename)
     {
@@ -157,7 +155,7 @@ public unsafe class Remuxer
         }
     }
 
-    public int WriteTrailer() { return Dispose(); }
+    public int WriteTrailer() => Dispose();
     public int Dispose()
     {
         if (Disposed) return -1;
@@ -186,6 +184,7 @@ public unsafe class Remuxer
 
         return ret;
     }
-    
-    private void Log (string msg) { Debug.WriteLine($"[{DateTime.Now:hh.mm.ss.fff}] [#{UniqueId}] [Remuxer] {msg}"); }
+
+    private void Log(string msg)
+        => Debug.WriteLine($"[{DateTime.Now:hh.mm.ss.fff}] [#{UniqueId}] [Remuxer] {msg}");
 }

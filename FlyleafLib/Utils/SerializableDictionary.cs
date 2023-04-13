@@ -17,14 +17,8 @@ public static partial class Utils
     public class SerializableDictionary<TKey, TVal> : Dictionary<TKey, TVal>, IXmlSerializable, ISerializable, INotifyPropertyChanged, INotifyCollectionChanged
     {
         #region Private Properties
-        protected XmlSerializer ValueSerializer
-        {
-            get { return _valueSerializer ??= new XmlSerializer(typeof(TVal)); }
-        }
-        private XmlSerializer KeySerializer
-        {
-            get { return _keySerializer ??= new XmlSerializer(typeof(TKey)); }
-        }
+        protected XmlSerializer ValueSerializer => _valueSerializer ??= new XmlSerializer(typeof(TVal));
+        private XmlSerializer KeySerializer => _keySerializer ??= new XmlSerializer(typeof(TKey));
         #endregion
         #region Private Members
         private XmlSerializer _keySerializer;
@@ -109,10 +103,7 @@ public static partial class Utils
                 throw new XmlException("Error in Deserialization of SerializableDictionary");
             }
         }
-        XmlSchema IXmlSerializable.GetSchema()
-        {
-            return null;
-        }
+        XmlSchema IXmlSerializable.GetSchema() => null;
         #endregion
 
 

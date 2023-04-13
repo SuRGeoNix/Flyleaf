@@ -10,8 +10,8 @@ public partial class PlayerDebug : UserControl
 {
     public Player Player
     {
-        get { return (Player)GetValue(PlayerProperty); }
-        set { SetValue(PlayerProperty, value); }
+        get => (Player)GetValue(PlayerProperty);
+        set => SetValue(PlayerProperty, value);
     }
 
     public static readonly DependencyProperty PlayerProperty =
@@ -19,8 +19,8 @@ public partial class PlayerDebug : UserControl
 
     public Brush BoxColor
     {
-        get { return (Brush)GetValue(BoxColorProperty); }
-        set { SetValue(BoxColorProperty, value); }
+        get => (Brush)GetValue(BoxColorProperty);
+        set => SetValue(BoxColorProperty, value);
     }
 
     public static readonly DependencyProperty BoxColorProperty =
@@ -28,8 +28,8 @@ public partial class PlayerDebug : UserControl
 
     public Brush HeaderColor
     {
-        get { return (Brush)GetValue(HeaderColorProperty); }
-        set { SetValue(HeaderColorProperty, value); }
+        get => (Brush)GetValue(HeaderColorProperty);
+        set => SetValue(HeaderColorProperty, value);
     }
 
     public static readonly DependencyProperty HeaderColorProperty =
@@ -37,8 +37,8 @@ public partial class PlayerDebug : UserControl
 
     public Brush InfoColor
     {
-        get { return (Brush)GetValue(InfoColorProperty); }
-        set { SetValue(InfoColorProperty, value); }
+        get => (Brush)GetValue(InfoColorProperty);
+        set => SetValue(InfoColorProperty, value);
     }
 
     public static readonly DependencyProperty InfoColorProperty =
@@ -46,15 +46,12 @@ public partial class PlayerDebug : UserControl
 
     public Brush ValueColor
     {
-        get { return (Brush)GetValue(ValueColorProperty); }
-        set { SetValue(ValueColorProperty, value); }
+        get => (Brush)GetValue(ValueColorProperty);
+        set => SetValue(ValueColorProperty, value);
     }
 
     public static readonly DependencyProperty ValueColorProperty =
         DependencyProperty.Register("ValueColor", typeof(Brush), typeof(PlayerDebug), new PropertyMetadata(new SolidColorBrush(Colors.White)));
 
-    public PlayerDebug()
-    {
-        InitializeComponent();
-    }
+    public PlayerDebug() => InitializeComponent();
 }

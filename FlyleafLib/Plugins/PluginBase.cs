@@ -52,9 +52,7 @@ public abstract class PluginBase : PluginType, IPlugin
     }
 
     public void AddPlaylistItem(PlaylistItem item, object tag = null)
-    {
-        Playlist.AddItem(item, Name, tag);
-    }
+        => Playlist.AddItem(item, Name, tag);
 
     public void AddTag(object tag, PlaylistItem item = null)
     {
@@ -64,19 +62,13 @@ public abstract class PluginBase : PluginType, IPlugin
     }
 
     public object GetTag(ExternalStream extStream)
-    {
-        return extStream?.GetTag(Name);
-    }
+        => extStream?.GetTag(Name);
 
     public object GetTag(PlaylistItem item)
-    {
-        return item?.GetTag(Name);
-    }
+        => item?.GetTag(Name);
 
     public virtual SerializableDictionary<string, string> GetDefaultOptions()
-    {
-        return new SerializableDictionary<string, string>();
-    }
+        => new SerializableDictionary<string, string>();
 }
 public class PluginType
 {
@@ -90,13 +82,13 @@ public class OpenResults
     public bool     Success => Error == null;
 
     public OpenResults() { }
-    public OpenResults(string error) { Error = error; }
+    public OpenResults(string error) => Error = error;
 }
 
 public class OpenSubtitlesResults : OpenResults
 {
     public ExternalSubtitlesStream ExternalSubtitlesStream;
-    public OpenSubtitlesResults(ExternalSubtitlesStream extStream, string error = null) : base(error) { ExternalSubtitlesStream = extStream; }
+    public OpenSubtitlesResults(ExternalSubtitlesStream extStream, string error = null) : base(error) => ExternalSubtitlesStream = extStream;
 }
 
 public interface IPlugin : IDisposable

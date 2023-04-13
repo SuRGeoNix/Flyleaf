@@ -184,13 +184,9 @@ public partial class DecoderContext
 
     #region Open
     public OpenCompletedArgs Open(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-    {
-        return Open((object)url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
-    }
+        => Open((object)url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
     public OpenCompletedArgs Open(Stream iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-    {
-        return Open((object)iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
-    }
+        => Open((object)iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
     internal OpenCompletedArgs Open(object input, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
     {
@@ -533,17 +529,11 @@ public partial class DecoderContext
     }
 
     public StreamOpenedArgs OpenVideoStream(VideoStream stream, bool defaultAudio = true)
-    {
-        return Open(stream, defaultAudio);
-    }
+        => Open(stream, defaultAudio);
     public StreamOpenedArgs OpenAudioStream(AudioStream stream)
-    {
-        return Open(stream);
-    }
+        => Open(stream);
     public StreamOpenedArgs OpenSubtitlesStream(SubtitlesStream stream)
-    {
-        return Open(stream);
-    }
+        => Open(stream);
     private StreamOpenedArgs Open(StreamBase stream, bool defaultAudio = false)
     {
         StreamOpenedArgs args = null;

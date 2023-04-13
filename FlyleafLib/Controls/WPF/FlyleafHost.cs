@@ -124,56 +124,56 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     #region Dependency Properties
     public AvailableWindows OpenOnDrop
     {
-        get { return (AvailableWindows)GetValue(OpenOnDropProperty); }
-        set { SetValue(OpenOnDropProperty, value); }
+        get => (AvailableWindows)GetValue(OpenOnDropProperty);
+        set => SetValue(OpenOnDropProperty, value);
     }
     public static readonly DependencyProperty OpenOnDropProperty =
         DependencyProperty.Register(nameof(OpenOnDrop), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface, new PropertyChangedCallback(DropChanged)));
     
     public AvailableWindows SwapOnDrop
     {
-        get { return (AvailableWindows)GetValue(SwapOnDropProperty); }
-        set { SetValue(SwapOnDropProperty, value); }
+        get => (AvailableWindows)GetValue(SwapOnDropProperty);
+        set => SetValue(SwapOnDropProperty, value);
     }
     public static readonly DependencyProperty SwapOnDropProperty =
         DependencyProperty.Register(nameof(SwapOnDrop), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface, new PropertyChangedCallback(DropChanged)));
 
     public AvailableWindows SwapDragEnterOnShift
     {
-        get { return (AvailableWindows)GetValue(SwapDragEnterOnShiftProperty); }
-        set { SetValue(SwapDragEnterOnShiftProperty, value); }
+        get => (AvailableWindows)GetValue(SwapDragEnterOnShiftProperty);
+        set => SetValue(SwapDragEnterOnShiftProperty, value);
     }
     public static readonly DependencyProperty SwapDragEnterOnShiftProperty =
         DependencyProperty.Register(nameof(SwapDragEnterOnShift), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
     public AvailableWindows ToggleFullScreenOnDoubleClick
     {
-        get { return (AvailableWindows)GetValue(ToggleFullScreenOnDoubleClickProperty); }
-        set { SetValue(ToggleFullScreenOnDoubleClickProperty, value); }
+        get => (AvailableWindows)GetValue(ToggleFullScreenOnDoubleClickProperty);
+        set => SetValue(ToggleFullScreenOnDoubleClickProperty, value);
     }
     public static readonly DependencyProperty ToggleFullScreenOnDoubleClickProperty =
         DependencyProperty.Register(nameof(ToggleFullScreenOnDoubleClick), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
     public AvailableWindows PanMoveOnCtrl
     {
-        get { return (AvailableWindows)GetValue(PanMoveOnCtrlProperty); }
-        set { SetValue(PanMoveOnCtrlProperty, value); }
+        get => (AvailableWindows)GetValue(PanMoveOnCtrlProperty);
+        set => SetValue(PanMoveOnCtrlProperty, value);
     }
     public static readonly DependencyProperty PanMoveOnCtrlProperty =
         DependencyProperty.Register(nameof(PanMoveOnCtrl), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
     public AvailableWindows PanRotateOnShiftWheel
     {
-        get { return (AvailableWindows)GetValue(PanRotateOnShiftWheelProperty); }
-        set { SetValue(PanRotateOnShiftWheelProperty, value); }
+        get => (AvailableWindows)GetValue(PanRotateOnShiftWheelProperty);
+        set => SetValue(PanRotateOnShiftWheelProperty, value);
     }
     public static readonly DependencyProperty PanRotateOnShiftWheelProperty =
         DependencyProperty.Register(nameof(PanRotateOnShiftWheel), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
     public AvailableWindows PanZoomOnCtrlWheel
     {
-        get { return (AvailableWindows)GetValue(PanZoomOnCtrlWheelProperty); }
-        set { SetValue(PanZoomOnCtrlWheelProperty, value); }
+        get => (AvailableWindows)GetValue(PanZoomOnCtrlWheelProperty);
+        set => SetValue(PanZoomOnCtrlWheelProperty, value);
     }
     public static readonly DependencyProperty PanZoomOnCtrlWheelProperty =
         DependencyProperty.Register(nameof(PanZoomOnCtrlWheel), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
@@ -181,16 +181,16 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     public AttachedDragMoveOptions AttachedDragMove
     {
-        get { return (AttachedDragMoveOptions)GetValue(AttachedDragMoveProperty); }
-        set { SetValue(AttachedDragMoveProperty, value); }
+        get => (AttachedDragMoveOptions)GetValue(AttachedDragMoveProperty);
+        set => SetValue(AttachedDragMoveProperty, value);
     }
     public static readonly DependencyProperty AttachedDragMoveProperty =
         DependencyProperty.Register(nameof(AttachedDragMove), typeof(AttachedDragMoveOptions), typeof(FlyleafHost), new PropertyMetadata(AttachedDragMoveOptions.Surface));
 
     public AvailableWindows DetachedDragMove
     {
-        get { return (AvailableWindows)GetValue(DetachedDragMoveProperty); }
-        set { SetValue(DetachedDragMoveProperty, value); }
+        get => (AvailableWindows)GetValue(DetachedDragMoveProperty);
+        set => SetValue(DetachedDragMoveProperty, value);
     }
     public static readonly DependencyProperty DetachedDragMoveProperty =
         DependencyProperty.Register(nameof(DetachedDragMove), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
@@ -198,40 +198,40 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     public AvailableWindows AttachedResize
     {
-        get { return (AvailableWindows)GetValue(AttachedResizeProperty); }
-        set { SetValue(AttachedResizeProperty, value); }
+        get => (AvailableWindows)GetValue(AttachedResizeProperty);
+        set => SetValue(AttachedResizeProperty, value);
     }
     public static readonly DependencyProperty AttachedResizeProperty =
         DependencyProperty.Register(nameof(AttachedResize), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
     public AvailableWindows DetachedResize
     {
-        get { return (AvailableWindows)GetValue(DetachedResizeProperty); }
-        set { SetValue(DetachedResizeProperty, value); }
+        get => (AvailableWindows)GetValue(DetachedResizeProperty);
+        set => SetValue(DetachedResizeProperty, value);
     }
     public static readonly DependencyProperty DetachedResizeProperty =
         DependencyProperty.Register(nameof(DetachedResize), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
     public bool KeepRatioOnResize
     {
-        get { return (bool)GetValue(KeepRatioOnResizeProperty); }
-        set { SetValue(KeepRatioOnResizeProperty, value); }
+        get => (bool)GetValue(KeepRatioOnResizeProperty);
+        set => SetValue(KeepRatioOnResizeProperty, value);
     }
     public static readonly DependencyProperty KeepRatioOnResizeProperty =
         DependencyProperty.Register(nameof(KeepRatioOnResize), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnKeepRatioOnResizeChanged)));
 
     public float CurResizeRatio
     {
-        get { return (float)GetValue(CurResizeRatioProperty); }
-        private set { SetValue(CurResizeRatioProperty, value); }
+        get => (float)GetValue(CurResizeRatioProperty);
+        private set => SetValue(CurResizeRatioProperty, value);
     }
     public static readonly DependencyProperty CurResizeRatioProperty =
         DependencyProperty.Register(nameof(CurResizeRatio), typeof(float), typeof(FlyleafHost), new PropertyMetadata((float)0, new PropertyChangedCallback(OnCurResizeRatioChanged)));
 
     public int ResizeSensitivity
     {
-        get { return (int)GetValue(ResizeSensitivityProperty); }
-        set { SetValue(ResizeSensitivityProperty, value); }
+        get => (int)GetValue(ResizeSensitivityProperty);
+        set => SetValue(ResizeSensitivityProperty, value);
     }
     public static readonly DependencyProperty ResizeSensitivityProperty =
         DependencyProperty.Register(nameof(ResizeSensitivity), typeof(int), typeof(FlyleafHost), new PropertyMetadata(6));
@@ -239,80 +239,80 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     public DetachedPositionOptions DetachedPosition
     {
-        get { return (DetachedPositionOptions)GetValue(DetachedPositionProperty); }
-        set { SetValue(DetachedPositionProperty, value); }
+        get => (DetachedPositionOptions)GetValue(DetachedPositionProperty);
+        set => SetValue(DetachedPositionProperty, value);
     }
     public static readonly DependencyProperty DetachedPositionProperty =
         DependencyProperty.Register(nameof(DetachedPosition), typeof(DetachedPositionOptions), typeof(FlyleafHost), new PropertyMetadata(DetachedPositionOptions.BottomRight));
 
     public Thickness DetachedPositionMargin
     {
-        get { return (Thickness)GetValue(DetachedPositionMarginProperty); }
-        set { SetValue(DetachedPositionMarginProperty, value); }
+        get => (Thickness)GetValue(DetachedPositionMarginProperty);
+        set => SetValue(DetachedPositionMarginProperty, value);
     }
     public static readonly DependencyProperty DetachedPositionMarginProperty =
         DependencyProperty.Register(nameof(DetachedPositionMargin), typeof(Thickness), typeof(FlyleafHost), new PropertyMetadata(new Thickness(0, 0, 40, 40)));
 
     public Point DetachedFixedPosition
     {
-        get { return (Point)GetValue(DetachedFixedPositionProperty); }
-        set { SetValue(DetachedFixedPositionProperty, value); }
+        get => (Point)GetValue(DetachedFixedPositionProperty);
+        set => SetValue(DetachedFixedPositionProperty, value);
     }
     public static readonly DependencyProperty DetachedFixedPositionProperty =
         DependencyProperty.Register(nameof(DetachedFixedPosition), typeof(Point), typeof(FlyleafHost), new PropertyMetadata(new Point()));
 
     public Size DetachedFixedSize
     {
-        get { return (Size)GetValue(DetachedFixedSizeProperty); }
-        set { SetValue(DetachedFixedSizeProperty, value); }
+        get => (Size)GetValue(DetachedFixedSizeProperty);
+        set => SetValue(DetachedFixedSizeProperty, value);
     }
     public static readonly DependencyProperty DetachedFixedSizeProperty =
         DependencyProperty.Register(nameof(DetachedFixedSize), typeof(Size), typeof(FlyleafHost), new PropertyMetadata(new Size(300, 200)));
 
     public bool DetachedRememberPosition
     {
-        get { return (bool)GetValue(DetachedRememberPositionProperty); }
-        set { SetValue(DetachedRememberPositionProperty, value); }
+        get => (bool)GetValue(DetachedRememberPositionProperty);
+        set => SetValue(DetachedRememberPositionProperty, value);
     }
     public static readonly DependencyProperty DetachedRememberPositionProperty =
         DependencyProperty.Register(nameof(DetachedRememberPosition), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(true));
 
     public bool DetachedRememberSize
     {
-        get { return (bool)GetValue(DetachedRememberSizeProperty); }
-        set { SetValue(DetachedRememberSizeProperty, value); }
+        get => (bool)GetValue(DetachedRememberSizeProperty);
+        set => SetValue(DetachedRememberSizeProperty, value);
     }
     public static readonly DependencyProperty DetachedRememberSizeProperty =
         DependencyProperty.Register(nameof(DetachedRememberSize), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(true));
 
     public bool DetachedTopMost
     {
-        get { return (bool)GetValue(DetachedTopMostProperty); }
-        set { SetValue(DetachedTopMostProperty, value); }
+        get => (bool)GetValue(DetachedTopMostProperty);
+        set => SetValue(DetachedTopMostProperty, value);
     }
     public static readonly DependencyProperty DetachedTopMostProperty =
         DependencyProperty.Register(nameof(DetachedTopMost), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnDetachedTopMostChanged)));
 
     public AvailableWindows KeyBindings
     {
-        get { return (AvailableWindows)GetValue(KeyBindingsProperty); }
-        set { SetValue(KeyBindingsProperty, value); }
+        get => (AvailableWindows)GetValue(KeyBindingsProperty);
+        set => SetValue(KeyBindingsProperty, value);
     }
     public static readonly DependencyProperty KeyBindingsProperty =
         DependencyProperty.Register(nameof(KeyBindings), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Surface));
 
     public AvailableWindows MouseBindings
     {
-        get { return (AvailableWindows)GetValue(MouseBindingsProperty); }
-        set { SetValue(MouseBindingsProperty, value); }
+        get => (AvailableWindows)GetValue(MouseBindingsProperty);
+        set => SetValue(MouseBindingsProperty, value);
     }
     public static readonly DependencyProperty MouseBindingsProperty =
         DependencyProperty.Register(nameof(MouseBindings), typeof(AvailableWindows), typeof(FlyleafHost), new PropertyMetadata(AvailableWindows.Both, new PropertyChangedCallback(OnMouseBindings)));
 
     public int ActivityTimeout
     {
-        get { return (int)GetValue(ActivityTimeoutProperty); }
-        set { SetValue(ActivityTimeoutProperty, value); }
+        get => (int)GetValue(ActivityTimeoutProperty);
+        set => SetValue(ActivityTimeoutProperty, value);
     }
     public static readonly DependencyProperty ActivityTimeoutProperty =
         DependencyProperty.Register(nameof(ActivityTimeout), typeof(int), typeof(FlyleafHost), new PropertyMetadata(0, new PropertyChangedCallback(OnActivityTimeoutChanged)));
@@ -320,48 +320,48 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     public bool IsAttached
     {
-        get { return (bool)GetValue(IsAttachedProperty); }
-        set { SetValue(IsAttachedProperty, value); }
+        get => (bool)GetValue(IsAttachedProperty);
+        set => SetValue(IsAttachedProperty, value);
     }
     public static readonly DependencyProperty IsAttachedProperty =
         DependencyProperty.Register(nameof(IsAttached), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(true, new PropertyChangedCallback(OnIsAttachedChanged)));
 
     public bool IsMinimized
     {
-        get { return (bool)GetValue(IsMinimizedProperty); }
-        set { SetValue(IsMinimizedProperty, value); }
+        get => (bool)GetValue(IsMinimizedProperty);
+        set => SetValue(IsMinimizedProperty, value);
     }
     public static readonly DependencyProperty IsMinimizedProperty =
         DependencyProperty.Register(nameof(IsMinimized), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnIsMinimizedChanged)));
 
     public bool IsFullScreen
     {
-        get { return (bool)GetValue(IsFullScreenProperty); }
-        set { SetValue(IsFullScreenProperty, value); }
+        get => (bool)GetValue(IsFullScreenProperty);
+        set => SetValue(IsFullScreenProperty, value);
     }
     public static readonly DependencyProperty IsFullScreenProperty =
         DependencyProperty.Register(nameof(IsFullScreen), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnIsFullScreenChanged)));
 
     public bool IsResizing
     {
-        get { return (bool)GetValue(IsResizingProperty); }
-        private set { SetValue(IsResizingProperty, value); }
+        get => (bool)GetValue(IsResizingProperty);
+        private set => SetValue(IsResizingProperty, value);
     }
     public static readonly DependencyProperty IsResizingProperty =
         DependencyProperty.Register(nameof(IsResizing), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
 
     public bool IsStandAlone
     {
-        get { return (bool)GetValue(IsStandAloneProperty); }
-        private set { SetValue(IsStandAloneProperty, value); }
+        get => (bool)GetValue(IsStandAloneProperty);
+        private set => SetValue(IsStandAloneProperty, value);
     }
     public static readonly DependencyProperty IsStandAloneProperty =
         DependencyProperty.Register(nameof(IsStandAlone), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
 
     public bool IsSwapping
     {
-        get { return (bool)GetValue(IsSwappingProperty); }
-        private set { SetValue(IsSwappingProperty, value); }
+        get => (bool)GetValue(IsSwappingProperty);
+        private set => SetValue(IsSwappingProperty, value);
     }
     public static readonly DependencyProperty IsSwappingProperty =
         DependencyProperty.Register(nameof(IsSwapping), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
@@ -369,56 +369,56 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     public FrameworkElement MarginTarget
     {
-        get { return (FrameworkElement)GetValue(MarginTargetProperty); }
-        set { SetValue(MarginTargetProperty, value); }
+        get => (FrameworkElement)GetValue(MarginTargetProperty);
+        set => SetValue(MarginTargetProperty, value);
     }
     public static readonly DependencyProperty MarginTargetProperty =
         DependencyProperty.Register(nameof(MarginTarget), typeof(FrameworkElement), typeof(FlyleafHost), new PropertyMetadata(null));
 
     public object HostDataContext
     {
-        get { return GetValue(HostDataContextProperty); }
-        set { SetValue(HostDataContextProperty, value); }
+        get => GetValue(HostDataContextProperty);
+        set => SetValue(HostDataContextProperty, value);
     }
     public static readonly DependencyProperty HostDataContextProperty =
         DependencyProperty.Register(nameof(HostDataContext), typeof(object), typeof(FlyleafHost), new PropertyMetadata(null));
 
     public object DetachedContent
     {
-        get { return GetValue(DetachedContentProperty); }
-        set { SetValue(DetachedContentProperty, value); }
+        get => GetValue(DetachedContentProperty);
+        set => SetValue(DetachedContentProperty, value);
     }
     public static readonly DependencyProperty DetachedContentProperty =
         DependencyProperty.Register(nameof(DetachedContent), typeof(object), typeof(FlyleafHost), new PropertyMetadata(null));
 
     public Player Player
     {
-        get { return (Player)GetValue(PlayerProperty); }
-        set { SetValue(PlayerProperty, value); }
+        get => (Player)GetValue(PlayerProperty);
+        set => SetValue(PlayerProperty, value);
     }
     public static readonly DependencyProperty PlayerProperty =
         DependencyProperty.Register(nameof(Player), typeof(Player), typeof(FlyleafHost), new PropertyMetadata(null, OnPlayerChanged));
 
     public ControlTemplate OverlayTemplate
     {
-        get { return (ControlTemplate)GetValue(OverlayTemplateProperty); }
-        set { SetValue(OverlayTemplateProperty, value); }
+        get => (ControlTemplate)GetValue(OverlayTemplateProperty);
+        set => SetValue(OverlayTemplateProperty, value);
     }
     public static readonly DependencyProperty OverlayTemplateProperty =
         DependencyProperty.Register(nameof(OverlayTemplate), typeof(ControlTemplate), typeof(FlyleafHost), new PropertyMetadata(null, new PropertyChangedCallback(OnOverlayTemplateChanged)));
 
     public Window Overlay
     {
-        get { return (Window)GetValue(OverlayProperty); }
-        set { SetValue(OverlayProperty, value); }
+        get => (Window)GetValue(OverlayProperty);
+        set => SetValue(OverlayProperty, value);
     }
     public static readonly DependencyProperty OverlayProperty =
         DependencyProperty.Register(nameof(Overlay), typeof(Window), typeof(FlyleafHost), new PropertyMetadata(null, new PropertyChangedCallback(OnOverlayChanged)));
 
     public CornerRadius CornerRadius
     {
-        get { return (CornerRadius)GetValue(CornerRadiusProperty); }
-        set { SetValue(CornerRadiusProperty, value); }
+        get => (CornerRadius)GetValue(CornerRadiusProperty);
+        set => SetValue(CornerRadiusProperty, value);
     }
     public static readonly DependencyProperty CornerRadiusProperty =
         DependencyProperty.Register(nameof(CornerRadius), typeof(CornerRadius), typeof(FlyleafHost), new PropertyMetadata(new CornerRadius(0), new PropertyChangedCallback(OnCornerRadiusChanged)));
@@ -652,8 +652,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         LayoutUpdated   += Host_LayoutUpdated;
         IsVisibleChanged+= Host_IsVisibleChanged;
     }
-    private void Host_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e) 
-    {
+    private void Host_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e) =>
         // TBR
         // 1. this.DataContext: FlyleafHost's DataContext will not be affected (Inheritance)
         // 2. Overlay.DataContext: Overlay's DataContext will be FlyleafHost itself
@@ -661,7 +660,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         // 4. In case of Stand Alone will let the user to decide
 
         HostDataContext = DataContext;
-    }
     private void Host_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (!IsAttached)
@@ -1713,9 +1711,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
     }
     public void SetRect(Rect rect)
-    {
-        SetWindowPos(SurfaceHandle, IntPtr.Zero, (int)(rect.X * DpiX), (int)(rect.Y * DpiY), (int)(rect.Width * DpiX), (int)(rect.Height * DpiY), (UInt32)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
-    }
+        => SetWindowPos(SurfaceHandle, IntPtr.Zero, (int)(rect.X * DpiX), (int)(rect.Y * DpiY), (int)(rect.Width * DpiX), (int)(rect.Height * DpiY), (UInt32)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
+
     public void ReSetVisibleRect()
     {
         SetWindowRgn(SurfaceHandle, IntPtr.Zero, true);

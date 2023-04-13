@@ -17,10 +17,7 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
 
     public new int  Priority    { get; set; } = 3000;
 
-    public bool CanOpen()
-    {
-        return true;
-    }
+    public bool CanOpen() => true;
 
     public OpenResults Open()
     {
@@ -157,10 +154,7 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
         }
     }
 
-    public OpenResults OpenItem()
-    {
-        return new OpenResults();
-    }
+    public OpenResults OpenItem() => new OpenResults();
 
     public void ScrapeItem(PlaylistItem item)
     {

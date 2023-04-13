@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 
 using Microsoft.Win32;
@@ -115,7 +116,7 @@ public static partial class Utils
     /// <param name="path">Default value is current executable path</param>
     public static void AddFirewallRule(string ruleName = null, string path = null)
     {
-        System.Threading.Tasks.Task.Run(() =>
+        Task.Run(() =>
         {
             try
             {
@@ -200,7 +201,8 @@ public static partial class Utils
 
         return moviesSorted;
     }
-    public sealed class NaturalStringComparer : IComparer<string> { public int Compare(string a, string b) { return NativeMethods.StrCmpLogicalW(a, b); } }
+    public sealed class NaturalStringComparer : IComparer<string>
+        { public int Compare(string a, string b) => NativeMethods.StrCmpLogicalW(a, b); }
 
     public static string GetRecInnerException(Exception e)
     {
@@ -216,7 +218,9 @@ public static partial class Utils
 
         return dump;
     }
-    public static string GetUrlExtention(string url) { return url.LastIndexOf(".") > 0 ? url[(url.LastIndexOf(".") + 1)..].ToLower() : ""; }
+    public static string GetUrlExtention(string url)
+        => url.LastIndexOf(".") > 0 ? url[(url.LastIndexOf(".") + 1)..].ToLower() : "";
+
     public static List<Language> GetSystemLanguages()
     {
         List<Language> Languages = new();
@@ -307,7 +311,7 @@ public static partial class Utils
 
         return null;
     }
-    public static string GetValidFileName(string name) { return string.Join("_", name.Split(Path.GetInvalidFileNameChars())); }
+    public static string GetValidFileName(string name) => string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
 
     public static string FindFileBelow(string filename)
     {
@@ -526,11 +530,15 @@ public static partial class Utils
         return Encoding.UTF8.GetString(byteBuffer.ToArray());
     }
 
-    public static System.Windows.Media.Color WinFormsToWPFColor(System.Drawing.Color sColor) { return System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B); }
-    public static System.Drawing.Color WPFToWinFormsColor(System.Windows.Media.Color wColor) { return System.Drawing.Color.FromArgb(wColor.A, wColor.R, wColor.G, wColor.B); }
+    public static System.Windows.Media.Color WinFormsToWPFColor(System.Drawing.Color sColor)
+        => System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B);
+    public static System.Drawing.Color WPFToWinFormsColor(System.Windows.Media.Color wColor)
+        => System.Drawing.Color.FromArgb(wColor.A, wColor.R, wColor.G, wColor.B);
 
-    public static System.Windows.Media.Color VorticeToWPFColor(Vortice.Mathematics.Color sColor) { return System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B); }
-    public static Vortice.Mathematics.Color WPFToVorticeColor(System.Windows.Media.Color wColor) { return new Vortice.Mathematics.Color(wColor.R, wColor.G, wColor.B, wColor.A); }
+    public static System.Windows.Media.Color VorticeToWPFColor(Vortice.Mathematics.Color sColor)
+        => System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B);
+    public static Vortice.Mathematics.Color WPFToVorticeColor(System.Windows.Media.Color wColor)
+        => new Vortice.Mathematics.Color(wColor.R, wColor.G, wColor.B, wColor.A);
 
     public static string ToHexadecimal(byte[] bytes)
     {

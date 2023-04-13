@@ -154,34 +154,22 @@ partial class Player
             Play();
     }
 
-    public void ToggleReversePlayback()
-    {
-        ReversePlayback = !ReversePlayback;
-    }
+    public void ToggleReversePlayback() => ReversePlayback = !ReversePlayback;
 
     /// <summary>
     /// Seeks backwards or forwards based on the specified ms to the nearest keyframe
     /// </summary>
     /// <param name="ms"></param>
     /// <param name="forward"></param>
-    public void Seek(int ms, bool forward = false)
-    {
-        Seek(ms, forward, false);
-    }
+    public void Seek(int ms, bool forward = false) => Seek(ms, forward, false);
 
     /// <summary>
     /// Seeks at the exact timestamp (with half frame distance accuracy)
     /// </summary>
     /// <param name="ms"></param>
-    public void SeekAccurate(int ms)
-    {
-        Seek(ms, false, !IsLive);
-    }
+    public void SeekAccurate(int ms) => Seek(ms, false, !IsLive);
 
-    public void ToggleSeekAccurate()
-    {
-        Config.Player.SeekAccurate = !Config.Player.SeekAccurate;
-    }
+    public void ToggleSeekAccurate() => Config.Player.SeekAccurate = !Config.Player.SeekAccurate;
 
     private void Seek(int ms, bool forward, bool accurate)
     {
@@ -275,10 +263,7 @@ partial class Player
     /// Flushes the buffer (demuxers (packets) and decoders (frames))
     /// This is useful mainly for live streams to push the playback at very end (low latency)
     /// </summary>
-    public void Flush()
-    {
-        decoder.Flush();
-    }
+    public void Flush() => decoder.Flush();
 
     /// <summary>
     /// Stops and Closes AVS streams

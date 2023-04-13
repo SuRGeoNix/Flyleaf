@@ -178,9 +178,9 @@ public class AudioEngine : CallbackBase, IMMNotificationClient
         }
     }
 
-    public void OnDeviceStateChanged(string pwstrDeviceId, int newState) { RefreshDevices(); }
-    public void OnDeviceAdded(string pwstrDeviceId) { RefreshDevices(); }
-    public void OnDeviceRemoved(string pwstrDeviceId) { RefreshDevices(); }
-    public void OnDefaultDeviceChanged(DataFlow flow, Role role, string pwstrDefaultDeviceId) { RefreshDevices(); }
+    public void OnDeviceStateChanged(string pwstrDeviceId, int newState) => RefreshDevices();
+    public void OnDeviceAdded(string pwstrDeviceId) => RefreshDevices();
+    public void OnDeviceRemoved(string pwstrDeviceId) => RefreshDevices();
+    public void OnDefaultDeviceChanged(DataFlow flow, Role role, string pwstrDefaultDeviceId) => RefreshDevices();
     public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
 }

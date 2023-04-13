@@ -68,13 +68,7 @@ public unsafe class Downloader : RunThreadBase
     /// </summary>
     public event EventHandler<bool> DownloadCompleted;
     protected virtual void OnDownloadCompleted(bool success)
-    {
-        Task.Run(() =>
-        {
-            Dispose();
-            DownloadCompleted?.Invoke(this, success);
-        });
-    }
+        => Task.Run(() => { Dispose(); DownloadCompleted?.Invoke(this, success); });
 
     /// <summary>
     /// Opens a new media file (audio/video) and prepares it for download (blocking)

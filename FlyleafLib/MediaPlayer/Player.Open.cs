@@ -29,43 +29,25 @@ unsafe partial class Player
     public event EventHandler<OpenExternalSubtitlesStreamCompletedArgs> OpenExternalSubtitlesStreamCompleted;
 
     private void OnOpenCompleted(OpenCompletedArgs args = null)
-    {
-        OpenCompleted?.Invoke(this, args);
-    }
+        => OpenCompleted?.Invoke(this, args);
     private void OnOpenSessionCompleted(OpenSessionCompletedArgs args = null)
-    {
-        OpenSessionCompleted?.Invoke(this, args);
-    }
+        => OpenSessionCompleted?.Invoke(this, args);
     private void OnOpenPlaylistItemCompleted(OpenPlaylistItemCompletedArgs args = null)
-    {
-        OpenPlaylistItemCompleted?.Invoke(this, args);
-    }
+        => OpenPlaylistItemCompleted?.Invoke(this, args);
 
     private void OnOpenAudioStreamCompleted(OpenAudioStreamCompletedArgs args = null)
-    {
-        OpenAudioStreamCompleted?.Invoke(this, args);
-    }
+        => OpenAudioStreamCompleted?.Invoke(this, args);
     private void OnOpenVideoStreamCompleted(OpenVideoStreamCompletedArgs args = null)
-    {
-        OpenVideoStreamCompleted?.Invoke(this, args);
-    }
+        => OpenVideoStreamCompleted?.Invoke(this, args);
     private void OnOpenSubtitlesStreamCompleted(OpenSubtitlesStreamCompletedArgs args = null)
-    {
-        OpenSubtitlesStreamCompleted?.Invoke(this, args);
-    }
+        => OpenSubtitlesStreamCompleted?.Invoke(this, args);
 
     private void OnOpenExternalAudioStreamCompleted(OpenExternalAudioStreamCompletedArgs args = null)
-    {
-        OpenExternalAudioStreamCompleted?.Invoke(this, args);
-    }
+        => OpenExternalAudioStreamCompleted?.Invoke(this, args);
     private void OnOpenExternalVideoStreamCompleted(OpenExternalVideoStreamCompletedArgs args = null)
-    {
-        OpenExternalVideoStreamCompleted?.Invoke(this, args);
-    }
+        => OpenExternalVideoStreamCompleted?.Invoke(this, args);
     private void OnOpenExternalSubtitlesStreamCompleted(OpenExternalSubtitlesStreamCompletedArgs args = null)
-    {
-        OpenExternalSubtitlesStreamCompleted?.Invoke(this, args);
-    }
+        => OpenExternalSubtitlesStreamCompleted?.Invoke(this, args);
     #endregion
 
     #region Decoder Events
@@ -252,11 +234,9 @@ unsafe partial class Player
     /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
     /// <returns></returns>
     public OpenCompletedArgs Open(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-    {
-        return ExtensionsSubtitles.Contains(GetUrlExtention(url))
-            ? OpenSubtitles(url)
-            : OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
-    }
+        => ExtensionsSubtitles.Contains(GetUrlExtention(url))
+        ? OpenSubtitles(url)
+        : OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
     /// <summary>
     /// Opens a new media file (audio/subtitles/video) without blocking
@@ -268,9 +248,7 @@ unsafe partial class Player
     /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
     /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
     public void OpenAsync(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-    {
-        OpenAsyncPush(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
-    }
+        => OpenAsyncPush(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
     /// <summary>
     /// Opens a new media I/O stream (audio/video) without blocking
@@ -282,9 +260,7 @@ unsafe partial class Player
     /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
     /// <returns></returns>
     public OpenCompletedArgs Open(Stream iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-    {
-        return OpenInternal(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
-    }
+        => OpenInternal(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
     /// <summary>
     /// Opens a new media I/O stream (audio/video) without blocking
@@ -296,9 +272,7 @@ unsafe partial class Player
     /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
     /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
     public void OpenAsync(Stream iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-    {
-        OpenAsyncPush(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
-    }
+        => OpenAsyncPush(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
     /// <summary>
     /// Opens a new media session
@@ -352,10 +326,7 @@ unsafe partial class Player
     /// Opens a new media session without blocking
     /// </summary>
     /// <param name="session">Media session</param>
-    public void OpenAsync(Session session)
-    {
-        OpenAsyncPush(session);
-    }
+    public void OpenAsync(Session session) => OpenAsyncPush(session);
 
     /// <summary>
     /// Opens a playlist item <see cref="Playlist.Items"/>
@@ -421,7 +392,7 @@ unsafe partial class Player
             OnOpenPlaylistItemCompleted(args);
         }
     }
-    
+
     /// <summary>
     /// Opens a playlist item <see cref="Playlist.Items"/> without blocking
     /// You can get the results from <see cref="OpenPlaylistItemCompleted"/>
@@ -432,9 +403,7 @@ unsafe partial class Player
     /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
     /// <returns></returns>
     public void OpenAsync(PlaylistItem item, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-    {
-        OpenAsyncPush(item, defaultVideo, defaultAudio, defaultSubtitles);
-    }
+        => OpenAsyncPush(item, defaultVideo, defaultAudio, defaultSubtitles);
 
     /// <summary>
     /// Opens an external stream (audio/subtitles/video)
@@ -554,9 +523,7 @@ unsafe partial class Player
     /// <param name="resync">Whether to force resync with other streams</param>
     /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
     public void OpenAsync(ExternalStream extStream, bool resync = true, bool defaultAudio = true)
-    {
-        OpenAsyncPush(extStream, resync, defaultAudio);
-    }
+        => OpenAsyncPush(extStream, resync, defaultAudio);
 
     /// <summary>
     /// Opens an embedded stream (audio/subtitles/video)
@@ -634,9 +601,7 @@ unsafe partial class Player
     /// <param name="resync">Whether to force resync with other streams</param>
     /// <param name="defaultAudio">Whether to re-suggest audio based on the new video stream (has effect only on VideoStream)</param>
     public void OpenAsync(StreamBase stream, bool resync = true, bool defaultAudio = true)
-    {
-        OpenAsyncPush(stream, resync, defaultAudio);
-    }
+        => OpenAsyncPush(stream, resync, defaultAudio);
 
     /// <summary>
     /// Gets a session that can be re-opened later on with <see cref="Open(Session)"/>
@@ -644,11 +609,9 @@ unsafe partial class Player
     /// <param name="item">The current selected playlist item if null</param>
     /// <returns></returns>
     public Session GetSession(PlaylistItem item = null)
-    {
-        return Playlist.Selected != null && (item == null || item.Index == Playlist.Selected.Index)
-            ? GetCurrentSession()
-            : item != null && item.GetTag(playerSessionTag) != null ? (Session)item.GetTag(playerSessionTag) : null;
-    }
+        => Playlist.Selected != null && (item == null || item.Index == Playlist.Selected.Index)
+        ? GetCurrentSession()
+        : item != null && item.GetTag(playerSessionTag) != null ? (Session)item.GetTag(playerSessionTag) : null;
     string playerSessionTag = "_session";
     private Session GetCurrentSession()
     {
@@ -954,7 +917,7 @@ class OpenAsyncData
 
     public OpenAsyncData(object url_iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         { this.url_iostream = url_iostream; this.defaultPlaylistItem = defaultPlaylistItem; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
-    public OpenAsyncData(Session session) { this.session = session;}
+    public OpenAsyncData(Session session) => this.session = session;
     public OpenAsyncData(PlaylistItem playlistItem, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
         { this.playlistItem = playlistItem; this.defaultVideo = defaultVideo; this.defaultAudio = defaultAudio; this.defaultSubtitles = defaultSubtitles; }
     public OpenAsyncData(ExternalStream extStream, bool resync = true, bool defaultAudio = true, int streamIndex = -1)

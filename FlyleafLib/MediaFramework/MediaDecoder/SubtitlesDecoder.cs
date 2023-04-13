@@ -21,12 +21,10 @@ public unsafe class SubtitlesDecoder : DecoderBase
 
     public SubtitlesDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
 
-    protected override unsafe int Setup(AVCodec* codec) { return 0; }
+    protected override unsafe int Setup(AVCodec* codec) => 0;
 
     protected override void DisposeInternal()
-    {
-        Frames = new ConcurrentQueue<SubtitlesFrame>();
-    }
+        => Frames = new ConcurrentQueue<SubtitlesFrame>();
 
     public void Flush()
     {
@@ -188,7 +186,5 @@ public unsafe class SubtitlesDecoder : DecoderBase
     }
 
     public void DisposeFrames()
-    {
-        Frames = new ConcurrentQueue<SubtitlesFrame>();
-    }
+        => Frames = new ConcurrentQueue<SubtitlesFrame>();
 }
