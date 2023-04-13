@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace FlyleafLib.MediaFramework.MediaFrame;
+﻿namespace FlyleafLib.MediaFramework.MediaFrame;
 
 public unsafe class FrameBase
 {

@@ -16,12 +16,12 @@ public unsafe class Remuxer
     public bool                 HasStreams          => mapInOutStreams2.Count > 0 || mapInOutStreams.Count > 0;
     public bool                 HeaderWritten       { get; private set; }
 
-    Dictionary<IntPtr, IntPtr>  mapInOutStreams     = new Dictionary<IntPtr, IntPtr>();
-    Dictionary<int, IntPtr>     mapInInStream       = new Dictionary<int, IntPtr>();
-    Dictionary<int, long>       mapInStreamToDts    = new Dictionary<int, long>();
-    Dictionary<IntPtr, IntPtr>  mapInOutStreams2    = new Dictionary<IntPtr, IntPtr>();
-    Dictionary<int, IntPtr>     mapInInStream2      = new Dictionary<int, IntPtr>();
-    Dictionary<int, long>       mapInStreamToDts2   = new Dictionary<int, long>();
+    Dictionary<IntPtr, IntPtr>  mapInOutStreams     = new();
+    Dictionary<int, IntPtr>     mapInInStream       = new();
+    Dictionary<int, long>       mapInStreamToDts    = new();
+    Dictionary<IntPtr, IntPtr>  mapInOutStreams2    = new();
+    Dictionary<int, IntPtr>     mapInInStream2      = new();
+    Dictionary<int, long>       mapInStreamToDts2   = new();
 
     AVFormatContext* fmtCtx;
     AVOutputFormat* fmt;
@@ -55,7 +55,7 @@ public unsafe class Remuxer
         if (in_stream == null || (in_stream->codecpar->codec_type != AVMEDIA_TYPE_VIDEO && in_stream->codecpar->codec_type != AVMEDIA_TYPE_AUDIO)) return ret;
         
         AVStream *out_stream;
-        AVCodecParameters *in_codecpar = in_stream->codecpar;
+        var in_codecpar = in_stream->codecpar;
 
         out_stream = avformat_new_stream(fmtCtx, null);
         if (out_stream == null) return -1;
@@ -121,9 +121,9 @@ public unsafe class Remuxer
     {
         lock (this)
         {
-            Dictionary<int, IntPtr>     mapInInStream       = !isAudioDemuxer? this.mapInInStream   : mapInInStream2;
-            Dictionary<IntPtr, IntPtr>  mapInOutStreams     = !isAudioDemuxer? this.mapInOutStreams : mapInOutStreams2;
-            Dictionary<int, long>       mapInStreamToDts    = !isAudioDemuxer? this.mapInStreamToDts: mapInStreamToDts2;
+            var mapInInStream       = !isAudioDemuxer? this.mapInInStream   : mapInInStream2;
+            var mapInOutStreams     = !isAudioDemuxer? this.mapInOutStreams : mapInOutStreams2;
+            var mapInStreamToDts    = !isAudioDemuxer? this.mapInStreamToDts: mapInStreamToDts2;
 
             AVStream* in_stream     =  (AVStream*) mapInInStream[packet->stream_index];
             AVStream* out_stream    =  (AVStream*) mapInOutStreams[(IntPtr)in_stream];
@@ -187,5 +187,5 @@ public unsafe class Remuxer
         return ret;
     }
     
-    private void Log (string msg) { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] [#{UniqueId}] [Remuxer] {msg}"); }
+    private void Log (string msg) { Debug.WriteLine($"[{DateTime.Now:hh.mm.ss.fff}] [#{UniqueId}] [Remuxer] {msg}"); }
 }

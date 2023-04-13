@@ -98,7 +98,7 @@ public unsafe class Downloader : RunThreadBase
             CurTime = 0;
             DownloadPercentage = 0;
 
-            Demuxer Demuxer = !DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer : DecCtx.AudioDemuxer;
+            var Demuxer = !DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer : DecCtx.AudioDemuxer;
             Duration = Demuxer.IsLive ? 0 : Demuxer.Duration;
             downPercentageFactor = Duration / 100.0;
 
@@ -178,7 +178,7 @@ public unsafe class Downloader : RunThreadBase
 
         DecCtx.Start();
 
-        Demuxer Demuxer = !DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer : DecCtx.AudioDemuxer;
+        var Demuxer = !DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer : DecCtx.AudioDemuxer;
         long startTime = Demuxer.hlsCtx == null ? Demuxer.StartTime : Demuxer.hlsCtx->first_timestamp * 10;
         Duration = Demuxer.IsLive ? 0 : Demuxer.Duration;
         downPercentageFactor = Duration / 100.0;
@@ -192,7 +192,7 @@ public unsafe class Downloader : RunThreadBase
 
         do
         {
-            if (Demuxer.Packets.Count == 0 && AudioDemuxer.Packets.Count == 0 || (hasAVDemuxers && (Demuxer.Packets.Count == 0 || AudioDemuxer.Packets.Count == 0)))
+            if ((Demuxer.Packets.Count == 0 && AudioDemuxer.Packets.Count == 0) || (hasAVDemuxers && (Demuxer.Packets.Count == 0 || AudioDemuxer.Packets.Count == 0)))
             {
                 lock (lockStatus)
                     if (Status == Status.Running) Status = Status.QueueEmpty;
@@ -288,10 +288,9 @@ public unsafe class Downloader : RunThreadBase
             {
                 secondTicks = curDT;
 
-                if (Demuxer.hlsCtx != null)
-                    CurTime = (long) ((packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - startTime);
-                else
-                    CurTime = Demuxer.CurTime + Demuxer.BufferedDuration;
+                CurTime = Demuxer.hlsCtx != null
+                    ? (long) ((packet->dts * Demuxer.AVStreamToStream[packet->stream_index].Timebase) - startTime)
+                    : Demuxer.CurTime + Demuxer.BufferedDuration;
 
                 if (_Duration > 0) DownloadPercentage = CurTime / downPercentageFactor;
             }

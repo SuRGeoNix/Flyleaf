@@ -31,7 +31,7 @@ public class Language : IEquatable<Language>
     public string       OriginalInput   { get; private set; } // Only for Undetermined language (return clone)
 
 
-    public override string ToString() => OriginalInput != null ? OriginalInput : TopEnglishName;
+    public override string ToString() => OriginalInput ?? TopEnglishName;
 
     public override int GetHashCode() => ToString().GetHashCode();
 
@@ -55,10 +55,7 @@ public class Language : IEquatable<Language>
 
     public static bool operator ==(Language lang1, Language lang2)
     {
-        if (lang1 is null)
-            return lang2 is null ? true : false;
-
-        return lang1.Equals(lang2);
+        return lang1 is null ? lang2 is null ? true : false : lang1.Equals(lang2);
     }
 
     public static bool operator !=(Language lang1, Language lang2) => !(lang1 == lang2);
@@ -77,17 +74,14 @@ public class Language : IEquatable<Language>
 
     public static Language Get(CultureInfo cult)
     {
-        Language lang = new Language();
-        lang.Culture = cult;
+        Language lang = new() { Culture = cult };
         Refresh(lang);
 
         return lang;
     }
     public static Language Get(string name)
     {
-        Language lang = new Language();
-
-        lang.Culture = StringToCulture(name);
+        Language lang = new() { Culture = StringToCulture(name) };
         if (lang.Culture != null)
             Refresh(lang);
         else
@@ -145,13 +139,10 @@ public class Language : IEquatable<Language>
                 ret = CultureInfo.GetCultureInfo(iso639_2t);
         }
 
-        if (ret.ThreeLetterISOLanguageName == "")
-            return null;
-
-        return ret;
+        return ret.ThreeLetterISOLanguageName == "" ? null : ret;
     }
 
-    public static readonly Dictionary<string, string> ISO639_2T_TO_2B = new Dictionary<string, string>
+    public static readonly Dictionary<string, string> ISO639_2T_TO_2B = new()
     {
         { "bod","tib" },
         { "ces","cze" },
@@ -174,7 +165,7 @@ public class Language : IEquatable<Language>
         { "sqi","alb" },
         { "zho","chi" },
     };
-    public static readonly Dictionary<string, string> ISO639_2B_TO_2T = new Dictionary<string, string>
+    public static readonly Dictionary<string, string> ISO639_2B_TO_2T = new()
     {
         { "alb","sqi" },
         { "arm","hye" },

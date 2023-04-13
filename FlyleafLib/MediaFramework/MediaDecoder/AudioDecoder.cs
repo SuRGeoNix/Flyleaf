@@ -23,7 +23,7 @@ public unsafe partial class AudioDecoder : DecoderBase
 
     static AVSampleFormat   AOutSampleFormat    = AVSampleFormat.AV_SAMPLE_FMT_S16;
     static string           AOutSampleFormatStr = av_get_sample_fmt_name(AOutSampleFormat);
-    static AVChannelLayout  AOutChannelLayout   = new AVChannelLayout() { order = AVChannelOrder.AV_CHANNEL_ORDER_NATIVE, nb_channels = 2, u = new AVChannelLayout_u() { mask = AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT} };
+    static AVChannelLayout  AOutChannelLayout   = new() { order = AVChannelOrder.AV_CHANNEL_ORDER_NATIVE, nb_channels = 2, u = new AVChannelLayout_u() { mask = AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT} };
     static int              AOutChannels        = AOutChannelLayout.nb_channels;
     static int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
     byte[]                  cBuf;
@@ -247,10 +247,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                         AudioStream.Refresh();
                         resyncWithVideoRequired = !VideoDecoder.Disposed;
 
-                        if (Config.Audio.FiltersEnabled)
-                            ret = SetupFilters();
-                        else
-                            ret = SetupSwr();
+                        ret = Config.Audio.FiltersEnabled ? SetupFilters() : SetupSwr();
 
                         CodecChanged?.Invoke(this);
 
@@ -262,7 +259,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                     {
                         // TODO: in case of long distance will spin (CPU issue), possible reseek?
 
-                        var ts = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
+                        long ts = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay;
                         while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning && resyncWithVideoRequired) Thread.Sleep(10);
 
                         if (ts < VideoDecoder.StartTime)
@@ -300,9 +297,11 @@ public unsafe partial class AudioDecoder : DecoderBase
                 curSpeedFrame = 0;    
             }
 
-            AudioFrame mFrame   = new();
-            mFrame.timestamp    = ((long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime) + Config.Audio.Delay;
-            mFrame.dataLen      = frame->nb_samples * ASampleBytes;
+            AudioFrame mFrame = new()
+            {
+                timestamp   = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay,
+                dataLen     = frame->nb_samples * ASampleBytes
+            };
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
             if (frame->nb_samples > cBufSamples)
@@ -313,7 +312,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                  * 3. Recalculate on Config.Decoder.MaxAudioFrames change (greater)
                  */
 
-                int size    = (Config.Decoder.MaxAudioFrames * mFrame.dataLen) * 10;
+                int size    = Config.Decoder.MaxAudioFrames * mFrame.dataLen * 10;
                 Log.Debug($"Re-allocating circular buffer ({frame->nb_samples} > {cBufSamples}) with {size}bytes");
                 cBuf        = new byte[size];
                 cBufPos     = 0;

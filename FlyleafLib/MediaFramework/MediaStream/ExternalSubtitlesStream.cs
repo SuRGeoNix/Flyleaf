@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace FlyleafLib.MediaFramework.MediaStream;
+﻿namespace FlyleafLib.MediaFramework.MediaStream;
 
 public class ExternalSubtitlesStream : ExternalStream
 {

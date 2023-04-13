@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Reflection;
 using System.Xml.Serialization;
 
 using FFmpeg.AutoGen;
@@ -25,7 +24,7 @@ unsafe public partial class Renderer
      * 2) Filter default values will change when the device/adapter is changed
      */
 
-    public static Dictionary<string, VideoProcessorCapsCache> VideoProcessorsCapsCache = new Dictionary<string, VideoProcessorCapsCache>();
+    public static Dictionary<string, VideoProcessorCapsCache> VideoProcessorsCapsCache = new();
 
     internal static VideoProcessorFilter ConvertFromVideoProcessorFilterCaps(VideoProcessorFilterCaps filter)
     {
@@ -97,7 +96,7 @@ unsafe public partial class Renderer
     ID3D11VideoProcessorOutputView      vpov;
 
     VideoProcessorStream[]              vpsa    = new VideoProcessorStream[] { new VideoProcessorStream() { Enable = true } };
-    VideoProcessorContentDescription    vpcd    = new VideoProcessorContentDescription()
+    VideoProcessorContentDescription    vpcd    = new()
         {
             Usage = VideoUsage.PlaybackNormal,
             InputFrameFormat = VideoFrameFormat.InterlacedTopFieldFirst,
@@ -105,8 +104,8 @@ unsafe public partial class Renderer
             InputFrameRate  = new Rational(1, 1),
             OutputFrameRate = new Rational(1, 1),
         };
-    VideoProcessorOutputViewDescription vpovd   = new VideoProcessorOutputViewDescription() { ViewDimension = VideoProcessorOutputViewDimension.Texture2D };
-    VideoProcessorInputViewDescription  vpivd   = new VideoProcessorInputViewDescription()
+    VideoProcessorOutputViewDescription vpovd   = new() { ViewDimension = VideoProcessorOutputViewDimension.Texture2D };
+    VideoProcessorInputViewDescription  vpivd   = new()
         {
             FourCC          = 0,
             ViewDimension   = VideoProcessorInputViewDimension.Texture2D,
@@ -163,7 +162,7 @@ unsafe public partial class Renderer
                 return;
             }
 
-            VideoProcessorCapsCache cache = new VideoProcessorCapsCache();
+            VideoProcessorCapsCache cache = new();
             VideoProcessorsCapsCache.Add(Device.Tag.ToString(), cache);
 
             vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
@@ -177,11 +176,11 @@ unsafe public partial class Renderer
                 return;
             }
 
-            ID3D11VideoProcessorEnumerator1 vpe1 = vpe.QueryInterface<ID3D11VideoProcessorEnumerator1>();
+            var vpe1 = vpe.QueryInterface<ID3D11VideoProcessorEnumerator1>();
             bool supportHLG = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbFullG22NoneP709);
             bool supportHDR10Limited = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioG2084TopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbStudioG2084NoneP2020);
 
-            VideoProcessorCaps vpCaps = vpe.VideoProcessorCaps;
+            var vpCaps = vpe.VideoProcessorCaps;
             string dump = "";
 
             dump += $"=====================================================\r\n";
@@ -192,39 +191,39 @@ unsafe public partial class Renderer
 
             dump += $"\n[Video Processor Device Caps]\r\n";
             foreach (VideoProcessorDeviceCaps cap in Enum.GetValues(typeof(VideoProcessorDeviceCaps)))
-                dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.DeviceCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                dump += $"{cap,-25} {((vpCaps.DeviceCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
             dump += $"\n[Video Processor Feature Caps]\r\n";
             foreach (VideoProcessorFeatureCaps cap in Enum.GetValues(typeof(VideoProcessorFeatureCaps)))
-                dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.FeatureCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                dump += $"{cap,-25} {((vpCaps.FeatureCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
             dump += $"\n[Video Processor Stereo Caps]\r\n";
             foreach (VideoProcessorStereoCaps cap in Enum.GetValues(typeof(VideoProcessorStereoCaps)))
-                dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.StereoCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                dump += $"{cap,-25} {((vpCaps.StereoCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
             dump += $"\n[Video Processor Input Format Caps]\r\n";
             foreach (VideoProcessorFormatCaps cap in Enum.GetValues(typeof(VideoProcessorFormatCaps)))
-                dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.InputFormatCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                dump += $"{cap,-25} {((vpCaps.InputFormatCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
             dump += $"\n[Video Processor Filter Caps]\r\n";
             foreach (VideoProcessorFilterCaps filter in Enum.GetValues(typeof(VideoProcessorFilterCaps)))
                 if ((vpCaps.FilterCaps & filter) != 0)
                 {
-                    vpe1.GetVideoProcessorFilterRange(ConvertFromVideoProcessorFilterCaps(filter), out VideoProcessorFilterRange range);
-                    dump += $"{filter.ToString().PadRight(25, ' ')} [{range.Minimum.ToString().PadLeft(6, ' ')} - {range.Maximum.ToString().PadLeft(4, ' ')}] | x{range.Multiplier.ToString().PadLeft(4, ' ')} | *{range.Default}\r\n";
-                    VideoFilter vf = ConvertFromVideoProcessorFilterRange(range);
+                    vpe1.GetVideoProcessorFilterRange(ConvertFromVideoProcessorFilterCaps(filter), out var range);
+                    dump += $"{filter,-25} [{range.Minimum,6} - {range.Maximum,4}] | x{range.Multiplier,4} | *{range.Default}\r\n";
+                    var vf = ConvertFromVideoProcessorFilterRange(range);
                     vf.Filter = (VideoFilters)filter;
                     cache.Filters.Add((VideoFilters)filter, vf);
                 }
                 else
-                    dump += $"{filter.ToString().PadRight(25, ' ')} no\r\n";
+                    dump += $"{filter,-25} no\r\n";
 
             dump += $"\n[Video Processor Input Format Caps]\r\n";
             foreach (VideoProcessorAutoStreamCaps cap in Enum.GetValues(typeof(VideoProcessorAutoStreamCaps)))
-                dump += $"{cap.ToString().PadRight(25, ' ')} {((vpCaps.AutoStreamCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                dump += $"{cap,-25} {((vpCaps.AutoStreamCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
             int typeIndex = -1;
-            VideoProcessorRateConversionCaps rcCap = new VideoProcessorRateConversionCaps();
+            VideoProcessorRateConversionCaps rcCap = new();
             for (int i = 0; i < vpCaps.RateConversionCapsCount; i++)
             {
                 vpe.GetVideoProcessorRateConversionCaps(i, out rcCap);
@@ -233,13 +232,13 @@ unsafe public partial class Renderer
                 dump += $"\n[Video Processor Rate Conversion Caps #{i}]\r\n";
 
                 dump += $"\n\t[Video Processor Rate Conversion Caps]\r\n";
-                FieldInfo[] fields = typeof(VideoProcessorRateConversionCaps).GetFields();
-                foreach (FieldInfo field in fields)
-                    dump += $"\t{field.Name.PadRight(35, ' ')} {field.GetValue(rcCap)}\r\n";
+                var fields = typeof(VideoProcessorRateConversionCaps).GetFields();
+                foreach (var field in fields)
+                    dump += $"\t{field.Name,-35} {field.GetValue(rcCap)}\r\n";
 
                 dump += $"\n\t[Video Processor Processor Caps]\r\n";
                 foreach (VideoProcessorProcessorCaps cap in Enum.GetValues(typeof(VideoProcessorProcessorCaps)))
-                    dump += $"\t{cap.ToString().PadRight(35, ' ')} {(((VideoProcessorProcessorCaps)rcCap.ProcessorCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                    dump += $"\t{cap,-35} {(((VideoProcessorProcessorCaps)rcCap.ProcessorCaps & cap) != 0 ? "yes" : "no")}\r\n";
 
                 typeIndex = i;
 
@@ -340,8 +339,8 @@ unsafe public partial class Renderer
         // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
         if (videoProcessor == VideoProcessors.Flyleaf)
         {
-            Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + (Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2;
-            Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].Minimum + (Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2;
+            Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + ((Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2);
+            Config.Video.Filters[VideoFilters.Contrast].Value   = Config.Video.Filters[VideoFilters.Contrast].Minimum + ((Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2);
         }
     }
 
@@ -430,7 +429,7 @@ unsafe public partial class Renderer
         else if (psBufferData.hdrmethod == HDRtoSDRMethod.Hable)
         {
             psBufferData.g_luminance = lastLumin > 1 ? lastLumin : 400.0f;
-            psBufferData.g_toneP1 = (10000.0f / psBufferData.g_luminance) * (2.0f / Config.Video.HDRtoSDRTone);
+            psBufferData.g_toneP1 = 10000.0f / psBufferData.g_luminance * (2.0f / Config.Video.HDRtoSDRTone);
             psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
         }
 
@@ -471,12 +470,7 @@ unsafe public partial class Renderer
     }
     void UpdateRotation(int angle)
     {
-        if (angle > 360)
-            _RotationAngle = 360;
-        else if (angle < 0)
-            _RotationAngle = 0;
-        else
-            _RotationAngle = angle;
+        _RotationAngle = angle > 360 ? 360 : angle < 0 ? 0 : angle;
 
         if (_RotationAngle < 45 || _RotationAngle == 360)
             _d3d11vpRotation = VideoProcessorRotation.Identity;
@@ -487,7 +481,7 @@ unsafe public partial class Renderer
         else if (_RotationAngle < 360)
             _d3d11vpRotation = VideoProcessorRotation.Rotation270;
             
-        vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) ((Math.PI / 180) * angle));
+        vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * angle));
         //vsBufferData.mat = Matrix4x4.Transpose(vsBufferData.mat); TBR
         context.UpdateSubresource(vsBufferData, vsBuffer);
 

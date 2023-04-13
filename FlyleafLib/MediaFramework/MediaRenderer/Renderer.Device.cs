@@ -54,10 +54,10 @@ public partial class Renderer
     ID3D11PixelShader   ShaderPS;
 
     ID3D11Buffer        psBuffer;
-    PSBufferType        psBufferData = new PSBufferType();
+    PSBufferType        psBufferData = new();
 
     ID3D11Buffer        vsBuffer;
-    VSBufferType        vsBufferData = new VSBufferType();
+    VSBufferType        vsBufferData = new();
 
     internal object     lockDevice = new();
 
@@ -76,14 +76,14 @@ public partial class Renderer
 
                 ID3D11Device tempDevice;
                 IDXGIAdapter1 adapter = null;
-                DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
-                DeviceCreationFlags creationFlagsWarp = DeviceCreationFlags.None;
+                var creationFlags       = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+                var creationFlagsWarp   = DeviceCreationFlags.None;
 
                 #if DEBUG
                 if (D3D11.SdkLayersAvailable())
                 {
-                    creationFlags |= DeviceCreationFlags.Debug;
-                    creationFlagsWarp |= DeviceCreationFlags.Debug;
+                    creationFlags       |= DeviceCreationFlags.Debug;
+                    creationFlagsWarp   |= DeviceCreationFlags.Debug;
                 }
                 #endif
 
@@ -133,10 +133,10 @@ public partial class Renderer
                 // Gets the default adapter from the D3D11 Device
                 if (adapter == null)
                 {
-                    Device.Tag = (new Luid()).ToString();
-                    using (var deviceTmp = Device.QueryInterface<IDXGIDevice1>())
-                    using (var adapterTmp = deviceTmp.GetAdapter())
-                        adapter = adapterTmp.QueryInterface<IDXGIAdapter1>();
+                    Device.Tag = new Luid().ToString();
+                    using var deviceTmp = Device.QueryInterface<IDXGIDevice1>();
+                    using var adapterTmp = deviceTmp.GetAdapter();
+                    adapter = adapterTmp.QueryInterface<IDXGIAdapter1>();
                 }
                 else
                     Device.Tag = adapter.Description.Luid.ToString();
@@ -210,7 +210,7 @@ public partial class Renderer
                 // TBR: Device Removal Event
                 //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
 
-                if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{(int)Device.FeatureLevel >> 8 & 0xf}");
+                if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{((int)Device.FeatureLevel >> 8) & 0xf}");
 
             } catch (Exception e)
             {

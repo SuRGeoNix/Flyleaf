@@ -47,8 +47,8 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public Viewport         GetViewport     { get; private set; }
 
     public CornerRadius     CornerRadius    { get => cornerRadius;  set { if (cornerRadius == value) return; cornerRadius = value; UpdateCornerRadius(); } }
-    CornerRadius cornerRadius = new CornerRadius(0);
-    CornerRadius zeroCornerRadius = new CornerRadius(0);
+    CornerRadius cornerRadius = new(0);
+    CornerRadius zeroCornerRadius = new(0);
 
     public bool             IsHDR           { get => isHDR;         private set { SetUI(ref _IsHDR, value); isHDR = value; } }
     bool _IsHDR, isHDR;

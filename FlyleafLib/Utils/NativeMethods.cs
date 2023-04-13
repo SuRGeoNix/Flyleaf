@@ -109,7 +109,7 @@ public static partial class Utils
 
             public WINDOWINFO(Boolean? filler) : this()   // Allows automatic initialization of "cbSize" with "new WINDOWINFO(null/true/false)".
             {
-                cbSize = (UInt32)(Marshal.SizeOf(typeof( WINDOWINFO )));
+                cbSize = (UInt32)Marshal.SizeOf(typeof( WINDOWINFO ));
             }
 
         }

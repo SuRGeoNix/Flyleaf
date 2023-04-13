@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 
 using FlyleafLib.MediaFramework.MediaContext;
@@ -52,7 +51,7 @@ public class Playlist : NotifyPropertyChanged
 
     public ObservableCollection<PlaylistItem>
                         Items           { get; set; } = new ObservableCollection<PlaylistItem>();
-    object lockItems = new object();
+    object lockItems = new();
 
     long openCounter;
     //long openItemCounter;
@@ -104,7 +103,7 @@ public class Playlist : NotifyPropertyChanged
         lock (lockItems)
         {
             Items.Add(item);
-            Items[Items.Count - 1].Index = Items.Count - 1;
+            Items[^1].Index = Items.Count - 1;
 
             if (tag != null)
                 item.AddTag(tag, pluginName);

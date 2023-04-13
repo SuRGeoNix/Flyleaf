@@ -167,19 +167,19 @@ public class Commands
 
     public void AudioDelaySetAction(object delay)
     {
-        player.Config.Audio.Delay = (int.Parse(delay.ToString())) * (long)10000;
+        player.Config.Audio.Delay = int.Parse(delay.ToString()) * (long)10000;
     }
     public void AudioDelaySetAction2(object delay)
     {
-        player.Config.Audio.Delay += (int.Parse(delay.ToString())) * (long)10000;
+        player.Config.Audio.Delay += int.Parse(delay.ToString()) * (long)10000;
     }
     public void SubtitlesDelaySetAction(object delay)
     {
-        player.Config.Subtitles.Delay = (int.Parse(delay.ToString())) * (long)10000;
+        player.Config.Subtitles.Delay = int.Parse(delay.ToString()) * (long)10000;
     }
     public void SubtitlesDelaySetAction2(object delay)
     {
-        player.Config.Subtitles.Delay += (int.Parse(delay.ToString())) * (long)10000;
+        player.Config.Subtitles.Delay += int.Parse(delay.ToString()) * (long)10000;
     }
 
     public void TakeSnapshotAction() => Task.Run(() => { try { player.TakeSnapshotToFile(); } catch { } });
@@ -220,7 +220,7 @@ public class Commands
         PlaylistItem item = (PlaylistItem)playlistItem;
         if (item.OpenedCounter > 0)
         {
-            Session session = player.GetSession(item);
+            var session = player.GetSession(item);
             if (session.CurTime < 60 * (long)1000 * 10000)
                 session.CurTime = 0;
 

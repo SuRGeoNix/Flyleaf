@@ -9,7 +9,6 @@ internal unsafe partial class ffmpegEx
 {
 #pragma warning disable CS0649
 #pragma warning disable CS0169
-#pragma warning disable CS1587
     #region hls demuxer
     public unsafe struct HLSContext
     {
@@ -151,11 +150,11 @@ internal unsafe partial class ffmpegEx
         }
         public byte[] ToArray()
         {
-            fixed (byte_array4096* p = &this) { var a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
+            fixed (byte_array4096* p = &this) { byte[] a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
         }
         public void UpdateFrom(byte[] array)
         {
-            fixed (byte_array4096* p = &this) { uint i = 0; foreach(var value in array) { p->_[i++] = value; if (i >= Size) return; } }
+            fixed (byte_array4096* p = &this) { uint i = 0; foreach(byte value in array) { p->_[i++] = value; if (i >= Size) return; } }
         }
         public static implicit operator byte[](byte_array4096 @struct) => @struct.ToArray();
     }
@@ -172,11 +171,11 @@ internal unsafe partial class ffmpegEx
         }
         public byte[] ToArray()
         {
-            fixed (byte_array10* p = &this) { var a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
+            fixed (byte_array10* p = &this) { byte[] a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
         }
         public void UpdateFrom(byte[] array)
         {
-            fixed (byte_array10* p = &this) { uint i = 0; foreach(var value in array) { p->_[i++] = value; if (i >= Size) return; } }
+            fixed (byte_array10* p = &this) { uint i = 0; foreach(byte value in array) { p->_[i++] = value; if (i >= Size) return; } }
         }
         public static implicit operator byte[](byte_array10 @struct) => @struct.ToArray();
     }
@@ -193,11 +192,11 @@ internal unsafe partial class ffmpegEx
         }
         public byte[] ToArray()
         {
-            fixed (byte_array16* p = &this) { var a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
+            fixed (byte_array16* p = &this) { byte[] a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
         }
         public void UpdateFrom(byte[] array)
         {
-            fixed (byte_array16* p = &this) { uint i = 0; foreach(var value in array) { p->_[i++] = value; if (i >= Size) return; } }
+            fixed (byte_array16* p = &this) { uint i = 0; foreach(byte value in array) { p->_[i++] = value; if (i >= Size) return; } }
         }
         public static implicit operator byte[](byte_array16 @struct) => @struct.ToArray();
     }
@@ -214,11 +213,11 @@ internal unsafe partial class ffmpegEx
         }
         public byte[] ToArray()
         {
-            fixed (byte_array64* p = &this) { var a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
+            fixed (byte_array64* p = &this) { byte[] a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
         }
         public void UpdateFrom(byte[] array)
         {
-            fixed (byte_array64* p = &this) { uint i = 0; foreach(var value in array) { p->_[i++] = value; if (i >= Size) return; } }
+            fixed (byte_array64* p = &this) { uint i = 0; foreach(byte value in array) { p->_[i++] = value; if (i >= Size) return; } }
         }
         public static implicit operator byte[](byte_array64 @struct) => @struct.ToArray();
     }
@@ -235,16 +234,15 @@ internal unsafe partial class ffmpegEx
         }
         public int[] ToArray()
         {
-            fixed (int_array16* p = &this) { var a = new int[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
+            fixed (int_array16* p = &this) { int[] a = new int[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
         }
         public void UpdateFrom(int[] array)
         {
-            fixed (int_array16* p = &this) { uint i = 0; foreach(var value in array) { p->_[i++] = value; if (i >= Size) return; } }
+            fixed (int_array16* p = &this) { uint i = 0; foreach(int value in array) { p->_[i++] = value; if (i >= Size) return; } }
         }
         public static implicit operator int[](int_array16 @struct) => @struct.ToArray();
     }
     #endregion
-#pragma warning restore CS1587
 #pragma warning restore CS0169
 #pragma warning restore CS0649
 }

@@ -108,10 +108,7 @@ partial class Player
                         }
                         else
                         {
-                            if (!ReversePlayback)
-                                stoppedWithError = isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000;
-                            else
-                                stoppedWithError = CurTime > 3 * 1000 * 10000;
+                            stoppedWithError = !ReversePlayback ? isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000 : CurTime > 3 * 1000 * 10000;
                         }
 
                         status = Status.Paused;
@@ -207,7 +204,7 @@ partial class Player
             {
                 Engine.TimeBeginPeriod1();
                 
-                while (seeks.TryPop(out SeekData seekData) && CanPlay && !IsPlaying)
+                while (seeks.TryPop(out var seekData) && CanPlay && !IsPlaying)
                 {
                     seeks.Clear();
 

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 
@@ -53,7 +52,7 @@ public static class ParseSubtitles
 {
     public static void Parse(SubtitlesFrame sFrame)
     {
-        sFrame.text = SSAtoSubStyles(sFrame.text, out List<SubStyle> subStyles);
+        sFrame.text = SSAtoSubStyles(sFrame.text, out var subStyles);
         sFrame.subStyles = subStyles;
     }
     public static string SSAtoSubStyles(string s, out List<SubStyle> styles)
@@ -62,16 +61,16 @@ public static class ParseSubtitles
         string sout = "";
         styles = new List<SubStyle>();
 
-        SubStyle bold       = new SubStyle(SubStyles.BOLD);
-        SubStyle italic     = new SubStyle(SubStyles.ITALIC);
-        SubStyle underline  = new SubStyle(SubStyles.UNDERLINE);
-        SubStyle strikeout  = new SubStyle(SubStyles.STRIKEOUT);
-        SubStyle color      = new SubStyle(SubStyles.COLOR);
+        SubStyle bold       = new(SubStyles.BOLD);
+        SubStyle italic     = new(SubStyles.ITALIC);
+        SubStyle underline  = new(SubStyles.UNDERLINE);
+        SubStyle strikeout  = new(SubStyles.STRIKEOUT);
+        SubStyle color      = new(SubStyles.COLOR);
 
         //SubStyle fontname      = new SubStyle(SubStyles.FONTNAME);
         //SubStyle fontsize      = new SubStyle(SubStyles.FONTSIZE);
 
-        s = s.LastIndexOf(",,") == -1 ? s : s.Substring(s.LastIndexOf(",,") + 2).Replace("\\N", "\n").Trim();
+        s = s.LastIndexOf(",,") == -1 ? s : s[(s.LastIndexOf(",,") + 2)..].Replace("\\N", "\n").Trim();
 
         for (int i = 0; i < s.Length; i++)
         {
@@ -104,19 +103,19 @@ public static class ParseSubtitles
                             int colorEnd = code.LastIndexOf("&");
                             if (colorEnd < 6) break;
 
-                            string hexColor = code.Substring(4, colorEnd - 4);
+                            string hexColor = code[4..colorEnd ];
                             int red = int.Parse(hexColor.Substring(hexColor.Length - 2, 2), NumberStyles.HexNumber);
                             int green = 0;
                             int blue = 0;
 
                             if (hexColor.Length - 2 > 0)
                             {
-                                hexColor = hexColor.Substring(0, hexColor.Length - 2);
+                                hexColor = hexColor[..^2];
                                 green = int.Parse(hexColor.Substring(hexColor.Length - 2, 2), NumberStyles.HexNumber);
                             }
                             if (hexColor.Length - 2 > 0)
                             {
-                                hexColor = hexColor.Substring(0, hexColor.Length - 2);
+                                hexColor = hexColor[..^2];
                                 blue = int.Parse(hexColor.Substring(hexColor.Length - 2, 2), NumberStyles.HexNumber);
                             }
 
@@ -204,7 +203,7 @@ public static class ParseSubtitles
         if (italic.from != -1) { italic.len = soutPostLast - italic.from; styles.Add(italic); }
         if (strikeout.from != -1) { strikeout.len = soutPostLast - strikeout.from; styles.Add(strikeout); }
         if (underline.from != -1) { underline.len = soutPostLast - underline.from; styles.Add(underline); }
-        if (color.from != -1 && (Color)color.value != Color.Transparent) { color.len = soutPostLast - color.from; styles.Add(color); }
+        if (color.from != -1 && color.value != Color.Transparent) { color.len = soutPostLast - color.from; styles.Add(color); }
 
         return sout;
     }

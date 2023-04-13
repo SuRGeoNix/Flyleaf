@@ -27,7 +27,7 @@ public partial class Renderer
 
     internal void InitializeSwapChain(IntPtr handle)
     {
-        if (cornerRadius != zeroCornerRadius && (Device.FeatureLevel >= FeatureLevel.Level_10_0 && (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")))
+        if (cornerRadius != zeroCornerRadius && Device.FeatureLevel >= FeatureLevel.Level_10_0 && (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP"))
         {
             InitializeCompositionSwapChain(handle);
             return;
@@ -41,7 +41,7 @@ public partial class Renderer
             if (Disposed)
                 Initialize(false);
 
-            SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+            SwapChainDescription1 swapChainDescription = new()
             {
                 Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
                 Width       = ControlWidth,
@@ -95,7 +95,7 @@ public partial class Renderer
 
             SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
 
-            RECT rect = new RECT();
+            RECT rect = new();
             GetWindowRect(ControlHandle, ref rect);
             ResizeBuffers(rect.Right - rect.Left, rect.Bottom - rect.Top);
         }
@@ -110,7 +110,7 @@ public partial class Renderer
             if (Disposed)
                 Initialize(false);
 
-            SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+            SwapChainDescription1 swapChainDescription = new()
             {
                 Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
                 Width       = 1,
@@ -156,12 +156,12 @@ public partial class Renderer
             if (Disposed)
                 Initialize(false);
 
-            RECT rect = new RECT();
+            RECT rect = new();
             GetWindowRect(handle, ref rect);
             ControlWidth = rect.Right - rect.Left;
             ControlHeight = rect.Bottom - rect.Top;
 
-            SwapChainDescription1 swapChainDescription = new SwapChainDescription1()
+            SwapChainDescription1 swapChainDescription = new()
             {
                 Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
                 Width       = ControlWidth,
@@ -209,7 +209,7 @@ public partial class Renderer
             backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
             backBufferRtv = Device.CreateRenderTargetView(backBuffer);
 
-            var styleEx = GetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE).ToInt32();
+            int styleEx = GetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE).ToInt32();
             styleEx |= 0x00200000; // WS_EX_NOREDIRECTIONBITMAP 
             SetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE, new IntPtr(styleEx));
             SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
@@ -278,12 +278,9 @@ public partial class Renderer
 
         if (Config.Video.AspectRatio == AspectRatio.Keep)
             ratio = curRatio;
-        else if (Config.Video.AspectRatio == AspectRatio.Fill)
-            ratio = ControlWidth / (float)ControlHeight;
-        else if (Config.Video.AspectRatio == AspectRatio.Custom)
-            ratio = Config.Video.CustomAspectRatio.Value;
-        else
-            ratio = Config.Video.AspectRatio.Value;
+        else ratio = Config.Video.AspectRatio == AspectRatio.Fill
+            ? ControlWidth / (float)ControlHeight
+            : Config.Video.AspectRatio == AspectRatio.Custom ? Config.Video.CustomAspectRatio.Value : Config.Video.AspectRatio.Value;
 
         if (ratio <= 0) ratio = 1;
 
@@ -294,13 +291,13 @@ public partial class Renderer
         {
             int yZoomPixels = (int)(ControlHeight * zoom/100.0) - ControlHeight;
             int Height = ControlHeight + yZoomPixels;
-            GetViewport = new Viewport(((ControlWidth - (ControlHeight * ratio)) / 2) - ((yZoomPixels / 2) * ratio) + PanXOffset, 0 - (yZoomPixels / 2) + PanYOffset, Height * ratio, Height, 0.0f, 1.0f);
+            GetViewport = new Viewport(((ControlWidth - (ControlHeight * ratio)) / 2) - (yZoomPixels / 2 * ratio) + PanXOffset, 0 - (yZoomPixels / 2) + PanYOffset, Height * ratio, Height, 0.0f, 1.0f);
         }
         else
         {
             int xZoomPixels = (int)(ControlWidth * zoom/100.0) - ControlWidth;
             int Width  = ControlWidth + xZoomPixels;
-            GetViewport = new Viewport(0 - (xZoomPixels / 2) + PanXOffset, ((ControlHeight - (ControlWidth / ratio)) / 2) - ((xZoomPixels / 2) / ratio) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
+            GetViewport = new Viewport(0 - (xZoomPixels / 2) + PanXOffset, ((ControlHeight - (ControlWidth / ratio)) / 2) - (xZoomPixels / 2 / ratio) + PanYOffset, Width, Width / ratio, 0.0f, 1.0f);
         }
 
         if (videoProcessor == VideoProcessors.D3D11)
@@ -315,9 +312,9 @@ public partial class Renderer
             else
             {
                 int cropLeft    = GetViewport.X < 0 ? (int) GetViewport.X * -1 : 0;
-                int cropRight   = GetViewport.X + GetViewport.Width > ControlWidth ? (int) ((GetViewport.X + GetViewport.Width) - ControlWidth) : 0;
+                int cropRight   = GetViewport.X + GetViewport.Width > ControlWidth ? (int) (GetViewport.X + GetViewport.Width - ControlWidth) : 0;
                 int cropTop     = GetViewport.Y < 0 ? (int) GetViewport.Y * -1 : 0;
-                int cropBottom  = GetViewport.Y + GetViewport.Height > ControlHeight ? (int) ((GetViewport.Y + GetViewport.Height) - ControlHeight) : 0;
+                int cropBottom  = GetViewport.Y + GetViewport.Height > ControlHeight ? (int) (GetViewport.Y + GetViewport.Height - ControlHeight) : 0;
 
                 dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));
                     

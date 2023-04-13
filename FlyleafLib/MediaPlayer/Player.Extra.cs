@@ -98,7 +98,7 @@ unsafe partial class Player
         Activity.IsEnabled = false;
         IsOpenFileDialogOpen = true;
 
-        System.Windows.Forms.OpenFileDialog openFileDialog = new System.Windows.Forms.OpenFileDialog();
+        System.Windows.Forms.OpenFileDialog openFileDialog = new();
         var res = openFileDialog.ShowDialog();
 
         if(res == System.Windows.Forms.DialogResult.OK)
@@ -204,10 +204,9 @@ unsafe partial class Player
                 {
                     VideoDecoder.DisposeFrame(vFrame);
                     vFrame = null;
-                    if (askedFrame > recvFrame)
-                        vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime));
-                    else
-                        vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 2);
+                    vFrame = askedFrame > recvFrame
+                        ? VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime))
+                        : VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 2);
                 }
             }
             else
@@ -276,7 +275,7 @@ unsafe partial class Player
             if (!Directory.Exists(Config.Player.FolderRecordings))
                 Directory.CreateDirectory(Config.Player.FolderRecordings);
 
-            string filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Record" : Playlist.Selected.Title) + $"_{(new TimeSpan(CurTime)).ToString("hhmmss")}." + decoder.Extension;
+            string filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Record" : Playlist.Selected.Title) + $"_{new TimeSpan(CurTime):hhmmss}." + decoder.Extension;
             filename = FindNextAvailableFile(Path.Combine(Config.Player.FolderRecordings, filename));
             StartRecording(ref filename, false);
         } catch { }
@@ -369,7 +368,7 @@ unsafe partial class Player
         if (renderer == null)
             return;
 
-        Bitmap snapshotBitmap = renderer.GetBitmap(width, height, frame);
+        var snapshotBitmap = renderer.GetBitmap(width, height, frame);
         if (snapshotBitmap == null)
             return;
 
@@ -390,7 +389,7 @@ unsafe partial class Player
     /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
     /// <param name="frame">Specify the frame (null: will use the current/last frame)</param>
     /// <returns></returns>
-    public Bitmap TakeSnapshotToBitmap(int width = -1, int height = -1, VideoFrame frame = null) => renderer == null ? null : renderer.GetBitmap(width, height, frame);
+    public Bitmap TakeSnapshotToBitmap(int width = -1, int height = -1, VideoFrame frame = null) => renderer?.GetBitmap(width, height, frame);
 
     public void ZoomIn() => ZoomTimes++;
     public void ZoomOut() => ZoomTimes--;

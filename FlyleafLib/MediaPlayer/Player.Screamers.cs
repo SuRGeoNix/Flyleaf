@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Threading;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
-using FlyleafLib.MediaFramework.MediaFrame;
 
 using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
@@ -101,7 +100,6 @@ unsafe partial class Player
         if (Config.Audio.Enabled)
         {
             curAudioDeviceDelay = Audio.GetDeviceDelay();
-            Audio.sourceVoice.FlushSourceBuffers();
 
             if (AudioDecoder.OnVideoDemuxer)
                 AudioDecoder.Start();
@@ -264,7 +262,7 @@ unsafe partial class Player
 
         while (Status == Status.Playing)
         {
-            if (seeks.TryPop(out SeekData seekData))
+            if (seeks.TryPop(out var seekData))
             {
                 seeks.Clear();
                 requiresBuffering = true;
@@ -386,10 +384,7 @@ unsafe partial class Player
 
                 if (seeks.IsEmpty)
                 {
-                    if (!MainDemuxer.IsHLSLive)
-                        curTime = (long) (vFrame.timestamp * Speed);
-                    else
-                        curTime = VideoDemuxer.CurTime;
+                    curTime = !MainDemuxer.IsHLSLive ? (long) (vFrame.timestamp * Speed) : VideoDemuxer.CurTime;
 
                     if (Config.Player.UICurTimePerFrame)
                         UI(() => UpdateCurTime());
@@ -407,12 +402,7 @@ unsafe partial class Player
                         {
                             if (curLatency > Config.Player.MaxLatency * 20)
                                 { decoder.Flush(); newSpeed = 1; }
-                            else if (curLatency > Config.Player.MaxLatency * 10)
-                                newSpeed = 1.75;
-                            else if (curLatency > Config.Player.MaxLatency * 2)
-                                newSpeed = 1.5;
-                            else
-                                newSpeed = 1.1;
+                            else newSpeed = curLatency > Config.Player.MaxLatency * 10 ? 1.75 : curLatency > Config.Player.MaxLatency * 2 ? 1.5 : 1.1;
                         }
 
                         vFrame.timestamp = (long)(vFrame.timestamp / newSpeed);
@@ -503,7 +493,7 @@ unsafe partial class Player
                     }
                     else
                     {
-                        int maxdrop = Math.Max(Math.Min((vDistanceMs - sleepMs) - 1, 20), 3);
+                        int maxdrop = Math.Max(Math.Min(vDistanceMs - sleepMs - 1, 20), 3);
                         for (int i=0; i<maxdrop; i++)
                         {
                             if (CanTrace) Log.Trace($"aDistanceMs 2 = {aDistanceMs}");
@@ -537,14 +527,14 @@ unsafe partial class Player
                     
                     sFramePrev = sFrame;
                     sFrame = null;
-                    SubtitlesDecoder.Frames.TryDequeue(out SubtitlesFrame devnull);
+                    SubtitlesDecoder.Frames.TryDequeue(out var devnull);
                 }
                 else if (sDistanceMs < -30)
                 {
                     if (CanWarn) Log.Info($"sDistanceMs = {sDistanceMs}");
 
                     sFrame = null;
-                    SubtitlesDecoder.Frames.TryDequeue(out SubtitlesFrame devnull);
+                    SubtitlesDecoder.Frames.TryDequeue(out var devnull);
                 }
             }
         }
@@ -576,10 +566,7 @@ unsafe partial class Player
 
         while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
 
-        if (!IsPlaying || AudioDecoder.Frames.IsEmpty || !seeks.IsEmpty)
-            return false;
-
-        return true;
+        return IsPlaying && !AudioDecoder.Frames.IsEmpty && seeks.IsEmpty;
     }
     private void ScreamerAudioOnly()
     {
@@ -590,7 +577,7 @@ unsafe partial class Player
 
         while (IsPlaying)
         {
-            if (seeks.TryPop(out SeekData seekData))
+            if (seeks.TryPop(out var seekData))
             {
                 seeks.Clear();
                 requiresBuffering = true;
@@ -686,7 +673,7 @@ unsafe partial class Player
 
         while (Status == Status.Playing)
         {
-            if (seeks.TryPop(out SeekData seekData))
+            if (seeks.TryPop(out var seekData))
             {
                 seeks.Clear();
                 if (decoder.Seek(seekData.ms, seekData.forward) < 0)

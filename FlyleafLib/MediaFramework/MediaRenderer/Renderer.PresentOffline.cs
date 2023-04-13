@@ -13,8 +13,6 @@ using Vortice.Mathematics;
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
 
-using static FlyleafLib.Logger;
-
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public partial class Renderer
@@ -35,9 +33,9 @@ public partial class Renderer
     {
         if (videoProcessor == VideoProcessors.D3D11)
         {
-            vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out ID3D11VideoProcessorOutputView vpov);
+            vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out var vpov);
 
-            RawRect rect = new RawRect((int)viewport.X, (int)viewport.Y, (int)(viewport.Width + viewport.X), (int)(viewport.Height + viewport.Y));
+            RawRect rect = new((int)viewport.X, (int)viewport.Y, (int)(viewport.Width + viewport.X), (int)(viewport.Height + viewport.Y));
             vc.VideoProcessorSetStreamSourceRect(vp, 0, true, VideoRect);
             vc.VideoProcessorSetStreamDestRect(vp, 0, true, rect);
             vc.VideoProcessorSetOutputTargetRect(vp, true, rect);
@@ -87,8 +85,7 @@ public partial class Renderer
         {
             lock (lockDevice)
             {
-                if (frame == null)
-                    frame = LastFrame;
+                frame ??= LastFrame;
 
                 if (Disposed || frame == null || (frame.textures == null && frame.bufRef == null))
                     return null;
@@ -138,7 +135,7 @@ public partial class Renderer
     }
     public Bitmap GetBitmap(ID3D11Texture2D stageTexture)
     {
-        Bitmap bitmap   = new Bitmap(stageTexture.Description.Width, stageTexture.Description.Height);
+        Bitmap bitmap   = new(stageTexture.Description.Width, stageTexture.Description.Height);
         var db          = context.Map(stageTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
         var bitmapData  = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
 
@@ -176,7 +173,7 @@ public partial class Renderer
 
         int subresource = -1;
 
-        var stageDesc = new Texture2DDescription()
+        Texture2DDescription stageDesc = new()
         {
             Usage       = ResourceUsage.Staging,
             Width       = VideoDecoder.VideoStream.Width,
@@ -188,7 +185,7 @@ public partial class Renderer
             CPUAccessFlags      = CpuAccessFlags.Read,
             SampleDescription   = new SampleDescription(1, 0)
         };
-        ID3D11Texture2D stage = Device.CreateTexture2D(stageDesc);
+        var stage = Device.CreateTexture2D(stageDesc);
 
         lock (lockDevice)
         {

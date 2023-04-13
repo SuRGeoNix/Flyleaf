@@ -19,11 +19,11 @@ public static partial class Utils
         #region Private Properties
         protected XmlSerializer ValueSerializer
         {
-            get { return _valueSerializer ?? (_valueSerializer = new XmlSerializer(typeof(TVal))); }
+            get { return _valueSerializer ??= new XmlSerializer(typeof(TVal)); }
         }
         private XmlSerializer KeySerializer
         {
-            get { return _keySerializer ?? (_keySerializer = new XmlSerializer(typeof(TKey))); }
+            get { return _keySerializer ??= new XmlSerializer(typeof(TKey)); }
         }
         #endregion
         #region Private Members
@@ -55,7 +55,7 @@ public static partial class Utils
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.AddValue("itemsCount", Count);
-            int itemIdx = 0; foreach (KeyValuePair<TKey, TVal> kvp in this)
+            int itemIdx = 0; foreach (var kvp in this)
             {
                 info.AddValue(String.Format(CultureInfo.InvariantCulture, "Item{0}", itemIdx), kvp, typeof(KeyValuePair<TKey, TVal>));
                 itemIdx++;
@@ -65,7 +65,7 @@ public static partial class Utils
         #region IXmlSerializable Members
         void IXmlSerializable.WriteXml(XmlWriter writer)
         {
-            foreach (KeyValuePair<TKey, TVal> kvp in this)
+            foreach (var kvp in this)
             {
                 writer.WriteStartElement("item");
                 writer.WriteStartElement("key");
@@ -129,8 +129,8 @@ public static partial class Utils
 
                 if (CollectionChanged != null)
                 {
-                    KeyValuePair<TKey, TVal> oldItem = new KeyValuePair<TKey, TVal>(key, base[key]);
-                    KeyValuePair<TKey, TVal> newItem = new KeyValuePair<TKey, TVal>(key, value);
+                    KeyValuePair<TKey, TVal> oldItem = new(key, base[key]);
+                    KeyValuePair<TKey, TVal> newItem = new(key, value);
                     base[key] = value;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(key.ToString()));
                     CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, newItem, oldItem, this.ToList().IndexOf(newItem)));

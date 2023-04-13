@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace FlyleafLib.MediaFramework.MediaPlaylist;
+﻿namespace FlyleafLib.MediaFramework.MediaPlaylist;
 
 public class Session
 {

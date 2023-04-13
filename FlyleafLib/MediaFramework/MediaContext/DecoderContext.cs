@@ -6,7 +6,6 @@ using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
-using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaRemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -79,12 +78,12 @@ public unsafe partial class DecoderContext : PluginHandler
     public AudioDecoder         AudioDecoder        { get; private set; }
     public VideoDecoder         VideoDecoder        { get; internal set;}
     public SubtitlesDecoder     SubtitlesDecoder    { get; private set; }
-    public DecoderBase  GetDecoderPtr(MediaType type)   { return type == MediaType.Audio ? (DecoderBase)AudioDecoder : (type == MediaType.Video ?  (DecoderBase)VideoDecoder : (DecoderBase)SubtitlesDecoder); }
+    public DecoderBase  GetDecoderPtr(MediaType type)   { return type == MediaType.Audio ? AudioDecoder : (type == MediaType.Video ? VideoDecoder : SubtitlesDecoder); }
 
     // Streams
-    public AudioStream          AudioStream         => VideoDemuxer?.AudioStream != null ? VideoDemuxer?.AudioStream : AudioDemuxer.AudioStream;
+    public AudioStream          AudioStream         => (VideoDemuxer?.AudioStream) ?? AudioDemuxer.AudioStream;
     public VideoStream          VideoStream         => VideoDemuxer?.VideoStream;
-    public SubtitlesStream      SubtitlesStream     => VideoDemuxer?.SubtitlesStream != null ? VideoDemuxer?.SubtitlesStream : SubtitlesDemuxer.SubtitlesStream;
+    public SubtitlesStream      SubtitlesStream     => (VideoDemuxer?.SubtitlesStream) ?? SubtitlesDemuxer.SubtitlesStream;
 
     public Tuple<ExternalAudioStream, int>      ClosedAudioStream       { get; private set; }
     public Tuple<ExternalVideoStream, int>      ClosedVideoStream       { get; private set; }
@@ -426,8 +425,8 @@ public unsafe partial class DecoderContext : PluginHandler
         // TBR: Between seek and GetVideoFrame lockCodecCtx is lost and if VideoDecoder is running will already have decoded some frames (Currently ensure you pause VideDecoder before seek)
 
         int ret;
-        AVPacket* packet = av_packet_alloc();
-        AVFrame*  frame  = av_frame_alloc();
+        var packet = av_packet_alloc();
+        var frame  = av_frame_alloc();
 
         lock (VideoDemuxer.lockFmtCtx)
         lock (VideoDecoder.lockCodecCtx)
@@ -451,7 +450,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
             if (CanTrace)
             {
-                StreamBase stream = VideoDemuxer.AVStreamToStream[packet->stream_index];
+                var stream = VideoDemuxer.AVStreamToStream[packet->stream_index];
                 long dts = packet->dts == AV_NOPTS_VALUE ? -1 : (long)(packet->dts * stream.Timebase);
                 long pts = packet->pts == AV_NOPTS_VALUE ? -1 : (long)(packet->pts * stream.Timebase);
                 Log.Trace($"[{stream.Type}] DTS: {(dts == -1 ? "-" : TicksToTime(dts))} PTS: {(pts == -1 ? "-" : TicksToTime(pts))} | FLPTS: {(pts == -1 ? "-" : TicksToTime(pts - VideoDemuxer.StartTime))} | CurTime: {TicksToTime(VideoDemuxer.CurTime)} | Buffered: {TicksToTime(VideoDemuxer.BufferedDuration)}");
@@ -460,7 +459,7 @@ public unsafe partial class DecoderContext : PluginHandler
             switch (VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type)
             {
                 case AVMEDIA_TYPE_AUDIO:
-                    if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * AudioStream.Timebase) - VideoDemuxer.StartTime + VideoStream.FrameDuration / 2 > timestamp)
+                    if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * AudioStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.AudioPackets.Enqueue(packet);
                     
                     packet = av_packet_alloc();
@@ -468,7 +467,7 @@ public unsafe partial class DecoderContext : PluginHandler
                     continue;
 
                 case AVMEDIA_TYPE_SUBTITLE:
-                    if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime + VideoStream.FrameDuration / 2 > timestamp)
+                    if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.SubtitlesPackets.Enqueue(packet);
 
                     packet = av_packet_alloc();
@@ -504,7 +503,7 @@ public unsafe partial class DecoderContext : PluginHandler
                         VideoDecoder.keyFrameRequired = false;
 
                         // Accurate seek with +- half frame distance
-                        if (timestamp != -1 && (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime + VideoStream.FrameDuration / 2 < timestamp)
+                        if (timestamp != -1 && (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) < timestamp)
                         {
                             av_frame_unref(frame);
                             continue;
@@ -513,7 +512,7 @@ public unsafe partial class DecoderContext : PluginHandler
                         //if (CanInfo) Info($"Asked for {Utils.TicksToTime(timestamp)} and got {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime)} | Diff {Utils.TicksToTime(timestamp - ((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime))}");
                         VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
 
-                        VideoFrame mFrame = VideoDecoder.Renderer.FillPlanes(frame);
+                        var mFrame = VideoDecoder.Renderer.FillPlanes(frame);
                         if (mFrame == null) return -1;
 
                         if (mFrame != null)
@@ -525,7 +524,7 @@ public unsafe partial class DecoderContext : PluginHandler
                                 frame = av_frame_alloc();
                                 ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                                 if (ret != 0) break;
-                                VideoFrame mFrame2 = VideoDecoder.Renderer.FillPlanes(frame);
+                                var mFrame2 = VideoDecoder.Renderer.FillPlanes(frame);
                                 if (mFrame2 != null) VideoDecoder.Frames.Enqueue(mFrame);
                             }
 

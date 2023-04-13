@@ -119,10 +119,7 @@ public class Audio : NotifyPropertyChanged
                 if (sourceVoice == null)
                     return;
 
-                if (value)
-                    sourceVoice.Volume = 0;
-                else
-                    sourceVoice.Volume = _Volume / 100.0f;
+                sourceVoice.Volume = value ? 0 : _Volume / 100.0f;
             }
 
             Set(ref mute, value, false);
@@ -175,10 +172,7 @@ public class Audio : NotifyPropertyChanged
         {                
             lock (locker)
             {
-                if (sourceVoice == null)
-                    return 0;
-
-                return sourceVoice.State.BuffersQueued;
+                return sourceVoice == null ? 0 : sourceVoice.State.BuffersQueued;
             }
         }
     }
@@ -190,14 +184,13 @@ public class Audio : NotifyPropertyChanged
     DecoderContext          decoder => player?.decoder;
 
     Action                  uiAction;
-    readonly object         locker = new object();
+    readonly object         locker = new();
 
     IXAudio2                xaudio2;
     internal IXAudio2MasteringVoice
                             masteringVoice;
-    internal IXAudio2SourceVoice
-                            sourceVoice;
-    WaveFormat              waveFormat = new WaveFormat(48000, 16, 2); // Output Audio Device
+    IXAudio2SourceVoice     sourceVoice;
+    WaveFormat              waveFormat = new(48000, 16, 2); // Output Audio Device
     double                  deviceDelayTimebase;
     #endregion
 
@@ -253,7 +246,7 @@ public class Audio : NotifyPropertyChanged
                 sourceVoice.SetSourceSampleRate(SampleRate);
                 sourceVoice.Start();
 
-                deviceDelayTimebase     = (1000 * 10000.0) / sampleRate;
+                deviceDelayTimebase     = 1000 * 10000.0 / sampleRate;
                 masteringVoice.Volume   = Config.Player.VolumeMax / 100.0f;
                 bool oldMute    = mute;
                 Volume          = _Volume;

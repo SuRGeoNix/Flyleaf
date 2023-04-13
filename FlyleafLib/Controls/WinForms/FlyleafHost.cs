@@ -26,7 +26,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
             if (_Player == value)
                 return; 
 
-            Player oldPlayer = _Player; 
+            var oldPlayer = _Player; 
             _Player = value; 
             SetPlayer(oldPlayer); 
             Raise(nameof(Player));
@@ -80,14 +80,14 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
     
 
     int panPrevX, panPrevY;
-    Point mouseLeftDownPoint = new Point(0, 0);
+    Point mouseLeftDownPoint = new(0, 0);
     Point mouseMoveLastPoint;
     Point oldLocation = Point.Empty;
     Size oldSize = Size.Empty;
     FormBorderStyle oldStyle = FormBorderStyle.None;
     Control oldParent = null;
     LogHandler Log;
-    bool designMode = (LicenseManager.UsageMode == LicenseUsageMode.Designtime);
+    bool designMode = LicenseManager.UsageMode == LicenseUsageMode.Designtime;
     static int idGenerator;
 
     private class FlyleafHostDropWrap { public FlyleafHost FlyleafHost; } // To allow non FlyleafHosts to drag & drop
@@ -147,7 +147,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
 
         if (PanZoomOnCtrlWheel && ModifierKeys.HasFlag(Keys.Control))
         {
-            System.Windows.Point curDpi = new System.Windows.Point(e.Location.X, e.Location.Y);
+            System.Windows.Point curDpi = new(e.Location.X, e.Location.Y);
             if (e.Delta > 0)
                 Player.ZoomIn(curDpi);
             else

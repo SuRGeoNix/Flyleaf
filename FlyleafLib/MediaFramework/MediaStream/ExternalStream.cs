@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaPlaylist;
@@ -26,10 +25,7 @@ public class ExternalStream : DemuxerInput
     }
     public object GetTag(string pluginName)
     {
-        if (Tag.ContainsKey(pluginName))
-            return Tag[pluginName];
-        else
-            return null;
+        return Tag.ContainsKey(pluginName) ? Tag[pluginName] : null;
     }
 
     /// <summary>
@@ -46,11 +42,6 @@ public class ExternalStream : DemuxerInput
     public MediaType
                     Type            { get
     {
-        if (this is ExternalAudioStream)
-            return MediaType.Audio;
-        else if (this is ExternalVideoStream)
-            return MediaType.Video;
-        else
-            return MediaType.Subs;
-    } }
+            return this is ExternalAudioStream ? MediaType.Audio : this is ExternalVideoStream ? MediaType.Video : MediaType.Subs;
+        } }
 }

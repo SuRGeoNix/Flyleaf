@@ -46,8 +46,7 @@ public abstract class PluginBase : PluginType, IPlugin
 
     public void AddExternalStream(ExternalStream extStream, object tag = null, PlaylistItem item = null)
     {
-        if (item == null)
-            item = Playlist.Selected;
+        item ??= Playlist.Selected;
 
         item?.AddExternalStream(extStream, item, Name, tag);
     }
@@ -59,20 +58,19 @@ public abstract class PluginBase : PluginType, IPlugin
 
     public void AddTag(object tag, PlaylistItem item = null)
     {
-        if (item == null)
-            item = Playlist.Selected;
+        item ??= Playlist.Selected;
 
         item?.AddTag(tag, Name);
     }
 
     public object GetTag(ExternalStream extStream)
     {
-        return extStream != null ? extStream.GetTag(Name) : null;
+        return extStream?.GetTag(Name);
     }
 
     public object GetTag(PlaylistItem item)
     {
-        return item != null ? item.GetTag(Name) : null;
+        return item?.GetTag(Name);
     }
 
     public virtual SerializableDictionary<string, string> GetDefaultOptions()

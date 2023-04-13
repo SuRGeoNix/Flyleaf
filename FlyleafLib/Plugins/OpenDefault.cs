@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
 
 using FlyleafLib.MediaFramework.MediaPlaylist;
 
@@ -45,18 +42,18 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
 
             // Proper Url Format
             string scheme;
-            bool isWeb = false;
-            string uriType = "";
-            string ext = Utils.GetUrlExtention(Playlist.Url);
-            string localPath = null;
+            bool   isWeb    = false;
+            string uriType  = "";
+            string ext      = Utils.GetUrlExtention(Playlist.Url);
+            string localPath= null;
 
             try
             {
-                Uri uri = new Uri(Playlist.Url);
-                scheme = uri.Scheme.ToLower();
-                isWeb = scheme.StartsWith("http");
-                uriType = uri.IsFile ? "file" : ((uri.IsUnc) ? "unc" : "");
-                localPath = uri.LocalPath;
+                Uri uri     = new(Playlist.Url);
+                scheme      = uri.Scheme.ToLower();
+                isWeb       = scheme.StartsWith("http");
+                uriType     = uri.IsFile ? "file" : (uri.IsUnc ? "unc" : "");
+                localPath   = uri.LocalPath;
             } catch { }
 
 
@@ -115,7 +112,7 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
                 Playlist.InputType = InputType.File;
                 if (File.Exists(Playlist.Url))
                 {
-                    var fi = new FileInfo(Playlist.Url);
+                    FileInfo fi = new(Playlist.Url);
                     Playlist.FolderBase = fi.DirectoryName;
                 }
             }
@@ -135,15 +132,16 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
                 Playlist.FolderBase = Path.GetTempPath();
             }
 
-            PlaylistItem item = new PlaylistItem();
-
-            item.Url = Playlist.Url;
-            item.DirectUrl = Playlist.Url;
+            PlaylistItem item = new()
+            {
+                Url         = Playlist.Url,
+                DirectUrl   = Playlist.Url
+            };
 
             if (File.Exists(Playlist.Url))
             {
-                var fi = new FileInfo(Playlist.Url);
-                item.Title = fi.Extension == null ? fi.Name : fi.Name.Substring(0, fi.Name.Length - fi.Extension.Length);
+                FileInfo fi = new(Playlist.Url);
+                item.Title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
                 item.FileSize = fi.Length;
             }
             else
@@ -175,9 +173,9 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
 
         if (mp.Season > 0)
         {
-            item.Season = mp.Season;
+            item.Season  = mp.Season;
             item.Episode = mp.Episode;
-            item.Title += $" S{item.Season}E{item.Episode}";
+            item.Title  += $" S{item.Season}E{item.Episode}";
         }
     }
 }

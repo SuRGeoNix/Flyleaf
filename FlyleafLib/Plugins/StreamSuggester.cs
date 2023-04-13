@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -71,7 +70,7 @@ public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggest
             orderby vstream.Height descending
             select vstream;
 
-        var results = iresults.ToList();
+        List<VideoStream> results = iresults.ToList();
 
         if (results.Count != 0)
             return iresults.ToList()[0];
@@ -101,7 +100,7 @@ public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggest
         stream = null;
         extStream = null;
 
-        List<Language> langs = new List<Language>();
+        List<Language> langs = new();
 
         foreach (var lang in Config.Subtitles.Languages)
             langs.Add(lang);

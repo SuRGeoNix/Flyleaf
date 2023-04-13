@@ -25,11 +25,11 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
 
         try
         {
-            var fi = new FileInfo(Playlist.Url);
-            title = fi.Extension == null ? fi.Name : fi.Name.Substring(0, fi.Name.Length - fi.Extension.Length);
+            FileInfo fi = new(Playlist.Url);
+            title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
         } catch { title = url; }
 
-        ExternalSubtitlesStream newExtStream = new ExternalSubtitlesStream()
+        ExternalSubtitlesStream newExtStream = new()
         {
             Url         = url,
             Title       = title,
@@ -54,21 +54,21 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
          * 3) Confidence
          */
 
-        List<string> files = new List<string>();
+        List<string> files = new();
 
         try
         {
             foreach (var lang in Config.Subtitles.Languages)
             {
                 //FileInfo fi = new FileInfo(Handler.Playlist.Url);
-                string prefix = Selected.Title.Substring(0, Math.Min(Selected.Title.Length, 4));
+                string prefix = Selected.Title[..Math.Min(Selected.Title.Length, 4)];
 
                 string folder = Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs");
                 if (!Directory.Exists(folder))
                     return;
 
                 string[] filesCur = Directory.GetFiles(Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs"), $"{prefix}*{lang.IdSubLanguage}.utf8*.srt");
-                foreach(var file in filesCur)
+                foreach(string file in filesCur)
                 {
                     bool exists = false;
                     foreach(var extStream in Selected.ExternalSubtitlesStreams)

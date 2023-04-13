@@ -133,8 +133,7 @@ public class KeysConfig
 
     internal void SetPlayer(Player player)
     {
-        if (Keys == null)
-            Keys = new List<KeyBinding>();
+        Keys ??= new List<KeyBinding>();
 
         if (!player.Config.Loaded && Keys.Count == 0)
             LoadDefault();
@@ -450,7 +449,7 @@ public class KeysConfig
 
         return null;
     }
-    private static HashSet<KeyBindingAction> isKeyUpBinding = new HashSet<KeyBindingAction>
+    private static HashSet<KeyBindingAction> isKeyUpBinding = new()
     {
         // TODO: Should Fire once one KeyDown and not again until KeyUp is fired (in case of Tasks keep track of already running actions?)
 

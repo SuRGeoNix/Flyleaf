@@ -20,7 +20,7 @@ public static partial class Utils
     // VLC : https://github.com/videolan/vlc/blob/master/modules/gui/qt/dialogs/preferences/simple_preferences.cpp
     // Kodi: https://github.com/xbmc/xbmc/blob/master/xbmc/settings/AdvancedSettings.cpp
 
-    public static List<string> ExtensionsAudio = new List<string>()
+    public static List<string> ExtensionsAudio = new()
     {
         // VLC
           "3ga" , "669" , "a52" , "aac" , "ac3"
@@ -35,17 +35,17 @@ public static partial class Utils
         , "wv"  , "xa"  , "xm"
     };
 
-    public static List<string> ExtensionsPictures = new List<string>()
+    public static List<string> ExtensionsPictures = new()
     {
         "apng", "bmp", "gif", "jpg", "jpeg", "png", "ico", "tif", "tiff", "tga"
     };
 
-    public static List<string> ExtensionsSubtitles = new List<string>()
+    public static List<string> ExtensionsSubtitles = new()
     {
         "ass", "ssa", "srt", "sub", "txt", "text", "vtt"
     };
 
-    public static List<string> ExtensionsVideo = new List<string>()
+    public static List<string> ExtensionsVideo = new()
     {
         // VLC
           "3g2" , "3gp" , "3gp2", "3gpp", "amrec"
@@ -103,13 +103,10 @@ public static partial class Utils
     public static int Align(int num, int align)
     {
         int mod = num % align;
-        if (mod == 0)
-            return num;
-
-        return num + (align - num % align);
+        return mod == 0 ? num : num + (align - (num % align));
     }
     public static float Scale(float value, float inMin, float inMax, float outMin, float outMax)
-        => (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+        => ((value - inMin) * (outMax - outMin) / (inMax - inMin)) + outMin;
 
     /// <summary>
     /// Adds a windows firewall rule if not already exists for the specified program path
@@ -131,7 +128,7 @@ public static partial class Utils
                 path = $"\"{path}\"";
 
                 // Check if rule already exists
-                Process proc = new Process
+                Process proc = new()
                 {
                     StartInfo = new ProcessStartInfo
                     {
@@ -186,7 +183,7 @@ public static partial class Utils
 
     public static List<string> GetMoviesSorted(List<string> movies)
     {
-        List<string> moviesSorted = new List<string>();
+        List<string> moviesSorted = new();
 
         for (int i = 0; i < movies.Count; i++)
         {
@@ -195,7 +192,7 @@ public static partial class Utils
             if (ext == null || ext.Trim() == "")
                 continue;
 
-            if (ExtensionsVideo.Contains(ext.Substring(1, ext.Length - 1).ToLower()))
+            if (ExtensionsVideo.Contains(ext[1..].ToLower()))
                 moviesSorted.Add(movies[i]);
         }
 
@@ -219,10 +216,10 @@ public static partial class Utils
 
         return dump;
     }
-    public static string GetUrlExtention(string url) { return url.LastIndexOf(".") > 0 ? url.Substring(url.LastIndexOf(".") + 1).ToLower() : ""; }
+    public static string GetUrlExtention(string url) { return url.LastIndexOf(".") > 0 ? url[(url.LastIndexOf(".") + 1)..].ToLower() : ""; }
     public static List<Language> GetSystemLanguages()
     {
-        List<Language> Languages = new List<Language>();
+        List<Language> Languages = new();
         if (CultureInfo.CurrentCulture.ThreeLetterISOLanguageName != "eng")
             Languages.Add(Language.Get(CultureInfo.CurrentCulture));
 
@@ -245,8 +242,8 @@ public static partial class Utils
     public static MediaParts GetMediaParts(string title, bool movieOnly = false)
     {
         Match res;
-        MediaParts mp = new MediaParts();
-        List<int> indices = new List<int>();
+        MediaParts mp = new();
+        List<int> indices = new();
 
         // s|season 01 ... e|episode 01
         res = Regex.Match(title, @"(^|[^a-z0-9])(s|season)[^a-z0-9]*(?<season>[0-9]{1,2})[^a-z0-9]*(e|episode)[^a-z0-9]*(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
@@ -279,10 +276,10 @@ public static partial class Utils
 
         var sorted = indices.OrderBy(x => x);
 
-        foreach (var index in sorted)
+        foreach (int index in sorted)
             if (index > 0)
             {
-                title = title.Substring(0, index);
+                title = title[..index];
                 break;
             }
 
@@ -330,14 +327,11 @@ public static partial class Utils
     {
         if (folder.StartsWith(":"))
         {
-            folder = folder.Substring(1);
+            folder = folder[1..];
             return FindFolderBelow(folder);
         }
 
-        if (Path.IsPathRooted(folder))
-            return folder;
-
-        return Path.GetFullPath(folder);
+        return Path.IsPathRooted(folder) ? folder : Path.GetFullPath(folder);
     }
 
     public static string FindFolderBelow(string folder)
@@ -359,12 +353,12 @@ public static partial class Utils
     {
         try
         {
-            using (HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) })
-                return client.GetAsync(url).Result.Content.ReadAsStringAsync().Result;
+            using HttpClient client = new() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) };
+            return client.GetAsync(url).Result.Content.ReadAsStringAsync().Result;
         }
         catch (Exception e)
         {
-            Log($"Download failed {e.Message} [Url: {(url != null ? url : "Null")}]");
+            Log($"Download failed {e.Message} [Url: {url ?? "Null"}]");
         }
 
         return null;
@@ -372,16 +366,16 @@ public static partial class Utils
 
     public static MemoryStream DownloadFile(string url, int timeoutMs = 30000)
     {
-        MemoryStream ms = new MemoryStream();
+        MemoryStream ms = new();
 
         try
         {
-            using (HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) })
-                client.GetAsync(url).Result.Content.CopyToAsync(ms).Wait();
+            using HttpClient client = new() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) };
+            client.GetAsync(url).Result.Content.CopyToAsync(ms).Wait();
         }
         catch (Exception e)
         {
-            Log($"Download failed {e.Message} [Url: {(url != null ? url : "Null")}]");
+            Log($"Download failed {e.Message} [Url: {url ?? "Null"}]");
         }
 
         return ms;
@@ -391,17 +385,15 @@ public static partial class Utils
     {
         try
         {
-            using (HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) })
-            {
-                using (FileStream fs = new FileStream(filename, overwrite ? FileMode.Create : FileMode.CreateNew))
-                    client.GetAsync(url).Result.Content.CopyToAsync(fs).Wait();
+            using HttpClient client = new() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) };
+            using FileStream fs = new(filename, overwrite ? FileMode.Create : FileMode.CreateNew);
+            client.GetAsync(url).Result.Content.CopyToAsync(fs).Wait();
 
-                return true;
-            }
+            return true;
         }
         catch (Exception e)
         {
-            Log($"Download failed {e.Message} [Url: {(url != null ? url : "Null")}, Path: {(filename ?? "Null")}]");
+            Log($"Download failed {e.Message} [Url: {url ?? "Null"}, Path: {filename ?? "Null"}]");
         }
 
         return false;
@@ -413,7 +405,7 @@ public static partial class Utils
             if (url == null || url.Length < 5)
                 return url;
 
-            if (url.Substring(0, 5).ToLower() == "file:")
+            if (url[..5].ToLower() == "file:")
                 return new Uri(url).LocalPath;
         }
         catch { }
@@ -429,27 +421,27 @@ public static partial class Utils
         if (i >= 0x1000000000000000) // Exabyte
         {
             suffix = "EB";
-            readable = (i >> 50);
+            readable = i >> 50;
         }
         else if (i >= 0x4000000000000) // Petabyte
         {
             suffix = "PB";
-            readable = (i >> 40);
+            readable = i >> 40;
         }
         else if (i >= 0x10000000000) // Terabyte
         {
             suffix = "TB";
-            readable = (i >> 30);
+            readable = i >> 30;
         }
         else if (i >= 0x40000000) // Gigabyte
         {
             suffix = "GB";
-            readable = (i >> 20);
+            readable = i >> 20;
         }
         else if (i >= 0x100000) // Megabyte
         {
             suffix = "MB";
-            readable = (i >> 10);
+            readable = i >> 10;
         }
         else if (i >= 0x400) // Kilobyte
         {
@@ -461,20 +453,20 @@ public static partial class Utils
             return i.ToString("0 B"); // Byte
         }
         // Divide by 1024 to get fractional value
-        readable = (readable / 1024);
+        readable /= 1024;
         // Return formatted number with suffix
         return readable.ToString("0.## ") + suffix;
     }
     static List<PerformanceCounter> gpuCounters;
     public static void GetGPUCounters()
     {
-        var category = new PerformanceCounterCategory("GPU Engine");
-        var counterNames = category.GetInstanceNames();
+        PerformanceCounterCategory category = new("GPU Engine");
+        string[] counterNames = category.GetInstanceNames();
         gpuCounters = new List<PerformanceCounter>();
 
         foreach (string counterName in counterNames)
             if (counterName.EndsWith("engtype_3D"))
-                foreach (PerformanceCounter counter in category.GetCounters(counterName))
+                foreach (var counter in category.GetCounters(counterName))
                     if (counter.CounterName == "Utilization Percentage")
                         gpuCounters.Add(counter);
     }
@@ -499,19 +491,15 @@ public static partial class Utils
     {
         string newFileName = "";
 
-        FileInfo fileToDecompress = new FileInfo(filename);
-        using (FileStream originalFileStream = fileToDecompress.OpenRead())
+        FileInfo fileToDecompress = new(filename);
+        using (var originalFileStream = fileToDecompress.OpenRead())
         {
             string currentFileName = fileToDecompress.FullName;
             newFileName = currentFileName.Remove(currentFileName.Length - fileToDecompress.Extension.Length);
 
-            using (FileStream decompressedFileStream = File.Create(newFileName))
-            {
-                using (GZipStream decompressionStream = new GZipStream(originalFileStream, CompressionMode.Decompress))
-                {
-                    decompressionStream.CopyTo(decompressedFileStream);
-                }
-            }
+            using var decompressedFileStream = File.Create(newFileName);
+            using GZipStream decompressionStream = new(originalFileStream, CompressionMode.Decompress);
+            decompressionStream.CopyTo(decompressedFileStream);
         }
 
         return newFileName;
@@ -522,8 +510,8 @@ public static partial class Utils
         if (bytePtr == null) return null;
         if (*bytePtr == 0) return string.Empty;
 
-        var byteBuffer = new List<byte>(1024);
-        var currentByte = default(byte);
+        List<byte> byteBuffer = new(1024);
+        byte currentByte = default(byte);
 
         while (true)
         {
@@ -546,7 +534,7 @@ public static partial class Utils
 
     public static string ToHexadecimal(byte[] bytes)
     {
-        StringBuilder hexBuilder = new StringBuilder();
+        StringBuilder hexBuilder = new();
         for (int i = 0; i < bytes.Length; i++)
         {
             hexBuilder.Append(bytes[i].ToString("x2"));
@@ -555,5 +543,5 @@ public static partial class Utils
     }
     public static int GCD(int a, int b) => b == 0 ? a : GCD(b, a % b);
     public static string TicksToTime(long ticks) => new TimeSpan(ticks).ToString();
-    public static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now.ToString("hh.mm.ss.fff")}] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } }
+    public static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now:hh.mm.ss.fff}] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } }
 }

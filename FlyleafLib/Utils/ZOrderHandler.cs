@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Interop;
 using System.Windows;
@@ -43,8 +42,8 @@ public static partial class Utils
             public Window Window;
             public IntPtr WindowHwnd;
 
-            Dictionary<string, IntPtr> WindowNamesHandles = new Dictionary<string, IntPtr>();
-            Dictionary<string, Window> WindowNamesWindows = new Dictionary<string, Window>();
+            Dictionary<string, IntPtr> WindowNamesHandles = new();
+            Dictionary<string, Window> WindowNamesWindows = new();
 
             public Owner(Window window, IntPtr windowHwnd)
             {
@@ -87,7 +86,7 @@ public static partial class Utils
                 if (string.IsNullOrEmpty(window.Name))
                 {
                     hwnd = new WindowInteropHelper(window).Handle;
-                    window.Name = "Zorder" + (uniqueNameId++).ToString();
+                    window.Name = "Zorder" + uniqueNameId++.ToString();
                     WindowNamesHandles.Add(window.Name, hwnd);
                     WindowNamesWindows.Add(window.Name, window);
                 }
@@ -137,7 +136,7 @@ public static partial class Utils
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         for (int i=0; i<SavedZOrder.Count; i++)
-                            if (WindowNamesWindows.TryGetValue(SavedZOrder[i].window, out Window window) && window.IsVisible)
+                            if (WindowNamesWindows.TryGetValue(SavedZOrder[i].window, out var window) && window.IsVisible)
                                 window.Activate();
 
                         Debug.WriteLine("Restored");
@@ -148,11 +147,11 @@ public static partial class Utils
 
             public List<ZOrder> GetZOrder()
             {
-                List<ZOrder> zorders = new List<ZOrder>();
+                List<ZOrder> zorders = new();
 
                 foreach(Window window in Window.OwnedWindows)
                 {
-                    ZOrder zorder = new ZOrder();
+                    ZOrder zorder = new();
                     IntPtr curHwnd = GetHandle(window);
                     if (curHwnd == IntPtr.Zero)
                         continue;
@@ -175,7 +174,7 @@ public static partial class Utils
             }
         }
 
-        public static Dictionary<IntPtr, Owner> Owners = new Dictionary<IntPtr, Owner>();
+        public static Dictionary<IntPtr, Owner> Owners = new();
 
         public static void Register(Window window)
         {
