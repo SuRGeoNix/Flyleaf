@@ -145,14 +145,17 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     long _CurTime, curTime;
     internal void UpdateCurTime()
     {
-        if (MainDemuxer == null || !seeks.IsEmpty)
-            return;
-
-        if (MainDemuxer.IsHLSLive)
+        lock (seeks)
         {
-            curTime  = MainDemuxer.CurTime;
-            duration = MainDemuxer.Duration;
-            Duration = Duration;
+            if (MainDemuxer == null || !seeks.IsEmpty)
+                return;
+
+            if (MainDemuxer.IsHLSLive)
+            {
+                curTime  = MainDemuxer.CurTime; // *speed ?
+                duration = MainDemuxer.Duration;
+                Duration = Duration;
+            }
         }
 
         Set(ref _CurTime, curTime, true, nameof(CurTime));

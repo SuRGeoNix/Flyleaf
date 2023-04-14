@@ -143,7 +143,7 @@ unsafe public partial class Renderer
                 }
 
                 vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
-                vc  = Device.ImmediateContext.QueryInterface<ID3D11VideoContext1>();
+                vc  = context.QueryInterface<ID3D11VideoContext1>();
 
                 vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
 
@@ -164,7 +164,7 @@ unsafe public partial class Renderer
             VideoProcessorsCapsCache.Add(Device.Tag.ToString(), cache);
 
             vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
-            vc  = Device.ImmediateContext.QueryInterface<ID3D11VideoContext>();
+            vc  = context.QueryInterface<ID3D11VideoContext>();
 
             vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
 
@@ -482,7 +482,7 @@ unsafe public partial class Renderer
         vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * angle));
         //vsBufferData.mat = Matrix4x4.Transpose(vsBufferData.mat); TBR
         context.UpdateSubresource(vsBufferData, vsBuffer);
-
+        vc?.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
         Present();
     }
     internal void UpdateVideoProcessor()

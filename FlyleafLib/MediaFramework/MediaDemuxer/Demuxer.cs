@@ -815,7 +815,8 @@ public unsafe class Demuxer : RunThreadBase
                 ret = av_read_frame(fmtCtx, packet);
                 if (Interrupter.ForceInterrupt != 0)
                 {
-                    av_packet_unref(packet); gotAVERROR_EXIT = true;
+                    av_packet_unref(packet);
+                    gotAVERROR_EXIT = true;
                     continue;
                 }
 

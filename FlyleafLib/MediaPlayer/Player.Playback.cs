@@ -175,9 +175,13 @@ partial class Player
     {
         if (!CanPlay) return;
 
-        curTime = ms * (long)10000;
+        lock (seeks)
+        {
+            curTime = ms * (long)10000;
+            seeks.Push(new SeekData(ms, forward, accurate));
+        }
         Raise(nameof(CurTime));
-        seeks.Push(new SeekData(ms, forward, accurate));
+        
 
         if (Status == Status.Playing) return;
 

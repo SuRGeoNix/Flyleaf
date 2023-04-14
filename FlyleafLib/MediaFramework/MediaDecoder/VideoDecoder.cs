@@ -56,7 +56,7 @@ public unsafe class VideoDecoder : DecoderBase
     public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
         => getHWformat = new AVCodecContext_get_format(get_format);
 
-    protected override void OnSpeedChanged() => speed = speed < 1 ? 1 : (int)speed;
+    protected override void OnSpeedChanged(double value) { oldSpeed = speed; speed = value; speed = speed < 1 ? 1 : (int)speed; }
 
     public void CreateRenderer() // TBR: It should be in the constructor but DecoderContext will not work with null VideoDecoder for AudioOnly
     {
@@ -84,7 +84,7 @@ public unsafe class VideoDecoder : DecoderBase
 
     #region Video Acceleration (Should be disposed seperately)
     const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
-    const AVHWDeviceType    HW_DEVICE   = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA; // To fully support Win7/8 should consider AV_HWDEVICE_TYPE_DXVA2
+    const AVHWDeviceType    HW_DEVICE = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA; // To fully support Win7/8 should consider AV_HWDEVICE_TYPE_DXVA2
 
     internal ID3D11Texture2D
                             textureFFmpeg;
@@ -472,8 +472,13 @@ public unsafe class VideoDecoder : DecoderBase
 
             lock (lockCodecCtx)
             {
-                if (Status == Status.Stopped || demuxer.VideoPackets.Count == 0) continue;
+                if (Status == Status.Stopped)
+                    continue;
+
                 packet = demuxer.VideoPackets.Dequeue();
+
+                if (packet == null)
+                    continue;
 
                 if (isRecording)
                 {
@@ -572,7 +577,7 @@ public unsafe class VideoDecoder : DecoderBase
                     }
 
                     var mFrame = Renderer.FillPlanes(frame);
-                    if (mFrame != null) Frames.Enqueue(mFrame);
+                    if (mFrame != null) Frames.Enqueue(mFrame); // TBR: Does not respect Config.Decoder.MaxVideoFrames
                 }
 
             } // Lock CodecCtx

@@ -18,9 +18,9 @@ public abstract unsafe class DecoderBase : RunThreadBase
     public AVCodecContext*          CodecCtx        => codecCtx;
     public Action<DecoderBase>      CodecChanged    { get; set; }
     public Config                   Config          { get; protected set; }
-    public double                   Speed           { get => speed; set { if (speed == value) return; oldSpeed = speed; speed = value; OnSpeedChanged(); } }
+    public double                   Speed           { get => speed; set { if (speed != value) OnSpeedChanged(value); } }
     protected double speed = 1, oldSpeed = 1;
-    protected virtual void OnSpeedChanged() { }
+    protected virtual void OnSpeedChanged(double value) { }
 
     protected bool              filledFromCodec;
     protected int               curSpeedFrame = 1;

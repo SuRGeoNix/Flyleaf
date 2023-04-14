@@ -109,12 +109,9 @@ public partial class Renderer
             }
 
             vpsa[0].InputSurface = vpiv;
-            vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
-            vc.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
-            vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
-                    
+
             if (dCompVisual != null)
                 dCompDevice.Commit();
 
@@ -128,7 +125,7 @@ public partial class Renderer
             context.PSSetShaderResources(0, frame.srvs);
             context.Draw(6, 0);
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
-
+            
             if (dCompVisual != null)
                 dCompDevice.Commit();
         }

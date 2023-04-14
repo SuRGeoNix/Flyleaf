@@ -22,6 +22,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
  * 2) Use different context/video processor for off rendering so we dont have to reset pixel shaders/viewports etc (review also rtvs for extractor)
  * 
  * 3) Add Crop (Left/Right/Top/Bottom) -on Source- support per pixels (easy implemantation with D3D11VP, FlyleafVP requires more research)
+ * 
+ * 4) Improve A/V Sync
+ * 
+ *  a. vsync / vblack
+ *  b. Present can cause a delay (based on device load), consider using more buffers for high frame rates that could minimize the delay
+ *  c. display refresh rate vs input rate, consider using max latency > 1 ?
+ *  d. frame drops
+ *  
+ *      swapChain.GetFrameStatistics(out var stats);
+ *      swapChain.LastPresentCount - stats.PresentCount;
  */
 
 public partial class Renderer : NotifyPropertyChanged, IDisposable
