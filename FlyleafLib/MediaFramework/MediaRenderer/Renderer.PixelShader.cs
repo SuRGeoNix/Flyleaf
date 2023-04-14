@@ -71,13 +71,12 @@ unsafe public partial class Renderer
 
     internal bool ConfigPlanes(bool isNewInput = true)
     {
-        bool vLockCodecCtx = false, rLockDevice = false;
         bool error = false;
 
         try
         {
-            Monitor.Enter(VideoDecoder.lockCodecCtx, ref vLockCodecCtx);
-            Monitor.Enter(lockDevice, ref rLockDevice);
+            Monitor.Enter(VideoDecoder.lockCodecCtx);
+            Monitor.Enter(lockDevice);
 
             if (Disposed || VideoStream == null)
                 return false;
@@ -129,6 +128,8 @@ unsafe public partial class Renderer
 
                 vpov?.Dispose();
                 vd1.CreateVideoProcessorOutputView(backBuffer, vpe, vpovd, out vpov);
+                vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
+                vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
 
                 if (VideoDecoder.ZeroCopy)
                     curPSCase = PSCase.HWD3D11VPZeroCopy;
@@ -543,8 +544,8 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                 else
                     PrepareForExtract();
             }
-            if (rLockDevice)    Monitor.Exit(lockDevice);
-            if (vLockCodecCtx)  Monitor.Exit(VideoDecoder.lockCodecCtx);
+            Monitor.Exit(lockDevice);
+            Monitor.Exit(VideoDecoder.lockCodecCtx);
         }
     }
     internal VideoFrame FillPlanes(AVFrame* frame)
@@ -576,7 +577,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             {
                 mFrame.textures     = new ID3D11Texture2D[1];
                 mFrame.textures[0]  = Device.CreateTexture2D(textDesc[0]);
-                Device.ImmediateContext.CopySubresourceRegion(
+                context.CopySubresourceRegion(
                     mFrame.textures[0], 0, 0, 0, 0, // dst
                     VideoDecoder.textureFFmpeg, (int)frame->data.ToArray()[1],  // src
                     new Box(0, 0, 0, textDesc[0].Width, textDesc[0].Height, 1)); // crop decoder's padding
@@ -598,7 +599,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                 mFrame.srvs         = new ID3D11ShaderResourceView[2];
 
                 mFrame.textures[0]  = Device.CreateTexture2D(textDesc[0]);
-                Device.ImmediateContext.CopySubresourceRegion(
+                context.CopySubresourceRegion(
                     mFrame.textures[0], 0, 0, 0, 0, // dst
                     VideoDecoder.textureFFmpeg, (int)frame->data.ToArray()[1],  // src
                     new Box(0, 0, 0, textDesc[0].Width, textDesc[0].Height, 1)); // crop decoder's padding

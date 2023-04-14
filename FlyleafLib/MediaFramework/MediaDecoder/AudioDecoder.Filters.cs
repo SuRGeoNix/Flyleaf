@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -19,6 +20,7 @@ public unsafe partial class AudioDecoder
     long                    filterCurSamples;
     long                    filterFirstPts;
     bool                    setFirstPts;
+    object                  lockAtempo = new();
 
     private AVFilterContext* CreateFilter(string name, string args, AVFilterContext* prevCtx = null, string id = null)
     {
@@ -120,44 +122,57 @@ public unsafe partial class AudioDecoder
         filterGraph     = null;
     }
     
-    protected override void OnSpeedChanged()
+    protected override void OnSpeedChanged(double value)
     {
         if (!Config.Audio.FiltersEnabled)
         {
-            speed = Math.Max(1, (int)speed);
+            oldSpeed = speed;
+            speed = value;
+
             return;
         }
-            
-        if (filterGraph == null)
-            return; 
 
-        // < 0.5 not supported (maybe with 2 x atempo) / same for speed > 2?
-        lock (lockCodecCtx)
+        lock (lockAtempo)
         {
+            oldSpeed = speed;
+            speed = value;
+
+            if (filterGraph == null)
+                return;
+
             // TBR: To fix timestamps in Queue (should add pts in mFrame or change the way we get the pts generally)
             var frames = Frames.ToArray();
             if (Frames.TryPeek(out var mFrame) && frames.Length > 0)
             {
                 long avgSamples = (long)((frames[^1].timestamp + demuxer.StartTime - Config.Audio.Delay) / AudioStream.Timebase) - filterFirstPts;
                 avgSamples = filterCurSamples - av_rescale_q((long)(avgSamples / oldSpeed), AudioStream.AVStream->time_base, codecCtx->time_base);
-                filterCurSamples = (long) (filterCurSamples * oldSpeed / speed);
+                filterCurSamples = (long)(filterCurSamples * oldSpeed / speed);
 
-                for (int i=frames.Length-1; i>=0; i--)
+                for (int i = frames.Length - 1; i >= 0; i--)
                 {
                     long newPts         = filterFirstPts + (long)(av_rescale_q(filterCurSamples - (avgSamples * (frames.Length - i)), codecCtx->time_base, AudioStream.AVStream->time_base) * speed);
                     frames[i].timestamp = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay);
+                    int dataLen         = Utils.Align((int) (frames[i].dataLen * oldSpeed / speed), ASampleBytes);
+
                     if (speed > oldSpeed)
-                        frames[i].dataLen = Utils.Align((int)(frames[i].dataLen * oldSpeed / speed), ASampleBytes);
+                        frames[i].dataLen = dataLen;
+                    else
+                    {
+                        fixed (byte* circularBufferPosPtr = &cBuf[cBufPos])
+                        {
+                            var cBufOffset = (long)mFrame.dataPtr - (long)circularBufferPosPtr;
+                            if (cBufOffset + dataLen < cBuf.Length)
+                                frames[i].dataLen = dataLen;
+                        }
+                    }
                 }
             }
             else
-                filterCurSamples = (long) (filterCurSamples * oldSpeed / speed);
+                filterCurSamples = (long)(filterCurSamples * oldSpeed / speed);
 
-            UpdateFilter("atempo", "tempo", speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
-
-            // Or..
-            //ProcessWithFilters(null);
-            //SetupFilters();
+            string speedStr = speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+            int ret = avfilter_graph_send_command(filterGraph, "atempo", "tempo", speedStr, null, 0, 0);
+            Log.Debug($"[atempo] atempo={speedStr} {(ret >=0 ? "success" : "failed")}");
         }
     }
     public int UpdateFilter(string filterId, string key, string value)
@@ -200,7 +215,7 @@ public unsafe partial class AudioDecoder
             Status = Status.Stopping;
             return; 
         }
-
+        
         while (true)
         {
             if (frame == null)
@@ -209,13 +224,13 @@ public unsafe partial class AudioDecoder
             if ((ret = av_buffersink_get_frame_flags(abufferSinkCtx, frame, 0)) < 0)
             {
                 if (ret == AVERROR(AVERROR_EOF))
-                    Log.Debug("[buffersink] EOF");
+                    { Status = Status.Ended; return; }
 
-                return;
+                return; // EAGAIN
             }
 
             if (frame->pts == AV_NOPTS_VALUE)
-                { av_frame_unref(frame); continue; }
+                { av_frame_unref(frame); continue; } // ? filterCurSamples   += frame->nb_samples; 
 
             AudioFrame mFrame   = new();
             long newPts         = filterFirstPts + (long)(av_rescale_q(filterCurSamples, codecCtx->time_base, AudioStream.AVStream->time_base) * speed);
@@ -227,16 +242,11 @@ public unsafe partial class AudioDecoder
 
             if (frame->nb_samples > cBufSamples)
             {
-                /* TBR
-                 * 1. We don't respect MaxAudioFrames as we can add more then the limit in this loop (need to check outside from lockCodecCtx)
-                 * 2. When we go over the limit we overwrite prev sample bytes in the circular buffer
-                 */
-
-                int size    = Config.Decoder.MaxAudioFrames * mFrame.dataLen * 10;
+                int size    = Config.Decoder.MaxAudioFrames * mFrame.dataLen * 4;
                 Log.Debug($"Re-allocating circular buffer ({frame->nb_samples} > {cBufSamples}) with {size}bytes");
                 cBuf        = new byte[size];
                 cBufPos     = 0;
-                cBufSamples = frame->nb_samples * 10;
+                cBufSamples = frame->nb_samples * 4;
             }
             else if (cBufPos + mFrame.dataLen >= cBuf.Length)
                 cBufPos     = 0;
@@ -244,12 +254,37 @@ public unsafe partial class AudioDecoder
             fixed (byte* circularBufferPosPtr = &cBuf[cBufPos])
                 mFrame.dataPtr = (IntPtr)circularBufferPosPtr;
 
-            // We could pass the frame to avoid copy however then we need to dispose after it was played by the audio device (currently not implemented)
             Marshal.Copy((IntPtr)frame->data.ToArray()[0], cBuf, cBufPos, mFrame.dataLen);
             cBufPos += mFrame.dataLen;
 
+            // Ensure we don't get frames with large duration (could cause a/v desync even with one xaudio buffer latency)
+            //if (frame->nb_samples / codecCtx->time_base.den > 1)
+                //Log.Warn($"Too many samples {frame->nb_samples} dur: {frame->nb_samples / codecCtx->time_base.den}");
+
             Frames.Enqueue(mFrame);
             av_frame_unref(frame);
+
+            // Wait until Queue not Full or Stopped
+            if (Frames.Count >= Config.Decoder.MaxAudioFrames)
+            {
+                Monitor.Exit(lockCodecCtx);
+                lock (lockStatus)
+                    if (Status == Status.Running)
+                        Status = Status.QueueFull;
+
+                while (Frames.Count >= Config.Decoder.MaxAudioFrames && Status == Status.QueueFull)
+                    Thread.Sleep(20);
+
+                Monitor.Enter(lockCodecCtx);
+
+                lock (lockStatus)
+                {
+                    if (Status != Status.QueueFull)
+                        return;
+
+                    Status = Status.Running;
+                }
+            }
         }
     }
 }

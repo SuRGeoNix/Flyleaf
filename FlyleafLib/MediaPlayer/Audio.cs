@@ -166,16 +166,6 @@ public class Audio : NotifyPropertyChanged
         }
     }
     internal string _DeviceId = Engine.Audio.DefaultDeviceId;
-
-    public int BuffersQueued {
-        get
-        {                
-            lock (locker)
-            {
-                return sourceVoice == null ? 0 : sourceVoice.State.BuffersQueued;
-            }
-        }
-    }
     #endregion
 
     #region Declaration
@@ -251,7 +241,7 @@ public class Audio : NotifyPropertyChanged
                 bool oldMute    = mute;
                 Volume          = _Volume;
                 Mute            = oldMute;
-
+                
             } catch (Exception e)
             {
                 player.Log.Info($"Audio initialization failed ({e.Message})");
@@ -282,6 +272,11 @@ public class Audio : NotifyPropertyChanged
     {
         try
         {
+            if (sourceVoice.StateNoSamplesPlayed.BuffersQueued > 2)
+            {
+                if (CanTrace) player.Log.Trace($"Audio Buffers {sourceVoice.StateNoSamplesPlayed.BuffersQueued} > 2 ");
+                ClearBuffer();
+            }
             SamplesAdded?.Invoke(this, aFrame);
             sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
         } catch (Exception e) // Happens on audio device changed/removed

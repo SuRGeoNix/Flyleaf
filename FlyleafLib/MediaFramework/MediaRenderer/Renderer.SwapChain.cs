@@ -20,19 +20,52 @@ public partial class Renderer
     IDCompositionVisual                     dCompVisual;
     IDCompositionTarget                     dCompTarget;
 
-    private const Int32 WM_NCDESTROY= 0x0082;
-    private const Int32 WM_SIZE     = 0x0005;
-    SubclassWndProc wndProcDelegate;
-    IntPtr wndProcDelegatePtr;
+    const Int32         WM_NCDESTROY= 0x0082;
+    const Int32         WM_SIZE     = 0x0005;
+    const Int32         WS_EX_NOREDIRECTIONBITMAP
+                                    = 0x00200000;
+    SubclassWndProc     wndProcDelegate;
+    IntPtr              wndProcDelegatePtr;
+
+    // Support Windows 8+
+    private SwapChainDescription1 GetSwapChainDesc(int width, int height, bool isComp = false, bool alpha = false)
+    {
+        if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP"))
+        {
+            return new()
+            {
+                BufferUsage = Usage.RenderTargetOutput,
+                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
+                Width       = width,
+                Height      = height,
+                AlphaMode   = AlphaMode.Ignore,
+                SwapEffect  = isComp ? SwapEffect.FlipSequential : SwapEffect.Discard, // will this work for warp?
+                Scaling     = Scaling.Stretch,
+                BufferCount = 1,
+                SampleDescription = new SampleDescription(1, 0)
+            };
+        }
+        else
+        {
+            SwapEffect swapEffect = isComp ? SwapEffect.FlipSequential : Environment.OSVersion.Version.Major >= 10 ? SwapEffect.FlipDiscard : SwapEffect.FlipSequential;
+
+            return new()
+            {
+                BufferUsage = Usage.RenderTargetOutput,
+                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm, // Format.R8G8B8A8_UNorm,
+                Width       = width,
+                Height      = height,
+                AlphaMode   = alpha  ? AlphaMode.Premultiplied : AlphaMode.Ignore,
+                SwapEffect  = swapEffect,
+                Scaling     = isComp ? Scaling.Stretch : Scaling.None,
+                BufferCount = swapEffect == SwapEffect.FlipDiscard ? Math.Min(Config.Video.SwapBuffers, 2) : Config.Video.SwapBuffers,
+                SampleDescription = new SampleDescription(1, 0),
+            };
+        }
+    }
 
     internal void InitializeSwapChain(IntPtr handle)
     {
-        if (cornerRadius != zeroCornerRadius && Device.FeatureLevel >= FeatureLevel.Level_10_0 && (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP"))
-        {
-            InitializeCompositionSwapChain(handle);
-            return;
-        }
-
         lock (lockDevice)
         {
             if (!SCDisposed)
@@ -40,35 +73,35 @@ public partial class Renderer
 
             if (Disposed)
                 Initialize(false);
-
-            SwapChainDescription1 swapChainDescription = new()
-            {
-                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
-                Width       = ControlWidth,
-                Height      = ControlHeight,
-                AlphaMode   = AlphaMode.Ignore,
-                BufferUsage = Usage.RenderTargetOutput,
-                SampleDescription = new SampleDescription(1, 0)
-            };
-
-            if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP"))
-            {
-                swapChainDescription.BufferCount= 1;
-                swapChainDescription.SwapEffect = SwapEffect.Discard;
-                swapChainDescription.Scaling    = Scaling.Stretch;
-            }
-            else
-            {
-                swapChainDescription.BufferCount= Config.Video.SwapBuffers; // TBR: for hdr output or >=60fps maybe use 6
-                swapChainDescription.SwapEffect = SwapEffect.FlipDiscard;
-                swapChainDescription.Scaling    = Scaling.None;
-            }
+            
+            ControlHandle   = handle;
+            RECT rect       = new();
+            GetWindowRect(ControlHandle,ref rect);
+            ControlWidth    = rect.Right  - rect.Left;
+            ControlHeight   = rect.Bottom - rect.Top;
 
             try
             {
-                Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
-                swapChain = Engine.Video.Factory.CreateSwapChainForHwnd(Device, handle, swapChainDescription, new SwapChainFullscreenDescription() { Windowed = true });
-            } catch (Exception e)
+                if (cornerRadius == zeroCornerRadius)
+                {
+                    Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
+                    swapChain = Engine.Video.Factory.CreateSwapChainForHwnd(Device, handle, GetSwapChainDesc(ControlWidth, ControlHeight));
+                }
+                else
+                {
+                    Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} composition swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
+                    swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(ControlWidth, ControlHeight, true, true));
+                    dCompDevice.CreateTargetForHwnd(handle, true, out dCompTarget).CheckError();
+                    dCompDevice.CreateVisual(out dCompVisual).CheckError();
+                    dCompVisual.SetContent(swapChain).CheckError();
+                    dCompTarget.SetRoot(dCompVisual).CheckError();
+                    dCompDevice.Commit().CheckError();
+
+                    int styleEx = GetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE).ToInt32() | WS_EX_NOREDIRECTIONBITMAP;
+                    SetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE, new IntPtr(styleEx));
+                }
+            }
+            catch (Exception e)
             {
                 if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
                 {
@@ -76,7 +109,6 @@ public partial class Renderer
                         
                     Log.Warn($"[SwapChain] Initialization failed ({e.Message}). Failling back to WARP device.");
                     Config.Video.GPUAdapter = "WARP";
-                    ControlHandle = handle;
                     Flush();
                 }
                 else
@@ -87,20 +119,18 @@ public partial class Renderer
 
                 return;
             }
-                
-            SCDisposed = false;
-            ControlHandle = handle;
-            backBuffer   = swapChain.GetBuffer<ID3D11Texture2D>(0);
-            backBufferRtv= Device.CreateRenderTargetView(backBuffer);
+            
+            backBuffer      = swapChain.GetBuffer<ID3D11Texture2D>(0);
+            backBufferRtv   = Device.CreateRenderTargetView(backBuffer);
+            SCDisposed      = false;
 
             SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
+            Engine.Video.Factory.MakeWindowAssociation(ControlHandle, WindowAssociationFlags.IgnoreAll);
 
-            RECT rect = new();
-            GetWindowRect(ControlHandle, ref rect);
-            ResizeBuffers(rect.Right - rect.Left, rect.Bottom - rect.Top);
+            ResizeBuffers(ControlWidth, ControlHeight); // maybe not required (only for vp)?
         }
     }
-    internal void InitializeWinUISwapChain()
+    internal void InitializeWinUISwapChain() // TODO: width/height directly here
     {
         lock (lockDevice)
         {
@@ -110,24 +140,13 @@ public partial class Renderer
             if (Disposed)
                 Initialize(false);
 
-            SwapChainDescription1 swapChainDescription = new()
-            {
-                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
-                Width       = 1,
-                Height      = 1,
-                AlphaMode   = AlphaMode.Ignore,
-                BufferUsage = Usage.RenderTargetOutput,
-                SwapEffect  = SwapEffect.FlipSequential,
-                Scaling     = Scaling.Stretch,
-                BufferCount = Config.Video.SwapBuffers,
-                SampleDescription = new SampleDescription(1, 0)
-            };
             Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain with {Config.Video.SwapBuffers} buffers");
 
             try
             {
-                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, swapChainDescription);
-            } catch (Exception e)
+                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(1, 1, true));
+            }
+            catch (Exception e)
             {
                 Log.Error($"Initialization failed [{e.Message}]"); 
 
@@ -137,84 +156,12 @@ public partial class Renderer
                 return;
             }
 
-            backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
-            backBufferRtv = Device.CreateRenderTargetView(backBuffer);
-            SCDisposed = false;
+            backBuffer      = swapChain.GetBuffer<ID3D11Texture2D>(0);
+            backBufferRtv   = Device.CreateRenderTargetView(backBuffer);
+            SCDisposed      = false;
             ResizeBuffers(1, 1);
 
             SwapChainWinUIClbk?.Invoke(swapChain.QueryInterface<IDXGISwapChain2>());
-        }
-            
-    }
-    private void InitializeCompositionSwapChain(IntPtr handle)
-    {
-        lock (lockDevice)
-        {
-            if (!SCDisposed)
-                DisposeSwapChain();
-
-            if (Disposed)
-                Initialize(false);
-
-            RECT rect = new();
-            GetWindowRect(handle, ref rect);
-            ControlWidth = rect.Right - rect.Left;
-            ControlHeight = rect.Bottom - rect.Top;
-
-            SwapChainDescription1 swapChainDescription = new()
-            {
-                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
-                Width       = ControlWidth,
-                Height      = ControlHeight,
-                AlphaMode   = AlphaMode.Premultiplied,
-                BufferUsage = Usage.RenderTargetOutput,
-                SwapEffect  = SwapEffect.FlipSequential,
-                Scaling     = Scaling.Stretch,
-                BufferCount = Config.Video.SwapBuffers,
-                SampleDescription = new SampleDescription(1, 0),
-            };
-                
-            try
-            {
-                Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} composition swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
-                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, swapChainDescription);
-                dCompDevice.CreateTargetForHwnd(handle, true, out dCompTarget).CheckError();
-                dCompDevice.CreateVisual(out dCompVisual).CheckError();
-                dCompVisual.SetContent(swapChain).CheckError();
-                dCompTarget.SetRoot(dCompVisual).CheckError();
-                dCompDevice.Commit().CheckError();
-            }
-            catch (Exception e)
-            {
-                if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
-                {
-                    try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
-
-                    Log.Warn($"[SwapChain] Initialization failed ({e.Message}). Failling back to WARP device.");
-                    Config.Video.GPUAdapter = "WARP";
-                    ControlHandle = handle;
-                    Flush();
-                }
-                else
-                {
-                    ControlHandle = IntPtr.Zero;
-                    Log.Error($"[SwapChain] Initialization failed ({e.Message})");
-                }
-
-                return;
-            }
-
-            SCDisposed = false;
-            ControlHandle = handle;
-            backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
-            backBufferRtv = Device.CreateRenderTargetView(backBuffer);
-
-            int styleEx = GetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE).ToInt32();
-            styleEx |= 0x00200000; // WS_EX_NOREDIRECTIONBITMAP 
-            SetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE, new IntPtr(styleEx));
-            SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
-
-            ResizeBuffers(ControlWidth, ControlHeight);
         }
     }
 

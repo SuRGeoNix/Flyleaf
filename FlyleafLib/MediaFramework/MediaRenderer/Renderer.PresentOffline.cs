@@ -52,9 +52,6 @@ public partial class Renderer
             }
 
             vpsa[0].InputSurface = vpiv;
-
-            vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
-            vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
             vpiv.Dispose();
             vpov.Dispose();

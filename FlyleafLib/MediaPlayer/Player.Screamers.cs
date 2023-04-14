@@ -51,6 +51,7 @@ unsafe partial class Player
 
     long elapsedTicks;
     long videoStartTicks;
+    long curAudioDeviceDelay;
     Stopwatch sw = new();
 
     private void ShowOneFrame()
@@ -94,8 +95,6 @@ unsafe partial class Player
 
         VideoDemuxer.Start();
         VideoDecoder.Start();
-         
-        long curAudioDeviceDelay = 0;
 
         if (Config.Audio.Enabled)
         {
@@ -171,7 +170,13 @@ unsafe partial class Player
                 {
                     for (int i=0; i<Math.Min(20, AudioDecoder.Frames.Count); i++)
                     {
-                        if (aFrame == null || aFrame.timestamp - curAudioDeviceDelay + 20000 > vFrame.timestamp || vFrame.timestamp > Duration) { gotAudio = true; break; }
+                        if (aFrame == null 
+                            || aFrame.timestamp - curAudioDeviceDelay > vFrame.timestamp 
+                            || vFrame.timestamp > Duration)
+                        {
+                            gotAudio = true;
+                            break;
+                        }
 
                         if (CanInfo) Log.Info($"Drop aFrame {TicksToTime(aFrame.timestamp)}");
                         AudioDecoder.Frames.TryDequeue(out aFrame);
@@ -238,7 +243,7 @@ unsafe partial class Player
 
         vFrame.timestamp= (long) (vFrame.timestamp / Speed);
         videoStartTicks = vFrame.timestamp;
-        if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed) - curAudioDeviceDelay;
+        if (aFrame != null) aFrame.timestamp = (long) (aFrame.timestamp / Speed);
         if (sFrame != null) sFrame.timestamp = (long) (sFrame.timestamp / Speed);
 
         decoder.OpenedPlugin.OnBufferingCompleted();
@@ -295,12 +300,6 @@ unsafe partial class Player
                     break;
                 }
                 OnBufferingCompleted();
-                
-                if (aFrame != null && Math.Abs(vFrame.timestamp - aFrame.timestamp) < 2)
-                {
-                    Audio.AddSamples(aFrame);
-                    AudioDecoder.Frames.TryDequeue(out aFrame);
-                }
 
                 allowedLateAudioDrops = 7;
                 elapsedSec = 0;
@@ -324,7 +323,7 @@ unsafe partial class Player
             {
                 AudioDecoder.Frames.TryDequeue(out aFrame);
                 if (aFrame != null)
-                    aFrame.timestamp = (long) (aFrame.timestamp / Speed) - Audio.GetDeviceDelay();
+                    aFrame.timestamp = (long) (aFrame.timestamp / Speed);
             }
 
             if (sFrame == null && !isSubsSwitch )
@@ -336,19 +335,7 @@ unsafe partial class Player
 
             elapsedTicks= videoStartTicks + sw.ElapsedTicks;
             vDistanceMs = (int) ((vFrame.timestamp - elapsedTicks) / 10000);
-
-            if (aFrame != null)
-            {
-                aDistanceMs = (int) ((aFrame.timestamp - elapsedTicks) / 10000);
-                curAudioBuffers = Audio.BuffersQueued;
-
-                // On zero we resync
-                if (curAudioBuffers != 0 && curAudioBuffers < 3 && aDistanceMs > 2)
-                    aDistanceMs /= 2;
-            }
-            else
-                aDistanceMs = int.MaxValue;
-
+            aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks - Audio.GetDeviceDelay() + 8 * 1000) / 10000) : int.MaxValue; // TODO: VBlack delay (8ms correction for now)
             sDistanceMs = sFrame != null ? (int) ((sFrame.timestamp - elapsedTicks) / 10000) : int.MaxValue;
             sleepMs     = Math.Min(vDistanceMs, aDistanceMs) - 1;
             
@@ -382,13 +369,14 @@ unsafe partial class Player
                 else
                     Video.framesDropped++;
 
-                if (seeks.IsEmpty)
-                {
-                    curTime = !MainDemuxer.IsHLSLive ? (long) (vFrame.timestamp * Speed) : VideoDemuxer.CurTime;
+                lock (seeks)
+                    if (seeks.IsEmpty)
+                    {
+                        curTime = !MainDemuxer.IsHLSLive ? (long) (vFrame.timestamp * Speed) : VideoDemuxer.CurTime;
 
-                    if (Config.Player.UICurTimePerFrame)
-                        UI(() => UpdateCurTime());
-                }
+                        if (Config.Player.UICurTimePerFrame)
+                            UI(() => UpdateCurTime());
+                    }
 
                 VideoDecoder.Frames.TryDequeue(out vFrame);
                 if (vFrame != null)
@@ -458,7 +446,7 @@ unsafe partial class Player
 
                     AudioDecoder.Frames.TryDequeue(out aFrame);
                     if (aFrame != null)
-                        aFrame.timestamp = (long)(aFrame.timestamp / Speed) - Audio.GetDeviceDelay();
+                        aFrame.timestamp = (long)(aFrame.timestamp / Speed);
                 }
                 else if (aDistanceMs > 1000) // Drops few audio frames in case of wrong timestamps
                 {
@@ -469,7 +457,7 @@ unsafe partial class Player
                         if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs}");
                         AudioDecoder.Frames.TryDequeue(out aFrame);
                         if (aFrame != null)
-                            aFrame.timestamp = (long)(aFrame.timestamp / Speed) - Audio.GetDeviceDelay();
+                            aFrame.timestamp = (long)(aFrame.timestamp / Speed);
                     }
                     //else
                         //if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs} | limit reached");
@@ -500,9 +488,8 @@ unsafe partial class Player
                             Audio.framesDropped++;
                             AudioDecoder.Frames.TryDequeue(out aFrame);
                             if (aFrame != null)
-                                aFrame.timestamp = (long)(aFrame.timestamp / Speed) - Audio.GetDeviceDelay();
-                            aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks) / 10000) : Int32.MaxValue;
-
+                                aFrame.timestamp = (long)(aFrame.timestamp / Speed);
+                            aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks - Audio.GetDeviceDelay() + 8 * 1000) / 10000) : int.MaxValue;
                             if (aDistanceMs > 0)
                                 break;
                         }
@@ -557,14 +544,16 @@ unsafe partial class Player
         if (aFrame == null) 
             return false;
 
-        if (seeks.IsEmpty)
-        {
-            if (MainDemuxer.IsHLSLive)
-                curTime = aFrame.timestamp;
-            UI(() => UpdateCurTime());
-        }
+        lock (seeks)
+            if (seeks.IsEmpty)
+            {
+                if (MainDemuxer.IsHLSLive)
+                    curTime = aFrame.timestamp;
+                UI(() => UpdateCurTime());
+            }
 
-        while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
+        while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull)
+            Thread.Sleep(20);
 
         return IsPlaying && !AudioDecoder.Frames.IsEmpty && seeks.IsEmpty;
     }
@@ -581,7 +570,7 @@ unsafe partial class Player
             {
                 seeks.Clear();
                 requiresBuffering = true;
-
+                
                 if (AudioDecoder.OnVideoDemuxer)
                 {
                     if (decoder.Seek(seekData.ms, seekData.forward) < 0)
@@ -603,11 +592,12 @@ unsafe partial class Player
                     continue;
                 OnBufferingCompleted();
                 if (aFrame == null) { Log.Warn("[MediaBuffer] No audio frame"); break; }
-                videoStartTicks = aFrame.timestamp;
+                videoStartTicks = (long) (aFrame.timestamp / Speed);
 
                 Audio.AddSamples(aFrame);
                 AudioDecoder.Frames.TryDequeue(out aFrame);
-                
+                if (aFrame != null)
+                    aFrame.timestamp = (long)(aFrame.timestamp / Speed);
                 sw.Restart();
                 elapsedSec = 0;
             }
@@ -643,25 +633,23 @@ unsafe partial class Player
                     UI(() => UpdateCurTime());
                 }
 
-                if (Audio.BuffersQueued == 0)
-                    Thread.Sleep(aDistanceMs);
-                else if (Audio.BuffersQueued < 4)
-                    Thread.Sleep(aDistanceMs / 2);
-                else
-                    Thread.Sleep(aDistanceMs);
+                Thread.Sleep(aDistanceMs);
             }
 
-            if (!MainDemuxer.IsHLSLive && seeks.IsEmpty)
-            {
-                curTime = aFrame.timestamp;
+            lock (seeks)
+                if (!MainDemuxer.IsHLSLive && seeks.IsEmpty)
+                {
+                    curTime = (long) (aFrame.timestamp * Speed);
 
-                if (Config.Player.UICurTimePerFrame)
-                    UI(() => UpdateCurTime());
-            }
+                    if (Config.Player.UICurTimePerFrame)
+                        UI(() => UpdateCurTime());
+                }
 
             //Log($"{Utils.TicksToTime(aFrame.timestamp)}");
             Audio.AddSamples(aFrame);
             AudioDecoder.Frames.TryDequeue(out aFrame);
+            if (aFrame != null)
+                aFrame.timestamp = (long)(aFrame.timestamp / Speed);
         }
     }
 
