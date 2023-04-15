@@ -487,11 +487,19 @@ unsafe partial class Player
                             if (CanTrace) Log.Trace($"aDistanceMs 2 = {aDistanceMs}");
                             Audio.framesDropped++;
                             AudioDecoder.Frames.TryDequeue(out aFrame);
-                            if (aFrame != null)
+
+                            if (aFrame == null)
+                                break;
+                            else
                             {
+                                if (aFrame.timestamp - curAudioDeviceDelay < curTime)
+                                {
+                                    aFrame = null;
+                                    continue;
+                                }
+
                                 aFrame.timestamp = (long)(aFrame.timestamp / Speed);
-                                if (aFrame.timestamp - curAudioDeviceDelay > vFrame.timestamp)
-                                    break;
+                                break;
                             }
                         }
                     }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -20,7 +21,7 @@ public unsafe partial class AudioDecoder
     long                    filterCurSamples;
     long                    filterFirstPts;
     bool                    setFirstPts;
-    object                  lockAtempo = new();
+    object                  lockSpeed = new();
 
     private AVFilterContext* CreateFilter(string name, string args, AVFilterContext* prevCtx = null, string id = null)
     {
@@ -123,52 +124,48 @@ public unsafe partial class AudioDecoder
     
     protected override void OnSpeedChanged(double value)
     {
-        if (!Config.Audio.FiltersEnabled)
-        {
-            oldSpeed = speed;
-            speed = value;
-
-            return;
-        }
-
-        lock (lockAtempo)
-        {
-            oldSpeed = speed;
-            speed = value;
-
-            if (filterGraph == null)
-                return;
-
-            // TBR: To fix timestamps in Queue (should add pts in mFrame or change the way we get the pts generally)
-            var frames = Frames.ToArray();
-            if (Frames.TryPeek(out var mFrame) && frames.Length > 0)
+        // Using Task to avoid locking UI thread as lockAtempo can wait for the Frames queue to be freed
+        Task.Run(() =>
+        { 
+            lock (lockSpeed)
             {
-                long avgSamples = (long)((frames[^1].timestamp + demuxer.StartTime - Config.Audio.Delay) / AudioStream.Timebase) - filterFirstPts;
-                avgSamples = filterCurSamples - av_rescale_q((long)(avgSamples / oldSpeed), AudioStream.AVStream->time_base, codecCtx->time_base);
-                filterCurSamples = (long)(filterCurSamples * oldSpeed / speed);
+                oldSpeed = speed;
+                speed = value;
 
-                for (int i = frames.Length - 1; i >= 0; i--)
+                if (filterGraph == null || !Config.Audio.FiltersEnabled)
+                    return;
+
+                // TBR: To fix timestamps in Queue (should add pts in mFrame or change the way we get the pts generally)
+                var frames = Frames.ToArray();
+                if (Frames.TryPeek(out var mFrame) && frames.Length > 0)
                 {
-                    long newPts         = filterFirstPts + (long)(av_rescale_q(filterCurSamples - (avgSamples * (frames.Length - i)), codecCtx->time_base, AudioStream.AVStream->time_base) * speed);
-                    frames[i].timestamp = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay);
-                    int dataLen         = Utils.Align((int) (frames[i].dataLen * oldSpeed / speed), ASampleBytes);
-                    frames[i].dataLen   = dataLen;
+                    long avgSamples = (long)((frames[^1].timestamp + demuxer.StartTime - Config.Audio.Delay) / AudioStream.Timebase) - filterFirstPts;
+                    avgSamples = filterCurSamples - av_rescale_q((long)(avgSamples / oldSpeed), AudioStream.AVStream->time_base, codecCtx->time_base);
+                    filterCurSamples = (long)(filterCurSamples * oldSpeed / speed);
 
-                    fixed (byte* cBufStartPosPtr = &cBuf[0])
+                    for (int i = frames.Length - 1; i >= 0; i--)
                     {
-                        var curOffset = (long)frames[i].dataPtr - (long)cBufStartPosPtr;
-                        if (oldSpeed > speed && curOffset + dataLen >= cBuf.Length)
-                            frames[i].dataPtr = (IntPtr)cBufStartPosPtr;
+                        long newPts         = filterFirstPts + (long)(av_rescale_q(filterCurSamples - (avgSamples * (frames.Length - i)), codecCtx->time_base, AudioStream.AVStream->time_base) * speed);
+                        frames[i].timestamp = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay);
+                        int dataLen         = Utils.Align((int) (frames[i].dataLen * oldSpeed / speed), ASampleBytes);
+                        frames[i].dataLen   = dataLen;
+
+                        fixed (byte* cBufStartPosPtr = &cBuf[0])
+                        {
+                            var curOffset = (long)frames[i].dataPtr - (long)cBufStartPosPtr;
+                            if (oldSpeed > speed && curOffset + dataLen >= cBuf.Length)
+                                frames[i].dataPtr = (IntPtr)cBufStartPosPtr;
+                        }
                     }
                 }
-            }
-            else
-                filterCurSamples = (long)(filterCurSamples * oldSpeed / speed);
+                else
+                    filterCurSamples = (long)(filterCurSamples * oldSpeed / speed);
 
-            string speedStr = speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
-            int ret = avfilter_graph_send_command(filterGraph, "atempo", "tempo", speedStr, null, 0, 0);
-            Log.Debug($"[atempo] atempo={speedStr} {(ret >=0 ? "success" : "failed")}");
-        }
+                string speedStr = speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+                int ret = avfilter_graph_send_command(filterGraph, "atempo", "tempo", speedStr, null, 0, 0);
+                Log.Debug($"[atempo] atempo={speedStr} {(ret >=0 ? "success" : "failed")}");
+            }
+        });
     }
     public int UpdateFilter(string filterId, string key, string value)
     {

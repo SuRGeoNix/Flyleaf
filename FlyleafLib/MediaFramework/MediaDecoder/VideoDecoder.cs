@@ -362,20 +362,22 @@ public unsafe class VideoDecoder : DecoderBase
     internal void Flush()
     {
         lock (lockActions)
-        lock (lockCodecCtx)
-        {
-            if (Disposed) return;
+            lock (lockCodecCtx)
+            {
+                if (Disposed) return;
 
-            if (Status == Status.Ended) Status = Status.Stopped;
-            else if (Status == Status.Draining) Status = Status.Stopping;
+                if (Status == Status.Ended)
+                    Status = Status.Stopped;
+                else if (Status == Status.Draining)
+                    Status = Status.Stopping;
 
-            DisposeFrames();
-            avcodec_flush_buffers(codecCtx);
+                DisposeFrames();
+                avcodec_flush_buffers(codecCtx);
             
-            keyFrameRequired = true;
-            StartTime = AV_NOPTS_VALUE;
-            curSpeedFrame = (int)speed;
-        }
+                keyFrameRequired = true;
+                StartTime = AV_NOPTS_VALUE;
+                curSpeedFrame = (int)speed;
+            }
     }
 
     protected override void RunInternal()

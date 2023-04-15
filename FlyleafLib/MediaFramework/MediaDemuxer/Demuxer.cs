@@ -1466,12 +1466,7 @@ public unsafe class Demuxer : RunThreadBase
 
 public unsafe class PacketQueue
 {
-    /* TODO
-     * 
-     * 1) Review thread safe for Enqueue/Dequeue/Clear
-     * 2) DTS might not be available without avformat_find_stream_info (should changed based on packet->duration and fallback should be removed)
-     * 
-     */
+    // TODO: DTS might not be available without avformat_find_stream_info (should changed based on packet->duration and fallback should be removed)
     readonly Demuxer demuxer;
     readonly ConcurrentQueue<IntPtr> packets = new();
     readonly static int  _FPS_FALLBACK = 30; // in case of negative buffer duration calculate it based on packets count / FPS
@@ -1489,25 +1484,31 @@ public unsafe class PacketQueue
 
     public void Clear()
     {
-        while (!packets.IsEmpty)
+        lock(packets)
         {
-            packets.TryDequeue(out IntPtr packetPtr);
-            if (packetPtr == IntPtr.Zero) continue;
-            AVPacket* packet = (AVPacket*)packetPtr;
-            av_packet_free(&packet);
-        }
+            while (!packets.IsEmpty)
+            {
+                packets.TryDequeue(out IntPtr packetPtr);
+                if (packetPtr == IntPtr.Zero) continue;
+                AVPacket* packet = (AVPacket*)packetPtr;
+                av_packet_free(&packet);
+            }
 
-        FirstTimestamp = AV_NOPTS_VALUE;
-        LastTimestamp = AV_NOPTS_VALUE;
-        Bytes = 0;
-        BufferedDuration = 0;
-        CurTime = 0;
+            FirstTimestamp = AV_NOPTS_VALUE;
+            LastTimestamp = AV_NOPTS_VALUE;
+            Bytes = 0;
+            BufferedDuration = 0;
+            CurTime = 0;
+        }
     }
 
     public void Enqueue()
     {
-        Enqueue(demuxer.packet);
-        demuxer.packet = av_packet_alloc();
+        lock(packets)
+        {
+            Enqueue(demuxer.packet);
+            demuxer.packet = av_packet_alloc();
+        }
     }
     public void Enqueue(AVPacket* packet)
     {
