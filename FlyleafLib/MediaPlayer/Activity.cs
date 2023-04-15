@@ -89,7 +89,7 @@ public class Activity : NotifyPropertyChanged
     {
         _Mode = mode;
         Raise(nameof(Mode));
-        player.Log.Debug(mode.ToString());
+        player.Log.Trace(mode.ToString());
 
         if (player.Activity.Mode == ActivityMode.Idle && player.Host != null && player.Host.Player_GetFullScreen() && player.Host.Player_CanHideCursor())
         {

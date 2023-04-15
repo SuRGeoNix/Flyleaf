@@ -74,7 +74,7 @@ partial class Player
                 binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
                 )
             {
-                if (CanDebug) player.Log.Debug($"[Keys|Down] {binding.Action}");
+                if (CanDebug) player.Log.Debug($"[Keys|Down] {(binding.Action == KeyBindingAction.Custom && binding.ActionName != null ? binding.ActionName : binding.Action)}");
                 binding.ActionInternal?.Invoke();
                 
                 return true;
@@ -97,7 +97,7 @@ partial class Player
                 binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
                 )
             {
-                if (CanDebug) player.Log.Debug($"[Keys|Up] {binding.Action}");
+                if (CanDebug) player.Log.Debug($"[Keys|Up] {(binding.Action == KeyBindingAction.Custom && binding.ActionName != null ? binding.ActionName : binding.Action)}");
                 binding.ActionInternal?.Invoke();
 
                 return true;

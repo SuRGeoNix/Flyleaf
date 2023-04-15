@@ -17,7 +17,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
  * 
  * Custom Frames Queue to notify when the queue is not full anymore (to avoid thread sleep which can cause delays)
  * Lock CBuf with Audio.AddSamples and check the mFrame.dataPtr still in same memory?
- * Draining (avcodec_send_packet? and av_buffersrc_add_frame)
+ * Filters should we check av_buffersrc_get_nb_failed_requests(abufferCtx) ?
  * Support more output formats/channels/sampleRates (and currently output to 32-bit, sample rate to 48Khz and not the same as input? - should calculate possible delays)
  * Use AVFrames* for Filters instead of CBuf as we already copying it. This way we can pass the queued frames again from the sink and fix the new values of atempo? 
  *      a. need to listen on sample played event? on sourcevoice to dispose it after
@@ -103,6 +103,8 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                 if (Status == Status.Ended)
                     Status = Status.Stopped;
+                else if (Status == Status.Draining)
+                    Status = Status.Stopping;
 
                 resyncWithVideoRequired = !VideoDecoder.Disposed;
 
@@ -152,7 +154,17 @@ public unsafe partial class AudioDecoder : DecoderBase
                 {
                     if (demuxer.Status == Status.Ended)
                     {
-                        Status = Status.Ended;
+                        lock (lockStatus)
+                        {
+                            // TODO: let the demuxer push the draining packet
+                            Log.Debug("Draining");
+                            Status = Status.Draining;
+                            var drainPacket = av_packet_alloc();
+                            drainPacket->data = null;
+                            drainPacket->size = 0;
+                            demuxer.AudioPackets.Enqueue(drainPacket);
+                        }
+
                         break;
                     }
                     else if (!demuxer.IsRunning)
@@ -188,8 +200,8 @@ public unsafe partial class AudioDecoder : DecoderBase
                 lock (lockStatus)
                 {
                     CriticalArea = false;
-                    if (Status != Status.QueueEmpty) break;
-                    Status = Status.Running;
+                    if (Status != Status.QueueEmpty && Status != Status.Draining) break;
+                    if (Status != Status.Draining) Status = Status.Running;
                 }
             }
 
@@ -237,7 +249,16 @@ public unsafe partial class AudioDecoder : DecoderBase
                 while (true)
                 {
                     ret = avcodec_receive_frame(codecCtx, frame);
-                    if (ret != 0) { av_frame_unref(frame); break; }
+                    if (ret != 0)
+                    {
+                        av_frame_unref(frame); 
+                        
+                        if (ret == AVERROR_EOF && Config.Audio.FiltersEnabled)
+                                lock (lockAtempo)
+                                    ProcessWithFilters(null);
+                        
+                        break;
+                    }
 
                     if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
                         frame->pts = frame->best_effort_timestamp;
@@ -305,6 +326,8 @@ public unsafe partial class AudioDecoder : DecoderBase
         } while (Status == Status.Running);
 
         if (isRecording) { StopRecording(); recCompleted(MediaType.Audio); }
+
+        if (Status == Status.Draining) Status = Status.Ended;
     }
     private void Process(AVFrame* frame)
     {
