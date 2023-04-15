@@ -22,8 +22,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
  * Use AVFrames* for Filters instead of CBuf as we already copying it. This way we can pass the queued frames again from the sink and fix the new values of atempo? 
  *      a. need to listen on sample played event? on sourcevoice to dispose it after
  *      b. should keep original frame tho
- * atempo bug when going from 8 speed to 0.5 crashes Assertion read_size <= atempo->ring || atempo->tempo > 2.0 failed at libavfilter/af_atempo.c:442
- *      use more atempo or set it in steps (needs to read frames for each step)
+ * atempo bug when going from 8 speed to <1 crashes Assertion read_size <= atempo->ring || atempo->tempo > 2.0 failed at libavfilter/af_atempo.c:442
+ *      use more atempo filters or set it in steps (needs to read frames for each step)
  */
 
 public unsafe partial class AudioDecoder : DecoderBase
@@ -296,7 +296,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                             { Status = Status.Stopping; break; }
                     }
 
-                    if (resyncWithVideoRequired) // frame->pts can be NAN here
+                    if (resyncWithVideoRequired)
                     {
                         // TODO: in case of long distance will spin (CPU issue), possible reseek?
                         long ts = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay;
@@ -336,10 +336,13 @@ public unsafe partial class AudioDecoder : DecoderBase
     {
         try
         {
+            var dataLen     = frame->nb_samples * ASampleBytes;
+            var speedDataLen= Utils.Align((int)(dataLen / speed), ASampleBytes);
+
             AudioFrame mFrame = new()
             {
                 timestamp   = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay,
-                dataLen     = Utils.Align((int)(frame->nb_samples * ASampleBytes / speed), ASampleBytes)
+                dataLen     = speedDataLen
             };
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
@@ -357,12 +360,12 @@ public unsafe partial class AudioDecoder : DecoderBase
                 cBufPos     = 0;
                 cBufSamples = frame->nb_samples * 4;
             }
-            else if (cBufPos + mFrame.dataLen >= cBuf.Length)
+            else if (cBufPos + Math.Max(dataLen, speedDataLen) >= cBuf.Length)
                 cBufPos     = 0;
 
             fixed (byte *circularBufferPosPtr = &cBuf[cBufPos])
             {
-                int ret = swr_convert(swrCtx, &circularBufferPosPtr, mFrame.dataLen / ASampleBytes, (byte**)&frame->data, frame->nb_samples);
+                int ret = swr_convert(swrCtx, &circularBufferPosPtr, frame->nb_samples, (byte**)&frame->data, frame->nb_samples);
                 if (ret < 0)
                     return;
 
@@ -371,10 +374,10 @@ public unsafe partial class AudioDecoder : DecoderBase
 
             // Fill silence
             if (speed < 1)
-                for (int i = cBufPos + (frame->nb_samples * ASampleBytes); i < cBufPos + mFrame.dataLen; i++)
-                    cBuf[i] = 0;
+                for (int p = dataLen; p < speedDataLen; p++)
+                    cBuf[cBufPos + p] = 0;
 
-            cBufPos += mFrame.dataLen;
+            cBufPos += Math.Max(dataLen, speedDataLen);
             Frames.Enqueue(mFrame);
 
             // Wait until Queue not Full or Stopped

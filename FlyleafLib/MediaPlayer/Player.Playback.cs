@@ -56,6 +56,7 @@ partial class Player
 
                 onBufferingStarted   = 0;
                 onBufferingCompleted = 0;
+                requiresBuffering    = true;
 
                 if (LastError != null)
                 {

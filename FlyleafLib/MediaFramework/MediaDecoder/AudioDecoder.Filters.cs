@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
@@ -124,61 +123,55 @@ public unsafe partial class AudioDecoder
     
     protected override void OnSpeedChanged(double value)
     {
-        // Using Task to avoid locking UI thread as lockAtempo can wait for the Frames queue to be freed
-        Task.Run(() =>
-        { 
-            lock (lockSpeed)
+        // Possible Task to avoid locking UI thread as lockAtempo can wait for the Frames queue to be freed (will cause other issues and couldnt reproduce the possible dead lock)
+        lock (lockSpeed)
+        {
+            oldSpeed = speed;
+            speed = value;
+
+            var frames = Frames.ToArray();
+            if (frames.Length < 1)
+                return;
+            
+            for (int i = 0; i < frames.Length; i++)
             {
-                oldSpeed = speed;
-                speed = value;
-
-                if (filterGraph == null || !Config.Audio.FiltersEnabled)
-                    return;
-
-                // TBR: To fix timestamps in Queue (should add pts in mFrame or change the way we get the pts generally)
-                var frames = Frames.ToArray();
-                if (Frames.TryPeek(out var mFrame) && frames.Length > 0)
+                var oldDataLen = frames[i].dataLen;
+                frames[i].dataLen = Utils.Align((int) (oldDataLen * oldSpeed / speed), ASampleBytes);
+                fixed (byte* cBufStartPosPtr = &cBuf[0])
                 {
-                    long avgSamples = (long)((frames[^1].timestamp + demuxer.StartTime - Config.Audio.Delay) / AudioStream.Timebase) - filterFirstPts;
-                    avgSamples = filterCurSamples - av_rescale_q((long)(avgSamples / oldSpeed), AudioStream.AVStream->time_base, codecCtx->time_base);
-                    filterCurSamples = (long)(filterCurSamples * oldSpeed / speed);
+                    var curOffset = (long)frames[i].dataPtr - (long)cBufStartPosPtr;
 
-                    for (int i = frames.Length - 1; i >= 0; i--)
+                    if (speed < oldSpeed)
                     {
-                        long newPts         = filterFirstPts + (long)(av_rescale_q(filterCurSamples - (avgSamples * (frames.Length - i)), codecCtx->time_base, AudioStream.AVStream->time_base) * speed);
-                        frames[i].timestamp = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay);
-                        int dataLen         = Utils.Align((int) (frames[i].dataLen * oldSpeed / speed), ASampleBytes);
-                        frames[i].dataLen   = dataLen;
-
-                        fixed (byte* cBufStartPosPtr = &cBuf[0])
+                        if (curOffset + frames[i].dataLen >= cBuf.Length)
                         {
-                            var curOffset = (long)frames[i].dataPtr - (long)cBufStartPosPtr;
-                            if (oldSpeed > speed && curOffset + dataLen >= cBuf.Length)
-                                frames[i].dataPtr = (IntPtr)cBufStartPosPtr;
+                            frames[i].dataPtr = (IntPtr)cBufStartPosPtr;
+                            curOffset  = 0;
+                            oldDataLen = 0;
                         }
+
+                        // fill silence
+                        for (int p = oldDataLen; p < frames[i].dataLen; p++)
+                            cBuf[curOffset + p] = 0;
                     }
                 }
-                else
-                    filterCurSamples = (long)(filterCurSamples * oldSpeed / speed);
-
-                string speedStr = speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
-                int ret = avfilter_graph_send_command(filterGraph, "atempo", "tempo", speedStr, null, 0, 0);
-                Log.Debug($"[atempo] atempo={speedStr} {(ret >=0 ? "success" : "failed")}");
             }
-        });
+
+            if (filterGraph != null)
+                UpdateFilterInternal("atempo", "tempo", speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
+        }
+    }
+    private int UpdateFilterInternal(string filterId, string key, string value)
+    {
+        int ret = avfilter_graph_send_command(filterGraph, filterId, key, value, null, 0, 0);
+        Log.Info($"[{filterId}] {key}={value} {(ret >=0 ? "success" : "failed")}");
+
+        return ret;
     }
     public int UpdateFilter(string filterId, string key, string value)
     {
         lock (lockCodecCtx)
-        {
-            if (filterGraph == null)
-                return -1;
-
-            int ret = avfilter_graph_send_command(filterGraph, filterId, key, value, null, 0, 0);
-            Log.Info($"[{filterId}] {key}={value} {(ret >=0 ? "success" : "failed")}");
-
-            return ret;
-        }
+            return filterGraph != null ? UpdateFilterInternal(filterId, key, value) : -1;
     }
     public int ReloadFilters()
     {
@@ -222,10 +215,10 @@ public unsafe partial class AudioDecoder
                 { av_frame_unref(frame); continue; } // ? filterCurSamples   += frame->nb_samples; 
 
             AudioFrame mFrame   = new();
-            long newPts         = filterFirstPts + (long)(av_rescale_q(filterCurSamples, codecCtx->time_base, AudioStream.AVStream->time_base) * speed);
+            long newPts         = filterFirstPts + av_rescale_q(filterCurSamples, codecCtx->time_base, AudioStream.AVStream->time_base);
             mFrame.timestamp    = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay);
             mFrame.dataLen      = frame->nb_samples * ASampleBytes;
-            filterCurSamples   += frame->nb_samples;
+            filterCurSamples   += (int)(frame->nb_samples * speed); // samples without speed (x1)
             
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
@@ -260,10 +253,10 @@ public unsafe partial class AudioDecoder
                 lock (lockStatus)
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
-
+                
                 while (Frames.Count >= Config.Decoder.MaxAudioFrames && (Status == Status.QueueFull || Status == Status.Draining))
                     Thread.Sleep(20);
-
+                
                 Monitor.Enter(lockCodecCtx);
 
                 lock (lockStatus)
