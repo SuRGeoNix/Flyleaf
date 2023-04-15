@@ -52,7 +52,7 @@ public partial class Renderer
             return new()
             {
                 BufferUsage = Usage.RenderTargetOutput,
-                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm, // Format.R8G8B8A8_UNorm,
+                Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : (Config.Video.SwapForceR8G8B8A8 ? Format.R8G8B8A8_UNorm : Format.B8G8R8A8_UNorm),
                 Width       = width,
                 Height      = height,
                 AlphaMode   = alpha  ? AlphaMode.Premultiplied : AlphaMode.Ignore,

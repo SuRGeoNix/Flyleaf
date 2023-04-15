@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.1</Version>
+	<Version>3.7.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,22 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Demuxer: Open implementation improvements
-		Demuxer: Fixes a critical null reference issue with custom I/O streams
-		Renderer: Fixes a dead lock (during Open)
+		- AudioDecoder: Adds FFmpeg filters support (using embedded atempo for Player speed)
+		- AudioDecoder: Adds draining support
+		- AudioDecoder: Performance improvements
+		- AudioDecoder: Fixes an issue that it wouldn't respect the Config.Decoder.MaxAudioFrames
+		- Player: A/V Sync improvements (calculates the audio device delay)
+		- Renderer: D3D11 minor performance improvements
+
+		New API (experimental)
+		- Config.Audio.FiltersEnabled (if you want to use filters, atempo by default)
+		- Config.Audio.Filters (to add your filters)
+		- Player.Audio.UpdateFilter (to update filter's property)
+		- Player.Audio.ReloadFilters (to reload all the graph filters)
+		- Config.Video.SwapForceR8G8B8A8 (to force R8G8B8A8 instead of B8G8R8A8 for the swapchain)
+
+		Breaking Changes
+		- Min value changed for Speed from 0.25 to 0.5
 	</PackageReleaseNotes>
   </PropertyGroup>
 

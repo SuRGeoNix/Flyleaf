@@ -566,13 +566,21 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Whether the renderer will use 10-bit swap chaing or 8-bit output
         /// </summary>
-        public bool             Swap10Bit                   { get; set; } = false;
+        public bool             Swap10Bit                   { get; set; }
 
         /// <summary>
         /// The number of buffers to use for the renderer's swap chain
         /// </summary>
         public int              SwapBuffers                 { get; set; } = 2;
-        
+
+        /// <summary>
+        /// <para>
+        /// Whether the renderer will use R8G8B8A8_UNorm instead of B8G8R8A8_UNorm format for the swap chain (experimental)
+        /// (TBR: causes slightly different colors with D3D11VP)
+        /// </para>
+        /// </summary>
+        public bool             SwapForceR8G8B8A8           { get; set; }
+
         public SerializableDictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
 
         public static SerializableDictionary<VideoFilters, VideoFilter> DefaultFilters()

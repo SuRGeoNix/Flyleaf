@@ -7,7 +7,7 @@
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
     <Authors>SuRGeoNix</Authors>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Copyright>SuRGeoNix © 2023</Copyright>
     <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
     <PackageIcon>Flyleaf.png</PackageIcon>
@@ -15,7 +15,7 @@
     <PackageTags>flyleaf flyleaflib flyleafhost video audio winui media player element control</PackageTags>
     <Description>FlyleafHost.WinUI: Direct3D 11 Hardware Accelerated Media Surface (based on FlyleafLib)</Description>
 	  <PackageReleaseNotes>
-		  Initial version of FlyleafHost to support WinUI 3.0
+		  Updates FlyleafLib
 	  </PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
