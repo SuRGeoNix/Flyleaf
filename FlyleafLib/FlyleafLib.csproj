@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.2</Version>
+	<Version>3.7.3</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -20,7 +20,9 @@
 		- AudioDecoder: Adds FFmpeg filters support (using embedded atempo for Player speed)
 		- AudioDecoder: Adds draining support
 		- AudioDecoder: Performance improvements
+		- AudioDecoder: Fixes a critical issue with swr_convert
 		- AudioDecoder: Fixes an issue that it wouldn't respect the Config.Decoder.MaxAudioFrames
+		- Demuxer: Adds more locks in packet queues to ensure stability
 		- Player: A/V Sync improvements (calculates the audio device delay)
 		- Renderer: D3D11 minor performance improvements
 

@@ -22,7 +22,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
  * Use AVFrames* for Filters instead of CBuf as we already copying it. This way we can pass the queued frames again from the sink and fix the new values of atempo? 
  *      a. need to listen on sample played event? on sourcevoice to dispose it after
  *      b. should keep original frame tho
- * 
+ * atempo bug when going from 8 speed to 0.5 crashes Assertion read_size <= atempo->ring || atempo->tempo > 2.0 failed at libavfilter/af_atempo.c:442
+ *      use more atempo or set it in steps (needs to read frames for each step)
  */
 
 public unsafe partial class AudioDecoder : DecoderBase
@@ -254,8 +255,8 @@ public unsafe partial class AudioDecoder : DecoderBase
                         av_frame_unref(frame); 
                         
                         if (ret == AVERROR_EOF && Config.Audio.FiltersEnabled)
-                                lock (lockAtempo)
-                                    ProcessWithFilters(null);
+                            lock (lockSpeed)
+                                ProcessWithFilters(null);
                         
                         break;
                     }
@@ -313,11 +314,13 @@ public unsafe partial class AudioDecoder : DecoderBase
                             resyncWithVideoRequired = false;
                     }
 
-                    if (Config.Audio.FiltersEnabled)
-                        lock (lockAtempo)
+                    lock (lockSpeed)
+                    {
+                        if (Config.Audio.FiltersEnabled)
                             ProcessWithFilters(frame);
-                    else
-                        Process(frame);
+                        else
+                            Process(frame);
+                    }
                 }
             } catch { }
 
@@ -359,7 +362,7 @@ public unsafe partial class AudioDecoder : DecoderBase
 
             fixed (byte *circularBufferPosPtr = &cBuf[cBufPos])
             {
-                int ret = swr_convert(swrCtx, &circularBufferPosPtr, frame->nb_samples, (byte**)&frame->data, frame->nb_samples);
+                int ret = swr_convert(swrCtx, &circularBufferPosPtr, mFrame.dataLen / ASampleBytes, (byte**)&frame->data, frame->nb_samples);
                 if (ret < 0)
                     return;
 
