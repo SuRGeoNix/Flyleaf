@@ -488,10 +488,11 @@ unsafe partial class Player
                             Audio.framesDropped++;
                             AudioDecoder.Frames.TryDequeue(out aFrame);
                             if (aFrame != null)
+                            {
                                 aFrame.timestamp = (long)(aFrame.timestamp / Speed);
-                            aDistanceMs = aFrame != null ? (int) ((aFrame.timestamp - elapsedTicks - Audio.GetDeviceDelay() + 8 * 1000) / 10000) : int.MaxValue;
-                            if (aDistanceMs > 0)
-                                break;
+                                if (aFrame.timestamp - curAudioDeviceDelay > vFrame.timestamp)
+                                    break;
+                            }
                         }
                     }
                 }

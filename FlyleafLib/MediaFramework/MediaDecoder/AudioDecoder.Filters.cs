@@ -58,7 +58,6 @@ public unsafe partial class AudioDecoder
             AVFilterContext* linkCtx;
 
             filterGraph     = avfilter_graph_alloc();
-            filterCurSamples= 0;
             setFirstPts     = true;
 
             // IN (abuffersrc)
@@ -116,7 +115,7 @@ public unsafe partial class AudioDecoder
         
         fixed(AVFilterGraph** filterGraphPtr = &filterGraph)
             avfilter_graph_free(filterGraphPtr);
-
+        
         abufferCtx      = null;
         abufferSinkCtx  = null;
         filterGraph     = null;
@@ -153,17 +152,13 @@ public unsafe partial class AudioDecoder
                     long newPts         = filterFirstPts + (long)(av_rescale_q(filterCurSamples - (avgSamples * (frames.Length - i)), codecCtx->time_base, AudioStream.AVStream->time_base) * speed);
                     frames[i].timestamp = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay);
                     int dataLen         = Utils.Align((int) (frames[i].dataLen * oldSpeed / speed), ASampleBytes);
+                    frames[i].dataLen   = dataLen;
 
-                    if (speed > oldSpeed)
-                        frames[i].dataLen = dataLen;
-                    else
+                    fixed (byte* cBufStartPosPtr = &cBuf[0])
                     {
-                        fixed (byte* circularBufferPosPtr = &cBuf[cBufPos])
-                        {
-                            var cBufOffset = (long)mFrame.dataPtr - (long)circularBufferPosPtr;
-                            if (cBufOffset + dataLen < cBuf.Length)
-                                frames[i].dataLen = dataLen;
-                        }
+                        var curOffset = (long)frames[i].dataPtr - (long)cBufStartPosPtr;
+                        if (oldSpeed > speed && curOffset + dataLen >= cBuf.Length)
+                            frames[i].dataPtr = (IntPtr)cBufStartPosPtr;
                     }
                 }
             }
@@ -179,7 +174,7 @@ public unsafe partial class AudioDecoder
     {
         lock (lockCodecCtx)
         {
-            if (filterGraph == null || !Engine.FFmpeg.FiltersLoaded)
+            if (filterGraph == null)
                 return -1;
 
             int ret = avfilter_graph_send_command(filterGraph, filterId, key, value, null, 0, 0);
@@ -190,12 +185,9 @@ public unsafe partial class AudioDecoder
     }
     public int ReloadFilters()
     {
-        if (!Engine.FFmpeg.FiltersLoaded)
-            return -1;
-
         lock (lockActions)
             lock (lockCodecCtx)
-                return SetupFilters(); // drain?
+                return !Engine.FFmpeg.FiltersLoaded || Config.Audio.FiltersEnabled ? -1 : SetupFilters();
     }
 
     private void ProcessWithFilters(AVFrame* frame)
@@ -221,12 +213,12 @@ public unsafe partial class AudioDecoder
             if (frame == null)
                 frame = av_frame_alloc(); // Drain frame (TODO: Drain from main loop)
 
-            if ((ret = av_buffersink_get_frame_flags(abufferSinkCtx, frame, 0)) < 0)
+            if ((ret = av_buffersink_get_frame_flags(abufferSinkCtx, frame, 0)) < 0) // Sometimes we get AccessViolationException while we UpdateFilter (possible related with .NET7 debug only bug)
             {
-                if (ret == AVERROR(AVERROR_EOF))
-                    { Status = Status.Ended; return; }
+                if (ret == AVERROR_EOF)
+                    Status = Status.Ended;
 
-                return; // EAGAIN
+                return; // EAGAIN (Some filters will send EAGAIN even if EOF currently we handled cause our Status will be Draining)
             }
 
             if (frame->pts == AV_NOPTS_VALUE)
@@ -272,17 +264,17 @@ public unsafe partial class AudioDecoder
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
 
-                while (Frames.Count >= Config.Decoder.MaxAudioFrames && Status == Status.QueueFull)
+                while (Frames.Count >= Config.Decoder.MaxAudioFrames && (Status == Status.QueueFull || Status == Status.Draining))
                     Thread.Sleep(20);
 
                 Monitor.Enter(lockCodecCtx);
 
                 lock (lockStatus)
                 {
-                    if (Status != Status.QueueFull)
+                    if (Status == Status.QueueFull)
+                        Status = Status.Running;
+                    else if (Status != Status.Draining)
                         return;
-
-                    Status = Status.Running;
                 }
             }
         }
