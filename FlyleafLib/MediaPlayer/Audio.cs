@@ -241,7 +241,7 @@ public class Audio : NotifyPropertyChanged
                 bool oldMute    = mute;
                 Volume          = _Volume;
                 Mute            = oldMute;
-                
+
             } catch (Exception e)
             {
                 player.Log.Info($"Audio initialization failed ({e.Message})");
@@ -284,7 +284,7 @@ public class Audio : NotifyPropertyChanged
             if (CanDebug) player.Log.Debug($"[Audio] Add samples failed ({e.Message})");
         }
     }
-    internal long GetDeviceDelay() => (long) (xaudio2.PerformanceData.CurrentLatencyInSamples * deviceDelayTimebase);
+    internal long GetDeviceDelay() => (long) (xaudio2.PerformanceData.CurrentLatencyInSamples * deviceDelayTimebase + 80000); // TODO: VBlack delay (8ms correction for now)
     internal void ClearBuffer()
     {
         lock (locker)

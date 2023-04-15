@@ -220,7 +220,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// Playback's speed (x1 - x4)
     /// </summary>
     public double       Speed {
-        get => _Speed; 
+        get => speed; 
         set
         {
             double newValue = value;
@@ -229,12 +229,12 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             else if (value > 16)
                 newValue = 16;
 
-            if (newValue == _Speed || (newValue > 1 && ReversePlayback))
+            if (newValue == speed || (newValue > 1 && ReversePlayback))
                 return;
             
             AudioDecoder.Speed      = newValue;
             VideoDecoder.Speed      = newValue;
-            _Speed                  = newValue;
+            speed                   = newValue;
             decoder.RequiresResync  = true;
             requiresBuffering       = true;
             Subtitles.subsText      = "";
@@ -247,7 +247,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             });
         }
     }
-    double _Speed = 1;
+    double speed = 1;
 
     /// <summary>
     /// Custom pan zoom percentage (Note: Prefer ZoomIn/ZoomOut and Config.Player.ZoomOffset instead of this)
