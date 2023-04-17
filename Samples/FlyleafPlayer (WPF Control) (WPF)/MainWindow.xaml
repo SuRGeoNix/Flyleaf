@@ -13,9 +13,11 @@
         TextElement.FontSize="13"
         TextOptions.TextFormattingMode="Ideal" 
         TextOptions.TextRenderingMode="Auto"
-        WindowStyle="None" ResizeMode="NoResize"
+        
+        Title="Flyleaf" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent"
+        
         MinWidth="150" MinHeight="80"
-        Height="450" Width="800" Background="Transparent" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
+        Height="450" Width="800" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
 
     <Window.Resources>
         <d:ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml"/>
