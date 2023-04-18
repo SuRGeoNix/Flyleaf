@@ -1216,8 +1216,18 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Surface?.Close();
     }
 
-    // Stand Alone Only (Main control has the overlay)
-    private void Overlay_Loaded(object sender, RoutedEventArgs e)
+    private void OverlayAttached_ContentRendered(object sender, EventArgs e)
+    {
+        if (DetachedContent != null || Overlay.Content == null || ActualWidth != 0)
+            return;
+
+        try
+        {
+            var t = ((FrameworkElement)Overlay.Content).RenderSize;
+            Width = t.Width; Height = t.Height;
+        } catch { }
+    }
+    private void OverlayStandAlone_Loaded(object sender, RoutedEventArgs e)
     {
         if (Overlay != null)
             return;
@@ -1228,10 +1238,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,!DetachedShowInTaskbarNoOwner && DetachedShowInTaskbar ? (nint)WindowStylesEx.WS_EX_APPWINDOW : 0);
 
         Overlay = standAloneOverlay;
-        Overlay.IsVisibleChanged += Overlay_IsVisibleChanged;
-        Overlay_IsVisibleChanged(null, new());
+        Overlay.IsVisibleChanged += OverlayStandAlone_IsVisibleChanged;
+        OverlayStandAlone_IsVisibleChanged(null, new());
     }
-    private void Overlay_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    private void OverlayStandAlone_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (Overlay.IsVisible)
             { Surface.Show(); ShowWindow(OverlayHandle, 2); ShowWindow(OverlayHandle, 3); }
@@ -1307,7 +1317,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             }
         }
 
-        // TBR: should also change position on some cases
         if (ratio == 0)
             fl.SetRect(new(WindowLeft, WindowTop, WindowWidth, WindowHeight));
         else if (resizingSide == 7 || resizingSide == 8)
@@ -1397,9 +1406,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         SetSurface();
 
         this.standAloneOverlay = standAloneOverlay;
-        standAloneOverlay.Loaded += Overlay_Loaded;
+        standAloneOverlay.Loaded += OverlayStandAlone_Loaded;
         if (standAloneOverlay.IsLoaded)
-            Overlay_Loaded(null, null);
+            OverlayStandAlone_Loaded(null, null);
     }
     #endregion
 
@@ -1514,6 +1523,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             Overlay.Resources   = Resources;
             Overlay.DataContext = this; // TBR: or this.DataContext?
+            Overlay.ContentRendered += OverlayAttached_ContentRendered; // To set the size from overlay when this.RenderSize is not defined
         }
 
         Overlay.Background      = Brushes.Transparent;
@@ -1542,7 +1552,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (Surface.IsVisible)
             Overlay.Show();
     }
-
     private void SetMouseSurface()
     {
         if (Surface == null)
@@ -1609,7 +1618,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     public virtual void Attach()
     {
-        rectDetachedLast = new Rect(Surface.Left, Surface.Top, Surface.Width, Surface.Height);
+        if (IsFullScreen)
+            IsFullScreen = false;
+        else
+            rectDetachedLast = new Rect(Surface.Left, Surface.Top, Surface.Width, Surface.Height);
 
         if (DetachedTopMost)
             Surface.Topmost = false;
@@ -1715,8 +1727,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         Rect final = new(newPos.X, newPos.Y, newSize.Width, newSize.Height);
 
         // Detach (Parent=Null, Owner=Null ?, ShowInTaskBar?, TopMost?)
-        SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
         SetParent(SurfaceHandle, IntPtr.Zero);
+        SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE); // TBR (also in Attach/FullScren): Needs to be after SetParent. when detached and trying to close the owner will take two clicks (like mouse capture without release) //SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, GetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE) & ~(nint)WindowStyles.WS_CHILD);
+
         if (DetachedShowInTaskbarNoOwner)
             Surface.Owner = null;
         
@@ -1745,9 +1758,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             if (IsAttached)
             {
-                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
                 ResetVisibleRect();
                 SetParent(SurfaceHandle, IntPtr.Zero);
+                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
 
                 if (DetachedShowInTaskbarNoOwner)
                     Surface.Owner = null;
@@ -1844,7 +1857,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             if (Overlay != null)
             {
-                Overlay.IsVisibleChanged -= Overlay_IsVisibleChanged;
+                Overlay.IsVisibleChanged -= OverlayStandAlone_IsVisibleChanged;
                 Overlay.MouseLeave -= Overlay_MouseLeave;
             }
 

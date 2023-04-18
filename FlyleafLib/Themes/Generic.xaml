@@ -39,7 +39,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type fl:FlyleafHost}">
-                    <ContentPresenter Content="{TemplateBinding DetachedContent}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    <ContentPresenter Width="{TemplateBinding Width}" Height="{TemplateBinding Height}" Content="{TemplateBinding DetachedContent}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -57,9 +57,15 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="{x:Type fl:FlyleafHost}">
                             <Grid>
-                                <ContentPresenter x:Name="Part_DetachedContent" Content="{TemplateBinding DetachedContent}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                                <ContentPresenter MaxWidth="{Binding ElementName=Part_DetachedContent, Path=ActualWidth}" MaxHeight="{Binding ElementName=Part_DetachedContent, Path=ActualHeight}"/>
+                                <ContentPresenter x:Name="Part_DetachedContent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}" Content="{TemplateBinding DetachedContent}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                <ContentPresenter x:Name="Part_OverlayContent"  Width="{Binding ElementName=Part_DetachedContent, Path=ActualWidth}" Height="{Binding ElementName=Part_DetachedContent, Path=ActualHeight}"/>
                             </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="DetachedContent" Value="{x:Null}">
+                                    <Setter TargetName="Part_OverlayContent" Property="Width" Value="auto"/>
+                                    <Setter TargetName="Part_OverlayContent" Property="Height" Value="auto"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
@@ -74,7 +80,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type fl:FlyleafSharedOverlay}">
-                    <ContentPresenter Content="{TemplateBinding DetachedContent}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    <ContentPresenter Width="{TemplateBinding Width}" Height="{TemplateBinding Height}" Content="{TemplateBinding DetachedContent}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -91,10 +97,16 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="{x:Type fl:FlyleafSharedOverlay}">
-                            <Grid >
-                                <ContentPresenter x:Name="Part_DetachedContent" Content="{TemplateBinding DetachedContent}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                                <ContentPresenter MaxWidth="{Binding ElementName=Part_DetachedContent, Path=ActualWidth}" MaxHeight="{Binding ElementName=Part_DetachedContent, Path=ActualHeight}"/>
+                            <Grid>
+                                <ContentPresenter x:Name="Part_DetachedContent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}" Content="{TemplateBinding DetachedContent}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                <ContentPresenter x:Name="Part_OverlayContent"  Width="{Binding ElementName=Part_DetachedContent, Path=ActualWidth}" Height="{Binding ElementName=Part_DetachedContent, Path=ActualHeight}"/>
                             </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="DetachedContent" Value="{x:Null}">
+                                    <Setter TargetName="Part_OverlayContent" Property="Width" Value="auto"/>
+                                    <Setter TargetName="Part_OverlayContent" Property="Height" Value="auto"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
