@@ -39,7 +39,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type fl:FlyleafHost}">
-                    <ContentPresenter Width="{TemplateBinding Width}" Height="{TemplateBinding Height}" Content="{TemplateBinding DetachedContent}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    <ContentPresenter Content="{TemplateBinding DetachedContent}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -56,9 +56,44 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="{x:Type fl:FlyleafHost}">
+                            <Grid>
+                                <ContentPresenter x:Name="Part_DetachedContent" Content="{TemplateBinding DetachedContent}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                <ContentPresenter MaxWidth="{Binding ElementName=Part_DetachedContent, Path=ActualWidth}" MaxHeight="{Binding ElementName=Part_DetachedContent, Path=ActualHeight}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </MultiTrigger>
+        </Style.Triggers>
+    </Style>
+    
+    <Style TargetType="{x:Type fl:FlyleafSharedOverlay}">
+
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type fl:FlyleafSharedOverlay}">
+                    <ContentPresenter Content="{TemplateBinding DetachedContent}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+
+        <Style.Triggers>
+            <Trigger Property="designMode:DesignerProperties.IsInDesignMode" Value="True">
+                <Setter Property="Template" Value="{Binding RelativeSource={RelativeSource Self}, Path=OverlayTemplate}"/>
+            </Trigger>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="designMode:DesignerProperties.IsInDesignMode" Value="True"/>
+                    <Condition Property="OverlayTemplate" Value="{x:Null}"/>
+                </MultiTrigger.Conditions>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type fl:FlyleafSharedOverlay}">
                             <Grid >
-                                <ContentPresenter Content="{TemplateBinding DetachedContent}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                                <ContentPresenter/>
+                                <ContentPresenter x:Name="Part_DetachedContent" Content="{TemplateBinding DetachedContent}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                <ContentPresenter MaxWidth="{Binding ElementName=Part_DetachedContent, Path=ActualWidth}" MaxHeight="{Binding ElementName=Part_DetachedContent, Path=ActualHeight}"/>
                             </Grid>
                         </ControlTemplate>
                     </Setter.Value>
