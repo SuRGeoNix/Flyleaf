@@ -13,13 +13,16 @@
         
         <!-- Notes
         Each FlyleafHost has three zorder Layers
-            1. Host/Detach Content *User*
-            2. Surface Content *Renderer*
-            3. Video Overlay Content *User*
+            1. Host/Detach Content *User*       (FlyleafHost Control)
+            2. Surface Content *Renderer*       (Surface Window)        Owner's Child / Overlay's Parent
+            3. Video Overlay Content *User*     (Overlay Window)        Surface's Child
         
-        For resize make sure VerticalAlignment="Top" HorizontalAlignment="Left" for now
-        Ideal way for performance and to ensure all resources/datacontext etc... are fine is to use Overlay dp directly with your custom Window (see HostOverlayWindow)
-        TODO: Fix for ZOrder bug while restoring from minimize and possible more zorder functionality
+        All the required changes for the Windows should be done through the FlyleafHost Control and not direclty on the Windows
+        (eg. IsFullScrreen/IsMinimized for Window States, same for the Window Sizes)
+        
+        If you don't specify the Size on the FlyleafHost it will be calculated from the Detached content if any,
+        otherwise from the Overlay content (only the first time). Updating the Content on the Overlay, it will not update the size of the Windows.
+        
         -->
         
         <!--Overlay Border / Resize on Overlay (Recommended)-->
@@ -56,9 +59,9 @@
                         >
 
             <fl:FlyleafHost.DetachedContent>
-                <Border DataContext="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type fl:FlyleafHost}}}" BorderBrush="DarkBlue" BorderThickness="4">
-                    <Border.Style>
-                        <Style TargetType="Border">
+                <Grid Background="Gray" DataContext="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type fl:FlyleafHost}}}">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
                             <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsAttached}" Value="True">
@@ -66,17 +69,17 @@
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </Border.Style>
+                    </Grid.Style>
 
-                    <StackPanel>
-                        <TextBlock Text="Detached" Foreground="DarkRed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                        <ToggleButton Content="Attach / Detach" Foreground="DarkRed" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="Detached" Foreground="DarkRed" TextAlignment="Center"/>
+                        <ToggleButton Margin="0 20 0 0" Content="Attach / Detach" Foreground="DarkRed" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}"/>
                     </StackPanel>
-                </Border>
+                </Grid>
             </fl:FlyleafHost.DetachedContent>
-
+            
             <Border BorderBrush="DarkBlue" BorderThickness="4">
-                <ToggleButton Content="Attach / Detach" Foreground="DarkRed" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <ToggleButton Content="Attach / Detach" Foreground="Red" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </Border>
         </fl:FlyleafHost>
         
@@ -148,12 +151,34 @@
                 </fl:FlyleafHost>
             </StackPanel>
         </ScrollViewer>
-
-        <!--Fail Sample 1 (Border) - Will not measure the content - Possible allow sometimes Host to follow Overlay's rendersize? -->
+        
+        <!-- [Should be fixed] Fail Sample 1 (Border) - Will not measure the content - Possible allow sometimes Host to follow Overlay's rendersize? -->
         <Border VerticalAlignment="Top" HorizontalAlignment="Left"
                 BorderBrush="DarkBlue" BorderThickness="4">
             <fl:FlyleafHost>
-                <TextBlock Text="Fail 1" FontSize="20" Foreground="DarkRed" />
+                <TextBlock Text="Measure me" FontSize="20" Foreground="DarkRed" />
+            </fl:FlyleafHost>
+        </Border>
+
+        <!--Fail Sample 2 - When content change size on the Overlay, it will not resize (gives priority to detached content/rendersize)
+                        Not safe to update two way (FlyleafHost <-> Surface/Overlay) could cause an infinite loop? / generally will drop performance 
+                        For now we consider Width/Height will be specified (either directly or through detached content if any or first time measurement of the overly content)
+        -->
+        <Border VerticalAlignment="Top" HorizontalAlignment="Left"
+                BorderBrush="DarkBlue" BorderThickness="4" Margin="40">
+            <fl:FlyleafHost>
+                <TextBlock FontSize="20" Foreground="DarkRed">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="Size Changed Failure"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Text" Value="Size Changed on Overlay?"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </fl:FlyleafHost>
         </Border>
     </Grid>
