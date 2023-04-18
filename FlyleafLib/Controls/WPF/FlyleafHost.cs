@@ -67,9 +67,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         PassWheelToOwner?				[None, Surface, Overlay, Both]		| When host belongs to ScrollViewer
 
-        IsAttached
-        IsFullScreen
-        IsMinimized
+        IsAttached                      [False, True]
+        IsFullScreen                    [False, True]                       | Should be used instead of WindowStates
+        IsMinimized                     [False, True]                       | Should be used instead of WindowStates
         IsResizing						[ReadOnly]
         IsSwapping						[ReadOnly]
         IsStandAlone					[ReadOnly]
@@ -78,9 +78,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     /* TODO
      * 1) The surface / overlay events code is repeated
      * 2) PassWheelToOwner (Related with LayoutUpdate performance / ScrollViewer) / ActivityRefresh
-     * 3) Review Content/DetachedContent/Template logic
-     * 4) Attach to different Owner (Load/Unload) and change Overlay?
-     * 5) WindowStates having issues with Owner Window, should prevent user to change states directly (we currently not forcing overlay -> surface states)
+     * 3) Attach to different Owner (Load/Unload) and change Overlay?
+     * 4) WindowStates should not be used by user directly. Use IsMinimized and IsFullScreen instead.
      */
 
     #region Properties / Variables
@@ -96,7 +95,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     static bool isDesginMode;
     static int  idGenerator;
-    static nint NONE_STYLE = (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE);
+    static nint NONE_STYLE = (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE); // WS_MINIMIZEBOX required for swapchain
     static Rect rectRandom = new(1, 2, 3, 4);
 
     bool surfaceClosed, surfaceClosing, overlayClosed;
@@ -1008,7 +1007,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             Point x1 = new(Surface.Left, Surface.Top);
 
-            Resize(Surface, SurfaceHandle, cur, ResizingSide, CurResizeRatio, this);
+            Resize(Surface, this, cur, ResizingSide, CurResizeRatio);
 
             if (IsAttached)
             {
@@ -1089,7 +1088,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             Point x1 = new(Surface.Left, Surface.Top);
 
-            Resize(Surface, SurfaceHandle, cur, ResizingSide, CurResizeRatio, this);
+            Resize(Surface, this, cur, ResizingSide, CurResizeRatio);
 
             if (IsAttached)
             {
@@ -1240,9 +1239,19 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Surface.Hide();
     }
 
-    public static void Resize(Window Window, IntPtr WindowHandle, Point p, int resizingSide, double ratio = 0.0, FlyleafHost todo = null)
+    public static void Resize(Window Window, FlyleafHost fl, Point p, int resizingSide, double ratio = 0.0)
     {
-        double WindowWidth = Window.ActualWidth, WindowHeight = Window.ActualHeight, WindowLeft = Window.Left - (todo.IsAttached ? todo.Owner.PointToScreen(new Point(0,0)).X : 0), WindowTop = Window.Top - (todo.IsAttached ? todo.Owner.PointToScreen(new Point(0,0)).Y : 0);
+        double WindowWidth  = Window.ActualWidth;
+        double WindowHeight = Window.ActualHeight;
+        double WindowLeft   = Window.Left;
+        double WindowTop    = Window.Top;
+
+        if (fl.IsAttached)
+        {
+            var t = fl.Owner.PointToScreen(new Point(0,0));
+            WindowLeft -= t.X;
+            WindowTop  -= t.Y;
+        }
 
         if (resizingSide == 2 || resizingSide == 3 || resizingSide == 6)
         {
@@ -1272,13 +1281,17 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 WindowHeight = p.Y < Window.MaxHeight ? p.Y : Window.MaxHeight;
             }
             else
-                p.Y = Window.MinHeight;
+                return;
         }
         else if (resizingSide == 1 || resizingSide == 3 || resizingSide == 7)
         {
             if (ratio != 0 && resizingSide != 7)
             {
-                WindowTop += (Window.ActualWidth - WindowWidth) / ratio;
+                double temp = WindowWidth / ratio;
+                if (temp > Window.MinHeight && temp < Window.MaxHeight)
+                    WindowTop += Window.ActualHeight - temp;
+                else
+                    return;
             }
             else
             {
@@ -1287,22 +1300,20 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 if (temp > Window.MinHeight && temp < Window.MaxHeight)
                 {
                     WindowHeight = temp;
-                    WindowTop += p.Y;
+                    WindowTop += p.Y;                
                 }
                 else
-                {
-                    WindowHeight = temp > Window.MinHeight ? Window.MaxHeight : Window.MinHeight;
-                }
+                    return;
             }
         }
 
         // TBR: should also change position on some cases
         if (ratio == 0)
-            todo.SetRect(new(WindowLeft, WindowTop, WindowWidth, WindowHeight));
+            fl.SetRect(new(WindowLeft, WindowTop, WindowWidth, WindowHeight));
         else if (resizingSide == 7 || resizingSide == 8)
-            todo.SetRect(new(WindowLeft, WindowTop, WindowHeight * ratio, WindowHeight));
+            fl.SetRect(new(WindowLeft, WindowTop, WindowHeight * ratio, WindowHeight));
         else
-            todo.SetRect(new(WindowLeft, WindowTop, WindowWidth, WindowWidth / ratio));
+            fl.SetRect(new(WindowLeft, WindowTop, WindowWidth, WindowWidth / ratio));
     }
     public static int ResizeSides(Window Window, Point p, int ResizeSensitivity, CornerRadius cornerRadius)
     {
@@ -1489,8 +1500,12 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             SetWindowPos(SurfaceHandle, IntPtr.Zero, (int)Overlay.Left, (int)Overlay.Top, (int)Overlay.ActualWidth, (int)Overlay.ActualHeight,
                 (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
 
-            Surface.Title   = Overlay.Title;
-            Surface.Icon    = Overlay.Icon;
+            Surface.Title       = Overlay.Title;
+            Surface.Icon        = Overlay.Icon;
+            Surface.MinHeight   = Overlay.MinHeight;
+            Surface.MaxHeight   = Overlay.MaxHeight;
+            Surface.MinWidth    = Overlay.MinWidth;
+            Surface.MaxWidth    = Overlay.MaxWidth;
         }
         else
         {
