@@ -57,7 +57,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         DetachedRememberSize			[False, True]
         DetachedTopMost					[False, True] (Surfaces Only Required?)
         DetachedShowInTaskbar           [False, True]                       | When Detached or Fullscreen will be in Switch Apps
-        DetachedShowInTaskbarNoOwner    [False, True]                       | When Detached or Fullscreen will be in Switch Apps and will be minimized/maximized separate from Owner
+        DetachedNoOwner                 [False, True]                       | When Detached will not follow the owner's window state (Minimize/Maximize)
 
         KeyBindings						[None, Surface, Overlay, Both]
         MouseBindings                   [None, Surface, Overlay, Both]      | Required for all other mouse events
@@ -80,6 +80,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
      * 2) PassWheelToOwner (Related with LayoutUpdate performance / ScrollViewer) / ActivityRefresh
      * 3) Attach to different Owner (Load/Unload) and change Overlay?
      * 4) WindowStates should not be used by user directly. Use IsMinimized and IsFullScreen instead.
+     * 5) WS_EX_NOACTIVATE should be set but for some reason is not required (for none-styled windows)? Currently BringToFront does the job but (only for left clicks?)
      */
 
     #region Properties / Variables
@@ -299,15 +300,15 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         set { SetValue(DetachedShowInTaskbarProperty, value); }
     }
     public static readonly DependencyProperty DetachedShowInTaskbarProperty =
-    DependencyProperty.Register(nameof(DetachedShowInTaskbar), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
+    DependencyProperty.Register(nameof(DetachedShowInTaskbar), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnShowInTaskBarChanged)));
 
-    public bool DetachedShowInTaskbarNoOwner
+    public bool DetachedNoOwner
     {
-        get { return (bool)GetValue(DetachedShowInTaskbarNoOwnerProperty); }
-        set { SetValue(DetachedShowInTaskbarNoOwnerProperty, value); }
+        get { return (bool)GetValue(DetachedNoOwnerProperty); }
+        set { SetValue(DetachedNoOwnerProperty, value); }
     }
-    public static readonly DependencyProperty DetachedShowInTaskbarNoOwnerProperty =
-    DependencyProperty.Register(nameof(DetachedShowInTaskbarNoOwner), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
+    public static readonly DependencyProperty DetachedNoOwnerProperty =
+    DependencyProperty.Register(nameof(DetachedNoOwner), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false, new PropertyChangedCallback(OnNoOwnerChanged)));
 
     public int DetachedMinHeight
     {
@@ -496,6 +497,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     private static void DropChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         FlyleafHost host = d as FlyleafHost;
+
+        if (host.Surface == null)
+            return;
+
         host.Surface.AllowDrop =
             host.OpenOnDrop == AvailableWindows.Surface || host.OpenOnDrop == AvailableWindows.Both ||
             host.SwapOnDrop == AvailableWindows.Surface || host.SwapOnDrop == AvailableWindows.Both;
@@ -527,6 +532,26 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             Surface.Height = Surface.Width / curResizeRatio;
         }
+    }
+    private static void OnShowInTaskBarChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        FlyleafHost host = d as FlyleafHost;
+        if (host.Surface == null)
+            return;
+
+        if (host.DetachedShowInTaskbar)
+            SetWindowLong(host.SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, GetWindowLong(host.SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE) | (nint)WindowStylesEx.WS_EX_APPWINDOW);
+        else
+            SetWindowLong(host.SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, GetWindowLong(host.SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE) & ~(nint)WindowStylesEx.WS_EX_APPWINDOW);
+    }
+    private static void OnNoOwnerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        FlyleafHost host = d as FlyleafHost;
+        if (host.Surface == null)
+            return;
+
+        if (!host.IsAttached)
+            host.Surface.Owner = host.DetachedNoOwner ? null : host.Owner;
     }
     private static void OnKeepRatioOnResizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -677,12 +702,13 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         SetSurface();
 
+        Surface.Title   = Owner.Title;
+        Surface.Icon    = Owner.Icon;
+        
         DataContextChanged  += Host_DataContextChanged;
         LayoutUpdated       += Host_LayoutUpdated;
         IsVisibleChanged    += Host_IsVisibleChanged;
-
-        SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,!DetachedShowInTaskbarNoOwner && DetachedShowInTaskbar ? (nint)WindowStylesEx.WS_EX_APPWINDOW : 0);
-
+        
         if (IsAttached)
         {
             Attach();
@@ -1229,18 +1255,23 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             throw new Exception("Stand-alone FlyleafHost requires WindowStyle = WindowStyle.None and AllowsTransparency = true");
 
         SetSurface();
-        SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,!DetachedShowInTaskbarNoOwner && DetachedShowInTaskbar ? (nint)WindowStylesEx.WS_EX_APPWINDOW : 0);
-
         Overlay = standAloneOverlay;
         Overlay.IsVisibleChanged += OverlayStandAlone_IsVisibleChanged;
         OverlayStandAlone_IsVisibleChanged(null, new());
     }
     private void OverlayStandAlone_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
+        // Surface should be visible first (this happens only on initialization of standalone)
+
+        if (Surface.IsVisible)
+            return;
+
         if (Overlay.IsVisible)
-            { Surface.Show(); ShowWindow(OverlayHandle, 2); ShowWindow(OverlayHandle, 3); }
-        else
-            Surface.Hide();
+        {
+            Surface.Show();
+            ShowWindow(OverlayHandle, (int)ShowWindowCommands.SW_SHOWMINIMIZED);
+            ShowWindow(OverlayHandle, (int)ShowWindowCommands.SW_SHOWMAXIMIZED);
+        }
     }
 
     public static void Resize(Window Window, FlyleafHost fl, Point p, int resizingSide, double ratio = 0.0)
@@ -1456,13 +1487,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         Surface.Width       = Surface.Height = 1; // Will be set on loaded
         Surface.WindowStyle = WindowStyle.None; 
         Surface.ResizeMode  = ResizeMode.NoResize;
-
-        if (Owner != null) // !standAlone
-        {
-            Surface.Owner   = Owner;
-            Surface.Title   = Owner.Title;
-            Surface.Icon    = Owner.Icon;
-        }
+        Surface.ShowInTaskbar = false;
 
         // CornerRadius must be set initially to AllowsTransparency! 
         if (CornerRadius == zeroCornerRadius)
@@ -1480,9 +1505,21 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             };
         }
 
-        SurfaceHandle   = new WindowInteropHelper(Surface).EnsureHandle();
-        SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)WindowStyles.WS_CHILD); 
-        SetWindowPos(SurfaceHandle, IntPtr.Zero, 0, 0, 0, 0, (uint)(SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE | SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOOWNERZORDER));
+        SurfaceHandle = new WindowInteropHelper(Surface).EnsureHandle();
+
+        if (IsAttached)
+        {
+            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)WindowStyles.WS_CHILD);
+            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,(nint)WindowStylesEx.WS_EX_LAYERED);
+        }
+        else // Detached || StandAlone
+        {
+            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
+            if (DetachedShowInTaskbar || IsStandAlone)
+                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,(nint)(WindowStylesEx.WS_EX_APPWINDOW | WindowStylesEx.WS_EX_LAYERED));
+            else
+                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,(nint)(WindowStylesEx.WS_EX_NOACTIVATE | WindowStylesEx.WS_EX_LAYERED));
+        }
         
         if (Player != null)
             Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
@@ -1509,11 +1546,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         SetSurface();
 
-        OverlayHandle   = new WindowInteropHelper(Overlay).EnsureHandle();
+        OverlayHandle = new WindowInteropHelper(Overlay).EnsureHandle();
 
         if (IsStandAlone)
         {
-            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
             SetWindowPos(SurfaceHandle, IntPtr.Zero, (int)Overlay.Left, (int)Overlay.Top, (int)Overlay.ActualWidth, (int)Overlay.ActualHeight,
                 (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
 
@@ -1527,21 +1563,19 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
         else
         {
-            SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight,
-                (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
-
             Overlay.Resources   = Resources;
             Overlay.DataContext = this; // TBR: or this.DataContext?
             Overlay.ContentRendered += OverlayAttached_ContentRendered; // To set the size from overlay when this.RenderSize is not defined
         }
 
+        SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight,
+                (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
+
         Overlay.Background      = Brushes.Transparent;
         Overlay.ShowInTaskbar   = false;
         Overlay.Owner           = Surface;
         SetParent(OverlayHandle, SurfaceHandle);
-        SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)WindowStyles.WS_CHILD);
-        SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, 0, 0, (uint)(SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOOWNERZORDER));
-        SetRectOverlay(null, null);
+        SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)(WindowStyles.WS_CHILD | WindowStyles.WS_MAXIMIZE)); // TBR: WS_MAXIMIZE required? (possible better for DWM on fullscreen?)
 
         Overlay.KeyUp       += Overlay_KeyUp;
         Overlay.KeyDown     += Overlay_KeyDown;
@@ -1625,12 +1659,15 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
     }
 
-    public virtual void Attach()
+    public virtual void Attach(bool ignoreRestoreRect = false)
     {
         if (IsFullScreen)
+        {
             IsFullScreen = false;
-        else
-            rectDetachedLast = new Rect(Surface.Left, Surface.Top, Surface.Width, Surface.Height);
+            return;
+        }
+        if (!ignoreRestoreRect)
+            rectDetachedLast= new(Surface.Left, Surface.Top, Surface.Width, Surface.Height);
 
         Surface.Topmost     = false;
         Surface.MinWidth    = MinWidth;
@@ -1662,7 +1699,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     {
         if (IsFullScreen)
             IsFullScreen = false;
-
+        
         Surface.MinWidth    = DetachedMinWidth;
         Surface.MinHeight   = DetachedMinHeight;
         Surface.MaxWidth    = DetachedMaxWidth;
@@ -1736,10 +1773,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         // Detach (Parent=Null, Owner=Null ?, ShowInTaskBar?, TopMost?)
         SetParent(SurfaceHandle, IntPtr.Zero);
         SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE); // TBR (also in Attach/FullScren): Needs to be after SetParent. when detached and trying to close the owner will take two clicks (like mouse capture without release) //SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, GetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE) & ~(nint)WindowStyles.WS_CHILD);
-
-        if (DetachedShowInTaskbarNoOwner)
-            Surface.Owner = null;
-
+        Surface.Owner = DetachedNoOwner ? null : Owner;
         Surface.Topmost = DetachedTopMost;
 
         SetRect(final);
@@ -1766,10 +1800,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             {
                 ResetVisibleRect();
                 SetParent(SurfaceHandle, IntPtr.Zero);
-                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
-
-                if (DetachedShowInTaskbarNoOwner)
-                    Surface.Owner = null;
+                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE); // TBR (also in Attach/FullScren): Needs to be after SetParent. when detached and trying to close the owner will take two clicks (like mouse capture without release) //SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, GetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE) & ~(nint)WindowStyles.WS_CHILD);
+                Surface.Owner   = DetachedNoOwner ? null : Owner;
+                Surface.Topmost = DetachedTopMost;
             }
 
             if (Player != null)
@@ -1779,42 +1812,19 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 ((Border)Surface.Content).CornerRadius = zeroCornerRadius;
 
             Surface.WindowState = WindowState.Maximized;
-
-            if (Overlay != null)
-            {
-                Overlay.WindowState = WindowState.Maximized; // possible not set this?
-                SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight, 
-                    (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE)); // changes the pos/size for some reason
-            }
         }
         else
         {
             Surface.WindowState = WindowState.Normal;
 
-            if (Overlay != null)
-                Overlay.WindowState = WindowState.Normal;
-
             if (IsAttached)
-            {
-                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)WindowStyles.WS_CHILD);
-                Surface.Owner = Owner;
-                SetParent(SurfaceHandle, OwnerHandle);
-                SetWindowPos(SurfaceHandle, IntPtr.Zero, 0, 0, 0, 0, (uint)(SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE | SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOOWNERZORDER));
-
-                rectInitLast = rectIntersectLast = Rect.Empty;
-                Host_LayoutUpdated(null, null);
-                Owner.Activate();
-            }
-
-            SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight, 
-                (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE)); // changes the pos/size for some reason
-
-            if (Surface.Topmost) // loses it
+                Attach(true);
+            else if (Surface.Topmost || DetachedTopMost) // Bring to front (in Desktop, above windows bar)
             {
                 Surface.Topmost = false;
                 Surface.Topmost = true;
             }
-            
+
             if (Player != null)
                 Player.renderer.CornerRadius = CornerRadius;
 
