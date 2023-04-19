@@ -120,7 +120,7 @@ public partial class Renderer
         else
         {
             context.OMSetRenderTargets(backBufferRtv);
-            context.ClearRenderTargetView(backBufferRtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
+            context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
             context.RSSetViewport(GetViewport);
             context.PSSetShaderResources(0, frame.srvs);
             context.Draw(6, 0);
@@ -144,7 +144,7 @@ public partial class Renderer
                     PresentInternal(LastFrame);
                 else
                 {
-                    context.ClearRenderTargetView(backBufferRtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
+                    context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
                     if (dCompVisual != null)
                         dCompDevice.Commit();

@@ -59,7 +59,7 @@ public partial class Renderer
         else
         {
             context.OMSetRenderTargets(rtv);
-            context.ClearRenderTargetView(rtv, dCompVisual == null ? Config.Video._BackgroundColor : new Color4(0, 0, 0, 0));
+            context.ClearRenderTargetView(rtv, Config.Video._BackgroundColor);
             context.RSSetViewport(viewport);
             context.PSSetShaderResources(0, frame.srvs);
             context.Draw(6, 0);

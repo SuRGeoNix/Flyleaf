@@ -27,7 +27,7 @@
         
         <!--Overlay Border / Resize on Overlay (Recommended)-->
         <fl:FlyleafHost Width="140" Height="110" Margin="100 300 0 0" VerticalAlignment="Top" HorizontalAlignment="Left"
-                        AttachedDragMove="Surface" AttachedResize="Surface">
+                        AttachedDragMove="Surface" AttachedResize="Surface" CornerRadius="30" Player="{Binding Player2}">
             <Border BorderBrush="DarkBlue" BorderThickness="4">
                 <Viewbox>
                     <TextBlock Text="Inner Border" Foreground="DarkRed" TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center"/>
