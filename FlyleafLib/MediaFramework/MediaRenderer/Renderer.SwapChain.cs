@@ -91,7 +91,7 @@ public partial class Renderer
                 {
                     Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} composition swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
                     swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(ControlWidth, ControlHeight, true, true));
-                    dCompDevice.CreateTargetForHwnd(handle, true, out dCompTarget).CheckError();
+                    dCompDevice.CreateTargetForHwnd(handle, false, out dCompTarget).CheckError();
                     dCompDevice.CreateVisual(out dCompVisual).CheckError();
                     dCompVisual.SetContent(swapChain).CheckError();
                     dCompTarget.SetRoot(dCompVisual).CheckError();
@@ -179,16 +179,10 @@ public partial class Renderer
             {
                 try
                 {
-                    if (dCompVisual == null)
-                    {
-                        context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                    }
-                    else
-                    {
-                        context.ClearRenderTargetView(backBufferRtv, new Color4(0, 0, 0, 0));
-                        swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                    context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                    swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                    if (dCompVisual != null)
                         dCompDevice.Commit();
-                    }
                 }
                 catch { }
             }
