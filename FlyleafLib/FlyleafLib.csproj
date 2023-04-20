@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.3</Version>
+	<Version>3.7.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,24 +17,20 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- AudioDecoder: Adds FFmpeg filters support (using embedded atempo for Player speed)
-		- AudioDecoder: Adds draining support
-		- AudioDecoder: Performance improvements
-		- AudioDecoder: Fixes a critical issue with swr_convert
-		- AudioDecoder: Fixes an issue that it wouldn't respect the Config.Decoder.MaxAudioFrames
-		- Demuxer: Adds more locks in packet queues to ensure stability
-		- Player: A/V Sync improvements (calculates the audio device delay)
-		- Renderer: D3D11 minor performance improvements
+		-= FlyleafHost (WPF) Performance/Stability/Compatibility Improvements =-
 
-		New API (experimental)
-		- Config.Audio.FiltersEnabled (if you want to use filters, atempo by default)
-		- Config.Audio.Filters (to add your filters)
-		- Player.Audio.UpdateFilter (to update filter's property)
-		- Player.Audio.ReloadFilters (to reload all the graph filters)
-		- Config.Video.SwapForceR8G8B8A8 (to force R8G8B8A8 instead of B8G8R8A8 for the swapchain)
+		- New WinAPI approach which uses proper Parent/Child (SetParent/WS_CHILD) relationship and removes WS_SYSMENU from style (fixes #257, #265)
+		- Fixes compatibility issues such as windows maximizing on the wrong screen or when running with admin privileges it wouldn't restore from minimize state (fixes #277)
+		- Fixes issues and improves Resize, Attach/Detach and FullScreen
+		- Adds Corner Radius support for Attached FlyleafHosts
+		- Introduces FlyleafSharedOverlay which can be used as a top layer (overlay) for multiple FlyleafHosts (fixes #255)
 
-		Breaking Changes
-		- Min value changed for Speed from 0.25 to 0.5
+		New API
+
+		- DetachedShowInTaskbar
+		- DetachedNoOwner
+		- BringToFrontOnClick
+		- BringToFront()
 	</PackageReleaseNotes>
   </PropertyGroup>
 
