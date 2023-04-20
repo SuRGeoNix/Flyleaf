@@ -990,6 +990,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Surface.Cursor = Cursors.Arrow;
             Overlay.Cursor = Cursors.Arrow;
             IsResizing = false;
+            Host_LayoutUpdated(null, null); // When attached to restore the clipped rect
         }
         mouseLeftDownPoint.X = -1;
         IsSwapping = false;
