@@ -1820,7 +1820,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Surface.WindowState = WindowState.Normal;
 
             if (IsAttached)
+            {
                 Attach(true);
+                InvalidateVisual(); // To force the FlyleafSharedOverlay (if any) redraw on-top
+            }
             else if (Surface.Topmost || DetachedTopMost) // Bring to front (in Desktop, above windows bar)
             {
                 Surface.Topmost = false;
@@ -1832,8 +1835,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             if (CornerRadius != zeroCornerRadius)
                 ((Border)Surface.Content).CornerRadius = CornerRadius;
-
-            InvalidateVisual(); // To force the FlyleafSharedOverlay (if any) redraw on-top
         }
     }
     public void SetRect(Rect rect)

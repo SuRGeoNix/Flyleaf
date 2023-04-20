@@ -118,153 +118,164 @@ unsafe public partial class Renderer
 
     void InitializeVideoProcessor()
     {
-        try
-        {
-            vpcd.InputWidth = 1;
-            vpcd.InputHeight= 1;
-            vpcd.OutputWidth = vpcd.InputWidth;
-            vpcd.OutputHeight= vpcd.InputHeight;
-
-            outputColorSpace = new VideoProcessorColorSpace()
+        lock (VideoProcessorsCapsCache)
+            try
             {
-                Usage           = 0,
-                RGB_Range       = 0,
-                YCbCr_Matrix    = 1,
-                YCbCr_xvYCC     = 0,
-                Nominal_Range   = 2
-            };
+                vpcd.InputWidth = 1;
+                vpcd.InputHeight= 1;
+                vpcd.OutputWidth = vpcd.InputWidth;
+                vpcd.OutputHeight= vpcd.InputHeight;
 
-            if (VideoProcessorsCapsCache.ContainsKey(Device.Tag.ToString()))
-            {
-                if (VideoProcessorsCapsCache[Device.Tag.ToString()].Failed)
+                outputColorSpace = new VideoProcessorColorSpace()
                 {
+                    Usage           = 0,
+                    RGB_Range       = 0,
+                    YCbCr_Matrix    = 1,
+                    YCbCr_xvYCC     = 0,
+                    Nominal_Range   = 2
+                };
+
+                if (VideoProcessorsCapsCache.ContainsKey(Device.Tag.ToString()))
+                {
+                    if (VideoProcessorsCapsCache[Device.Tag.ToString()].Failed)
+                    {
+                        InitializeFilters();
+                        return;
+                    }
+
+                    vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
+                    vc  = context.QueryInterface<ID3D11VideoContext1>();
+
+                    vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
+
+                    if (vpe == null)
+                    {
+                        VPFailed();
+                        return;
+                    }
+
+                    // if (!VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex != -1)
+                    vd1.CreateVideoProcessor(vpe, VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex, out vp);
                     InitializeFilters();
+
                     return;
                 }
 
+                VideoProcessorCapsCache cache = new();
+                VideoProcessorsCapsCache.Add(Device.Tag.ToString(), cache);
+
                 vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
-                vc  = context.QueryInterface<ID3D11VideoContext1>();
+                vc  = context.QueryInterface<ID3D11VideoContext>();
 
                 vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
 
-                if (vpe == null)
+                if (vpe == null || Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0)
                 {
                     VPFailed();
                     return;
                 }
 
-                // if (!VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex != -1)
-                vd1.CreateVideoProcessor(vpe, VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex, out vp);
-                InitializeFilters();
+                var vpe1 = vpe.QueryInterface<ID3D11VideoProcessorEnumerator1>();
+                bool supportHLG = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbFullG22NoneP709);
+                bool supportHDR10Limited = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioG2084TopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbStudioG2084NoneP2020);
 
-                return;
-            }
+                var vpCaps = vpe.VideoProcessorCaps;
+                string dump = "";
 
-            VideoProcessorCapsCache cache = new();
-            VideoProcessorsCapsCache.Add(Device.Tag.ToString(), cache);
-
-            vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
-            vc  = context.QueryInterface<ID3D11VideoContext>();
-
-            vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
-
-            if (vpe == null || Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0)
-            {
-                VPFailed();
-                return;
-            }
-
-            var vpe1 = vpe.QueryInterface<ID3D11VideoProcessorEnumerator1>();
-            bool supportHLG = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbFullG22NoneP709);
-            bool supportHDR10Limited = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioG2084TopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbStudioG2084NoneP2020);
-
-            var vpCaps = vpe.VideoProcessorCaps;
-            string dump = "";
-
-            dump += $"=====================================================\r\n";
-            dump += $"MaxInputStreams           {vpCaps.MaxInputStreams}\r\n";
-            dump += $"MaxStreamStates           {vpCaps.MaxStreamStates}\r\n";
-            dump += $"HDR10 Limited             {(supportHDR10Limited ? "yes" : "no")}\r\n";
-            dump += $"HLG                       {(supportHLG ? "yes" : "no")}\r\n";
-
-            dump += $"\n[Video Processor Device Caps]\r\n";
-            foreach (VideoProcessorDeviceCaps cap in Enum.GetValues(typeof(VideoProcessorDeviceCaps)))
-                dump += $"{cap,-25} {((vpCaps.DeviceCaps & cap) != 0 ? "yes" : "no")}\r\n";
-
-            dump += $"\n[Video Processor Feature Caps]\r\n";
-            foreach (VideoProcessorFeatureCaps cap in Enum.GetValues(typeof(VideoProcessorFeatureCaps)))
-                dump += $"{cap,-25} {((vpCaps.FeatureCaps & cap) != 0 ? "yes" : "no")}\r\n";
-
-            dump += $"\n[Video Processor Stereo Caps]\r\n";
-            foreach (VideoProcessorStereoCaps cap in Enum.GetValues(typeof(VideoProcessorStereoCaps)))
-                dump += $"{cap,-25} {((vpCaps.StereoCaps & cap) != 0 ? "yes" : "no")}\r\n";
-
-            dump += $"\n[Video Processor Input Format Caps]\r\n";
-            foreach (VideoProcessorFormatCaps cap in Enum.GetValues(typeof(VideoProcessorFormatCaps)))
-                dump += $"{cap,-25} {((vpCaps.InputFormatCaps & cap) != 0 ? "yes" : "no")}\r\n";
-
-            dump += $"\n[Video Processor Filter Caps]\r\n";
-            foreach (VideoProcessorFilterCaps filter in Enum.GetValues(typeof(VideoProcessorFilterCaps)))
-                if ((vpCaps.FilterCaps & filter) != 0)
+                if (CanDebug)
                 {
-                    vpe1.GetVideoProcessorFilterRange(ConvertFromVideoProcessorFilterCaps(filter), out var range);
-                    dump += $"{filter,-25} [{range.Minimum,6} - {range.Maximum,4}] | x{range.Multiplier,4} | *{range.Default}\r\n";
-                    var vf = ConvertFromVideoProcessorFilterRange(range);
-                    vf.Filter = (VideoFilters)filter;
-                    cache.Filters.Add((VideoFilters)filter, vf);
+                    dump += $"=====================================================\r\n";
+                    dump += $"MaxInputStreams           {vpCaps.MaxInputStreams}\r\n";
+                    dump += $"MaxStreamStates           {vpCaps.MaxStreamStates}\r\n";
+                    dump += $"HDR10 Limited             {(supportHDR10Limited ? "yes" : "no")}\r\n";
+                    dump += $"HLG                       {(supportHLG ? "yes" : "no")}\r\n";
+
+                    dump += $"\n[Video Processor Device Caps]\r\n";
+                    foreach (VideoProcessorDeviceCaps cap in Enum.GetValues(typeof(VideoProcessorDeviceCaps)))
+                        dump += $"{cap,-25} {((vpCaps.DeviceCaps & cap) != 0 ? "yes" : "no")}\r\n";
+
+                    dump += $"\n[Video Processor Feature Caps]\r\n";
+                    foreach (VideoProcessorFeatureCaps cap in Enum.GetValues(typeof(VideoProcessorFeatureCaps)))
+                        dump += $"{cap,-25} {((vpCaps.FeatureCaps & cap) != 0 ? "yes" : "no")}\r\n";
+
+                    dump += $"\n[Video Processor Stereo Caps]\r\n";
+                    foreach (VideoProcessorStereoCaps cap in Enum.GetValues(typeof(VideoProcessorStereoCaps)))
+                        dump += $"{cap,-25} {((vpCaps.StereoCaps & cap) != 0 ? "yes" : "no")}\r\n";
+
+                    dump += $"\n[Video Processor Input Format Caps]\r\n";
+                    foreach (VideoProcessorFormatCaps cap in Enum.GetValues(typeof(VideoProcessorFormatCaps)))
+                        dump += $"{cap,-25} {((vpCaps.InputFormatCaps & cap) != 0 ? "yes" : "no")}\r\n";
+
+                    dump += $"\n[Video Processor Filter Caps]\r\n";
                 }
-                else
-                    dump += $"{filter,-25} no\r\n";
 
-            dump += $"\n[Video Processor Input Format Caps]\r\n";
-            foreach (VideoProcessorAutoStreamCaps cap in Enum.GetValues(typeof(VideoProcessorAutoStreamCaps)))
-                dump += $"{cap,-25} {((vpCaps.AutoStreamCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                foreach (VideoProcessorFilterCaps filter in Enum.GetValues(typeof(VideoProcessorFilterCaps)))
+                    if ((vpCaps.FilterCaps & filter) != 0)
+                    {
+                        vpe1.GetVideoProcessorFilterRange(ConvertFromVideoProcessorFilterCaps(filter), out var range);
+                        if (CanDebug) dump += $"{filter,-25} [{range.Minimum,6} - {range.Maximum,4}] | x{range.Multiplier,4} | *{range.Default}\r\n";
+                        var vf = ConvertFromVideoProcessorFilterRange(range);
+                        vf.Filter = (VideoFilters)filter;
+                        cache.Filters.Add((VideoFilters)filter, vf);
+                    }
+                    else if (CanDebug)
+                        dump += $"{filter,-25} no\r\n";
 
-            int typeIndex = -1;
-            VideoProcessorRateConversionCaps rcCap = new();
-            for (int i = 0; i < vpCaps.RateConversionCapsCount; i++)
-            {
-                vpe.GetVideoProcessorRateConversionCaps(i, out rcCap);
-                VideoProcessorProcessorCaps pCaps = (VideoProcessorProcessorCaps) rcCap.ProcessorCaps;
+                if (CanDebug)
+                {
+                    dump += $"\n[Video Processor Input Format Caps]\r\n";
+                    foreach (VideoProcessorAutoStreamCaps cap in Enum.GetValues(typeof(VideoProcessorAutoStreamCaps)))
+                        dump += $"{cap,-25} {((vpCaps.AutoStreamCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                }
 
-                dump += $"\n[Video Processor Rate Conversion Caps #{i}]\r\n";
+                int typeIndex = -1;
+                VideoProcessorRateConversionCaps rcCap = new();
+                for (int i = 0; i < vpCaps.RateConversionCapsCount; i++)
+                {
+                    vpe.GetVideoProcessorRateConversionCaps(i, out rcCap);
+                    VideoProcessorProcessorCaps pCaps = (VideoProcessorProcessorCaps) rcCap.ProcessorCaps;
 
-                dump += $"\n\t[Video Processor Rate Conversion Caps]\r\n";
-                var fields = typeof(VideoProcessorRateConversionCaps).GetFields();
-                foreach (var field in fields)
-                    dump += $"\t{field.Name,-35} {field.GetValue(rcCap)}\r\n";
+                    if (CanDebug)
+                    {
+                        dump += $"\n[Video Processor Rate Conversion Caps #{i}]\r\n";
 
-                dump += $"\n\t[Video Processor Processor Caps]\r\n";
-                foreach (VideoProcessorProcessorCaps cap in Enum.GetValues(typeof(VideoProcessorProcessorCaps)))
-                    dump += $"\t{cap,-35} {(((VideoProcessorProcessorCaps)rcCap.ProcessorCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                        dump += $"\n\t[Video Processor Rate Conversion Caps]\r\n";
+                        var fields = typeof(VideoProcessorRateConversionCaps).GetFields();
+                        foreach (var field in fields)
+                            dump += $"\t{field.Name,-35} {field.GetValue(rcCap)}\r\n";
 
-                typeIndex = i;
+                        dump += $"\n\t[Video Processor Processor Caps]\r\n";
+                        foreach (VideoProcessorProcessorCaps cap in Enum.GetValues(typeof(VideoProcessorProcessorCaps)))
+                            dump += $"\t{cap,-35} {(((VideoProcessorProcessorCaps)rcCap.ProcessorCaps & cap) != 0 ? "yes" : "no")}\r\n";
+                    }
 
-                if (((VideoProcessorProcessorCaps)rcCap.ProcessorCaps & VideoProcessorProcessorCaps.DeinterlaceBob) != 0)
-                    break; // TBR: When we add past/future frames support
-            }
-            vpe1.Dispose();
+                    typeIndex = i;
 
-            if (CanDebug) Log.Debug($"D3D11 Video Processor\r\n{dump}");
+                    if (((VideoProcessorProcessorCaps)rcCap.ProcessorCaps & VideoProcessorProcessorCaps.DeinterlaceBob) != 0)
+                        break; // TBR: When we add past/future frames support
+                }
+                vpe1.Dispose();
 
-            cache.TypeIndex = typeIndex;
-            cache.HLG = supportHLG;
-            cache.HDR10Limited = supportHDR10Limited;
-            cache.VideoProcessorCaps = vpCaps;
-            cache.VideoProcessorRateConversionCaps = rcCap;
+                if (CanDebug) Log.Debug($"D3D11 Video Processor\r\n{dump}");
 
-            //if (typeIndex != -1)
-            vd1.CreateVideoProcessor(vpe, typeIndex, out vp);
-            if (vp == null)
-            {
-                VPFailed();
-                return;
-            }
+                cache.TypeIndex = typeIndex;
+                cache.HLG = supportHLG;
+                cache.HDR10Limited = supportHDR10Limited;
+                cache.VideoProcessorCaps = vpCaps;
+                cache.VideoProcessorRateConversionCaps = rcCap;
 
-            cache.Failed = false;
-            Log.Info($"D3D11 Video Processor Initialized (Rate Caps #{typeIndex})");
+                //if (typeIndex != -1)
+                vd1.CreateVideoProcessor(vpe, typeIndex, out vp);
+                if (vp == null)
+                {
+                    VPFailed();
+                    return;
+                }
 
-        } catch { DisposeVideoProcessor(); Log.Error($"D3D11 Video Processor Initialization Failed"); }
+                cache.Failed = false;
+                Log.Info($"D3D11 Video Processor Initialized (Rate Caps #{typeIndex})");
+
+            } catch { DisposeVideoProcessor(); Log.Error($"D3D11 Video Processor Initialization Failed"); }
 
         InitializeFilters();
     }
