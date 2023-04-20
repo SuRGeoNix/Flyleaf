@@ -661,10 +661,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
     void SetPS(string uniqueId, string sampleHLSL, List<string> defines = null)
     {
         if (curPSUniqueId == prevPSUniqueId)
-        {
-            Log.Error($"{uniqueId} is the same!");
             return;
-        }
 
         ShaderPS?.Dispose();
         ShaderPS = ShaderCompiler.CompilePS(Device, uniqueId, sampleHLSL, defines);
