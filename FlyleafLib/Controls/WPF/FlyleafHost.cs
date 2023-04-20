@@ -49,6 +49,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         CurResizeRatio                  [0 if not Keep Ratio or Player's aspect ratio]
         ResizeSensitivity               Pixels sensitivity from the window's edges
 
+        BringToFrontOnClick             [False, True]
+
         DetachedPosition				[Custom, TopLeft, TopCenter, TopRight, CenterLeft, CenterCenter, CenterRight, BottomLeft, BottomCenter, BottomRight]
         DetachedPositionMargin			[X, Y, CX, CY]						| Does not affect the Size / Eg. No point to provide both X/CX 	
         DetachedFixedPosition			[X, Y]								| if remember only first time
@@ -1510,15 +1512,15 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (IsAttached)
         {
             SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)WindowStyles.WS_CHILD);
-            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,(nint)WindowStylesEx.WS_EX_LAYERED);
+            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, (nint)WindowStylesEx.WS_EX_LAYERED);
         }
         else // Detached || StandAlone
         {
             SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
             if (DetachedShowInTaskbar || IsStandAlone)
-                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,(nint)(WindowStylesEx.WS_EX_APPWINDOW | WindowStylesEx.WS_EX_LAYERED));
+                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, (nint)(WindowStylesEx.WS_EX_APPWINDOW | WindowStylesEx.WS_EX_LAYERED));
             else
-                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE,(nint)(WindowStylesEx.WS_EX_NOACTIVATE | WindowStylesEx.WS_EX_LAYERED));
+                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, (nint)(WindowStylesEx.WS_EX_NOACTIVATE | WindowStylesEx.WS_EX_LAYERED));
         }
         
         if (Player != null)
@@ -1830,6 +1832,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             if (CornerRadius != zeroCornerRadius)
                 ((Border)Surface.Content).CornerRadius = CornerRadius;
+
+            InvalidateVisual(); // To force the FlyleafSharedOverlay (if any) redraw on-top
         }
     }
     public void SetRect(Rect rect)

@@ -1,25 +1,26 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Xml;
 
-using static FlyleafLib.Utils;
 using static FlyleafLib.Utils.NativeMethods;
 
 using Brushes = System.Windows.Media.Brushes;
 
 namespace FlyleafLib.Controls.WPF;
 
+/// <summary>
+/// Shared Overlay on top of multiple FlyleafHosts
+/// </summary>
 public class FlyleafSharedOverlay : ContentControl
 {
+    /* TODO
+     * Sub-classing or find all FlyleafHosts and/or add static event for fullscreens to force back on-top (Instead of current Host_LayoutUpdated constantly measuring/updating rect on-top)
+     * Review Active/Keyboard Focus?
+     */
+
     public object DetachedContent
     {
         get => GetValue(DetachedContentProperty);
@@ -57,14 +58,14 @@ public class FlyleafSharedOverlay : ContentControl
     public Window       Owner           { get; private set; }
     public IntPtr       OwnerHandle     { get; private set; }
 
-    public Window       Overlay         { get; private set; } = new Window() { WindowStyle = WindowStyle.None, AllowsTransparency = true };
+    public Window       Overlay         { get; private set; } = new Window() { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true };
     public IntPtr       OverlayHandle   { get; private set; }
 
     static bool isDesginMode;
     Point zeroPoint = new(0, 0);
     static Rect rectRandom = new(1, 2, 3, 4);
     Rect rectIntersectLast = rectRandom;
-    Rect rectInitLast = rectRandom;
+    //Rect rectInitLast = rectRandom;
 
     static FlyleafSharedOverlay()
     {
@@ -95,8 +96,6 @@ public class FlyleafSharedOverlay : ContentControl
         IsVisibleChanged        += Host_IsVisibleChanged;
         Overlay.MouseDown       += (o, e) => BringToFront();
 
-        Overlay.WindowStyle     = WindowStyle.None;
-        Overlay.ResizeMode      = ResizeMode.NoResize;
         Overlay.MinWidth        = MinWidth;
         Overlay.MinHeight       = MinHeight;
         Overlay.MaxWidth        = MaxWidth;
@@ -108,7 +107,7 @@ public class FlyleafSharedOverlay : ContentControl
         SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE | WindowStyles.WS_CHILD));
         SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, 0, 0, (uint)(SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOOWNERZORDER));
 
-        rectInitLast = rectIntersectLast = rectRandom;
+        /*rectInitLast =*/ rectIntersectLast = rectRandom;
         Host_LayoutUpdated(null, null);
         Host_IsVisibleChanged(null, new());
     }
@@ -132,11 +131,11 @@ public class FlyleafSharedOverlay : ContentControl
         while ((parent = VisualTreeHelper.GetParent(parent) as FrameworkElement) != null)
             rectIntersect.Intersect(new Rect(parent.TransformToAncestor(Owner).Transform(zeroPoint), parent.RenderSize));
 
-        if (rectInit != rectInitLast)
-        {
-            SetRect(rectInit);
-            rectInitLast = rectInit;
-        }
+        //if (rectInit != rectInitLast)
+        //{
+            SetRect(rectInit); // TBR: Performance
+            //rectInitLast = rectInit;
+        //}
 
         if (rectIntersect == Rect.Empty)
         {
@@ -170,7 +169,7 @@ public class FlyleafSharedOverlay : ContentControl
     }
     public void SetRect(Rect rect)
         => SetWindowPos(OverlayHandle, IntPtr.Zero, (int)Math.Round(rect.X * DpiX), (int)Math.Round(rect.Y * DpiY), (int)Math.Round(rect.Width * DpiX), (int)Math.Round(rect.Height * DpiY), 
-            (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
+            (uint)SetWindowPosFlags.SWP_NOACTIVATE); // force Z-order always on-top
 
     public void BringToFront() => SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, 0, 0, (UInt32)(SetWindowPosFlags.SWP_SHOWWINDOW | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOMOVE));
 }
