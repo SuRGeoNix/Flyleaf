@@ -662,7 +662,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
     {
         if (curPSUniqueId == prevPSUniqueId)
         {
-            Engine.Log.Error($"{uniqueId} is the same!");
+            Log.Error($"{uniqueId} is the same!");
             return;
         }
 
