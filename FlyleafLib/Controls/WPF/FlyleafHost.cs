@@ -972,32 +972,27 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         Overlay.CaptureMouse();
     }
 
-    private void ReleaseMouseCapture12(object sender, MouseEventArgs e) => ReleaseMouseCapture1(sender, null);
-    private void ReleaseMouseCapture1(object sender, MouseButtonEventArgs e)
+    private void Surface_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        Surface.ReleaseMouseCapture();
+        Surface.Focus();
+    }
+    private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        Overlay.ReleaseMouseCapture();
+        Overlay.Focus();
+    }
+    private void SO_LostMouseCapture(object sender, MouseEventArgs e)
     {
         if (IsResizing)
         {
             ResizingSide = 0;
             Surface.Cursor = Cursors.Arrow;
-            IsResizing = false;
-            Host_LayoutUpdated(null, null); // When attached to restore the clipped rect
-        }
-        mouseLeftDownPoint.X = -1;
-        IsSwapping = false;
-        Surface.Focus();
-    }
-    private void ReleaseMouseCapture2(object sender, MouseEventArgs e)
-    {
-        if (IsResizing)
-        {
-            ResizingSide = 0;
             Overlay.Cursor = Cursors.Arrow;
             IsResizing = false;
-            Host_LayoutUpdated(null, null); // When attached to restore the clipped rect
         }
         mouseLeftDownPoint.X = -1;
         IsSwapping = false;
-        Overlay.Focus();
     }
 
     private void Surface_MouseMove(object sender, MouseEventArgs e)
@@ -1606,9 +1601,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             surfaceMouseUp ??= new MouseButtonEventHandler((o, e) => Surface.ReleaseMouseCapture());
             Mouse.AddPreviewMouseUpOutsideCapturedElementHandler(Surface, surfaceMouseUp);
-            Surface.LostMouseCapture    += ReleaseMouseCapture12;
+            Surface.LostMouseCapture    += SO_LostMouseCapture;
             Surface.MouseLeftButtonDown += Surface_MouseLeftButtonDown;
-            Surface.MouseLeftButtonUp   += ReleaseMouseCapture1;
+            Surface.MouseLeftButtonUp   += Surface_MouseLeftButtonUp;
             Surface.MouseWheel          += Surface_MouseWheel;
             Surface.MouseMove           += Surface_MouseMove;
             Surface.MouseLeave          += Surface_MouseLeave;
@@ -1618,9 +1613,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         else if (MouseBindings != AvailableWindows.Surface && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedSurface)
         {
             Mouse.RemovePreviewMouseUpOutsideCapturedElementHandler(Surface, surfaceMouseUp);
-            Surface.LostMouseCapture    -= ReleaseMouseCapture2;
+            Surface.LostMouseCapture    -= SO_LostMouseCapture;
             Surface.MouseLeftButtonDown -= Surface_MouseLeftButtonDown;
-            Surface.MouseLeftButtonUp   -= ReleaseMouseCapture1;
+            Surface.MouseLeftButtonUp   -= Surface_MouseLeftButtonUp;
             Surface.MouseWheel          -= Surface_MouseWheel;
             Surface.MouseMove           -= Surface_MouseMove;
             Surface.MouseLeave          -= Surface_MouseLeave;
@@ -1635,12 +1630,15 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if ((MouseBindings == AvailableWindows.Overlay || MouseBindings == AvailableWindows.Both) && !isMouseBindingsSubscribedOverlay)
         {
-            overlayMouseUp ??= new MouseButtonEventHandler((o, e) => Overlay.ReleaseMouseCapture());
+            overlayMouseUp ??= new MouseButtonEventHandler((o, e) =>
+            {
+                //Overlay.ReleaseMouseCapture();
+            });
             Mouse.AddPreviewMouseUpOutsideCapturedElementHandler(Overlay, overlayMouseUp);
-            Overlay.LostMouseCapture    += ReleaseMouseCapture2;
+            Overlay.LostMouseCapture    += SO_LostMouseCapture;
 
             Overlay.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
-            Overlay.MouseLeftButtonUp   += ReleaseMouseCapture1;
+            Overlay.MouseLeftButtonUp   += Overlay_MouseLeftButtonUp;
             Overlay.MouseWheel          += Overlay_MouseWheel;
             Overlay.MouseMove           += Overlay_MouseMove;
             Overlay.MouseLeave          += Overlay_MouseLeave;
@@ -1650,9 +1648,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         else if (MouseBindings != AvailableWindows.Overlay && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedOverlay)
         {
             Mouse.RemovePreviewMouseUpOutsideCapturedElementHandler(Overlay, overlayMouseUp);
-            Overlay.LostMouseCapture    -= ReleaseMouseCapture2;
+            Overlay.LostMouseCapture    -= SO_LostMouseCapture;
             Overlay.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
-            Overlay.MouseLeftButtonUp   -= ReleaseMouseCapture1;
+            Overlay.MouseLeftButtonUp   -= Overlay_MouseLeftButtonUp;
             Overlay.MouseWheel          -= Overlay_MouseWheel;
             Overlay.MouseMove           -= Overlay_MouseMove;
             Overlay.MouseLeave          -= Overlay_MouseLeave;
@@ -1683,9 +1681,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         rectInitLast = rectIntersectLast = rectRandom;
         Host_LayoutUpdated(null, null);
-
+        
         // Keep keyboard focus
-        if (Overlay != null && Overlay.IsVisible && Overlay.IsKeyboardFocusWithin)
+        if (Overlay != null && Overlay.IsVisible)
         {
             Overlay.Activate();
             Overlay.Focus();
@@ -1782,7 +1780,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         ResetVisibleRect();
 
         // Keep keyboard focus
-        if (Overlay != null && Overlay.IsVisible && Overlay.IsKeyboardFocusWithin)
+        if (Overlay != null && Overlay.IsVisible)
         {
             Overlay.Activate();
             Overlay.Focus();
