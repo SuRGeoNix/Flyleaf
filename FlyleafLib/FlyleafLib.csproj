@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.4</Version>
+	<Version>3.7.5</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,20 +17,8 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		-= FlyleafHost (WPF) Performance/Stability/Compatibility Improvements =-
-
-		- New WinAPI approach which uses proper Parent/Child (SetParent/WS_CHILD) relationship and removes WS_SYSMENU from style (fixes #257, #265)
-		- Fixes compatibility issues such as windows maximizing on the wrong screen or when running with admin privileges it wouldn't restore from minimize state (fixes #277)
-		- Fixes issues and improves Resize, Attach/Detach and FullScreen
-		- Adds Corner Radius support for Attached FlyleafHosts
-		- Introduces FlyleafSharedOverlay which can be used as a top layer (overlay) for multiple FlyleafHosts (fixes #255)
-
-		New API
-
-		- DetachedShowInTaskbar
-		- DetachedNoOwner
-		- BringToFrontOnClick
-		- BringToFront()
+		Renderer: Fixes an issue when initializing multiple players async
+		FlyleafHost.Wpf: Fixes a critical issue with keyboard focus
 	</PackageReleaseNotes>
   </PropertyGroup>
 
