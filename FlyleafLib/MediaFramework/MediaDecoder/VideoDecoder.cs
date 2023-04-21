@@ -44,6 +44,7 @@ public unsafe class VideoDecoder : DecoderBase
     internal byte_ptrArray4 swsData;
     internal int_array4     swsLineSize;
 
+    bool                    swFallback;
     internal bool           keyFrameRequired;
 
     // Reverse Playback
@@ -65,7 +66,7 @@ public unsafe class VideoDecoder : DecoderBase
         else if (Renderer.Disposed)
             Renderer.Initialize();
 
-        Disposed = false;
+        Disposed = false; // We don't dipose the renderer (decoderContext does)
     }
     public void DestroyRenderer() => Renderer?.Dispose();
     public void CreateSwapChain(IntPtr handle)
@@ -150,7 +151,8 @@ public unsafe class VideoDecoder : DecoderBase
         
         while (*pix_fmts != AVPixelFormat.AV_PIX_FMT_NONE)
         {
-            if (CanTrace) Log.Trace($"{*pix_fmts}");
+            if (CanTrace)
+                Log.Trace($"{*pix_fmts}");
 
             if ((*pix_fmts) == PIX_FMT_HWACCEL)
             {
@@ -165,7 +167,8 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (foundHWformat && ret == 0)
         {
-            if (CanTrace) Log.Trace("HW frames already allocated");
+            if (CanTrace)
+                Log.Trace("HW frames already allocated");
 
             if (hwframes != null && codecCtx->hw_frames_ctx == null)
                 codecCtx->hw_frames_ctx = av_buffer_ref(hwframes);
@@ -177,33 +180,15 @@ public unsafe class VideoDecoder : DecoderBase
         {
             if (!foundHWformat || !VideoAccelerated || AllocateHWFrames() != 0)
             {
-                if (CanWarn) Log.Warn("HW format not found. Fallback to sw format");
+                if (CanWarn)
+                    Log.Warn("HW format not found. Fallback to sw format");
 
-                lock (Renderer.lockDevice)
-                {
-                    VideoAccelerated = false;
-                    ZeroCopy = false;
-
-                    if (hw_device_ctx != null)
-                    fixed(AVBufferRef** ptr = &hw_device_ctx)
-                        av_buffer_unref(ptr);
-
-                    if (codecCtx->hw_device_ctx != null)
-                        av_buffer_unref(&codecCtx->hw_device_ctx);
-
-                    if (codecCtx->hw_frames_ctx != null)
-                        av_buffer_unref(&codecCtx->hw_frames_ctx);
-
-                    hw_device_ctx = null;
-                    codecCtx->hw_device_ctx = null;
-                    filledFromCodec = false;
-                    disableGetFormat = true;
-                }
-
+                swFallback = true;
                 return avcodec_default_get_format(avctx, pix_fmts);
             }
             
-            if (CanDebug) Log.Debug("HW frame allocation completed");
+            if (CanDebug)
+                Log.Debug("HW frame allocation completed");
 
             // TBR: Catch codec changed on live streams (check codec/profiles and check even on sw frames)
             if (ret == 2)
@@ -295,7 +280,8 @@ public unsafe class VideoDecoder : DecoderBase
         CreateRenderer();
         
         VideoAccelerated = false;
-        if (Config.Video.VideoAcceleration && Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0)
+
+        if (!swFallback && Config.Video.VideoAcceleration && Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0)
         {
             if (CheckCodecSupport(codec))
             {
@@ -315,9 +301,9 @@ public unsafe class VideoDecoder : DecoderBase
         // Can't get data from here?
         //var t1 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_MASTERING_DISPLAY_METADATA, null);
         //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
-
-        keyFrameRequired = true;
-        ZeroCopy = false;
+        
+        keyFrameRequired= true;
+        ZeroCopy        = false;
         filledFromCodec = false;
 
         if (VideoAccelerated)
@@ -332,10 +318,7 @@ public unsafe class VideoDecoder : DecoderBase
             disableGetFormat = false;
         }
         else
-        {
             codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
-            codecCtx->thread_type  = 0;
-        }
 
         return 0;
     }
@@ -496,10 +479,14 @@ public unsafe class VideoDecoder : DecoderBase
 
                 // TBR: AVERROR(EAGAIN) means avcodec_receive_frame but after resend the same packet
                 ret = avcodec_send_packet(codecCtx, packet);
-                av_packet_free(&packet);
+
+                if (swFallback)
+                    filledFromCodec = false;
 
                 if (ret != 0 && ret != AVERROR(EAGAIN))
                 {
+                    av_packet_free(&packet);
+
                     if (ret == AVERROR_EOF)
                     {
                         if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); continue; } // TBR: Happens on HLS while switching video streams
@@ -520,6 +507,15 @@ public unsafe class VideoDecoder : DecoderBase
                 while (true)
                 {
                     ret = avcodec_receive_frame(codecCtx, frame);
+                    if (!filledFromCodec) // Required here for swFallback but it could need more packets to fill the codec?
+                    {
+                        ret = FillFromCodec(packet, frame);
+                        if (ret == -1234)
+                        {
+                            Status = Status.Stopping;
+                            break;
+                        }
+                    }
                     if (ret != 0) { av_frame_unref(frame); break; }
 
                     if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
@@ -553,42 +549,60 @@ public unsafe class VideoDecoder : DecoderBase
                         curSpeedFrame = 0; 
                     }
 
-                    if (!filledFromCodec)
-                    {
-                        filledFromCodec = true;
-
-                        avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
-                        VideoStream.AVStream->time_base = codecCtx->pkt_timebase;
-                        VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.AV_PIX_FMT_NONE ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt);
-
-                        if (!(VideoStream.FPS > 0)) // NaN
-                        {
-                            VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : 0;
-                            VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
-                        }
-
-                        CodecChanged?.Invoke(this);
-
-                        if (!Renderer.ConfigPlanes())
-                        {
-                            Log.Error("[Pixel Format] Unknown");
-                            av_frame_unref(frame);
-                            Status = Status.Stopping;
-                            break;
-                        }
-                    }
-
                     var mFrame = Renderer.FillPlanes(frame);
                     if (mFrame != null) Frames.Enqueue(mFrame); // TBR: Does not respect Config.Decoder.MaxVideoFrames
                 }
 
-            } // Lock CodecCtx
+                av_packet_free(&packet);
+            }
 
         } while (Status == Status.Running);
 
         if (isRecording) { StopRecording(); recCompleted(MediaType.Video); }
 
         if (Status == Status.Draining) Status = Status.Ended;
+    }
+
+    internal int FillFromCodec(AVPacket* packet, AVFrame* frame)
+    {
+        lock (Renderer.lockDevice)
+        {
+            int ret = 0;
+
+            if (swFallback)
+            {
+                av_frame_unref(frame);
+                DisposeInternal();
+                swFallback = true;
+                Open2(Stream, null, false); // TBR:  Dispose() on failure could cause a deadlock
+                swFallback = false;
+                ret = avcodec_send_packet(codecCtx, packet);
+                if (ret != 0) return -1234;
+                ret = avcodec_receive_frame(codecCtx, frame);
+            }
+
+            filledFromCodec = true;
+
+            avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
+            VideoStream.AVStream->time_base = codecCtx->pkt_timebase;
+            VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.AV_PIX_FMT_NONE ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt);
+
+            if (!(VideoStream.FPS > 0)) // NaN
+            {
+                VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : 0;
+                VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
+            }
+
+            CodecChanged?.Invoke(this);
+
+            if (!Renderer.ConfigPlanes())
+            {
+                Log.Error("[Pixel Format] Unknown");
+                return -1234;
+            }
+
+            return ret;
+        }
     }
 
     private void RunInternalReverse()
@@ -1022,6 +1036,7 @@ public unsafe class VideoDecoder : DecoderBase
             if (swsCtx != null)
                 sws_freeContext(swsCtx);
 
+            swFallback  = false;
             hwframes    = null;
             swsCtx      = null;
             StartTime   = AV_NOPTS_VALUE;

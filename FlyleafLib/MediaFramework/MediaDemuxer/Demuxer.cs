@@ -300,9 +300,8 @@ public unsafe class Demuxer : RunThreadBase
         try
         {
             Monitor.Enter(lockActions,ref gotLockActions);
-            Monitor.Enter(lockFmtCtx, ref gotLockFmtCtx);
-
             Dispose();
+            Monitor.Enter(lockFmtCtx, ref gotLockFmtCtx);
             Url = url;
 
             if (string.IsNullOrEmpty(url) && stream == null)
