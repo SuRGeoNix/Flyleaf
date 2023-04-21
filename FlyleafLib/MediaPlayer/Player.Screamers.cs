@@ -60,7 +60,7 @@ unsafe partial class Player
 
     int     allowedLateAudioDrops;
     long    curLatency;
-    long    curAudioDeviceDelay;
+    internal long curAudioDeviceDelay;
 
     Stopwatch sw = new();
 
@@ -320,10 +320,14 @@ unsafe partial class Player
             vDistanceMs = 
                   (int) ((((vFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000);
 
-            aDistanceMs = aFrame != null 
-                ? (int) ((((aFrame.timestamp - startTicks) / speed) - (elapsedTicks - Audio.GetDeviceDelay())) / 10000) 
-                : int.MaxValue;
-
+            if (aFrame != null)
+            {
+                curAudioDeviceDelay = Audio.GetDeviceDelay();
+                aDistanceMs = (int) ((((aFrame.timestamp - startTicks) / speed) - (elapsedTicks - curAudioDeviceDelay)) / 10000);
+            }
+            else
+                aDistanceMs = int.MaxValue;
+            
             sDistanceMs = sFrame != null 
                 ? (int) ((((sFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000) 
                 : int.MaxValue;
@@ -350,6 +354,63 @@ unsafe partial class Player
                 }
 
                 Thread.Sleep(sleepMs);
+            }
+
+            if (aFrame != null) // Should use different thread for better accurancy (renderer might delay it on high fps) | also on high offset we will have silence between samples
+            {
+                if (Math.Abs(aDistanceMs - sleepMs) <= 5)
+                {
+                    if (CanTrace) Log.Trace($"[A] Presenting {TicksToTime(aFrame.timestamp)}");
+                    Audio.AddSamples(aFrame);
+                    Audio.framesDisplayed++;
+                    AudioDecoder.Frames.TryDequeue(out aFrame);
+                }
+                else if (aDistanceMs > 1000) // Drops few audio frames in case of wrong timestamps
+                {
+                    if (allowedLateAudioDrops > 0)
+                    {
+                        Audio.framesDropped++;
+                        allowedLateAudioDrops--;
+                        if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs}");
+                        AudioDecoder.Frames.TryDequeue(out aFrame);
+                    }
+                }
+                else if (aDistanceMs < -5) // Will be transfered back to decoder to drop invalid timestamps
+                {
+                    if (VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
+                    {
+                        if (CanInfo)
+                            Log.Warn($"Not enough buffer (restarting)");
+
+                        requiresBuffering = true;
+                        continue;
+                    }
+
+                    if (CanInfo) Log.Info($"aDistanceMs = {aDistanceMs}");
+
+                    if (aDistanceMs < -600)
+                    {
+                        if (CanTrace) Log.Trace($"All audio frames disposed");
+                        Audio.framesDropped += AudioDecoder.Frames.Count;
+                        AudioDecoder.DisposeFrames();
+                        aFrame = null;
+                    }
+                    else
+                    {
+                        int maxdrop = Math.Max(Math.Min(vDistanceMs - sleepMs - 1, 20), 3);
+                        for (int i=0; i<maxdrop; i++)
+                        {
+                            if (CanTrace) Log.Trace($"aDistanceMs 2 = {aDistanceMs}");
+                            Audio.framesDropped++;
+                            AudioDecoder.Frames.TryDequeue(out aFrame);
+
+                            if (aFrame == null || ((aFrame.timestamp - startTicks) / speed) - (sw.ElapsedTicks - Audio.GetDeviceDelay() + 8 * 1000) > 0)
+                                break;
+
+                            aFrame = null;
+                        }
+                    }
+                }
             }
 
             if (Math.Abs(vDistanceMs - sleepMs) <= 2)
@@ -410,62 +471,7 @@ unsafe partial class Player
                 VideoDecoder.Frames.TryDequeue(out vFrame);
             }
 
-            if (aFrame != null) // Should use different thread for better accurancy (renderer might delay it on high fps) | also on high offset we will have silence between samples
-            {
-                if (Math.Abs(aDistanceMs - sleepMs) <= 5)
-                {
-                    if (CanTrace) Log.Trace($"[A] Presenting {TicksToTime(aFrame.timestamp)}");
-                    Audio.AddSamples(aFrame);
-                    Audio.framesDisplayed++;
-                    AudioDecoder.Frames.TryDequeue(out aFrame);
-                }
-                else if (aDistanceMs > 1000) // Drops few audio frames in case of wrong timestamps
-                {
-                    if (allowedLateAudioDrops > 0)
-                    {
-                        Audio.framesDropped++;
-                        allowedLateAudioDrops--;
-                        if (CanDebug) Log.Debug($"aDistanceMs 3 = {aDistanceMs}");
-                        AudioDecoder.Frames.TryDequeue(out aFrame);
-                    }
-                }
-                else if (aDistanceMs < -5) // Will be transfered back to decoder to drop invalid timestamps
-                {
-                    if (VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
-                    {
-                        if (CanInfo)
-                            Log.Warn($"Not enough buffer (restarting)");
-
-                        requiresBuffering = true;
-                        continue;
-                    }
-
-                    if (CanInfo) Log.Info($"aDistanceMs = {aDistanceMs}");
-
-                    if (aDistanceMs < -600)
-                    {
-                        if (CanTrace) Log.Trace($"All audio frames disposed");
-                        Audio.framesDropped += AudioDecoder.Frames.Count;
-                        AudioDecoder.DisposeFrames();
-                        aFrame = null;
-                    }
-                    else
-                    {
-                        int maxdrop = Math.Max(Math.Min(vDistanceMs - sleepMs - 1, 20), 3);
-                        for (int i=0; i<maxdrop; i++)
-                        {
-                            if (CanTrace) Log.Trace($"aDistanceMs 2 = {aDistanceMs}");
-                            Audio.framesDropped++;
-                            AudioDecoder.Frames.TryDequeue(out aFrame);
-
-                            if (aFrame == null || ((aFrame.timestamp - startTicks) / speed) - (sw.ElapsedTicks - Audio.GetDeviceDelay() + 8 * 1000) > 0)
-                                break;
-
-                            aFrame = null;
-                        }
-                    }
-                }
-            }
+            
             
             if (sFramePrev != null && ((sFramePrev.timestamp - startTicks + (sFramePrev.duration * (long)10000)) / speed) - sw.ElapsedTicks < 0)
             {

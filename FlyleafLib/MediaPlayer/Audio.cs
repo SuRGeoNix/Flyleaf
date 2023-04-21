@@ -182,6 +182,7 @@ public class Audio : NotifyPropertyChanged
     IXAudio2SourceVoice     sourceVoice;
     WaveFormat              waveFormat = new(48000, 16, 2); // Output Audio Device
     double                  deviceDelayTimebase;
+    ulong                   samplesLast;
     #endregion
 
     public Audio(Player player)
@@ -241,6 +242,7 @@ public class Audio : NotifyPropertyChanged
                 bool oldMute    = mute;
                 Volume          = _Volume;
                 Mute            = oldMute;
+                samplesLast     = 0;
 
             } catch (Exception e)
             {
@@ -264,7 +266,7 @@ public class Audio : NotifyPropertyChanged
             masteringVoice  = null;
         }
     }
-    
+
     // TBR: Very rarely could crash the app on audio device change while playing? Requires two locks (Audio's locker and aFrame)
     // The process was terminated due to an internal error in the .NET Runtime at IP 00007FFA6725DA03 (00007FFA67090000) with exit code c0000005.
     [System.Security.SecurityCritical]
@@ -272,14 +274,23 @@ public class Audio : NotifyPropertyChanged
     {
         try
         {
-            if (sourceVoice.StateNoSamplesPlayed.BuffersQueued > 2)
+            var samplesCur = sourceVoice.State.SamplesPlayed; // TBR: Not great for performance, better way to calc buffered duration?
+
+            // 30ms distance would be consider as desync
+            if ((samplesCur - samplesLast) * deviceDelayTimebase > player.curAudioDeviceDelay + (30 * 10000))
             {
-                if (CanTrace) player.Log.Trace($"Audio Buffers {sourceVoice.StateNoSamplesPlayed.BuffersQueued} > 2 ");
+                if (CanDebug)
+                    player.Log.Debug($"Audio desynced, clearing buffers");
+
                 ClearBuffer();
             }
+
+            samplesLast = samplesCur;
             SamplesAdded?.Invoke(this, aFrame);
             sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
-        } catch (Exception e) // Happens on audio device changed/removed
+
+        }
+        catch (Exception e) // Happens on audio device changed/removed
         {
             if (CanDebug) player.Log.Debug($"[Audio] Add samples failed ({e.Message})");
         }

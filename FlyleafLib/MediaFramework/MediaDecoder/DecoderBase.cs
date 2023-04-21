@@ -22,7 +22,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
     protected double speed = 1, oldSpeed = 1;
     protected virtual void OnSpeedChanged(double value) { }
 
-    protected bool              filledFromCodec;
+    internal bool               filledFromCodec;
     protected int               curSpeedFrame = 1;
     protected AVFrame*          frame;
     protected AVCodecContext*   codecCtx;
@@ -50,46 +50,55 @@ public abstract unsafe class DecoderBase : RunThreadBase
         {
             var prevStream = Stream;
             Dispose();
-            int ret = -1;
-            string error = null;
+            Status = Status.Opening;
+            string error = Open2(stream, prevStream);
+            if (!Disposed)
+                frame = av_frame_alloc();
 
-            try
+            return error;
+        }
+    }
+    protected string Open2(StreamBase stream, StreamBase prevStream, bool openStream = true)
+    {
+        string error = null;
+
+        try
+        {
+            lock (stream.Demuxer.lockActions)
             {
-                if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return "Cancelled";
-                lock (stream.Demuxer.lockActions)
-                {
-                    if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed) return "Cancelled";
+                if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed)
+                    return "Cancelled";
 
-                    Disposed= false;
-                    Status  = Status.Opening;
-                    Stream  = stream;
-                    demuxer = stream.Demuxer;
-
-                    var codec = avcodec_find_decoder(stream.CodecID);
-                    if (codec == null)
-                        return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
-
-                    codecCtx = avcodec_alloc_context3(null);
-                    if (codecCtx == null)
-                        return error = $"[{Type} avcodec_alloc_context3] Failed to allocate context3";
-
-                    ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
-                    if (ret < 0)
-                        return error = $"[{Type} avcodec_parameters_to_context] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
-
-                    codecCtx->pkt_timebase  = stream.AVStream->time_base;
-                    codecCtx->codec_id      = codec->id;
+                int ret = -1;
+                Disposed= false;
+                Stream  = stream;
+                demuxer = stream.Demuxer;
                     
-                    try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
-                    if (ret < 0)
-                        return error = $"[{Type} Setup] {ret}";
+                var codec = avcodec_find_decoder(stream.CodecID);
+                if (codec == null)
+                    return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
 
-                    ret = avcodec_open2(codecCtx, codec, null);
-                    if (ret < 0)
-                        return error = $"[{Type} avcodec_open2] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
+                codecCtx = avcodec_alloc_context3(null);
+                if (codecCtx == null)
+                    return error = $"[{Type} avcodec_alloc_context3] Failed to allocate context3";
 
-                    frame = av_frame_alloc();
+                ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
+                if (ret < 0)
+                    return error = $"[{Type} avcodec_parameters_to_context] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
 
+                codecCtx->pkt_timebase  = stream.AVStream->time_base;
+                codecCtx->codec_id      = codec->id;
+                    
+                try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
+                if (ret < 0)
+                    return error = $"[{Type} Setup] {ret}";
+
+                ret = avcodec_open2(codecCtx, codec, null);
+                if (ret < 0)
+                    return error = $"[{Type} avcodec_open2] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
+
+                if (openStream)
+                {
                     if (prevStream != null)
                     {
                         if (prevStream.Demuxer.Type == stream.Demuxer.Type)
@@ -108,17 +117,16 @@ public abstract unsafe class DecoderBase : RunThreadBase
                         stream.Demuxer.EnableStream(stream);
 
                     Status = Status.Stopped;
-
                     CodecChanged?.Invoke(this);
-
-                    return null;
                 }
+
+                return null;
             }
-            finally
-            {
-                if (error != null)
-                    Dispose(true);
-            }
+        }
+        finally
+        {
+            if (error != null)
+                Dispose(true);
         }
     }
     protected abstract int Setup(AVCodec* codec);
@@ -144,14 +152,17 @@ public abstract unsafe class DecoderBase : RunThreadBase
                     Stream.Demuxer.Dispose();
             }
 
-            if (frame != null) fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
+            if (frame != null)
+                fixed (AVFrame** ptr = &frame)
+                    av_frame_free(ptr);
 
             if (codecCtx != null)
             {
                 // TBR possible not required, also in case of image codec it will through an access violation
                 //avcodec_flush_buffers(codecCtx);
                 avcodec_close(codecCtx);
-                fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
+                fixed (AVCodecContext** ptr = &codecCtx)
+                    avcodec_free_context(ptr);
             }
             
             demuxer         = null;

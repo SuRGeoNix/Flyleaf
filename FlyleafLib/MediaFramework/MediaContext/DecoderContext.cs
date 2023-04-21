@@ -414,6 +414,8 @@ public unsafe partial class DecoderContext : PluginHandler
         AudioDecoder.Flush();
         SubtitlesDecoder.Flush();
     }
+
+    // !!! NEEDS RECODING
     public long GetVideoFrame(long timestamp = -1)
     {
         // TBR: Between seek and GetVideoFrame lockCodecCtx is lost and if VideoDecoder is running will already have decoded some frames (Currently ensure you pause VideDecoder before seek)
@@ -470,16 +472,24 @@ public unsafe partial class DecoderContext : PluginHandler
 
                 case AVMEDIA_TYPE_VIDEO:
                     ret = avcodec_send_packet(VideoDecoder.CodecCtx, packet);
-                    av_packet_free(&packet);
-                    packet = av_packet_alloc();
-
-                    if (ret != 0) return -1;
+                    if (ret != 0) { av_packet_free(&packet); return -1; }
                     
                     //VideoDemuxer.UpdateCurTime();
 
                     while (VideoDemuxer.VideoStream != null && !Interrupt)
                     {
                         ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
+                        if (!VideoDecoder.filledFromCodec)
+                        {
+                            ret = VideoDecoder.FillFromCodec(packet, frame);
+
+                            if (ret == -1234)
+                            {
+                                av_packet_free(&packet);
+                                av_frame_free(&frame);
+                                return -1;
+                            }
+                        }
                         if (ret != 0) { av_frame_unref(frame); break; }
 
                         if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
@@ -507,26 +517,25 @@ public unsafe partial class DecoderContext : PluginHandler
                         VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
 
                         var mFrame = VideoDecoder.Renderer.FillPlanes(frame);
-                        if (mFrame == null) return -1;
-
-                        if (mFrame != null)
-                        {
-                            VideoDecoder.Frames.Enqueue(mFrame);
+                        if (mFrame != null) VideoDecoder.Frames.Enqueue(mFrame);
                             
-                            while (!VideoDemuxer.Disposed && !Interrupt)
-                            {
-                                frame = av_frame_alloc();
-                                ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
-                                if (ret != 0) break;
-                                var mFrame2 = VideoDecoder.Renderer.FillPlanes(frame);
-                                if (mFrame2 != null) VideoDecoder.Frames.Enqueue(mFrame);
-                            }
-
-                            av_packet_free(&packet);
+                        do
+                        {
                             av_frame_free(&frame);
-                            return mFrame.timestamp;
-                        }
+                            frame = av_frame_alloc();
+                            ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
+                            if (ret != 0) break;
+                            mFrame = VideoDecoder.Renderer.FillPlanes(frame);
+                            if (mFrame != null) VideoDecoder.Frames.Enqueue(mFrame);
+                        } while (!VideoDemuxer.Disposed && !Interrupt);
+
+                        av_packet_free(&packet);
+                        av_frame_free(&frame);
+                        return mFrame.timestamp;
                     }
+
+                    av_packet_free(&packet);
+                    packet = av_packet_alloc();
 
                     break; // Switch break
 

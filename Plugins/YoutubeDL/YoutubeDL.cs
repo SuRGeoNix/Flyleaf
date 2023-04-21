@@ -105,12 +105,12 @@ namespace FlyleafLib.Plugins
         private Format GetBestMatch(YoutubeDLJson ytdl)
         {
             // TODO: Expose in settings (vCodecs Blacklist) || Create a HW decoding failed list dynamic (check also for whitelist)
-            List<string> vCodecsBlacklist = new List<string>() { "vp9" };
+            List<string> vCodecsBlacklist = new List<string>();
 
             // Video Streams Order based on Screen Resolution
             var iresults =
                 from    format in ytdl.formats
-                where   HasVideo(format) && format.height <= Config.Video.MaxVerticalResolution && !Regex.IsMatch(format.protocol, "dash", RegexOptions.IgnoreCase)
+                where   HasVideo(format) && format.height <= Config.Video.MaxVerticalResolution && (!Regex.IsMatch(format.protocol, "dash", RegexOptions.IgnoreCase) || format.vcodec.ToLower() == "vp9")
                 orderby format.tbr      descending
                 orderby format.fps      descending
                 orderby format.height   descending
