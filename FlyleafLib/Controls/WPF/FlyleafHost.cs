@@ -410,14 +410,37 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     public static readonly DependencyProperty IsStandAloneProperty =
         DependencyProperty.Register(nameof(IsStandAlone), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
 
-    public bool IsSwapping
+    public bool IsSwappingStarted
     {
-        get => (bool)GetValue(IsSwappingProperty);
-        private set => SetValue(IsSwappingProperty, value);
+        get => (bool)GetValue(IsSwappingStartedProperty);
+        private set => SetValue(IsSwappingStartedProperty, value);
     }
-    public static readonly DependencyProperty IsSwappingProperty =
-        DependencyProperty.Register(nameof(IsSwapping), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
+    public static readonly DependencyProperty IsSwappingStartedProperty =
+        DependencyProperty.Register(nameof(IsSwappingStarted), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
 
+    public bool IsPanMoving
+    {
+        get { return (bool)GetValue(IsPanMovingProperty); }
+        private set { SetValue(IsPanMovingProperty, value); }
+    }
+    public static readonly DependencyProperty IsPanMovingProperty =
+    DependencyProperty.Register(nameof(IsPanMoving), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
+
+    public bool IsDragMoving
+    {
+        get { return (bool)GetValue(IsDragMovingProperty); }
+        set { SetValue(IsDragMovingProperty, value); }
+    }
+    public static readonly DependencyProperty IsDragMovingProperty =
+    DependencyProperty.Register(nameof(IsDragMoving), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
+
+    public bool IsDragMovingOwner
+    {
+        get { return (bool)GetValue(IsDragMovingOwnerProperty); }
+        set { SetValue(IsDragMovingOwnerProperty, value); }
+    }
+    public static readonly DependencyProperty IsDragMovingOwnerProperty =
+    DependencyProperty.Register(nameof(IsDragMovingOwner), typeof(bool), typeof(FlyleafHost), new PropertyMetadata(false));
 
     public FrameworkElement MarginTarget
     {
@@ -804,10 +827,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     private void Surface_KeyUp(object sender, KeyEventArgs e) { if (KeyBindings == AvailableWindows.Surface || KeyBindings == AvailableWindows.Both) e.Handled = Player.KeyUp(Player, e); }
     private void Overlay_KeyUp(object sender, KeyEventArgs e) { if (KeyBindings == AvailableWindows.Overlay || KeyBindings == AvailableWindows.Both) e.Handled = Player.KeyUp(Player, e); }
-
+    
     private void Surface_Drop(object sender, DragEventArgs e)
     {
-        IsSwapping = false;
+        IsSwappingStarted = false;
         Surface.ReleaseMouseCapture();
         FlyleafHostDropWrap hostWrap = (FlyleafHostDropWrap) e.Data.GetData(typeof(FlyleafHostDropWrap));
         
@@ -839,7 +862,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     }
     private void Overlay_Drop(object sender, DragEventArgs e)
     {
-        IsSwapping = false;
+        IsSwappingStarted = false;
         Overlay.ReleaseMouseCapture();
         FlyleafHostDropWrap hostWrap = (FlyleafHostDropWrap) e.Data.GetData(typeof(FlyleafHostDropWrap));
         
@@ -897,108 +920,134 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
     }
 
-    private void Surface_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void Surface_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => SO_MouseLeftButtonDown(e, Surface);
+    private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => SO_MouseLeftButtonDown(e, Overlay);
+    private void SO_MouseLeftButtonDown(MouseButtonEventArgs e, Window window)
     {
-        // Bring to front
-        //SetWindowPos(OwnerHandle, IntPtr.Zero, 0, 0, 0, 0, (UInt32)(SetWindowPosFlags.SWP_SHOWWINDOW | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOMOVE)); 
+        AvailableWindows availWindow;
+        AttachedDragMoveOptions availDragMove;
+        AttachedDragMoveOptions availDragMoveOwner;
 
-        if (BringToFrontOnClick)
-            BringToFront();
-
-        mouseLeftDownPoint = e.GetPosition(Surface);
-
-        if ((SwapOnDrop == AvailableWindows.Surface || SwapOnDrop == AvailableWindows.Both) && 
-            (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
+        if (window == Surface)
         {
-            IsSwapping = true;
-            DragDrop.DoDragDrop(this, new FlyleafHostDropWrap() { FlyleafHost = this }, DragDropEffects.Move);
-            
-            return;
+            availWindow         = AvailableWindows.Surface;
+            availDragMove       = AttachedDragMoveOptions.Surface;
+            availDragMoveOwner  = AttachedDragMoveOptions.SurfaceOwner;
+        }
+        else
+        {
+            availWindow         = AvailableWindows.Overlay;
+            availDragMove       = AttachedDragMoveOptions.Overlay;
+            availDragMoveOwner  = AttachedDragMoveOptions.OverlayOwner;
         }
 
+        if (BringToFrontOnClick) // Activate and Z-order top
+            BringToFront();
+
+        window.Focus();
+        Player?.Activity.RefreshFullActive();
+
+        mouseLeftDownPoint = e.GetPosition(window);
+        IsSwappingStarted = false; // currently we don't care if it was cancelled (it can be stay true if we miss the mouse up) - QueryContinueDrag
+
+        // Resize
         if (ResizingSide != 0)
         {
             ResetVisibleRect();
             IsResizing = true;
         }
-        else
-        {
-            if (Player != null)
-            {
-                Player.Activity.RefreshFullActive();
 
-                panPrevX = Player.PanXOffset;
-                panPrevY = Player.PanYOffset;
-            }
-        }
-
-        Surface.CaptureMouse();
-    }
-    private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        // Bring to front
-        //SetWindowPos(OwnerHandle, IntPtr.Zero, 0, 0, 0, 0, (UInt32)(SetWindowPosFlags.SWP_SHOWWINDOW | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOMOVE)); 
-
-        if (BringToFrontOnClick)
-            BringToFront();
-
-        mouseLeftDownPoint = e.GetPosition(Overlay);
-        
-        if ((SwapOnDrop == AvailableWindows.Overlay || SwapOnDrop == AvailableWindows.Both) && 
+        // Swap
+        else if ((SwapOnDrop == availWindow || SwapOnDrop == AvailableWindows.Both) && 
             (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
         {
-            IsSwapping = true;
+            IsSwappingStarted = true;
             DragDrop.DoDragDrop(this, new FlyleafHostDropWrap() { FlyleafHost = this }, DragDropEffects.Move);
-            
+
+            return; // No Capture
+        }
+
+        // PanMove
+        else if (Player != null && 
+            (PanMoveOnCtrl == availWindow || PanMoveOnCtrl == AvailableWindows.Both) &&
+            (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
+        {
+            panPrevX    = Player.PanXOffset;
+            panPrevY    = Player.PanYOffset;
+            IsPanMoving = true;
+        }
+
+        // DragMoveOwner
+        else if (IsAttached && Owner != null && 
+            (AttachedDragMove == availDragMoveOwner || AttachedDragMove == AttachedDragMoveOptions.BothOwner))
+            IsDragMovingOwner = true;
+         
+
+        // DragMove (Attach|Detach)
+        else if ((IsAttached && (AttachedDragMove == availDragMove  || AttachedDragMove == AttachedDragMoveOptions.Both))
+            ||  (!IsAttached && (DetachedDragMove == availWindow    || DetachedDragMove == AvailableWindows.Both)))
+            IsDragMoving = true;
+
+        window.CaptureMouse();
+    }
+
+    private void Surface_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => Surface_ReleaseCapture();
+    private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => Overlay_ReleaseCapture();
+    private void Surface_LostMouseCapture(object sender, MouseEventArgs e) => Surface_ReleaseCapture();
+    private void Overlay_LostMouseCapture(object sender, MouseEventArgs e) => Overlay_ReleaseCapture();
+    private void Surface_ReleaseCapture()
+    {
+        if (!IsResizing && !IsPanMoving && !IsDragMoving && !IsDragMovingOwner)
             return;
-        }
 
-        if (ResizingSide != 0)
-        {
-            ResetVisibleRect();
-            IsResizing = true;
-        }
-        else
-        {
-            if (Player != null)
-            {
-                Player.Activity.RefreshFullActive();
+        Surface.ReleaseMouseCapture();  
 
-                panPrevX = Player.PanXOffset;
-                panPrevY = Player.PanYOffset;
-            }
-        }
+        mouseLeftDownPoint.X= -1; // ?
+        IsSwappingStarted = false; // just to ensure?
 
-        Overlay.CaptureMouse();
-    }
-
-    private void Surface_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        Surface.ReleaseMouseCapture();
-        Surface.Focus();
-    }
-    private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        Overlay.ReleaseMouseCapture();
-        Overlay.Focus();
-    }
-    private void SO_LostMouseCapture(object sender, MouseEventArgs e)
-    {
         if (IsResizing)
         {
             ResizingSide = 0;
             Surface.Cursor = Cursors.Arrow;
+            if (Overlay != null)
+                Overlay.Cursor = Cursors.Arrow;
+            IsResizing = false;
+            Host_LayoutUpdated(null, null); // When attached to restore the clipped rect
+        }    
+        else if (IsPanMoving)
+            IsPanMoving = false;
+        else if (IsDragMoving)
+            IsDragMoving = false;
+        else if (IsDragMovingOwner)
+            IsDragMovingOwner = false;
+        else
+            return;
+    }
+    private void Overlay_ReleaseCapture()
+    {
+        Overlay.ReleaseMouseCapture();  
+
+        mouseLeftDownPoint.X= -1; // ?
+        IsSwappingStarted = false; // just to ensure?
+
+        if (IsResizing)
+        {
+            ResizingSide = 0;
             Overlay.Cursor = Cursors.Arrow;
             IsResizing = false;
             Host_LayoutUpdated(null, null); // When attached to restore the clipped rect
-        }
-        mouseLeftDownPoint.X = -1;
-        IsSwapping = false;
+        }    
+        else if (IsPanMoving)
+            IsPanMoving = false;
+        else if (IsDragMoving)
+            IsDragMoving = false;
+        else if (IsDragMovingOwner)
+            IsDragMovingOwner = false;
     }
 
     private void Surface_MouseMove(object sender, MouseEventArgs e)
     {
-        var cur = e.GetPosition(Overlay);
+        var cur = e.GetPosition(Surface);
          
         if (Player != null && cur != mouseMoveLastPoint)
         {
@@ -1015,12 +1064,56 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             {
                 ResizingSide = ResizeSides(Surface, cur, ResizeSensitivity, CornerRadius);
             }
+
+            return;
         }
-        else if (IsSwapping)
+
+        SO_MouseMove(cur);
+    }
+    private void Overlay_MouseMove(object sender, MouseEventArgs e)
+    {
+        var cur = e.GetPosition(Overlay);
+
+        if (Player != null && cur != mouseMoveLastPoint)
+        {
+            Player.Activity.RefreshFullActive();
+            mouseMoveLastPoint = cur;
+        }
+
+        // Resize Sides (CanResize + !MouseDown + !FullScreen)
+        if (e.MouseDevice.LeftButton != MouseButtonState.Pressed && cur != zeroPoint)
+        {
+            if (!IsFullScreen &&
+                ((IsAttached && (AttachedResize == AvailableWindows.Overlay || AttachedResize == AvailableWindows.Both)) ||
+                (!IsAttached && (DetachedResize == AvailableWindows.Overlay || DetachedResize == AvailableWindows.Both))))
+            {
+                ResizingSide = ResizeSides(Overlay, cur, ResizeSensitivity, CornerRadius);
+            }
+
+            return;
+        }
+        
+        SO_MouseMove(cur);
+    }
+    private void SO_MouseMove(Point cur)
+    {
+        if (IsSwappingStarted)
+            return;
+
+        // Player's Pan Move (Ctrl + Drag Move)
+        if (IsPanMoving)
+        {
+            Player.PanXOffset = panPrevX + (int) (cur.X - mouseLeftDownPoint.X);
+            Player.PanYOffset = panPrevY + (int) (cur.Y - mouseLeftDownPoint.Y);
+
+            return;
+        }
+
+        if (IsFullScreen)
             return;
 
         // Resize (MouseDown + ResizeSide != 0)
-        else if (IsResizing)
+        if (IsResizing)
         {
             Point x1 = new(Surface.Left, Surface.Top);
 
@@ -1036,127 +1129,29 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             }
         }
 
-        // Bug? happens on double click
-        else if (mouseLeftDownPoint.X == -1)
-            return;
-
-        // Player's Pan Move (Ctrl + Drag Move)
-        else if (Player != null && 
-            (PanMoveOnCtrl == AvailableWindows.Surface || PanMoveOnCtrl == AvailableWindows.Both) &&
-            (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
-        {
-            Player.PanXOffset = panPrevX + (int) (cur.X - mouseLeftDownPoint.X);
-            Player.PanYOffset = panPrevY + (int) (cur.Y - mouseLeftDownPoint.Y);
-        }
-
-        // Drag Move Self (Detached) / Self (Attached) / Owner (Attached)
-        else if (Surface.IsMouseCaptured && !IsFullScreen)
+        // Drag Move Self (Attached|Detached)
+        else if (IsDragMoving)
         {
             if (IsAttached)
             {
-                if (AttachedDragMove == AttachedDragMoveOptions.SurfaceOwner || AttachedDragMove == AttachedDragMoveOptions.BothOwner)
-                {
-                    if (Owner != null)
-                    {
-                        Owner.Left  += cur.X - mouseLeftDownPoint.X;
-                        Owner.Top   += cur.Y - mouseLeftDownPoint.Y;
-                    }
-                }
-                else if (AttachedDragMove == AttachedDragMoveOptions.Surface || AttachedDragMove == AttachedDragMoveOptions.Both)
-                {
-                    // TBR: Bug with right click (popup menu) and then left click drag
-                    MarginTarget.Margin = new Thickness(MarginTarget.Margin.Left + cur.X - mouseLeftDownPoint.X, MarginTarget.Margin.Top + cur.Y - mouseLeftDownPoint.Y, MarginTarget.Margin.Right, MarginTarget.Margin.Bottom);
-                }
-            } else
-            {
-                if (DetachedDragMove == AvailableWindows.Surface || DetachedDragMove == AvailableWindows.Both)
-                {
-                    Surface.Left  += cur.X - mouseLeftDownPoint.X;
-                    Surface.Top   += cur.Y - mouseLeftDownPoint.Y;
-                }
-            }
-        }
-    }
-    private void Overlay_MouseMove(object sender, MouseEventArgs e)
-    {
-        var cur = e.GetPosition(Overlay);
-         
-        if (Player != null && cur != mouseMoveLastPoint)
-        {
-            Player.Activity.RefreshFullActive();
-            mouseMoveLastPoint = cur;
-        }
-
-        // Resize Sides (CanResize + !MouseDown + !FullScreen)
-        if (e.MouseDevice.LeftButton != MouseButtonState.Pressed && cur != zeroPoint)
-        {
-            if ( !IsFullScreen && 
-                ((IsAttached && (AttachedResize == AvailableWindows.Overlay || AttachedResize == AvailableWindows.Both)) ||
-                (!IsAttached && (DetachedResize == AvailableWindows.Overlay || DetachedResize == AvailableWindows.Both))))
-            {
-                ResizingSide = ResizeSides(Overlay, cur, ResizeSensitivity, CornerRadius);
-            }
-        }
-        else if (IsSwapping)
-            return;
-
-        // Resize (MouseDown + ResizeSide != 0)
-        else if (IsResizing)
-        {
-            Point x1 = new(Surface.Left, Surface.Top);
-
-            Resize(Surface, this, cur, ResizingSide, curResizeRatioIfEnabled);
-
-            if (IsAttached)
-            {
-                Point x2 = new(Surface.Left, Surface.Top);
-                
-                MarginTarget.Margin = new Thickness(MarginTarget.Margin.Left + x2.X - x1.X, MarginTarget.Margin.Top + x2.Y - x1.Y, MarginTarget.Margin.Right, MarginTarget.Margin.Bottom);
-                Width   = Overlay.Width;
-                Height  = Overlay.Height;
-            }
-        }
-
-        // Bug? happens on double click
-        else if (mouseLeftDownPoint.X == -1)
-            return;
-
-        // Player's Pan Move (Ctrl + Drag Move)
-        else if (Player != null && 
-            (PanMoveOnCtrl == AvailableWindows.Overlay || PanMoveOnCtrl == AvailableWindows.Both) &&
-            (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
-        {
-            Player.PanXOffset = panPrevX + (int) (cur.X - mouseLeftDownPoint.X);
-            Player.PanYOffset = panPrevY + (int) (cur.Y - mouseLeftDownPoint.Y);
-        }
-
-        // Drag Move Self (Detached) / Self (Attached) / Owner (Attached)
-        else if (Overlay.IsMouseCaptured && !IsFullScreen)
-        {
-            if (IsAttached)
-            {
-                if (AttachedDragMove == AttachedDragMoveOptions.OverlayOwner || AttachedDragMove == AttachedDragMoveOptions.BothOwner)
-                {
-                    if (Owner != null)
-                    {
-                        Owner.Left  += cur.X - mouseLeftDownPoint.X;
-                        Owner.Top   += cur.Y - mouseLeftDownPoint.Y;
-                    }
-                }
-                else if (AttachedDragMove == AttachedDragMoveOptions.Overlay || AttachedDragMove == AttachedDragMoveOptions.Both)
-                {
-                    // TBR: Bug with right click (popup menu) and then left click drag
-                    MarginTarget.Margin = new Thickness(MarginTarget.Margin.Left + cur.X - mouseLeftDownPoint.X, MarginTarget.Margin.Top + cur.Y - mouseLeftDownPoint.Y, MarginTarget.Margin.Right, MarginTarget.Margin.Bottom);
-                }
+                MarginTarget.Margin = new(
+                    MarginTarget.Margin.Left + cur.X - mouseLeftDownPoint.X,
+                    MarginTarget.Margin.Top  + cur.Y - mouseLeftDownPoint.Y,
+                    MarginTarget.Margin.Right,
+                    MarginTarget.Margin.Bottom);
             }
             else
             {
-                if (DetachedDragMove == AvailableWindows.Overlay || DetachedDragMove == AvailableWindows.Both)
-                {
-                    Surface.Left    += cur.X - mouseLeftDownPoint.X;
-                    Surface.Top     += cur.Y - mouseLeftDownPoint.Y;
-                }
+                Surface.Left  += cur.X - mouseLeftDownPoint.X;
+                Surface.Top   += cur.Y - mouseLeftDownPoint.Y;
             }
+        }
+
+        // Drag Move Owner (Attached)
+        else if (IsDragMovingOwner)
+        {
+            Owner.Left  += cur.X - mouseLeftDownPoint.X;
+            Owner.Top   += cur.Y - mouseLeftDownPoint.Y;
         }
     }
 
@@ -1600,9 +1595,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if ((MouseBindings == AvailableWindows.Surface || MouseBindings == AvailableWindows.Both) && !isMouseBindingsSubscribedSurface)
         {
-            surfaceMouseUp ??= new MouseButtonEventHandler((o, e) => Surface.ReleaseMouseCapture());
-            Mouse.AddPreviewMouseUpOutsideCapturedElementHandler(Surface, surfaceMouseUp);
-            Surface.LostMouseCapture    += SO_LostMouseCapture;
+            Surface.LostMouseCapture    += Surface_LostMouseCapture;
             Surface.MouseLeftButtonDown += Surface_MouseLeftButtonDown;
             Surface.MouseLeftButtonUp   += Surface_MouseLeftButtonUp;
             Surface.MouseWheel          += Surface_MouseWheel;
@@ -1613,8 +1606,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
         else if (MouseBindings != AvailableWindows.Surface && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedSurface)
         {
-            Mouse.RemovePreviewMouseUpOutsideCapturedElementHandler(Surface, surfaceMouseUp);
-            Surface.LostMouseCapture    -= SO_LostMouseCapture;
+            Surface.LostMouseCapture    -= Surface_LostMouseCapture;
             Surface.MouseLeftButtonDown -= Surface_MouseLeftButtonDown;
             Surface.MouseLeftButtonUp   -= Surface_MouseLeftButtonUp;
             Surface.MouseWheel          -= Surface_MouseWheel;
@@ -1631,13 +1623,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if ((MouseBindings == AvailableWindows.Overlay || MouseBindings == AvailableWindows.Both) && !isMouseBindingsSubscribedOverlay)
         {
-            overlayMouseUp ??= new MouseButtonEventHandler((o, e) =>
-            {
-                //Overlay.ReleaseMouseCapture();
-            });
-            Mouse.AddPreviewMouseUpOutsideCapturedElementHandler(Overlay, overlayMouseUp);
-            Overlay.LostMouseCapture    += SO_LostMouseCapture;
-
+            Overlay.LostMouseCapture    += Overlay_LostMouseCapture;
             Overlay.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
             Overlay.MouseLeftButtonUp   += Overlay_MouseLeftButtonUp;
             Overlay.MouseWheel          += Overlay_MouseWheel;
@@ -1648,8 +1634,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
         else if (MouseBindings != AvailableWindows.Overlay && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedOverlay)
         {
-            Mouse.RemovePreviewMouseUpOutsideCapturedElementHandler(Overlay, overlayMouseUp);
-            Overlay.LostMouseCapture    -= SO_LostMouseCapture;
+            Overlay.LostMouseCapture    -= Overlay_LostMouseCapture;
             Overlay.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
             Overlay.MouseLeftButtonUp   -= Overlay_MouseLeftButtonUp;
             Overlay.MouseWheel          -= Overlay_MouseWheel;
@@ -1662,6 +1647,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     public virtual void Attach(bool ignoreRestoreRect = false)
     {
+        Window wasFocus = Overlay != null && Overlay.IsKeyboardFocusWithin ? Overlay : Surface;
+
         if (IsFullScreen)
         {
             IsFullScreen = false;
@@ -1682,19 +1669,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         rectInitLast = rectIntersectLast = rectRandom;
         Host_LayoutUpdated(null, null);
-        
-        // Keep keyboard focus
-        if (Overlay != null && Overlay.IsVisible)
-        {
-            Overlay.Activate();
-            Overlay.Focus();
-        }
-        else if (Surface.IsVisible)
-        {
-            Owner.Activate();
-            Surface.Activate();
-            Surface.Focus();
-        }
+        Owner.Activate();
+        wasFocus.Focus();
     }
     public virtual void Detach()
     {
@@ -1780,17 +1756,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         SetRect(final);
         ResetVisibleRect();
 
-        // Keep keyboard focus
-        if (Overlay != null && Overlay.IsVisible)
-        {
-            Overlay.Activate();
-            Overlay.Focus();
-        }
-        else if (Surface.IsVisible)
-        {
+        if (Surface.IsVisible) // Initially detached will not be visible yet and activate not required (in case of multiple)
             Surface.Activate();
-            Surface.Focus();
-        }
     }
 
     public void RefreshNormalFullScreen()
@@ -1813,6 +1780,11 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 ((Border)Surface.Content).CornerRadius = zeroCornerRadius;
 
             Surface.WindowState = WindowState.Maximized;
+
+            // If it was above the borders and double click (mouse didn't move to refresh)
+            Surface.Cursor = Cursors.Arrow;
+            if (Overlay != null)
+                Overlay.Cursor = Cursors.Arrow;
         }
         else
         {
