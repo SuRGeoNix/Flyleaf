@@ -88,6 +88,9 @@ public abstract unsafe class DecoderBase : RunThreadBase
 
                 codecCtx->pkt_timebase  = stream.AVStream->time_base;
                 codecCtx->codec_id      = codec->id;
+
+                if (Config.Decoder.ShowCorrupted)
+                    codecCtx->flags |= AV_CODEC_FLAG_OUTPUT_CORRUPT;
                     
                 try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
                 if (ret < 0)

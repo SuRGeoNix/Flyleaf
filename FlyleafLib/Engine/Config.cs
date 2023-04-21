@@ -443,6 +443,12 @@ public class Config : NotifyPropertyChanged
         public bool             AllowProfileMismatch
                                                 { get => _AllowProfileMismatch; set => SetUI(ref _AllowProfileMismatch, value); }
         bool _AllowProfileMismatch;
+
+        /// <summary>
+        /// Allows corrupted frames (Parses AV_CODEC_FLAG_OUTPUT_CORRUPT to AVCodecContext)
+        /// </summary>
+        public bool             ShowCorrupted   { get => _ShowCorrupted; set => SetUI(ref _ShowCorrupted, value); }
+        bool _ShowCorrupted;
     }
     public class VideoConfig : NotifyPropertyChanged
     {
