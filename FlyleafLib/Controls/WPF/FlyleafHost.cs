@@ -107,7 +107,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     int panPrevX, panPrevY;
     bool isMouseBindingsSubscribedSurface;
     bool isMouseBindingsSubscribedOverlay;
-    MouseButtonEventHandler surfaceMouseUp, overlayMouseUp;
     Window standAloneOverlay;
 
     CornerRadius zeroCornerRadius = new(0);

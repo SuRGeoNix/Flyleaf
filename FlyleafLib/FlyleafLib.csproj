@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.5</Version>
+	<Version>3.7.6</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,8 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Renderer: Fixes an issue when initializing multiple players async
-		FlyleafHost.Wpf: Fixes a critical issue with keyboard focus
+		- VideoDecoder: Fixes a critical issues with decoder threads for software decoding (it was using only one thread, now should improve performance a lot for sw decoding)
+		- Config: Introduces Config.Decoder.ShowCorrupted to allow corrupted frames to be shown
+		- Engine: Fixes a possible null reference issue with the UI thread
+		- Player.Screamer: Gives priority to audio samples in case of video rendering delay
+		- Audio: Improves audio sync by clearing the buffer for re-sync based on actual buffered duration (instead of buffers number)
+		- FlyleafHost.Wpf: Fixes and improvements for keyboard focus and mouse capture
+		- FlyleafHost.Wpf: Fixes an issue with KeepRatioOnResize while exiting from fullscreen and updates the size when is changed
+		- FlyleafHost.Wpf: Restores support for the previous FlyleafHost (WPF) implementation for those who prefer not to switch yet (renamed to FlyleafHostOld)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
