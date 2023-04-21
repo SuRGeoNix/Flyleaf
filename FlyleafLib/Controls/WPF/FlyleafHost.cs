@@ -539,7 +539,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     }
     private void UpdateCurRatio()
     {
-        if (!KeepRatioOnResize)
+        if (!KeepRatioOnResize || IsFullScreen)
             return;
         
         curResizeRatio = Player != null && Player.Video.AspectRatio.Value > 0 ? Player.Video.AspectRatio.Value : (float)(16.0/9.0);
@@ -584,7 +584,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
-        host.curResizeRatioIfEnabled = host.KeepRatioOnResize ? host.curResizeRatio : 0;
+        if (!host.KeepRatioOnResize)
+            host.curResizeRatioIfEnabled =0 ;
+        else
+            host.UpdateCurRatio();
     }
     private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -1806,6 +1809,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             if (CornerRadius != zeroCornerRadius)
                 ((Border)Surface.Content).CornerRadius = CornerRadius;
+
+            UpdateCurRatio();
         }
     }
     public void SetRect(Rect rect)
