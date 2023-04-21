@@ -418,8 +418,8 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             Config.Subtitles.Enabled = false;
         }
 
-        Engine.AddPlayer(this);
         decoder = new DecoderContext(Config, PlayerId) { Tag = this };
+        Engine.AddPlayer(this);
 
         //decoder.OpenPlaylistItemCompleted              += Decoder_OnOpenExternalSubtitlesStreamCompleted;
         
