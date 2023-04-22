@@ -182,7 +182,7 @@ public class Audio : NotifyPropertyChanged
     IXAudio2SourceVoice     sourceVoice;
     WaveFormat              waveFormat = new(48000, 16, 2); // Output Audio Device
     double                  deviceDelayTimebase;
-    ulong                   samplesLast;
+    ulong                   submittedSamples;
     #endregion
 
     public Audio(Player player)
@@ -242,7 +242,7 @@ public class Audio : NotifyPropertyChanged
                 bool oldMute    = mute;
                 Volume          = _Volume;
                 Mute            = oldMute;
-                samplesLast     = 0;
+                submittedSamples= 0;
 
             } catch (Exception e)
             {
@@ -274,32 +274,44 @@ public class Audio : NotifyPropertyChanged
     {
         try
         {
-            var samplesCur = sourceVoice.State.SamplesPlayed; // TBR: Not great for performance, better way to calc buffered duration?
+            int bufferedMs = (int) ((submittedSamples - sourceVoice.State.SamplesPlayed) * deviceDelayTimebase / 10000);
 
-            // 30ms distance would be consider as desync
-            if ((samplesCur - samplesLast) * deviceDelayTimebase > player.curAudioDeviceDelay + (30 * 10000))
+            if (bufferedMs > 30)
             {
                 if (CanDebug)
-                    player.Log.Debug($"Audio desynced, clearing buffers");
+                    player.Log.Debug($"Audio desynced by {bufferedMs}ms, clearing buffers");
 
                 ClearBuffer();
             }
+            
+            //player.Log.Debug($"xxx {durationMs}ms, {state.BuffersQueued}");
 
-            samplesLast = samplesCur;
+            submittedSamples += (ulong) (aFrame.dataLen / 4); // ASampleBytes
             SamplesAdded?.Invoke(this, aFrame);
             sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
-
         }
         catch (Exception e) // Happens on audio device changed/removed
         {
-            if (CanDebug) player.Log.Debug($"[Audio] Add samples failed ({e.Message})");
+            if (CanDebug)
+                player.Log.Debug($"[Audio] Submitting samples failed ({e.Message})");
+
+            ClearBuffer();
         }
     }
     internal long GetDeviceDelay() => (long) ((xaudio2.PerformanceData.CurrentLatencyInSamples * deviceDelayTimebase) - 80000); // TODO: VBlack delay (8ms correction for now)
     internal void ClearBuffer()
     {
         lock (locker)
-            sourceVoice?.FlushSourceBuffers();
+        {
+            if (sourceVoice == null)
+                return;
+
+            sourceVoice.Stop();
+            sourceVoice.FlushSourceBuffers();
+            sourceVoice.Start();
+            submittedSamples = sourceVoice.State.SamplesPlayed;
+        }
+            
     }
 
     internal void Reset()

@@ -39,6 +39,9 @@ public unsafe partial class AudioDecoder : DecoderBase
     static AVChannelLayout  AOutChannelLayout   = new() { order = AVChannelOrder.AV_CHANNEL_ORDER_NATIVE, nb_channels = 2, u = new AVChannelLayout_u() { mask = AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT} };
     static int              AOutChannels        = AOutChannelLayout.nb_channels;
     static int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
+
+    static int              cBufTimesSize       = 4;
+    int                     cBufTimesCur        = 1;
     byte[]                  cBuf;
     int                     cBufPos;
     int                     cBufSamples;
@@ -347,19 +350,7 @@ public unsafe partial class AudioDecoder : DecoderBase
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
             if (frame->nb_samples > cBufSamples)
-            {
-                /* TBR
-                 * 1. If we change to different in/out sample rates we need to calculate delay
-                 * 2. By destorying the cBuf can create critical issues while the audio decoder reads the data? (add lock)
-                 * 3. Recalculate on Config.Decoder.MaxAudioFrames change (greater)
-                 */
-
-                int size    = Config.Decoder.MaxAudioFrames * mFrame.dataLen * 4;
-                Log.Debug($"Re-allocating circular buffer ({frame->nb_samples} > {cBufSamples}) with {size}bytes");
-                cBuf        = new byte[size];
-                cBufPos     = 0;
-                cBufSamples = frame->nb_samples * 4;
-            }
+                AllocateCircularBuffer(frame->nb_samples);
             else if (cBufPos + Math.Max(dataLen, speedDataLen) >= cBuf.Length)
                 cBufPos     = 0;
 
@@ -381,13 +372,13 @@ public unsafe partial class AudioDecoder : DecoderBase
             Frames.Enqueue(mFrame);
 
             // Wait until Queue not Full or Stopped
-            if (Frames.Count >= Config.Decoder.MaxAudioFrames)
+            if (Frames.Count >= Config.Decoder.MaxAudioFrames * cBufTimesCur)
             {
                 Monitor.Exit(lockCodecCtx);
                 lock (lockStatus)
                     if (Status == Status.Running) Status = Status.QueueFull;
 
-                while (Frames.Count >= Config.Decoder.MaxAudioFrames && Status == Status.QueueFull)
+                while (Frames.Count >= Config.Decoder.MaxAudioFrames * cBufTimesCur && Status == Status.QueueFull)
                     Thread.Sleep(20);
 
                 Monitor.Enter(lockCodecCtx);
@@ -411,6 +402,24 @@ public unsafe partial class AudioDecoder : DecoderBase
         {
             av_frame_unref(frame);
         }
+    }
+
+    private void AllocateCircularBuffer(int samples)
+    {
+        /* TBR
+        * 1. If we change to different in/out sample rates we need to calculate delay
+        * 2. By destorying the cBuf can create critical issues while the audio decoder reads the data? (add lock) | we need to copy the lost data and change the pointers
+        * 3. Recalculate on Config.Decoder.MaxAudioFrames change (greater)
+        * 4. cBufTimesSize cause filters can pass the limit when we need to use lockSpeed
+        */
+
+        samples = Math.Max(10000, samples); // 10K samples to ensure that currently we will not re-allocate?
+        int size    = Config.Decoder.MaxAudioFrames * samples * ASampleBytes * cBufTimesSize;
+        Log.Debug($"Re-allocating circular buffer ({samples} > {cBufSamples}) with {size}bytes");
+
+        cBuf        = new byte[size];
+        cBufPos     = 0;
+        cBufSamples = samples;
     }
 
     #region Recording

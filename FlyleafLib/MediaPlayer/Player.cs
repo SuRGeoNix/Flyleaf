@@ -238,7 +238,6 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             decoder.RequiresResync  = true;
             requiresBuffering       = true;
             Subtitles.subsText      = "";
-            //AudioDecoder.DisposeFrames();
 
             UI(() =>
             {

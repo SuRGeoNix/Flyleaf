@@ -120,12 +120,16 @@ public unsafe partial class AudioDecoder
         abufferSinkCtx  = null;
         filterGraph     = null;
     }
-    
+
     protected override void OnSpeedChanged(double value)
     {
         // Possible Task to avoid locking UI thread as lockAtempo can wait for the Frames queue to be freed (will cause other issues and couldnt reproduce the possible dead lock)
+        // We loose sync if we change fast up/down the speed (tested with maxlatency)
+
+        cBufTimesCur = 4;
         lock (lockSpeed)
         {
+            cBufTimesCur = 1;
             oldSpeed = speed;
             speed = value;
 
@@ -134,31 +138,33 @@ public unsafe partial class AudioDecoder
                 return;
             
             for (int i = 0; i < frames.Length; i++)
-            {
-                var oldDataLen = frames[i].dataLen;
-                frames[i].dataLen = Utils.Align((int) (oldDataLen * oldSpeed / speed), ASampleBytes);
-                fixed (byte* cBufStartPosPtr = &cBuf[0])
-                {
-                    var curOffset = (long)frames[i].dataPtr - (long)cBufStartPosPtr;
-
-                    if (speed < oldSpeed)
-                    {
-                        if (curOffset + frames[i].dataLen >= cBuf.Length)
-                        {
-                            frames[i].dataPtr = (IntPtr)cBufStartPosPtr;
-                            curOffset  = 0;
-                            oldDataLen = 0;
-                        }
-
-                        // fill silence
-                        for (int p = oldDataLen; p < frames[i].dataLen; p++)
-                            cBuf[curOffset + p] = 0;
-                    }
-                }
-            }
+                FixSample(frames[i], oldSpeed, speed);
 
             if (filterGraph != null)
                 UpdateFilterInternal("atempo", "tempo", speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
+        }
+    }
+    internal void FixSample(AudioFrame frame, double oldSpeed, double speed)
+    {
+        var oldDataLen = frame.dataLen;
+        frame.dataLen = Utils.Align((int) (oldDataLen * oldSpeed / speed), ASampleBytes);
+        fixed (byte* cBufStartPosPtr = &cBuf[0])
+        {
+            var curOffset = (long)frame.dataPtr - (long)cBufStartPosPtr;
+
+            if (speed < oldSpeed)
+            {
+                if (curOffset + frame.dataLen >= cBuf.Length)
+                {
+                    frame.dataPtr = (IntPtr)cBufStartPosPtr;
+                    curOffset  = 0;
+                    oldDataLen = 0;
+                }
+
+                // fill silence
+                for (int p = oldDataLen; p < frame.dataLen; p++)
+                    cBuf[curOffset + p] = 0;
+            }
         }
     }
     private int UpdateFilterInternal(string filterId, string key, string value)
@@ -168,6 +174,7 @@ public unsafe partial class AudioDecoder
 
         return ret;
     }
+
     public int UpdateFilter(string filterId, string key, string value)
     {
         lock (lockCodecCtx)
@@ -223,13 +230,7 @@ public unsafe partial class AudioDecoder
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
             if (frame->nb_samples > cBufSamples)
-            {
-                int size    = Config.Decoder.MaxAudioFrames * mFrame.dataLen * 4;
-                Log.Debug($"Re-allocating circular buffer ({frame->nb_samples} > {cBufSamples}) with {size}bytes");
-                cBuf        = new byte[size];
-                cBufPos     = 0;
-                cBufSamples = frame->nb_samples * 4;
-            }
+                AllocateCircularBuffer(frame->nb_samples);
             else if (cBufPos + mFrame.dataLen >= cBuf.Length)
                 cBufPos     = 0;
 
@@ -247,14 +248,14 @@ public unsafe partial class AudioDecoder
             av_frame_unref(frame);
 
             // Wait until Queue not Full or Stopped
-            if (Frames.Count >= Config.Decoder.MaxAudioFrames)
+            if (Frames.Count >= Config.Decoder.MaxAudioFrames * cBufTimesCur)
             {
                 Monitor.Exit(lockCodecCtx);
                 lock (lockStatus)
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
                 
-                while (Frames.Count >= Config.Decoder.MaxAudioFrames && (Status == Status.QueueFull || Status == Status.Draining))
+                while (Frames.Count >= Config.Decoder.MaxAudioFrames * cBufTimesCur && (Status == Status.QueueFull || Status == Status.Draining))
                     Thread.Sleep(20);
                 
                 Monitor.Enter(lockCodecCtx);

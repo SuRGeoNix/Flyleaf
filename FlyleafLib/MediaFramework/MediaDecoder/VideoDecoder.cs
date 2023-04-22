@@ -184,6 +184,7 @@ public unsafe class VideoDecoder : DecoderBase
                     Log.Warn("HW format not found. Fallback to sw format");
 
                 swFallback = true;
+                filledFromCodec = false;
                 return avcodec_default_get_format(avctx, pix_fmts);
             }
             
@@ -480,9 +481,6 @@ public unsafe class VideoDecoder : DecoderBase
                 // TBR: AVERROR(EAGAIN) means avcodec_receive_frame but after resend the same packet
                 ret = avcodec_send_packet(codecCtx, packet);
 
-                if (swFallback)
-                    filledFromCodec = false;
-
                 if (ret != 0 && ret != AVERROR(EAGAIN))
                 {
                     av_packet_free(&packet);
@@ -548,7 +546,7 @@ public unsafe class VideoDecoder : DecoderBase
                         }
                         curSpeedFrame = 0; 
                     }
-
+                    
                     var mFrame = Renderer.FillPlanes(frame);
                     if (mFrame != null) Frames.Enqueue(mFrame); // TBR: Does not respect Config.Decoder.MaxVideoFrames
                 }

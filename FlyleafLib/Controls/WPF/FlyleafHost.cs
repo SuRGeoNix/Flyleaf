@@ -990,6 +990,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             ||  (!IsAttached && (DetachedDragMove == availWindow    || DetachedDragMove == AvailableWindows.Both)))
             IsDragMoving = true;
 
+        else
+            return; // No Capture
+
         window.CaptureMouse();
     }
 
@@ -1002,17 +1005,12 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (!IsResizing && !IsPanMoving && !IsDragMoving && !IsDragMovingOwner)
             return;
 
-        Surface.ReleaseMouseCapture();  
-
-        mouseLeftDownPoint.X= -1; // ?
-        IsSwappingStarted = false; // just to ensure?
+        Surface.ReleaseMouseCapture();
 
         if (IsResizing)
         {
             ResizingSide = 0;
             Surface.Cursor = Cursors.Arrow;
-            if (Overlay != null)
-                Overlay.Cursor = Cursors.Arrow;
             IsResizing = false;
             Host_LayoutUpdated(null, null); // When attached to restore the clipped rect
         }    
@@ -1027,10 +1025,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     }
     private void Overlay_ReleaseCapture()
     {
-        Overlay.ReleaseMouseCapture();  
+        if (!IsResizing && !IsPanMoving && !IsDragMoving && !IsDragMovingOwner)
+            return;
 
-        mouseLeftDownPoint.X= -1; // ?
-        IsSwappingStarted = false; // just to ensure?
+        Overlay.ReleaseMouseCapture();
 
         if (IsResizing)
         {
@@ -1070,7 +1068,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
         }
 
-        SO_MouseMove(cur);
+        SO_MouseLeftDownAndMove(cur);
     }
     private void Overlay_MouseMove(object sender, MouseEventArgs e)
     {
@@ -1083,9 +1081,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
 
         // Resize Sides (CanResize + !MouseDown + !FullScreen)
-        if (e.MouseDevice.LeftButton != MouseButtonState.Pressed && cur != zeroPoint)
+        if (e.MouseDevice.LeftButton != MouseButtonState.Pressed)
         {
-            if (!IsFullScreen &&
+            if (!IsFullScreen && cur != zeroPoint &&
                 ((IsAttached && (AttachedResize == AvailableWindows.Overlay || AttachedResize == AvailableWindows.Both)) ||
                 (!IsAttached && (DetachedResize == AvailableWindows.Overlay || DetachedResize == AvailableWindows.Both))))
             {
@@ -1095,9 +1093,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
         }
         
-        SO_MouseMove(cur);
+        SO_MouseLeftDownAndMove(cur);
     }
-    private void SO_MouseMove(Point cur)
+    private void SO_MouseLeftDownAndMove(Point cur)
     {
         if (IsSwappingStarted)
             return;
