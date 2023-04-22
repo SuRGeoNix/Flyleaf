@@ -157,7 +157,7 @@ public class Config : NotifyPropertyChanged
         public double   IdleFps                     { get; set; } = 60.0;
 
         /// <summary>
-        /// Max Latency (ticks) forces playback to stay at the end of the live network stream (default: 0 - disabled)
+        /// Max Latency (ticks) forces playback (with speed x1+) to stay at the end of the live network stream (default: 0 - disabled)
         /// </summary>
         public long     MaxLatency {
             get => _MaxLatency;
@@ -186,6 +186,12 @@ public class Config : NotifyPropertyChanged
             }
         }
         long _MaxLatency = 0;
+
+        /// <summary>
+        /// Min Latency (ticks) prevents MaxLatency to go (with speed x1) less than this limit (default: 0 - as low as possible)
+        /// </summary>
+        public long     MinLatency                  { get => _MinLatency; set => Set(ref _MinLatency, value); }
+        long _MinLatency = 0;
 
         /// <summary>
         /// Folder to save recordings (when filename is not specified)

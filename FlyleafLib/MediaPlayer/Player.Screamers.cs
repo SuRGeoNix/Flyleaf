@@ -95,6 +95,7 @@ unsafe partial class Player
         UIAll();
     }
 
+    // !!! NEEDS RECODING (We show one frame, we dispose it, we get another one and we show it also after buffering which can be in 'no time' which can leave us without any more decoded frames so we rebuffer)
     private bool MediaBuffer()
     {
         if (CanTrace) Log.Trace("Buffering");
@@ -144,9 +145,19 @@ unsafe partial class Player
         bool gotAudio       = !Audio.IsOpened || Config.Player.MaxLatency != 0;
         bool gotVideo       = false;
         bool shouldStop     = false;
-        bool showOneFrame   = Config.Player.MaxLatency == 0;
+        bool showOneFrame   = true;
         int  audioRetries   = 4;
         int  loops          = 0;
+
+        if (Config.Player.MaxLatency != 0)
+        {
+            showOneFrame = false;
+            Speed = 1;
+
+            // TBR: MaxLatency can change speed very fast and for atempo gets timestamps (can't be corrected late) out of sync
+            if (Config.Audio.FiltersEnabled)
+                Config.Audio.FiltersEnabled = false;
+        }
 
         do
         {
@@ -162,16 +173,16 @@ unsafe partial class Player
             if ((!showOneFrame || loops > 8) && !seeks.IsEmpty)
                 return false;
 
-            if (vFrame == null && !VideoDecoder.Frames.IsEmpty)
+            if (!gotVideo && !showOneFrame && !VideoDecoder.Frames.IsEmpty)
             {
                 VideoDecoder.Frames.TryDequeue(out vFrame);
-                if (!showOneFrame) gotVideo = true;
+                if (vFrame != null) gotVideo = true;
             }
 
             if (!gotAudio && aFrame == null && !AudioDecoder.Frames.IsEmpty)
                 AudioDecoder.Frames.TryDequeue(out aFrame);
 
-            if (vFrame != null)
+            if (gotVideo)
             {
                 if (decoder.RequiresResync)
                     decoder.Resync(vFrame.timestamp);
@@ -217,7 +228,7 @@ unsafe partial class Player
                     shouldStop= true;
                 }
 
-                if (vFrame != null && !gotAudio && audioRetries > 0 && (!AudioDecoder.IsRunning || AudioDecoder.Demuxer.Status == MediaFramework.Status.QueueFull))
+                if (gotVideo && !gotAudio && audioRetries > 0 && (!AudioDecoder.IsRunning || AudioDecoder.Demuxer.Status == MediaFramework.Status.QueueFull))
                 {
                     if (CanWarn) Log.Warn($"Audio Exhausted 2 | {audioRetries}");
 
@@ -244,7 +255,7 @@ unsafe partial class Player
             return false;
         }
 
-        while(seeks.IsEmpty && VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
+        while(seeks.IsEmpty && GetBufferedDuration() < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
 
         if (!seeks.IsEmpty)
             return false;
@@ -288,6 +299,12 @@ unsafe partial class Player
                     Log.Warn("[MediaBuffer] No video frame");
                     break;
                 }
+
+                // Temp fix to ensure we had enough time to decode one more frame
+                int retries = 5;
+                while (VideoDecoder.Frames.Count == 0 && retries-- > 0)
+                    Thread.Sleep(10);
+                
                 OnBufferingCompleted();
 
                 allowedLateAudioDrops = 7;
@@ -377,7 +394,7 @@ unsafe partial class Player
                 }
                 else if (aDistanceMs < -5) // Will be transfered back to decoder to drop invalid timestamps
                 {
-                    if (VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
+                    if (GetBufferedDuration() < Config.Player.MinBufferDuration / 2)
                     {
                         if (CanInfo)
                             Log.Warn($"Not enough buffer (restarting)");
@@ -433,28 +450,11 @@ unsafe partial class Player
 
                 VideoDecoder.Frames.TryDequeue(out vFrame);
                 if (vFrame != null && Config.Player.MaxLatency != 0)
-                {
-                    curLatency = VideoDemuxer.VideoPackets.Count > 0 ? VideoDemuxer.VideoPackets.LastTimestamp - vFrame.timestamp : 0;
-                    double newSpeed = 1;
-
-                    if (curLatency > Config.Player.MaxLatency * 20)
-                        { decoder.Flush(); newSpeed = 1; }
-                    else if (curLatency > Config.Player.MaxLatency)
-                        newSpeed = curLatency > Config.Player.MaxLatency * 10 ? 1.75 : curLatency > Config.Player.MaxLatency * 2 ? 1.5 : 1.1;
-
-                    if (newSpeed != speed)
-                    {
-                        speed = newSpeed;
-                        UI(() => { Raise(nameof(Speed)); });
-                        startTicks = vFrame.timestamp;
-                        sw.Restart();
-                        elapsedSec = 0;
-                    }
-                }
+                    CheckLatency();
             }
             else if (vDistanceMs < -2)
             {
-                if (vDistanceMs < -10 || VideoDemuxer.BufferedDuration < Config.Player.MinBufferDuration)
+                if (vDistanceMs < -10 || GetBufferedDuration() < Config.Player.MinBufferDuration / 2)
                 {
                     if (CanInfo)
                         Log.Info($"vDistanceMs = {vDistanceMs} (restarting)");
@@ -503,6 +503,71 @@ unsafe partial class Player
         }
 
         if (CanInfo) Log.Info($"Finished -> {TicksToTime(CurTime)}");
+    }
+
+    private void CheckLatency()
+    {
+        curLatency = GetBufferedDuration();
+
+        if (CanDebug)
+            Log.Debug($"[Latency {curLatency/10000}ms] Frames: {VideoDecoder.Frames.Count} Packets: {VideoDemuxer.VideoPackets.Count} Speed: {speed}");
+
+        if (curLatency < 1 || VideoDemuxer.VideoPackets.Count < 1) // No buffer
+        {
+            ChangeSpeedWithoutBuffering(1);
+            return;
+        }
+        else if (curLatency <= Config.Player.MinLatency) // We've reached the down limit (back to speed x1)
+        {
+            ChangeSpeedWithoutBuffering(1);
+            return;
+        }
+        else if (curLatency < Config.Player.MaxLatency)
+            return;
+
+        #if NET5_0_OR_GREATER
+        var newSpeed = Math.Max(Math.Round((double)curLatency / Config.Player.MaxLatency, 1, MidpointRounding.ToPositiveInfinity), 1.1);
+        #else
+        var newSpeed = Math.Max(Math.Round((double)curLatency / (curLatency - Config.Player.MinLatency), 1), 1.1);
+        #endif
+
+        if (newSpeed > 4) // TBR: dispose only as much as required to avoid rebuffering
+        {
+            decoder.Flush();
+            requiresBuffering = true;
+            Log.Debug($"[Latency {curLatency/10000}ms] Clearing queue");
+            return;
+        }
+
+        ChangeSpeedWithoutBuffering(newSpeed);
+    }
+    private void ChangeSpeedWithoutBuffering(double newSpeed)
+    {
+        if (speed == newSpeed)
+            return;
+
+        if (CanDebug)
+            Log.Debug($"[Latency {curLatency/10000}ms] Speed changed x{speed} -> x{newSpeed}");
+
+        if (aFrame != null)
+            AudioDecoder.FixSample(aFrame, speed, newSpeed);
+
+        Speed       = newSpeed;
+        requiresBuffering
+                    = false;
+        startTicks  = curTime;
+        elapsedSec  = 0;
+        sw.Restart();
+    }
+    private long GetBufferedDuration()
+    {
+        if (VideoDecoder.Frames.IsEmpty)
+            return 0;
+
+        var decoder = VideoDecoder.Frames.ToArray()[^1].timestamp   - vFrame.timestamp;
+        var demuxer = VideoDemuxer.VideoPackets.LastTimestamp       - vFrame.timestamp;
+
+        return Math.Max(decoder, demuxer);
     }
 
     private bool AudioBuffer()
