@@ -505,6 +505,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
 
         host.SetMouseSurface();
         host.SetMouseOverlay();
@@ -515,12 +517,17 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
         if (host.Surface != null)
             host.Surface.Topmost = !host.IsAttached && host.DetachedTopMost;
     }
     private static void DropChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
 
         if (host.Surface == null)
             return;
@@ -560,6 +567,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     private static void OnShowInTaskBarChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
         if (host.Surface == null)
             return;
 
@@ -571,6 +581,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     private static void OnNoOwnerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
         if (host.Surface == null)
             return;
 
@@ -583,6 +596,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
         if (!host.KeepRatioOnResize)
             host.curResizeRatioIfEnabled =0 ;
         else
@@ -594,6 +610,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
         
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
         host.SetPlayer((Player)e.OldValue);
     }
     private static void OnIsFullScreenChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -602,6 +621,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
         host.RefreshNormalFullScreen();
     }
     private static void OnIsMinimizedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -610,6 +632,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
         host.Surface.WindowState = host.IsMinimized ? WindowState.Minimized : (host.IsFullScreen ? WindowState.Maximized : WindowState.Normal);
     }
     private static void OnIsAttachedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -618,6 +643,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
 
         if (host.IsStandAlone)
         {
@@ -636,6 +663,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     private static void OnActivityTimeoutChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
 
         if (host.Player == null)
             return;
@@ -648,6 +677,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
 
         host.Overlay ??= new Window() { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true };
 
@@ -656,6 +687,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     private static void OnOverlayChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
 
         if (!isDesginMode)
             host.SetOverlay();
@@ -670,6 +703,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
 
         if (host.Surface == null)
             return;
@@ -700,7 +735,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return baseValue;
 
         FlyleafHost host = d as FlyleafHost;
-        
+        if (host.Disposed)
+            return host.DetachedContent;
+
         if (baseValue != null && host.Overlay == null)
             host.Overlay = new Window() { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true };
 
@@ -710,17 +747,11 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         return host.DetachedContent;
     }
     
-    private void Host_Unloaded(object sender, RoutedEventArgs e)
-    {
-        LayoutUpdated   -= Host_LayoutUpdated;
-        IsVisibleChanged-= Host_IsVisibleChanged;
-    }
     private void Host_Loaded(object sender, RoutedEventArgs e)
     {
-        if (Disposed)
+        if (Owner != null) // Currently we don't change the Owner on Unload/Load
             return;
 
-        // TODO: Handle owner changed
         Window owner = Window.GetWindow(this);
 
         Owner           = owner;
@@ -1227,18 +1258,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (!surfaceClosing)
             Surface?.Close();
     }
-
-    private void OverlayAttached_ContentRendered(object sender, EventArgs e)
-    {
-        if (DetachedContent != null || Overlay.Content == null || ActualWidth != 0)
-            return;
-
-        try
-        {
-            var t = ((FrameworkElement)Overlay.Content).RenderSize;
-            Width = t.Width; Height = t.Height;
-        } catch { }
-    }
     private void OverlayStandAlone_Loaded(object sender, RoutedEventArgs e)
     {
         if (Overlay != null)
@@ -1407,8 +1426,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         MarginTarget= this;
         Log         = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
-        Loaded     += Host_Loaded; // Initialized event ??
-        Unloaded   += Host_Unloaded;
+        Loaded     += Host_Loaded;
     }
     public FlyleafHost(Window standAloneOverlay)
     {
@@ -1558,7 +1576,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             Overlay.Resources   = Resources;
             Overlay.DataContext = this; // TBR: or this.DataContext?
-            Overlay.ContentRendered += OverlayAttached_ContentRendered; // To set the size from overlay when this.RenderSize is not defined
         }
 
         SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight,
@@ -1604,7 +1621,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Surface.MouseDoubleClick    += Surface_MouseDoubleClick;
             isMouseBindingsSubscribedSurface = true;
         }
-        else if (MouseBindings != AvailableWindows.Surface && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedSurface)
+        else if (isMouseBindingsSubscribedSurface)
         {
             Surface.LostMouseCapture    -= Surface_LostMouseCapture;
             Surface.MouseLeftButtonDown -= Surface_MouseLeftButtonDown;
@@ -1632,7 +1649,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Overlay.MouseDoubleClick    += Overlay_MouseDoubleClick;
             isMouseBindingsSubscribedOverlay = true;
         }
-        else if (MouseBindings != AvailableWindows.Overlay && MouseBindings != AvailableWindows.Both && isMouseBindingsSubscribedOverlay)
+        else if (isMouseBindingsSubscribedOverlay)
         {
             Overlay.LostMouseCapture    -= Overlay_LostMouseCapture;
             Overlay.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
@@ -1843,26 +1860,48 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             if (Disposed)
                 return;
-
-            Disposed = true;
             
             // Disposes SwapChain Only
             Player = null;
+            Disposed = true;
+
+            DataContextChanged  -= Host_DataContextChanged;
+            LayoutUpdated       -= Host_LayoutUpdated;
+            IsVisibleChanged    -= Host_IsVisibleChanged;
+            Loaded     			-= Host_Loaded;
 
             if (Overlay != null)
             {
-                Overlay.IsVisibleChanged -= OverlayStandAlone_IsVisibleChanged;
-                Overlay.MouseLeave -= Overlay_MouseLeave;
+                if (isMouseBindingsSubscribedOverlay)
+                    SetMouseOverlay();
+
+                Overlay.IsVisibleChanged-= OverlayStandAlone_IsVisibleChanged;
+                Overlay.KeyUp           -= Overlay_KeyUp;
+                Overlay.KeyDown         -= Overlay_KeyDown;
+                Overlay.Closed          -= Overlay_Closed;
+                Overlay.Drop            -= Overlay_Drop;
+                Overlay.DragEnter       -= Overlay_DragEnter;
             }
 
             if (Surface != null)
             {
-                Surface.MouseMove -= Surface_MouseMove;
-                Surface.MouseLeave -= Surface_MouseLeave;
+                if (isMouseBindingsSubscribedSurface)
+                    SetMouseSurface();
+
+                Surface.Closed      -= Surface_Closed;
+                Surface.Closing     -= Surface_Closing;
+                Surface.KeyDown     -= Surface_KeyDown;
+                Surface.KeyUp       -= Surface_KeyUp;
+                Surface.Drop        -= Surface_Drop;
+                Surface.DragEnter   -= Surface_DragEnter;
+                Surface.StateChanged-= Surface_StateChanged;
+                Surface.SizeChanged -= SetRectOverlay;
 
                 // If not shown yet app will not close properly
                 if (!surfaceClosed)
                 {
+                    Surface.Owner = null;
+                    SetParent(SurfaceHandle, IntPtr.Zero);
                     Surface.Width = Surface.Height = 1;
                     Surface.Show();
                     if (!overlayClosed)
@@ -1871,16 +1910,15 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 }
             }
 
+            Surface = null;
+            Overlay = null;
+            Owner   = null;
+
             SurfaceHandle   = IntPtr.Zero;
             OverlayHandle   = IntPtr.Zero;
             OwnerHandle     = IntPtr.Zero;
 
-            Surface = null;
-            Overlay = null;
-            //if (Owner != null)
-                //Owner.Close();
-
-            Owner   = null;
+            Log.Debug("Disposed");
         }
     }
 
