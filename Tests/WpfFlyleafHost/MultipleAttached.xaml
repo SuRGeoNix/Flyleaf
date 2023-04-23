@@ -153,6 +153,7 @@
         </ScrollViewer>
         
         <!-- [Should be fixed] Fail Sample 1 (Border) - Will not measure the content - Possible allow sometimes Host to follow Overlay's rendersize? -->
+        <!--Should only use x/y Constrained panels (not to content) - https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/panels-overview?view=netframeworkdesktop-4.8-->
         <Border VerticalAlignment="Top" HorizontalAlignment="Left"
                 BorderBrush="DarkBlue" BorderThickness="4">
             <fl:FlyleafHost>
