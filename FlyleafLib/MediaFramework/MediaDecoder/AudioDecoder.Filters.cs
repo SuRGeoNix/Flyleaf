@@ -237,7 +237,7 @@ public unsafe partial class AudioDecoder
             fixed (byte* circularBufferPosPtr = &cBuf[cBufPos])
                 mFrame.dataPtr = (IntPtr)circularBufferPosPtr;
 
-            Marshal.Copy((IntPtr)frame->data.ToArray()[0], cBuf, cBufPos, mFrame.dataLen);
+            Marshal.Copy((IntPtr) frame->data[0], cBuf, cBufPos, mFrame.dataLen);
             cBufPos += mFrame.dataLen;
 
             // Ensure we don't get frames with large duration (could cause a/v desync even with one xaudio buffer latency)
