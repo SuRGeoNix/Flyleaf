@@ -4,7 +4,7 @@
     <TargetFrameworks>net7.0-windows;net6.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.2.16</Version>
+    <Version>1.2.17</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2023</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
