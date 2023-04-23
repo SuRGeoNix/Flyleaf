@@ -180,7 +180,8 @@ public class Audio : NotifyPropertyChanged
     internal IXAudio2MasteringVoice
                             masteringVoice;
     IXAudio2SourceVoice     sourceVoice;
-    WaveFormat              waveFormat = new(48000, 16, 2); // Output Audio Device
+    WaveFormat              waveFormat  = new(48000, 16, 2); // Output Audio Device
+    AudioBuffer             audioBuffer = new();
     double                  deviceDelayTimebase;
     ulong                   submittedSamples;
     #endregion
@@ -288,7 +289,10 @@ public class Audio : NotifyPropertyChanged
 
             submittedSamples += (ulong) (aFrame.dataLen / 4); // ASampleBytes
             SamplesAdded?.Invoke(this, aFrame);
-            sourceVoice.SubmitSourceBuffer(new AudioBuffer(aFrame.dataPtr, aFrame.dataLen));
+            
+            audioBuffer.AudioDataPointer= aFrame.dataPtr;
+            audioBuffer.AudioBytes      = aFrame.dataLen;
+            sourceVoice.SubmitSourceBuffer(audioBuffer);
         }
         catch (Exception e) // Happens on audio device changed/removed
         {
