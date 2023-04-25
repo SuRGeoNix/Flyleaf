@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.7</Version>
+	<Version>3.7.8</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,12 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Audio: Fixes an issue with the calculation of the buffered duration
-		- Audio: Proper ClearBuffer to ensure no samples left
-		- Player: MaxLatency improvements, introduces MinLatency (to restore speed to x1)
-		- Player: More accurate buffered duration calculation and tries to avoid re-buffering for stability
-		- FlyleafHost.Wpf: Fixes issues with mouse capture/release
-		- FlyleafHost.Wpf: Fixes issues with dispose
-		- FlyleafHost.Wpf: Fixes issues in case of reload (unload/load)
+		- Audio:  Memory/Performance improvements
+		- Render: Memory/Performance improvements
+		- Player: Fixes a memory leak issue when started before the control handle has been created
+		- Player: Changes the default Seek when setting the CurTime to backward (instead of comparing with the prev value) as the forward creates a long delay on some formats (such as dash with h264)
+		- Player: Fixes an issue with Audio/Subtitles that they would not refresh their status on external video stream switch
+		- FlyleafHost.Wpf: Fixes a DPI issue with Overlay
 	</PackageReleaseNotes>
   </PropertyGroup>
 
