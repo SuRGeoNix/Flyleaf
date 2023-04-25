@@ -8,7 +8,7 @@ using FlyleafLib.MediaFramework.MediaDemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaStream;
 
-public abstract unsafe class StreamBase
+public abstract unsafe class StreamBase : NotifyPropertyChanged
 {
     public ExternalStream               ExternalStream      { get; set; }
 
@@ -18,7 +18,10 @@ public abstract unsafe class StreamBase
     public int                          StreamIndex         { get; internal set; } = -1;
     public double                       Timebase            { get; internal set; }
 
-    public bool                         Enabled             { get; internal set; }
+    // TBR: To update Pop-up menu's (Player.Audio/Player.Video ... should inherit this?)
+    public bool                         Enabled             { get => _Enabled; internal set => SetUI(ref _Enabled, value); }
+    bool _Enabled;
+
     public long                         BitRate             { get; internal set; }
     public Language                     Language            { get; internal set; }
     public string                       Title               { get; internal set; }

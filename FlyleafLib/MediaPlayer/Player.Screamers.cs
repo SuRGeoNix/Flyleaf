@@ -107,7 +107,7 @@ unsafe partial class Player
         VideoDemuxer.Start();
         VideoDecoder.Start();
 
-        if (Config.Audio.Enabled)
+        if (Audio.isOpened && Config.Audio.Enabled)
         {
             curAudioDeviceDelay = Audio.GetDeviceDelay();
 
@@ -120,7 +120,7 @@ unsafe partial class Player
             }
         }
 
-        if (Config.Subtitles.Enabled)
+        if (Subtitles.isOpened && Config.Subtitles.Enabled)
         {
             lock (lockSubtitles)
             if (SubtitlesDecoder.OnVideoDemuxer)

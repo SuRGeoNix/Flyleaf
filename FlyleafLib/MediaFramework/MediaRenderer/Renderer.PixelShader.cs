@@ -47,6 +47,7 @@ unsafe public partial class Renderer
     string  curPSUniqueId;
     float   curRatio = 1.0f; 
     string  prevPSUniqueId;
+    internal bool forceNotExtractor; // TBR: workaround until we separate the Extractor?
 
     Texture2DDescription[]          textDesc= new Texture2DDescription[4];
     ShaderResourceViewDescription[] srvDesc = new ShaderResourceViewDescription[4];
@@ -543,7 +544,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
 
                 if (ControlHandle != IntPtr.Zero || SwapChainWinUIClbk != null)
                     SetViewport();
-                else
+                else if (!forceNotExtractor)
                     PrepareForExtract();
             }
             Monitor.Exit(lockDevice);

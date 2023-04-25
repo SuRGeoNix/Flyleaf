@@ -205,7 +205,7 @@ public partial class Renderer
                 context.VSSetConstantBuffer(0, vsBuffer);
                 vsBufferData.mat = Matrix4x4.Identity;
                 context.UpdateSubresource(vsBufferData, vsBuffer);
-
+                
                 InitializeVideoProcessor();
                 // TBR: Device Removal Event
                 //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
@@ -271,23 +271,19 @@ public partial class Renderer
 
             if (rtv2 != null)
             {
-                for(int i=0; i<rtv2.Length-1; i++)
+                for(int i = 0; i < rtv2.Length; i++)
                     rtv2[i].Dispose();
 
                 rtv2 = null;
             }
 
             if (backBuffer2 != null)
-                for(int i=0; i<backBuffer2.Length-1; i++)
+            {
+                for(int i = 0; i < backBuffer2.Length; i++)
                     backBuffer2[i]?.Dispose();
 
-            //if (curSRVs != null)
-            //{
-            //    for (int i=0; i<curSRVs.Length; i++)
-            //        curSRVs[i]?.Dispose();
-
-            //    curSRVs = null;
-            //}
+                backBuffer2 = null;
+            }
 
             if (Device != null)
             {
