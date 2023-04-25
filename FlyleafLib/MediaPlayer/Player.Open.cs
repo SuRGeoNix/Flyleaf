@@ -481,6 +481,10 @@ unsafe partial class Player
                 SubtitlesDemuxer.Start();
                 decoder.PauseOnQueueFull();
 
+                // Initialize will Reset those and is posible that Codec Changed will not be called (as they are not chaning necessary)
+                Decoder_OpenAudioStreamCompleted(null, null);
+                Decoder_OpenSubtitlesStreamCompleted(null, null);
+
                 if (shouldPlay)
                     Play();
                 else

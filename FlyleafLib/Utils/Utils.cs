@@ -104,7 +104,7 @@ public static partial class Utils
     public static int Align(int num, int align)
     {
         int mod = num % align;
-        return mod == 0 ? num : num + (align - (num % align));
+        return mod == 0 ? num : num + (align - mod);
     }
     public static float Scale(float value, float inMin, float inMax, float outMin, float outMax)
         => ((value - inMin) * (outMax - outMin) / (inMax - inMin)) + outMin;

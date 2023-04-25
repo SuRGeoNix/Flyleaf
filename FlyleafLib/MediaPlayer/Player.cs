@@ -139,9 +139,9 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
                         Chapters            => VideoDemuxer?.Chapters;
 
     /// <summary>
-    /// Player's current time or user's current seek time (uses backward/forward direction based on previous time or accurate seek based on Config.Player.SeekAccurate)
+    /// Player's current time or user's current seek time (uses backward direction or accurate seek based on Config.Player.SeekAccurate)
     /// </summary>
-    public long         CurTime             { get => curTime;           set { if (Config.Player.SeekAccurate) SeekAccurate((int) (value/10000)); else Seek((int) (value/10000), value > curTime); } }
+    public long         CurTime             { get => curTime;           set { if (Config.Player.SeekAccurate) SeekAccurate((int) (value/10000)); else Seek((int) (value/10000), false); } } // Note: forward seeking casues issues to some formats and can have serious delays (eg. dash with h264, dash with vp9 works fine)
     long _CurTime, curTime;
     internal void UpdateCurTime()
     {
@@ -419,6 +419,9 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
 
         decoder = new DecoderContext(Config, PlayerId) { Tag = this };
         Engine.AddPlayer(this);
+
+        if (decoder.VideoDecoder.Renderer != null)
+            decoder.VideoDecoder.Renderer.forceNotExtractor = true;
 
         //decoder.OpenPlaylistItemCompleted              += Decoder_OnOpenExternalSubtitlesStreamCompleted;
         

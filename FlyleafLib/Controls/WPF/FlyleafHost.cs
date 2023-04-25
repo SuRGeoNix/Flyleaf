@@ -1561,7 +1561,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (IsStandAlone)
         {
-            SetWindowPos(SurfaceHandle, IntPtr.Zero, (int)Overlay.Left, (int)Overlay.Top, (int)Overlay.ActualWidth, (int)Overlay.ActualHeight,
+            SetWindowPos(SurfaceHandle, IntPtr.Zero, (int)Math.Round(Overlay.Left * DpiX), (int)Math.Round(Overlay.Top * DpiY), (int)Math.Round(Overlay.ActualWidth * DpiX), (int)Math.Round(Overlay.ActualHeight * DpiY),
                 (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
 
             Surface.Title       = Overlay.Title;
@@ -1834,7 +1834,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     private void SetRectOverlay(object sender, SizeChangedEventArgs e)
     {
         if (Overlay != null)
-            SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight, 
+            SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Math.Round(Surface.ActualWidth * DpiX), (int)Math.Round(Surface.ActualHeight * DpiY),
                 (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOACTIVATE));
     }
 
