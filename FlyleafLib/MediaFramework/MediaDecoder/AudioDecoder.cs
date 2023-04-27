@@ -15,15 +15,20 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 /* TODO
  * 
+ * Circular Buffer
+ * - Safe re-allocation and check also actual frames in queue (as now during draining we can overwrite them)
+ * - Locking with Audio.AddSamples during re-allocation and re-write old data to the new buffer and update the pointers in queue
+ * 
+ * Filters
+ * - Note: Performance issue (for seek/speed change). We can't drain the buffersrc and re-use the filtergraph without re-initializing it, is not supported
+ * - Check if av_buffersrc_get_nb_failed_requests required
+ * - Add Config for filter threads?
+ * - Review Access Violation issue with dynaudnorm/loudnorm filters in combination with atempo (when changing speed to fast?)
+ * - Use multiple atempo for better quality (for < 0.5 and > 2, use eg. 2 of sqrt(X) * sqrt(X) to achive this)
+ * - Review locks / recode RunInternal to be able to continue from where it stopped (eg. ProcessFilter)
+ * 
  * Custom Frames Queue to notify when the queue is not full anymore (to avoid thread sleep which can cause delays)
- * Lock CBuf with Audio.AddSamples and check the mFrame.dataPtr still in same memory?
- * Filters should we check av_buffersrc_get_nb_failed_requests(abufferCtx) ?
  * Support more output formats/channels/sampleRates (and currently output to 32-bit, sample rate to 48Khz and not the same as input? - should calculate possible delays)
- * Use AVFrames* for Filters instead of CBuf as we already copying it. This way we can pass the queued frames again from the sink and fix the new values of atempo? 
- *      a. need to listen on sample played event? on sourcevoice to dispose it after
- *      b. should keep original frame tho
- * atempo bug when going from 8 speed to <1 crashes Assertion read_size <= atempo->ring || atempo->tempo > 2.0 failed at libavfilter/af_atempo.c:442
- *      use more atempo filters or set it in steps (needs to read frames for each step)
  */
 
 public unsafe partial class AudioDecoder : DecoderBase
@@ -114,8 +119,8 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
-                if (Config.Audio.FiltersEnabled)
-                    SetupFilters(); // Ensure no frames left in bufferSink, better way?
+                if (filterGraph != null)
+                    SetupFilters();
             }
     }
 
@@ -257,10 +262,15 @@ public unsafe partial class AudioDecoder : DecoderBase
                     {
                         av_frame_unref(frame); 
                         
-                        if (ret == AVERROR_EOF && Config.Audio.FiltersEnabled)
+                        if (ret == AVERROR_EOF && filterGraph != null)
+                        {
                             lock (lockSpeed)
-                                ProcessWithFilters(null);
-                        
+                            {
+                                DrainFilters();
+                                Status = Status.Ended;
+                            }
+                        }
+
                         break;
                     }
 
@@ -291,12 +301,26 @@ public unsafe partial class AudioDecoder : DecoderBase
                         AudioStream.Refresh();
                         resyncWithVideoRequired = !VideoDecoder.Disposed;
 
-                        ret = Config.Audio.FiltersEnabled ? SetupFilters() : SetupSwr();
+                        if (Config.Audio.FiltersEnabled)
+                        {
+                            ret = SetupFilters();
+
+                            if (ret != 0)
+                            {
+                                Log.Error($"Setup filters failed. Fallback to Swr.");
+                                ret = SetupSwr();
+                            }
+                        }
+                        else
+                            ret = SetupSwr();
 
                         CodecChanged?.Invoke(this);
 
                         if (ret != 0)
-                            { Status = Status.Stopping; break; }
+                        {
+                            Status = Status.Stopping;
+                            break;
+                        }
                     }
 
                     if (resyncWithVideoRequired)
@@ -319,8 +343,8 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                     lock (lockSpeed)
                     {
-                        if (Config.Audio.FiltersEnabled)
-                            ProcessWithFilters(frame);
+                        if (filterGraph != null)
+                            ProcessFilters(frame);
                         else
                             Process(frame);
                     }

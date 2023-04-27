@@ -59,6 +59,7 @@ unsafe partial class Player
     long    startTicks;
 
     int     allowedLateAudioDrops;
+    long    lastSpeedChangeTicks;
     long    curLatency;
     internal long curAudioDeviceDelay;
 
@@ -151,12 +152,9 @@ unsafe partial class Player
 
         if (Config.Player.MaxLatency != 0)
         {
+            lastSpeedChangeTicks = DateTime.UtcNow.Ticks;
             showOneFrame = false;
             Speed = 1;
-
-            // TBR: MaxLatency can change speed very fast and for atempo gets timestamps (can't be corrected late) out of sync
-            if (Config.Audio.FiltersEnabled)
-                Config.Audio.FiltersEnabled = false;
         }
 
         do
@@ -545,6 +543,13 @@ unsafe partial class Player
     {
         if (speed == newSpeed)
             return;
+
+        long curTicks = DateTime.UtcNow.Ticks;
+
+        if (newSpeed != 1 && curTicks - lastSpeedChangeTicks < Config.Player.LatencySpeedChangeInterval)
+            return;
+
+        lastSpeedChangeTicks = curTicks;
 
         if (CanDebug)
             Log.Debug($"[Latency {curLatency/10000}ms] Speed changed x{speed} -> x{newSpeed}");
