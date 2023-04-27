@@ -22,12 +22,12 @@
     <Style BasedOn="{StaticResource MaterialDesignCheckBox}" TargetType="{x:Type CheckBox}" />
     <Style BasedOn="{StaticResource MaterialDesignComboBox}" TargetType="{x:Type ComboBox}" />
     <Style BasedOn="{StaticResource MaterialDesignThumb}" TargetType="{x:Type Thumb}" />
-    <Style BasedOn="{StaticResource MaterialDesignExpander}" TargetType="{x:Type Expander}" />
+    <!--<Style BasedOn="{StaticResource MaterialDesignExpander}" TargetType="{x:Type Expander}" />
     <Style BasedOn="{StaticResource MaterialDesignGridSplitter}" TargetType="{x:Type GridSplitter}" />
     <Style BasedOn="{StaticResource MaterialDesignGroupBox}" TargetType="{x:Type GroupBox}" />
     <Style BasedOn="{StaticResource MaterialDesignLabel}" TargetType="{x:Type Label}" />
     <Style BasedOn="{StaticResource MaterialDesignPasswordBox}" TargetType="{x:Type PasswordBox}" />
-    <Style BasedOn="{StaticResource MaterialDesignRadioButton}" TargetType="{x:Type RadioButton}" />
+    <Style BasedOn="{StaticResource MaterialDesignRadioButton}" TargetType="{x:Type RadioButton}" />-->
     <Style BasedOn="{StaticResource MaterialDesignRaisedButton}" TargetType="{x:Type RepeatButton}" />
     <Style BasedOn="{StaticResource MaterialDesignScrollBar}" TargetType="{x:Type ScrollBar}" />
     <Style BasedOn="{StaticResource MaterialDesignScrollViewer}" TargetType="{x:Type ScrollViewer}" />
