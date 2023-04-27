@@ -39,9 +39,16 @@
                                             <BeginStoryboard x:Name="fadeOutN" Storyboard="{StaticResource fadeOut}" />
                                         </DataTrigger.EnterActions>
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Active">
+                                        <DataTrigger.EnterActions>
+                                            <RemoveStoryboard BeginStoryboardName="fadeInN" />
+                                            <BeginStoryboard x:Name="fadeOutN2" Storyboard="{StaticResource fadeOut}" />
+                                        </DataTrigger.EnterActions>
+                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding Player.Activity.Mode, FallbackValue=FullActive, TargetNullValue=FullActive}" Value="FullActive">
                                         <DataTrigger.EnterActions>
                                             <RemoveStoryboard BeginStoryboardName="fadeOutN" />
+                                            <RemoveStoryboard BeginStoryboardName="fadeOutN2" />
                                             <BeginStoryboard x:Name="fadeInN" Storyboard="{StaticResource fadeIn}" />
                                         </DataTrigger.EnterActions>
                                     </DataTrigger>

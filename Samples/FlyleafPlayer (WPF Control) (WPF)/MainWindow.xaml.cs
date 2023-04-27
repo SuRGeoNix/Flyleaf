@@ -1,5 +1,8 @@
 ﻿using System;
+using System.ComponentModel;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -9,15 +12,17 @@ using FlyleafLib.MediaPlayer;
 
 namespace FlyleafPlayer
 {
-    // TODO: Open New Window with the same size, Popup Menu Playlist will not resize the size?
+    // TODO: Popup Menu Playlist will not resize the size?
     //       Add Play Next/Prev for Playlists (Page Up/Down?) this goes down to Player
 
     /// <summary>
     /// <para>FlyleafPlayer Sample</para>
     /// <para>A stand-alone Overlay which uses a customization of FlyleafME control</para>
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+
         public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
         
         /// <summary>
@@ -36,7 +41,7 @@ namespace FlyleafPlayer
         static bool runOnce;
         Config playerConfig;
         bool ReversePlaybackChecked;
-
+        
         public MainWindow()
         {
             OpenWindow  = new RelayCommandSimple(() => (new MainWindow()).Show());
@@ -106,6 +111,32 @@ namespace FlyleafPlayer
 
                     ReversePlaybackChecked = true;
                 }
+                else if (e.PropertyName == nameof(Player.Rotation))
+                    Msg = $"Rotation {Player.Rotation}°";
+                else if (e.PropertyName == nameof(Player.Speed))
+                    Msg = $"Speed x{Player.Speed}";
+                else if (e.PropertyName == nameof(Player.Zoom))
+                    Msg = $"Zoom {Player.Zoom}%";
+            };
+
+            Player.Audio.PropertyChanged += (o, e) =>
+            {
+                if (e.PropertyName == nameof(Player.Audio.Volume))
+                    Msg = $"Volume {Player.Audio.Volume}%";
+                else if (e.PropertyName == nameof(Player.Audio.Mute))
+                    Msg = Player.Audio.Mute ? "Muted" : "Unmuted";
+            };
+
+            Player.Config.Audio.PropertyChanged += (o, e) =>
+            {
+                if (e.PropertyName == nameof(Player.Config.Audio.Delay))
+                    Msg = $"Audio Delay {Player.Config.Audio.Delay / 10000}ms";
+            };
+
+            Player.Config.Subtitles.PropertyChanged += (o, e) =>
+            {
+                if (e.PropertyName == nameof(Player.Config.Subtitles.Delay))
+                    Msg = $"Subs Delay {Player.Config.Subtitles.Delay / 10000}ms";
             };
 
             // Ctrl+ N / Ctrl + W (Open New/Close Window)
@@ -113,7 +144,7 @@ namespace FlyleafPlayer
             if (key != null)
                 key.SetAction(() => (new MainWindow()).Show(), true);
             else
-                playerConfig.Player.KeyBindings.AddCustom(Key.N, true, () => { (new MainWindow()).Show(); }, "New Window", false, true, false);
+                playerConfig.Player.KeyBindings.AddCustom(Key.N, true, () => { (new MainWindow() { Width = Width, Height = Height }).Show(); }, "New Window", false, true, false);
 
             key = playerConfig.Player.KeyBindings.Get("Close Window");
             if (key != null)
@@ -172,5 +203,16 @@ namespace FlyleafPlayer
 
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => FlyleafME.IsMinimized = true;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        #region OSD Msg
+        CancellationTokenSource cancelMsgToken = new();
+        public string Msg { get => msg; set { cancelMsgToken.Cancel(); msg = value; PropertyChanged?.Invoke(this, new(nameof(Msg))); cancelMsgToken = new(); Task.Run(FadeOutMsg, cancelMsgToken.Token); } }
+        string msg;
+        private async Task FadeOutMsg()
+        {
+            await Task.Delay(2000, cancelMsgToken.Token);
+            Utils.UIInvoke(() => { msg = ""; PropertyChanged?.Invoke(this, new(nameof(Msg))); });
+        }
+        #endregion
     }
 }
