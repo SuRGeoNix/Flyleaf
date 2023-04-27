@@ -194,6 +194,11 @@ public class Config : NotifyPropertyChanged
         long _MinLatency = 0;
 
         /// <summary>
+        /// Prevents frequent speed changes when MaxLatency is enabled (to avoid audio/video gaps and desyncs)
+        /// </summary>
+        public long     LatencySpeedChangeInterval  { get; set; } = TimeSpan.FromMilliseconds(700).Ticks;
+
+        /// <summary>
         /// Folder to save recordings (when filename is not specified)
         /// </summary>
         public string   FolderRecordings            { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Recordings");
