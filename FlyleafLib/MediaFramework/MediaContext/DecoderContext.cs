@@ -92,6 +92,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
     #region Initialize
     LogHandler Log;
+    bool shouldDispose;
     public DecoderContext(Config config = null, int uniqueId = -1, bool enableDecoding = true) : base(config, uniqueId)
     {
         Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [DecoderContext] ");
@@ -549,7 +550,9 @@ public unsafe partial class DecoderContext : PluginHandler
     }
     public new void Dispose()
     {
+        shouldDispose = true;
         Stop();
+        Interrupt = true;
         VideoDecoder.DestroyRenderer();
         base.Dispose();
     }
