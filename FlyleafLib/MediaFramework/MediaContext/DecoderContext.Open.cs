@@ -113,29 +113,59 @@ public partial class DecoderContext
 
     private void OnOpenCompleted(OpenCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         VideoDecoder.Renderer?.ClearScreen();
         if (CanInfo) Log.Info($"[Open] {args.Url ?? "None"} {(!args.Success ? " [Error: " + args.Error  + "]": "")}");
         OpenCompleted?.Invoke(this, args);
     }
     private void OnOpenSessionCompleted(OpenSessionCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         VideoDecoder.Renderer?.ClearScreen();
         if (CanInfo) Log.Info($"[OpenSession] {args.Session.Url ?? "None"} - Item: {args.Session.PlaylistItem} {(!args.Success ? " [Error: " + args.Error  + "]": "")}");
         OpenSessionCompleted?.Invoke(this, args);
     }
     private void OnOpenSubtitles(OpenSubtitlesCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         if (CanInfo) Log.Info($"[OpenSubtitles] {args.Url ?? "None"} {(!args.Success ? " [Error: " + args.Error  + "]": "")}");
         OpenSubtitlesCompleted?.Invoke(this, args);
     }
     private void OnOpenPlaylistItemCompleted(OpenPlaylistItemCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         VideoDecoder.Renderer?.ClearScreen();
         if (CanInfo) Log.Info($"[OpenPlaylistItem] {(args.OldItem != null ? args.OldItem.Title : "None")} => {(args.Item != null ? args.Item.Title : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
         OpenPlaylistItemCompleted?.Invoke(this, args);
     }
     private void OnOpenAudioStreamCompleted(OpenAudioStreamCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         ClosedAudioStream = null;
         MainDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
 
@@ -144,6 +174,12 @@ public partial class DecoderContext
     }
     private void OnOpenVideoStreamCompleted(OpenVideoStreamCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         ClosedVideoStream = null;
         MainDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
 
@@ -152,6 +188,12 @@ public partial class DecoderContext
     }
     private void OnOpenSubtitlesStreamCompleted(OpenSubtitlesStreamCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         ClosedSubtitlesStream = null;
 
         if (CanInfo) Log.Info($"[OpenSubtitlesStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
@@ -159,6 +201,12 @@ public partial class DecoderContext
     }
     private void OnOpenExternalAudioStreamCompleted(OpenExternalAudioStreamCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         ClosedAudioStream = null;
         MainDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
 
@@ -167,6 +215,12 @@ public partial class DecoderContext
     }
     private void OnOpenExternalVideoStreamCompleted(OpenExternalVideoStreamCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         ClosedVideoStream = null;
         MainDemuxer = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
 
@@ -175,6 +229,12 @@ public partial class DecoderContext
     }
     private void OnOpenExternalSubtitlesStreamCompleted(OpenExternalSubtitlesStreamCompletedArgs args = null)
     {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
         ClosedSubtitlesStream = null;
 
         if (CanInfo) Log.Info($"[OpenExternalSubtitlesStream] {(args.OldExtStream != null ? args.OldExtStream.Url : "None")} => {(args.ExtStream != null ? args.ExtStream.Url : "None")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
