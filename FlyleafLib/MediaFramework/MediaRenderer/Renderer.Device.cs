@@ -60,6 +60,7 @@ public partial class Renderer
     VSBufferType        vsBufferData = new();
 
     internal object     lockDevice = new();
+    bool                isFlushing;
 
     unsafe public void Initialize(bool swapChain = true)
     {
@@ -308,6 +309,7 @@ public partial class Renderer
     {
         lock (lockDevice)
         {
+            isFlushing = true;
             var controlHandle = ControlHandle;
             var swapChainClbk = SwapChainWinUIClbk;
 
@@ -315,6 +317,7 @@ public partial class Renderer
             ControlHandle = controlHandle;
             SwapChainWinUIClbk = swapChainClbk;
             Initialize();
+            isFlushing = false;
         }
     }
 

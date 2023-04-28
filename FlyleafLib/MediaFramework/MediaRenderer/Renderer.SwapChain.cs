@@ -124,7 +124,15 @@ public partial class Renderer
             backBufferRtv   = Device.CreateRenderTargetView(backBuffer);
             SCDisposed      = false;
 
-            SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
+            if (!isFlushing) // avoid calling UI thread during Player.Stop
+            {
+                // SetWindowSubclass seems to require UI thread when RemoveWindowSubclass does not (docs are not mentioning this?)
+                if (System.Threading.Thread.CurrentThread.ManagedThreadId == System.Windows.Application.Current.Dispatcher.Thread.ManagedThreadId)
+                    SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
+                else
+                    Utils.UI(() => SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero));
+            }
+
             Engine.Video.Factory.MakeWindowAssociation(ControlHandle, WindowAssociationFlags.IgnoreAll);
 
             ResizeBuffers(ControlWidth, ControlHeight); // maybe not required (only for vp)?
@@ -192,7 +200,8 @@ public partial class Renderer
             // Unassign renderer's WndProc if still there and re-assign the old one
             if (ControlHandle != IntPtr.Zero)
             {
-                RemoveWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero);
+                if (!isFlushing) // SetWindowSubclass requires UI thread so avoid calling it on flush (Player.Stop)
+                    RemoveWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero);
                 ControlHandle = IntPtr.Zero;
             }
 
