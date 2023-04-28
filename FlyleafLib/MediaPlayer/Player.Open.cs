@@ -726,9 +726,10 @@ unsafe partial class Player
     #region OpenAsync Implementation
     private void OpenAsync()
     {
-        if (taskOpenAsyncRuns)
-            return;
-
+        lock (lockActions)
+            if (taskOpenAsyncRuns)
+                return;
+        
         taskOpenAsyncRuns = true;
 
         Task.Run(() =>
@@ -783,10 +784,17 @@ unsafe partial class Player
                         Open(data.stream, data.resync);
                 }
                 else
-                    break;
+                {
+                    lock (lockActions)
+                    {
+                        if (openInputs.IsEmpty && openSessions.IsEmpty && openItems.IsEmpty && openVideo.IsEmpty && openAudio.IsEmpty && openSubtitles.IsEmpty)
+                        {
+                            taskOpenAsyncRuns = false;
+                            break;
+                        }
+                    }
+                }
             }
-
-            lock (lockActions) taskOpenAsyncRuns = false;
         });
     }
 
