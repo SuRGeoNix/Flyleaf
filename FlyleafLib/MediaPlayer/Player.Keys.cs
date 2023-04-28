@@ -279,7 +279,12 @@ public class KeysConfig
         Add(Key.S,                  KeyBindingAction.ToggleSeekAccurate, false, true);
 
         Add(Key.OemPlus,            KeyBindingAction.SpeedAdd);
+        Add(Key.OemPlus,            KeyBindingAction.SpeedAdd2, false, false, true);
         Add(Key.OemMinus,           KeyBindingAction.SpeedRemove);
+        Add(Key.OemMinus,           KeyBindingAction.SpeedRemove2, false, false, true);
+
+        Add(Key.OemPlus,            KeyBindingAction.ZoomIn, false, true, false);
+        Add(Key.OemMinus,           KeyBindingAction.ZoomOut, false, true, false);
 
         Add(Key.F,                  KeyBindingAction.ToggleFullScreen);
 
@@ -300,9 +305,6 @@ public class KeysConfig
         Add(Key.M,                  KeyBindingAction.ToggleMute);
         Add(Key.Up,                 KeyBindingAction.VolumeUp);
         Add(Key.Down,               KeyBindingAction.VolumeDown);
-
-        Add(Key.OemPlus,            KeyBindingAction.ZoomIn, false, true);
-        Add(Key.OemMinus,           KeyBindingAction.ZoomOut, false, true);
 
         Add(Key.D0,                 KeyBindingAction.ResetAll);
         Add(Key.X,                  KeyBindingAction.Flush, false, true);
@@ -421,8 +423,14 @@ public class KeysConfig
             case KeyBindingAction.SpeedAdd:
                 return player.SpeedUp;
 
+                case KeyBindingAction.SpeedAdd2:
+                return player.SpeedUp2;
+
             case KeyBindingAction.SpeedRemove:
                 return player.SpeedDown;
+
+                case KeyBindingAction.SpeedRemove2:
+                return player.SpeedDown2;
 
             case KeyBindingAction.ShowPrevFrame:
                 return player.ShowFramePrev;
@@ -470,7 +478,9 @@ public class KeysConfig
         { KeyBindingAction.Flush },
         { KeyBindingAction.ToggleSeekAccurate },
         { KeyBindingAction.SpeedAdd },
+        { KeyBindingAction.SpeedAdd2 },
         { KeyBindingAction.SpeedRemove },
+        { KeyBindingAction.SpeedRemove2 },
         { KeyBindingAction.ForceIdle },
         { KeyBindingAction.ForceActive },
         { KeyBindingAction.ForceFullActive }
@@ -520,7 +530,7 @@ public enum KeyBindingAction
     ToggleVideoAcceleration,
     ToggleRecording,
     ToggleSeekAccurate, SeekForward, SeekBackward, SeekForward2, SeekBackward2,
-    SpeedAdd, SpeedRemove,
+    SpeedAdd, SpeedAdd2, SpeedRemove, SpeedRemove2,
     ShowNextFrame, ShowPrevFrame,
 
     ResetAll,

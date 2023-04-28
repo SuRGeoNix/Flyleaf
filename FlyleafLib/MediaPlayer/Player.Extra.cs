@@ -16,45 +16,28 @@ unsafe partial class Player
 {
     public bool IsOpenFileDialogOpen    { get; private set; }
 
-    public void SeekBackward()
+    
+    public void SeekBackward()  => SeekBackward_(Config.Player.SeekOffset);
+    public void SeekBackward2() => SeekBackward_(Config.Player.SeekOffset2);
+    public void SeekBackward3() => SeekBackward_(Config.Player.SeekOffset3);
+    public void SeekBackward_(long offset)
     {
         if (!CanPlay) return;
 
         if (Config.Player.SeekAccurate)
-            SeekAccurate(Math.Max((int) ((CurTime - Config.Player.SeekOffset) / 10000), 0));
+            SeekAccurate(Math.Max((int) ((CurTime - offset) / 10000), 0));
         else
-            Seek(Math.Max((int) ((CurTime - Config.Player.SeekOffset) / 10000), 0), false);
-        
+            Seek(Math.Max((int) ((CurTime - offset) / 10000), 0), false);
     }
-    public void SeekBackward2()
+
+    public void SeekForward()   => SeekForward_(Config.Player.SeekOffset);
+    public void SeekForward2()  => SeekForward_(Config.Player.SeekOffset2);
+    public void SeekForward3()  => SeekForward_(Config.Player.SeekOffset3);
+    public void SeekForward_(long offset)
     {
         if (!CanPlay) return;
 
-        if (Config.Player.SeekAccurate)
-            SeekAccurate(Math.Max((int) ((CurTime - Config.Player.SeekOffset2) / 10000), 0));
-        else
-            Seek(Math.Max((int) ((CurTime - Config.Player.SeekOffset2) / 10000), 0), false);
-        
-    }
-    public void SeekForward()
-    {
-        if (!CanPlay) return;
-
-        long seekTs = CurTime + Config.Player.SeekOffset;
-
-        if (seekTs <= Duration || isLive)
-        {
-            if (Config.Player.SeekAccurate)
-                SeekAccurate((int)(seekTs / 10000));
-            else
-                Seek((int)(seekTs / 10000), true);
-        }
-    }
-    public void SeekForward2()
-    {
-        if (!CanPlay) return;
-
-        long seekTs = CurTime + Config.Player.SeekOffset2;
+        long seekTs = CurTime + offset;
 
         if (seekTs <= Duration || isLive)
         {
@@ -219,14 +202,10 @@ unsafe partial class Player
         }
     }
 
-    public void SpeedUp()
-    {
-        if (Speed + 0.25 > 1 && ReversePlayback)
-            return;
-
-        Speed = Speed + 0.25 > 16 ? 16 : Speed + 0.25;
-    }
-    public void SpeedDown()     => Speed = Speed - 0.25 < 0.5 ? 0.5 : Speed - 0.25;
+    public void SpeedUp()       => Speed += Config.Player.SpeedOffset;
+    public void SpeedUp2()      => Speed += Config.Player.SpeedOffset2;
+    public void SpeedDown()     => Speed -= Config.Player.SpeedOffset;
+    public void SpeedDown2()    => Speed -= Config.Player.SpeedOffset2;
 
     public void RotateRight()   => Rotation = (_Rotation + 90) % 360;
     public void RotateLeft()    => Rotation = (_Rotation - 90) < 0 ? 360 + (_Rotation - 90) : (_Rotation - 90);
