@@ -76,9 +76,24 @@ public unsafe partial class AudioDecoder
                     }
                     catch (Exception e) { Log.Error($"{e.Message}"); }
 
-            // SPEED (atempo)
-            linkCtx = CreateFilter("atempo", $"tempo={speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
-            
+            // SPEED (atempo up to 3) | [0.125 - 0.25](3), [0.25 - 0.5](2), [0.5 - 2.0](1), [2.0 - 4.0](2), [4.0 - X](3)
+            if (speed != 1)
+            {
+                if (speed >= 0.5 && speed <= 2)
+                    linkCtx = CreateFilter("atempo", $"tempo={speed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                else if ((speed > 2 & speed <= 4) || (speed >= 0.25 && speed < 0.5))
+                {
+                    linkCtx = CreateFilter("atempo", $"tempo={Math.Sqrt(speed).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter("atempo", $"tempo={Math.Sqrt(speed).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                }
+                else if (speed > 4 || speed >= 0.125 && speed < 0.25)
+                {
+                    linkCtx = CreateFilter("atempo", $"tempo={Math.Pow(speed, 1.0 / 3).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter("atempo", $"tempo={Math.Pow(speed, 1.0 / 3).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter("atempo", $"tempo={Math.Pow(speed, 1.0 / 3).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                }
+            }
+
             // OUT (abuffersink)
             abufferSinkCtx = CreateFilter("abuffersink", null, null);
 

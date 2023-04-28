@@ -223,12 +223,12 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         get => speed; 
         set
         {
-            double newValue = value;
-            if (value < 0.5)
-                newValue = 0.5;
+            double newValue = Math.Round(value, 3);
+            if (value < 0.125)
+                newValue = 0.125;
             else if (value > 16)
                 newValue = 16;
-
+            
             if (newValue == speed || (newValue > 1 && ReversePlayback))
                 return;
             

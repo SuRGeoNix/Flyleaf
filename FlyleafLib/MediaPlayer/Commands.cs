@@ -35,8 +35,10 @@ public class Commands
 
     public ICommand SeekBackward            { get; set; }
     public ICommand SeekBackward2           { get; set; }
+    public ICommand SeekBackward3           { get; set; }
     public ICommand SeekForward             { get; set; }
     public ICommand SeekForward2            { get; set; }
+    public ICommand SeekForward3            { get; set; }
     public ICommand SeekToChapter           { get; set; }
 
     public ICommand ShowFramePrev           { get; set; }
@@ -61,7 +63,9 @@ public class Commands
 
     public ICommand SpeedSet                { get; set; }
     public ICommand SpeedUp                 { get; set; }
+    public ICommand SpeedUp2                { get; set; }
     public ICommand SpeedDown               { get; set; }
+    public ICommand SpeedDown2              { get; set; }
 
     public ICommand VolumeUp                { get; set; }
     public ICommand VolumeDown              { get; set; }
@@ -93,8 +97,10 @@ public class Commands
 
         SeekBackward            = new RelayCommandSimple(player.SeekBackward);
         SeekBackward2           = new RelayCommandSimple(player.SeekBackward2);
+        SeekBackward3           = new RelayCommandSimple(player.SeekBackward3);
         SeekForward             = new RelayCommandSimple(player.SeekForward);
         SeekForward2            = new RelayCommandSimple(player.SeekForward2);
+        SeekForward3            = new RelayCommandSimple(player.SeekForward3);
         SeekToChapter           = new RelayCommand(SeekToChapterAction);
 
         ShowFrameNext           = new RelayCommandSimple(player.ShowFrameNext);
@@ -120,6 +126,8 @@ public class Commands
         SpeedSet                = new RelayCommand(SpeedSetAction);
         SpeedUp                 = new RelayCommandSimple(player.SpeedUp);
         SpeedDown               = new RelayCommandSimple(player.SpeedDown);
+        SpeedUp2                = new RelayCommandSimple(player.SpeedUp2);
+        SpeedDown2              = new RelayCommandSimple(player.SpeedDown2);
 
         VolumeUp                = new RelayCommandSimple(player.Audio.VolumeUp);
         VolumeDown              = new RelayCommandSimple(player.Audio.VolumeDown);
