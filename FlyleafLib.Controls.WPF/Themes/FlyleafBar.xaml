@@ -1,6 +1,8 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    
+                    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    mc:Ignorable="d"
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
                     xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF">
 
@@ -70,7 +72,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!--Current Time | Slider | Duration-->
-                                <TextBlock Grid.Column="0" HorizontalAlignment="Left"   VerticalAlignment="Center" Text="{Binding Player.CurTime, Converter={StaticResource TicksToTime}}"/>
+                                <TextBlock Grid.Column="0" HorizontalAlignment="Left"   VerticalAlignment="Center" Text="{Binding Player.CurTime, Converter={StaticResource TicksToTime}}" d:Text="00:00:00"/>
                                 <Slider    Grid.Column="1" IsSelectionRangeEnabled="True" SelectionStart="{Binding RelativeSource={RelativeSource Self}, Path=Value, Mode=OneWay}" Style="{DynamicResource FlyleafSlider}" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" Maximum="{Binding Player.Duration, Converter={StaticResource TicksToSeconds}}">
                                     <Slider.SelectionEnd>
                                         <MultiBinding Converter="{StaticResource SumConverter}">
@@ -79,7 +81,7 @@
                                         </MultiBinding>
                                     </Slider.SelectionEnd>
                                 </Slider>
-                                <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding Player.Duration, Converter={StaticResource TicksToTime}}"/>
+                                <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding Player.Duration, Converter={StaticResource TicksToTime}}" d:Text="00:00:00"/>
                             </Grid>
 
                             <Grid Grid.Row="1" Margin="0,0,0,0">
@@ -199,7 +201,7 @@
                                 </Button>
 
                                 <!--Volume Slider (Decibel)-->
-                                <Slider Grid.Column="4" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource SecondaryHueMidBrush}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" Value="{Binding Player.Audio.Volume}"/>
+                                <Slider Grid.Column="4" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource SecondaryHueMidBrush}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" d:Maximum="150" d:Value="75" Value="{Binding Player.Audio.Volume}"/>
 
                                 <!--Open Settings Button-->
                                 <Button Grid.Column="5" Style="{StaticResource IconButton}" Content="{materialDesign:PackIcon Kind=SettingsOutline}" Command="{Binding OpenSettingsCmd}"/>

@@ -31,6 +31,10 @@ public unsafe class AudioStream : StreamBase
         SampleFormat    = (AVSampleFormat) Enum.ToObject(typeof(AVSampleFormat), AVStream->codecpar->format);
         SampleFormatStr = av_get_sample_fmt_name(SampleFormat);
         SampleRate      = AVStream->codecpar->sample_rate;
+
+        if (AVStream->codecpar->ch_layout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC)
+            av_channel_layout_default(&AVStream->codecpar->ch_layout, AVStream->codecpar->ch_layout.nb_channels);
+
         ChannelLayout   = AVStream->codecpar->ch_layout.u.mask;
         Channels        = AVStream->codecpar->ch_layout.nb_channels;
         Bits            = AVStream->codecpar->bits_per_coded_sample;

@@ -46,11 +46,11 @@ namespace FlyleafPlayer
             engineConfig.FFmpegHLSLiveSeek
                                         = true;
             engineConfig.UIRefresh      = true;
+            engineConfig.FFmpegDevices  = true;
 
             #if RELEASE
             engineConfig.LogOutput      = "Flyleaf.FirstRun.log";
             engineConfig.LogLevel       = LogLevel.Debug;
-            engineConfig.FFmpegDevices  = true;
             #else
             engineConfig.LogOutput      = ":debug";
             engineConfig.LogLevel       = LogLevel.Debug;
