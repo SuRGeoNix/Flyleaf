@@ -271,12 +271,15 @@
 
                             <TextBlock Text="Enabled" VerticalAlignment="Center"/>
                             <ToggleButton Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Audio.Enabled, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                            
+                            <TextBlock Grid.Row="1" Text="Use Filters" VerticalAlignment="Center"/>
+                            <ToggleButton Grid.Row="1" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Audio.FiltersEnabled, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
-                            <TextBlock Grid.Row="1" Text="Delay (ms)" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Audio.Delay, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                            <TextBlock Grid.Row="2" Text="Delay (ms)" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Audio.Delay, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                            <TextBlock Grid.Row="2" Text="Device" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="cmbAudioDevice" Tag="_save" ItemsSource="{Binding AudioEngine.Devices}" SelectedItem="{Binding Player.Audio.Device, UpdateSourceTrigger=Explicit}" />
+                            <TextBlock Grid.Row="3" Text="Device" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" x:Name="cmbAudioDevice" Tag="_save" ItemsSource="{Binding AudioEngine.Devices}" SelectedItem="{Binding Player.Audio.Device, UpdateSourceTrigger=Explicit}" />
                         </Grid>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <Button Style="{StaticResource SaveButton}"/>

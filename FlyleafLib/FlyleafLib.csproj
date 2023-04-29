@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.9</Version>
+	<Version>3.7.10</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- AudioDecoder: Fixes audio filters desync issues and improves quality on speed change
-		- Player: Introduces Config.Player.LatencySpeedChangeInterval to prevent frequent speed changes on MaxLatency (adds speed support with audio filters)
-		- FlyleafHost.Wpf: Fixes issues with resize and DPI
-		- FlyleafHost.Wpf: Fixes an issue with multiple screens and fullscreen
-		- FlyleafHost.Wpf: Fixes an issue with standalone and show in taskbar when initialized
+		- AudioDecoder: Fixes an issue with audio filters when the input channel layout is unspecified (mainly noticed with ffmpeg devices and microphones)
+		- AudioDecoder: Improves speed quality and adds atempo only if required (up to 3 atempo and supports lower speeds)
+		- DecoderContext: Fixes a race condition between Open/Dispose which could cause memory leaks
+		- Player: Brings back support for lower speeds (down limit to 0.125)
+		- Player: Adds Config.Player.SpeedOffset (1-2), Commands and extra Keybindings (shift +-)
+		- Player: Adds an extra SeekOffset3 and Commands
+		- Player: Fixes a race condition during OpenAsync/Stop/OpenAsync
+		- FlyleafHost(All): Fixes a critical issue with resize and rendering after Player.Stop/Renderer.Flush from a non-UI thread (SetWindowSubclass requires UI thread)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
