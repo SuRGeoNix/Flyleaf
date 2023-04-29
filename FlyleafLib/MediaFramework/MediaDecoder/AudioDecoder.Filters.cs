@@ -189,6 +189,36 @@ public unsafe partial class AudioDecoder
 
         return ret;
     }
+    internal int SetupFiltersOrSwr()
+    {
+        lock (lockSpeed)
+        {
+            int ret = -1;
+
+            if (Disposed)
+                return ret;
+
+            if (Config.Audio.FiltersEnabled && Engine.FFmpeg.FiltersLoaded)
+            {
+                ret = SetupFilters();
+
+                if (ret != 0)
+                {
+                    Log.Error($"Setup filters failed. Fallback to Swr.");
+                    ret = SetupSwr();
+                }
+                else
+                    DisposeSwr();
+            }
+            else
+            {
+                DisposeFilters();
+                ret = SetupSwr();
+            }
+
+            return ret;
+        }
+    }
 
     public int UpdateFilter(string filterId, string key, string value)
     {

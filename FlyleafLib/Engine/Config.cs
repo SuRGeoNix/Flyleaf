@@ -647,7 +647,7 @@ public class Config : NotifyPropertyChanged
         /// 2. Currently SWR performs better if you dont need filters
         /// </para>
         /// </summary>
-        public bool             FiltersEnabled      { get => _FiltersEnabled; set => _FiltersEnabled = value && Engine.FFmpeg.FiltersLoaded; }
+        public bool             FiltersEnabled      { get => _FiltersEnabled; set { if (Set(ref _FiltersEnabled, value && Engine.FFmpeg.FiltersLoaded)) player?.AudioDecoder.SetupFiltersOrSwr(); } }
         bool _FiltersEnabled = false;
 
         /// <summary>

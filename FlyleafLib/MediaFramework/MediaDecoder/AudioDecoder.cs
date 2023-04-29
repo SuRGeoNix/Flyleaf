@@ -61,8 +61,8 @@ public unsafe partial class AudioDecoder : DecoderBase
     {
         int ret;
 
-        if (swrCtx == null)
-            swrCtx = swr_alloc();
+        DisposeSwr();
+        swrCtx = swr_alloc();
 
         av_opt_set_chlayout(swrCtx,     "in_chlayout",          &codecCtx->ch_layout,   0);
         av_opt_set_int(swrCtx,          "in_sample_rate",       codecCtx->sample_rate,  0);
@@ -301,18 +301,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                         AudioStream.Refresh();
                         resyncWithVideoRequired = !VideoDecoder.Disposed;
 
-                        if (Config.Audio.FiltersEnabled)
-                        {
-                            ret = SetupFilters();
-
-                            if (ret != 0)
-                            {
-                                Log.Error($"Setup filters failed. Fallback to Swr.");
-                                ret = SetupSwr();
-                            }
-                        }
-                        else
-                            ret = SetupSwr();
+                        ret = SetupFiltersOrSwr();
 
                         CodecChanged?.Invoke(this);
 
