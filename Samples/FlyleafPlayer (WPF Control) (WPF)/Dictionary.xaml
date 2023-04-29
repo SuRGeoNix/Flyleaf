@@ -2,13 +2,16 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-                    xmlns:flyleafLib="clr-namespace:FlyleafLib;assembly=FlyleafLib">
+                    xmlns:flyleafLib="clr-namespace:FlyleafLib;assembly=FlyleafLib"
+                    xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib">
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesign.xaml"/>
         <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/Converters.xaml"/>
         <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/PopUpMenu.xaml"/>
     </ResourceDictionary.MergedDictionaries>
+    
+    <flwpf:TicksToTimeSpanConverter x:Key="TicksToTimeSpan"/>
     
     <!--Overriding FlyleafME's Popup Menu (Using FlyleafME's Tag to pass our DataContext) -->
     <ContextMenu x:Key="PopUpMenu" Style="{StaticResource FlyleafContextMenu}">
