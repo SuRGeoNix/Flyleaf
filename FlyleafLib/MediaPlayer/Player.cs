@@ -288,14 +288,14 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// <summary>
     /// Pan rotation angle (for D3D11 VP allowed values are 0, 90, 180, 270 only)
     /// </summary>
-    public int     Rotation            { get => _Rotation; 
+    public uint Rotation            { get => _Rotation; 
         set
         {
             renderer.Rotation = value;
             Set(ref _Rotation, renderer.Rotation);
         }
     }
-    int _Rotation;
+    uint _Rotation;
 
     /// <summary>
     /// Whether to use reverse playback mode

@@ -473,6 +473,13 @@ public unsafe partial class DecoderContext : PluginHandler
 
                 case AVMEDIA_TYPE_VIDEO:
                     ret = avcodec_send_packet(VideoDecoder.CodecCtx, packet);
+
+                    if (VideoDecoder.swFallback)
+                    {
+                        VideoDecoder.SWFallback();
+                        ret = avcodec_send_packet(VideoDecoder.CodecCtx, packet);
+                    }
+
                     if (ret != 0) { av_packet_free(&packet); return -1; }
                     
                     //VideoDemuxer.UpdateCurTime();
@@ -480,17 +487,6 @@ public unsafe partial class DecoderContext : PluginHandler
                     while (VideoDemuxer.VideoStream != null && !Interrupt)
                     {
                         ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
-                        if (!VideoDecoder.filledFromCodec)
-                        {
-                            ret = VideoDecoder.FillFromCodec(packet, frame);
-
-                            if (ret == -1234)
-                            {
-                                av_packet_free(&packet);
-                                av_frame_free(&frame);
-                                return -1;
-                            }
-                        }
                         if (ret != 0) { av_frame_unref(frame); break; }
 
                         if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
@@ -506,6 +502,18 @@ public unsafe partial class DecoderContext : PluginHandler
                         }
 
                         VideoDecoder.keyFrameRequired = false;
+
+                        if (!VideoDecoder.filledFromCodec)
+                        {
+                            ret = VideoDecoder.FillFromCodec(frame);
+
+                            if (ret == -1234)
+                            {
+                                av_packet_free(&packet);
+                                av_frame_free(&frame);
+                                return -1;
+                            }
+                        }
 
                         // Accurate seek with +- half frame distance
                         if (timestamp != -1 && (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) < timestamp)

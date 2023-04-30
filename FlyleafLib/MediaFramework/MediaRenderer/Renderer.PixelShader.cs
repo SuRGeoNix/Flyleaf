@@ -23,7 +23,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 unsafe public partial class Renderer
 {
     static string[] pixelOffsets = new[] { "r", "g", "b", "a" };
-    enum PSDefines { HDR, YUV }
+    enum PSDefines { HDR, HLG, YUV }
     enum PSCase : int
     {
         None,
@@ -94,17 +94,26 @@ unsafe public partial class Renderer
                     return false;
                 }
 
-                hdrData     = null;
                 curRatio    = VideoStream.AspectRatio.Value;
                 IsHDR       = VideoStream.ColorSpace == ColorSpace.BT2020;
                 VideoRect   = new RawRect(0, 0, VideoStream.Width, VideoStream.Height);
+                UpdateRotation(_RotationAngle);
+
+                if (IsHDR)
+                {
+                    hdrPlusData = null;
+                    displayData = new();
+                    lightData   = new();
+                    checkHDR    = true;
+                }
+                else
+                    checkHDR = false;
             }
 
             var oldVP = videoProcessor;
             VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (Config.Video.VideoProcessor == VideoProcessors.Auto && isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
 
             textDesc[0].BindFlags &= ~BindFlags.RenderTarget; // Only D3D11VP without ZeroCopy requires it
-            checkHDR = false;
             curPSCase = PSCase.None;
             prevPSUniqueId = curPSUniqueId;
             curPSUniqueId = "";
@@ -160,11 +169,16 @@ unsafe public partial class Renderer
 
                 if (IsHDR)
                 {
-                    checkHDR = true;
+                    if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.AVCOL_TRC_ARIB_STD_B67)
+                    {
+                        defines.Add(PSDefines.HLG.ToString());
+                        curPSUniqueId += "g";
+                    }
+
                     curPSUniqueId += "h";
                     defines.Add(PSDefines.HDR.ToString());
                     psBufferData.coefsIndex = 0;
-                    UpdateHDRtoSDR(hdrData, false);
+                    UpdateHDRtoSDR(false);
                 }
                 else
                     psBufferData.coefsIndex = VideoStream.ColorSpace == ColorSpace.BT709 ? 1 : 2;
@@ -559,14 +573,36 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoDecoder.Demuxer.StartTime;
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
 
-            if (checkHDR && hdrData == null && frame->side_data != null && *frame->side_data != null)
+            if (checkHDR)
             {
-                checkHDR = false;
-                var sideData = *frame->side_data;
-                if (sideData->type == AVFrameSideDataType.AV_FRAME_DATA_MASTERING_DISPLAY_METADATA)
+                // TODO Dolpy Vision / Vivid
+                //var hdrSideDolpyDynamic = av_frame_get_side_data(frame, AVFrameSideDataType.AV_FRAME_DATA_DOVI_METADATA);
+
+                var hdrSideDynamic = av_frame_get_side_data(frame, AVFrameSideDataType.AV_FRAME_DATA_DYNAMIC_HDR_PLUS);
+                
+                if (hdrSideDynamic != null && hdrSideDynamic->data != null)
                 {
-                    hdrData = (AVMasteringDisplayMetadata*)sideData->data;
-                    UpdateHDRtoSDR(hdrData);
+                    hdrPlusData = (AVDynamicHDRPlus*) hdrSideDynamic->data;
+                    UpdateHDRtoSDR();
+                }
+                else
+                {
+                    var lightSide   = av_frame_get_side_data(frame, AVFrameSideDataType.AV_FRAME_DATA_CONTENT_LIGHT_LEVEL);
+                    var displaySide = av_frame_get_side_data(frame, AVFrameSideDataType.AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
+                 
+                    if (lightSide != null && lightSide->data != null && ((AVContentLightMetadata*)lightSide->data)->MaxCLL != 0)
+                    {
+                        lightData = *((AVContentLightMetadata*) lightSide->data);
+                        checkHDR = false;
+                        UpdateHDRtoSDR();
+                    }
+
+                    if (displaySide != null && displaySide->data != null && ((AVMasteringDisplayMetadata*)displaySide->data)->has_luminance != 0)
+                    {
+                        displayData = *((AVMasteringDisplayMetadata*) displaySide->data);
+                        checkHDR = false;
+                        UpdateHDRtoSDR();
+                    }
                 }
             }
 

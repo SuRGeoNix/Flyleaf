@@ -116,6 +116,30 @@ internal unsafe partial class ffmpegEx
     }
     #endregion
 
+    #region av_display_rotation_get
+    static double Hypot(double x, double y) => Math.Sqrt(Math.Pow(x, 2) + Math.Pow(y, 2));
+    static double CONVFP(double x) => x / (1 << 16);
+    public static double av_display_rotation_get(byte* matrixBytes)
+    {
+        if (matrixBytes == null)
+            return 0;
+
+        var matrix = (UInt32*) matrixBytes;
+
+        double[] scale = new double[2];
+
+        scale[0] = Hypot(CONVFP(matrix[0]), CONVFP(matrix[3]));
+        scale[1] = Hypot(CONVFP(matrix[1]), CONVFP(matrix[4]));
+
+        if (scale[0] == 0 && scale[1] == 0)
+            return 0;
+
+        double rotation = -(Math.Atan2(CONVFP(matrix[1]) / scale[1], CONVFP(matrix[0]) / scale[0]) * 180 / Math.PI);
+        
+        return rotation < 0 ? 360 + rotation : rotation;
+    }
+    #endregion
+
     #region misc
     public struct FFIOContext
     {

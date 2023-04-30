@@ -234,7 +234,7 @@ public partial class Renderer
 
         if (ratio <= 0) ratio = 1;
 
-        if (_RotationAngle == 90 || _RotationAngle == 270)
+        if (actualRotation == 90 || actualRotation == 270)
             ratio = 1 / ratio;
 
         if (ratio < ControlWidth / (float)ControlHeight)
