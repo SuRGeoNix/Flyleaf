@@ -253,6 +253,26 @@ float3 inversePQ(float3 x)
     return x;
 }
 
+#if defined(HDR)
+float3 inverseHLG(float3 x)
+{
+    const float B67_a = 0.17883277f;
+    const float B67_b = 0.28466892f;
+    const float B67_c = 0.55991073f;
+    const float B67_inv_r2 = 4.0f;
+    x = (x <= 0.5f) ? x * x * B67_inv_r2 : exp((x - B67_c) / B67_a) + B67_b;
+    return x;
+}
+
+float3 tranferPQ(float3 x)
+{
+    x = pow(x / 1000.0f, ST2084_m1);
+    x = (ST2084_c1 + ST2084_c2 * x) / (1.0f + ST2084_c3 * x);
+    x = pow(x, ST2084_m2);
+    return x;
+}
+
+#endif
 float3 aces(float3 x)
 {
     const float A = 2.51f;
@@ -330,6 +350,14 @@ float4 main(PSInput input) : SV_TARGET
         float luma = dot(color.rgb, bt709coefs);
         color.rgb *= reinhard(luma) / luma;
     }
+    #if defined(HLG)
+    // HLG
+    color.rgb = inverseHLG(color.rgb);
+    float3 ootf_2020 = float3(0.2627f, 0.6780f, 0.0593f);
+    float ootf_ys = 2000.0f * dot(ootf_2020, color.rgb);
+    color.rgb *= pow(ootf_ys, 0.2f);
+    color.rgb = tranferPQ(color.rgb);
+    #endif
 #endif
 
 	// Contrast / Brightness / Saturate / Hue

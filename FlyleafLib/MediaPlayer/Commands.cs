@@ -157,7 +157,7 @@ public class Commands
     }
 
     private void RotationSetAction(object obj)
-        => player.Rotation = int.Parse(obj.ToString());
+        => player.Rotation = uint.Parse(obj.ToString());
 
     private void ResetFilterAction(object filter)
         => player.Config.Video.Filters[(VideoFilters)filter].Value = player.Config.Video.Filters[(VideoFilters)filter].DefaultValue;

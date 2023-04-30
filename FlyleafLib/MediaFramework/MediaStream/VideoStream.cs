@@ -1,5 +1,6 @@
 ﻿using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
+using static FFmpeg.AutoGen.ffmpegEx;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
@@ -10,6 +11,9 @@ public unsafe class VideoStream : StreamBase
     public AspectRatio                  AspectRatio         { get; set; }
     public ColorRange                   ColorRange          { get; set; }
     public ColorSpace                   ColorSpace          { get; set; }
+    public AVColorTransferCharacteristic
+                                        ColorTransfer       { get; set; }
+    public double                       Rotation            { get; set; }
     public double                       FPS                 { get; set; }
     public long                         FrameDuration       { get ;set; }
     public int                          Height              { get; set; }
@@ -60,9 +64,12 @@ public unsafe class VideoStream : StreamBase
                 ColorSpace = ColorSpace.BT601;
             else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT709)
                 ColorSpace = ColorSpace.BT709;
-            else ColorSpace = AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL
+            else ColorSpace = AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL || Height > 1080
                 ? ColorSpace.BT2020
                 : Height > 576 ? ColorSpace.BT709 : ColorSpace.BT601;
+
+            ColorTransfer = AVStream->codecpar->color_trc;
+            Rotation = av_display_rotation_get(av_stream_get_side_data(AVStream, AVPacketSideDataType.AV_PKT_DATA_DISPLAYMATRIX, null));
 
             PixelFormatDesc = av_pix_fmt_desc_get(PixelFormat);
             var comps       = PixelFormatDesc->comp.ToArray();
@@ -71,7 +78,7 @@ public unsafe class VideoStream : StreamBase
                 PixelComps[i] = comps[i];
 
             PixelInterleaved= PixelFormatDesc->log2_chroma_w != PixelFormatDesc->log2_chroma_h;
-            IsRGB           = (PixelFormatDesc->flags & AV_PIX_FMT_FLAG_RGB   ) != 0;
+            IsRGB           = (PixelFormatDesc->flags & AV_PIX_FMT_FLAG_RGB) != 0;
 
             PixelSameDepth  = true;
             PixelPlanes     = 0;

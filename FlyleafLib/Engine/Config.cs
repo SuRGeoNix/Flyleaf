@@ -573,13 +573,13 @@ public class Config : NotifyPropertyChanged
         /// The HDR to SDR method that will be used by the pixel shader
         /// </summary>
         public unsafe HDRtoSDRMethod
-                                HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value)) player?.renderer?.UpdateHDRtoSDR(); }}
+                                HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); }}
         HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
 
         /// <summary>
         /// The HDR to SDR Tone float correnction (not used by Reinhard) 
         /// </summary>
-        public unsafe float     HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value)) player?.renderer?.UpdateHDRtoSDR(); } }
+        public unsafe float     HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); } }
         float _HDRtoSDRTone = 1.4f;
 
         /// <summary>

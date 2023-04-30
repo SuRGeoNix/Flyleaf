@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Xml.Serialization;
 
 using FFmpeg.AutoGen;
+using static FFmpeg.AutoGen.ffmpeg;
 
 using Vortice.DXGI;
 using Vortice.Direct3D11;
@@ -112,9 +113,12 @@ unsafe public partial class Renderer
     VideoProcessorColorSpace            inputColorSpace;
     VideoProcessorColorSpace            outputColorSpace;
 
+    AVDynamicHDRPlus*                   hdrPlusData = null;
+    AVContentLightMetadata              lightData   = new();
+    AVMasteringDisplayMetadata          displayData = new();
+
+    uint actualRotation;
     bool configLoadedChecked;
-    float lastLumin;
-    AVMasteringDisplayMetadata* hdrData;
 
     void InitializeVideoProcessor()
     {
@@ -411,41 +415,76 @@ unsafe public partial class Renderer
 
         Present();
     }
-    internal void UpdateHDRtoSDR(AVMasteringDisplayMetadata* displayData = null, bool updateResource = true)
+    internal void UpdateHDRtoSDR(bool updateResource = true)
     {
-        if (VideoStream == null || VideoStream.ColorSpace != ColorSpace.BT2020)
-            return;
+        float lum1 = 400;
+
+        if (hdrPlusData != null)
+        {
+            lum1 = (float) (av_q2d(hdrPlusData->@params[0].average_maxrgb) * 100000.0);
+        }
+        else if (Config.Video.HDRtoSDRMethod != HDRtoSDRMethod.Reinhard)
+        {
+            float lum2 = lum1;
+            float lum3 = lum1;
+
+            double lum = displayData.has_luminance != 0 ? av_q2d(displayData.max_luminance) : 400;
+
+            if (lightData.MaxCLL > 0)
+            {
+                if (lightData.MaxCLL >= lum)
+                {
+                    lum1 = (float)lum;
+                    lum2 = lightData.MaxCLL;
+                }
+                else
+                {
+                    lum1 = lightData.MaxCLL;
+                    lum2 = (float)lum;
+                }
+                lum3 = lightData.MaxFALL;
+                lum1 = (lum1 * 0.5f) + (lum2 * 0.2f) + (lum3 * 0.3f);
+            }
+            else
+            {
+                lum1 = (float)lum;
+            }
+        }
+        else
+        {
+            if (lightData.MaxCLL > 0)
+                lum1 = lightData.MaxCLL;
+            else if (displayData.has_luminance != 0)
+                lum1 = (float)av_q2d(displayData.max_luminance);
+        }
         
-        if (displayData != null)
-            Log.Debug($"HDR data received with luminance={displayData->has_luminance}");
-
-        float lumin = displayData == null || displayData->has_luminance == 0 ? lastLumin : displayData->max_luminance.num / (float)displayData->max_luminance.den;
-        lastLumin = lumin;
-
         psBufferData.hdrmethod = Config.Video.HDRtoSDRMethod;
 
-        if (psBufferData.hdrmethod == HDRtoSDRMethod.Reinhard)
+        if (psBufferData.hdrmethod == HDRtoSDRMethod.Hable)
         {
-            psBufferData.g_toneP1 = lastLumin > 0 ? (float)(Math.Log10(100) / Math.Log10(lastLumin)) : 0.72f;
+            psBufferData.g_luminance = lum1 > 1 ? lum1 : 400.0f;
+            psBufferData.g_toneP1 = 10000.0f / psBufferData.g_luminance * (2.0f / Config.Video.HDRtoSDRTone);
+            psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
+        }
+        else if (psBufferData.hdrmethod == HDRtoSDRMethod.Reinhard)
+        {
+            psBufferData.g_toneP1 = lum1 > 0 ? (float)(Math.Log10(100) / Math.Log10(lum1)) : 0.72f;
             if (psBufferData.g_toneP1 < 0.1f || psBufferData.g_toneP1 > 5.0f)
                 psBufferData.g_toneP1 = 0.72f;
+
+            psBufferData.g_toneP1 *= Config.Video.HDRtoSDRTone;
         }
         else if (psBufferData.hdrmethod == HDRtoSDRMethod.Aces)
         {
-            psBufferData.g_luminance = lastLumin > 1 ? lastLumin : 400.0f;
+            psBufferData.g_luminance = lum1 > 1 ? lum1 : 400.0f;
             psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
-        }
-        else if (psBufferData.hdrmethod == HDRtoSDRMethod.Hable)
-        {
-            psBufferData.g_luminance = lastLumin > 1 ? lastLumin : 400.0f;
-            psBufferData.g_toneP1 = 10000.0f / psBufferData.g_luminance * (2.0f / Config.Video.HDRtoSDRTone);
-            psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
         }
 
         if (updateResource)
         {
             context.UpdateSubresource(psBufferData, psBuffer);
-            Present();
+            if (!VideoDecoder.IsRunning)
+                Present();
         }
 
         /* TODO
@@ -477,20 +516,25 @@ unsafe public partial class Renderer
             * 
             */
     }
-    void UpdateRotation(int angle)
+    void UpdateRotation(uint angle)
     {
-        _RotationAngle = angle > 360 ? 360 : angle < 0 ? 0 : angle;
+        _RotationAngle = angle;
+        var newRotation = (_RotationAngle + (VideoStream != null ? (uint)VideoStream.Rotation : 0)) % 360;
+        if (actualRotation == newRotation)
+            return;
 
-        if (_RotationAngle < 45 || _RotationAngle == 360)
+        actualRotation = newRotation;
+
+        if (actualRotation < 45 || actualRotation == 360)
             _d3d11vpRotation = VideoProcessorRotation.Identity;
-        else if (_RotationAngle < 135)
+        else if (actualRotation < 135)
             _d3d11vpRotation = VideoProcessorRotation.Rotation90;
-        else if (_RotationAngle < 225)
+        else if (actualRotation < 225)
             _d3d11vpRotation = VideoProcessorRotation.Rotation180;
-        else if (_RotationAngle < 360)
+        else if (actualRotation < 360)
             _d3d11vpRotation = VideoProcessorRotation.Rotation270;
-            
-        vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * angle));
+        
+        vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * actualRotation));
         //vsBufferData.mat = Matrix4x4.Transpose(vsBufferData.mat); TBR
         context.UpdateSubresource(vsBufferData, vsBuffer);
         vc?.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);

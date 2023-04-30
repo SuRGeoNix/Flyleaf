@@ -89,8 +89,8 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         }
     }
 
-    public int              Rotation        { get => _RotationAngle;set { UpdateRotation(value); SetViewport(); } }
-    int _RotationAngle; VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
+    public uint             Rotation        { get => _RotationAngle;set { UpdateRotation(value); SetViewport(); } }
+    uint _RotationAngle; VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
 
     public VideoProcessors  VideoProcessor      { get => videoProcessor;    private set => SetUI(ref videoProcessor, value); }
     VideoProcessors videoProcessor = VideoProcessors.Flyleaf;

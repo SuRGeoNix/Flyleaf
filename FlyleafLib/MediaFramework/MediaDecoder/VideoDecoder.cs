@@ -44,7 +44,7 @@ public unsafe class VideoDecoder : DecoderBase
     internal byte_ptrArray4 swsData;
     internal int_array4     swsLineSize;
 
-    bool                    swFallback;
+    internal bool           swFallback;
     internal bool           keyFrameRequired;
 
     // Reverse Playback
@@ -85,7 +85,7 @@ public unsafe class VideoDecoder : DecoderBase
 
     #region Video Acceleration (Should be disposed seperately)
     const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
-    const AVHWDeviceType    HW_DEVICE = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA; // To fully support Win7/8 should consider AV_HWDEVICE_TYPE_DXVA2
+    const AVHWDeviceType    HW_DEVICE = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA;
 
     internal ID3D11Texture2D
                             textureFFmpeg;
@@ -184,7 +184,6 @@ public unsafe class VideoDecoder : DecoderBase
                     Log.Warn("HW format not found. Fallback to sw format");
 
                 swFallback = true;
-                filledFromCodec = false;
                 return avcodec_default_get_format(avctx, pix_fmts);
             }
             
@@ -481,6 +480,12 @@ public unsafe class VideoDecoder : DecoderBase
                 // TBR: AVERROR(EAGAIN) means avcodec_receive_frame but after resend the same packet
                 ret = avcodec_send_packet(codecCtx, packet);
 
+                if (swFallback) // Should use 'global' packet to reset it in get_format (same packet should use also from DecoderContext)
+                {
+                    SWFallback();
+                    ret = avcodec_send_packet(codecCtx, packet);
+                }
+
                 if (ret != 0 && ret != AVERROR(EAGAIN))
                 {
                     av_packet_free(&packet);
@@ -505,15 +510,6 @@ public unsafe class VideoDecoder : DecoderBase
                 while (true)
                 {
                     ret = avcodec_receive_frame(codecCtx, frame);
-                    if (!filledFromCodec) // Required here for swFallback but it could need more packets to fill the codec?
-                    {
-                        ret = FillFromCodec(packet, frame);
-                        if (ret == -1234)
-                        {
-                            Status = Status.Stopping;
-                            break;
-                        }
-                    }
                     if (ret != 0) { av_frame_unref(frame); break; }
 
                     if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
@@ -535,6 +531,16 @@ public unsafe class VideoDecoder : DecoderBase
                             keyFrameRequired = false;
                         }
                     }
+
+                    if (!filledFromCodec) // Ensures we have a proper frame before filling from codec
+                    {
+                        ret = FillFromCodec(frame);
+                        if (ret == -1234)
+                        {
+                            Status = Status.Stopping;
+                            break;
+                        }
+                    }
                     
                     if (speed != 1)
                     {
@@ -546,7 +552,7 @@ public unsafe class VideoDecoder : DecoderBase
                         }
                         curSpeedFrame = 0; 
                     }
-                    
+
                     var mFrame = Renderer.FillPlanes(frame);
                     if (mFrame != null) Frames.Enqueue(mFrame); // TBR: Does not respect Config.Decoder.MaxVideoFrames
                 }
@@ -561,23 +567,11 @@ public unsafe class VideoDecoder : DecoderBase
         if (Status == Status.Draining) Status = Status.Ended;
     }
 
-    internal int FillFromCodec(AVPacket* packet, AVFrame* frame)
+    internal int FillFromCodec(AVFrame* frame)
     {
         lock (Renderer.lockDevice)
         {
             int ret = 0;
-
-            if (swFallback)
-            {
-                av_frame_unref(frame);
-                DisposeInternal();
-                swFallback = true;
-                Open2(Stream, null, false); // TBR:  Dispose() on failure could cause a deadlock
-                swFallback = false;
-                ret = avcodec_send_packet(codecCtx, packet);
-                if (ret != 0) return -1234;
-                ret = avcodec_receive_frame(codecCtx, frame);
-            }
 
             filledFromCodec = true;
 
@@ -598,6 +592,22 @@ public unsafe class VideoDecoder : DecoderBase
                 Log.Error("[Pixel Format] Unknown");
                 return -1234;
             }
+
+            return ret;
+        }
+    }
+
+    internal string SWFallback()
+    {
+        lock (Renderer.lockDevice)
+        {
+            string ret;
+
+            DisposeInternal();
+            swFallback = true;
+            ret = Open2(Stream, null, false); // TBR:  Dispose() on failure could cause a deadlock
+            swFallback = false;
+            filledFromCodec = false;
 
             return ret;
         }

@@ -208,7 +208,7 @@ unsafe partial class Player
     public void SpeedDown2()    => Speed -= Config.Player.SpeedOffset2;
 
     public void RotateRight()   => Rotation = (_Rotation + 90) % 360;
-    public void RotateLeft()    => Rotation = (_Rotation - 90) < 0 ? 360 + (_Rotation - 90) : (_Rotation - 90);
+    public void RotateLeft()    => Rotation = _Rotation < 90 ? 360 + _Rotation - 90 : _Rotation - 90;
 
     public void FullScreen()    => Host?.Player_SetFullScreen(true);
     public void NormalScreen()  => Host?.Player_SetFullScreen(false);
