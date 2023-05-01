@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfFlyleafHost"
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
-        mc:Ignorable="d"
+        mc:Ignorable="d" WindowStyle="None" AllowsTransparency="True"
         Title="OverlayStandAlone" Height="450" Width="800">
     <Grid>
         <TextBlock Text="Overlay Header Here" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="40" Foreground="DarkRed"/>
