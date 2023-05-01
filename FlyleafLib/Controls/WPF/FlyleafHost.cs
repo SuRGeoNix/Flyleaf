@@ -97,7 +97,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     public bool         Disposed        { get; private set; }
 
     static bool isDesginMode;
-    static int  idGenerator;
+    static int  idGenerator = 1;
     static nint NONE_STYLE = (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE); // WS_MINIMIZEBOX required for swapchain
     static Rect rectRandom = new(1, 2, 3, 4);
 
@@ -1531,6 +1531,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         // Required for some reason (WindowStyle.None will not be updated with our style)
         Surface             = new();
+        Surface.Name        = $"Surface_{UniqueId}";
         Surface.Width       = Surface.Height = 1; // Will be set on loaded
         Surface.WindowStyle = WindowStyle.None; 
         Surface.ResizeMode  = ResizeMode.NoResize;
@@ -1617,6 +1618,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight,
                 (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
 
+        Overlay.Name            = $"Overlay_{UniqueId}";
         Overlay.Background      = Brushes.Transparent;
         Overlay.ShowInTaskbar   = false;
         Overlay.Owner           = Surface;

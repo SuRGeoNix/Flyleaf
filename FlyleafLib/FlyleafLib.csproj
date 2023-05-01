@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.12</Version>
+	<Version>3.7.13</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Player: Switching playback's task to thread and set's default priority to above normal
-		- Player: Introduces Config.Player.ThreadPriority to change the playback's thread priority
-		- Plugins.StreamSuggester: Fixes an issue when AllowFindStreamInfo is disabled it wouldn't suggest any stream at all
-		- FlyleafHost.WinForms: Possible fix for a possible? designer issue
+		- FlyleafHost.WinForms: Another try to avoid designer issues
 	</PackageReleaseNotes>
   </PropertyGroup>
 
