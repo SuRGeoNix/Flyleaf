@@ -137,6 +137,16 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 if (gotFrame < 1 || sub.num_rects < 1 ) continue;
                 if (packet->pts == AV_NOPTS_VALUE) { avsubtitle_free(&sub); av_packet_free(&packet); continue; }
 
+                // TODO: CodecChanged? And when findstreaminfo is disabled as it is an external demuxer will not know the main demuxer's start time
+                if (!filledFromCodec)
+                {
+                    filledFromCodec = true;
+                    avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
+                    SubtitlesStream.Refresh();
+
+                    CodecChanged?.Invoke(this);
+                }
+
                 var mFrame = ProcessSubtitlesFrame(packet, &sub);
                 if (mFrame != null) Frames.Enqueue(mFrame);
 
