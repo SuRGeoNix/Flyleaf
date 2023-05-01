@@ -64,11 +64,18 @@ public unsafe class VideoStream : StreamBase
                 ColorSpace = ColorSpace.BT601;
             else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT709)
                 ColorSpace = ColorSpace.BT709;
-            else ColorSpace = AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL || Height > 1080
+            else ColorSpace = AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL
                 ? ColorSpace.BT2020
                 : Height > 576 ? ColorSpace.BT709 : ColorSpace.BT601;
 
-            ColorTransfer = AVStream->codecpar->color_trc;
+            if (AVStream->codecpar->color_trc == AVColorTransferCharacteristic.AVCOL_TRC_UNSPECIFIED && Height > 1080) // Dolphy Vision
+            {
+                ColorSpace = ColorSpace.BT2020;
+                ColorTransfer = AVColorTransferCharacteristic.AVCOL_TRC_SMPTE2084;
+            }
+            else
+                ColorTransfer = AVStream->codecpar->color_trc;
+
             Rotation = av_display_rotation_get(av_stream_get_side_data(AVStream, AVPacketSideDataType.AV_PKT_DATA_DISPLAYMATRIX, null));
 
             PixelFormatDesc = av_pix_fmt_desc_get(PixelFormat);

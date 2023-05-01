@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.Threading;
 
+using FFmpeg.AutoGen;
+
 using FlyleafLib.MediaFramework.MediaDecoder;
 
 using static FlyleafLib.Utils;
@@ -392,6 +394,8 @@ unsafe partial class Player
                 }
                 else if (aDistanceMs < -5) // Will be transfered back to decoder to drop invalid timestamps
                 {
+                    if (CanInfo) Log.Info($"aDistanceMs = {aDistanceMs} | AudioFrames: {AudioDecoder.Frames.Count} AudioPackets: {AudioDecoder.Demuxer.AudioPackets.Count}");
+
                     if (GetBufferedDuration() < Config.Player.MinBufferDuration / 2)
                     {
                         if (CanInfo)
@@ -400,8 +404,6 @@ unsafe partial class Player
                         requiresBuffering = true;
                         continue;
                     }
-
-                    if (CanInfo) Log.Info($"aDistanceMs = {aDistanceMs}");
 
                     if (aDistanceMs < -600)
                     {
@@ -569,8 +571,8 @@ unsafe partial class Player
         if (VideoDecoder.Frames.IsEmpty)
             return 0;
 
-        var decoder = VideoDecoder.Frames.ToArray()[^1].timestamp   - vFrame.timestamp;
-        var demuxer = VideoDemuxer.VideoPackets.LastTimestamp       - vFrame.timestamp;
+        var decoder = VideoDecoder.Frames.ToArray()[^1].timestamp - vFrame.timestamp;
+        var demuxer = VideoDemuxer.VideoPackets.LastTimestamp == ffmpeg.AV_NOPTS_VALUE ? 0 : (VideoDemuxer.VideoPackets.LastTimestamp - VideoDemuxer.StartTime) - vFrame.timestamp;
 
         return Math.Max(decoder, demuxer);
     }
