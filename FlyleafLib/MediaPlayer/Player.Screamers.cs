@@ -471,8 +471,6 @@ unsafe partial class Player
                 VideoDecoder.Frames.TryDequeue(out vFrame);
             }
 
-            
-            
             if (sFramePrev != null && ((sFramePrev.timestamp - startTicks + (sFramePrev.duration * (long)10000)) / speed) - sw.ElapsedTicks < 0)
             {
                 Subtitles.subsText = "";

@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.11</Version>
+	<Version>3.7.12</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Introduces Config.Demuxer.IOStreamBufferSize to specify the AVIO Context's buffer size
-		- Player: Fixes an issue that it wouldn't respect MinBufferDuration (when demuxer's StartTime wasn't 0)
-		- Renderer: Adds HDR10+ support
-		- Renderer: Adds HDR HLG transfer function support
-		- Renderer: Adds Rotation support based on VideoStream DisplayMatrix data
+		- Player: Switching playback's task to thread and set's default priority to above normal
+		- Player: Introduces Config.Player.ThreadPriority to change the playback's thread priority
+		- Plugins.StreamSuggester: Fixes an issue when AllowFindStreamInfo is disabled it wouldn't suggest any stream at all
+		- FlyleafHost.WinForms: Possible fix for a possible? designer issue
 	</PackageReleaseNotes>
   </PropertyGroup>
 
