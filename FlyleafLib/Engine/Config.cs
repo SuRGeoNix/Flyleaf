@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Xml.Serialization;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
@@ -225,6 +226,12 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public bool     Stats                       { get => _Stats; set => Set(ref _Stats, value); }
         bool _Stats = false;
+
+        /// <summary>
+        /// Sets playback's thread priority
+        /// </summary>
+        public ThreadPriority
+                        ThreadPriority              { get; set; } = ThreadPriority.AboveNormal;
 
         /// <summary>
         /// Refreshes CurTime in UI on every frame (can cause performance issues)

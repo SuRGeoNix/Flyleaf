@@ -47,7 +47,7 @@ partial class Player
         taskPlayRuns = true;
 
         // Long-Run Task
-        Task.Factory.StartNew(() =>
+        Thread t = new(() =>
         {
             try
             {
@@ -127,7 +127,11 @@ partial class Player
 
                 taskPlayRuns = false;
             }
-        }, TaskCreationOptions.LongRunning);
+        });
+        t.Priority = Config.Player.ThreadPriority;
+        t.Name = $"[#{PlayerId}] Playback";
+        t.IsBackground = true;
+        t.Start();
     }
 
     /// <summary>

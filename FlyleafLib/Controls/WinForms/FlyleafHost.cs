@@ -285,6 +285,12 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
     // TBR: Related to Renderer's WndProc
     protected override void OnPaintBackground(PaintEventArgs pe)
     {
+        if (designMode)
+        {
+            base.OnPaintBackground(pe);
+            return;
+        }
+
         if (Player != null && !Player.renderer.SCDisposed)
             Player.renderer.Present(); 
         else
