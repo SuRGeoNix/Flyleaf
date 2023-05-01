@@ -12,7 +12,6 @@ public unsafe class CustomIOContext
     //List<object>    gcPrevent = new List<object>();
     AVIOContext*    avioCtx;
     public Stream   stream;
-    const int       bufferSize = 0x200000; // Should be exposed to config as well
 #if NETFRAMEWORK
     byte[]          buffer;
 #endif
@@ -32,10 +31,10 @@ public unsafe class CustomIOContext
         //this.stream.Seek(0, SeekOrigin.Begin);
 #if NETFRAMEWORK
         if (buffer == null)
-            buffer  = new byte[bufferSize]; // NOTE: if we use small buffer ffmpeg might request more than we suggest
+            buffer  = new byte[demuxer.Config.IOStreamBufferSize]; // NOTE: if we use small buffer ffmpeg might request more than we suggest
 #endif
 
-        avioCtx = avio_alloc_context((byte*)av_malloc(bufferSize), bufferSize, 0, (void*) GCHandle.ToIntPtr(demuxer.handle), ioread, null, ioseek);            
+        avioCtx = avio_alloc_context((byte*)av_malloc((ulong)demuxer.Config.IOStreamBufferSize), demuxer.Config.IOStreamBufferSize, 0, (void*) GCHandle.ToIntPtr(demuxer.handle), ioread, null, ioseek);            
         demuxer.FormatContext->pb     = avioCtx;
         demuxer.FormatContext->flags |= AVFMT_FLAG_CUSTOM_IO;
     }

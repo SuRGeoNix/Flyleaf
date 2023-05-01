@@ -334,6 +334,11 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public int              MaxErrors       { get; set; } = 30;
 
+        /// <summary>
+        /// Custom IO Stream buffer size (in bytes) for the AVIO Context
+        /// </summary>
+        public int              IOStreamBufferSize
+                                                { get; set; } = 0x200000;
 
         /// <summary>
         /// avformat_close_input timeout (ticks) for protocols that support interrupts

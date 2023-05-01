@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.10</Version>
+	<Version>3.7.11</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- AudioDecoder: Fixes an issue with audio filters when the input channel layout is unspecified (mainly noticed with ffmpeg devices and microphones)
-		- AudioDecoder: Improves speed quality and adds atempo only if required (up to 3 atempo and supports lower speeds)
-		- DecoderContext: Fixes a race condition between Open/Dispose which could cause memory leaks
-		- Player: Brings back support for lower speeds (down limit to 0.125)
-		- Player: Adds Config.Player.SpeedOffset (1-2), Commands and extra Keybindings (shift +-)
-		- Player: Adds an extra SeekOffset3 and Commands
-		- Player: Fixes a race condition during OpenAsync/Stop/OpenAsync
-		- FlyleafHost(All): Fixes a critical issue with resize and rendering after Player.Stop/Renderer.Flush from a non-UI thread (SetWindowSubclass requires UI thread)
+		- Demuxer: Introduces Config.Demuxer.IOStreamBufferSize to specify the AVIO Context's buffer size
+		- Player: Fixes an issue that it wouldn't respect MinBufferDuration (when demuxer's StartTime wasn't 0)
+		- Renderer: Adds HDR10+ support
+		- Renderer: Adds HDR HLG transfer function support
+		- Renderer: Adds Rotation support based on VideoStream DisplayMatrix data
 	</PackageReleaseNotes>
   </PropertyGroup>
 

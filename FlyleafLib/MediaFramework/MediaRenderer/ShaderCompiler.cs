@@ -253,7 +253,7 @@ float3 inversePQ(float3 x)
     return x;
 }
 
-#if defined(HDR)
+#if defined(HLG)
 float3 inverseHLG(float3 x)
 {
     const float B67_a = 0.17883277f;
