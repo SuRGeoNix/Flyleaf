@@ -57,6 +57,9 @@ public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggest
                     return stream;
                 }
 
+            if (streams.Count > 0) // FFmpeg will not suggest anything when findstreaminfo is disable
+                return streams[0];
+
             return null;
         }
     }
@@ -86,6 +89,9 @@ public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggest
                 if (vstream.StreamIndex == streamIndex)
                     return vstream;
         }
+
+        if (streams.Count > 0) // FFmpeg will not suggest anything when findstreaminfo is disable
+            return streams[0];
 
         return null;
     }
