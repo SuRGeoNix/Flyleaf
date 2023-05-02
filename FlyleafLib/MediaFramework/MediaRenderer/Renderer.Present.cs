@@ -112,9 +112,6 @@ public partial class Renderer
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
 
-            if (dCompVisual != null)
-                dCompDevice.Commit();
-
             vpiv.Dispose();
         }
         else
@@ -125,9 +122,6 @@ public partial class Renderer
             context.PSSetShaderResources(0, frame.srvs);
             context.Draw(6, 0);
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
-            
-            if (dCompVisual != null)
-                dCompDevice.Commit();
         }
     }
 
@@ -146,8 +140,6 @@ public partial class Renderer
                 {
                     context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
-                    if (dCompVisual != null)
-                        dCompDevice.Commit();
                 }
             }
             catch (Exception e)

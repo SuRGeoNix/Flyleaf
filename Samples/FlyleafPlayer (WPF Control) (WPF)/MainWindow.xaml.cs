@@ -21,12 +21,12 @@ namespace FlyleafPlayer
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        const int ACTIVITY_TIMEOUT = 3500;
         public event PropertyChangedEventHandler PropertyChanged;
-
         public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
         
         /// <summary>
-        /// Flyleaf Player binded to FlyleafME
+        /// Flyleaf Player binded to FlyleafME (This can be swapped and will nto belong to this window)
         /// </summary>
         public Player       Player      { get; set; }
 
@@ -44,22 +44,25 @@ namespace FlyleafPlayer
         
         public MainWindow()
         {
-            OpenWindow  = new RelayCommandSimple(() => (new MainWindow()).Show());
-            CloseWindow = new RelayCommandSimple(() => Close());
+            OpenWindow  = new RelayCommandSimple(() => new MainWindow() { Width = Width, Height = Height }.Show());
+            CloseWindow = new RelayCommandSimple(Close);
 
             FlyleafME = new FlyleafME(this)
             {
                 Tag = this,
-                ActivityTimeout     = 2000,
+                ActivityTimeout     = ACTIVITY_TIMEOUT,
                 KeyBindings         = AvailableWindows.Both,
                 DetachedResize      = AvailableWindows.Overlay,
                 DetachedDragMove    = AvailableWindows.Both,
                 ToggleFullScreenOnDoubleClick 
                                     = AvailableWindows.Both,
                 KeepRatioOnResize   = true,
-                OpenOnDrop          = AvailableWindows.Both
-            };
+                OpenOnDrop          = AvailableWindows.Both,
 
+                PreferredLandscapeWidth = 800,
+                PreferredPortraitHeight = 600
+            };
+            
             InitializeComponent();
 
             // Allowing FlyleafHost to access our Player
@@ -106,8 +109,8 @@ namespace FlyleafPlayer
             // Initializes the Player
             Player = new Player(playerConfig);
 
-            // Dispose Player on Window Close
-            Closed += (o, e) => Player?.Dispose();
+            // Dispose Player on Window Close (the possible swapped player from FlyleafMe that actually belongs to us)
+            Closing += (o, e) => FlyleafME.Player?.Dispose();
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
             FlyleafME.ConfigPath    = "Flyleaf.Config.xml";
@@ -117,39 +120,39 @@ namespace FlyleafPlayer
             // If the user requests reverse playback allocate more frames once
             Player.PropertyChanged += (o, e) =>
             {
-                if (e.PropertyName == "ReversePlayback" && !ReversePlaybackChecked)
+                if (e.PropertyName == "ReversePlayback" && !GetWindowFromPlayer(Player).ReversePlaybackChecked)
                 {
                     if (playerConfig.Decoder.MaxVideoFrames < 80)
                         playerConfig.Decoder.MaxVideoFrames = 80;
 
-                    ReversePlaybackChecked = true;
+                    GetWindowFromPlayer(Player).ReversePlaybackChecked = true;
                 }
                 else if (e.PropertyName == nameof(Player.Rotation))
-                    Msg = $"Rotation {Player.Rotation}°";
+                    GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Rotation}°";
                 else if (e.PropertyName == nameof(Player.Speed))
-                    Msg = $"Speed x{Player.Speed}";
+                    GetWindowFromPlayer(Player).Msg = $"Speed x{Player.Speed}";
                 else if (e.PropertyName == nameof(Player.Zoom))
-                    Msg = $"Zoom {Player.Zoom}%";
+                    GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Zoom}%";
             };
 
             Player.Audio.PropertyChanged += (o, e) =>
             {
                 if (e.PropertyName == nameof(Player.Audio.Volume))
-                    Msg = $"Volume {Player.Audio.Volume}%";
+                    GetWindowFromPlayer(Player).Msg = $"Volume {Player.Audio.Volume}%";
                 else if (e.PropertyName == nameof(Player.Audio.Mute))
-                    Msg = Player.Audio.Mute ? "Muted" : "Unmuted";
+                    GetWindowFromPlayer(Player).Msg = Player.Audio.Mute ? "Muted" : "Unmuted";
             };
 
             Player.Config.Audio.PropertyChanged += (o, e) =>
             {
                 if (e.PropertyName == nameof(Player.Config.Audio.Delay))
-                    Msg = $"Audio Delay {Player.Config.Audio.Delay / 10000}ms";
+                    GetWindowFromPlayer(Player).Msg = $"Audio Delay {Player.Config.Audio.Delay / 10000}ms";
             };
 
             Player.Config.Subtitles.PropertyChanged += (o, e) =>
             {
                 if (e.PropertyName == nameof(Player.Config.Subtitles.Delay))
-                    Msg = $"Subs Delay {Player.Config.Subtitles.Delay / 10000}ms";
+                    GetWindowFromPlayer(Player).Msg = $"Subs Delay {Player.Config.Subtitles.Delay / 10000}ms";
             };
 
             // Ctrl+ N / Ctrl + W (Open New/Close Window)
@@ -157,13 +160,39 @@ namespace FlyleafPlayer
             if (key != null)
                 key.SetAction(() => (new MainWindow()).Show(), true);
             else
-                playerConfig.Player.KeyBindings.AddCustom(Key.N, true, () => { (new MainWindow() { Width = Width, Height = Height }).Show(); }, "New Window", false, true, false);
+                playerConfig.Player.KeyBindings.AddCustom(Key.N, true, () => CreateNewWindow(Player), "New Window", false, true, false);
 
             key = playerConfig.Player.KeyBindings.Get("Close Window");
             if (key != null)
                 key.SetAction(() => Close(), true);
             else
-                playerConfig.Player.KeyBindings.AddCustom(Key.W, true, () => { Close(); }, "Close Window", false, true, false);
+                playerConfig.Player.KeyBindings.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).Close(), "Close Window", false, true, false);
+        }
+
+        private static MainWindow GetWindowFromPlayer(Player player)
+        {
+            FlyleafHost flhost = null;
+            MainWindow mw = null;
+
+            Utils.UIInvokeIfRequired(() =>
+            {
+                flhost  = (FlyleafHost) player.Host;
+                mw      = (MainWindow) flhost.Overlay;
+            });
+
+            return mw;
+        }
+        private static void CreateNewWindow(Player player) 
+        {
+            var mw = GetWindowFromPlayer(player);
+
+            MainWindow mwNew = new()
+            {
+                Width   = mw.Width,
+                Height  = mw.Height,
+            };
+
+            mwNew.Show();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -223,7 +252,7 @@ namespace FlyleafPlayer
         string msg;
         private async Task FadeOutMsg()
         {
-            await Task.Delay(2000, cancelMsgToken.Token);
+            await Task.Delay(ACTIVITY_TIMEOUT, cancelMsgToken.Token);
             Utils.UIInvoke(() => { msg = ""; PropertyChanged?.Invoke(this, new(nameof(Msg))); });
         }
         #endregion

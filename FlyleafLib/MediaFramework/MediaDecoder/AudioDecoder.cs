@@ -45,6 +45,7 @@ public unsafe partial class AudioDecoder : DecoderBase
     static int              AOutChannels        = AOutChannelLayout.nb_channels;
     static int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
 
+    internal Action         CBufAlloc;          // Informs Audio player to clear buffer pointers to avoid access violation
     static int              cBufTimesSize       = 4;
     int                     cBufTimesCur        = 1;
     byte[]                  cBuf;
@@ -430,6 +431,8 @@ public unsafe partial class AudioDecoder : DecoderBase
         int size    = Config.Decoder.MaxAudioFrames * samples * ASampleBytes * cBufTimesSize;
         Log.Debug($"Re-allocating circular buffer ({samples} > {cBufSamples}) with {size}bytes");
 
+        DisposeFrames(); // TODO: copy data
+        CBufAlloc?.Invoke();
         cBuf        = new byte[size];
         cBufPos     = 0;
         cBufSamples = samples;

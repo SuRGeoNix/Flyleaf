@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 
-//using FFmpeg.AutoGen; Avoid using FFmpeg.Autogen in Player (all partial classes) as it can cause design issues to WinForms (when lib and app have different assembly versions)
+using FFmpeg.AutoGen;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 
@@ -570,7 +570,7 @@ unsafe partial class Player
             return 0;
 
         var decoder = VideoDecoder.Frames.ToArray()[^1].timestamp - vFrame.timestamp;
-        var demuxer = VideoDemuxer.VideoPackets.LastTimestamp == -9223372036854775808 // AV_NOPTS_VALUE (to avoid designer issues)
+        var demuxer = VideoDemuxer.VideoPackets.LastTimestamp == ffmpeg.AV_NOPTS_VALUE
             ? 0 : 
             (VideoDemuxer.VideoPackets.LastTimestamp - VideoDemuxer.StartTime) - vFrame.timestamp;
 

@@ -433,8 +433,9 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         decoder.OpenExternalVideoStreamCompleted       += Decoder_OpenExternalVideoStreamCompleted;
         decoder.OpenExternalSubtitlesStreamCompleted   += Decoder_OpenExternalSubtitlesStreamCompleted;
 
-        AudioDecoder.CodecChanged = Decoder_AudioCodecChanged;
-        VideoDecoder.CodecChanged = Decoder_VideoCodecChanged;
+        AudioDecoder.CBufAlloc      = () => { Audio.ClearBuffer(); aFrame = null; };
+        AudioDecoder.CodecChanged   = Decoder_AudioCodecChanged;
+        VideoDecoder.CodecChanged   = Decoder_VideoCodecChanged;
         decoder.RecordingCompleted += (o, e) => { IsRecording = false; };
 
         status = Status.Stopped;
@@ -564,6 +565,9 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     public override bool Equals(object obj)
         => obj == null || !(obj is Player) ? false : ((Player)obj).PlayerId == PlayerId;
     public override int GetHashCode() => PlayerId.GetHashCode();
+
+    // Avoid having this code in OnPaintBackground as it can cause designer issues (renderer will try to load FFmpeg.Autogen assembly because of HDR Data)
+    internal bool WFPresent() { if (renderer == null || renderer.SCDisposed) return false; renderer?.Present(); return true; }
 }
 
 public enum Status

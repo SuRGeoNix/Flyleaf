@@ -7,8 +7,16 @@
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         mc:Ignorable="d" WindowStyle="None" AllowsTransparency="True"
         Title="OverlayStandAlone" Height="450" Width="800">
+    
     <Grid>
-        <TextBlock Text="Overlay Header Here" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="40" Foreground="DarkRed"/>
-        <!--<fl:FlyleafHost Player="{Binding PlayerX}"/>-->
+        <TextBlock Text="FlyleafHost Overlay Main" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="40" Foreground="DarkRed" Background="Yellow"/>
+        
+        <!--As parent overlay is transparent to be able to handle mouse events requires fake transparency-->
+        <Grid Background="#01000000" Width="200" Height="200">
+            <fl:FlyleafHost Player="{Binding PlayerX}" AttachedDragMove="BothOwner">
+                <TextBlock Text="FlyleafHost Overlay Child" TextAlignment="Center" TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="20" Foreground="DarkRed" Background="Yellow"/>
+            </fl:FlyleafHost>
+        </Grid>
+        
     </Grid>
 </Window>

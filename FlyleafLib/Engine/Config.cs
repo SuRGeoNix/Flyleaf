@@ -509,7 +509,7 @@ public class Config : NotifyPropertyChanged
         /// Background color of the player's control
         /// </summary>
         public System.Windows.Media.Color
-                                BackgroundColor             { get => Utils.VorticeToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, Utils.WPFToVorticeColor(value)); player?.renderer?.UpdateBackgroundColor(); } }
+                                BackgroundColor             { get => Utils.VorticeToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, WPFToVorticeColor(value)); player?.renderer?.UpdateBackgroundColor(); } }
         internal Vortice.Mathematics.Color _BackgroundColor = (Vortice.Mathematics.Color)Vortice.Mathematics.Colors.Black;
 
         /// <summary>

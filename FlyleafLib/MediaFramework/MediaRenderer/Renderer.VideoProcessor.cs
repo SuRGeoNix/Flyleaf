@@ -359,9 +359,9 @@ unsafe public partial class Renderer
 
     internal void UpdateBackgroundColor()
     {
-        D3D11VPBackgroundColor.Rgba.R = Utils.Scale(Config.Video.BackgroundColor.R, 0, 255, 0, 100) / 100.0f;
-        D3D11VPBackgroundColor.Rgba.G = Utils.Scale(Config.Video.BackgroundColor.G, 0, 255, 0, 100) / 100.0f;
-        D3D11VPBackgroundColor.Rgba.B = Utils.Scale(Config.Video.BackgroundColor.B, 0, 255, 0, 100) / 100.0f;
+        D3D11VPBackgroundColor.Rgba.R = Scale(Config.Video.BackgroundColor.R, 0, 255, 0, 100) / 100.0f;
+        D3D11VPBackgroundColor.Rgba.G = Scale(Config.Video.BackgroundColor.G, 0, 255, 0, 100) / 100.0f;
+        D3D11VPBackgroundColor.Rgba.B = Scale(Config.Video.BackgroundColor.B, 0, 255, 0, 100) / 100.0f;
 
         vc?.VideoProcessorSetOutputBackgroundColor(vp, false, D3D11VPBackgroundColor);
 
