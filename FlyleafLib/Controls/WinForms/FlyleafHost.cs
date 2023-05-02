@@ -285,11 +285,9 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
     // TBR: Related to Renderer's WndProc
     protected override void OnPaintBackground(PaintEventArgs pe)
     {
-        if (Player != null && !Player.renderer.SCDisposed)
-            Player.renderer.Present(); 
-        else
+        if (Player == null || (Player != null && !Player.WFPresent()))
             base.OnPaintBackground(pe);
-    }            
+    }
     protected override void OnPaint(PaintEventArgs pe) { }
 
     public event PropertyChangedEventHandler PropertyChanged;

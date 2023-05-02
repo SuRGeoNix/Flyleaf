@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.13</Version>
+	<Version>3.7.14</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- FlyleafHost.WinForms: Another try to avoid designer issues
+		- AudioDecoder: Fixes a possible AccessViolation issue during re-allocation of the Circular Buffer
+		- AudioDecoder: Fixes a sync issue with audio filters and speed
+		- FlyleafHost.WinForms: Fixes an issue with the designer (when using FFmpeg.Autogen v6)
+		- FlyleafHost.Wpf: Adds support for grand childs and FlyleafHosts within other FlyleafHost's overlay
+		- FlyleafHost.Wpf: Fixes issues with windows activation and mouse events (mainly for detached windows)
+		- FlyleafHost.Wpf: Fixes issues and improves ratio resize
+		- FlyleafHost.Wpf: Fixes an issue with CornerRadius and background color
 	</PackageReleaseNotes>
   </PropertyGroup>
 

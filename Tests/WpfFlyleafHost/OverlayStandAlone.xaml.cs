@@ -10,6 +10,7 @@ namespace WpfFlyleafHost
     {
         public FlyleafHost FlyleafHost { get; set; }
         public Player Player { get; set; } = new Player();
+        public Player PlayerX { get; set; } = new Player();
 
         public OverlayStandAlone()
         {
@@ -17,7 +18,9 @@ namespace WpfFlyleafHost
             {
                 KeyBindings = AvailableWindows.Both,
                 DetachedResize = AvailableWindows.Both,
-                IsAttached = false,
+                DetachedDragMove = AvailableWindows.Both,
+                ToggleFullScreenOnDoubleClick = AvailableWindows.Both,
+
                 CornerRadius = new CornerRadius(30),
                 Player = Player
             };

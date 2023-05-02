@@ -63,9 +63,6 @@ public partial class Renderer
             context.RSSetViewport(viewport);
             context.PSSetShaderResources(0, frame.srvs);
             context.Draw(6, 0);
-
-            if (dCompVisual != null)
-                dCompDevice.Commit();
         }
     }
 
