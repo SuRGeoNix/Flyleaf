@@ -91,6 +91,8 @@ public partial class Renderer
                 {
                     Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} composition swap chain with {Config.Video.SwapBuffers} buffers [Handle: {handle}]");
                     swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(ControlWidth, ControlHeight, true, true));
+                    using (var dxgiDevice = Device.QueryInterface<IDXGIDevice>())
+                    dCompDevice = DComp.DCompositionCreateDevice<IDCompositionDevice>(dxgiDevice);
                     dCompDevice.CreateTargetForHwnd(handle, false, out dCompTarget).CheckError();
                     dCompDevice.CreateVisual(out dCompVisual).CheckError();
                     dCompVisual.SetContent(swapChain).CheckError();
@@ -189,8 +191,6 @@ public partial class Renderer
                 {
                     context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
-                    if (dCompVisual != null)
-                        dCompDevice.Commit();
                 }
                 catch { }
             }
@@ -206,11 +206,13 @@ public partial class Renderer
             }
 
             SwapChainWinUIClbk = null;
-                
+
             dCompVisual?.Dispose();
             dCompTarget?.Dispose();
+            dCompDevice?.Dispose();
             dCompVisual = null;
             dCompTarget = null;
+            dCompDevice = null;
 
             vpov?.Dispose();
             backBufferRtv?.Dispose();
@@ -336,7 +338,7 @@ public partial class Renderer
 
     internal void UpdateCornerRadius()
     {
-        if (dCompVisual == null)
+        if (dCompDevice == null)
             return;
 
         dCompDevice.CreateRectangleClip(out var clip).CheckError();
