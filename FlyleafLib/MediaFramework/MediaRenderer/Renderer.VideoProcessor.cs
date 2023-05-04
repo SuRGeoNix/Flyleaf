@@ -276,6 +276,21 @@ unsafe public partial class Renderer
                     return;
                 }
 
+                // TODO: Check supported GUIDs/Profiles
+                //for (int i = 0; i < vd1.VideoDecoderProfileCount; i++)
+                //{
+                //    Guid cur = vd1.GetVideoDecoderProfile(i);
+                //    if (MediaDecoder.VideoDecoder.DXVADecoderProfiles.ContainsKey(cur))
+                //    {
+                //        if (MediaDecoder.VideoDecoder.DXVADecoderProfilesDesc.ContainsKey(MediaDecoder.VideoDecoder.DXVADecoderProfiles[cur]))
+                //            Log.Debug($"{cur} | {MediaDecoder.VideoDecoder.DXVADecoderProfiles[cur]} | {MediaDecoder.VideoDecoder.DXVADecoderProfilesDesc[MediaDecoder.VideoDecoder.DXVADecoderProfiles[cur]]}");
+                //        else
+                //            Log.Debug($"{cur} | {MediaDecoder.VideoDecoder.DXVADecoderProfiles[cur]}");
+                //    }   
+                //    else
+                //        Log.Debug($"{cur}");
+                //}
+                
                 cache.Failed = false;
                 Log.Info($"D3D11 Video Processor Initialized (Rate Caps #{typeIndex})");
 

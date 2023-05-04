@@ -128,9 +128,6 @@ public partial class Renderer
                 Device = tempDevice.QueryInterface<ID3D11Device1>();
                 context= Device.ImmediateContext;
 
-                using (var dxgiDevice = tempDevice.QueryInterface<IDXGIDevice>())
-                    dCompDevice = DComp.DCompositionCreateDevice<IDCompositionDevice>(dxgiDevice);
-
                 // Gets the default adapter from the D3D11 Device
                 if (adapter == null)
                 {
@@ -292,7 +289,6 @@ public partial class Renderer
                 context.Flush();
                 context.Dispose();
                 Device.Dispose();
-                dCompDevice?.Dispose();
                 Device = null;
             }
 

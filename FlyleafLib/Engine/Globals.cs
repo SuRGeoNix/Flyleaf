@@ -207,18 +207,18 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
     //[System.Xml.Serialization.XmlIgnore]
     //public bool DisableNotifications { get; set; }
 
+    //private static bool IsUI() => System.Threading.Thread.CurrentThread.ManagedThreadId == System.Windows.Application.Current.Dispatcher.Thread.ManagedThreadId;
+
     protected bool Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
     {
-        //System.Diagnostics.Debug.WriteLine($"[===| {propertyName} |===]");
+        //Utils.Log($"[===| {propertyName} |===] | Set | {IsUI()}");
 
         if (!check || (field == null && value != null) || (field != null && !field.Equals(value)))
         {
-            //Utils.Log($"[===| {propertyName} ({(field != null ? field.ToString() : "null")} => {(value != null ? value.ToString() : "null")}) |===] | {(Master.UIControl != null ? Master.UIControl.InvokeRequired.ToString() : "")}");
-
             field = value;
 
             //if (!DisableNotifications)
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
             return true;
         }
@@ -228,23 +228,34 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
 
     protected bool SetUI<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
     {
+        //Utils.Log($"[===| {propertyName} |===] | SetUI | {IsUI()}");
+
         if (!check || (field == null && value != null) || (field != null && !field.Equals(value)))
         {
             field = value;
 
             //if (!DisableNotifications)
-                Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+            Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
 
             return true;
         }
 
         return false;
     }
-    protected void Raise([CallerMemberName] string propertyName = "") =>
-            //if (!DisableNotifications)
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    protected void Raise([CallerMemberName] string propertyName = "")
+    {
+        //Utils.Log($"[===| {propertyName} |===] | Raise | {IsUI()}");
 
-    protected void RaiseUI([CallerMemberName] string propertyName = "") =>
-            //if (!DisableNotifications)
-            Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+        //if (!DisableNotifications)
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+        
+
+    protected void RaiseUI([CallerMemberName] string propertyName = "")
+    {
+        //Utils.Log($"[===| {propertyName} |===] | RaiseUI | {IsUI()}");
+
+        //if (!DisableNotifications)
+        Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+    }
 }
