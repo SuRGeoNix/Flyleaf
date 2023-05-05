@@ -77,7 +77,7 @@ public partial class Renderer
 
                 ID3D11Device tempDevice;
                 IDXGIAdapter1 adapter = null;
-                var creationFlags       = DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport;
+                var creationFlags       = DeviceCreationFlags.BgraSupport /*| DeviceCreationFlags.VideoSupport*/; // Let FFmpeg failed for VA if does not support it
                 var creationFlagsWarp   = DeviceCreationFlags.None;
 
                 #if DEBUG

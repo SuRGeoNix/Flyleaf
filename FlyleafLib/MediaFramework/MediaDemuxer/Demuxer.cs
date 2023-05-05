@@ -867,6 +867,7 @@ public unsafe class Demuxer : RunThreadBase
                             if (Config.MaxAudioPackets != 0 && AudioPackets.Count > Config.MaxAudioPackets)
                             {
                                 av_packet_unref(packet);
+                                packet = av_packet_alloc();
 
                                 if (!audioBufferLimitFired)
                                 {
@@ -877,19 +878,22 @@ public unsafe class Demuxer : RunThreadBase
                                 break;
                             }
 
-                            AudioPackets.Enqueue();
+                            AudioPackets.Enqueue(packet);
+                            packet = av_packet_alloc();
 
                             break;
 
                         case AVMEDIA_TYPE_VIDEO:
                             //Log($"Video => {Utils.TicksToTime((long)(packet->pts * VideoStream.Timebase))} | {Utils.TicksToTime(CurTime)}");
 
-                            VideoPackets.Enqueue();
+                            VideoPackets.Enqueue(packet);
+                            packet = av_packet_alloc();
 
                             break;
 
                         case AVMEDIA_TYPE_SUBTITLE:
-                            SubtitlesPackets.Enqueue();
+                            SubtitlesPackets.Enqueue(packet);
+                            packet = av_packet_alloc();
                         
                             break;
 
@@ -900,7 +904,8 @@ public unsafe class Demuxer : RunThreadBase
                 }
                 else
                 {
-                    Packets.Enqueue();
+                    Packets.Enqueue(packet);
+                    packet = av_packet_alloc();
                 }
             }
         } while (Status == Status.Running);
@@ -1501,14 +1506,6 @@ public unsafe class PacketQueue
         }
     }
 
-    public void Enqueue()
-    {
-        lock(packets)
-        {
-            Enqueue(demuxer.packet);
-            demuxer.packet = av_packet_alloc();
-        }
-    }
     public void Enqueue(AVPacket* packet)
     {
         lock (packets)

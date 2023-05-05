@@ -332,7 +332,7 @@ unsafe partial class Player
             if (sFrame == null && !isSubsSwitch )
                 SubtitlesDecoder.Frames.TryPeek(out sFrame);
 
-            elapsedTicks= sw.ElapsedTicks;
+            elapsedTicks = (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS); // Do we really need ticks precision?
 
             vDistanceMs = 
                   (int) ((((vFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000);
@@ -421,7 +421,7 @@ unsafe partial class Player
                             Audio.framesDropped++;
                             AudioDecoder.Frames.TryDequeue(out aFrame);
 
-                            if (aFrame == null || ((aFrame.timestamp - startTicks) / speed) - (sw.ElapsedTicks - Audio.GetDeviceDelay() + 8 * 1000) > 0)
+                            if (aFrame == null || ((aFrame.timestamp - startTicks) / speed) - ((long) (sw.ElapsedTicks * SWFREQ_TO_TICKS) - Audio.GetDeviceDelay() + 8 * 1000) > 0)
                                 break;
 
                             aFrame = null;
@@ -471,7 +471,7 @@ unsafe partial class Player
                 VideoDecoder.Frames.TryDequeue(out vFrame);
             }
 
-            if (sFramePrev != null && ((sFramePrev.timestamp - startTicks + (sFramePrev.duration * (long)10000)) / speed) - sw.ElapsedTicks < 0)
+            if (sFramePrev != null && ((sFramePrev.timestamp - startTicks + (sFramePrev.duration * (long)10000)) / speed) - (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS) < 0)
             {
                 Subtitles.subsText = "";
                 UI(() => Subtitles.SubsText = Subtitles.SubsText);
@@ -657,7 +657,7 @@ unsafe partial class Player
 
             if (Status != Status.Playing) break;
 
-            elapsedTicks = startTicks + sw.ElapsedTicks;
+            elapsedTicks = startTicks + (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS);
             aDistanceMs  = (int) ((aFrame.timestamp - elapsedTicks) / 10000);
 
             if (aDistanceMs > 1000 || aDistanceMs < -10)
@@ -737,7 +737,7 @@ unsafe partial class Player
                 UI(() => UpdateCurTime());
             }
 
-            elapsedTicks    = startTicks - sw.ElapsedTicks;
+            elapsedTicks    = startTicks - (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS);
             vDistanceMs     = (int) ((elapsedTicks - vFrame.timestamp) / 10000);
             sleepMs         = vDistanceMs - 1;
 

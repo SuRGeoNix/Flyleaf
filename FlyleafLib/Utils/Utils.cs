@@ -540,6 +540,7 @@ public static partial class Utils
     public static Vortice.Mathematics.Color WPFToVorticeColor(System.Windows.Media.Color wColor)
         => new Vortice.Mathematics.Color(wColor.R, wColor.G, wColor.B, wColor.A);
 
+    public static double SWFREQ_TO_TICKS =  10000000.0 / Stopwatch.Frequency;
     public static string ToHexadecimal(byte[] bytes)
     {
         StringBuilder hexBuilder = new();
