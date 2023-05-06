@@ -36,7 +36,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public partial class Renderer : NotifyPropertyChanged, IDisposable
 {
-    public Config           Config          => VideoDecoder?.Config;
+    public Config           Config          { get; private set;}
     public int              ControlWidth    { get; private set; }
     public int              ControlHeight   { get; private set; }
     internal IntPtr         ControlHandle;
@@ -119,9 +119,10 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
 
     public Renderer(VideoDecoder videoDecoder, IntPtr handle = new IntPtr(), int uniqueId = -1)
     {
-        UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
-        VideoDecoder = videoDecoder;
-        Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
+        UniqueId    = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+        VideoDecoder= videoDecoder;
+        Config      = videoDecoder.Config;
+        Log         = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
 
         singleStageDesc = new Texture2DDescription()
         {
@@ -152,4 +153,33 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         ControlHandle = handle;
         Initialize();
     }
+
+    #region Replica Renderer (Expiremental)
+    internal Renderer replica;
+    Renderer myReplica;
+    public Renderer(Renderer renderer, IntPtr handle, int uniqueId = -1)
+    {
+        UniqueId            = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+        Log                 = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer  Repl] ");
+
+        renderer.replica    = this;
+        myReplica           = renderer;
+        Config              = renderer.Config;
+        wndProcDelegate     = new(WndProc);
+        wndProcDelegatePtr  = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
+        ControlHandle       = handle;
+    }
+
+    public void SetReplica(IntPtr handle)
+    {
+        lock (lockDevice)
+        {
+            if (replica != null)
+                DisposeReplica();
+
+            replica = new(this, handle, UniqueId);
+            InitializeReplica();
+        }        
+    }
+    #endregion
 }

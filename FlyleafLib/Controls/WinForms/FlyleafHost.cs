@@ -163,13 +163,16 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
     }
     private void Host_MouseMove(object sender, MouseEventArgs e)
     {
+        if (Player == null)
+            return;
+
         if (e.Location != mouseMoveLastPoint)
         {
             Player.Activity.RefreshFullActive();
             mouseMoveLastPoint = e.Location;
         }
 
-        if (e.Button != MouseButtons.Left || Player == null)
+        if (e.Button != MouseButtons.Left)
             return;
 
         if (PanMoveOnCtrl && ModifierKeys.HasFlag(Keys.Control))

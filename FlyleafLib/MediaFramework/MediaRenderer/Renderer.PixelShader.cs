@@ -81,7 +81,7 @@ unsafe public partial class Renderer
             Monitor.Enter(VideoDecoder.lockCodecCtx);
             Monitor.Enter(lockDevice);
 
-            if (Disposed || VideoStream == null)
+            if (SCDisposed || VideoStream == null)
                 return false;
 
             VideoDecoder.DisposeFrame(LastFrame);
@@ -142,6 +142,12 @@ unsafe public partial class Renderer
                 vd1.CreateVideoProcessorOutputView(backBuffer, vpe, vpovd, out vpov);
                 vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
                 vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
+
+                if (replica != null)
+                {
+                    replica.vpov?.Dispose();
+                    vd1.CreateVideoProcessorOutputView(replica.backBuffer, vpe, vpovd, out replica.vpov);
+                }
 
                 if (VideoDecoder.ZeroCopy)
                     curPSCase = PSCase.HWD3D11VPZeroCopy;
@@ -560,6 +566,15 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                     SetViewport();
                 else if (!forceNotExtractor)
                     PrepareForExtract();
+
+                if (replica != null)
+                {
+                    //replica.ConfigPlanes();
+                    replica.curRatio        = curRatio;
+                    replica.VideoRect       = VideoRect;
+                    replica.videoProcessor  = videoProcessor;
+                    replica.SetViewport();
+                }   
             }
             Monitor.Exit(lockDevice);
             Monitor.Exit(VideoDecoder.lockCodecCtx);

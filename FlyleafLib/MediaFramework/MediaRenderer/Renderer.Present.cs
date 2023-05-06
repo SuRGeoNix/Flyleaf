@@ -12,7 +12,7 @@ using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
-public partial class Renderer
+public unsafe partial class Renderer
 {
     bool    isPresenting;
     long    lastPresentAt       = 0;
@@ -28,6 +28,9 @@ public partial class Renderer
                 PresentInternal(frame);
                 VideoDecoder.DisposeFrame(LastFrame);
                 LastFrame = frame;
+
+                if (replica != null)
+                    replica.LastFrame = frame;
 
                 return true;
 
@@ -90,7 +93,7 @@ public partial class Renderer
             isPresenting = false;
         });
     }
-    unsafe internal void PresentInternal(VideoFrame frame)
+    internal void PresentInternal(VideoFrame frame)
     {
         if (SCDisposed)
             return;
@@ -111,7 +114,7 @@ public partial class Renderer
             vpsa[0].InputSurface = vpiv;
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
-
+            
             vpiv.Dispose();
         }
         else
@@ -123,9 +126,12 @@ public partial class Renderer
             context.Draw(6, 0);
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
         }
+
+        if (replica != null)
+            replica.PresentInternal(frame);
     }
 
-    unsafe public void RefreshLayout()
+    public void RefreshLayout()
     {
         if (Monitor.TryEnter(lockDevice, 5))
         {

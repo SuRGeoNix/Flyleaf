@@ -83,6 +83,9 @@ namespace FlyleafPlayer__Custom_
             // Sample using a 'custom' IO stream
             Stream customInput = new FileStream(SampleVideo, FileMode.Open);
             Player2.OpenAsync(customInput);
+
+            // Testing Replica (Don't set flyleaf2.Player in the constructor)
+            // Player.renderer.SetReplica(flyleaf2.Handle);
         }
 
         private void btnSwap_Click(object sender, EventArgs e)
