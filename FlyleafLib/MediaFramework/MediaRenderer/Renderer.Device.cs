@@ -16,7 +16,7 @@ using System.Runtime.InteropServices;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
-public partial class Renderer
+public unsafe partial class Renderer
 {
     static InputElementDescription[] inputElements =
     {
@@ -62,7 +62,8 @@ public partial class Renderer
     internal object     lockDevice = new();
     bool                isFlushing;
 
-    unsafe public void Initialize(bool swapChain = true)
+
+    public void Initialize(bool swapChain = true)
     {
         lock (lockDevice)
         {
@@ -235,9 +236,38 @@ public partial class Renderer
                 else if (SwapChainWinUIClbk != null)
                     InitializeWinUISwapChain();
             }
+
+            InitializeReplica();
         }
     }
+    public void InitializeReplica(bool swapChain = true)
+    {
+        if (replica == null )
+            return;
 
+        lock (lockDevice)
+        {
+            replica.lockDevice      = lockDevice;
+            replica.VideoDecoder    = VideoDecoder;
+            replica.Device          = Device;
+            replica.context         = context;
+            replica.curRatio        = curRatio;
+            replica.VideoRect       = VideoRect;
+            replica.videoProcessor  = videoProcessor;
+            replica.InitializeVideoProcessor(); // to use the same VP we need to set it's config in each present (means we don't update VP config as is different)
+
+            if (swapChain)
+            {
+                if (replica.ControlHandle != IntPtr.Zero)
+                    replica.InitializeSwapChain(replica.ControlHandle);
+                else if (replica.SwapChainWinUIClbk != null)
+                    replica.InitializeWinUISwapChain();
+            }
+
+            replica.SetViewport();
+        }
+    }
+    
     public void Dispose()
     {
         lock (lockDevice)
@@ -245,6 +275,9 @@ public partial class Renderer
             if (Disposed)
                 return;
 
+            if (replica != null)
+                DisposeReplica();
+            
             Disposed = true;
 
             if (CanDebug) Log.Debug("Disposing");
@@ -300,6 +333,25 @@ public partial class Renderer
             if (CanInfo) Log.Info("Disposed");
         }
     }
+    public void DisposeReplica()
+    {
+        if (replica == null)
+            return;
+
+        lock (lockDevice)
+        {
+            DisposeSwapChain();
+            DisposeVideoProcessor();
+
+            if (!isFlushing)
+            {
+                replica.Device  = null;
+                replica.context = null;
+                VideoDecoder    = null;
+                //LastFrame       = null;
+            }
+        }
+    }
 
     public void Flush()
     {
@@ -309,9 +361,22 @@ public partial class Renderer
             var controlHandle = ControlHandle;
             var swapChainClbk = SwapChainWinUIClbk;
 
+            IntPtr controlHandleReplica = IntPtr.Zero;
+            Action<IDXGISwapChain2> swapChainClbkReplica = null;;
+            if (replica != null)
+            {
+                controlHandleReplica = replica.ControlHandle;
+                swapChainClbkReplica = replica.SwapChainWinUIClbk;
+            }
+
             Dispose();
             ControlHandle = controlHandle;
             SwapChainWinUIClbk = swapChainClbk;
+            if (replica != null)
+            {
+                replica.ControlHandle = controlHandleReplica;
+                replica.SwapChainWinUIClbk = swapChainClbkReplica;
+            }
             Initialize();
             isFlushing = false;
         }

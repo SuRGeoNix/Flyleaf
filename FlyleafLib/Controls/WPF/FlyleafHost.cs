@@ -20,9 +20,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     /* -= FlyleafHost Properties Notes =-
 
         Player							[Can be changed, can be null]
+        ReplicaPlayer                                                       | Replicates frames of the assigned Player (useful for interactive zoom) without the pan/zoom config
 
         Surface							[ReadOnly / Required]
-        Overlay							[AutoCreated OnContentChanged | Provided directly | Provided in Stand Alone Constructor]
+        Overlay							[AutoCreated OnContentChanged       | Provided directly | Provided in Stand Alone Constructor]
 
         Content							[Overlay's Content]
         DetachedContent					[Host's actual content]
@@ -492,6 +493,14 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     public static readonly DependencyProperty PlayerProperty =
         DependencyProperty.Register(nameof(Player), typeof(Player), typeof(FlyleafHost), new PropertyMetadata(null, OnPlayerChanged));
 
+    public Player ReplicaPlayer
+    {
+        get => (Player)GetValue(ReplicaPlayerProperty);
+        set => SetValue(ReplicaPlayerProperty, value);
+    }
+    public static readonly DependencyProperty ReplicaPlayerProperty =
+        DependencyProperty.Register(nameof(ReplicaPlayer), typeof(Player), typeof(FlyleafHost), new PropertyMetadata(null, OnReplicaPlayerChanged));
+
     public ControlTemplate OverlayTemplate
     {
         get => (ControlTemplate)GetValue(OverlayTemplateProperty);
@@ -694,6 +703,17 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         host.SetPlayer((Player)e.OldValue);
+    }
+    private static void OnReplicaPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (isDesginMode)
+            return;
+        
+        FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
+        host.SetReplicaPlayer((Player)e.OldValue);
     }
     private static void OnIsFullScreenChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -1583,6 +1603,11 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     #endregion
 
     #region Methods
+    public virtual void SetReplicaPlayer(Player oldPlayer)
+    {
+        if (Surface != null)
+            ReplicaPlayer.renderer.SetReplica(SurfaceHandle);
+    }
     public virtual void SetPlayer(Player oldPlayer)
     {
         // De-assign old Player's Handle/FlyleafHost
@@ -1671,6 +1696,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         
         if (Player != null)
             Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
+
+        if (ReplicaPlayer != null)
+            ReplicaPlayer.renderer.SetReplica(SurfaceHandle);
 
         Surface.Closed      += Surface_Closed;
         Surface.Closing     += Surface_Closing;

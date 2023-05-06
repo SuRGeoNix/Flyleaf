@@ -496,7 +496,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Video aspect ratio
         /// </summary>
-        public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value) && player != null && player.renderer != null) lock(player.renderer.lockDevice) { if (player.renderer.Disposed) return;  player?.renderer?.SetViewport(); } } }
+        public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value) && player != null && player.renderer != null && !player.renderer.SCDisposed) lock(player.renderer.lockDevice) {  player.renderer.SetViewport(); if (player.renderer.replica != null) player.renderer.replica.SetViewport(); } } }
         AspectRatio    _AspectRatio = AspectRatio.Keep;
 
         /// <summary>
@@ -509,7 +509,7 @@ public class Config : NotifyPropertyChanged
         /// Background color of the player's control
         /// </summary>
         public System.Windows.Media.Color
-                                BackgroundColor             { get => Utils.VorticeToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, WPFToVorticeColor(value)); player?.renderer?.UpdateBackgroundColor(); } }
+                                BackgroundColor             { get => VorticeToWPFColor(_BackgroundColor);  set { Set(ref _BackgroundColor, WPFToVorticeColor(value)); player?.renderer?.UpdateBackgroundColor(); } }
         internal Vortice.Mathematics.Color _BackgroundColor = (Vortice.Mathematics.Color)Vortice.Mathematics.Colors.Black;
 
         /// <summary>

@@ -71,7 +71,7 @@ public partial class Renderer
             if (!SCDisposed)
                 DisposeSwapChain();
 
-            if (Disposed)
+            if (Disposed && myReplica == null)
                 Initialize(false);
             
             ControlHandle   = handle;

@@ -12,9 +12,10 @@
         <TextBlock Text="FlyleafHost Overlay Main" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="40" Foreground="DarkRed" Background="Yellow"/>
         
         <!--As parent overlay is transparent to be able to handle mouse events requires fake transparency-->
-        <Grid Background="#01000000" Width="200" Height="200">
-            <fl:FlyleafHost Player="{Binding PlayerX}" AttachedDragMove="BothOwner">
-                <TextBlock Text="FlyleafHost Overlay Child" TextAlignment="Center" TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="20" Foreground="DarkRed" Background="Yellow"/>
+        <!--Testing Main's Player Replicate to another FlyleafHost-->
+        <Grid x:Name="marginTarget" Background="#01000000" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="30 80 0 0">
+            <fl:FlyleafHost ReplicaPlayer="{Binding Player}" Width="200" Height="150" AttachedDragMove="Both" AttachedResize="Both" MarginTarget="{Binding ElementName=marginTarget}">
+                <TextBlock Text="Grand Child - Replica" TextAlignment="Center" TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="20" Foreground="DarkRed" Background="Yellow"/>
             </fl:FlyleafHost>
         </Grid>
         
