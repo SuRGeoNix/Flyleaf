@@ -6,6 +6,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -511,6 +512,7 @@ public static partial class Utils
 
     public unsafe static string BytePtrToStringUTF8(byte* bytePtr)
     {
+        #if NETFRAMEWORK
         if (bytePtr == null) return null;
         if (*bytePtr == 0) return string.Empty;
 
@@ -528,6 +530,9 @@ public static partial class Utils
         }
 
         return Encoding.UTF8.GetString(byteBuffer.ToArray());
+        #else
+        return Marshal.PtrToStringUTF8((nint)bytePtr);
+        #endif
     }
 
     public static System.Windows.Media.Color WinFormsToWPFColor(System.Drawing.Color sColor)

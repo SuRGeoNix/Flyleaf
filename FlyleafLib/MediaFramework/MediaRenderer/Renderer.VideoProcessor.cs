@@ -446,6 +446,11 @@ unsafe public partial class Renderer
         if (hdrPlusData != null)
         {
             lum1 = (float) (av_q2d(hdrPlusData->@params[0].average_maxrgb) * 100000.0);
+
+            // this is not accurate more research required
+            if (lum1 < 100)
+                lum1 *= 10;
+            lum1 = Math.Max(lum1, 400);
         }
         else if (Config.Video.HDRtoSDRMethod != HDRtoSDRMethod.Reinhard)
         {
