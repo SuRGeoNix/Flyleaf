@@ -446,6 +446,10 @@ public unsafe class Demuxer : RunThreadBase
 
             return error = null;
         }
+        catch (Exception ex)
+        {
+            return error = $"Unknown: {ex.Message}";
+        }
         finally
         {
             if (error != null)

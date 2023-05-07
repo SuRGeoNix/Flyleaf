@@ -64,7 +64,7 @@ public class FFmpegEngine
         byte*   buffer = stackalloc byte[AV_LOG_BUFFER_SIZE];
         int     printPrefix = 1;
         av_log_format_line2(p0, level, format, vl, buffer, AV_LOG_BUFFER_SIZE, &printPrefix);
-        string  line = Marshal.PtrToStringAnsi((IntPtr)buffer);
+        string  line = Utils.BytePtrToStringUTF8(buffer);
 
         Logger.Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | FFmpeg | {(FFmpegLogLevel)level,-7} | {line.Trim()}");
     };
@@ -73,7 +73,7 @@ public class FFmpegEngine
     {
         byte* buffer = stackalloc byte[AV_LOG_BUFFER_SIZE];
         av_strerror(error, buffer, AV_LOG_BUFFER_SIZE);
-        return Marshal.PtrToStringAnsi((IntPtr)buffer);
+        return Utils.BytePtrToStringUTF8(buffer);
     }
 }
 

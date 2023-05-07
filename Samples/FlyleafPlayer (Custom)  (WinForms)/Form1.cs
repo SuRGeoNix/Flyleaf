@@ -38,7 +38,7 @@ namespace FlyleafPlayer__Custom_
             Player2 = new Player();
 
             InitializeComponent();
-            
+
             // Parse the control to the Player
             flyleaf1.Player = Player;
             flyleaf1.Player.PropertyChanged += Player_PropertyChanged; // On Swap you should unsubscribe player 1 and subscribe to player 2
@@ -67,7 +67,7 @@ namespace FlyleafPlayer__Custom_
                     break;
 
                 case "BufferedDuration":
-                    label2.Text =  (new TimeSpan(flyleaf1.Player.BufferedDuration)).ToString(@"hh\:mm\:ss\.fff");
+                    label2.Text = (new TimeSpan(flyleaf1.Player.BufferedDuration)).ToString(@"hh\:mm\:ss\.fff");
                     break;
 
                 case "Status":
@@ -86,6 +86,10 @@ namespace FlyleafPlayer__Custom_
 
             // Testing Replica (Don't set flyleaf2.Player in the constructor)
             // Player.renderer.SetReplica(flyleaf2.Handle);
+            
+            // Replica with any Handle (if you don't really need a FlyleafHost)
+            Player.renderer.SetReplica(pnlReplica.Handle);
+            
         }
 
         private void btnSwap_Click(object sender, EventArgs e)
