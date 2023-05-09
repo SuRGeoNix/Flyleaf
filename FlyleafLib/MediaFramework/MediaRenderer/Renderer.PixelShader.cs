@@ -97,7 +97,7 @@ unsafe public partial class Renderer
                 curRatio    = VideoStream.AspectRatio.Value;
                 IsHDR       = VideoStream.ColorSpace == ColorSpace.BT2020;
                 VideoRect   = new RawRect(0, 0, VideoStream.Width, VideoStream.Height);
-                UpdateRotation(_RotationAngle);
+                UpdateRotation(_RotationAngle, false);
 
                 if (IsHDR)
                 {
@@ -143,10 +143,10 @@ unsafe public partial class Renderer
                 vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
                 vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
 
-                if (replica != null)
+                if (child != null)
                 {
-                    replica.vpov?.Dispose();
-                    vd1.CreateVideoProcessorOutputView(replica.backBuffer, vpe, vpovd, out replica.vpov);
+                    child.vpov?.Dispose();
+                    vd1.CreateVideoProcessorOutputView(child.backBuffer, vpe, vpovd, out child.vpov);
                 }
 
                 if (VideoDecoder.ZeroCopy)
@@ -567,13 +567,13 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                 else if (!forceNotExtractor)
                     PrepareForExtract();
 
-                if (replica != null)
+                if (child != null)
                 {
                     //replica.ConfigPlanes();
-                    replica.curRatio        = curRatio;
-                    replica.VideoRect       = VideoRect;
-                    replica.videoProcessor  = videoProcessor;
-                    replica.SetViewport();
+                    child.curRatio      = curRatio;
+                    child.VideoRect     = VideoRect;
+                    child.videoProcessor= videoProcessor;
+                    child.SetViewport();
                 }   
             }
             Monitor.Exit(lockDevice);

@@ -249,53 +249,25 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     double speed = 1;
 
     /// <summary>
-    /// Custom pan zoom percentage (Note: Prefer ZoomIn/ZoomOut and Config.Player.ZoomOffset instead of this)
+    /// Pan zoom percentage (100 for 100%)
     /// </summary>
     public int          Zoom
     {
-        get => renderer.Zoom;
-        set { _ZoomTimes = 0; if (renderer.Zoom == value) return; renderer.Zoom = value; UI(() => Set(ref _Zoom, renderer.Zoom, false)); }
-    }
-    int _Zoom = 100;
-
-    public int ZoomTimes { get => _ZoomTimes; private set => SetZoom(value); }
-    int _ZoomTimes = 0;
-
-    private void SetZoom(int value, bool refresh = true)
-    {
-        _ZoomTimes = value;
-        int zoom = 100 + (Config.Player.ZoomOffset * _ZoomTimes);
-
-        if (_Zoom == zoom)
-            return;
-
-        if (zoom < 1)
-        {
-            _ZoomTimes++;
-            zoom = 1;
-        }
-
-        _Zoom = zoom;
-        renderer.SetZoom(zoom, refresh);
-
-        UIInvokeIfRequired(() =>
-        {
-            Raise(nameof(Zoom));
-            Raise(nameof(_Zoom));
-        });
+        get => (int)(renderer.Zoom * 100);
+        set { renderer.SetZoom(renderer.Zoom = value / 100.0); RaiseUI(nameof(Zoom)); }
+        //set { renderer.SetZoomAndCenter(renderer.Zoom = value / 100.0, Renderer.ZoomCenterPoint); RaiseUI(nameof(Zoom)); } // should reset the zoom center point?
     }
 
     /// <summary>
     /// Pan rotation angle (for D3D11 VP allowed values are 0, 90, 180, 270 only)
     /// </summary>
-    public uint Rotation            { get => _Rotation; 
+    public uint Rotation            { get => renderer.Rotation; 
         set
         {
             renderer.Rotation = value;
-            Set(ref _Rotation, renderer.Rotation);
+            RaiseUI(nameof(Rotation));
         }
     }
-    uint _Rotation;
 
     /// <summary>
     /// Whether to use reverse playback mode
