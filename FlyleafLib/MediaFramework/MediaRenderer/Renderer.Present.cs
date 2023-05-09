@@ -29,12 +29,13 @@ public unsafe partial class Renderer
                 VideoDecoder.DisposeFrame(LastFrame);
                 LastFrame = frame;
 
-                if (replica != null)
-                    replica.LastFrame = frame;
+                if (child != null)
+                    child.LastFrame = frame;
 
                 return true;
 
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 if (CanWarn) Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
                 VideoDecoder.DisposeFrame(frame);
@@ -43,7 +44,8 @@ public unsafe partial class Renderer
 
                 return false;
 
-            } finally
+            }
+            finally
             {
                 Monitor.Exit(lockDevice);
             }
@@ -98,6 +100,7 @@ public unsafe partial class Renderer
         if (SCDisposed)
             return;
 
+        // TBR: Replica performance issue with D3D11 (more zoom more gpu overload)
         if (videoProcessor == VideoProcessors.D3D11)
         {
             if (frame.bufRef != null)
@@ -127,8 +130,8 @@ public unsafe partial class Renderer
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
         }
 
-        if (replica != null)
-            replica.PresentInternal(frame);
+        if (child != null)
+            child.PresentInternal(frame);
     }
 
     public void RefreshLayout()

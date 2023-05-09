@@ -63,15 +63,20 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public bool             IsHDR           { get => isHDR;         private set { SetUI(ref _IsHDR, value); isHDR = value; } }
     bool _IsHDR, isHDR;
 
+    public int              SideXPixels     { get; private set; }
+    public int              SideYPixels     { get; private set; }
+
     public int              PanXOffset      { get => panXOffset;    set => SetPanX(value); }
     int panXOffset;
     public void SetPanX(int panX, bool refresh = true)
     {
-        panXOffset = panX;
-
         lock(lockDevice)
         {
-            if (Disposed) return;
+            panXOffset = panX;
+
+            if (Disposed)
+                return;
+
             SetViewport(refresh);
         }
     }
@@ -80,31 +85,87 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     int panYOffset;
     public void SetPanY(int panY, bool refresh = true)
     {
-        panYOffset = panY;
-
         lock(lockDevice)
         {
-            if (Disposed) return;
+            panYOffset = panY;
+
+            if (Disposed)
+                return;
+
             SetViewport(refresh);
         }
     }
 
-    public uint             Rotation        { get => _RotationAngle;set { UpdateRotation(value); SetViewport(); } }
-    uint _RotationAngle; VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
+    public uint             Rotation        { get => _RotationAngle;set { lock (lockDevice) UpdateRotation(value); } }
+    uint _RotationAngle;
+    VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
 
     public VideoProcessors  VideoProcessor      { get => videoProcessor;    private set => SetUI(ref videoProcessor, value); }
     VideoProcessors videoProcessor = VideoProcessors.Flyleaf;
 
-    public int              Zoom            { get => zoom;          set => SetZoom(value); }
-    int zoom = 100;
-    public void SetZoom(int zoom, bool refresh = true)
+    /// <summary>
+    /// Zoom percentage (100% equals to 1.0)
+    /// </summary>
+    public double              Zoom            { get => zoom;          set => SetZoom(value); }
+    double zoom = 1;
+    public void SetZoom(double zoom, bool refresh = true)
     {
-        this.zoom = zoom;
-
         lock(lockDevice)
         {
-            if (Disposed) return;
+            this.zoom = zoom;
+
+            if (Disposed)
+                return;
+
             SetViewport(refresh);
+        }
+    }
+
+    public Point            ZoomCenter      { get => zoomCenter;    set => SetZoomCenter(value); }
+    Point zoomCenter = ZoomCenterPoint;
+    public static Point ZoomCenterPoint = new(0.5, 0.5);
+    public void SetZoomCenter(Point p, bool refresh = true)
+    {
+        lock(lockDevice)
+        {
+            zoomCenter = p;
+
+            if (Disposed)
+                return;
+
+            if (refresh)
+                SetViewport();
+        }
+    }
+    public void SetZoomAndCenter(double zoom, Point p, bool refresh = true)
+    {
+        lock(lockDevice)
+        {
+            this.zoom = zoom;
+            zoomCenter = p;
+
+            if (Disposed)
+                return;
+
+            if (refresh)
+                SetViewport();
+        }
+    }
+    public void SetPanAll(int panX, int panY, uint rotation, double zoom, Point p, bool refresh = true)
+    {
+        lock(lockDevice)
+        {
+            panXOffset = panX;
+            panYOffset = panY;
+            this.zoom = zoom;
+            zoomCenter = p;
+            UpdateRotation(rotation, false);
+
+            if (Disposed)
+                return;
+
+            if (refresh)
+                SetViewport();
         }
     }
 
@@ -155,15 +216,15 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     }
 
     #region Replica Renderer (Expiremental)
-    internal Renderer replica;
-    Renderer myReplica;
+    internal Renderer child;
+    Renderer parent;
     public Renderer(Renderer renderer, IntPtr handle, int uniqueId = -1)
     {
         UniqueId            = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
         Log                 = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer  Repl] ");
 
-        renderer.replica    = this;
-        myReplica           = renderer;
+        renderer.child      = this;
+        parent              = renderer;
         Config              = renderer.Config;
         wndProcDelegate     = new(WndProc);
         wndProcDelegatePtr  = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
@@ -174,10 +235,13 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     {
         lock (lockDevice)
         {
-            if (replica != null)
+            if (child != null)
                 DisposeReplica();
 
-            replica = new(this, handle, UniqueId);
+            if (handle == IntPtr.Zero)
+                return;
+
+            child = new(this, handle, UniqueId);
             InitializeReplica();
         }        
     }

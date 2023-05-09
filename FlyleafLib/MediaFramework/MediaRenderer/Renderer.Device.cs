@@ -242,29 +242,29 @@ public unsafe partial class Renderer
     }
     public void InitializeReplica(bool swapChain = true)
     {
-        if (replica == null )
+        if (child == null )
             return;
 
         lock (lockDevice)
         {
-            replica.lockDevice      = lockDevice;
-            replica.VideoDecoder    = VideoDecoder;
-            replica.Device          = Device;
-            replica.context         = context;
-            replica.curRatio        = curRatio;
-            replica.VideoRect       = VideoRect;
-            replica.videoProcessor  = videoProcessor;
-            replica.InitializeVideoProcessor(); // to use the same VP we need to set it's config in each present (means we don't update VP config as is different)
+            child.lockDevice    = lockDevice;
+            child.VideoDecoder  = VideoDecoder;
+            child.Device        = Device;
+            child.context       = context;
+            child.curRatio      = curRatio;
+            child.VideoRect     = VideoRect;
+            child.videoProcessor= videoProcessor;
+            child.InitializeVideoProcessor(); // to use the same VP we need to set it's config in each present (means we don't update VP config as is different)
 
             if (swapChain)
             {
-                if (replica.ControlHandle != IntPtr.Zero)
-                    replica.InitializeSwapChain(replica.ControlHandle);
-                else if (replica.SwapChainWinUIClbk != null)
-                    replica.InitializeWinUISwapChain();
+                if (child.ControlHandle != IntPtr.Zero)
+                    child.InitializeSwapChain(child.ControlHandle);
+                else if (child.SwapChainWinUIClbk != null)
+                    child.InitializeWinUISwapChain();
             }
 
-            replica.SetViewport();
+            child.SetViewport();
         }
     }
     
@@ -275,7 +275,7 @@ public unsafe partial class Renderer
             if (Disposed)
                 return;
 
-            if (replica != null)
+            if (child != null)
                 DisposeReplica();
             
             Disposed = true;
@@ -335,7 +335,7 @@ public unsafe partial class Renderer
     }
     public void DisposeReplica()
     {
-        if (replica == null)
+        if (child == null)
             return;
 
         lock (lockDevice)
@@ -345,8 +345,8 @@ public unsafe partial class Renderer
 
             if (!isFlushing)
             {
-                replica.Device  = null;
-                replica.context = null;
+                child.Device    = null;
+                child.context   = null;
                 VideoDecoder    = null;
                 //LastFrame       = null;
             }
@@ -363,19 +363,19 @@ public unsafe partial class Renderer
 
             IntPtr controlHandleReplica = IntPtr.Zero;
             Action<IDXGISwapChain2> swapChainClbkReplica = null;;
-            if (replica != null)
+            if (child != null)
             {
-                controlHandleReplica = replica.ControlHandle;
-                swapChainClbkReplica = replica.SwapChainWinUIClbk;
+                controlHandleReplica = child.ControlHandle;
+                swapChainClbkReplica = child.SwapChainWinUIClbk;
             }
 
             Dispose();
             ControlHandle = controlHandle;
             SwapChainWinUIClbk = swapChainClbk;
-            if (replica != null)
+            if (child != null)
             {
-                replica.ControlHandle = controlHandleReplica;
-                replica.SwapChainWinUIClbk = swapChainClbkReplica;
+                child.ControlHandle = controlHandleReplica;
+                child.SwapChainWinUIClbk = swapChainClbkReplica;
             }
             Initialize();
             isFlushing = false;

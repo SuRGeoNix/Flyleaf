@@ -394,7 +394,7 @@ unsafe public partial class Renderer
             if (Config.Video.VideoProcessor != VideoProcessors.Auto)
                 return;
 
-            if (myReplica != null)
+            if (parent != null)
                 return;
 
             ConfigPlanes();
@@ -410,7 +410,7 @@ unsafe public partial class Renderer
             vc.VideoProcessorSetStreamFilter(vp, 0, ConvertFromVideoProcessorFilterCaps((VideoProcessorFilterCaps)filter.Filter), true, scaledValue);
         }
 
-        if (myReplica != null)
+        if (parent != null)
             return;
 
         // FLVP
@@ -438,7 +438,7 @@ unsafe public partial class Renderer
     }
     internal void UpdateHDRtoSDR(bool updateResource = true)
     {
-        if(myReplica != null)
+        if(parent != null)
             return;
 
         float lum1 = 400;
@@ -545,11 +545,11 @@ unsafe public partial class Renderer
             * 
             */
     }
-    void UpdateRotation(uint angle)
+    void UpdateRotation(uint angle, bool refresh = true)
     {
         _RotationAngle = angle;
         var newRotation = (_RotationAngle + (VideoStream != null ? (uint)VideoStream.Rotation : 0)) % 360;
-        if (actualRotation == newRotation)
+        if (actualRotation == newRotation || Disposed)
             return;
 
         actualRotation = newRotation;
@@ -566,23 +566,25 @@ unsafe public partial class Renderer
         vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * actualRotation));
         //vsBufferData.mat = Matrix4x4.Transpose(vsBufferData.mat); TBR
 
-        if (myReplica == null)
+        if (parent == null)
             context.UpdateSubresource(vsBufferData, vsBuffer);
         
-        if (replica != null)
+        if (child != null)
         {
-            replica.actualRotation = actualRotation;
-            replica._d3d11vpRotation = _d3d11vpRotation;
-            replica._RotationAngle = _RotationAngle;
-            replica.SetViewport();
+            child.actualRotation    = actualRotation;
+            child._d3d11vpRotation  = _d3d11vpRotation;
+            child._RotationAngle    = _RotationAngle;
+            child.SetViewport();
         }
 
         vc?.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
-        Present();
+
+        if (refresh)
+            SetViewport();
     }
     internal void UpdateVideoProcessor()
     {
-        if(myReplica != null)
+        if(parent != null)
             return;
 
         if (Config.Video.VideoProcessor == videoProcessor || (Config.Video.VideoProcessor == VideoProcessors.D3D11 && D3D11VPFailed))

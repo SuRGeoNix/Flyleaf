@@ -576,64 +576,95 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (!KeepRatioOnResize || IsFullScreen)
             return;
         
-        curResizeRatio = Player != null && Player.Video.AspectRatio.Value > 0 ? Player.Video.AspectRatio.Value : (float)(16.0/9.0);
+        if (Player != null && Player.Video.AspectRatio.Value > 0)
+            curResizeRatio = Player.Video.AspectRatio.Value;
+        else if (ReplicaPlayer != null && ReplicaPlayer.Video.AspectRatio.Value > 0)
+            curResizeRatio = ReplicaPlayer.Video.AspectRatio.Value;
+        else
+            curResizeRatio = (float)(16.0/9.0);
+
         curResizeRatioIfEnabled = curResizeRatio;
 
-        // TODO attach similar to detach (consider screen the Owner window?)
+        Rect screen;
+
         if (IsAttached)
-            Height = Width / curResizeRatio;
-        else if (Surface != null)
         {
-            var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)Surface.Top, (int)Surface.Left)).Bounds;
-            double WindowWidth;
-            double WindowHeight;
-            double WindowLeft;
-            double WindowTop;
-
-            if (curResizeRatio >= 1)
+            if (Owner == null)
             {
-                WindowHeight = PreferredLandscapeWidth / curResizeRatio;
+                Height = Width / curResizeRatio;
+                return;
+            }
 
-                if (WindowHeight < Surface.MinHeight)
-                {
-                    WindowHeight    = Surface.MinHeight;
-                    WindowWidth     = WindowHeight * curResizeRatio;
-                }
-                else if (WindowHeight > Surface.MaxHeight)
-                {
-                    WindowHeight    = Surface.MaxHeight;
-                    WindowWidth     = Surface.Height * curResizeRatio;
-                }
-                else if (WindowHeight > screen.Height)
-                {
-                    WindowHeight    = screen.Height;
-                    WindowWidth     = WindowHeight * curResizeRatio;
-                }
-                else
-                    WindowWidth = PreferredLandscapeWidth;
+            screen = new(zeroPoint, Owner.RenderSize);
+        }
+        else
+        {
+            if (Surface == null)
+                return;
+
+            var bounds = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)Surface.Top, (int)Surface.Left)).Bounds;
+            screen = new(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
+        } 
+
+        double WindowWidth;
+        double WindowHeight;
+
+        if (curResizeRatio >= 1)
+        {
+            WindowHeight = PreferredLandscapeWidth / curResizeRatio;
+
+            if (WindowHeight < Surface.MinHeight)
+            {
+                WindowHeight    = Surface.MinHeight;
+                WindowWidth     = WindowHeight * curResizeRatio;
+            }
+            else if (WindowHeight > Surface.MaxHeight)
+            {
+                WindowHeight    = Surface.MaxHeight;
+                WindowWidth     = Surface.Height * curResizeRatio;
+            }
+            else if (WindowHeight > screen.Height)
+            {
+                WindowHeight    = screen.Height;
+                WindowWidth     = WindowHeight * curResizeRatio;
             }
             else
-            {
-                WindowWidth = PreferredPortraitHeight * curResizeRatio;
+                WindowWidth = PreferredLandscapeWidth;
+        }
+        else
+        {
+            WindowWidth = PreferredPortraitHeight * curResizeRatio;
 
-                if (WindowWidth < Surface.MinWidth)
-                {
-                    WindowWidth     = Surface.MinWidth;
-                    WindowHeight    = WindowWidth / curResizeRatio;
-                }
-                else if (WindowWidth > Surface.MaxWidth)
-                {
-                    WindowWidth     = Surface.MaxWidth;
-                    WindowHeight    = WindowWidth / curResizeRatio;
-                }
-                else if (WindowWidth > screen.Width)
-                {
-                    WindowWidth     = screen.Width;
-                    WindowHeight    = WindowWidth / curResizeRatio;
-                }
-                else
-                    WindowHeight    = PreferredPortraitHeight;
+            if (WindowWidth < Surface.MinWidth)
+            {
+                WindowWidth     = Surface.MinWidth;
+                WindowHeight    = WindowWidth / curResizeRatio;
             }
+            else if (WindowWidth > Surface.MaxWidth)
+            {
+                WindowWidth     = Surface.MaxWidth;
+                WindowHeight    = WindowWidth / curResizeRatio;
+            }
+            else if (WindowWidth > screen.Width)
+            {
+                WindowWidth     = screen.Width;
+                WindowHeight    = WindowWidth / curResizeRatio;
+            }
+            else
+                WindowHeight    = PreferredPortraitHeight;
+        }
+
+        if (IsAttached)
+        {
+            
+            Height  = WindowHeight;
+            Width   = WindowWidth;
+        }
+            
+        else if (Surface != null)
+        {
+            double WindowLeft;
+            double WindowTop;
 
             if (Surface.Left + Surface.Width / 2 > screen.Width / 2)
                 WindowLeft = Math.Min(Math.Max(Surface.Left + Surface.Width - WindowWidth, 0), screen.Width - WindowWidth);
@@ -965,6 +996,11 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     private void Player_Video_PropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         if (KeepRatioOnResize && e.PropertyName == nameof(Player.Video.AspectRatio) && Player.Video.AspectRatio.Value > 0)
+            UpdateCurRatio();
+    }
+    private void ReplicaPlayer_Video_PropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (KeepRatioOnResize && e.PropertyName == nameof(ReplicaPlayer.Video.AspectRatio) && ReplicaPlayer.Video.AspectRatio.Value > 0)
             UpdateCurRatio();
     }
     #endregion
@@ -1605,8 +1641,19 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     #region Methods
     public virtual void SetReplicaPlayer(Player oldPlayer)
     {
+        if (oldPlayer != null)
+        {
+            oldPlayer.renderer.SetReplica(IntPtr.Zero);
+            oldPlayer.Video.PropertyChanged -= ReplicaPlayer_Video_PropertyChanged;
+        }
+
+        if (ReplicaPlayer == null)
+            return;
+
         if (Surface != null)
             ReplicaPlayer.renderer.SetReplica(SurfaceHandle);
+
+        ReplicaPlayer.Video.PropertyChanged += ReplicaPlayer_Video_PropertyChanged;
     }
     public virtual void SetPlayer(Player oldPlayer)
     {

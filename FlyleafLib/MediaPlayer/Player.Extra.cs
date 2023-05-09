@@ -1,11 +1,12 @@
 ﻿using System;
-using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Windows;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaFrame;
+using FlyleafLib.MediaFramework.MediaRenderer;
 
 using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
@@ -207,8 +208,8 @@ unsafe partial class Player
     public void SpeedDown()     => Speed -= Config.Player.SpeedOffset;
     public void SpeedDown2()    => Speed -= Config.Player.SpeedOffset2;
 
-    public void RotateRight()   => Rotation = (_Rotation + 90) % 360;
-    public void RotateLeft()    => Rotation = _Rotation < 90 ? 360 + _Rotation - 90 : _Rotation - 90;
+    public void RotateRight()   => renderer.Rotation = (renderer.Rotation + 90) % 360;
+    public void RotateLeft()    => renderer.Rotation = renderer.Rotation < 90 ? 360 + renderer.Rotation - 90 : renderer.Rotation - 90;
 
     public void FullScreen()    => Host?.Player_SetFullScreen(true);
     public void NormalScreen()  => Host?.Player_SetFullScreen(false);
@@ -349,46 +350,57 @@ unsafe partial class Player
     /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
     /// <param name="frame">Specify the frame (null: will use the current/last frame)</param>
     /// <returns></returns>
-    public Bitmap TakeSnapshotToBitmap(int width = -1, int height = -1, VideoFrame frame = null) => renderer?.GetBitmap(width, height, frame);
+    public System.Drawing.Bitmap TakeSnapshotToBitmap(int width = -1, int height = -1, VideoFrame frame = null) => renderer?.GetBitmap(width, height, frame);
 
-    public void ZoomIn() => ZoomTimes++;
-    public void ZoomOut() => ZoomTimes--;
-    public void ZoomIn(System.Windows.Point p)
-    {
-        var prev = renderer.GetViewport;
+    public void ZoomIn()         => Zoom += Config.Player.ZoomOffset;
+    public void ZoomOut()       { if (Zoom - Config.Player.ZoomOffset < 1) return; Zoom -= Config.Player.ZoomOffset; }
 
-        if (p.X < prev.X || p.X > prev.X + prev.Width || p.Y < prev.Y || p.Y > prev.Y + prev.Height)
-        {
-            ZoomIn();
-            return;
-        }
+    /// <summary>
+    /// Pan zoom in with center point
+    /// </summary>
+    /// <param name="p"></param>
+    public void ZoomIn(Point p) { renderer.ZoomWithCenterPoint(p, renderer.Zoom + Config.Player.ZoomOffset / 100.0); RaiseUI(nameof(Zoom)); }
 
-        SetZoom(_ZoomTimes + 1, false);
-        renderer.SetPanX((int)(PanXOffset - renderer.GetViewport.X) + (int)(p.X - ((p.X - prev.X) * renderer.GetViewport.Width / prev.Width)), false);
-        PanYOffset = (int)(PanYOffset - renderer.GetViewport.Y) + (int)(p.Y - ((p.Y - prev.Y) * renderer.GetViewport.Height / prev.Height));
-    }
-    public void ZoomOut(System.Windows.Point p)
-    {
-        var prev = renderer.GetViewport;
+    /// <summary>
+    /// Pan zoom out with center point
+    /// </summary>
+    /// <param name="p"></param>
+    public void ZoomOut(Point p){ double zoom = renderer.Zoom - Config.Player.ZoomOffset / 100.0; if (zoom < 0.001) return; renderer.ZoomWithCenterPoint(p, zoom); RaiseUI(nameof(Zoom)); }
 
-        if (p.X < prev.X || p.X > prev.X + prev.Width || p.Y < prev.Y || p.Y > prev.Y + prev.Height)
-        {
-            ZoomOut();
-            return;
-        }
-
-        SetZoom(_ZoomTimes - 1, false);
-        renderer.SetPanX((int)(PanXOffset - renderer.GetViewport.X) + (int)(p.X - ((p.X - prev.X) * renderer.GetViewport.Width / prev.Width)), false);
-        PanYOffset = (int)(PanYOffset - renderer.GetViewport.Y) + (int)(p.Y - ((p.Y - prev.Y) * renderer.GetViewport.Height / prev.Height));
-    }
+    /// <summary>
+    /// Pan zoom (no raise)
+    /// </summary>
+    /// <param name="zoom"></param>
+    public void SetZoom(double zoom) => renderer.SetZoom(zoom);
+    /// <summary>
+    /// Pan zoom's center point (no raise, no center point change)
+    /// </summary>
+    /// <param name="p"></param>
+    public void SetZoomCenter(Point p) => renderer.SetZoomCenter(p);
+    /// <summary>
+    /// Pan zoom and center point (no raise)
+    /// </summary>
+    /// <param name="zoom"></param>
+    /// <param name="p"></param>
+    public void SetZoomAndCenter(double zoom, Point p) => renderer.SetZoomAndCenter(zoom, p);
 
     public void ResetAll()
     {
-        Speed = 1;
-        PanXOffset = 0;
-        PanYOffset = 0;
-        Rotation = 0;
-        Zoom = 100;
         ReversePlayback = false;
+        Speed = 1;
+
+        bool npx = renderer.PanXOffset != 0;
+        bool npy = renderer.PanXOffset != 0;
+        bool npr = renderer.Rotation != 0;
+        bool npz = renderer.Zoom != 1;
+        renderer.SetPanAll(0, 0, 0, 1, Renderer.ZoomCenterPoint, true); // Pan X/Y, Rotation, Zoom, Zoomcenter, Refresh
+
+        UI(() =>
+        {
+            if (npx) Raise(nameof(PanXOffset));
+            if (npy) Raise(nameof(PanYOffset));
+            if (npr) Raise(nameof(Rotation));
+            if (npz) Raise(nameof(Zoom));
+        });
     }
 }

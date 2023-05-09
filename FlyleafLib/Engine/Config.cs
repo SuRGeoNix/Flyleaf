@@ -496,7 +496,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Video aspect ratio
         /// </summary>
-        public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value) && player != null && player.renderer != null && !player.renderer.SCDisposed) lock(player.renderer.lockDevice) {  player.renderer.SetViewport(); if (player.renderer.replica != null) player.renderer.replica.SetViewport(); } } }
+        public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value) && player != null && player.renderer != null && !player.renderer.SCDisposed) lock(player.renderer.lockDevice) {  player.renderer.SetViewport(); if (player.renderer.child != null) player.renderer.child.SetViewport(); } } }
         AspectRatio    _AspectRatio = AspectRatio.Keep;
 
         /// <summary>
