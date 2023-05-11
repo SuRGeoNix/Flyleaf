@@ -139,7 +139,6 @@ public unsafe class Demuxer : RunThreadBase
     long                    hlsCurDuration;                             // Duration until the start of the current segment
     long                    lastSeekTime;                               // To set CurTime while no packets are available
 
-    internal GCHandle       handle;
     public object           lockFmtCtx              = new();
     internal bool           allowReadInterrupts;
 
@@ -277,8 +276,6 @@ public unsafe class Demuxer : RunThreadBase
 
             CustomIOContext.Dispose();
 
-            if (handle.IsAllocated) handle.Free();
-
             TotalBytes = 0;
             Status = Status.Stopped;
             Disposed = true;
@@ -315,16 +312,10 @@ public unsafe class Demuxer : RunThreadBase
             Disposed = false;
             Status   = Status.Opening;
 
-            if (!handle.IsAllocated)
-                handle = GCHandle.Alloc(this);
-                
             // Allocate / Prepare Format Context
             fmtCtx = avformat_alloc_context();
             if (Config.AllowInterrupts)
-            {
-                fmtCtx->interrupt_callback.callback = Interrupter.GetCallBackFunc();
-                fmtCtx->interrupt_callback.opaque = (void*) GCHandle.ToIntPtr(handle);
-            }
+                fmtCtx->interrupt_callback.callback = Interrupter.interruptClbk;
 
             fmtCtx->flags |= Config.FormatFlags;
 

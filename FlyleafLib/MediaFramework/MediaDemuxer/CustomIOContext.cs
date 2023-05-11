@@ -20,9 +20,6 @@ public unsafe class CustomIOContext
     public CustomIOContext(Demuxer demuxer)
     {
         this.demuxer = demuxer;
-
-        ioread.Pointer  = Marshal.GetFunctionPointerForDelegate(IORead);
-        ioseek.Pointer  = Marshal.GetFunctionPointerForDelegate(IOSeek);
     }
 
     public void Initialize(Stream stream)
@@ -34,7 +31,9 @@ public unsafe class CustomIOContext
             buffer  = new byte[demuxer.Config.IOStreamBufferSize]; // NOTE: if we use small buffer ffmpeg might request more than we suggest
 #endif
 
-        avioCtx = avio_alloc_context((byte*)av_malloc((ulong)demuxer.Config.IOStreamBufferSize), demuxer.Config.IOStreamBufferSize, 0, (void*) GCHandle.ToIntPtr(demuxer.handle), ioread, null, ioseek);            
+        ioread = IORead;
+        ioseek = IOSeek;
+        avioCtx = avio_alloc_context((byte*)av_malloc((ulong)demuxer.Config.IOStreamBufferSize), demuxer.Config.IOStreamBufferSize, 0, null, ioread, null, ioseek);            
         demuxer.FormatContext->pb     = avioCtx;
         demuxer.FormatContext->flags |= AVFMT_FLAG_CUSTOM_IO;
     }
@@ -48,18 +47,18 @@ public unsafe class CustomIOContext
         }
         avioCtx = null;
         stream = null;
+        ioread = null;
+        ioseek = null;
     }
 
-    avio_alloc_context_read_packet_func ioread  = new();    
-    avio_alloc_context_seek_func        ioseek  = new();
+    avio_alloc_context_read_packet  ioread;
+    avio_alloc_context_seek         ioseek;
 
-    avio_alloc_context_read_packet IORead = (opaque, buffer, bufferSize) =>
+    int IORead(void* opaque, byte* buffer, int bufferSize)
     {
         int ret;
-        GCHandle demuxerHandle = (GCHandle)(IntPtr)opaque;
-        Demuxer demuxer = (Demuxer)demuxerHandle.Target;
 
-        if (demuxer.Interrupter.ShouldInterrupt(demuxer) != 0) return AVERROR_EXIT;
+        if (demuxer.Interrupter.ShouldInterrupt(null) != 0) return AVERROR_EXIT;
 #if NETFRAMEWORK
         ret = demuxer.CustomIOContext.stream.Read(demuxer.CustomIOContext.buffer, 0, bufferSize);
         if (ret < 0) { demuxer.Log.Warn("CustomIOContext Interrupted"); return AVERROR_EXIT; }
@@ -69,17 +68,14 @@ public unsafe class CustomIOContext
 #endif
         if (ret < 0) { demuxer.Log.Warn("CustomIOContext Interrupted"); return AVERROR_EXIT; }
         return ret;
-    };
+    }
 
-    avio_alloc_context_seek IOSeek = (opaque, offset, wehnce) =>
+    long IOSeek(void* opaque, long offset, int whence)
     {
-        GCHandle demuxerHandle = (GCHandle)(IntPtr)opaque;
-        Demuxer demuxer = (Demuxer)demuxerHandle.Target;
-
         //System.Diagnostics.Debug.WriteLine($"** S | {decCtx.demuxer.fmtCtx->pb->pos} - {decCtx.demuxer.ioStream.Position}");
 
-        return wehnce == AVSEEK_SIZE
+        return whence == AVSEEK_SIZE
             ? demuxer.CustomIOContext.stream.Length
-            : demuxer.CustomIOContext.stream.Seek(offset, (SeekOrigin) wehnce);
-    };
+            : demuxer.CustomIOContext.stream.Seek(offset, (SeekOrigin) whence);
+    }
 }
