@@ -11,23 +11,14 @@ namespace FlyleafLib.MediaFramework.MediaDemuxer;
 public unsafe class Interrupter
 {
     public int          ForceInterrupt  { get; set; }
-    public Demuxer      Demuxer         { get; private set; }
-
     public Requester    Requester       { get; private set; }
     public int          Interrupted     { get; private set; }
 
-    public AVIOInterruptCB_callback_func GetCallBackFunc() => interruptClbk;
-    AVIOInterruptCB_callback_func   interruptClbk = new();     
-    AVIOInterruptCB_callback        InterruptClbk = (opaque) =>
-    {
-        GCHandle demuxerHandle = (GCHandle)(IntPtr)opaque;
-        Demuxer demuxer = (Demuxer)demuxerHandle.Target;
-
-        return demuxer.Interrupter.ShouldInterrupt(demuxer);
-    };
+    Demuxer demuxer;
     Stopwatch sw = new();
+    internal AVIOInterruptCB_callback interruptClbk;
 
-    public int ShouldInterrupt(Demuxer demuxer)
+    internal int ShouldInterrupt(void* opaque)
     {
         if (demuxer.Status == Status.Stopping)
         {
@@ -92,13 +83,13 @@ public unsafe class Interrupter
 
     public Interrupter(Demuxer demuxer)
     {
-        Demuxer = demuxer;
-        interruptClbk.Pointer = Marshal.GetFunctionPointerForDelegate(InterruptClbk);
+        this.demuxer = demuxer;
+        interruptClbk = ShouldInterrupt;
     }
 
     public void Request(Requester requester)
     {
-        if (!Demuxer.Config.AllowTimeouts) return;
+        if (!demuxer.Config.AllowTimeouts) return;
 
         Requester = requester;
         sw.Restart();
