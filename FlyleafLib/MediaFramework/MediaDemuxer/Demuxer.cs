@@ -182,6 +182,8 @@ public unsafe class Demuxer : RunThreadBase
             BindingOperations.EnableCollectionSynchronization(VideoStreams,     lockStreams);
             BindingOperations.EnableCollectionSynchronization(SubtitlesStreams, lockStreams);
         });
+
+        ioopen = IOOpen;
     }
     #endregion
 
@@ -402,6 +404,13 @@ public unsafe class Demuxer : RunThreadBase
             allowReadInterrupts = true; // allow Open interrupts always
             Interrupter.Request(Requester.Open);
 
+            // Nesting the io_open (to pass the options to the underline formats)
+            if (Config.FormatOptToUnderline)
+            {
+                ioopenDefault = (AVFormatContext_io_open)Marshal.GetDelegateForFunctionPointer(fmtCtx->io_open.Pointer, typeof(AVFormatContext_io_open));
+                fmtCtx->io_open = ioopen;
+            }
+            
             if (isDevice)
                 Utils.UIInvoke(() => OpenFormat(url, inFmt, fmtOptExtra, out ret));
             else
@@ -450,10 +459,30 @@ public unsafe class Demuxer : RunThreadBase
             if (gotLockActions) Monitor.Exit(lockActions);
         }
     }
+
+    AVFormatContext_io_open ioopen;
+    AVFormatContext_io_open ioopenDefault;
+    int IOOpen(AVFormatContext* s, AVIOContext** pb, string url, int flags, AVDictionary** options)
+    {
+        // TODO: just use a copy of the initial avopts (we miss the fmt:// url opts)?
+        var curOpt = Type == MediaType.Video ? Config.FormatOpt : (Type == MediaType.Audio ? Config.AudioFormatOpt : Config.SubtitlesFormatOpt);
+
+        if (curOpt != null)
+            foreach (var optKV in curOpt)
+                av_dict_set(options, optKV.Key, optKV.Value, 0);
+
+        int ret = ioopenDefault(s, pb, url, flags, options);
+
+        AVDictionaryEntry *t = null;
+        while ((t = av_dict_get(*options, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
+            Log.Debug($"Ignoring format option {Utils.BytePtrToStringUTF8(t->key)}");
+
+        return ret;
+    }
+
     private void OpenFormat(string url, AVInputFormat* inFmt, Dictionary<string, string> opt, out int ret)
     {
         AVDictionary* avopt = null;
-
         var curOpt = Type == MediaType.Video ? Config.FormatOpt : (Type == MediaType.Audio ? Config.AudioFormatOpt : Config.SubtitlesFormatOpt);
 
         if (curOpt != null)
@@ -466,16 +495,17 @@ public unsafe class Demuxer : RunThreadBase
 
         fixed(AVFormatContext** fmtCtxPtr = &fmtCtx)
             ret = avformat_open_input(fmtCtxPtr, url, inFmt, &avopt);
-
-        if (avopt != null)
+        
+        if (avopt != null && ret >= 0 && !Config.FormatOptToUnderline)
         {
             AVDictionaryEntry *t = null;
 
             while ((t = av_dict_get(avopt, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
                 Log.Debug($"Ignoring format option {Utils.BytePtrToStringUTF8(t->key)}");
-
-            av_dict_free(&avopt);
         }
+
+        if (avopt != null)
+            av_dict_free(&avopt);
     }
     private bool FillInfo()
     {
