@@ -379,6 +379,12 @@ public class Config : NotifyPropertyChanged
         public int              FormatFlags     { get; set; } = FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
 
         /// <summary>
+        /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt to the underline contexts)
+        /// </summary>
+        public bool             FormatOptToUnderline
+                                                { get; set; }
+
+        /// <summary>
         /// FFmpeg's format options for demuxer
         /// </summary>
         public SerializableDictionary<string, string>
@@ -400,7 +406,7 @@ public class Config : NotifyPropertyChanged
                 // HTTP
                 { "reconnect",          "1" },                                       // auto reconnect after disconnect before EOF
                 { "reconnect_streamed", "1" },                                       // auto reconnect streamed / non seekable streams
-                { "reconnect_delay_max","5" },                                       // max reconnect delay in seconds after which to give up
+                { "reconnect_delay_max","7" },                                       // max reconnect delay in seconds after which to give up
                 { "user_agent",         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36" },
 
                 // RTSP
