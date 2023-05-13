@@ -379,9 +379,9 @@ public class Config : NotifyPropertyChanged
         public int              FormatFlags     { get; set; } = FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
 
         /// <summary>
-        /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt to the underline contexts)
+        /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt to the underlying contexts)
         /// </summary>
-        public bool             FormatOptToUnderline
+        public bool             FormatOptToUnderlying
                                                 { get; set; }
 
         /// <summary>
