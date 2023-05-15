@@ -88,7 +88,7 @@ namespace FlyleafPlayer__Custom_
             // Player.renderer.SetReplica(flyleaf2.Handle);
             
             // Replica with any Handle (if you don't really need a FlyleafHost)
-            Player.renderer.SetReplica(pnlReplica.Handle);
+            Player.renderer.SetChildHandle(pnlReplica.Handle);
             
         }
 

@@ -603,7 +603,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 return;
 
             var bounds = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)Surface.Top, (int)Surface.Left)).Bounds;
-            screen = new(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
+            screen = new(bounds.Left / DpiX, bounds.Top / DpiY, bounds.Width / DpiX, bounds.Height / DpiY);
         } 
 
         double WindowWidth;
@@ -675,6 +675,11 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 WindowTop = Math.Min(Math.Max(Surface.Top + Surface.Height - WindowHeight, 0), screen.Height - WindowHeight);
             else
                 WindowTop = Surface.Top;
+
+            WindowLeft  *= DpiX;
+            WindowTop   *= DpiY;
+            WindowWidth *= DpiX;
+            WindowHeight*= DpiY;
 
             SetWindowPos(SurfaceHandle, IntPtr.Zero,
                 (int)WindowLeft,
@@ -1643,7 +1648,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     {
         if (oldPlayer != null)
         {
-            oldPlayer.renderer.SetReplica(IntPtr.Zero);
+            oldPlayer.renderer.SetChildHandle(IntPtr.Zero);
             oldPlayer.Video.PropertyChanged -= ReplicaPlayer_Video_PropertyChanged;
         }
 
@@ -1651,7 +1656,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         if (Surface != null)
-            ReplicaPlayer.renderer.SetReplica(SurfaceHandle);
+            ReplicaPlayer.renderer.SetChildHandle(SurfaceHandle);
 
         ReplicaPlayer.Video.PropertyChanged += ReplicaPlayer_Video_PropertyChanged;
     }
@@ -1745,7 +1750,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
 
         if (ReplicaPlayer != null)
-            ReplicaPlayer.renderer.SetReplica(SurfaceHandle);
+            ReplicaPlayer.renderer.SetChildHandle(SurfaceHandle);
 
         Surface.Closed      += Surface_Closed;
         Surface.Closing     += Surface_Closing;

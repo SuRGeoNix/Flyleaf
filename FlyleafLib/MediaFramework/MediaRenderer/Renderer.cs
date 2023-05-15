@@ -231,18 +231,18 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         ControlHandle       = handle;
     }
 
-    public void SetReplica(IntPtr handle)
+    public void SetChildHandle(IntPtr handle)
     {
         lock (lockDevice)
         {
             if (child != null)
-                DisposeReplica();
+                DisposeChild();
 
             if (handle == IntPtr.Zero)
                 return;
 
             child = new(this, handle, UniqueId);
-            InitializeReplica();
+            InitializeChildSwapChain();
         }        
     }
     #endregion
