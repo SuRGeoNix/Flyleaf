@@ -237,10 +237,10 @@ public unsafe partial class Renderer
                     InitializeWinUISwapChain();
             }
 
-            InitializeReplica();
+            InitializeChildSwapChain();
         }
     }
-    public void InitializeReplica(bool swapChain = true)
+    public void InitializeChildSwapChain(bool swapChain = true)
     {
         if (child == null )
             return;
@@ -276,7 +276,7 @@ public unsafe partial class Renderer
                 return;
 
             if (child != null)
-                DisposeReplica();
+                DisposeChild();
             
             Disposed = true;
 
@@ -289,6 +289,7 @@ public unsafe partial class Renderer
 
             ShaderVS?.Dispose();
             ShaderPS?.Dispose();
+            prevPSUniqueId = curPSUniqueId = ""; // Ensure we re-create ShaderPS for FlyleafVP on ConfigPlanes
             psBuffer?.Dispose();
             vsBuffer?.Dispose();
             vertexLayout?.Dispose();
@@ -333,22 +334,23 @@ public unsafe partial class Renderer
             if (CanInfo) Log.Info("Disposed");
         }
     }
-    public void DisposeReplica()
+    public void DisposeChild()
     {
         if (child == null)
             return;
 
         lock (lockDevice)
         {
-            DisposeSwapChain();
-            DisposeVideoProcessor();
+            child.DisposeSwapChain();
+            child.DisposeVideoProcessor();
 
             if (!isFlushing)
             {
-                child.Device    = null;
-                child.context   = null;
-                VideoDecoder    = null;
-                //LastFrame       = null;
+                child.Device        = null;
+                child.context       = null;
+                child.VideoDecoder  = null;
+                child.LastFrame     = null;
+                child               = null;
             }
         }
     }

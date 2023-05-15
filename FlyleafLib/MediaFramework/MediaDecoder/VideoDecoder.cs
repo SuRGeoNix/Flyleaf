@@ -1048,10 +1048,6 @@ public unsafe class VideoDecoder : DecoderBase
             hwframes    = null;
             swsCtx      = null;
             StartTime   = AV_NOPTS_VALUE;
-            
-            #if DEBUG
-            Renderer.ReportLiveObjects();
-            #endif
         }
     }
     #endregion

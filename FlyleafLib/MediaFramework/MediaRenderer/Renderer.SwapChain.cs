@@ -236,7 +236,7 @@ public partial class Renderer
         => zoom == 1 ? offset : offset / (zoom - 1); // possible bug when zoom = 1 (noticed in out of bounds zoom out)
 
     /// <summary>
-    /// Zooms in away that the specified point before zoom will be at the same position after zoom
+    /// Zooms in a way that the specified point before zoom will be at the same position after zoom
     /// </summary>
     /// <param name="p"></param>
     /// <param name="zoom"></param>
@@ -244,15 +244,15 @@ public partial class Renderer
     {
         /* Notes
          * 
-         * Current Point (CP)   // the current point in a -possible- zoomed viewport
+         * Zoomed Point (ZP)    // the current point in a -possible- zoomed viewport
          * Zoom (Z)
          * Unzoomed Point (UP)  // the actual pixel of the current point
          * Viewport Point (VP)
          * Center Point (CP)
          * 
-         * UP = (VP + CP) / Z =>
-         * CP = (UP * Z) - VP
-         * CP = VP / (ZP - 1) (when UP = CP)
+         * UP = (VP + ZP) / Z =>
+         * ZP = (UP * Z) - VP
+         * CP = VP / (ZP - 1) (when UP = ZP)
          */
 
         if (!IsPointWithInViewPort(p))
