@@ -2113,6 +2113,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             
             // Disposes SwapChain Only
             Player = null;
+            ReplicaPlayer = null;
             Disposed = true;
 
             DataContextChanged  -= Host_DataContextChanged;
