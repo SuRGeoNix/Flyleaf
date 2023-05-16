@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.16</Version>
+	<Version>3.7.17</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Workaround fix for an FFmpeg issue that it will not pass the Format Options to the underlying contexts such as HLS decryption_key (use new Config.Demuxer.FormatOptToUnderlying)
-		- Demuxer: Performance improvements with AV callbacks (removes GCHandle)
-		- Renderer: Adds support for child Renderer to duplicate the output to another swapchain with different configs (eg. for interactive zoom)
-		- Renderer: Improves Viewport calculations and adds support for zoom center point (ZoomCenter)
-		- Renderer: Fixes a critical issue withi FlyleafVP and Flush (Player.Stop)
-		- Player: Adds more Zoom helpers and drops ZoomTimes support (not required)
-		- FlyleafHost.Wpf: Improves attached resize with ratio
-		- FlyleafHost.Wpf: Fixes a DPI issue with Detached and Ratio Resize
+		- Renderer: Fixes a critical issue introduced in v3.7.16 for late initialization of the handle
 	</PackageReleaseNotes>
   </PropertyGroup>
 

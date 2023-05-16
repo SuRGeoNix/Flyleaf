@@ -81,7 +81,9 @@ unsafe public partial class Renderer
             Monitor.Enter(VideoDecoder.lockCodecCtx);
             Monitor.Enter(lockDevice);
 
-            if (SCDisposed || VideoStream == null)
+            // Don't use SCDisposed as we need to allow config planes even before swapchain creation
+            // TBR: Possible run ConfigPlanes after swapchain creation instead (currently we don't access any resources of the swapchain here and is safe)
+            if (Disposed || VideoStream == null)
                 return false;
 
             VideoDecoder.DisposeFrame(LastFrame);
