@@ -2,11 +2,19 @@
 
 namespace FlyleafLib.MediaFramework.MediaDevice;
 
-public class DeviceBase
+public class DeviceBase :DeviceBase<DeviceStreamBase>
+{
+    public DeviceBase(string friendlyName, string symbolicLink) : base(friendlyName, symbolicLink)
+    {
+    }
+}
+
+public class DeviceBase<T>
+    where T: DeviceStreamBase
 {
     public string   FriendlyName            { get; }
     public string   SymbolicLink            { get; }
-    public IEnumerable<DeviceStreamBase> 
+    public IEnumerable<T> 
                     Streams                 { get; protected set; }
     public string   Url                     { get; protected set; } // default Url
 

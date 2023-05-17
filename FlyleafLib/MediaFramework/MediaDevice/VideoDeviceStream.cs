@@ -61,7 +61,7 @@ public class VideoDeviceStream : DeviceStreamBase
     public override string ToString() => $"{SubType}, {FrameSizeWidth}x{FrameSizeHeight}, {FrameRate}FPS";
 
     #region VideoFormatsViaMediaSource
-    public static IEnumerable<DeviceStreamBase> GetVideoFormatsForVideoDevice(string friendlyName, string symbolicLink)
+    public static IEnumerable<VideoDeviceStream> GetVideoFormatsForVideoDevice(string friendlyName, string symbolicLink)
     {
         List<VideoDeviceStream> formatList = new();
 
