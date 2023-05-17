@@ -61,7 +61,7 @@ public class VideoDeviceStream : DeviceStreamBase
     public override string ToString() => $"{SubType}, {FrameSizeWidth}x{FrameSizeHeight}, {FrameRate}FPS";
 
     #region VideoFormatsViaMediaSource
-    public static IEnumerable<VideoDeviceStream> GetVideoFormatsForVideoDevice(string friendlyName, string symbolicLink)
+    public static IList<VideoDeviceStream> GetVideoFormatsForVideoDevice(string friendlyName, string symbolicLink)
     {
         List<VideoDeviceStream> formatList = new();
 
@@ -101,7 +101,7 @@ public class VideoDeviceStream : DeviceStreamBase
             }
         }
 
-        return formatList.OrderBy(format => format.SubType).ThenBy(format => format.FrameSizeHeight).ThenBy(format => format.FrameRate);
+        return formatList.OrderBy(format => format.SubType).ThenBy(format => format.FrameSizeHeight).ThenBy(format => format.FrameRate).ToList();
     }
 
     private static IMFMediaSource GetMediaSourceFromVideoDevice(string symbolicLink)
