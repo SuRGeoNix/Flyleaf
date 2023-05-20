@@ -442,6 +442,10 @@ public unsafe partial class DecoderContext : PluginHandler
 
             if (!VideoDemuxer.EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
+            // Early check for keyframe (in demux instead of decode)
+            var codecType = VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type;
+            if (VideoDecoder.keyFrameRequired && (codecType != AVMEDIA_TYPE_VIDEO || (packet->flags & AV_PKT_FLAG_KEY) == 0)) { av_packet_unref(packet); continue; } // early key check to avoid decoding
+
             if (VideoDemuxer.IsHLSLive)
                 VideoDemuxer.UpdateHLSTime();
 
@@ -453,7 +457,7 @@ public unsafe partial class DecoderContext : PluginHandler
                 Log.Trace($"[{stream.Type}] DTS: {(dts == -1 ? "-" : TicksToTime(dts))} PTS: {(pts == -1 ? "-" : TicksToTime(pts))} | FLPTS: {(pts == -1 ? "-" : TicksToTime(pts - VideoDemuxer.StartTime))} | CurTime: {TicksToTime(VideoDemuxer.CurTime)} | Buffered: {TicksToTime(VideoDemuxer.BufferedDuration)}");
             }
 
-            switch (VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type)
+            switch (codecType)
             {
                 case AVMEDIA_TYPE_AUDIO:
                     if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * AudioStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)

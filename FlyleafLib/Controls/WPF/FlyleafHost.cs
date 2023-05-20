@@ -591,7 +591,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             if (Owner == null)
             {
-                Height = Width / curResizeRatio;
+                Height = ActualWidth / curResizeRatio;
                 return;
             }
 
@@ -965,37 +965,45 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (!IsVisible || !IsAttached || IsFullScreen || IsResizing)
             return;
 
-        rectInit = rectIntersect = new(TransformToAncestor(Owner).Transform(zeroPoint), RenderSize);
-
-        FrameworkElement parent = this;
-        while ((parent = VisualTreeHelper.GetParent(parent) as FrameworkElement) != null)
-            rectIntersect.Intersect(new Rect(parent.TransformToAncestor(Owner).Transform(zeroPoint), parent.RenderSize));
-
-        if (rectInit != rectInitLast)
+        try
         {
-            SetRect(ref rectInit);
-            rectInitLast = rectInit;
+            rectInit = rectIntersect = new(TransformToAncestor(Owner).Transform(zeroPoint), RenderSize);
+
+            FrameworkElement parent = this;
+            while ((parent = VisualTreeHelper.GetParent(parent) as FrameworkElement) != null)
+                rectIntersect.Intersect(new Rect(parent.TransformToAncestor(Owner).Transform(zeroPoint), parent.RenderSize));
+
+            if (rectInit != rectInitLast)
+            {
+                SetRect(ref rectInit);
+                rectInitLast = rectInit;
+            }
+
+            if (rectIntersect == Rect.Empty)
+            {
+                if (rectIntersect == rectIntersectLast)
+                    return;
+
+                rectIntersectLast = rectIntersect;
+                SetVisibleRect(ref zeroRect);
+            }
+            else
+            {
+                rectIntersect.X -= rectInit.X;
+                rectIntersect.Y -= rectInit.Y;
+
+                if (rectIntersect == rectIntersectLast)
+                    return;
+
+                rectIntersectLast = rectIntersect;
+
+                SetVisibleRect(ref rectIntersect);
+            }
         }
-
-        if (rectIntersect == Rect.Empty)
+        catch (Exception ex)
         {
-            if (rectIntersect == rectIntersectLast)
-                return;
-
-            rectIntersectLast = rectIntersect;
-            SetVisibleRect(ref zeroRect);
-        }
-        else
-        {
-            rectIntersect.X -= rectInit.X;
-            rectIntersect.Y -= rectInit.Y;
-
-            if (rectIntersect == rectIntersectLast)
-                return;
-
-            rectIntersectLast = rectIntersect;
-
-            SetVisibleRect(ref rectIntersect);
+            // It has been noticed with NavigationService (The visual tree changes, visual root IsVisible is false but FlyleafHost is still visible)
+            if (Logger.CanDebug) Log.Debug($"Host_LayoutUpdated: {ex.Message}");
         }
     }
     private void Player_Video_PropertyChanged(object sender, PropertyChangedEventArgs e)
