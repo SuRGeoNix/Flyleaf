@@ -3,7 +3,7 @@ using Vortice.MediaFoundation;
 
 namespace FlyleafLib.MediaFramework.MediaDevice;
 
-public class AudioDevice : DeviceBase
+public class AudioDevice : DeviceBase<AudioDeviceStream>
 {
     public AudioDevice(string friendlyName, string symbolicLink) : base(friendlyName, symbolicLink)
         => Url = $"fmt://dshow?audio={FriendlyName}";
