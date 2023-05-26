@@ -99,6 +99,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     public int          UniqueId        { get; private set; }
     public bool         Disposed        { get; private set; }
 
+
+    public event EventHandler SurfaceCreated;
+    public event EventHandler OverlayCreated;
+
     static bool isDesginMode;
     static int  idGenerator = 1;
     static nint NONE_STYLE = (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE); // WS_MINIMIZEBOX required for swapchain
@@ -1777,6 +1781,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (IsAttached && IsLoaded && Owner == null && !fromSetOverlay)
             Host_Loaded(null, null);
+
+        SurfaceCreated?.Invoke(this, new());
     }
     public virtual void SetOverlay()
     {
@@ -1844,6 +1850,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (IsAttached && IsLoaded && Owner == null)
             Host_Loaded(null, null);
+
+        OverlayCreated?.Invoke(this, new());
     }
     private void SetMouseSurface()
     {
