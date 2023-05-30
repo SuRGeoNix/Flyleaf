@@ -68,8 +68,8 @@ public unsafe class VideoStream : StreamBase
                 ? ColorSpace.BT2020
                 : Height > 576 ? ColorSpace.BT709 : ColorSpace.BT601;
 
-            if (AVStream->codecpar->color_trc == AVColorTransferCharacteristic.AVCOL_TRC_UNSPECIFIED && Height > 1080) // Dolphy Vision
-            {
+            if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_UNSPECIFIED && AVStream->codecpar->color_trc == AVColorTransferCharacteristic.AVCOL_TRC_UNSPECIFIED && Height > 1080)
+            {   // TBR: Handle Dolphy Vision?
                 ColorSpace = ColorSpace.BT2020;
                 ColorTransfer = AVColorTransferCharacteristic.AVCOL_TRC_SMPTE2084;
             }
