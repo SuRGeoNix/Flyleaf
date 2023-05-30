@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.17</Version>
+	<Version>3.7.18</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer: Fixes a critical issue introduced in v3.7.16 for late initialization of the handle
+		- VideoDecoder: Fixes an issue with some (mainly image) formats
+		- CapDevices: Few improvements
+		- FlyleafHost.Wpf: Adds SurfaceCreated and OverlayCreated events to properly subscribe and register your own (keyboard/mouse) events on them to solve air space issues
 	</PackageReleaseNotes>
   </PropertyGroup>
 
