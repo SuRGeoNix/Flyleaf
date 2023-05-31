@@ -373,6 +373,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         int ret = 0;
         int allowedErrors = Config.Decoder.MaxErrors;
+        int sleepMs = Config.Decoder.MaxVideoFrames > 2 && Config.Player.MaxLatency == 0 ? 10 : 2;
         AVPacket *packet;
 
         do
@@ -383,7 +384,8 @@ public unsafe class VideoDecoder : DecoderBase
                 lock (lockStatus)
                     if (Status == Status.Running) Status = Status.QueueFull;
 
-                while (Frames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull) Thread.Sleep(20);
+                while (Frames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull)
+                    Thread.Sleep(sleepMs);
 
                 lock (lockStatus)
                 {
@@ -444,7 +446,7 @@ public unsafe class VideoDecoder : DecoderBase
                         break;
                     }
                     
-                    Thread.Sleep(20);
+                    Thread.Sleep(sleepMs);
                 }
 
                 lock (lockStatus)

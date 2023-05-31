@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.18</Version>
+	<Version>3.7.19</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,8 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- VideoDecoder: Fixes an issue with some (mainly image) formats
-		- CapDevices: Few improvements
-		- FlyleafHost.Wpf: Adds SurfaceCreated and OverlayCreated events to properly subscribe and register your own (keyboard/mouse) events on them to solve air space issues
+		- Decoder: Reduces Thread.Sleep on Queue full and/or empty to achieve lower latency and faster cancellation
+		- Nuget: Specifies exact version for Vortice to avoid issues with .NET framework
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -46,12 +45,12 @@
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="5.1.2.1" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="2.4.2" />
-    <PackageReference Include="Vortice.Direct3D11" Version="2.4.2" />
-    <PackageReference Include="Vortice.DirectComposition" Version="2.4.2" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.4.26" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="2.4.2" />
-    <PackageReference Include="Vortice.XAudio2" Version="2.4.2" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="[2.4.2]" />
+    <PackageReference Include="Vortice.Direct3D11" Version="[2.4.2]" />
+    <PackageReference Include="Vortice.DirectComposition" Version="[2.4.2]" />
+    <PackageReference Include="Vortice.Mathematics" Version="[1.4.26]" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="[2.4.2]" />
+    <PackageReference Include="Vortice.XAudio2" Version="[2.4.2]" />
   </ItemGroup>
   
   <ItemGroup>

@@ -129,6 +129,7 @@ public unsafe partial class AudioDecoder : DecoderBase
     {
         int ret = 0;
         int allowedErrors = Config.Decoder.MaxErrors;
+        int sleepMs = Config.Decoder.MaxAudioFrames > 5 && Config.Player.MaxLatency == 0 ? 10 : 4;
         AVPacket *packet;
         
         do
@@ -141,7 +142,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                         Status = Status.QueueFull;
 
                 while (Frames.Count >= Config.Decoder.MaxAudioFrames && Status == Status.QueueFull)
-                    Thread.Sleep(20);
+                    Thread.Sleep(sleepMs);
 
                 lock (lockStatus)
                 {
@@ -204,7 +205,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                         break;
                     }
                     
-                    Thread.Sleep(20);
+                    Thread.Sleep(sleepMs);
                 }
 
                 lock (lockStatus)
