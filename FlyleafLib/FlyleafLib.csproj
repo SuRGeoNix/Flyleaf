@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.19</Version>
+	<Version>3.7.20</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,8 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Decoder: Reduces Thread.Sleep on Queue full and/or empty to achieve lower latency and faster cancellation
-		- Nuget: Specifies exact version for Vortice to avoid issues with .NET framework
+		- VideoDecoder: Fixes an issue with colorspace (wrongly set as BT2020)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
