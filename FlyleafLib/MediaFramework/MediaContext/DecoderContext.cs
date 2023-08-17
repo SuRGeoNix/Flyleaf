@@ -442,9 +442,10 @@ public unsafe partial class DecoderContext : PluginHandler
 
             if (!VideoDemuxer.EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
 
-            // Early check for keyframe (in demux instead of decode)
             var codecType = VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type;
-            if (VideoDecoder.keyFrameRequired && (codecType != AVMEDIA_TYPE_VIDEO || (packet->flags & AV_PKT_FLAG_KEY) == 0)) { av_packet_unref(packet); continue; } // early key check to avoid decoding
+
+            // Early check for keyframe (in demux instead of decode) | This causes issues (packet flags will not have AV_PKT_FLAG_KEY while the frame can be a keyframe)
+            //if (VideoDecoder.keyFrameRequired && (codecType != AVMEDIA_TYPE_VIDEO || (packet->flags & AV_PKT_FLAG_KEY) == 0)) { av_packet_unref(packet); continue; } // early key check to avoid decoding
 
             if (VideoDemuxer.IsHLSLive)
                 VideoDemuxer.UpdateHLSTime();
