@@ -148,7 +148,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
         if (Player == null)
             return;
 
-        Player.renderer.ResizeBuffers((int) (e.NewSize.Width * Utils.NativeMethods.DpiX), (int) (e.NewSize.Height * Utils.NativeMethods.DpiY));
+        Player.renderer.ResizeBuffers((int) e.NewSize.Width, (int) e.NewSize.Height);
     }
 
     private void PlayerChanged(Player? oldPlayer)
