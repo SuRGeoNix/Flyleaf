@@ -7,7 +7,7 @@
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
     <Authors>SuRGeoNix</Authors>
-    <Version>1.0.9</Version>
+    <Version>1.0.10</Version>
     <Copyright>SuRGeoNix © 2023</Copyright>
     <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
     <PackageIcon>Flyleaf.png</PackageIcon>
@@ -15,7 +15,8 @@
     <PackageTags>flyleaf flyleaflib flyleafhost video audio winui media player element control</PackageTags>
     <Description>FlyleafHost.WinUI: Direct3D 11 Hardware Accelerated Media Surface (based on FlyleafLib)</Description>
 	  <PackageReleaseNotes>
-		  Updates FlyleafLib
+		  - Fixes a DPI issue
+		  - Updates FlyleafLib
 	  </PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
