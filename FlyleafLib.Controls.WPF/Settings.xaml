@@ -209,6 +209,7 @@
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
                                 <RowDefinition Height="30"/>
+                                <RowDefinition Height="30"/>
                             </Grid.RowDefinitions>
                             
                             <TextBlock Grid.Row="0" Text="Idle Timeout (ms)" VerticalAlignment="Center"/>
@@ -229,16 +230,19 @@
                             <TextBlock Grid.Row="5" Text="Video Frames Max." VerticalAlignment="Center"/>
                             <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
 
-                            <Separator Grid.Row="6" Grid.ColumnSpan="3"/>
+                            <TextBlock Grid.Row="6" Text="Vertical Resolution Max." VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Video.MaxVerticalResolutionCustom, UpdateSourceTrigger=Explicit}" ToolTip="0 for Auto"/>
 
-                            <TextBlock Grid.Row="7" Text="Log File" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2" Width="260" TextAlignment="Left" Style="{StaticResource FLTextbox}" Text="{Binding ConfigEngine.LogOutput, UpdateSourceTrigger=Explicit}"/>
+                            <Separator Grid.Row="7" Grid.ColumnSpan="3"/>
 
-                            <TextBlock Grid.Row="8" Text="Log Level" VerticalAlignment="Center"/>
-                            <ComboBox  Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Source={StaticResource LogLevelEnum}}" SelectedItem="{Binding ConfigEngine.LogLevel}"/>
+                            <TextBlock Grid.Row="8" Text="Log File" VerticalAlignment="Center"/>
+                            <TextBox   Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Width="260" TextAlignment="Left" Style="{StaticResource FLTextbox}" Text="{Binding ConfigEngine.LogOutput, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="9" Text="Log Level (FFmpeg)" VerticalAlignment="Center"/>
-                            <ComboBox  Grid.Row="9" Grid.Column="1" ItemsSource="{Binding Source={StaticResource FFmpegLogLevelEnum}}" SelectedItem="{Binding ConfigEngine.FFmpegLogLevel}"/>
+                            <TextBlock Grid.Row="9" Text="Log Level" VerticalAlignment="Center"/>
+                            <ComboBox  Grid.Row="9" Grid.Column="1" ItemsSource="{Binding Source={StaticResource LogLevelEnum}}" SelectedItem="{Binding ConfigEngine.LogLevel}"/>
+
+                            <TextBlock Grid.Row="10" Text="Log Level (FFmpeg)" VerticalAlignment="Center"/>
+                            <ComboBox  Grid.Row="10" Grid.Column="1" ItemsSource="{Binding Source={StaticResource FFmpegLogLevelEnum}}" SelectedItem="{Binding ConfigEngine.FFmpegLogLevel}"/>
                         </Grid>
                         </ScrollViewer>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
