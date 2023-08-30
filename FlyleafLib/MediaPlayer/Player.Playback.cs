@@ -68,10 +68,17 @@ partial class Player
                     ScreamerAudioOnly();
                 else
                 {
-                    if (ReversePlayback)
+                    if (ReversePlayback) 
+                    {
+                        shouldFlushNext = true;
                         ScreamerReverse();
+                    }
                     else
+                    {
+                        shouldFlushPrev = true;
                         Screamer();
+                    }
+                        
                 }
 
             } catch (Exception e)

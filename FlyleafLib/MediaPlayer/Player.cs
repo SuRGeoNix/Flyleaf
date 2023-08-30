@@ -289,7 +289,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
 
             lock (lockActions)
             {
-                bool shouldPlay = IsPlaying;
+                bool shouldPlay = IsPlaying || (Status == Status.Ended && Config.Player.AutoPlay);
                 Pause();
                 sFrame = null;
                 Subtitles.subsText = "";
@@ -297,6 +297,12 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
                     UI(() => Subtitles.SubsText = Subtitles.SubsText);
                 decoder.StopThreads();
                 decoder.Flush();
+
+                if (Status == Status.Ended)
+                {
+                    status = Status.Paused;
+                    UI(() => Status = Status);
+                }
 
                 if (value)
                 {
@@ -306,12 +312,6 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
                 else
                 {
                     VideoDemuxer.DisableReversePlayback();
-
-                    if (Status == Status.Ended)
-                    {
-                        status = Status.Paused;
-                        UI(() => Status = Status);
-                    }
 
                     var vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime));
                     VideoDecoder.DisposeFrame(vFrame);
