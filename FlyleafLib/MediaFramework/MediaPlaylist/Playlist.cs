@@ -48,7 +48,7 @@ public class Playlist : NotifyPropertyChanged
     public PlaylistItem PrevItem        { get => _PrevItem; internal set => SetUI(ref _PrevItem, value); }
     PlaylistItem _PrevItem;
 
-    void UpdatePrevNextItem()
+    internal void UpdatePrevNextItem()
     {
         if (Selected == null)
         {
