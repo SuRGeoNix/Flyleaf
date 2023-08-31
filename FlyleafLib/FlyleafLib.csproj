@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.21</Version>
+	<Version>3.7.22</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Fixes a seeking issue which introduced from 3.7.18
+		- Config: Adds JSON instead of XML serialization (.NET5+) and fixes issues with Load/Save
+		- Frame Stepping: Will not affect playback mode or speed
+		- Subtitles: Improvements and fixes an issue that it would not start the decoder properly
+		- Downloader: Adds IO.Stream support
 	</PackageReleaseNotes>
   </PropertyGroup>
 
