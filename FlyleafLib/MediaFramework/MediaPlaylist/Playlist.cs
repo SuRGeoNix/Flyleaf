@@ -39,8 +39,34 @@ public class Playlist : NotifyPropertyChanged
     /// <summary>
     /// Playlist's opened/selected item
     /// </summary>
-    public PlaylistItem Selected        { get => _Selected; internal set => SetUI(ref _Selected, value); }
+    public PlaylistItem Selected        { get => _Selected; internal set { SetUI(ref _Selected, value); UpdatePrevNextItem(); } }
     PlaylistItem _Selected;
+
+    public PlaylistItem NextItem        { get => _NextItem; internal set => SetUI(ref _NextItem, value); }
+    PlaylistItem _NextItem;
+
+    public PlaylistItem PrevItem        { get => _PrevItem; internal set => SetUI(ref _PrevItem, value); }
+    PlaylistItem _PrevItem;
+
+    void UpdatePrevNextItem()
+    {
+        if (Selected == null)
+        {
+            PrevItem = NextItem = null;
+            return;
+        }
+
+        for (int i=0; i < Items.Count; i++)
+        {
+            if (Items[i] == Selected)
+            {
+                PrevItem = i > 0 ? Items[i - 1] : null;
+                NextItem = i < Items.Count - 1 ? Items[i + 1] : null;
+
+                return;
+            }
+        }
+    }
 
     /// <summary>
     /// Type of the provided input (such as File, UNC, Torrent, Web, etc.)
