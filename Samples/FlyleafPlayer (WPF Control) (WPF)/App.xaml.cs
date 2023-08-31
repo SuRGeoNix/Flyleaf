@@ -26,8 +26,8 @@ namespace FlyleafPlayer
 
             // Engine's Config
             #if RELEASE
-            if (File.Exists("Flyleaf.Engine.xml"))
-                try { engineConfig = EngineConfig.Load("Flyleaf.Engine.xml"); } catch { engineConfig = DefaultEngineConfig(); }
+            if (File.Exists("Flyleaf.Engine.json"))
+                try { engineConfig = EngineConfig.Load("Flyleaf.Engine.json"); } catch { engineConfig = DefaultEngineConfig(); }
             else
                 engineConfig = DefaultEngineConfig();
             #else

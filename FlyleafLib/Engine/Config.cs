@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+#if NET5_0_OR_GREATER
+using System.Text.Json;
+using System.Text.Json.Serialization;
+#endif
 using System.Threading;
 using System.Xml.Serialization;
 
@@ -57,10 +61,14 @@ public class Config : NotifyPropertyChanged
     }
     public static Config Load(string path)
     {
+        #if NET5_0_OR_GREATER
+        Config config       = JsonSerializer.Deserialize<Config>(File.ReadAllText(path));
+        #else
         using FileStream fs = new(path, FileMode.Open);
         XmlSerializer xmlSerializer
                             = new(typeof(Config));
         Config config       = (Config) xmlSerializer.Deserialize(fs);
+        #endif
         config.Loaded       = true;
         config.LoadedPath   = path;
 
@@ -76,9 +84,13 @@ public class Config : NotifyPropertyChanged
             path = LoadedPath;
         }
 
+        #if NET5_0_OR_GREATER
+        File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions() { WriteIndented = true }));
+        #else
         using FileStream fs = new(path, FileMode.Create);
         XmlSerializer xmlSerializer = new(GetType());
         xmlSerializer.Serialize(fs, this);
+        #endif
     }
 
     internal void SetPlayer(Player player)
@@ -96,12 +108,18 @@ public class Config : NotifyPropertyChanged
     /// Whether configuration has been loaded from file
     /// </summary>
     [XmlIgnore]
+    #if NET5_0_OR_GREATER
+    [JsonIgnore]
+    #endif
     public bool             Loaded      { get; private set; }
 
     /// <summary>
     /// The path that this configuration has been loaded from
     /// </summary>
     [XmlIgnore]
+    #if NET5_0_OR_GREATER
+    [JsonIgnore]
+    #endif
     public string           LoadedPath  { get; private set; }
 
     public PlayerConfig     Player      { get; set; } = new PlayerConfig();
@@ -112,7 +130,7 @@ public class Config : NotifyPropertyChanged
     public SubtitlesConfig  Subtitles   { get; set; } = new SubtitlesConfig();
 
     public SerializableDictionary<string, SerializableDictionary<string, string>>
-                            Plugins = new();
+                            Plugins     { get; set; } = new();
     public class PlayerConfig : NotifyPropertyChanged
     {
         public PlayerConfig Clone()
@@ -534,6 +552,9 @@ public class Config : NotifyPropertyChanged
         /// The max resolution that the current system can achieve and will be used from the input/stream suggester plugins
         /// </summary>
         [XmlIgnore]
+        #if NET5_0_OR_GREATER
+        [JsonIgnore]
+        #endif
         public int              MaxVerticalResolutionAuto   { get; internal set; }
 
         /// <summary>
@@ -545,6 +566,10 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// The max resolution that is currently used (based on Auto/Custom)
         /// </summary>
+        [XmlIgnore]
+        #if NET5_0_OR_GREATER
+        [JsonIgnore]
+        #endif
         public int              MaxVerticalResolution       => MaxVerticalResolutionCustom == 0 ? (MaxVerticalResolutionAuto != 0 ? MaxVerticalResolutionAuto : 1080) : MaxVerticalResolutionCustom;
 
         /// <summary>
@@ -748,6 +773,9 @@ public class Config : NotifyPropertyChanged
         /// Subtitles parser (can be used for custom parsing)
         /// </summary>
         [XmlIgnore]
+        #if NET5_0_OR_GREATER
+        [JsonIgnore]
+        #endif
         public Action<SubtitlesFrame>
                                 Parser              { get; set; } = ParseSubtitles.Parse;
     }
@@ -796,12 +824,18 @@ public class EngineConfig
     /// Whether configuration has been loaded from file
     /// </summary>
     [XmlIgnore]
+    #if NET5_0_OR_GREATER
+    [JsonIgnore]
+    #endif
     public bool     Loaded                  { get; private set; }
 
     /// <summary>
     /// The path that this configuration has been loaded from
     /// </summary>
     [XmlIgnore]
+    #if NET5_0_OR_GREATER
+    [JsonIgnore]
+    #endif
     public string   LoadedPath              { get; private set; }
 
     /// <summary>
@@ -865,10 +899,14 @@ public class EngineConfig
     /// <returns></returns>
     public static EngineConfig Load(string path)
     {
+        #if NET5_0_OR_GREATER
+        EngineConfig config = JsonSerializer.Deserialize<EngineConfig>(File.ReadAllText(path));
+        #else
         using FileStream fs = new(path, FileMode.Open);
         XmlSerializer xmlSerializer
                             = new(typeof(EngineConfig));
         EngineConfig config = (EngineConfig)xmlSerializer.Deserialize(fs);
+        #endif
         config.Loaded       = true;
         config.LoadedPath   = path;
 
@@ -889,10 +927,14 @@ public class EngineConfig
             path = LoadedPath;
         }
 
+        #if NET5_0_OR_GREATER
+        File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions() { WriteIndented = true, }));
+        #else
         using FileStream fs = new(path, FileMode.Create);
         XmlSerializer xmlSerializer
                             = new(GetType());
 
         xmlSerializer.Serialize(fs, this);
+        #endif
     }
 }

@@ -281,12 +281,12 @@ namespace FlyleafLib.Controls.WPF
             {
                 UIConfig UIConfig = new UIConfig(this);
 
-                UIConfig.SubsMargin     = new Thickness(0, 0, 0, 50);
+                UIConfig.SubsMargin     = new Thickness(0, 0, 0, 60);
                 UIConfig.SubsFontFamily = "Segoe UI";
                 UIConfig.SubsFontWeight = FontWeights.Bold.ToString();
                 UIConfig.SubsFontStyle  = FontStyles.Normal.ToString();
                 UIConfig.SubsFontStretch= FontStretches.Normal.ToString();
-                UIConfig.SubsFontSize   = 33;
+                UIConfig.SubsFontSize   = 40;
                 UIConfig.SubsFontColor  = Colors.White;
                 
                 ITheme theme = Overlay.Resources.GetTheme();
@@ -306,6 +306,8 @@ namespace FlyleafLib.Controls.WPF
                 UIConfig.SelectedTheme = "Firebrick";
 
                 this.UIConfig = UIConfig;
+                if (!string.IsNullOrEmpty(UIConfigPath))
+                    UIConfig.Save(this, UIConfigPath, ConfigPath, EnginePath);
             }
 
             foreach (var uitheme in UIConfig.Themes)
