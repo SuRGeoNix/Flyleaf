@@ -103,6 +103,8 @@
                                     <ColumnDefinition Width="auto"/>
                                     <ColumnDefinition Width="auto"/>
                                     <ColumnDefinition Width="auto"/>
+                                    <ColumnDefinition Width="auto"/>
+                                    <ColumnDefinition Width="auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <!--Play / Pause Button-->
@@ -176,9 +178,36 @@
                                     <materialDesign:PackIcon Kind="VideoInputAntenna" Height="20" Width="20" Foreground="{DynamicResource SecondaryHueMidBrush}" VerticalAlignment="Center" Visibility="{Binding Player.IsLive, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
                                     <TextBlock VerticalAlignment="Center" FontStyle="Italic" Margin="5,0,0,0" Text="{Binding Player.Playlist.Selected.Title}"/>
                                 </StackPanel>
+                                
+                                
+                                <Button Grid.Column="3" Content="{materialDesign:PackIcon Kind=SkipPrevious}" Command="{Binding Player.Commands.Reopen}" CommandParameter="{Binding Player.Playlist.PrevItem}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Player.Playlist.PrevItem}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Grid.Column="4" Content="{materialDesign:PackIcon Kind=SkipNext}" Command="{Binding Player.Commands.Reopen}" CommandParameter="{Binding Player.Playlist.NextItem}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Player.Playlist.NextItem}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
 
                                 <!--Volume Button (Mute/Unmute)-->
-                                <Button Grid.Column="3" Foreground="{DynamicResource SecondaryHueMidBrush}" Command="{Binding Player.Commands.ToggleMute}">
+                                <Button Grid.Column="5" Foreground="{DynamicResource SecondaryHueMidBrush}" Command="{Binding Player.Commands.ToggleMute}">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                             <Setter Property="Content" Value="{materialDesign:PackIcon Kind=VolumeHigh}"/>
@@ -201,13 +230,13 @@
                                 </Button>
 
                                 <!--Volume Slider (Decibel)-->
-                                <Slider Grid.Column="4" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource SecondaryHueMidBrush}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" d:Maximum="150" d:Value="75" Value="{Binding Player.Audio.Volume}"/>
+                                <Slider Grid.Column="6" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource SecondaryHueMidBrush}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" d:Maximum="150" d:Value="75" Value="{Binding Player.Audio.Volume}"/>
 
                                 <!--Open Settings Button-->
-                                <Button Grid.Column="5" Style="{StaticResource IconButton}" Content="{materialDesign:PackIcon Kind=SettingsOutline}" Command="{Binding OpenSettingsCmd}"/>
+                                <Button Grid.Column="7" Style="{StaticResource IconButton}" Content="{materialDesign:PackIcon Kind=SettingsOutline}" Command="{Binding OpenSettingsCmd}"/>
 
                                 <!--Toggle Fullscreen Button-->
-                                <ToggleButton Grid.Column="6" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Background="Transparent" Focusable="False"
+                                <ToggleButton Grid.Column="8" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Background="Transparent" Focusable="False"
                                                           IsChecked="{Binding Player.Host.IsFullScreen}" 
                                                           Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}" 
                                                           materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=FullscreenExit, Size=28}"/>
