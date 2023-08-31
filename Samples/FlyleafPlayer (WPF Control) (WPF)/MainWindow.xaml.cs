@@ -62,6 +62,11 @@ namespace FlyleafPlayer
                 PreferredLandscapeWidth = 800,
                 PreferredPortraitHeight = 600
             };
+
+            // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
+            FlyleafME.ConfigPath    = "Flyleaf.Config.json";
+            FlyleafME.EnginePath    = "Flyleaf.Engine.json";
+            FlyleafME.UIConfigPath  = "Flyleaf.UIConfig.json";
             
             InitializeComponent();
 
@@ -85,8 +90,8 @@ namespace FlyleafPlayer
             // Player's Config (Cannot be initialized before Engine's initialization)
             #if RELEASE
             // Load Player's Config
-            if (File.Exists("Flyleaf.Config.xml"))
-                try { playerConfig = Config.Load("Flyleaf.Config.xml"); } catch { playerConfig = DefaultConfig(); }
+            if (File.Exists("Flyleaf.Config.json"))
+                try { playerConfig = Config.Load("Flyleaf.Config.json"); } catch { playerConfig = DefaultConfig(); }
             else
                 playerConfig = DefaultConfig();
             #else
@@ -112,11 +117,6 @@ namespace FlyleafPlayer
             // Dispose Player on Window Close (the possible swapped player from FlyleafMe that actually belongs to us)
             Closing += (o, e) => FlyleafME.Player?.Dispose();
 
-            // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
-            FlyleafME.ConfigPath    = "Flyleaf.Config.xml";
-            FlyleafME.EnginePath    = "Flyleaf.Engine.xml";
-            FlyleafME.UIConfigPath  = "Flyleaf.UIConfig.xml";
-            
             // If the user requests reverse playback allocate more frames once
             Player.PropertyChanged += (o, e) =>
             {
@@ -227,7 +227,7 @@ namespace FlyleafPlayer
                 try
                 {
                     Utils.AddFirewallRule();
-                    playerConfig.Save("Flyleaf.Config.xml");
+                    playerConfig.Save("Flyleaf.Config.json");
                 } catch { }
             }
 
@@ -238,7 +238,7 @@ namespace FlyleafPlayer
                 Engine.Config.LogLevel       = LogLevel.Quiet;
                 //Engine.Config.FFmpegDevices  = false;
 
-                try { Engine.Config.Save("Flyleaf.Engine.xml"); } catch { }
+                try { Engine.Config.Save("Flyleaf.Engine.json"); } catch { }
             }
             #endif
         }
