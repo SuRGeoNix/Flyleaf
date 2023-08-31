@@ -260,10 +260,25 @@ namespace FlyleafLib.Plugins
 
                 subs.AddRange(SearchByName(filename, lang));
             }
-
-            // Unique by SubHashes (if any)
+            
             List<OpenSubtitlesOrgJson> uniqueList = new List<OpenSubtitlesOrgJson>();
             List<int> removeIds = new List<int>();
+
+            // Ensure same season/episode (checks also subs file name)
+            if (Selected.Season > 0 && Selected.Episode > 0)
+            {
+                for (int i = 0; i < subs.Count - 1; i++)
+                {
+                    if (!int.TryParse(subs[i].SeriesSeason, out int season) || !int.TryParse(subs[i].SeriesEpisode, out int episode) || season != Selected.Season || episode != Selected.Episode)
+                        { removeIds.Add(i); continue; }
+
+                    var mp = Utils.GetMediaParts(subs[i].SubFileName);
+                    if (mp.Season != Selected.Season || mp.Episode != Selected.Episode)
+                        removeIds.Add(i);
+                }
+            }
+
+            // Unique by SubHashes (if any)
             for (int i = 0; i < subs.Count - 1; i++)
             {
                 if (removeIds.Contains(i)) continue;

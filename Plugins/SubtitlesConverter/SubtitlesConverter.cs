@@ -100,6 +100,17 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
                 }
                 catch (Exception e) { Log.Error($"Convert Error: {e.Message}"); }
             }
+            else if (Selected.ExternalSubtitlesStream.Url.StartsWith(Path.GetTempPath()))
+            {
+                var folder = Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs");
+                var filename = Utils.FindNextAvailableFile(Path.Combine(folder, $"{Selected.Title}.{Selected.ExternalSubtitlesStream.Language.IdSubLanguage}.utf8.srt"));
+
+                var newUrl = Path.Combine(folder, filename);
+                Directory.CreateDirectory(folder);
+                File.Copy(Selected.ExternalSubtitlesStream.Url, newUrl);
+                Selected.ExternalSubtitlesStream.DirectUrl = Selected.ExternalSubtitlesStream.Url;
+                Selected.ExternalSubtitlesStream.Url = newUrl;
+            }
 
             Selected.ExternalSubtitlesStream.Converted = true;
         }
