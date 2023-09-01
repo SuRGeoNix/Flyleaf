@@ -1073,6 +1073,12 @@ public unsafe class VideoDecoder : DecoderBase
     #endregion
 
     #region TODO Decoder Profiles
+
+    /* Use the same as FFmpeg
+     * https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/dxva2.c
+     * https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/avcodec.h
+     */
+
     //internal enum DecoderProfiles
     //{
     //    DXVA_ModeMPEG2and1_VLD,
