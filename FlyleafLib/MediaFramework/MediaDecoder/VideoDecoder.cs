@@ -46,6 +46,7 @@ public unsafe class VideoDecoder : DecoderBase
 
     internal bool           swFallback;
     internal bool           keyFrameRequired;
+    internal bool           keyFrameRequiredPacket;
 
     // Reverse Playback
     ConcurrentStack<List<IntPtr>>
@@ -303,6 +304,8 @@ public unsafe class VideoDecoder : DecoderBase
         //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
         
         keyFrameRequired= true;
+        keyFrameRequiredPacket
+                        = true;
         ZeroCopy        = false;
         filledFromCodec = false;
 
@@ -358,8 +361,10 @@ public unsafe class VideoDecoder : DecoderBase
                 avcodec_flush_buffers(codecCtx);
             
                 keyFrameRequired = true;
-                StartTime = AV_NOPTS_VALUE;
-                curSpeedFrame = (int)speed;
+                keyFrameRequiredPacket
+                                = true;
+                StartTime       = AV_NOPTS_VALUE;
+                curSpeedFrame   = (int)speed;
             }
     }
 
@@ -374,7 +379,6 @@ public unsafe class VideoDecoder : DecoderBase
         int ret = 0;
         int allowedErrors = Config.Decoder.MaxErrors;
         int sleepMs = Config.Decoder.MaxVideoFrames > 2 && Config.Player.MaxLatency == 0 ? 10 : 2;
-        bool gotPacketKey = false;
         AVPacket *packet;
 
         do
@@ -480,12 +484,12 @@ public unsafe class VideoDecoder : DecoderBase
                         curRecorder.Write(av_packet_clone(packet));
                 }
 
-                if (keyFrameRequired && !gotPacketKey)
+                if (keyFrameRequired && keyFrameRequiredPacket)
                 {
                     if ((packet->flags & AV_PKT_FLAG_KEY) == 0)
                         { av_packet_free(&packet); continue; }
 
-                    gotPacketKey = true;
+                    keyFrameRequiredPacket = false;
                 }
 
                 // TBR: AVERROR(EAGAIN) means avcodec_receive_frame but after resend the same packet
@@ -540,7 +544,6 @@ public unsafe class VideoDecoder : DecoderBase
                         {
                             StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
                             keyFrameRequired = false;
-                            gotPacketKey = false;
                         }
                     }
 
@@ -567,6 +570,9 @@ public unsafe class VideoDecoder : DecoderBase
 
                     var mFrame = Renderer.FillPlanes(frame);
                     if (mFrame != null) Frames.Enqueue(mFrame); // TBR: Does not respect Config.Decoder.MaxVideoFrames
+
+                    if (Frames.Count > 2) // Fast decoding affects rendering (mainly when we use large Frame Queues)
+                        Thread.Sleep(10);
                 }
 
                 av_packet_free(&packet);
@@ -795,7 +801,8 @@ public unsafe class VideoDecoder : DecoderBase
 
                 // Import Sleep required to prevent delay during Renderer.Present
                 // TBR: Might Monitor.TryEnter with priorities between decoding and rendering will work better
-                Thread.Sleep(10);
+                if (Frames.Count > 2)
+                    Thread.Sleep(10);
                 
             } // while curReverseVideoPackets.Count > 0
 
@@ -869,8 +876,8 @@ public unsafe class VideoDecoder : DecoderBase
         if (demuxer.Status == Status.Ended) demuxer.Status = Status.Stopped;
         if (ret < 0) return null; // handle seek error
         Flush();
-        keyFrameRequired = false;
-        StartTime = frameTimestamp - VideoStream.StartTime; // required for audio sync
+        //keyFrameRequired = false; TODO gotPktKey as keyframerequired and used it everywhere
+        //StartTime = frameTimestamp - VideoStream.StartTime; // required for audio sync
 
         // Decoding until requested frame/timestamp
         bool checkExtraFrames = false;
@@ -913,7 +920,7 @@ public unsafe class VideoDecoder : DecoderBase
         int ret;
         int allowedErrors = Config.Decoder.MaxErrors;
 
-        if (checkExtraFrames)
+        if (checkExtraFrames && !keyFrameRequired)
         {
             ret = avcodec_receive_frame(codecCtx, frame);
 
@@ -939,6 +946,14 @@ public unsafe class VideoDecoder : DecoderBase
             if (ret != 0 && demuxer.Status != Status.Ended)
                 return ret;
 
+            if (keyFrameRequired && keyFrameRequiredPacket)
+            {
+                if ((demuxer.packet->flags & AV_PKT_FLAG_KEY) == 0)
+                    { av_packet_unref(demuxer.packet); continue; }
+
+                keyFrameRequiredPacket = false;
+            }
+
             ret = avcodec_send_packet(codecCtx, demuxer.packet);
             av_packet_unref(demuxer.packet);
 
@@ -958,6 +973,21 @@ public unsafe class VideoDecoder : DecoderBase
             {
                 av_frame_unref(frame);
                 return ret;
+            }
+
+            if (keyFrameRequired)
+            {
+                if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
+                {
+                    if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
+                    av_frame_unref(frame);
+                    continue;
+                }
+                else
+                {
+                    StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
+                    keyFrameRequired = false;
+                }
             }
 
             if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
