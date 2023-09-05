@@ -424,7 +424,6 @@ public unsafe partial class DecoderContext : PluginHandler
         int ret;
         var packet = av_packet_alloc();
         var frame  = av_frame_alloc();
-        bool gotPacketKey = false;
 
         lock (VideoDemuxer.lockFmtCtx)
         lock (VideoDecoder.lockCodecCtx)
@@ -445,11 +444,13 @@ public unsafe partial class DecoderContext : PluginHandler
 
             var codecType = VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type;
 
-            if (codecType == AVMEDIA_TYPE_VIDEO && (packet->flags & AV_PKT_FLAG_KEY) != 0)
-                gotPacketKey = true;
+            if (VideoDecoder.keyFrameRequired && VideoDecoder.keyFrameRequiredPacket)
+            {
+                if (codecType != AVMEDIA_TYPE_VIDEO || (packet->flags & AV_PKT_FLAG_KEY) == 0)
+                    { av_packet_unref(packet); continue; }
 
-            if (!gotPacketKey)
-                { av_packet_unref(packet); continue; }
+                VideoDecoder.keyFrameRequiredPacket = false;
+            }
 
             if (VideoDemuxer.IsHLSLive)
                 VideoDemuxer.UpdateHLSTime();
