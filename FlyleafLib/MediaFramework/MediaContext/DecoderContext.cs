@@ -424,6 +424,7 @@ public unsafe partial class DecoderContext : PluginHandler
         int ret;
         var packet = av_packet_alloc();
         var frame  = av_frame_alloc();
+        bool gotPacketKey = false;
 
         lock (VideoDemuxer.lockFmtCtx)
         lock (VideoDecoder.lockCodecCtx)
@@ -444,8 +445,11 @@ public unsafe partial class DecoderContext : PluginHandler
 
             var codecType = VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type;
 
-            // Early check for keyframe (in demux instead of decode) | This causes issues (packet flags will not have AV_PKT_FLAG_KEY while the frame can be a keyframe)
-            //if (VideoDecoder.keyFrameRequired && (codecType != AVMEDIA_TYPE_VIDEO || (packet->flags & AV_PKT_FLAG_KEY) == 0)) { av_packet_unref(packet); continue; } // early key check to avoid decoding
+            if (codecType == AVMEDIA_TYPE_VIDEO && (packet->flags & AV_PKT_FLAG_KEY) != 0)
+                gotPacketKey = true;
+
+            if (!gotPacketKey)
+                { av_packet_unref(packet); continue; }
 
             if (VideoDemuxer.IsHLSLive)
                 VideoDemuxer.UpdateHLSTime();
@@ -501,7 +505,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
                         if (VideoDecoder.keyFrameRequired && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
                         {
-                            if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
+                            if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}] [{(packet->flags & AV_PKT_FLAG_KEY) == 0}]");
                             av_frame_unref(frame);
                             continue;
                         }
