@@ -374,6 +374,7 @@ public unsafe class VideoDecoder : DecoderBase
         int ret = 0;
         int allowedErrors = Config.Decoder.MaxErrors;
         int sleepMs = Config.Decoder.MaxVideoFrames > 2 && Config.Player.MaxLatency == 0 ? 10 : 2;
+        bool gotPacketKey = false;
         AVPacket *packet;
 
         do
@@ -479,6 +480,14 @@ public unsafe class VideoDecoder : DecoderBase
                         curRecorder.Write(av_packet_clone(packet));
                 }
 
+                if (keyFrameRequired && !gotPacketKey)
+                {
+                    if ((packet->flags & AV_PKT_FLAG_KEY) == 0)
+                        { av_packet_free(&packet); continue; }
+
+                    gotPacketKey = true;
+                }
+
                 // TBR: AVERROR(EAGAIN) means avcodec_receive_frame but after resend the same packet
                 ret = avcodec_send_packet(codecCtx, packet);
 
@@ -531,6 +540,7 @@ public unsafe class VideoDecoder : DecoderBase
                         {
                             StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
                             keyFrameRequired = false;
+                            gotPacketKey = false;
                         }
                     }
 
