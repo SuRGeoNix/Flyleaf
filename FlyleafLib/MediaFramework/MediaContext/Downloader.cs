@@ -84,7 +84,7 @@ public unsafe class Downloader : RunThreadBase
     /// <summary>
     /// Opens a new media file (audio/video) and prepares it for download (blocking)
     /// </summary>
-    /// <param name="stream">Media Stream/param>
+    /// <param name="stream">Media Stream</param>
     /// <param name="defaultPlaylistItem">Whether to open the default input (in case of multiple inputs eg. from bitswarm/youtube-dl, you might want to choose yours)</param>
     /// <param name="defaultVideo">Whether to open the default video stream from plugin suggestions</param>
     /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
