@@ -66,8 +66,15 @@ public unsafe class CustomIOContext
 #else
         ret = demuxer.CustomIOContext.stream.Read(new Span<byte>(buffer, bufferSize));
 #endif
-        if (ret < 0) { demuxer.Log.Warn("CustomIOContext Interrupted"); return AVERROR_EXIT; }
-        return ret;
+
+        if (ret > 0)
+            return ret;
+
+        if (ret == 0)
+            return AVERROR_EOF;
+
+        if (ret < 0)
+            { demuxer.Log.Warn("CustomIOContext Interrupted"); return AVERROR_EXIT; }
     }
 
     long IOSeek(void* opaque, long offset, int whence)

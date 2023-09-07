@@ -552,7 +552,7 @@ color = float4(
 color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
 ");
             }
-
+            
             Log.Debug($"Prepared planes for {VideoStream.PixelFormatStr} with {videoProcessor} [{curPSCase}]");
 
             return true;
@@ -690,13 +690,32 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                 mFrame.textures = new ID3D11Texture2D[VideoStream.PixelPlanes];
                 mFrame.srvs     = new ID3D11ShaderResourceView[VideoStream.PixelPlanes];
 
+                bool newRotationLinesize = false;
                 for (uint i = 0; i < VideoStream.PixelPlanes; i++)
                 {
-                    subData[0].DataPointer  = (IntPtr) frame->data[i];
-                    subData[0].RowPitch     = frame->linesize[i];
+                    if (frame->linesize[i] < 0)
+                    {
+                        // Negative linesize for vertical flipping [TBR: might required for HW as well? (SwsScale does that)] http://ffmpeg.org/doxygen/trunk/structAVFrame.html#aa52bfc6605f6a3059a0c3226cc0f6567
+                        newRotationLinesize     = true;
+                        subData[0].RowPitch     = -1 * frame->linesize[i];
+                        subData[0].DataPointer  = (IntPtr) frame->data[i];
+                        subData[0].DataPointer -= (subData[0].RowPitch * (VideoStream.Height - 1));
+                        
+                    } else
+                    {
+                        newRotationLinesize     = false;
+                        subData[0].RowPitch     = frame->linesize[i];
+                        subData[0].DataPointer  = (IntPtr) frame->data[i];
+                    }
 
                     mFrame.textures[i]  = Device.CreateTexture2D(textDesc[i], subData);
                     mFrame.srvs[i]      = Device.CreateShaderResourceView(mFrame.textures[i], srvDesc[i]);
+                }
+
+                if (newRotationLinesize != rotationLinesize)
+                {
+                    rotationLinesize = newRotationLinesize;
+                    UpdateRotation(_RotationAngle);
                 }
             }
 
