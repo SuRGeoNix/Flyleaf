@@ -630,23 +630,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                 }
             }
 
-            if (curPSCase == PSCase.HWD3D11VPZeroCopy)
-            {
-                mFrame.subresource  = (int) frame->data[1];
-                mFrame.bufRef       = av_buffer_ref(frame->buf[0]); // TBR: should we ref all buf refs / the whole avframe?
-            }
-
-            else if (curPSCase == PSCase.HWD3D11VP)
-            {
-                mFrame.textures     = new ID3D11Texture2D[1];
-                mFrame.textures[0]  = Device.CreateTexture2D(textDesc[0]);
-                context.CopySubresourceRegion(
-                    mFrame.textures[0], 0, 0, 0, 0, // dst
-                    VideoDecoder.textureFFmpeg, (int) frame->data[1],  // src
-                    cropBox); // crop decoder's padding
-            }
-
-            else if (curPSCase == PSCase.HWZeroCopy)
+            if (curPSCase == PSCase.HWZeroCopy)
             {
                 mFrame.srvs         = new ID3D11ShaderResourceView[2];
                 mFrame.bufRef       = av_buffer_ref(frame->buf[0]);
@@ -669,6 +653,22 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
 
                 mFrame.srvs[0]      = Device.CreateShaderResourceView(mFrame.textures[0], srvDesc[0]);
                 mFrame.srvs[1]      = Device.CreateShaderResourceView(mFrame.textures[0], srvDesc[1]);
+            }
+
+            else if (curPSCase == PSCase.HWD3D11VPZeroCopy)
+            {
+                mFrame.subresource  = (int) frame->data[1];
+                mFrame.bufRef       = av_buffer_ref(frame->buf[0]); // TBR: should we ref all buf refs / the whole avframe?
+            }
+
+            else if (curPSCase == PSCase.HWD3D11VP)
+            {
+                mFrame.textures     = new ID3D11Texture2D[1];
+                mFrame.textures[0]  = Device.CreateTexture2D(textDesc[0]);
+                context.CopySubresourceRegion(
+                    mFrame.textures[0], 0, 0, 0, 0, // dst
+                    VideoDecoder.textureFFmpeg, (int) frame->data[1],  // src
+                    cropBox); // crop decoder's padding
             }
 
             else if (curPSCase == PSCase.SwsScale)
