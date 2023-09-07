@@ -550,6 +550,10 @@ unsafe public partial class Renderer
     void UpdateRotation(uint angle, bool refresh = true)
     {
         _RotationAngle = angle;
+
+        if (rotationLinesize)
+            _RotationAngle += 180;
+
         var newRotation = (_RotationAngle + (VideoStream != null ? (uint)VideoStream.Rotation : 0)) % 360;
         if (actualRotation == newRotation || Disposed)
             return;
@@ -576,6 +580,7 @@ unsafe public partial class Renderer
             child.actualRotation    = actualRotation;
             child._d3d11vpRotation  = _d3d11vpRotation;
             child._RotationAngle    = _RotationAngle;
+            child.rotationLinesize  = rotationLinesize;
             child.SetViewport();
         }
 
