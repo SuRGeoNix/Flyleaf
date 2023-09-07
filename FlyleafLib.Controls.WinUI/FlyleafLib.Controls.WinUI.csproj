@@ -7,7 +7,7 @@
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
     <Authors>SuRGeoNix</Authors>
-    <Version>1.0.11</Version>
+    <Version>1.0.12</Version>
     <Copyright>SuRGeoNix © 2023</Copyright>
     <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
     <PackageIcon>Flyleaf.png</PackageIcon>
@@ -15,9 +15,7 @@
     <PackageTags>flyleaf flyleaflib flyleafhost video audio winui media player element control</PackageTags>
     <Description>FlyleafHost.WinUI: Direct3D 11 Hardware Accelerated Media Surface (based on FlyleafLib)</Description>
 	  <PackageReleaseNotes>
-		  - Adds Skip Prev/Next buttons in FlyleafBar for Playlists
-		  - Adds Vertical Resolution Max in Settings/Player Tab
-		  - Updates FlyleafLib
+		  Updates FlyleafLib
 	  </PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
