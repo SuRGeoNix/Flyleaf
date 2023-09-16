@@ -72,7 +72,7 @@ unsafe public partial class Renderer
         }
     }
 
-    internal bool ConfigPlanes(bool isNewInput = true)
+    internal bool ConfigPlanes() //bool isNewInput = true) // currently not used
     {
         bool error = false;
 
@@ -88,29 +88,30 @@ unsafe public partial class Renderer
 
             VideoDecoder.DisposeFrame(LastFrame);
 
-            if (isNewInput)
+            //if (isNewInput) {
+            if ((VideoStream.PixelFormatDesc->flags & AV_PIX_FMT_FLAG_BE) != 0)
             {
-                if ((VideoStream.PixelFormatDesc->flags & AV_PIX_FMT_FLAG_BE) != 0)
-                {
-                    Log.Error($"{VideoStream.PixelFormatStr} not supported (BE)");
-                    return false;
-                }
-
-                curRatio    = VideoStream.AspectRatio.Value;
-                IsHDR       = VideoStream.ColorSpace == ColorSpace.BT2020;
-                VideoRect   = new RawRect(0, 0, VideoStream.Width, VideoStream.Height);
-                UpdateRotation(_RotationAngle, false);
-
-                if (IsHDR)
-                {
-                    hdrPlusData = null;
-                    displayData = new();
-                    lightData   = new();
-                    checkHDR    = true;
-                }
-                else
-                    checkHDR = false;
+                Log.Error($"{VideoStream.PixelFormatStr} not supported (BE)");
+                return false;
             }
+
+            curRatio    = VideoStream.AspectRatio.Value;
+            IsHDR       = VideoStream.ColorSpace == ColorSpace.BT2020;
+            VideoRect   = new RawRect(0, 0, VideoStream.Width, VideoStream.Height);
+            rotationLinesize
+                        = false;
+            UpdateRotation(_RotationAngle, false);
+
+            if (IsHDR)
+            {
+                hdrPlusData = null;
+                displayData = new();
+                lightData   = new();
+                checkHDR    = true;
+            }
+            else
+                checkHDR = false;
+            //}
 
             var oldVP = videoProcessor;
 

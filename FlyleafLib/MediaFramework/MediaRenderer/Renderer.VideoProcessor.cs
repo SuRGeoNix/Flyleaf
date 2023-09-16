@@ -551,10 +551,16 @@ unsafe public partial class Renderer
     {
         _RotationAngle = angle;
 
-        if (rotationLinesize)
-            _RotationAngle += 180;
+        uint newRotation = _RotationAngle;
 
-        var newRotation = (_RotationAngle + (VideoStream != null ? (uint)VideoStream.Rotation : 0)) % 360;
+        if (VideoStream != null)
+            newRotation += (uint)VideoStream.Rotation;
+
+        if (rotationLinesize)
+            newRotation += 180;
+
+        newRotation %= 360;
+
         if (actualRotation == newRotation || Disposed)
             return;
 
