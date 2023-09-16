@@ -51,11 +51,29 @@ public unsafe class VideoStream : StreamBase
         FPS             = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
         FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
         TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
+        
+        int x, y;
+        if (AVStream->sample_aspect_ratio.num > 1 && AVStream->sample_aspect_ratio.den > 1)
+        {
+            x = AVStream->sample_aspect_ratio.num;
+            y = AVStream->sample_aspect_ratio.den;
 
-        int gcd = Utils.GCD(Width, Height);
+        }
+        else if (AVStream->codecpar->sample_aspect_ratio.num > 1 && AVStream->codecpar->sample_aspect_ratio.den > 1)
+        {
+            x = AVStream->codecpar->sample_aspect_ratio.num;
+            y = AVStream->codecpar->sample_aspect_ratio.den;
+        }
+        else
+        {
+            x = Width;
+            y = Height;
+        }
+
+        int gcd = Utils.GCD(x, y);
         if (gcd != 0)
-            AspectRatio = new AspectRatio(Width / gcd , Height / gcd);
-
+            AspectRatio = new AspectRatio(x / gcd , y / gcd);
+        
         if (PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
         {
             ColorRange = AVStream->codecpar->color_range == AVColorRange.AVCOL_RANGE_JPEG ? ColorRange.Full : ColorRange.Limited;
