@@ -59,7 +59,7 @@ public unsafe class VideoStream : StreamBase
             y = AVStream->sample_aspect_ratio.den;
 
         }
-        else if (AVStream->codecpar->sample_aspect_ratio.num > 1 && AVStream->codecpar->sample_aspect_ratio.den > 1)
+        else if (AVStream->codecpar->sample_aspect_ratio.num > 1 && AVStream->codecpar->sample_aspect_ratio.den > 1 && AVStream->codecpar->sample_aspect_ratio.num != AVStream->codecpar->sample_aspect_ratio.den)
         {
             x = AVStream->codecpar->sample_aspect_ratio.num;
             y = AVStream->codecpar->sample_aspect_ratio.den;

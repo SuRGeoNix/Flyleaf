@@ -303,6 +303,7 @@ public unsafe class VideoDecoder : DecoderBase
         //var t1 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_MASTERING_DISPLAY_METADATA, null);
         //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
         
+        // TBR: during swFallback (keyFrameRequiredPacket should not reset, currenlty saved in SWFallback)
         keyFrameRequired= true;
         keyFrameRequiredPacket
                         = true;
@@ -623,7 +624,9 @@ public unsafe class VideoDecoder : DecoderBase
 
             DisposeInternal();
             swFallback = true;
+            bool oldKeyFrameRequiredPacket = keyFrameRequiredPacket;
             ret = Open2(Stream, null, false); // TBR:  Dispose() on failure could cause a deadlock
+            keyFrameRequiredPacket = oldKeyFrameRequiredPacket;
             swFallback = false;
             filledFromCodec = false;
 
