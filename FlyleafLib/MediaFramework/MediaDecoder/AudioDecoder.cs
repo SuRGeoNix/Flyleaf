@@ -317,7 +317,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                     if (resyncWithVideoRequired)
                     {
                         // TODO: in case of long distance will spin (CPU issue), possible reseek?
-                        long ts = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay;
+                        long ts = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay + 500000; // 50 ms offset
 
                         while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning && resyncWithVideoRequired)
                             Thread.Sleep(10);
