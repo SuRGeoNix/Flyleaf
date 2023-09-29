@@ -199,7 +199,7 @@ unsafe partial class Player
                             break;
                         }
 
-                        if (CanInfo) Log.Info($"Drop aFrame {TicksToTime(aFrame.timestamp)}");
+                        if (CanTrace) Log.Trace($"Drop aFrame {TicksToTime(aFrame.timestamp)}");
                         AudioDecoder.Frames.TryDequeue(out aFrame);
                     }
 
@@ -394,7 +394,7 @@ unsafe partial class Player
                 }
                 else if (aDistanceMs < -5) // Will be transfered back to decoder to drop invalid timestamps
                 {
-                    if (CanInfo) Log.Info($"aDistanceMs = {aDistanceMs} | AudioFrames: {AudioDecoder.Frames.Count} AudioPackets: {AudioDecoder.Demuxer.AudioPackets.Count}");
+                    if (CanTrace) Log.Trace($"aDistanceMs = {aDistanceMs} | AudioFrames: {AudioDecoder.Frames.Count} AudioPackets: {AudioDecoder.Demuxer.AudioPackets.Count}");
 
                     if (GetBufferedDuration() < Config.Player.MinBufferDuration / 2)
                     {
@@ -456,8 +456,8 @@ unsafe partial class Player
             {
                 if (vDistanceMs < -10 || GetBufferedDuration() < Config.Player.MinBufferDuration / 2)
                 {
-                    if (CanInfo)
-                        Log.Info($"vDistanceMs = {vDistanceMs} (restarting)");
+                    if (CanDebug)
+                        Log.Debug($"vDistanceMs = {vDistanceMs} (restarting)");
 
                     requiresBuffering = true;
                     continue;

@@ -53,27 +53,13 @@ public unsafe class VideoStream : StreamBase
         TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
         
         int x, y;
-        if (AVStream->sample_aspect_ratio.num > 1 && AVStream->sample_aspect_ratio.den > 1)
-        {
-            x = AVStream->sample_aspect_ratio.num;
-            y = AVStream->sample_aspect_ratio.den;
+        AVRational sar = av_guess_sample_aspect_ratio(null, AVStream, null);
+        if (av_cmp_q(sar, av_make_q(0, 1)) <= 0)
+            sar = av_make_q(1, 1);
 
-        }
-        else if (AVStream->codecpar->sample_aspect_ratio.num > 1 && AVStream->codecpar->sample_aspect_ratio.den > 1 && AVStream->codecpar->sample_aspect_ratio.num != AVStream->codecpar->sample_aspect_ratio.den)
-        {
-            x = AVStream->codecpar->sample_aspect_ratio.num;
-            y = AVStream->codecpar->sample_aspect_ratio.den;
-        }
-        else
-        {
-            x = Width;
-            y = Height;
-        }
+        av_reduce(&x, &y, Width  * sar.num, Height * sar.den, 1024 * 1024);
+        AspectRatio = new AspectRatio(x, y);
 
-        int gcd = Utils.GCD(x, y);
-        if (gcd != 0)
-            AspectRatio = new AspectRatio(x / gcd , y / gcd);
-        
         if (PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
         {
             ColorRange = AVStream->codecpar->color_range == AVColorRange.AVCOL_RANGE_JPEG ? ColorRange.Full : ColorRange.Limited;
