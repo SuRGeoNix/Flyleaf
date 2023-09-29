@@ -530,7 +530,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                     if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
                         frame->pts = frame->best_effort_timestamp;
-                    else if (frame->pts == AV_NOPTS_VALUE)
+                    else if (frame->pts == AV_NOPTS_VALUE) // TBR: it is possible to have a single frame / image with no dts/pts which actually means pts = 0 ? (ticket_3449.264) - GenPts will not affect it
                         { av_frame_unref(frame); continue; }
 
                     if (keyFrameRequired)

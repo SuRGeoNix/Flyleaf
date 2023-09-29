@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.24</Version>
+	<Version>3.7.25</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- CustomIOContext: Fixes a critical issue with the EOF (read bytes = 0) which could cause the demuxer to freeze
-		- Renderer: Changes default VideoProcessor to Flyleaf instead of D3D11
-		- Renderer: Fixes an issue when linesize is negative which requires vertical flipping
-		- VideoDecoder: Improves seek speed on codecs/formats that fail to seek to keyframes (mainly HEVC)
-
-		Breaking Changes
-		    - Default Video Processor for Renderer changed from D3D11 to Flyleaf (this can cause issues only with extra D3D11 video filters)
+		- AudioDecoder: Minor adjustment for audio/video sync to provide samples 50ms earlier than video
+		- Player: Minor log level adjustments
+		- Renderer: Fixes an issue with aspect ratio when announced by video stream
+		- Renderer: Fixes an issue with negative linesize and vertical flipping (it wouldn't reset in new inputs)
+		- VideoDecoder: Fixes an issue during software fallback. It would jump to the next keyframe (it wouldn't start from the beginning of the video)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
