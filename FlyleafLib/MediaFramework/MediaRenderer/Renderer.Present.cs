@@ -64,7 +64,7 @@ public unsafe partial class Renderer
         // NOTE: We don't have TimeBeginPeriod, FpsForIdle will not be accurate
         lock (lockPresentTask)
         {
-            if ((Config.Player.player == null || !Config.Player.player.requiresBuffering) && VideoDecoder.IsRunning)
+            if ((Config.Player.player == null || !Config.Player.player.requiresBuffering) && VideoDecoder.IsRunning && VideoDecoder.VideoStream.FPS > 10) // With slow FPS we need to refresh as fast as possible
                 return;
 
             if (isPresenting)
