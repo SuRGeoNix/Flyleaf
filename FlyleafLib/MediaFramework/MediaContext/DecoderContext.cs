@@ -502,16 +502,30 @@ public unsafe partial class DecoderContext : PluginHandler
                         if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
                             frame->pts = frame->best_effort_timestamp;
                         else if (frame->pts == AV_NOPTS_VALUE)
-                            { av_frame_unref(frame); continue; }
-
-                        if (VideoDecoder.keyFrameRequired && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
                         {
-                            if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}] [{(packet->flags & AV_PKT_FLAG_KEY) == 0}]");
-                            av_frame_unref(frame);
-                            continue;
+                            if (!VideoStream.FixTimestamps)
+                            {
+                                VideoDecoder.keyFoundWithNoPts = frame->pict_type == AVPictureType.AV_PICTURE_TYPE_I || frame->key_frame == 1;
+                                av_frame_unref(frame);
+                                continue;                            
+                            }
+
+                            frame->pts = VideoDecoder.lastFixedPts + VideoStream.StartTimePts;
+                            VideoDecoder.lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
                         }
 
-                        VideoDecoder.keyFrameRequired = false;
+                        if (VideoDecoder.keyFrameRequired)
+                        {
+                            if (!VideoDecoder.keyFoundWithNoPts && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
+                            {
+                                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}] [{(packet->flags & AV_PKT_FLAG_KEY) == 0}]");
+                                av_frame_unref(frame);
+                                continue;
+                            }
+
+                            VideoDecoder.keyFrameRequired = false;
+                            VideoDecoder.keyFoundWithNoPts = false;
+                        }
 
                         if (!VideoDecoder.filledFromCodec)
                         {

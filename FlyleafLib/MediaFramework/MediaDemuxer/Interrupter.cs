@@ -41,7 +41,7 @@ public unsafe class Interrupter
                     break;
 
                 case Requester.Read:
-                    curTimeout = demuxer.Config.ReadTimeout;
+                    curTimeout = (demuxer.Duration == 0 || (demuxer.HLSPlaylist != null && demuxer.HLSPlaylist->cur_seq_no > demuxer.HLSPlaylist->last_seq_no - 2)) ? demuxer.Config.ReadLiveTimeout : demuxer.Config.ReadTimeout;
                     break;
 
                 case Requester.Seek:
@@ -52,17 +52,6 @@ public unsafe class Interrupter
             if (sw.ElapsedMilliseconds > curTimeout / 10000)
             {
                 demuxer.OnTimedOut();
-
-                // Prevent Live Streams from Timeout (while demuxer is at the end)
-                if (demuxer.Interrupter.Requester == Requester.Read && (demuxer.Duration == 0 || (demuxer.HLSPlaylist != null && demuxer.HLSPlaylist->cur_seq_no > demuxer.HLSPlaylist->last_seq_no - 2)))
-                {
-                    // TBR: Add retries (per input? per thread start?) as it can actually ended and keep reading forever
-                    if (CanTrace) demuxer.Log.Trace($"{demuxer.Interrupter.Requester} Timeout !!!! {sw.ElapsedMilliseconds} ms | Live HLS Excluded");
-
-                    demuxer.Interrupter.Request(Requester.Read);
-
-                    return demuxer.Interrupter.Interrupted = 0;
-                }
 
                 if (CanWarn) demuxer.Log.Warn($"{demuxer.Interrupter.Requester} Timeout !!!! {sw.ElapsedMilliseconds} ms");
 

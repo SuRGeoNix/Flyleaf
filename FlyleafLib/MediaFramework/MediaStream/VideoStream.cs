@@ -28,6 +28,7 @@ public unsafe class VideoStream : StreamBase
     public bool                         PixelInterleaved    { get; set; }
     public int                          TotalFrames         { get; set; }
     public int                          Width               { get; set; }
+    public bool                         FixTimestamps       { get; set; } // TBR: For formats such as h264/hevc that have no or invalid pts values
 
     public override string GetDump()
         => $"[{Type} #{StreamIndex}] {Codec} {PixelFormatStr} {Width}x{Height} @ {FPS:#.###} | [Color: {ColorSpace}] [BR: {BitRate}] | {Utils.TicksToTime((long)(AVStream->start_time * Timebase))}/{Utils.TicksToTime((long)(AVStream->duration * Timebase))} | {Utils.TicksToTime(StartTime)}/{Utils.TicksToTime(Duration)}";
@@ -51,7 +52,20 @@ public unsafe class VideoStream : StreamBase
         FPS             = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
         FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
         TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
-        
+
+        if (Demuxer.Name == "h264" || Demuxer.Name == "hevc") // TBR: Maybe required also for input formats with AVFMT_NOTIMESTAMPS (and audio/subs)
+        {
+            FixTimestamps = true;
+
+            if (FPS == 0)
+            {
+                FPS = 25;
+                FrameDuration = (long) (10000000 / FPS);
+            }
+        }
+        else
+            FixTimestamps = false;
+
         int x, y;
         AVRational sar = av_guess_sample_aspect_ratio(null, AVStream, null);
         if (av_cmp_q(sar, av_make_q(0, 1)) <= 0)

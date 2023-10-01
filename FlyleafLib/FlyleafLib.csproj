@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.25</Version>
+	<Version>3.7.26</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- AudioDecoder: Minor adjustment for audio/video sync to provide samples 50ms earlier than video
-		- Player: Minor log level adjustments
-		- Renderer: Fixes an issue with aspect ratio when announced by video stream
-		- Renderer: Fixes an issue with negative linesize and vertical flipping (it wouldn't reset in new inputs)
-		- VideoDecoder: Fixes an issue during software fallback. It would jump to the next keyframe (it wouldn't start from the beginning of the video)
+		- Config: Introduces Demuxer.ReadLiveTimeout which separates the normal read timeout from live inputs
+		- Renderer: Improves refreshing with low fps inputs
+		- VideoDecoder: Add support to h264/hevc formats that they don't support timestamps
+		- VideoDecoder: Fixes an issue with keyframes with no timestamps
 	</PackageReleaseNotes>
   </PropertyGroup>
 

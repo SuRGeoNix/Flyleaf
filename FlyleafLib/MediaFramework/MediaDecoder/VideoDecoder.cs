@@ -47,6 +47,8 @@ public unsafe class VideoDecoder : DecoderBase
     internal bool           swFallback;
     internal bool           keyFrameRequired;
     internal bool           keyFrameRequiredPacket;
+    internal bool           keyFoundWithNoPts;
+    internal long           lastFixedPts;
 
     // Reverse Playback
     ConcurrentStack<List<IntPtr>>
@@ -307,8 +309,12 @@ public unsafe class VideoDecoder : DecoderBase
         keyFrameRequired= true;
         keyFrameRequiredPacket
                         = true;
+        keyFoundWithNoPts
+                        = false;
         ZeroCopy        = false;
         filledFromCodec = false;
+        
+        lastFixedPts    = 0; // TBR: might need to set this to first known pts/dts
 
         if (VideoAccelerated)
         {
@@ -361,9 +367,11 @@ public unsafe class VideoDecoder : DecoderBase
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
             
-                keyFrameRequired = true;
+                keyFrameRequired= true;
                 keyFrameRequiredPacket
                                 = true;
+                keyFoundWithNoPts
+                                = false;
                 StartTime       = AV_NOPTS_VALUE;
                 curSpeedFrame   = (int)speed;
             }
@@ -530,22 +538,35 @@ public unsafe class VideoDecoder : DecoderBase
 
                     if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
                         frame->pts = frame->best_effort_timestamp;
-                    else if (frame->pts == AV_NOPTS_VALUE) // TBR: it is possible to have a single frame / image with no dts/pts which actually means pts = 0 ? (ticket_3449.264) - GenPts will not affect it
-                        { av_frame_unref(frame); continue; }
+
+                    else if (frame->pts == AV_NOPTS_VALUE)
+                    {
+                        if (!VideoStream.FixTimestamps)
+                        {
+                            // TBR: it is possible to have a single frame / image with no dts/pts which actually means pts = 0 ? (ticket_3449.264) - GenPts will not affect it
+                            // TBR: first frame might no have dts/pts which probably means pts = 0 (and not start time!)
+                            keyFoundWithNoPts = frame->pict_type == AVPictureType.AV_PICTURE_TYPE_I || frame->key_frame == 1;
+                            av_frame_unref(frame);
+                            continue;                            
+                        }
+                        
+                        // Create timestamps for h264/hevc raw streams (Needs also to handle this with the remuxer / no recording currently supported!)
+                        frame->pts = lastFixedPts + VideoStream.StartTimePts;
+                        lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+                    }
 
                     if (keyFrameRequired)
                     {
-                        if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
+                        if (!keyFoundWithNoPts && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
                         {
                             if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                             av_frame_unref(frame);
                             continue;
                         }
-                        else
-                        {
-                            StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
-                            keyFrameRequired = false;
-                        }
+
+                        StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
+                        keyFrameRequired = false;
+                        keyFoundWithNoPts = false;
                     }
 
                     if (!filledFromCodec) // Ensures we have a proper frame before filling from codec
@@ -623,11 +644,18 @@ public unsafe class VideoDecoder : DecoderBase
             string ret;
 
             DisposeInternal();
-            swFallback = true;
-            bool oldKeyFrameRequiredPacket = keyFrameRequiredPacket;
+            if (codecCtx != null)
+                fixed (AVCodecContext** ptr = &codecCtx)
+                    avcodec_free_context(ptr);
+
+            codecCtx        = null;
+            swFallback      = true;
+            bool oldKeyFrameRequiredPacket
+                            = keyFrameRequiredPacket;
             ret = Open2(Stream, null, false); // TBR:  Dispose() on failure could cause a deadlock
-            keyFrameRequiredPacket = oldKeyFrameRequiredPacket;
-            swFallback = false;
+            keyFrameRequiredPacket
+                            = oldKeyFrameRequiredPacket;
+            swFallback      = false;
             filledFromCodec = false;
 
             return ret;
@@ -1070,17 +1098,9 @@ public unsafe class VideoDecoder : DecoderBase
         {
             DisposeFrames();
 
-            if (codecCtx != null)
-            {
-                avcodec_close(codecCtx);
-                fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
-
-                codecCtx = null;
-            }
-
             if (hwframes != null)
-            fixed(AVBufferRef** ptr = &hwframes)
-                av_buffer_unref(ptr);
+                fixed(AVBufferRef** ptr = &hwframes)
+                    av_buffer_unref(ptr);
             
             if (hw_device_ctx != null)
                 fixed(AVBufferRef** ptr = &hw_device_ctx)
@@ -1089,10 +1109,12 @@ public unsafe class VideoDecoder : DecoderBase
             if (swsCtx != null)
                 sws_freeContext(swsCtx);
 
-            swFallback  = false;
             hwframes    = null;
+            hw_device_ctx
+                        = null;
             swsCtx      = null;
             StartTime   = AV_NOPTS_VALUE;
+            swFallback  = false;
         }
     }
     #endregion

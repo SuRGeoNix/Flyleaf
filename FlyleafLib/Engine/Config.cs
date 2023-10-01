@@ -381,6 +381,11 @@ public class Config : NotifyPropertyChanged
         public long             ReadTimeout     { get; set; } = 10 * 1000 * 10000;
 
         /// <summary>
+        /// av_read_frame timeout (ticks) for protocols that support interrupts (for Live streams)
+        /// </summary>
+        public long             ReadLiveTimeout { get; set; } = 20 * 1000 * 10000;
+
+        /// <summary>
         /// av_seek_frame timeout (ticks) for protocols that support interrupts
         /// </summary>
         public long             SeekTimeout     { get; set; } =  8 * 1000 * 10000;

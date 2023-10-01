@@ -161,14 +161,10 @@ public abstract unsafe class DecoderBase : RunThreadBase
                     av_frame_free(ptr);
 
             if (codecCtx != null)
-            {
-                // TBR possible not required, also in case of image codec it will through an access violation
-                //avcodec_flush_buffers(codecCtx);
-                avcodec_close(codecCtx);
                 fixed (AVCodecContext** ptr = &codecCtx)
                     avcodec_free_context(ptr);
-            }
             
+            codecCtx        = null;
             demuxer         = null;
             Stream          = null;
             Status          = Status.Stopped;
