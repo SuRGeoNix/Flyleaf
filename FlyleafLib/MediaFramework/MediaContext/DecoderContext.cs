@@ -505,7 +505,7 @@ public unsafe partial class DecoderContext : PluginHandler
                         {
                             if (!VideoStream.FixTimestamps)
                             {
-                                VideoDecoder.keyFoundWithNoPts = frame->pict_type == AVPictureType.AV_PICTURE_TYPE_I || frame->key_frame == 1;
+                                VideoDecoder.keyFoundWithNoPts = VideoDecoder.keyFoundWithNoPts || frame->key_frame == 1;
                                 av_frame_unref(frame);
                                 continue;                            
                             }
@@ -516,7 +516,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
                         if (VideoDecoder.keyFrameRequired)
                         {
-                            if (!VideoDecoder.keyFoundWithNoPts && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
+                            if (!VideoDecoder.keyFoundWithNoPts && frame->key_frame != 1)
                             {
                                 if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}] [{(packet->flags & AV_PKT_FLAG_KEY) == 0}]");
                                 av_frame_unref(frame);

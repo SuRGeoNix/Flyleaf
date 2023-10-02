@@ -59,19 +59,19 @@ unsafe partial class Player
     public void CopyToClipboard()
     {
         if (decoder.Playlist.Url == null) 
-            System.Windows.Clipboard.SetText("");
+            Clipboard.SetText("");
         else
-            System.Windows.Clipboard.SetText(decoder.Playlist.Url);
+            Clipboard.SetText(decoder.Playlist.Url);
     }
     public void CopyItemToClipboard()
     {
         if (decoder.Playlist.Selected == null || decoder.Playlist.Selected.DirectUrl == null)
-            System.Windows.Clipboard.SetText("");
+            Clipboard.SetText("");
         else
-            System.Windows.Clipboard.SetText(decoder.Playlist.Selected.DirectUrl);
+            Clipboard.SetText(decoder.Playlist.Selected.DirectUrl);
     }
     public void OpenFromClipboard()
-        => OpenAsync(System.Windows.Clipboard.GetText());
+        => OpenAsync(Clipboard.GetText());
     public void OpenFromFileDialog()
     {
         bool wasActivityEnabled = Activity.IsEnabled;
@@ -135,6 +135,7 @@ unsafe partial class Player
             }
 
             shouldFlushPrev = true;
+            decoder.RequiresResync = true;
 
             if (shouldFlushNext)
             {   
@@ -187,6 +188,7 @@ unsafe partial class Player
             }
 
             shouldFlushNext = true;
+            decoder.RequiresResync = true;
 
             if (shouldFlushPrev)
             {

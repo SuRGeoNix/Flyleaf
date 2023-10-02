@@ -59,6 +59,7 @@ unsafe partial class Player
     long    elapsedTicks;
     long    elapsedSec;
     long    startTicks;
+    long    showOneFrameTicks;
 
     int     allowedLateAudioDrops;
     long    lastSpeedChangeTicks;
@@ -166,6 +167,7 @@ unsafe partial class Player
             if (showOneFrame && !VideoDecoder.Frames.IsEmpty)
             {
                 ShowOneFrame();
+                showOneFrameTicks = DateTime.UtcNow.Ticks;
                 showOneFrame = false;
             }
 
@@ -302,8 +304,12 @@ unsafe partial class Player
 
                 // Temp fix to ensure we had enough time to decode one more frame
                 int retries = 5;
-                while (VideoDecoder.Frames.Count == 0 && retries-- > 0)
+                while (IsPlaying && VideoDecoder.Frames.Count == 0 && retries-- > 0)
                     Thread.Sleep(10);
+
+                // Give enough time for the 1st frame to be presented
+                while (IsPlaying && DateTime.UtcNow.Ticks - showOneFrameTicks < VideoDecoder.VideoStream.FrameDuration)
+                    Thread.Sleep(4);
                 
                 OnBufferingCompleted();
 
