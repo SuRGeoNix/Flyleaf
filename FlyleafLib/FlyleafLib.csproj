@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.26</Version>
+	<Version>3.7.27</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Config: Introduces Demuxer.ReadLiveTimeout which separates the normal read timeout from live inputs
-		- Renderer: Improves refreshing with low fps inputs
-		- VideoDecoder: Add support to h264/hevc formats that they don't support timestamps
-		- VideoDecoder: Fixes an issue with keyframes with no timestamps
+		- Player: Gives enough time for the first frame
+		- Player: Frame stepping improvements
+		- Renderer: Fixes a possible NPE (introduced in v3.7.26)
+		- VideoDecoder: GetFrameNext improvements, h264/hevc with no pts and drain support
 	</PackageReleaseNotes>
   </PropertyGroup>
 

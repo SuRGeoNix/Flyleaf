@@ -50,6 +50,8 @@ public unsafe class VideoDecoder : DecoderBase
     internal bool           keyFoundWithNoPts;
     internal long           lastFixedPts;
 
+    bool                    checkExtraFrames; // DecodeFrameNext
+
     // Reverse Playback
     ConcurrentStack<List<IntPtr>>
                             curReverseVideoStack    = new();
@@ -545,7 +547,7 @@ public unsafe class VideoDecoder : DecoderBase
                         {
                             // TBR: it is possible to have a single frame / image with no dts/pts which actually means pts = 0 ? (ticket_3449.264) - GenPts will not affect it
                             // TBR: first frame might no have dts/pts which probably means pts = 0 (and not start time!)
-                            keyFoundWithNoPts = frame->pict_type == AVPictureType.AV_PICTURE_TYPE_I || frame->key_frame == 1;
+                            keyFoundWithNoPts = keyFoundWithNoPts || frame->key_frame == 1;
                             av_frame_unref(frame);
                             continue;                            
                         }
@@ -557,7 +559,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                     if (keyFrameRequired)
                     {
-                        if (!keyFoundWithNoPts && frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
+                        if (!keyFoundWithNoPts && frame->key_frame != 1)
                         {
                             if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                             av_frame_unref(frame);
@@ -601,6 +603,8 @@ public unsafe class VideoDecoder : DecoderBase
             }
 
         } while (Status == Status.Running);
+
+        checkExtraFrames = true;
 
         if (isRecording) { StopRecording(); recCompleted(MediaType.Video); }
 
@@ -875,7 +879,7 @@ public unsafe class VideoDecoder : DecoderBase
     }
 
     /// <summary>
-    /// Performs accurate seeking to the requested video frame and returns it
+    /// Performs accurate seeking to the requested VideoFrame and returns it
     /// </summary>
     /// <param name="index">Zero based frame index</param>
     /// <returns>The requested VideoFrame or null on failure</returns>
@@ -907,20 +911,15 @@ public unsafe class VideoDecoder : DecoderBase
         if (demuxer.Status == Status.Ended) demuxer.Status = Status.Stopped;
         if (ret < 0) return null; // handle seek error
         Flush();
-        //keyFrameRequired = false; TODO gotPktKey as keyframerequired and used it everywhere
-        //StartTime = frameTimestamp - VideoStream.StartTime; // required for audio sync
+        checkExtraFrames = false;
 
-        // Decoding until requested frame/timestamp
-        bool checkExtraFrames = false;
-
-        while (GetFrameNext(checkExtraFrames) == 0)
+        while (DecodeFrameNext() == 0)
         {
             // Skip frames before our actual requested frame
             if ((long)(frame->pts * VideoStream.Timebase) < frameTimestamp)
             {
                 //Log.Debug($"[Skip] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | [fltime: {Utils.TicksToTime(((long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime))}]");
                 av_frame_unref(frame);
-                checkExtraFrames = true;
                 continue; 
             }
 
@@ -930,52 +929,59 @@ public unsafe class VideoDecoder : DecoderBase
 
         return null;
     }
-
+    
     /// <summary>
-    /// Demuxes until the next valid video frame (will be stored in AVFrame* frame)
+    /// Gets next VideoFrame (Decoder/Demuxer must not be running)
     /// </summary>
-    /// <returns>0 on success</returns>
-    /// 
+    /// <returns>The next VideoFrame</returns>
     public VideoFrame GetFrameNext()
-        => GetFrameNext(true) != 0 ? null : Renderer.FillPlanes(frame);
+        => DecodeFrameNext() == 0 ? Renderer.FillPlanes(frame) : null;
 
     /// <summary>
-    /// Pushes the demuxer and the decoder to the next available video frame
+    /// Pushes the decoder to the next available VideoFrame (Decoder/Demuxer must not be running)
     /// </summary>
-    /// <param name="checkExtraFrames">Whether to check for extra frames within the decoder's cache. Set to true if not sure.</param>
     /// <returns></returns>
-    public int GetFrameNext(bool checkExtraFrames)
+    public int DecodeFrameNext()
     {
-        // TODO: Should know if draining to be able to get more than one drained frames
-
         int ret;
         int allowedErrors = Config.Decoder.MaxErrors;
 
-        if (checkExtraFrames && !keyFrameRequired)
+        if (checkExtraFrames)
         {
-            ret = avcodec_receive_frame(codecCtx, frame);
+            if (Status == Status.Ended)
+                return AVERROR_EOF;
 
-            if (ret == 0)
-            {
-                if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
-                    frame->pts = frame->best_effort_timestamp;
-                else if (frame->pts == AV_NOPTS_VALUE)
-                {
-                    av_frame_unref(frame);
-                    return GetFrameNext(true);
-                }
-
+            if (DecodeFrameNextInternal() == 0)
                 return 0;
+
+            if (Demuxer.Status == Status.Ended && demuxer.VideoPackets.Count == 0 && Frames.IsEmpty)
+            {
+                Stop();
+                Status = Status.Ended;
+                return AVERROR_EOF;
             }
 
-            if (ret != AVERROR(EAGAIN)) return ret;
+            checkExtraFrames = false;
         }
-
+        
         while (true)
         {
             ret = demuxer.GetNextVideoPacket();
-            if (ret != 0 && demuxer.Status != Status.Ended)
-                return ret;
+            if (ret != 0)
+            {
+                if (demuxer.Status != Status.Ended)
+                    return ret;
+
+                // Drain
+                ret = avcodec_send_packet(codecCtx, demuxer.packet);
+                av_packet_unref(demuxer.packet);
+
+                if (ret != 0)
+                    return AVERROR_EOF;
+
+                checkExtraFrames = true;
+                return DecodeFrameNext();
+            }
 
             if (keyFrameRequired && keyFrameRequiredPacket)
             {
@@ -988,49 +994,61 @@ public unsafe class VideoDecoder : DecoderBase
             ret = avcodec_send_packet(codecCtx, demuxer.packet);
             av_packet_unref(demuxer.packet);
 
-            if (ret != 0)
+            if (ret != 0 && ret != AVERROR(EAGAIN))
             {
-                if (allowedErrors < 1 || demuxer.Status == Status.Ended) return ret;
-                allowedErrors--;
+                if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+
+                if (allowedErrors-- < 1)
+                    { Log.Error("Too many errors!"); return ret; }
+
                 continue;
             }
 
-            ret = avcodec_receive_frame(codecCtx, frame);
-            
-            if (ret == AVERROR(EAGAIN))
-                continue;
-
-            if (ret != 0)
+            if (DecodeFrameNextInternal() == 0)
             {
-                av_frame_unref(frame);
-                return ret;
+                checkExtraFrames = true;
+                return 0;
             }
-
-            if (keyFrameRequired)
-            {
-                if (frame->pict_type != AVPictureType.AV_PICTURE_TYPE_I && frame->key_frame != 1)
-                {
-                    if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
-                    av_frame_unref(frame);
-                    continue;
-                }
-                else
-                {
-                    StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
-                    keyFrameRequired = false;
-                }
-            }
-
-            if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
-                frame->pts = frame->best_effort_timestamp;
-            else if (frame->pts == AV_NOPTS_VALUE)
-            {
-                av_frame_unref(frame);
-                return GetFrameNext(true);
-            }
-
-            return 0;
         }
+
+    }
+    private int DecodeFrameNextInternal()
+    {
+        int ret = avcodec_receive_frame(codecCtx, frame);
+        if (ret != 0) { av_frame_unref(frame); return ret; }
+
+        if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
+            frame->pts = frame->best_effort_timestamp;
+
+        else if (frame->pts == AV_NOPTS_VALUE)
+        {
+            if (!VideoStream.FixTimestamps)
+            {
+                keyFoundWithNoPts = keyFoundWithNoPts || frame->key_frame == 1;
+                av_frame_unref(frame);
+                
+                return DecodeFrameNextInternal();
+            }
+
+            frame->pts = lastFixedPts + VideoStream.StartTimePts;
+            lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+        }
+
+        if (keyFrameRequired)
+        {
+            if (!keyFoundWithNoPts && frame->key_frame != 1)
+            {
+                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
+                av_frame_unref(frame);
+                return DecodeFrameNextInternal();
+            }
+
+            StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
+            keyFrameRequired = false;
+            keyFoundWithNoPts = false;
+        }
+
+        return 0;
     }
 
     #region Dispose

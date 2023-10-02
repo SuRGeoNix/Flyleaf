@@ -1447,7 +1447,7 @@ public unsafe class Demuxer : RunThreadBase
     }
 
     /// <summary>
-    /// Pushes the demuxer to the next available video packet (uses also the buffer queue)
+    /// Gets next VideoPacket from the existing queue or demuxes it if required (Demuxer must not be running)
     /// </summary>
     /// <returns>0 on success</returns>
     public int GetNextVideoPacket()
@@ -1462,7 +1462,7 @@ public unsafe class Demuxer : RunThreadBase
     }
 
     /// <summary>
-    /// Pushes the demuxer to the next available packet
+    /// Pushes the demuxer to the next available packet (Demuxer must not be running)
     /// </summary>
     /// <param name="streamIndex">Packet's stream index</param>
     /// <returns>0 on success</returns>
@@ -1485,6 +1485,7 @@ public unsafe class Demuxer : RunThreadBase
                     packet->data = null;
                     packet->size = 0;
 
+                    Stop();
                     Status = Status.Ended;
                 }
 
