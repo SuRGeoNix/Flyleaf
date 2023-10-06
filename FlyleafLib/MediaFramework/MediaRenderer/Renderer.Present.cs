@@ -21,7 +21,7 @@ public unsafe partial class Renderer
 
     public bool Present(VideoFrame frame)
     {
-        if (Monitor.TryEnter(lockDevice, 5))
+        if (Monitor.TryEnter(lockDevice, frame.timestamp == 0 ? 100 : 5)) // Allow more time for first frame
         {
             try
             {
