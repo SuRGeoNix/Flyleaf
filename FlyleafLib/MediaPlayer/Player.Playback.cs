@@ -197,7 +197,7 @@ partial class Player
 
         if (Status == Status.Playing) return;
 
-        lock (lockActions) { if (taskSeekRuns) return; taskSeekRuns = true; }
+        lock (seeks) { if (taskSeekRuns) return; taskSeekRuns = true; }
 
         Task.Run(() =>
         {
@@ -268,7 +268,7 @@ partial class Player
             {
                 decoder.OpenedPlugin?.OnBufferingCompleted();
                 Engine.TimeEndPeriod1();
-                lock (lockActions) taskSeekRuns = false;
+                lock (seeks) taskSeekRuns = false;
                 if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError)
                     Play();
             }
