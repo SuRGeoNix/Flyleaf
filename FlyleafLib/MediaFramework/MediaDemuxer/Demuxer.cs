@@ -751,7 +751,11 @@ public unsafe class Demuxer : RunThreadBase
 
                 // Flush required because of the interrupt
                 if (fmtCtx->pb != null)
+                {
                     avio_flush(fmtCtx->pb);
+                    fmtCtx->pb->error = 0; // AVERROR_EXIT will stay forever and will cause the demuxer to go in Status Stopped instead of Ended (after interrupted seeks)
+                    fmtCtx->pb->eof_reached = 0;
+                }
                 avformat_flush(fmtCtx);
 
                 // Forces seekable HLS
@@ -774,8 +778,8 @@ public unsafe class Demuxer : RunThreadBase
                 {
                     if (CanDebug) Log.Debug($"[Seek({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)} | ANY");
                     ret = forward ?
-                        avformat_seek_file(fmtCtx, -1, ticks / 10,     ticks / 10, Int64.MaxValue,  AVSEEK_FLAG_ANY):
-                        avformat_seek_file(fmtCtx, -1, Int64.MinValue, ticks / 10, ticks / 10,      AVSEEK_FLAG_ANY);
+                        avformat_seek_file(fmtCtx, -1, ticks / 10   , ticks / 10, long.MaxValue , AVSEEK_FLAG_ANY):
+                        avformat_seek_file(fmtCtx, -1, long.MinValue, ticks / 10, ticks / 10    , AVSEEK_FLAG_ANY);
                 }
 
                 if (ret < 0)
@@ -786,8 +790,8 @@ public unsafe class Demuxer : RunThreadBase
                     ret = VideoStream != null
                         ? av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_FRAME)
                         : forward ?
-                            avformat_seek_file(fmtCtx, -1, Int64.MinValue   , ticks / 10, ticks / 10    , AVSEEK_FLAG_ANY):
-                            avformat_seek_file(fmtCtx, -1, ticks / 10       , ticks / 10, Int64.MaxValue, AVSEEK_FLAG_ANY);
+                            avformat_seek_file(fmtCtx, -1, long.MinValue, ticks / 10, ticks / 10    , AVSEEK_FLAG_ANY):
+                            avformat_seek_file(fmtCtx, -1, ticks / 10   , ticks / 10, long.MaxValue , AVSEEK_FLAG_ANY);
 
                     if (ret < 0)
                         Log.Warn($"Seek failed 2/2 {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");

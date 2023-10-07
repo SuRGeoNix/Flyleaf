@@ -166,7 +166,8 @@ partial class Player
             Play();
     }
 
-    public void ToggleReversePlayback() => ReversePlayback = !ReversePlayback;
+    public void ToggleReversePlayback()
+        => ReversePlayback = !ReversePlayback;
 
     /// <summary>
     /// Seeks backwards or forwards based on the specified ms to the nearest keyframe
@@ -179,13 +180,16 @@ partial class Player
     /// Seeks at the exact timestamp (with half frame distance accuracy)
     /// </summary>
     /// <param name="ms"></param>
-    public void SeekAccurate(int ms) => Seek(ms, false, !IsLive);
+    public void SeekAccurate(int ms)
+        => Seek(ms, false, !IsLive);
 
-    public void ToggleSeekAccurate() => Config.Player.SeekAccurate = !Config.Player.SeekAccurate;
+    public void ToggleSeekAccurate()
+        => Config.Player.SeekAccurate = !Config.Player.SeekAccurate;
 
     private void Seek(int ms, bool forward, bool accurate)
     {
-        if (!CanPlay) return;
+        if (!CanPlay)
+            return;
 
         lock (seeks)
         {
@@ -194,23 +198,39 @@ partial class Player
         }
         Raise(nameof(CurTime));
         
+        if (Status == Status.Playing)
+            return;
 
-        if (Status == Status.Playing) return;
-
-        lock (lockActions) { if (taskSeekRuns) return; taskSeekRuns = true; }
+        lock (seeks)
+        {
+            if (taskSeekRuns)
+                return;
+            
+            taskSeekRuns = true;
+        }
 
         Task.Run(() =>
         {
             int ret;
             bool wasEnded = false;
+            SeekData seekData = null;
 
             try
             {
                 Engine.TimeBeginPeriod1();
                 
-                while (seeks.TryPop(out var seekData) && CanPlay && !IsPlaying)
+                while (true)
                 {
-                    seeks.Clear();
+                    lock (seeks)
+                    {
+                        if (!(seeks.TryPop(out seekData) && CanPlay && !IsPlaying))
+                        {
+                            taskSeekRuns = false;
+                            break;
+                        }
+
+                        seeks.Clear();
+                    }
 
                     if (Status == Status.Ended)
                     {
@@ -261,15 +281,17 @@ partial class Player
 
                     Thread.Sleep(20);
                 }
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
+                lock (seeks) taskSeekRuns = false;
                 Log.Error($"Seek failed ({e.Message})");
-            } finally
+            }
+            finally
             {
                 decoder.OpenedPlugin?.OnBufferingCompleted();
                 Engine.TimeEndPeriod1();
-                lock (lockActions) taskSeekRuns = false;
-                if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError)
+                if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError) // TBR: Possible race condition with if (Status == Status.Playing)
                     Play();
             }
         });
@@ -279,7 +301,8 @@ partial class Player
     /// Flushes the buffer (demuxers (packets) and decoders (frames))
     /// This is useful mainly for live streams to push the playback at very end (low latency)
     /// </summary>
-    public void Flush() => decoder.Flush();
+    public void Flush()
+        => decoder.Flush();
 
     /// <summary>
     /// Stops and Closes AVS streams
