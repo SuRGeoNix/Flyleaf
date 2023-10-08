@@ -133,6 +133,9 @@ namespace FlyleafPlayer
                     GetWindowFromPlayer(Player).Msg = $"Speed x{Player.Speed}";
                 else if (e.PropertyName == nameof(Player.Zoom))
                     GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Zoom}%";
+                else if (e.PropertyName == nameof(Player.Status) && Player.Activity.Mode == ActivityMode.Idle)
+                    Player.Activity.ForceActive();
+
             };
 
             Player.Audio.PropertyChanged += (o, e) =>
