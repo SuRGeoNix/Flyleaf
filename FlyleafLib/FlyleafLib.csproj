@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.27</Version>
+	<Version>3.7.28</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Player: Gives enough time for the first frame
-		- Player: Frame stepping improvements
-		- Renderer: Fixes a possible NPE (introduced in v3.7.26)
-		- VideoDecoder: GetFrameNext improvements, h264/hevc with no pts and drain support
+		- Demuxer: Fixes an issue during Seek that it wouldn't reset AVIOContext's errors/eof which could cause status stopped instead of ended and delays (Player buffered failed)
+		- Player: Fixes a rare but possible deadlock during Seek
+		- Player: Fixes audio crackling issues
+		- Plugins.YoutubeDL: Fixes a critical JSON deserialize issue for the latest yt-dlp version
 	</PackageReleaseNotes>
   </PropertyGroup>
 
