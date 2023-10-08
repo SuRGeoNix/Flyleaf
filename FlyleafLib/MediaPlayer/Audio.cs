@@ -268,8 +268,6 @@ public class Audio : NotifyPropertyChanged
         }
     }
 
-    internal long GetBufferedDuration() => (long) ((submittedSamples - sourceVoice.State.SamplesPlayed) * Timebase);
-
     // TBR: Very rarely could crash the app on audio device change while playing? Requires two locks (Audio's locker and aFrame)
     // The process was terminated due to an internal error in the .NET Runtime at IP 00007FFA6725DA03 (00007FFA67090000) with exit code c0000005.
     [System.Security.SecurityCritical]
@@ -294,9 +292,10 @@ public class Audio : NotifyPropertyChanged
             if (CanDebug)
                 player.Log.Debug($"[Audio] Submitting samples failed ({e.Message})");
 
-            ClearBuffer();
+            ClearBuffer(); // TBR: Inform player to resync audio?
         }
     }
+    internal long GetBufferedDuration() { lock (locker) { return (long) ((submittedSamples - sourceVoice.State.SamplesPlayed) * Timebase); } }
     internal long GetDeviceDelay() => (long) ((xaudio2.PerformanceData.CurrentLatencyInSamples * Timebase) - 80000); // TODO: VBlack delay (8ms correction for now)
     internal void ClearBuffer()
     {

@@ -101,7 +101,7 @@ namespace FlyleafLib.Plugins
     public class Format
     {
         public double   asr         { get; set; }
-        public long     filesize    { get; set; }
+        public double   filesize    { get; set; }
         public string   format_id   { get; set; }   
         public string   format_note { get; set; }
         public double   quality     { get; set; }
