@@ -96,7 +96,9 @@ unsafe public partial class Renderer
             }
 
             curRatio    = VideoStream.AspectRatio.Value;
-            IsHDR       = VideoStream.ColorSpace == ColorSpace.BT2020;
+            IsHDR       = VideoStream.ColorSpace == ColorSpace.BT2020 && ( // TBR: Should transfer IsHDR to VideoStream? | Unspecified (Space/Transfer)
+                          VideoStream.ColorTransfer == AVColorTransferCharacteristic.AVCOL_TRC_SMPTE2084 ||  // PQ
+                          VideoStream.ColorTransfer == AVColorTransferCharacteristic.AVCOL_TRC_ARIB_STD_B67);// HLG
             VideoRect   = new RawRect(0, 0, VideoStream.Width, VideoStream.Height);
             rotationLinesize
                         = false;
