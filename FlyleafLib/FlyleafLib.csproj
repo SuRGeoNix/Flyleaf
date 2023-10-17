@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.28</Version>
+	<Version>3.7.29</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Fixes an issue during Seek that it wouldn't reset AVIOContext's errors/eof which could cause status stopped instead of ended and delays (Player buffered failed)
-		- Player: Fixes a rare but possible deadlock during Seek
-		- Player: Fixes audio crackling issues
-		- Plugins.YoutubeDL: Fixes a critical JSON deserialize issue for the latest yt-dlp version
+		- Demuxer: Fixes a rare (race condition) memory leak during open
+		- Renderer: Partial fix for issue with BT2020 ColorSpace (PQ/HLG trc func only)
+		- Renderer: In case of a single frame (image), allows more time for the frame to be presented
 	</PackageReleaseNotes>
   </PropertyGroup>
 
