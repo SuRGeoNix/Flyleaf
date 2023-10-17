@@ -422,7 +422,7 @@ public unsafe class Demuxer : RunThreadBase
             else
                 OpenFormat(url, inFmt, fmtOptExtra, out ret);
 
-            if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { fmtCtx = null; return error = "Cancelled"; }
+            if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { if (ret < 0) fmtCtx = null; return error = "Cancelled"; }
             if (ret < 0) { fmtCtx = null; return error = $"[avformat_open_input] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})"; }
 
             // Find Streams Info
