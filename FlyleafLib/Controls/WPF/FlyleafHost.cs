@@ -895,32 +895,36 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     
     private void Host_Loaded(object sender, RoutedEventArgs e)
     {
-        if (Owner != null)
-        {
-            var owner2 = Window.GetWindow(this);
-            if (owner2 == null || owner2 == Owner)
-                return;
-
-            Owner           = owner2;
-            OwnerHandle     = new WindowInteropHelper(Owner).EnsureHandle();
-            Surface.Title   = Owner.Title;
-            Surface.Icon    = Owner.Icon;
-
-            if (IsAttached)
-            {
-                Detach();
-                Attach();
-            }
-
-            return;
-        }
-
         Window owner = Window.GetWindow(this);
         if (owner == null)
             return;
 
+        var ownerHandle = new WindowInteropHelper(owner).EnsureHandle();
+
+        // Owner Changed
+        if (Owner != null)
+        {
+            if (!IsAttached || OwnerHandle == ownerHandle)
+                return; // Check OwnerHandle changed (NOTE: Owner can be the same class/window but the handle can be different)
+
+            Surface.Hide();
+            Overlay?.Hide();
+            Detach();
+
+            Owner           = owner;
+            OwnerHandle     = ownerHandle;
+            Surface.Title   = Owner.Title;
+            Surface.Icon    = Owner.Icon;
+
+            Attach();
+            rectDetachedLast = Rect.Empty; // Attach will set it wrong first time
+            Host_IsVisibleChanged(null, new());
+
+            return;
+        }
+
         Owner           = owner;
-        OwnerHandle     = new WindowInteropHelper(Owner).EnsureHandle();
+        OwnerHandle     = ownerHandle;
         HostDataContext = DataContext;
 
         SetSurface();
@@ -968,8 +972,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (IsVisible)
         {
+            Host_Loaded(null, null);
             Surface.Show();
             Overlay?.Show();
+            // TBR: First time loaded in a tab control could cause UCEERR_RENDERTHREADFAILURE (can be avoided by hide/show again here)
         }
         else
         {
@@ -985,7 +991,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         
         if (!IsVisible || !IsAttached || IsFullScreen || IsResizing)
             return;
-
+        
         try
         {
             rectInit = rectIntersect = new(TransformToAncestor(Owner).Transform(zeroPoint), RenderSize);
@@ -1025,6 +1031,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             // It has been noticed with NavigationService (The visual tree changes, visual root IsVisible is false but FlyleafHost is still visible)
             if (Logger.CanDebug) Log.Debug($"Host_LayoutUpdated: {ex.Message}");
+
+            // TBR: (Currently handle on each time Visible=true) It's possible that the owner/parent has been changed (for some reason Host_Loaded will not be called) *probably when the Owner stays the same but the actual Handle changes
+            //if (ex.Message == "The specified Visual is not an ancestor of this Visual.")
+                //Host_Loaded(null, null);
         }
     }
     private void Player_Video_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -1470,7 +1480,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (standAloneOverlay.WindowStyle != WindowStyle.None || standAloneOverlay.AllowsTransparency == false)
             throw new Exception("Stand-alone FlyleafHost requires WindowStyle = WindowStyle.None and AllowsTransparency = true");
-
+        
         SetSurface();
         Overlay = standAloneOverlay;
         Overlay.IsVisibleChanged += OverlayStandAlone_IsVisibleChanged;
