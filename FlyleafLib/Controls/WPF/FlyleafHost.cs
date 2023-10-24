@@ -895,8 +895,25 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     
     private void Host_Loaded(object sender, RoutedEventArgs e)
     {
-        if (Owner != null) // Currently we don't change the Owner on Unload/Load
+        if (Owner != null)
+        {
+            var owner2 = Window.GetWindow(this);
+            if (owner2 == null || owner2 == Owner)
+                return;
+
+            Owner           = owner2;
+            OwnerHandle     = new WindowInteropHelper(Owner).EnsureHandle();
+            Surface.Title   = Owner.Title;
+            Surface.Icon    = Owner.Icon;
+
+            if (IsAttached)
+            {
+                Detach();
+                Attach();
+            }
+
             return;
+        }
 
         Window owner = Window.GetWindow(this);
         if (owner == null)
