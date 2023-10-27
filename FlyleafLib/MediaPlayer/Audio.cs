@@ -173,16 +173,18 @@ public class Audio : NotifyPropertyChanged
     DecoderContext          decoder => player?.decoder;
 
     Action                  uiAction;
-    readonly object         locker = new();
+    internal readonly object
+                            locker = new();
 
     IXAudio2                xaudio2;
     internal IXAudio2MasteringVoice
                             masteringVoice;
-    IXAudio2SourceVoice     sourceVoice;
+    internal IXAudio2SourceVoice
+                            sourceVoice;
     WaveFormat              waveFormat  = new(48000, 16, 2); // Output Audio Device
     AudioBuffer             audioBuffer = new();
     internal double         Timebase;
-    ulong                   submittedSamples;
+    internal ulong          submittedSamples;
     #endregion
 
     public Audio(Player player)
@@ -309,7 +311,6 @@ public class Audio : NotifyPropertyChanged
             sourceVoice.Start();
             submittedSamples = sourceVoice.State.SamplesPlayed;
         }
-            
     }
 
     internal void Reset()
