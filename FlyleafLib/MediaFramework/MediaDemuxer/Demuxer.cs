@@ -395,6 +395,22 @@ public unsafe class Demuxer : RunThreadBase
                 if (inFmt == null)
                     return error = $"[av_find_input_format] {fmtStr} not found";
             }
+            else if (url.StartsWith("srt://"))
+            {
+                int queryStarts = url.IndexOf('?');
+                inFmt = av_find_input_format("srt");
+
+                if (queryStarts != -1)
+                {
+                    url = Url[..Url.IndexOf('?')];
+                    string query = Url[(queryStarts + 1)..];
+                    var qp = HttpUtility.ParseQueryString(query);
+
+                    fmtOptExtra = new();
+                    foreach (string p in qp)
+                        fmtOptExtra.Add(p, qp[p]);
+                }
+            }
 
             // Some devices required to be opened from a UI thread | after 20-40 sec. of demuxing -> [gdigrab @ 0000019affe3f2c0] Failed to capture image (error 6) or (error 8)
             bool isDevice = inFmt != null && inFmt->priv_class != null && (
