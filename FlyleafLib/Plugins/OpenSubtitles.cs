@@ -22,18 +22,29 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 return new OpenSubtitlesResults(extStream);
 
         string title;
+        bool converted = false;
 
-        try
+        if (url.StartsWith("srt://"))
         {
-            FileInfo fi = new(Playlist.Url);
-            title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
-        } catch { title = url; }
-
+            title = url;
+            converted = true;
+        }
+        else
+        {
+            try
+            {
+                FileInfo fi = new(url);
+                title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
+            }
+            catch { title = url; }
+        }
+        
         ExternalSubtitlesStream newExtStream = new()
         {
             Url         = url,
             Title       = title,
             Downloaded  = true,
+            Converted   = converted,
         };
 
         AddExternalStream(newExtStream);
@@ -79,10 +90,18 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
 
                     Log.Debug($"Adding [{lang}] {file}");
 
+                    string title;
+                    try
+                    {
+                        FileInfo fi = new(file);
+                        title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
+                    }
+                    catch { title = file; }
+
                     AddExternalStream(new ExternalSubtitlesStream()
                     {
                         Url         = file,
-                        Title       = file,
+                        Title       = title,
                         Converted   = true,
                         Downloaded  = true,
                         Language    = lang
