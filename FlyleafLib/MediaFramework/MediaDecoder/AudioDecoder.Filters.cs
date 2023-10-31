@@ -23,6 +23,7 @@ public unsafe partial class AudioDecoder
     long                    filterFirstPts;
     bool                    setFirstPts;
     object                  lockSpeed = new();
+    AudioFrame              mFrame; // ensures at least 1000 samples
 
     private AVFilterContext* CreateFilter(string name, string args, AVFilterContext* prevCtx = null, string id = null)
     {
@@ -62,6 +63,7 @@ public unsafe partial class AudioDecoder
             filterGraph     = avfilter_graph_alloc();
             setFirstPts     = true;
             abufferDrained  = false;
+            mFrame          = null;
 
             // IN (abuffersrc)
             linkCtx = abufferCtx = CreateFilter("abuffer", 
@@ -113,7 +115,7 @@ public unsafe partial class AudioDecoder
             
             // GRAPH CONFIG
             ret = avfilter_graph_config(filterGraph, null);
-
+            
             return ret < 0 
                 ? throw new Exception($"[FilterGraph] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})") 
                 : 0;
@@ -245,7 +247,7 @@ public unsafe partial class AudioDecoder
         }
         
         int ret;
-
+        
         if ((ret = av_buffersrc_add_frame(abufferCtx, frame)) < 0) 
         {
             Log.Warn($"[buffersrc] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
@@ -301,7 +303,7 @@ public unsafe partial class AudioDecoder
         if ((ret = av_buffersrc_add_frame(abufferCtx, null)) < 0) 
         {
             Log.Warn($"[buffersrc] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
-            return; 
+            return;
         }
 
         AVFrame* frame = av_frame_alloc();
@@ -309,7 +311,15 @@ public unsafe partial class AudioDecoder
         while (true)
         {
             if ((ret = av_buffersink_get_frame_flags(abufferSinkCtx, frame, 0)) < 0)
+            {
+                if (mFrame != null) // on EOF should add rest mFrame samples
+                {
+                    Frames.Enqueue(mFrame);
+                    mFrame = null;
+                }
+
                 return;
+            }
             
             if (frame->pts == AV_NOPTS_VALUE)
             {
@@ -322,28 +332,48 @@ public unsafe partial class AudioDecoder
     }
     private void ProcessFilter(AVFrame* frame)
     {
-        AudioFrame mFrame   = new();
-        long newPts         = filterFirstPts + av_rescale_q((long)(curSamples + missedSamples), codecCtx->time_base, AudioStream.AVStream->time_base);
-        mFrame.timestamp    = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay);
-        mFrame.dataLen      = frame->nb_samples * ASampleBytes;
-        if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
+        var curLen = frame->nb_samples * ASampleBytes;
+
+        if (mFrame == null)
+        {
+            if (frame->nb_samples > cBufSamples) // (min 10000)
+                AllocateCircularBuffer(frame->nb_samples);
+            else if (cBufPos + Math.Max(curLen, 2500 * 4) >= cBuf.Length) // TBR: Currently this is just a guess for next samples
+                cBufPos = 0;
+
+            long newPts = filterFirstPts + av_rescale_q((long)(curSamples + missedSamples), codecCtx->time_base, AudioStream.AVStream->time_base);
+            fixed (byte* circularBufferPosPtr = &cBuf[cBufPos])
+                mFrame = new()
+                {
+                    dataLen     = curLen,
+                    dataPtr     = (IntPtr)circularBufferPosPtr,
+                    timestamp   = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay)
+                };
+        }
+        else
+        {
+            mFrame.dataLen += curLen;
+
+            // TBR: Normally -based on above guess- we shouldn't exceed cbuf (however if we do ideally we should also copy prev data)
+            fixed (byte* circularBufferPosPtr = &cBuf[0])
+                if ((long)mFrame.dataPtr - (long)circularBufferPosPtr + mFrame.dataLen > cBuf.Length )
+                    mFrame.dataPtr = (IntPtr)circularBufferPosPtr;
+        }
+
+        Marshal.Copy((IntPtr) frame->data[0], cBuf, cBufPos, curLen);
+        cBufPos += curLen;
+
+        if (mFrame.dataLen / ASampleBytes >= 1000) // ensures at least 1000 samples (note this should be based on sample rate and actual duration)
+        {
+            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
+            Frames.Enqueue(mFrame);
+            mFrame = null;
+        }
 
         var samplesSpeed1   = frame->nb_samples * speed;
         missedSamples      += samplesSpeed1 - (int)samplesSpeed1;
         curSamples         += (int)samplesSpeed1;
 
-        if (frame->nb_samples > cBufSamples)
-            AllocateCircularBuffer(frame->nb_samples);
-        else if (cBufPos + mFrame.dataLen >= cBuf.Length)
-            cBufPos = 0;
-
-        fixed (byte* circularBufferPosPtr = &cBuf[cBufPos])
-            mFrame.dataPtr = (IntPtr)circularBufferPosPtr;
-
-        Marshal.Copy((IntPtr) frame->data[0], cBuf, cBufPos, mFrame.dataLen);
-        cBufPos += mFrame.dataLen;
-            
-        Frames.Enqueue(mFrame);
         av_frame_unref(frame);
     }
 }
