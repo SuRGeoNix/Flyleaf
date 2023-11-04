@@ -36,17 +36,15 @@ unsafe partial class Player
     public void SeekForward3()  => SeekForward_(Config.Player.SeekOffset3);
     public void SeekForward_(long offset)
     {
-        if (!CanPlay) return;
+        if (!CanPlay || CurTime == Duration)
+            return;
 
-        long seekTs = CurTime + offset;
+        long seekTs = isLive ? CurTime + offset : Math.Min(CurTime + offset, Duration);
 
-        if (seekTs <= Duration || isLive)
-        {
-            if (Config.Player.SeekAccurate)
-                SeekAccurate((int)(seekTs / 10000));
-            else
-                Seek((int)(seekTs / 10000), true);
-        }
+        if (Config.Player.SeekAccurate)
+            SeekAccurate((int)(seekTs / 10000));
+        else
+            Seek((int)(seekTs / 10000), true);
     }
 
     public void SeekToChapter(Demuxer.Chapter chapter) =>

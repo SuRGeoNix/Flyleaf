@@ -263,7 +263,7 @@ partial class Player
                     else
                     {
                         decoder.PauseDecoders();
-                        ret = decoder.Seek(seekData.ms, seekData.forward, !seekData.accurate);
+                        ret = decoder.Seek(seekData.accurate ? seekData.ms - 3000 : seekData.ms, seekData.forward, !seekData.accurate); // 3sec ffmpeg bug for seek accurate when fails to seek backwards (see videodecoder getframe)
                         if (ret < 0)
                         {
                             if (CanWarn) Log.Warn("Seek failed");
