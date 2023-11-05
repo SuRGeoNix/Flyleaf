@@ -23,12 +23,15 @@ unsafe partial class Player
     public void SeekBackward3() => SeekBackward_(Config.Player.SeekOffset3);
     public void SeekBackward_(long offset)
     {
-        if (!CanPlay) return;
+        if (!CanPlay)
+            return;
+
+        long seekTs = CurTime - (CurTime % offset) - offset;
 
         if (Config.Player.SeekAccurate)
-            SeekAccurate(Math.Max((int) ((CurTime - offset) / 10000), 0));
+            SeekAccurate(Math.Max((int) (seekTs / 10000), 0));
         else
-            Seek(Math.Max((int) ((CurTime - offset) / 10000), 0), false);
+            Seek(Math.Max((int) (seekTs / 10000), 0), false);
     }
 
     public void SeekForward()   => SeekForward_(Config.Player.SeekOffset);
@@ -36,10 +39,13 @@ unsafe partial class Player
     public void SeekForward3()  => SeekForward_(Config.Player.SeekOffset3);
     public void SeekForward_(long offset)
     {
-        if (!CanPlay || CurTime == Duration)
+        if (!CanPlay)
             return;
 
-        long seekTs = isLive ? CurTime + offset : Math.Min(CurTime + offset, Duration);
+        long seekTs = CurTime - (CurTime % offset) + offset;
+
+        if (seekTs > Duration && !isLive)
+            return;
 
         if (Config.Player.SeekAccurate)
             SeekAccurate((int)(seekTs / 10000));
