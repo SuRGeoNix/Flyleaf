@@ -335,9 +335,11 @@ public unsafe partial class AudioDecoder : DecoderBase
                     lock (lockSpeed)
                     {
                         if (filterGraph != null)
-                            ProcessFilters(frame);
+                            ProcessFilters();
                         else
-                            Process(frame);
+                            Process();
+
+                        av_frame_unref(frame);
                     }
                 }
             } catch { }
@@ -350,7 +352,7 @@ public unsafe partial class AudioDecoder : DecoderBase
 
         if (Status == Status.Draining) Status = Status.Ended;
     }
-    private void Process(AVFrame* frame)
+    private void Process()
     {
         try
         {
@@ -410,12 +412,6 @@ public unsafe partial class AudioDecoder : DecoderBase
         catch (Exception e)
         {
             Log.Error($"Failed to process frame ({e.Message})");
-            
-            return;
-        }
-        finally
-        {
-            av_frame_unref(frame);
         }
     }
 
