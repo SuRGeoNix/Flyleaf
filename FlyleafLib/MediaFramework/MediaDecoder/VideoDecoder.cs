@@ -96,7 +96,6 @@ public unsafe class VideoDecoder : DecoderBase
                             textureFFmpeg;
     AVCodecContext_get_format 
                             getHWformat;
-    bool                    disableGetFormat;
     AVBufferRef*            hwframes;
     AVBufferRef*            hw_device_ctx;
 
@@ -146,19 +145,26 @@ public unsafe class VideoDecoder : DecoderBase
 
     private AVPixelFormat get_format(AVCodecContext* avctx, AVPixelFormat* pix_fmts)
     {
-        if (disableGetFormat)
-            return avcodec_default_get_format(avctx, pix_fmts);
+        if (CanDebug)
+        {
+            Log.Debug($"Codec profile '{VideoStream.Codec} {avcodec_profile_name(codecCtx->codec_id, codecCtx->profile)}'");
 
-        if (CanDebug) Log.Debug($"Codec profile '{VideoStream.Codec} {avcodec_profile_name(codecCtx->codec_id, codecCtx->profile)}'");
+            if (CanTrace)
+            {
+                var save = pix_fmts;
+                while (*pix_fmts != AVPixelFormat.AV_PIX_FMT_NONE)
+                {
+                    Log.Trace($"{*pix_fmts}");
+                    pix_fmts++;
+                }
+                pix_fmts = save;
+            }
+        }
 
-        int  ret = 0;
         bool foundHWformat = false;
         
         while (*pix_fmts != AVPixelFormat.AV_PIX_FMT_NONE)
         {
-            if (CanTrace)
-                Log.Trace($"{*pix_fmts}");
-
             if ((*pix_fmts) == PIX_FMT_HWACCEL)
             {
                 foundHWformat = true;
@@ -168,14 +174,11 @@ public unsafe class VideoDecoder : DecoderBase
             pix_fmts++;
         }
 
-        ret = ShouldAllocateNew();
+        int ret = ShouldAllocateNew();
 
         if (foundHWformat && ret == 0)
         {
-            if (CanTrace)
-                Log.Trace("HW frames already allocated");
-
-            if (hwframes != null && codecCtx->hw_frames_ctx == null)
+            if (codecCtx->hw_frames_ctx == null && hwframes != null)
                 codecCtx->hw_frames_ctx = av_buffer_ref(hwframes);
 
             return PIX_FMT_HWACCEL;
@@ -244,7 +247,7 @@ public unsafe class VideoDecoder : DecoderBase
             return -1;
 
         AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)codecCtx->hw_frames_ctx->data;
-        hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames;
+        hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames; // TBR: Texture 2D Array seems to have up limit to 128 (total=17+MaxVideoFrames)?
 
         AVD3D11VAFramesContext *va_frames_ctx = (AVD3D11VAFramesContext *)hw_frames_ctx->hwctx;
         va_frames_ctx->BindFlags  |= (uint)BindFlags.Decoder | (uint)BindFlags.ShaderResource;
@@ -327,7 +330,6 @@ public unsafe class VideoDecoder : DecoderBase
 
             codecCtx->pix_fmt = PIX_FMT_HWACCEL;
             codecCtx->get_format = getHWformat;
-            disableGetFormat = false;
         }
         else
             codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);

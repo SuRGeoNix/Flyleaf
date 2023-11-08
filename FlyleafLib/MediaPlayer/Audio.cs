@@ -298,7 +298,7 @@ public class Audio : NotifyPropertyChanged
         }
     }
     internal long GetBufferedDuration() { lock (locker) { return (long) ((submittedSamples - sourceVoice.State.SamplesPlayed) * Timebase); } }
-    internal long GetDeviceDelay() => (long) ((xaudio2.PerformanceData.CurrentLatencyInSamples * Timebase) - 80000); // TODO: VBlack delay (8ms correction for now)
+    internal long GetDeviceDelay()      { lock (locker) { return (long) ((xaudio2.PerformanceData.CurrentLatencyInSamples * Timebase) - 80000); } } // TODO: VBlack delay (8ms correction for now)
     internal void ClearBuffer()
     {
         lock (locker)
