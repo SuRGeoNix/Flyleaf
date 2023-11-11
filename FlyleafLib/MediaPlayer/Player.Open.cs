@@ -246,7 +246,7 @@ unsafe partial class Player
     /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
     /// <returns></returns>
     public OpenCompletedArgs Open(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-        => url.StartsWith("srt://") || ExtensionsSubtitles.Contains(GetUrlExtention(url))
+        => ExtensionsSubtitles.Contains(GetUrlExtention(url))
         ? OpenSubtitles(url)
         : OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
