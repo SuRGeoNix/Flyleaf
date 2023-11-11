@@ -22,29 +22,19 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 return new OpenSubtitlesResults(extStream);
 
         string title;
-        bool converted = false;
 
-        if (url.StartsWith("srt://"))
+        try
         {
-            title = url;
-            converted = true;
+            FileInfo fi = new(url);
+            title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
         }
-        else
-        {
-            try
-            {
-                FileInfo fi = new(url);
-                title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
-            }
-            catch { title = url; }
-        }
-        
+        catch { title = url; }
+                
         ExternalSubtitlesStream newExtStream = new()
         {
             Url         = url,
             Title       = title,
-            Downloaded  = true,
-            Converted   = converted,
+            Downloaded  = true
         };
 
         AddExternalStream(newExtStream);

@@ -398,7 +398,6 @@ public unsafe class Demuxer : RunThreadBase
             else if (url.StartsWith("srt://"))
             {
                 int queryStarts = url.IndexOf('?');
-                inFmt = av_find_input_format("srt");
 
                 if (queryStarts != -1)
                 {
