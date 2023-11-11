@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.31</Version>
+	<Version>3.7.32</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- AudioDecoder (Filters): Ensures that each frame has at least 1K samples to avoid audio crackling and audio/video sync issue
-		- Demuxer: Adds support for srt:// format with inline options
-		- Player: Improves Seek Backward/Foreward Timestamp based on CurTime/Offset's modulo
-		- Player: Fixes an issue with SeekAccurate and mpegts formats/HEVC codecs
+		- AudioDecoder (Filters): Simplifies Min Samples and adds also Max Samples (20-70ms)
+		- AudioDecoder (Filters): Resync timestamps in case of audio gaps (mainly for live streams and during codec change events)
+		- VideoDecoder: Minor improvements
+		- Player: Fixes a possible AccessViolation issue with audio device (introduced in 3.7.28)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
