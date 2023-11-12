@@ -974,7 +974,38 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         {
             Host_Loaded(null, null);
             Surface.Show();
-            Overlay?.Show();
+            
+            if (Overlay != null)
+            {
+                Overlay.Show();
+
+                // It happens (eg. with MetroWindow) that overlay left will not be equal to surface left so we reset it by detach/attach the overlay to surface (https://github.com/SuRGeoNix/Flyleaf/issues/370)
+                RECT surfRect = new();
+                RECT overRect = new();
+                GetWindowRect(SurfaceHandle, ref surfRect);
+                GetWindowRect(OverlayHandle, ref overRect);
+
+                if (surfRect.Left != overRect.Left)
+                {
+                    // Detach Overlay
+                    SetParent(OverlayHandle, IntPtr.Zero);
+                    SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
+                    Overlay.Owner = null;
+
+                    SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight,
+                        (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
+
+                    // Attache Overlay
+                    SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)(WindowStyles.WS_CHILD | WindowStyles.WS_MAXIMIZE));
+                    Overlay.Owner = Surface;
+                    SetParent(OverlayHandle, SurfaceHandle);
+
+                    // Required to restore overlay
+                    Rect tt1 = new(0, 0, 0, 0);
+                    SetRect(ref tt1);
+                }
+            }
+
             // TBR: First time loaded in a tab control could cause UCEERR_RENDERTHREADFAILURE (can be avoided by hide/show again here)
         }
         else
