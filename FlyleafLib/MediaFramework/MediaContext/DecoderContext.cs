@@ -431,7 +431,7 @@ public unsafe partial class DecoderContext : PluginHandler
         {
             if (VideoDemuxer.VideoPackets.Count == 0)
             {
-                VideoDemuxer.Interrupter.Request(Requester.Read);
+                VideoDemuxer.Interrupter.ReadRequest();
                 ret = av_read_frame(VideoDemuxer.FormatContext, packet);
                 if (ret != 0) return -1;
             }
