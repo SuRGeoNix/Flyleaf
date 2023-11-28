@@ -368,27 +368,37 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// avformat_close_input timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             CloseTimeout    { get; set; } =  1 * 1000 * 10000;
+        public long             CloseTimeout    { get => closeTimeout; set { closeTimeout = value; closeTimeoutMs = value / 10000; } }
+        private long closeTimeout = 1 * 1000 * 10000;
+        internal long closeTimeoutMs = 1 * 1000;
 
         /// <summary>
         /// avformat_open_input + avformat_find_stream_info timeout (ticks) for protocols that support interrupts (should be related to probesize/analyzeduration)
         /// </summary>
-        public long             OpenTimeout     { get; set; } = 5 * 60 * (long)1000 * 10000;
+        public long             OpenTimeout     { get => openTimeout; set { openTimeout = value; openTimeoutMs = value / 10000; } }
+        private long openTimeout = 5 * 60 * (long)1000 * 10000;
+        internal long openTimeoutMs = 5 * 60 * 1000;
 
         /// <summary>
         /// av_read_frame timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             ReadTimeout     { get; set; } = 10 * 1000 * 10000;
+        public long             ReadTimeout     { get => readTimeout; set { readTimeout = value; readTimeoutMs = value / 10000; } }
+        private long readTimeout = 10 * 1000 * 10000;
+        internal long readTimeoutMs = 10 * 1000;
 
         /// <summary>
         /// av_read_frame timeout (ticks) for protocols that support interrupts (for Live streams)
         /// </summary>
-        public long             ReadLiveTimeout { get; set; } = 20 * 1000 * 10000;
+        public long             ReadLiveTimeout { get => readLiveTimeout; set { readLiveTimeout = value; readLiveTimeoutMs = value / 10000; } }
+        private long readLiveTimeout = 20 * 1000 * 10000;
+        internal long readLiveTimeoutMs = 20 * 1000;
 
         /// <summary>
         /// av_seek_frame timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             SeekTimeout     { get; set; } =  8 * 1000 * 10000;
+        public long             SeekTimeout     { get => seekTimeout; set { seekTimeout = value; seekTimeoutMs = value / 10000; } }
+        private long seekTimeout = 8 * 1000 * 10000;
+        internal long seekTimeoutMs = 8 * 1000;
 
         /// <summary>
         /// Forces Input Format
