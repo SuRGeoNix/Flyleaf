@@ -275,7 +275,7 @@ public unsafe class Demuxer : RunThreadBase
 
             if (fmtCtx != null)
             {
-                Interrupter.Request(Requester.Close);
+                Interrupter.CloseRequest();
                 fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
             }
 
@@ -423,7 +423,7 @@ public unsafe class Demuxer : RunThreadBase
 
             // Open Format Context
             allowReadInterrupts = true; // allow Open interrupts always
-            Interrupter.Request(Requester.Open);
+            Interrupter.OpenRequest();
 
             // Nesting the io_open (to pass the options to the underlying formats)
             if (Config.FormatOptToUnderlying)
@@ -437,8 +437,8 @@ public unsafe class Demuxer : RunThreadBase
             else
                 OpenFormat(url, inFmt, fmtOptExtra, out ret);
 
-            if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { if (ret < 0) fmtCtx = null; return error = "Cancelled"; }
-            if (ret < 0) { fmtCtx = null; return error = $"[avformat_open_input] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})"; }
+            if ((ret == AVERROR_EXIT && !Interrupter.Timedout) || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { if (ret < 0) fmtCtx = null; return error = "Cancelled"; }
+            if (ret < 0) { fmtCtx = null; return error = Interrupter.Timedout ? "[avformat_open_input] Timeout" : $"[avformat_open_input] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})"; }
 
             // Find Streams Info
             if (Config.AllowFindStreamInfo)
@@ -777,7 +777,7 @@ public unsafe class Demuxer : RunThreadBase
                 if (hlsCtx != null)
                     fmtCtx->ctx_flags &= ~AVFMTCTX_UNSEEKABLE;
 
-                Interrupter.Request(Requester.Seek);
+                Interrupter.SeekRequest();
                 if (VideoStream != null)
                 {
                     if (CanDebug) Log.Debug($"[Seek({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
@@ -866,7 +866,7 @@ public unsafe class Demuxer : RunThreadBase
             // Demux Packet
             lock (lockFmtCtx)
             {
-                Interrupter.Request(Requester.Read);
+                Interrupter.ReadRequest();
                 ret = av_read_frame(fmtCtx, packet);
                 if (Interrupter.ForceInterrupt != 0)
                 {
@@ -883,6 +883,12 @@ public unsafe class Demuxer : RunThreadBase
                     if (ret == AVERROR_EOF)
                     {
                         Status = Status.Ended;
+                        break;
+                    }
+
+                    if (Interrupter.Timedout)
+                    {
+                        Status = Status.Stopping;
                         break;
                     }
 
@@ -1004,7 +1010,7 @@ public unsafe class Demuxer : RunThreadBase
             // Demux Packet
             lock (lockFmtCtx)
             {
-                Interrupter.Request(Requester.Read);
+                Interrupter.ReadRequest();
                 ret = av_read_frame(fmtCtx, packet);
                 if (Interrupter.ForceInterrupt != 0) 
                 {
@@ -1042,7 +1048,7 @@ public unsafe class Demuxer : RunThreadBase
                         }
 
                         //Log($"[][][SEEK END] {curReverseStartPts} | {Utils.TicksToTime((long) (curReverseStartPts * VideoStream.Timebase))}");
-                        Interrupter.Request(Requester.Seek);
+                        Interrupter.SeekRequest();
                         ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, Math.Max(curReverseStartPts - curReverseSeekOffset, VideoStream.StartTimePts), AVSEEK_FLAG_BACKWARD);
 
                         if (ret != 0)
@@ -1123,7 +1129,7 @@ public unsafe class Demuxer : RunThreadBase
                     }
 
                     //Log($"[][][SEEK] {curReverseStartPts} | {Utils.TicksToTime((long) (curReverseStartPts * VideoStream.Timebase))}");
-                    Interrupter.Request(Requester.Seek);
+                    Interrupter.SeekRequest();
                     ret = av_seek_frame(fmtCtx, VideoStream.StreamIndex, Math.Max(curReverseStartPts - curReverseSeekOffset, 0), AVSEEK_FLAG_BACKWARD);
 
                     if (ret != 0)
@@ -1491,7 +1497,7 @@ public unsafe class Demuxer : RunThreadBase
 
         while (true)
         {
-            Interrupter.Request(Requester.Read);
+            Interrupter.ReadRequest();
             ret = av_read_frame(fmtCtx, packet);
 
             if (ret != 0) 

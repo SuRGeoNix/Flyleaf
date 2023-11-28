@@ -903,7 +903,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC
         // More issues with mpegts seeking backwards (those should be used also in the reverse playback in the demuxer)
-        demuxer.Interrupter.Request(MediaDemuxer.Requester.Seek);
+        demuxer.Interrupter.SeekRequest();
         ret = codecCtx->codec_id == AV_CODEC_ID_HEVC || (demuxer.FormatContext->iformat != null && demuxer.FormatContext->iformat->read_seek.Pointer == IntPtr.Zero)
             ? av_seek_frame(demuxer.FormatContext, -1, Math.Max(0, frameTimestamp - (3 * (long)1000 * 10000)) / 10, AVSEEK_FLAG_ANY)
             : av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
