@@ -15,7 +15,7 @@ public unsafe class Interrupter
     Demuxer demuxer;
     Stopwatch sw = new();
     internal AVIOInterruptCB_callback interruptClbk;
-    long curTimeout;
+    long curTimeoutMs;
     
     internal int ShouldInterrupt(void* opaque)
     {
@@ -26,7 +26,7 @@ public unsafe class Interrupter
             return Interrupted = 1;
         }
 
-        if (demuxer.Config.AllowTimeouts && sw.ElapsedMilliseconds > curTimeout / 10000)
+        if (demuxer.Config.AllowTimeouts && sw.ElapsedMilliseconds > curTimeoutMs)
         {
             if (Timedout)
                 return Interrupted = 1;
@@ -66,7 +66,7 @@ public unsafe class Interrupter
         if (!demuxer.Config.AllowTimeouts)
             return;
 
-        curTimeout  = demuxer.IsLive ? demuxer.Config.ReadLiveTimeout : demuxer.Config.ReadTimeout;
+        curTimeoutMs= demuxer.IsLive ? demuxer.Config.readLiveTimeoutMs: demuxer.Config.readTimeoutMs;
         sw.Restart();
     }
 
@@ -78,7 +78,7 @@ public unsafe class Interrupter
             return;
 
         Timedout    = false;
-        curTimeout  = demuxer.Config.SeekTimeout;
+        curTimeoutMs= demuxer.Config.seekTimeoutMs;
         sw.Restart();
     }
 
@@ -90,7 +90,7 @@ public unsafe class Interrupter
             return;
 
         Timedout    = false;
-        curTimeout  = demuxer.Config.OpenTimeout;
+        curTimeoutMs= demuxer.Config.openTimeoutMs;
         sw.Restart();
     }
 
@@ -102,7 +102,7 @@ public unsafe class Interrupter
             return;
 
         Timedout    = false;
-        curTimeout  = demuxer.Config.CloseTimeout;
+        curTimeoutMs= demuxer.Config.closeTimeoutMs;
         sw.Restart();
     }
 }
