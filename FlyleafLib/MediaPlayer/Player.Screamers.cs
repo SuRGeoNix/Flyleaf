@@ -290,6 +290,9 @@ unsafe partial class Player
             
             if (requiresBuffering)
             {
+                if (VideoDemuxer.Interrupter.Timedout)
+                    break;
+
                 OnBufferingStarted();
                 MediaBuffer();
                 requiresBuffering = false;
