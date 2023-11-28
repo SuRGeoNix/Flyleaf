@@ -11,7 +11,7 @@ namespace FlyleafLib.MediaPlayer;
 
 partial class Player
 {
-    bool stoppedWithError;
+    string stoppedWithError = null;
 
     /// <summary>
     /// Fires on playback stopped by an error or completed / ended successfully <see cref="Status"/>
@@ -46,7 +46,6 @@ partial class Player
         while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
         taskPlayRuns = true;
 
-        // Long-Run Task
         Thread t = new(() =>
         {
             try
@@ -101,30 +100,38 @@ partial class Player
                 Audio.ClearBuffer();
                 Engine.TimeEndPeriod1();
                 NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
-                stoppedWithError = false;
+                stoppedWithError = null;
 
                 if (IsPlaying)
-                {    
+                {
                     if (decoderHasEnded)
                         status = Status.Ended;
                     else
                     {
-                        if (onBufferingStarted - 1 == onBufferingCompleted)
+                        if (Video.IsOpened && VideoDemuxer.Interrupter.Timedout)
+                            stoppedWithError = "Timeout";
+                        else if (onBufferingStarted - 1 == onBufferingCompleted)
                         {
-                            stoppedWithError = true;
+                            stoppedWithError = "Playback stopped unexpectedly";
                             OnBufferingCompleted("Buffering failed");
                         }
                         else
                         {
-                            stoppedWithError = !ReversePlayback ? isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000 : CurTime > 3 * 1000 * 10000;
+                            if (!ReversePlayback)
+                            {
+                                if (isLive || Math.Abs(Duration - CurTime) > 3 * 1000 * 10000)
+                                    stoppedWithError = "Playback stopped unexpectedly";
+                            }
+                            else if (CurTime > 3 * 1000 * 10000)
+                                stoppedWithError = "Playback stopped unexpectedly";
                         }
 
                         status = Status.Paused;
                     }
                 }
-                    
-                OnPlaybackStopped(stoppedWithError ? "Playback stopped unexpectedly" : null);
-                if (CanDebug) Log.Debug($"[SCREAMER] Finished (Status: {Status}, Error: {(stoppedWithError ? "Playback stopped unexpectedly" : "")})");
+
+                OnPlaybackStopped(stoppedWithError);
+                if (CanDebug) Log.Debug($"[SCREAMER] Finished (Status: {Status}, Error: {stoppedWithError})");
 
                 UI(() =>
                 {
@@ -291,7 +298,7 @@ partial class Player
             {
                 decoder.OpenedPlugin?.OnBufferingCompleted();
                 Engine.TimeEndPeriod1();
-                if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError) // TBR: Possible race condition with if (Status == Status.Playing)
+                if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError != null) // TBR: Possible race condition with if (Status == Status.Playing)
                     Play();
             }
         });
