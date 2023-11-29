@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.34</Version>
+	<Version>3.7.35</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		FlyleafHost.Wpf: Ensures Surface and Overlay's Left are equal after showing the windows (eg. MetroWindow)
+		* Adds .NET 8 support (drops .NET 7)
+		* Demuxer: Interrupter improvements
+		* Player: Passes Timeout specific error to PlaybackStopped event
 	</PackageReleaseNotes>
   </PropertyGroup>
 
