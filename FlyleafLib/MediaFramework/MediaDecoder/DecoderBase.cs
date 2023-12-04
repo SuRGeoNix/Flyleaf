@@ -79,7 +79,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                 if (codec == null)
                     return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
 
-                codecCtx = avcodec_alloc_context3(null);
+                codecCtx = avcodec_alloc_context3(codec); // Pass codec to use default settings
                 if (codecCtx == null)
                     return error = $"[{Type} avcodec_alloc_context3] Failed to allocate context3";
 
@@ -88,7 +88,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                     return error = $"[{Type} avcodec_parameters_to_context] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
 
                 codecCtx->pkt_timebase  = stream.AVStream->time_base;
-                codecCtx->codec_id      = codec->id;
+                //codecCtx->codec_id      = codec->id;
 
                 if (Config.Decoder.ShowCorrupted)
                     codecCtx->flags |= AV_CODEC_FLAG_OUTPUT_CORRUPT;
