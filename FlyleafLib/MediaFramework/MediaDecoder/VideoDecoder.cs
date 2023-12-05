@@ -629,8 +629,10 @@ public unsafe class VideoDecoder : DecoderBase
             {
                 VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : 0;
                 VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
+                if (VideoStream.FrameDuration > 0)
+                    VideoStream.Demuxer.VideoPackets.frameDuration = VideoStream.FrameDuration;
             }
-
+            
             CodecChanged?.Invoke(this);
 
             if (!Renderer.ConfigPlanes())

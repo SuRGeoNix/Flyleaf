@@ -53,7 +53,9 @@ public unsafe class VideoStream : StreamBase
         FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
         TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
 
-        if (Demuxer.Name == "h264" || Demuxer.Name == "hevc") // TBR: Maybe required also for input formats with AVFMT_NOTIMESTAMPS (and audio/subs)
+        // TBR: Maybe required also for input formats with AVFMT_NOTIMESTAMPS (and audio/subs) 
+        // Possible FFmpeg.Autogen bug with Demuxer.FormatContext->iformat->flags (should be uint?) does not contain AVFMT_NOTIMESTAMPS (256 instead of 384)
+        if (Demuxer.Name == "h264" || Demuxer.Name == "hevc")
         {
             FixTimestamps = true;
 

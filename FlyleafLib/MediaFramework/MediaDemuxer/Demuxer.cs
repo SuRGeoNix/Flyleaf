@@ -659,7 +659,7 @@ public unsafe class Demuxer : RunThreadBase
 
             Extension = GetValidExtension();
         }
-
+        
         PrintDump();
         return hasVideo;
     }
@@ -1249,6 +1249,7 @@ public unsafe class Demuxer : RunThreadBase
 
                 case MediaType.Video:
                     VideoStream = (VideoStream) stream;
+                    VideoPackets.frameDuration = VideoStream.FrameDuration > 0 ? VideoStream.FrameDuration : 30 * 1000 * 10000;
                     if (VideoStream.HLSPlaylist != null)
                     {
                         IsHLSLive = true;
@@ -1536,7 +1537,7 @@ public unsafe class PacketQueue
     // TODO: DTS might not be available without avformat_find_stream_info (should changed based on packet->duration and fallback should be removed)
     readonly Demuxer demuxer;
     readonly ConcurrentQueue<IntPtr> packets = new();
-    readonly static int  _FPS_FALLBACK = 30; // in case of negative buffer duration calculate it based on packets count / FPS
+    public long frameDuration = 30 * 1000 * 10000; // in case of negative buffer duration calculate it based on packets count / FPS
 
     public long Bytes               { get; private set; }
     public long BufferedDuration    { get; private set; }
@@ -1590,9 +1591,11 @@ public unsafe class PacketQueue
                 {
                     BufferedDuration = LastTimestamp - FirstTimestamp;
                     if (BufferedDuration < 0)
-                        BufferedDuration = packets.Count * _FPS_FALLBACK * (long)10000;
+                        BufferedDuration = packets.Count * frameDuration;
                 }
             }
+            else
+                BufferedDuration = packets.Count * frameDuration;
 
             Bytes += packet->size;
         }
@@ -1612,6 +1615,8 @@ public unsafe class PacketQueue
                         (long)(packet->pts * demuxer.AVStreamToStream[packet->stream_index].Timebase);
                     UpdateCurTime();
                 }
+                else
+                    BufferedDuration = packets.Count * frameDuration;
 
                 return (AVPacket*)packetPtr;
             }
@@ -1649,6 +1654,6 @@ public unsafe class PacketQueue
         BufferedDuration = LastTimestamp - FirstTimestamp;
 
         if (BufferedDuration < 0)
-            BufferedDuration = packets.Count * _FPS_FALLBACK * (long)10000;
+            BufferedDuration = packets.Count * frameDuration;
     }
 }
