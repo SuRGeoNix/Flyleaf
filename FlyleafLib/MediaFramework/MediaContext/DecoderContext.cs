@@ -273,7 +273,7 @@ public unsafe partial class DecoderContext : PluginHandler
         }
         else if (ticks > startTime + (!VideoDemuxer.Disposed ? VideoDemuxer.Duration : AudioDemuxer.Duration) - (50 * 10000))
         {
-            ticks = startTime + demuxer.Duration - (50 * 10000);
+            ticks = Math.Max(startTime, startTime + demuxer.Duration - (50 * 10000));
             forward = false;
         }
 

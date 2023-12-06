@@ -751,13 +751,15 @@ public unsafe class Demuxer : RunThreadBase
          * HEVC/MPEG-TS: Fails to seek to keyframe https://blog.csdn.net/Annie_heyeqq/article/details/113649501 | https://trac.ffmpeg.org/ticket/9412
          * AVSEEK_FLAG_BACKWARD will not work on .dav even if it returns 0 (it will work after it fills the index table)
          * Strange delay (could be 200ms!) after seek on HEVC/yuv420p10le (10-bits) while trying to Present on swapchain (possible recreates texturearray?)
+         * AVFMT_NOTIMESTAMPS unknown duration (can be calculated?) should perform byte seek instead (percentage based on total pb size)
          */
 
         lock (lockActions)
         {
             if (Disposed) return -1;
-
+            
             int ret;
+            long savedPbPos = 0;
 
             Interrupter.ForceInterrupt = 1;
             lock (lockFmtCtx)
@@ -767,6 +769,7 @@ public unsafe class Demuxer : RunThreadBase
                 // Flush required because of the interrupt
                 if (fmtCtx->pb != null)
                 {
+                    savedPbPos = fmtCtx->pb->pos;
                     avio_flush(fmtCtx->pb);
                     fmtCtx->pb->error = 0; // AVERROR_EXIT will stay forever and will cause the demuxer to go in Status Stopped instead of Ended (after interrupted seeks)
                     fmtCtx->pb->eof_reached = 0;
@@ -782,6 +785,10 @@ public unsafe class Demuxer : RunThreadBase
                 {
                     if (CanDebug) Log.Debug($"[Seek({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
                     
+                    // TODO: After proper calculation of Duration
+                    //if (VideoStream.FixTimestamps && Duration > 0)
+                        //ret = av_seek_frame(fmtCtx, -1, (long)((ticks/(double)Duration) * avio_size(fmtCtx->pb)), AVSEEK_FLAG_BYTE);
+                    //else
                     ret = ticks == StartTime
                         ? avformat_seek_file(fmtCtx, -1, 0, 0, 0, 0)
                         : av_seek_frame(fmtCtx, -1, ticks / 10, forward ? AVSEEK_FLAG_FRAME : AVSEEK_FLAG_BACKWARD);
@@ -809,7 +816,19 @@ public unsafe class Demuxer : RunThreadBase
                             avformat_seek_file(fmtCtx, -1, ticks / 10   , ticks / 10, long.MaxValue , AVSEEK_FLAG_ANY);
 
                     if (ret < 0)
+                    {
                         Log.Warn($"Seek failed 2/2 {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+
+                        // Flush required because of seek failure (reset pb to last pos otherwise will be eof) - Mainly for NoTimestamps (TODO: byte seek/calc dur/percentage)
+                        if (fmtCtx->pb != null)
+                        {
+                            avio_flush(fmtCtx->pb);
+                            fmtCtx->pb->error = 0;
+                            fmtCtx->pb->eof_reached = 0;
+                            avio_seek(fmtCtx->pb, savedPbPos, 0);
+                        }
+                        avformat_flush(fmtCtx);
+                    }
                     else
                         lastSeekTime = ticks - StartTime - (hlsCtx != null ? hlsStartTime : 0);
                 }
