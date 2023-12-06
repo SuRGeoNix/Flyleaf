@@ -145,10 +145,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
     }
     private void SCP_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (Player == null)
-            return;
-
-        Player.renderer.ResizeBuffers((int) e.NewSize.Width, (int) e.NewSize.Height);
+        Player?.renderer.ResizeBuffers((int) e.NewSize.Width, (int) e.NewSize.Height);
     }
 
     private void PlayerChanged(Player? oldPlayer)
@@ -183,8 +180,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
         using (var nativeObject = SharpGen.Runtime.ComObject.As<Vortice.WinUI.ISwapChainPanelNative2>(SCP))
             nativeObject.SetSwapChain(swapChain);
 
-        if (Player != null)
-            Player.renderer.ResizeBuffers((int) (ActualWidth * Utils.NativeMethods.DpiX), (int) (ActualHeight * Utils.NativeMethods.DpiY));
+        Player?.renderer.ResizeBuffers((int) ActualWidth , (int) ActualHeight);
     }
     public bool Player_CanHideCursor() => Window.Current == FullScreenContainer.FSW;
     public bool Player_GetFullScreen() => FSC != null && FSC.IsFullScreen;
