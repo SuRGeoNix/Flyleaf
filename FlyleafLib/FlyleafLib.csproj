@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.35</Version>
+	<Version>3.7.36</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Adds .NET 8 support (drops .NET 7)
-		* Demuxer: Interrupter improvements
-		* Player: Passes Timeout specific error to PlaybackStopped event
+		- Decoders: Ensures the codec context will be initialized with the codec-specific defaults by specifying the input codec
+		- Demuxer: Fixes a critical issue with NoTimestamps formats and packet queue (could cause high cpu and memory leaks)
+		- Demuxer: Few improvements for NoTimestamps formats
 	</PackageReleaseNotes>
   </PropertyGroup>
 
