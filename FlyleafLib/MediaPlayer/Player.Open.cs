@@ -85,7 +85,7 @@ unsafe partial class Player
         canPlay = Video.IsOpened || Audio.IsOpened;
         isLive  = MainDemuxer.IsLive;
         duration= MainDemuxer.Duration;
-        if (Video.isOpened) duration -= VideoDemuxer.VideoStream.FrameDuration;
+        if (Video.isOpened) duration = Math.Max(0, duration - VideoDemuxer.VideoStream.FrameDuration);
 
         UIAdd(() =>
         {
