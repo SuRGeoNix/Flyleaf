@@ -203,6 +203,9 @@ public static class ParseSubtitles
         if (underline.from != -1) { underline.len = soutPostLast - underline.from; styles.Add(underline); }
         if (color.from != -1 && color.value != Color.Transparent) { color.len = soutPostLast - color.from; styles.Add(color); }
 
+        // Greek issue?
+        sout = sout.Replace("ʼ", "Ά");
+
         return sout;
     }
 }
