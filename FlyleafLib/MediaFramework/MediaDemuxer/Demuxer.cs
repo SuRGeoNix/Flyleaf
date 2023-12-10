@@ -521,7 +521,7 @@ public unsafe class Demuxer : RunThreadBase
                 av_dict_copy(ptr, avopt, 0);
         
         fixed(AVFormatContext** fmtCtxPtr = &fmtCtx)
-            ret = avformat_open_input(fmtCtxPtr, url, inFmt, &avopt);
+            ret = avformat_open_input(fmtCtxPtr, url, inFmt, avopt == null ? null : &avopt);
         
         if (avopt != null)
         {

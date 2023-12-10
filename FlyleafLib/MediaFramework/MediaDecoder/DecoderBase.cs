@@ -105,7 +105,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                 foreach(var optKV in codecOpts)
                     av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
 
-                ret = avcodec_open2(codecCtx, codec, &avopt);
+                ret = avcodec_open2(codecCtx, codec, avopt == null ? null : &avopt);
 
                 if (avopt != null)
                 {
