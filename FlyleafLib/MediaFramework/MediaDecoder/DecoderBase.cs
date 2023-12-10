@@ -114,7 +114,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                         AVDictionaryEntry *t = null;
 
                         while ((t = av_dict_get(avopt, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
-                        Log.Debug($"Ignoring codec option {Utils.BytePtrToStringUTF8(t->key)}");
+                            Log.Debug($"Ignoring codec option {Utils.BytePtrToStringUTF8(t->key)}");
                     }
 
                     av_dict_free(&avopt);
