@@ -100,7 +100,26 @@ public abstract unsafe class DecoderBase : RunThreadBase
                 if (ret < 0)
                     return error = $"[{Type} Setup] {ret}";
 
-                ret = avcodec_open2(codecCtx, codec, null);
+                var codecOpts = Config.Decoder.GetCodecOptPtr(stream.Type);
+                AVDictionary* avopt = null;
+                foreach(var optKV in codecOpts)
+                    av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+
+                ret = avcodec_open2(codecCtx, codec, &avopt);
+
+                if (avopt != null)
+                {
+                    if (ret >= 0)
+                    {
+                        AVDictionaryEntry *t = null;
+
+                        while ((t = av_dict_get(avopt, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
+                        Log.Debug($"Ignoring codec option {Utils.BytePtrToStringUTF8(t->key)}");
+                    }
+
+                    av_dict_free(&avopt);
+                }
+
                 if (ret < 0)
                     return error = $"[{Type} avcodec_open2] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
 

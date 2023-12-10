@@ -192,12 +192,20 @@ public class Config : NotifyPropertyChanged
                     if (player != null)
                         player.Speed = 1;
 
+                    if (config != null)
+                        config.Decoder.LowDelay = false;
+
                     return;
                 }
 
                 // Large max buffer so we ensure the actual latency distance
-                if (config != null && config.Demuxer.BufferDuration < value * 2)
-                    config.Demuxer.BufferDuration = value * 2;
+                if (config != null)
+                {
+                    if (config.Demuxer.BufferDuration < value * 2)
+                        config.Demuxer.BufferDuration = value * 2;
+
+                    config.Decoder.LowDelay = true;
+                }
 
                 // Small min buffer to avoid enabling latency speed directly
                 if (_MinBufferDuration > value / 10)
@@ -515,10 +523,20 @@ public class Config : NotifyPropertyChanged
         bool _ShowCorrupted;
 
         /// <summary>
-        /// Forces low delay (Parses AV_CODEC_FLAG_LOW_DELAY to AVCodecContext)
+        /// Forces low delay (Parses AV_CODEC_FLAG_LOW_DELAY to AVCodecContext) (auto-enabled with MaxLatency)
         /// </summary>
         public bool             LowDelay        { get => _LowDelay; set => SetUI(ref _LowDelay, value); }
         bool _LowDelay;
+
+        public SerializableDictionary<string, string>
+                                AudioCodecOpt       { get; set; } = new();
+        public SerializableDictionary<string, string>
+                                VideoCodecOpt       { get; set; } = new();
+        public SerializableDictionary<string, string>
+                                SubtitlesCodecOpt   { get; set; } = new();
+
+        public SerializableDictionary<string, string> GetCodecOptPtr(MediaType type)
+            => type == MediaType.Video ? VideoCodecOpt : type == MediaType.Audio ? AudioCodecOpt : SubtitlesCodecOpt;
     }
     public class VideoConfig : NotifyPropertyChanged
     {
