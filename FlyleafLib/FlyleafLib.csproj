@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.36</Version>
+	<Version>3.7.38</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2023</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,16 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Decoders: Ensures the codec context will be initialized with the codec-specific defaults by specifying the input codec
-		- Demuxer: Fixes a critical issue with NoTimestamps formats and packet queue (could cause high cpu and memory leaks)
-		- Demuxer: Few improvements for NoTimestamps formats
+		- Engine.Audio: Adds support for endpoints with the same FriendlyName but different Id
+		- Engine.Audio: Fixes a deadlock issue duing device removal when the device was assigned to a player
+		- Config: Introduces Decoder.AudioCodecOpt/VideoCodecOpt/SubtitlesCodecOpt to support all codec options per codec type
+		- Config: Introduces Decoder.LowDelay which improves low latency and will be auto-enabled with Player.MaxLatency
+
+		[Breaking Changes]
+		- Engine.Audio.GetDeviceId/GetDeviceName methods removed
+		- Engine.Audio.Devices changed from ObservableCollection&gt;string&lt; to ObservableCollection&gt;AudioEndPoint&lt;
+		- Player.Audio.Device changed from string to AudioEndPoint (can be found in Engine.Audio.Devices)
+		- Player.Audio.DeviceId has been removed
 	</PackageReleaseNotes>
   </PropertyGroup>
 
