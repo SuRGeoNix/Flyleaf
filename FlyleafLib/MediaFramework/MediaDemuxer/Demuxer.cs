@@ -523,16 +523,18 @@ public unsafe class Demuxer : RunThreadBase
         fixed(AVFormatContext** fmtCtxPtr = &fmtCtx)
             ret = avformat_open_input(fmtCtxPtr, url, inFmt, &avopt);
         
-        if (avopt != null && ret >= 0)
-        {
-            AVDictionaryEntry *t = null;
-
-            while ((t = av_dict_get(avopt, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
-                Log.Debug($"Ignoring format option {Utils.BytePtrToStringUTF8(t->key)}");
-        }
-
         if (avopt != null)
+        {
+            if (ret >= 0)
+            {
+                AVDictionaryEntry *t = null;
+
+                while ((t = av_dict_get(avopt, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
+                    Log.Debug($"Ignoring format option {Utils.BytePtrToStringUTF8(t->key)}");
+            }
+
             av_dict_free(&avopt);
+        }
     }
     private bool FillInfo()
     {
