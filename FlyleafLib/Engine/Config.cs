@@ -513,6 +513,12 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public bool             ShowCorrupted   { get => _ShowCorrupted; set => SetUI(ref _ShowCorrupted, value); }
         bool _ShowCorrupted;
+
+        /// <summary>
+        /// Forces low delay (Parses AV_CODEC_FLAG_LOW_DELAY to AVCodecContext)
+        /// </summary>
+        public bool             LowDelay        { get => _LowDelay; set => SetUI(ref _LowDelay, value); }
+        bool _LowDelay;
     }
     public class VideoConfig : NotifyPropertyChanged
     {

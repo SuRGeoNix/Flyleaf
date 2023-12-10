@@ -92,6 +92,9 @@ public abstract unsafe class DecoderBase : RunThreadBase
 
                 if (Config.Decoder.ShowCorrupted)
                     codecCtx->flags |= AV_CODEC_FLAG_OUTPUT_CORRUPT;
+
+                if (Config.Decoder.LowDelay)
+                    codecCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
                     
                 try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
                 if (ret < 0)
