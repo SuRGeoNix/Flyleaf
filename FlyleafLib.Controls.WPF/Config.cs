@@ -109,7 +109,7 @@ namespace FlyleafLib.Controls.WPF
             {
                 _PrimaryColor   = baseTheme.PrimaryColor;
                 _SecondaryColor = baseTheme.SecondaryColor;
-                _PaperColor     = baseTheme.PaperColor;
+                _BackgroundColor= baseTheme.BackgroundColor;
                 _SurfaceColor   = baseTheme.SurfaceColor;
             }
         }
@@ -122,7 +122,7 @@ namespace FlyleafLib.Controls.WPF
                 if (!Set(ref _PrimaryColor, value)) return;
                 if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;
 
-                ITheme theme = flyleaf.Overlay.Resources.GetTheme();
+                var theme = flyleaf.Overlay.Resources.GetTheme();
                 theme.SetPrimaryColor(value);
                 flyleaf.Overlay.Resources.SetTheme(theme);
                 flyleaf.settings.Resources.SetTheme(theme);
@@ -137,7 +137,7 @@ namespace FlyleafLib.Controls.WPF
                 if (!Set(ref _SecondaryColor, value)) return;
                 if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;
 
-                ITheme theme = flyleaf.Overlay.Resources.GetTheme();
+                var theme = flyleaf.Overlay.Resources.GetTheme();
                 theme.SetSecondaryColor(value);
                 flyleaf.Overlay.Resources.SetTheme(theme);
                 flyleaf.settings.Resources.SetTheme(theme);
@@ -145,20 +145,20 @@ namespace FlyleafLib.Controls.WPF
         }
         Color _SecondaryColor;
 
-        public Color PaperColor { 
-            get => _PaperColor;
+        public Color BackgroundColor { 
+            get => _BackgroundColor;
             set
             {
-                if (!Set(ref _PaperColor, value)) return;
+                if (!Set(ref _BackgroundColor, value)) return;
                 if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;
 
-                ITheme theme = flyleaf.Overlay.Resources.GetTheme();
-                theme.Paper = value;
+                var theme = flyleaf.Overlay.Resources.GetTheme();
+                theme.Background = value;
                 flyleaf.Overlay.Resources.SetTheme(theme);
                 flyleaf.settings.Resources.SetTheme(theme);
             }
         }
-        Color _PaperColor;
+        Color _BackgroundColor;
 
         public Color SurfaceColor      {
             get => _SurfaceColor;

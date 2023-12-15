@@ -35,7 +35,7 @@
                             <Setter
                                 Property="FrameworkElement.Height"
                                 Value="16" />
-                            <Setter Property="Foreground" Value="{DynamicResource SecondaryHueMidBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource MaterialDesign.Brush.Secondary}"/>
                         </Style>
                     </ControlTemplate.Resources>
                     <Grid
@@ -50,7 +50,7 @@
                             x:Name="BackgroundRoot"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            Background="{DynamicResource PrimaryHueMidBrush}"
+                            Background="{DynamicResource MaterialDesign.Brush.Primary}"
                             SnapsToDevicePixels="True"
                             Opacity="0" />
                         <materialDesign:Ripple
@@ -113,7 +113,7 @@
                                                 <Path
                                                     Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
                                                     x:Name="Glyph"
-                                                    Fill="{DynamicResource SecondaryHueMidBrush}"
+                                                    Fill="{DynamicResource MaterialDesign.Brush.Secondary}"
                                                     FlowDirection="LeftToRight" />
                                             </Canvas>
                                         </Viewbox>
@@ -166,7 +166,7 @@
                                             HorizontalAlignment="Right"
                                             VerticalAlignment="Center"
                                             Data="M0,16 L8,8 L0,0 Z"
-                                            Fill="{DynamicResource SecondaryHueMidBrush}"
+                                            Fill="{DynamicResource MaterialDesign.Brush.Secondary}"
                                             SnapsToDevicePixels="False" />
                                     </Grid>
                                 </Grid>
@@ -182,7 +182,7 @@
                             >
                             <Border
                                 x:Name="SubMenuBorder"
-                                Background="{DynamicResource MaterialDesignPaper}"
+                                Background="{DynamicResource MaterialDesign.Brush.Background}"
                                 Effect="{DynamicResource MaterialDesignShadowDepth1}"
                                 CornerRadius="6">
 
@@ -405,13 +405,13 @@
 
         <Setter
             Property="Background"
-            Value="{DynamicResource MaterialDesignPaper}" />
+            Value="{DynamicResource MaterialDesign.Brush.Background}" />
         <Setter
             Property="FontFamily"
             Value="{StaticResource MaterialDesignFont}" />
         <Setter
             Property="Foreground"
-            Value="{DynamicResource PrimaryHueMidBrush}" />
+            Value="{DynamicResource MaterialDesign.Brush.Primary}" />
         <Setter
             Property="TextBlock.FontSize"
             Value="15" />

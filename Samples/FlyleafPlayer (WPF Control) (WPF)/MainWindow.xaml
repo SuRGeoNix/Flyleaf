@@ -47,10 +47,10 @@
                 <Setter Property="BorderBrush" Value="#01000000"/>
                 <Style.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesign.Brush.Primary}"/>
                     </Trigger>
                     <DataTrigger Binding="{Binding Player.Host.Surface.IsMouseOver}" Value="True">
-                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesign.Brush.Primary}"/>
                     </DataTrigger>
                     <DataTrigger Binding="{Binding Player.Host.IsFullScreen}" Value="True">
                         <Setter Property="BorderBrush" Value="#01000000"/>
@@ -62,7 +62,7 @@
                         <Setter Property="BorderBrush" Value="#01000000"/>
                     </DataTrigger>
                     <DataTrigger Binding="{Binding Player.Host.IsResizing}" Value="True">
-                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesign.Brush.Primary}"/>
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -113,14 +113,14 @@
                     
                     <Image Source="Flyleaf.ico" Stretch="UniformToFill" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="{Binding Tag.FlyleafLibVer}"/>
 
-                    <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontWeight="Bold" FontStyle="Italic" FontFamily="Mistral" FontSize="34" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                    <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontWeight="Bold" FontStyle="Italic" FontFamily="Mistral" FontSize="34" Foreground="{DynamicResource MaterialDesign.Brush.Primary}"/>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                        <ToggleButton Style="{StaticResource MaterialDesignActionToggleButton}" Focusable="False" ToolTip="Always on Top" Background="Transparent" Foreground="{DynamicResource PrimaryHueMidBrush}"
+                        <ToggleButton Style="{StaticResource MaterialDesignActionToggleButton}" Focusable="False" ToolTip="Always on Top" Background="Transparent" Foreground="{DynamicResource MaterialDesign.Brush.Primary}"
                                   Content="{materialDesign:PackIcon Kind=PinOutline}" materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=Pin}" IsChecked="{Binding DetachedTopMost}"/>
                         
                         <Button Focusable="False" x:Name="BtnMinimize" Content="{materialDesign:PackIcon Kind=Minimize,Size=30}" VerticalContentAlignment="Bottom" Style="{StaticResource MaterialDesignIconButton}" Click="BtnMinimize_Click"/>
-                        <ToggleButton Grid.Column="6" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Background="Transparent" Focusable="False"
+                        <ToggleButton Grid.Column="6" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Background="Transparent" Focusable="False"
                                                           IsChecked="{Binding Player.Host.IsFullScreen}" 
                                                           Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}" 
                                                           materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=FullscreenExit, Size=28}"/>
@@ -131,7 +131,7 @@
 
                 <Grid Grid.Row="1" x:Name="PART_ContextMenuOwner" ContextMenu="{StaticResource PopUpMenu}">
 
-                    <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Padding="4" Margin="10 -40 0 0" d:Text="00:00:00.000 / 01:42:23.913" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource SecondaryHueMidBrush}">
+                    <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Padding="4" Margin="10 -40 0 0" d:Text="00:00:00.000 / 01:42:23.913" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
                         <TextBlock.Background>
                             <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
                         </TextBlock.Background>
@@ -150,7 +150,7 @@
                         <Run Text="{Binding Player.Duration, Mode=OneWay, Converter={StaticResource TicksToTimeSpan}, StringFormat={}{0:hh\\:mm\\:ss\\.fff}}"/>
                     </TextBlock>
                     
-                    <TextBlock VerticalAlignment="Top" HorizontalAlignment="Right" Padding="4" Margin="0 10 10 0" FontWeight="Bold" d:Text="Volume 50%" FontSize="14" Text="{Binding Tag.Msg}" Foreground="{DynamicResource SecondaryHueMidBrush}">
+                    <TextBlock VerticalAlignment="Top" HorizontalAlignment="Right" Padding="4" Margin="0 10 10 0" FontWeight="Bold" d:Text="Volume 50%" FontSize="14" Text="{Binding Tag.Msg}" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
                         <TextBlock.Background>
                             <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
                         </TextBlock.Background>
@@ -169,7 +169,7 @@
                         </TextBlock.Style>
                     </TextBlock>
                     
-                    <TextBlock VerticalAlignment="Top" HorizontalAlignment="Right" Padding="4" Margin="0 -40 10 0" FontWeight="Bold" d:Text="Playing" FontSize="18" Text="{Binding Player.Status}" Foreground="{DynamicResource SecondaryHueMidBrush}">
+                    <TextBlock VerticalAlignment="Top" HorizontalAlignment="Right" Padding="4" Margin="0 -40 10 0" FontWeight="Bold" d:Text="Playing" FontSize="18" Text="{Binding Player.Status}" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
                         <TextBlock.Background>
                             <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
                         </TextBlock.Background>
@@ -186,7 +186,7 @@
                     </TextBlock>
                     
                     <!--Error Message-->
-                    <TextBox VerticalAlignment="Center" HorizontalAlignment="Center" Margin="10" d:Text="Error Message" FontSize="16" IsReadOnly="True" BorderThickness="0" Text="{Binding Player.LastError}" Foreground="{DynamicResource PrimaryHueMidBrush}" TextWrapping="Wrap">
+                    <TextBox VerticalAlignment="Center" HorizontalAlignment="Center" Margin="10" d:Text="Error Message" FontSize="16" IsReadOnly="True" BorderThickness="0" Text="{Binding Player.LastError}" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" TextWrapping="Wrap">
                         <TextBox.Background>
                             <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
                         </TextBox.Background>
@@ -206,7 +206,7 @@
                     <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
 
                     <!--Debug Info-->
-                    <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource PrimaryHueLightBrush}" ValueColor="{DynamicResource SecondaryHueLightBrush}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
+                    <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
 
                     <!--Subtitles-->
                     <TextBlock Margin="{Binding UIConfig.SubsMargin}" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontFamily="{Binding UIConfig.SubsFontFamily}" FontSize="{Binding UIConfig.SubsFontSize}" Foreground="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}" FontWeight="{Binding UIConfig.SubsFontWeight}" FontStyle="{Binding UIConfig.SubsFontStyle}" Text="{Binding Player.Subtitles.SubsText}">

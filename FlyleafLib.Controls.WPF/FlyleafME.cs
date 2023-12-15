@@ -72,10 +72,24 @@ namespace FlyleafLib.Controls.WPF
                     return;
 
                 Set(ref _SelectedTheme, value, false);
-                ITheme theme = Overlay.Resources.GetTheme();
+
+                Theme theme;
+                var tmp = Overlay.Resources.MergedDictionaries.FirstOrDefault(x => x is IMaterialDesignThemeDictionary);
+                if (tmp == null) // Set tmp theme to avoid missing theme keys
+                {
+                    var bndl = new BundledTheme();
+                    bndl.PrimaryColor = MaterialDesignColors.PrimaryColor.Red;
+                    bndl.SecondaryColor = MaterialDesignColors.SecondaryColor.Green;
+                    bndl.BaseTheme = BaseTheme.Dark;
+                    theme = bndl.GetTheme();
+                    Overlay.Resources.MergedDictionaries.Add(bndl);
+                }
+                else
+                    theme = Overlay.Resources.GetTheme();
+                
                 theme.SetPrimaryColor(value.PrimaryColor);
                 theme.SetSecondaryColor(value.SecondaryColor);
-                theme.Paper = value.PaperColor;
+                theme.Background = value.BackgroundColor;
                 Overlay.Resources.SetTheme(theme);
                 settings?.Resources.SetTheme(theme);
 
@@ -104,8 +118,8 @@ namespace FlyleafLib.Controls.WPF
                         ((UITheme)settings.cmbThemes.SelectedItem).SecondaryColor = value;
                         break;
 
-                    case "Paper":
-                        ((UITheme)settings.cmbThemes.SelectedItem).PaperColor = value;
+                    case "Background":
+                        ((UITheme)settings.cmbThemes.SelectedItem).BackgroundColor = value;
                         break;
 
                     case "Surface":
@@ -289,17 +303,17 @@ namespace FlyleafLib.Controls.WPF
                 UIConfig.SubsFontSize   = 40;
                 UIConfig.SubsFontColor  = Colors.White;
                 
-                ITheme theme = Overlay.Resources.GetTheme();
-                var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, PaperColor = theme.Paper, SurfaceColor = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};
+                var theme = Overlay.Resources.GetTheme();
+                var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, BackgroundColor = theme.Background, SurfaceColor = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};
                 UIConfig.Themes = new ObservableCollection<UITheme>
                 {
-                    new UITheme(this, defaultTheme) { Name = "Black & White", PrimaryColor = Colors.White, SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black },
-                    new UITheme(this, defaultTheme) { Name = "Blue & Red", PrimaryColor = Colors.DodgerBlue, SecondaryColor = (Color)ColorConverter.ConvertFromString("#e00000"), PaperColor = Colors.Black, SurfaceColor = Colors.Black },
-                    new UITheme(this, defaultTheme) { Name = "Orange", PrimaryColor = (Color)ColorConverter.ConvertFromString("#ff8300"), SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black },
-                    new UITheme(this, defaultTheme) { Name = "Firebrick", PrimaryColor = Colors.Firebrick, SecondaryColor = Colors.White, PaperColor = Colors.Black, SurfaceColor = Colors.Black },
-                    new UITheme(this, defaultTheme) { Name = "Fuchia,Lime & Blue", PrimaryColor = (Color)ColorConverter.ConvertFromString("#e615e6"), SecondaryColor = Colors.Lime, PaperColor = (Color)ColorConverter.ConvertFromString("#0f1034"), SurfaceColor = (Color)ColorConverter.ConvertFromString("#0f1034") },
-                    new UITheme(this, defaultTheme) { Name = "Gold & Chocolate", PrimaryColor = (Color)ColorConverter.ConvertFromString("#ffc73b"), SecondaryColor = Colors.Chocolate, PaperColor = (Color)ColorConverter.ConvertFromString("#3b1212"), SurfaceColor = (Color)ColorConverter.ConvertFromString("#3b1212") },
-                    new UITheme(this, defaultTheme) { Name = "Green & Brown", PrimaryColor = (Color)ColorConverter.ConvertFromString("#24b03b"), SecondaryColor = (Color)ColorConverter.ConvertFromString("#e66102"), PaperColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Black & White", PrimaryColor = Colors.White, SecondaryColor = Colors.White, BackgroundColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Blue & Red", PrimaryColor = Colors.DodgerBlue, SecondaryColor = (Color)ColorConverter.ConvertFromString("#e00000"), BackgroundColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Orange", PrimaryColor = (Color)ColorConverter.ConvertFromString("#ff8300"), SecondaryColor = Colors.White, BackgroundColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Firebrick", PrimaryColor = Colors.Firebrick, SecondaryColor = Colors.White, BackgroundColor = Colors.Black, SurfaceColor = Colors.Black },
+                    new UITheme(this, defaultTheme) { Name = "Fuchia,Lime & Blue", PrimaryColor = (Color)ColorConverter.ConvertFromString("#e615e6"), SecondaryColor = Colors.Lime, BackgroundColor = (Color)ColorConverter.ConvertFromString("#0f1034"), SurfaceColor = (Color)ColorConverter.ConvertFromString("#0f1034") },
+                    new UITheme(this, defaultTheme) { Name = "Gold & Chocolate", PrimaryColor = (Color)ColorConverter.ConvertFromString("#ffc73b"), SecondaryColor = Colors.Chocolate, BackgroundColor = (Color)ColorConverter.ConvertFromString("#3b1212"), SurfaceColor = (Color)ColorConverter.ConvertFromString("#3b1212") },
+                    new UITheme(this, defaultTheme) { Name = "Green & Brown", PrimaryColor = (Color)ColorConverter.ConvertFromString("#24b03b"), SecondaryColor = (Color)ColorConverter.ConvertFromString("#e66102"), BackgroundColor = Colors.Black, SurfaceColor = Colors.Black },
                     new UITheme(this, defaultTheme) { Name = "Custom", PrimaryColor = Colors.Orange, SecondaryColor = Colors.White, SurfaceColor = Colors.Black }
                 };
 
@@ -455,8 +469,8 @@ namespace FlyleafLib.Controls.WPF
                 SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).PrimaryColor;
             else if (selectedColor == "Secondary")
                 SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).SecondaryColor;
-            else if (selectedColor == "Paper")
-                SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).PaperColor;
+            else if (selectedColor == "Background")
+                SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).BackgroundColor;
             else if (selectedColor == "Surface")
                 SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).SurfaceColor;
 
@@ -483,16 +497,16 @@ namespace FlyleafLib.Controls.WPF
                 Config.Video.AspectRatio = mi.Header.ToString();
         }
 
-        public ICommand ResetSubsPositionY { get; set; }
+        public ICommand ResetSubsPositionY  { get; set; }
         public void ResetSubsPositionYAction(object obj = null) { UIConfig.SubsMargin = subsInitialMargin; }
 
-        public ICommand SetSubsPositionY { get; set; }
+        public ICommand SetSubsPositionY    { get; set; }
         public void SetSubsPositionYAction(object y) { Thickness t = UIConfig.SubsMargin; t.Bottom += int.Parse(y.ToString()); UIConfig.SubsMargin = t; }
 
         public ICommand SetSubtitlesFont    { get; set; }
-        public static FontWeightConverter fontWeightConv = new FontWeightConverter();
-        public static FontStyleConverter fontStyleConv = new FontStyleConverter();
-        public static FontStretchConverter fontStretchConv = new FontStretchConverter();
+        static FontWeightConverter  fontWeightConv  = new FontWeightConverter();
+        static FontStyleConverter   fontStyleConv   = new FontStyleConverter();
+        static FontStretchConverter fontStretchConv = new FontStretchConverter();
         public void SetSubtitlesFontAction(object obj = null)
         {
             ColorFontDialog dialog  = new ColorFontDialog();

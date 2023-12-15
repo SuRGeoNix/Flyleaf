@@ -27,8 +27,8 @@
                 </AdornerDecorator.CacheMode>
                 <Ellipse
                     x:Name="grip"
-                    Fill="{DynamicResource MaterialDesignBody}"
-                    Effect="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=Slider}, Path=(materialDesign:ShadowAssist.ShadowDepth), Converter={x:Static converters:ShadowConverter.Instance}}"
+                    Fill="{DynamicResource MaterialDesign.Brush.Foreground}"
+                    Effect="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=Slider}, Path=(materialDesign:ElevationAssist.Elevation), Converter={x:Static converters:ShadowConverter.Instance}}"
                     Margin="-1,0" />
             </AdornerDecorator>
         </Grid>
@@ -103,9 +103,9 @@
         <Setter Property="Stylus.IsPressAndHoldEnabled" Value="False"/>
         <Setter Property="Background" Value="{x:Null}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryHueMidBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MaterialDesign.Brush.Primary}"/>
         <Setter Property="IsMoveToPointEnabled" Value="True" />
-        <Setter Property="materialDesign:ShadowAssist.ShadowDepth" Value="Depth1" />
+        <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp1" />
         <Setter Property="SnapsToDevicePixels" Value="False" />
         <Setter Property="UseLayoutRounding" Value="False" />
         <Setter Property="Template" Value="{StaticResource MaterialDesignSliderHorizontal}"/>
