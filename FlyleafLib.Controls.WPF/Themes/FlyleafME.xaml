@@ -29,10 +29,10 @@
                                 <Setter Property="BorderBrush" Value="#01000000"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesign.Brush.Primary}"/>
                                     </Trigger>
                                     <DataTrigger Binding="{Binding Player.Host.Surface.IsMouseOver}" Value="True">
-                                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesign.Brush.Primary}"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Player.Host.IsFullScreen}" Value="True">
                                         <Setter Property="BorderBrush" Value="#01000000"/>
@@ -44,7 +44,7 @@
                                         <Setter Property="BorderBrush" Value="#01000000"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Player.Host.IsResizing}" Value="True">
-                                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesign.Brush.Primary}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -55,7 +55,7 @@
                                 <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
 
                                 <!--Debug Info-->
-                                <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource PrimaryHueLightBrush}" ValueColor="{DynamicResource SecondaryHueLightBrush}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
+                                <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
 
                                 <!--Subtitles-->
                                 <TextBlock Margin="{Binding UIConfig.SubsMargin}" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontFamily="{Binding UIConfig.SubsFontFamily}" FontSize="{Binding UIConfig.SubsFontSize}" Foreground="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}" FontWeight="{Binding UIConfig.SubsFontWeight}" FontStyle="{Binding UIConfig.SubsFontStyle}" Text="{Binding Player.Subtitles.SubsText}">

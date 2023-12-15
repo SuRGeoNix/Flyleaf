@@ -10,9 +10,9 @@
              xmlns:dragablz="clr-namespace:Dragablz;assembly=Dragablz"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              
-             Background="{DynamicResource MaterialDesignPaper}"
+             Background="{DynamicResource MaterialDesign.Brush.Background}"
              FontFamily="{materialDesign:MaterialDesignFont}"
-             TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+             TextElement.Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
              TextElement.FontWeight="Medium"
              TextElement.FontSize="14"
              mc:Ignorable="d">
@@ -31,8 +31,9 @@
             <Style TargetType="{x:Type dragablz:TabablzControl}" BasedOn="{StaticResource MaterialDesignTabablzControlStyle}" />
             
             <Style x:Key="mdTabControl" TargetType="{x:Type dragablz:TabablzControl}" BasedOn="{StaticResource MaterialDesignTabablzControlStyle}">
-                <Setter Property="TextElement.Foreground" Value="{DynamicResource MaterialDesignBody}"/>
-                <Setter Property="Background" Value="{DynamicResource MaterialDesignPaper}"/>
+                <Setter Property="TextElement.Foreground" Value="{DynamicResource MaterialDesign.Brush.Foreground}"/>
+                <Setter Property="Background" Value="{DynamicResource MaterialDesign.Brush.Background}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesign.Brush.Primary}"/>
             </Style>
 
             <Style x:Key="SaveButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
@@ -85,7 +86,7 @@
                 <Setter Property="Width" Value="24"/>
                 <Setter Property="Height" Value="24"/>
                 <Setter Property="Margin" Value="4 0"/>
-                <Setter Property="Foreground" Value="{DynamicResource SecondaryHueMidBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource MaterialDesign.Brush.Secondary}"/>
             </Style>
 
             <Style x:Key="FLTextbox" TargetType="{x:Type TextBox}" BasedOn="{StaticResource MaterialDesignTextBox}">
@@ -180,14 +181,14 @@
             <dragablz:TabablzControl Width="504" Height="390" x:Name="tabRoot" FixedHeaderCount="10" Style="{StaticResource mdTabControl}" ItemContainerStyle="{StaticResource NormalTabItemStyle}">
                 <TabControl.Resources>
                     <Style TargetType="TabItem">
-                        <Setter Property="TextElement.Foreground" Value="{DynamicResource MaterialDesignBody}"/>
+                        <Setter Property="TextElement.Foreground" Value="{DynamicResource MaterialDesign.Brush.Foreground}"/>
                     </Style>
                 </TabControl.Resources>
                 <TabItem>
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
+                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesign.Brush.Background}">
                             <materialDesign:PackIcon Kind="PlayBoxMultipleOutline" Margin="0 6 4 6"/>
-                            <TextBlock Text="Player" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 8 0"/>
+                            <TextBlock Text="Player" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Padding="0 0 8 0"/>
                         </StackPanel>
                     </TabItem.Header>
                     <Grid>
@@ -254,9 +255,9 @@
                 </TabItem>
                 <TabItem>
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
+                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesign.Brush.Background}">
                             <materialDesign:PackIcon Kind="Audio" Margin="4 6 4 6" />
-                            <TextBlock Text="Audio" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 8 0"/>
+                            <TextBlock Text="Audio" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Padding="0 0 8 0"/>
                         </StackPanel>
                     </TabItem.Header>
                     <Grid>
@@ -301,9 +302,9 @@
                 </TabItem>
                 <TabItem>
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
+                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesign.Brush.Background}">
                             <materialDesign:PackIcon Kind="CcOutline" Margin="4 6 4 6"/>
-                            <TextBlock Text="Subtitles" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 8 0"/>
+                            <TextBlock Text="Subtitles" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Padding="0 0 8 0"/>
                         </StackPanel>
                     </TabItem.Header>
                     <Grid>
@@ -356,9 +357,9 @@
                 </TabItem>
                 <TabItem>
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
+                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesign.Brush.Background}">
                             <materialDesign:PackIcon Kind="VideoOutline" Margin="4 6 4 6"/>
-                            <TextBlock Text="Video" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 8 0"/>
+                            <TextBlock Text="Video" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Padding="0 0 8 0"/>
                         </StackPanel>
                     </TabItem.Header>
                     <Grid>
@@ -473,9 +474,9 @@
                 </TabItem>
                 <TabItem>
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
+                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesign.Brush.Background}">
                             <materialDesign:PackIcon Kind="PaletteOutline" Margin="4 6 4 6"/>
-                            <TextBlock Text="Themes" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 4 0"/>
+                            <TextBlock Text="Themes" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Padding="0 0 4 0"/>
                         </StackPanel>
                     </TabItem.Header>
                     <Grid>
@@ -503,7 +504,7 @@
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Text="Foreground (Primary)" VerticalAlignment="Center"/>
-                                <Border Grid.Column="1" Background="{Binding SelectedItem.PrimaryColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesignBody}" Width="20" Height="20" BorderThickness="1"/>
+                                <Border Grid.Column="1" Background="{Binding SelectedItem.PrimaryColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesign.Brush.Foreground}" Width="20" Height="20" BorderThickness="1"/>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                                     <TextBlock Text="#" VerticalAlignment="Center"/>
                                     <TextBox Style="{StaticResource ColorPickerTextBox}">
@@ -519,7 +520,7 @@
                                 <Button Grid.Column="3" Content="Change" Style="{StaticResource ColorPickerButton}" CommandParameter="Primary"/>
 
                                 <TextBlock Grid.Row="1" Text="Foreground (Secondary)" VerticalAlignment="Center"/>
-                                <Border Grid.Row="1" Grid.Column="1" Background="{Binding SelectedItem.SecondaryColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesignBody}" Width="20" Height="20" BorderThickness="1"/>
+                                <Border Grid.Row="1" Grid.Column="1" Background="{Binding SelectedItem.SecondaryColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesign.Brush.Foreground}" Width="20" Height="20" BorderThickness="1"/>
                                 <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal">
                                     <TextBlock Text="#" VerticalAlignment="Center"/>
                                     <TextBox Style="{StaticResource ColorPickerTextBox}">
@@ -534,13 +535,13 @@
                                 </StackPanel>
                                 <Button Grid.Row="1" Grid.Column="3" Content="Change" Style="{StaticResource ColorPickerButton}" CommandParameter="Secondary"/>
 
-                                <TextBlock Grid.Row="2" Text="Background (Paper)" VerticalAlignment="Center"/>
-                                <Border Grid.Row="2" Grid.Column="1" Background="{Binding SelectedItem.PaperColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesignBody}" Width="20" Height="20" BorderThickness="1"/>
+                                <TextBlock Grid.Row="2" Text="Background (Main)" VerticalAlignment="Center"/>
+                                <Border Grid.Row="2" Grid.Column="1" Background="{Binding SelectedItem.BackgroundColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesign.Brush.Foreground}" Width="20" Height="20" BorderThickness="1"/>
                                 <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal">
                                     <TextBlock Text="#" VerticalAlignment="Center"/>
                                     <TextBox Style="{StaticResource ColorPickerTextBox}">
                                         <TextBox.Text>
-                                            <Binding Path="SelectedItem.PaperColor" ElementName="cmbThemes" Converter="{StaticResource ColorToHex}" UpdateSourceTrigger="PropertyChanged">
+                                            <Binding Path="SelectedItem.BackgroundColor" ElementName="cmbThemes" Converter="{StaticResource ColorToHex}" UpdateSourceTrigger="PropertyChanged">
                                                 <Binding.ValidationRules>
                                                     <local:ColorHexRule/>
                                                 </Binding.ValidationRules>
@@ -548,10 +549,10 @@
                                         </TextBox.Text>
                                     </TextBox>
                                 </StackPanel>
-                                <Button Grid.Row="2" Grid.Column="3" Content="Change" Style="{StaticResource ColorPickerButton}" CommandParameter="Paper"/>
+                                <Button Grid.Row="2" Grid.Column="3" Content="Change" Style="{StaticResource ColorPickerButton}" CommandParameter="Background"/>
 
                                 <TextBlock Grid.Row="3" Text="Background (Video)" VerticalAlignment="Center"/>
-                                <Border Grid.Row="3" Grid.Column="1" Background="{Binding SelectedItem.SurfaceColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesignBody}" Width="20" Height="20" BorderThickness="1"/>
+                                <Border Grid.Row="3" Grid.Column="1" Background="{Binding SelectedItem.SurfaceColor, ElementName=cmbThemes, Converter={StaticResource ColorToBrush}}" BorderBrush="{DynamicResource MaterialDesign.Brush.Foreground}" Width="20" Height="20" BorderThickness="1"/>
                                 <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal">
                                     <TextBlock Text="#" VerticalAlignment="Center"/>
                                     <TextBox Style="{StaticResource ColorPickerTextBox}">
@@ -577,9 +578,9 @@
                 </TabItem>
                 <TabItem>
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesignPaper}">
+                        <StackPanel Orientation="Horizontal" Background="{DynamicResource MaterialDesign.Brush.Background}">
                             <materialDesign:PackIcon Kind="PluginOutline" Margin="0 6 4 6"/>
-                            <TextBlock Text="Plugins" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}" Padding="0 0 4 0"/>
+                            <TextBlock Text="Plugins" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Padding="0 0 4 0"/>
                         </StackPanel>
                     </TabItem.Header>
                     <Grid>

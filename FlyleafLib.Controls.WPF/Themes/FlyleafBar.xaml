@@ -122,7 +122,7 @@
                                 </Button>
 
                                 <!--Subtitles Button (Currently not used)-->
-                                <Button x:Name="PART_ContextMenuOwner_Subtitles" Command="{Binding OpenContextMenu}" CommandParameter="{Binding RelativeSource={RelativeSource Self}}" Grid.Column="1" Foreground="{DynamicResource SecondaryHueMidBrush}" Content="{materialDesign:PackIcon Kind=CcOutline}">
+                                <Button x:Name="PART_ContextMenuOwner_Subtitles" Command="{Binding OpenContextMenu}" CommandParameter="{Binding RelativeSource={RelativeSource Self}}" Grid.Column="1" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}" Content="{materialDesign:PackIcon Kind=CcOutline}">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                             <Setter Property="ContextMenu">
@@ -175,7 +175,7 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-                                    <materialDesign:PackIcon Kind="VideoInputAntenna" Height="20" Width="20" Foreground="{DynamicResource SecondaryHueMidBrush}" VerticalAlignment="Center" Visibility="{Binding Player.IsLive, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
+                                    <materialDesign:PackIcon Kind="VideoInputAntenna" Height="20" Width="20" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}" VerticalAlignment="Center" Visibility="{Binding Player.IsLive, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
                                     <TextBlock VerticalAlignment="Center" FontStyle="Italic" Margin="5,0,0,0" Text="{Binding Player.Playlist.Selected.Title}"/>
                                 </StackPanel>
                                 
@@ -207,7 +207,7 @@
                                 </Button>
 
                                 <!--Volume Button (Mute/Unmute)-->
-                                <Button Grid.Column="5" Foreground="{DynamicResource SecondaryHueMidBrush}" Command="{Binding Player.Commands.ToggleMute}">
+                                <Button Grid.Column="5" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}" Command="{Binding Player.Commands.ToggleMute}">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                             <Setter Property="Content" Value="{materialDesign:PackIcon Kind=VolumeHigh}"/>
@@ -230,13 +230,13 @@
                                 </Button>
 
                                 <!--Volume Slider (Decibel)-->
-                                <Slider Grid.Column="6" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource SecondaryHueMidBrush}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" d:Maximum="150" d:Value="75" Value="{Binding Player.Audio.Volume}"/>
+                                <Slider Grid.Column="6" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" d:Maximum="150" d:Value="75" Value="{Binding Player.Audio.Volume}"/>
 
                                 <!--Open Settings Button-->
                                 <Button Grid.Column="7" Style="{StaticResource IconButton}" Content="{materialDesign:PackIcon Kind=SettingsOutline}" Command="{Binding OpenSettingsCmd}"/>
 
                                 <!--Toggle Fullscreen Button-->
-                                <ToggleButton Grid.Column="8" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource PrimaryHueMidBrush}" Background="Transparent" Focusable="False"
+                                <ToggleButton Grid.Column="8" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Background="Transparent" Focusable="False"
                                                           IsChecked="{Binding Player.Host.IsFullScreen}" 
                                                           Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}" 
                                                           materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=FullscreenExit, Size=28}"/>
