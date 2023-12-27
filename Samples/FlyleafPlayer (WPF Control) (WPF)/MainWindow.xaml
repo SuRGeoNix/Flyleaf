@@ -209,11 +209,22 @@
                     <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
 
                     <!--Subtitles-->
-                    <TextBlock Margin="{Binding UIConfig.SubsMargin}" VerticalAlignment="Bottom" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontFamily="{Binding UIConfig.SubsFontFamily}" FontSize="{Binding UIConfig.SubsFontSize}" Foreground="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}" FontWeight="{Binding UIConfig.SubsFontWeight}" FontStyle="{Binding UIConfig.SubsFontStyle}" Text="{Binding Player.Subtitles.SubsText}">
-                        <TextBlock.Effect>
-                            <DropShadowEffect ShadowDepth="2" Direction="0" Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="1.0" BlurRadius="0"/>
-                        </TextBlock.Effect>
-                    </TextBlock>
+                    <flwpf:OutlinedTextBlock Stroke="{Binding Player.Config.Video.BackgroundColor}" 
+                         ClipToBounds="False"
+                         Fill="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}"
+                         StrokePosition="Outside"
+                         StrokeThickness="2"
+                         Margin="{Binding UIConfig.SubsMargin}"
+                         VerticalAlignment="Bottom"
+                         HorizontalAlignment="Center"
+                         TextAlignment="Center"
+                         TextWrapping="Wrap"
+                         FontFamily="{Binding UIConfig.SubsFontFamily}"
+                         FontSize="{Binding UIConfig.SubsFontSize}"  
+                         FontWeight="{Binding UIConfig.SubsFontWeight}"
+                         FontStyle="{Binding UIConfig.SubsFontStyle}"
+                         Text="{Binding Player.Subtitles.SubsText}">
+                    </flwpf:OutlinedTextBlock>
 
                     <!--Flyleaf Bar-->
                     <flwpf:FlyleafBar Player="{Binding Player}" Margin="-2 0 -2 0"/>
