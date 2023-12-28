@@ -22,6 +22,14 @@ namespace FlyleafLib.Controls.WPF
     [ContentProperty("Text")]
     public class OutlinedTextBlock : FrameworkElement
     {
+        public OutlinedTextBlock()
+        {
+            UpdatePen();
+            TextDecorations = new TextDecorationCollection();
+        }
+
+        bool loaded=false;
+
         private void UpdatePen()
         {
             _Pen = new Pen(Stroke, StrokeThickness)
@@ -39,6 +47,8 @@ namespace FlyleafLib.Controls.WPF
 
             InvalidateVisual();
         }
+
+        #region dependency properties
 
         public StrokePosition StrokePosition
         {
@@ -76,7 +86,10 @@ namespace FlyleafLib.Controls.WPF
 
         public static readonly DependencyProperty FontSizeProperty = TextElement.FontSizeProperty.AddOwner(
           typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+          new FrameworkPropertyMetadata(
+                444d,
+                FrameworkPropertyMetadataOptions.None,
+                OnFormattedTextUpdated));
 
         public static readonly DependencyProperty FontStretchProperty = TextElement.FontStretchProperty.AddOwner(
           typeof(OutlinedTextBlock),
@@ -204,11 +217,7 @@ namespace FlyleafLib.Controls.WPF
             set { SetValue(TextWrappingProperty, value); }
         }
 
-        public OutlinedTextBlock()
-        {
-            UpdatePen();
-            TextDecorations = new TextDecorationCollection();
-        }
+        #endregion
 
         protected override void OnRender(DrawingContext drawingContext)
         {
@@ -232,15 +241,37 @@ namespace FlyleafLib.Controls.WPF
                 drawingContext.Pop();
             }
         }
-
+        double initialFontSize = 0;
         protected override Size MeasureOverride(Size availableSize)
         {
             EnsureFormattedText();
-
             // constrain the formatted text according to the available size
-
             double w = availableSize.Width;
             double h = availableSize.Height;
+
+            if (!loaded && FontSize != 444d)
+            {
+                initialFontSize = FontSize;
+                loaded = true;
+            }
+            if (loaded)
+            {
+                double screenWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
+                var r = w / screenWidth;
+
+                double s = 4;
+                s *= r;
+                if (s < 1)
+                    s = 1;
+                UpdateFormattedTextStrokeThickness((int)s);
+
+                Console.WriteLine(screenWidth);
+                var x = initialFontSize * r;
+                Console.WriteLine(initialFontSize);
+                UpdateFormattedTextFontSize(x);
+
+
+            }
 
             // the Math.Min call is important - without this constraint (which seems arbitrary, but is the maximum allowable text width), things blow up when availableSize is infinite in both directions
             // the Math.Max call is to ensure we don't hit zero, which will cause MaxTextHeight to throw
@@ -314,14 +345,33 @@ namespace FlyleafLib.Controls.WPF
 
             _FormattedText.MaxLineCount = TextWrapping == TextWrapping.NoWrap ? 1 : int.MaxValue;
             _FormattedText.TextAlignment = TextAlignment;
-            _FormattedText.Trimming = TextTrimming;
-
+            _FormattedText.Trimming = TextTrimming;    
             _FormattedText.SetFontSize(FontSize);
             _FormattedText.SetFontStyle(FontStyle);
             _FormattedText.SetFontWeight(FontWeight);
             _FormattedText.SetFontFamily(FontFamily);
             _FormattedText.SetFontStretch(FontStretch);
             _FormattedText.SetTextDecorations(TextDecorations);
+        }
+
+        private void UpdateFormattedTextFontSize(double fontSize)
+        {
+            if (_FormattedText == null)
+            {
+                return;
+            }
+            FontSize = fontSize;
+            _FormattedText.SetFontSize(FontSize);
+        }
+
+        private void UpdateFormattedTextStrokeThickness(double strokeThickness)
+        {
+            if (_FormattedText == null)
+            {
+                return;
+            }
+            StrokeThickness = strokeThickness;
+            UpdatePen();
         }
 
         private void EnsureGeometry()
@@ -336,7 +386,8 @@ namespace FlyleafLib.Controls.WPF
 
             if (StrokePosition == StrokePosition.Outside)
             {
-                var boundsGeo = new RectangleGeometry(new Rect(0, 0, ActualWidth, ActualHeight));
+                var boundsGeo = new RectangleGeometry(new Rect(-(2 * StrokeThickness),
+                    -(2 * StrokeThickness), ActualWidth + (4 * StrokeThickness), ActualHeight + (4 * StrokeThickness)));
                 _clipGeometry = Geometry.Combine(boundsGeo, _TextGeometry, GeometryCombineMode.Exclude, null);
             }
         }

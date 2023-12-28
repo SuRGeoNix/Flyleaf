@@ -222,7 +222,7 @@ namespace FlyleafPlayer
             if (App.CmdUrl != null)
                 Player.OpenAsync(App.CmdUrl);
 
-            #if RELEASE
+#if RELEASE
             // Save Player's Config (First Run)
             // Ensures that the Control's handle has been created and the renderer has been fully initialized (so we can save also the filters parsed by the library)
             if (!playerConfig.Loaded)
@@ -243,7 +243,7 @@ namespace FlyleafPlayer
 
                 try { Engine.Config.Save("Flyleaf.Engine.json"); } catch { }
             }
-            #endif
+#endif
         }
 
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => FlyleafME.IsMinimized = true;
