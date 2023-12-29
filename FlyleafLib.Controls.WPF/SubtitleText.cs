@@ -22,13 +22,16 @@ namespace FlyleafLib.Controls.WPF
     [ContentProperty("Text")]
     public class OutlinedTextBlock : FrameworkElement
     {
+        double initialFontSize;
+        bool loaded;
+
         public OutlinedTextBlock()
         {
             UpdatePen();
             TextDecorations = new TextDecorationCollection();
+            initialFontSize = 0;
+            loaded = false;
         }
-
-        bool loaded=false;
 
         private void UpdatePen()
         {
@@ -87,7 +90,7 @@ namespace FlyleafLib.Controls.WPF
         public static readonly DependencyProperty FontSizeProperty = TextElement.FontSizeProperty.AddOwner(
           typeof(OutlinedTextBlock),
           new FrameworkPropertyMetadata(
-                444d,
+                61d,
                 FrameworkPropertyMetadataOptions.None,
                 OnFormattedTextUpdated));
 
@@ -241,7 +244,7 @@ namespace FlyleafLib.Controls.WPF
                 drawingContext.Pop();
             }
         }
-        double initialFontSize = 0;
+        
         protected override Size MeasureOverride(Size availableSize)
         {
             EnsureFormattedText();
@@ -249,28 +252,19 @@ namespace FlyleafLib.Controls.WPF
             double w = availableSize.Width;
             double h = availableSize.Height;
 
-            if (!loaded && FontSize != 444d)
+            if (!loaded && FontSize != 61d)
             {
                 initialFontSize = FontSize;
                 loaded = true;
             }
             if (loaded)
             {
-                double screenWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
-                var r = w / screenWidth;
-
-                double s = 4;
-                s *= r;
-                if (s < 1)
-                    s = 1;
-                UpdateFormattedTextStrokeThickness((int)s);
-
-                Console.WriteLine(screenWidth);
-                var x = initialFontSize * r;
-                Console.WriteLine(initialFontSize);
-                UpdateFormattedTextFontSize(x);
-
-
+                double r = w / SystemParameters.PrimaryScreenWidth;
+                double strokeThickness = 3 * r;
+                if (strokeThickness < 1)
+                    strokeThickness = 1;
+                UpdateFormattedTextStrokeThickness((int)strokeThickness);
+                UpdateFormattedTextFontSize(initialFontSize * r);
             }
 
             // the Math.Min call is important - without this constraint (which seems arbitrary, but is the maximum allowable text width), things blow up when availableSize is infinite in both directions
@@ -366,10 +360,6 @@ namespace FlyleafLib.Controls.WPF
 
         private void UpdateFormattedTextStrokeThickness(double strokeThickness)
         {
-            if (_FormattedText == null)
-            {
-                return;
-            }
             StrokeThickness = strokeThickness;
             UpdatePen();
         }

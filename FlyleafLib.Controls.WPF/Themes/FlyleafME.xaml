@@ -62,7 +62,7 @@
                                     ClipToBounds="False"
                                     Fill="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}"
                                     StrokePosition="Outside"
-                                    StrokeThickness="2"
+                                    StrokeThickness="3"
                                     Margin="{Binding UIConfig.SubsMargin}"
                                     VerticalAlignment="Bottom"
                                     HorizontalAlignment="Center"
