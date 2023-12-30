@@ -161,6 +161,9 @@ namespace FlyleafLib.Controls.WPF
 
         public override void SetPlayer(Player oldPlayer)
         {
+            if (oldPlayer != null)
+                oldPlayer.renderer.ViewportChanged -= ViewportChanged;
+
             base.SetPlayer(oldPlayer);
 
             if (Player == null || isDesignMode)
@@ -219,12 +222,17 @@ namespace FlyleafLib.Controls.WPF
                     Config.Player.KeyBindings.AddCustom(Key.Left,   false, aSubsFontDecrease,  "SubsFontDecrease", true);
             }
 
+            Player.renderer.ViewportChanged += ViewportChanged;
+            UIConfig.UpdateSubsMargin();
             //Raise(null);
             //settings?.Raise(null);
 
             // TBR
             //Unloaded += (o, e) => { Dispose(); };
         }
+
+        private void ViewportChanged(object sender, EventArgs e) => UIConfig.UpdateSubsMargin();
+
         public override void SetOverlay()
         {
             base.SetOverlay();
@@ -303,6 +311,7 @@ namespace FlyleafLib.Controls.WPF
                 UIConfig.SubsFontSize       = 48;
                 UIConfig.SubsStrokeThickness= 3;
                 UIConfig.SubsFontColor      = Colors.White;
+                UIConfig.SubsWithinViewport = true;
                 
                 var theme = Overlay.Resources.GetTheme();
                 var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, BackgroundColor = theme.Background, SurfaceColor = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};

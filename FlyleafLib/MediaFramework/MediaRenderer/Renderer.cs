@@ -55,6 +55,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public VideoStream      VideoStream     => VideoDecoder.VideoStream;
 
     public Viewport         GetViewport     { get; private set; }
+    public event EventHandler ViewportChanged;
 
     public CornerRadius     CornerRadius    { get => cornerRadius;  set { if (cornerRadius == value) return; cornerRadius = value; UpdateCornerRadius(); } }
     CornerRadius cornerRadius = new(0);
