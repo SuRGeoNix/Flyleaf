@@ -164,6 +164,7 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
 
         var mp = Utils.GetMediaParts(item.OriginalTitle);
         item.Title = mp.Title;
+        item.Year  = mp.Year;
 
         if (mp.Season > 0)
         {

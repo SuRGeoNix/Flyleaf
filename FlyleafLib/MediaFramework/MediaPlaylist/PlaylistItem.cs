@@ -49,6 +49,7 @@ public class PlaylistItem : DemuxerInput
 
     public int      Season                  { get; set; }
     public int      Episode                 { get; set; }
+    public int      Year                    { get; set; }
 
     public Dictionary<string, object>
                     Tag                     { get; set; } = new Dictionary<string, object>();

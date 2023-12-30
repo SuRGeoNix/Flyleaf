@@ -303,7 +303,7 @@ namespace FlyleafLib.Controls.WPF
             {
                 UIConfig UIConfig = new UIConfig(this);
 
-                UIConfig.SubsMargin         = new Thickness(0, 0, 0, 60);
+                UIConfig.SubsMargin         = new Thickness(0, 0, 0, 48);
                 UIConfig.SubsFontFamily     = "Segoe UI";
                 UIConfig.SubsFontWeight     = FontWeights.Bold.ToString();
                 UIConfig.SubsFontStyle      = FontStyles.Normal.ToString();
