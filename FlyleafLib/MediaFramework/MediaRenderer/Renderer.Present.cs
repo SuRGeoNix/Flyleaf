@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Vortice.DXGI;
-using Vortice.Mathematics;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -82,7 +81,7 @@ public unsafe partial class Renderer
             do
             {
                 long sleepMs = DateTime.UtcNow.Ticks - lastPresentAt;
-                sleepMs = sleepMs < (long)( 1.0/Config.Player.IdleFps * 1000 * 10000) ? (long) (1.0 / Config.Player.IdleFps * 1000) : 0;
+                sleepMs = sleepMs < (long)(1.0 / Config.Player.IdleFps * 1000 * 10000) ? (long) (1.0 / Config.Player.IdleFps * 1000) : 0;
                 if (sleepMs > 2)
                     Thread.Sleep((int)sleepMs);
 
@@ -122,6 +121,9 @@ public unsafe partial class Renderer
         }
         else
         {
+            if (frame.srvs == null)
+                throw new NullReferenceException(); // To avoid AccessViolation - When we change the video processor and the player already got a processed frame (which was for D3D11VP)
+
             context.OMSetRenderTargets(backBufferRtv);
             context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
             context.RSSetViewport(GetViewport);

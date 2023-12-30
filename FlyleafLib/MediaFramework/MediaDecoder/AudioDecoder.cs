@@ -99,6 +99,7 @@ public unsafe partial class AudioDecoder : DecoderBase
         DisposeSwr();
         DisposeFilters();
 
+        lock (CircularBufferLocker)
         cBuf            = null;
         cBufSamples     = 0;
         filledFromCodec = false;
@@ -428,12 +429,17 @@ public unsafe partial class AudioDecoder : DecoderBase
         int size    = Config.Decoder.MaxAudioFrames * samples * ASampleBytes * cBufTimesSize;
         Log.Debug($"Re-allocating circular buffer ({samples} > {cBufSamples}) with {size}bytes");
 
-        DisposeFrames(); // TODO: copy data
-        CBufAlloc?.Invoke();
-        cBuf        = new byte[size];
-        cBufPos     = 0;
-        cBufSamples = samples;
+        lock (CircularBufferLocker)
+        {
+            DisposeFrames(); // TODO: copy data
+            CBufAlloc?.Invoke();
+            cBuf        = new byte[size];
+            cBufPos     = 0;
+            cBufSamples = samples;
+        }
+        
     }
+    public object CircularBufferLocker { get; private set; } = new();
 
     #region Recording
     internal Action<MediaType> 

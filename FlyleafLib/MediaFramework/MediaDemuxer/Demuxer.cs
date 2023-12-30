@@ -43,6 +43,7 @@ public unsafe class Demuxer : RunThreadBase
     public long                     StartTime       { get; private set; }
     public long                     StartRealTime   { get; private set; }
     public long                     Duration        { get; internal set; }
+    public void ForceDuration(long duration) { Duration = duration; IsLive = duration != 0; }
 
     public Dictionary<string, string>
                                     Metadata        { get; internal set; } = new Dictionary<string, string>();
