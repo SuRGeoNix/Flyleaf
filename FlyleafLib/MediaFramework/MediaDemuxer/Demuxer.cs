@@ -725,7 +725,7 @@ public unsafe class Demuxer : RunThreadBase
                 while (SubtitlesPackets.Count > 0)
                 {
                     var packet = SubtitlesPackets.Peek();
-                    if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * SubtitlesStream.Timebase)
+                    if (packet->pts != AV_NOPTS_VALUE && ticks < (packet->pts + packet->duration) * SubtitlesStream.Timebase)
                     {
                         if (Type == MediaType.Subs)
                             found = true;

@@ -496,7 +496,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Maximum subtitle frames to be decoded
         /// </summary>
-        public int              MaxSubsFrames   { get; set; } = 2;
+        public int              MaxSubsFrames   { get; set; } = 1;
 
         /// <summary>
         /// Maximum allowed errors before stopping

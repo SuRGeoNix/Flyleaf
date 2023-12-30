@@ -2,11 +2,6 @@
 
 public class ExternalSubtitlesStream : ExternalStream
 {
-    /// <summary>
-    /// Initial Url. Url can be the converted format from the original input
-    /// </summary>
-    public string   DirectUrl       { get; set; }
-
     public bool     Converted       { get; set; }
     public bool     Downloaded      { get; set; }
     public Language Language        { get; set; } = Language.Unknown;

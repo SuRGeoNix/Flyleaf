@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 
 using FlyleafLib.MediaFramework.MediaStream;
@@ -18,7 +17,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
          */
 
         foreach(var extStream in Selected.ExternalSubtitlesStreams)
-            if (extStream.Url == url || extStream.DirectUrl == url)
+            if (extStream.Url == url)
                 return new OpenSubtitlesResults(extStream);
 
         string title;
@@ -71,7 +70,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 FileInfo fi = new(file);
 
                 // We might have same Subs/ folder for more than one episode/season then filename requires to have season/episode
-                if (Selected.Episode > 0 && filesCur.Length > 2)
+                if (Selected.Episode > 0)
                 {
                     var mp = Utils.GetMediaParts(fi.Name);
                     if (mp.Episode != Selected.Episode || (mp.Season != Selected.Season && Selected.Season > 0 && mp.Season > 0))
