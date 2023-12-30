@@ -295,13 +295,14 @@ namespace FlyleafLib.Controls.WPF
             {
                 UIConfig UIConfig = new UIConfig(this);
 
-                UIConfig.SubsMargin     = new Thickness(0, 0, 0, 60);
-                UIConfig.SubsFontFamily = "Segoe UI";
-                UIConfig.SubsFontWeight = FontWeights.Bold.ToString();
-                UIConfig.SubsFontStyle  = FontStyles.Normal.ToString();
-                UIConfig.SubsFontStretch= FontStretches.Normal.ToString();
-                UIConfig.SubsFontSize   = 40;
-                UIConfig.SubsFontColor  = Colors.White;
+                UIConfig.SubsMargin         = new Thickness(0, 0, 0, 60);
+                UIConfig.SubsFontFamily     = "Segoe UI";
+                UIConfig.SubsFontWeight     = FontWeights.Bold.ToString();
+                UIConfig.SubsFontStyle      = FontStyles.Normal.ToString();
+                UIConfig.SubsFontStretch    = FontStretches.Normal.ToString();
+                UIConfig.SubsFontSize       = 48;
+                UIConfig.SubsStrokeThickness= 3;
+                UIConfig.SubsFontColor      = Colors.White;
                 
                 var theme = Overlay.Resources.GetTheme();
                 var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, BackgroundColor = theme.Background, SurfaceColor = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};
