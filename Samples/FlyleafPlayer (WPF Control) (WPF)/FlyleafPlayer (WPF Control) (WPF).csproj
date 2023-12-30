@@ -8,7 +8,7 @@
     <AssemblyName>FlyleafPlayer</AssemblyName>
     <ApplicationIcon>Flyleaf.ico</ApplicationIcon>
     <Platforms>AnyCPU;x86;x64</Platforms>
-    <Copyright>SuRGeoNix © 2023</Copyright>
+    <Copyright>SuRGeoNix © 2024</Copyright>
     <Authors>SuRGeoNix</Authors>
   </PropertyGroup>
 
