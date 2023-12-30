@@ -169,7 +169,7 @@ namespace FlyleafLib.Plugins
                 return subsCopy;
             }
         }
-        public List<OpenSubtitlesOrgJson> SearchByIMDB(string imdbid, string lang, string season = null, string episode = null)
+        public List<OpenSubtitlesOrgJson> SearchByIMDB(string imdbid, string lang, int season = 0, int episode = 0)
         {
             List<OpenSubtitlesOrgJson> subsCopy = new List<OpenSubtitlesOrgJson>();
 
@@ -190,8 +190,8 @@ namespace FlyleafLib.Plugins
 
                 try
                 {
-                    string qSeason = season != null ? $"/season-{season}" : "";
-                    string qEpisode = episode != null ? $"/episode-{episode}" : "";
+                    string qSeason = season != 0 ? $"/season-{season}" : "";
+                    string qEpisode = episode != 0 ? $"/episode-{episode}" : "";
                     string query = $"{qEpisode}/imdbid-{imdbid}{qSeason}/sublanguageid-{lang}";
 
                     Log.Debug($"Searching for {query}");
@@ -234,7 +234,8 @@ namespace FlyleafLib.Plugins
                     Log.Debug($"Search Results {subs.Count}");
 
                     cache.Add(name + "|" + lang, subs);
-                    foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
+                    foreach (OpenSubtitlesOrgJson sub in subs)
+                        subsCopy.Add(sub);
                 }
                 catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
 
@@ -243,42 +244,37 @@ namespace FlyleafLib.Plugins
         }
         public void Search(string filename, string hash, long length, List<string> Languages)
         {
+            // Search by Hash (Any Lang)
             List<OpenSubtitlesOrgJson> subs = SearchByHash(hash, length);
 
-            bool imdbExists = subs != null && subs.Count > 0 && subs[0].IDMovieImdb != null && subs[0].IDMovieImdb.Trim() != "";
-            bool isEpisode = imdbExists && subs[0].SeriesSeason != null && subs[0].SeriesSeason.Trim() != "" && subs[0].SeriesSeason.Trim() != "0" && subs[0].SeriesEpisode != null && subs[0].SeriesEpisode.Trim() != "" && subs[0].SeriesEpisode.Trim() != "0";
-
+            // Search by Name / Lang
             foreach (string lang in Languages)
-            {
-                if (imdbExists)
-                {
-                    if (isEpisode)
-                        subs.AddRange(SearchByIMDB(subs[0].IDMovieImdb, lang, subs[0].SeriesSeason, subs[0].SeriesEpisode));
-                    else
-                        subs.AddRange(SearchByIMDB(subs[0].IDMovieImdb, lang));
-                }
-
                 subs.AddRange(SearchByName(filename, lang));
-            }
-            
-            List<OpenSubtitlesOrgJson> uniqueList = new List<OpenSubtitlesOrgJson>();
-            List<int> removeIds = new List<int>();
 
-            // Ensure same season/episode (checks also subs file name)
-            if (Selected.Season > 0 && Selected.Episode > 0)
-            {
-                for (int i = 0; i < subs.Count - 1; i++)
+            CleanSubs(subs);
+
+            // Search by IMDB Id / Lang
+            for (int i = 0; i < subs.Count; i++)
+                if (subs[i].IDMovieImdb != null && subs[i].IDMovieImdb.Trim() != "")
                 {
-                    if (!int.TryParse(subs[i].SeriesSeason, out int season) || !int.TryParse(subs[i].SeriesEpisode, out int episode) || season != Selected.Season || episode != Selected.Episode)
-                        { removeIds.Add(i); continue; }
+                    string title = subs[i].MovieName == null || subs[i].MovieName.Trim() == "" ? null : subs[i].MovieName;
 
-                    var mp = Utils.GetMediaParts(subs[i].SubFileName);
-                    if (mp.Season != Selected.Season || mp.Episode != Selected.Episode)
-                        removeIds.Add(i);
+                    if ((title != null && 
+                        Selected.Title.ToLower().Contains(title.ToLower())) ||
+                        Selected.Title.ToLower().Contains(Utils.GetMediaParts(subs[i].SubFileName).Title.ToLower()))
+                    {
+                        List<OpenSubtitlesOrgJson> subs2 = new List<OpenSubtitlesOrgJson>();
+                        foreach (string lang in Languages)
+                            subs2.AddRange(SearchByIMDB(subs[i].IDMovieImdb, lang, Selected.Season, Selected.Episode));
+
+                        CleanSubs(subs2);
+                        subs.AddRange(subs2);
+                        break;
+                    }
                 }
-            }
 
             // Unique by SubHashes (if any)
+            List<int> removeIds = new List<int>();
             for (int i = 0; i < subs.Count - 1; i++)
             {
                 if (removeIds.Contains(i)) continue;
@@ -292,12 +288,15 @@ namespace FlyleafLib.Plugins
                         if (subs[l].AvailableAt == null)
                             removeIds.Add(l);
                         else
-                        { removeIds.Add(i); break; }
+                            { removeIds.Add(i); break; }
                     }
                 }
             }
+
+            List<OpenSubtitlesOrgJson> uniqueList = new List<OpenSubtitlesOrgJson>();
             for (int i = 0; i < subs.Count; i++)
-                if (!removeIds.Contains(i)) uniqueList.Add(subs[i]);
+                if (!removeIds.Contains(i))
+                    uniqueList.Add(subs[i]);
 
             subs.Clear();
             foreach (string lang in Languages)
@@ -320,9 +319,7 @@ namespace FlyleafLib.Plugins
 
             foreach (var sub in subs)
             {
-                float rating = float.Parse(sub.SubRating);
-                if (rating > 10) rating = 10;
-                else if (rating < 0) rating = 0;
+                float rating = Math.Min(Math.Max(0, float.Parse(sub.SubRating)), 10);
 
                 AddExternalStream(new ExternalSubtitlesStream()
                 {
@@ -332,6 +329,34 @@ namespace FlyleafLib.Plugins
                 }, sub);
             }
                 
+        }
+
+        void CleanSubs(List<OpenSubtitlesOrgJson> subs)
+        {
+            // Ensure same season/episode/year if any (TBR: might filename has different from sub?)
+
+            for (int i = subs.Count - 1; i >= 0; i--)
+            {
+                var sub = subs[i];
+
+                if (!int.TryParse(sub.SeriesEpisode, out int episode))
+                    episode = 0;
+
+                if (Selected.Episode != episode)
+                    { subs.RemoveAt(i); continue; }
+
+                if (!int.TryParse(sub.SeriesSeason, out int season))
+                    season = 0;
+
+                if (Selected.Season > 0 && Selected.Season != season)
+                    { subs.RemoveAt(i); continue; }
+
+                if (!int.TryParse(sub.MovieYear, out int year))
+                    year = 0;
+
+                if (Selected.Episode == 0 && Selected.Year > 0 && Selected.Year != year)
+                    { subs.RemoveAt(i); continue; }
+            }
         }
 
         public static string CultureToOnline(CultureInfo cult)
