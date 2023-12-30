@@ -40,10 +40,30 @@ namespace FlyleafLib.Controls.WPF
         string _SubsFontWeight;
         public string       SubsFontStyle       { get => _SubsFontStyle;        set => Set(ref _SubsFontStyle, value); }
         string _SubsFontStyle;
-        public Thickness    SubsMargin          { get => _SubsMargin;           set => Set(ref _SubsMargin, value); }
+        public Thickness    SubsMargin          { get => _SubsMargin;           set { Set(ref _SubsMargin, value); UpdateSubsMargin(); } }
+        Thickness _SubsMargin;
+        [XmlIgnore]
+        #if NET5_0_OR_GREATER
+        [JsonIgnore]
+        #endif
+        public Thickness    SubsMargin2         { get => _SubsMargin2;          set => Set(ref _SubsMargin2, value); }
+        Thickness _SubsMargin2;
         public double       SubsStrokeThickness { get => _SubsStrokeThickness;  set => Set(ref _SubsStrokeThickness, value); }
         double _SubsStrokeThickness;
-        Thickness _SubsMargin;
+        public bool SubsWithinViewport          { get => _SubsWithinViewport;   set => Set(ref _SubsWithinViewport, value); }
+        bool _SubsWithinViewport;
+
+        internal void UpdateSubsMargin()
+        {
+            Utils.UIInvokeIfRequired(() =>
+            {
+                float vy = 0;
+                if (SubsWithinViewport && flyleaf != null && flyleaf.Player != null)
+                    vy = flyleaf.Player.renderer.GetViewport.Y;
+
+                Set(ref _SubsMargin2, new Thickness(SubsMargin.Left, SubsMargin.Top, SubsMargin.Right, SubsMargin.Bottom + vy), false, nameof(SubsMargin2));
+            });
+        }
         
         internal FlyleafME flyleaf;
 

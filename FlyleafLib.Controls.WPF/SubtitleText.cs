@@ -260,7 +260,7 @@ namespace FlyleafLib.Controls.WPF
             if (FontSizeInitial > 0)
             {
                 double r = w / 1920; // FontSizeInitial should be based on fixed Screen Width (eg. Full HD 1920)
-                FontSize = FontSizeInitial * r;
+                FontSize = FontSizeInitial * (r + ((1 - r) * 0.20f)); // TBR: Weight/Percentage for how much it will be affected by the change (possible dependency property / config)
                 _FormattedText.SetFontSize(FontSize);
             }
 
