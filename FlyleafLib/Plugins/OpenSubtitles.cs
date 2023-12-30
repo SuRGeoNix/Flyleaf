@@ -70,12 +70,9 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 FileInfo fi = new(file);
 
                 // We might have same Subs/ folder for more than one episode/season then filename requires to have season/episode
-                if (Selected.Episode > 0)
-                {
-                    var mp = Utils.GetMediaParts(fi.Name);
-                    if (mp.Episode != Selected.Episode || (mp.Season != Selected.Season && Selected.Season > 0 && mp.Season > 0))
-                        continue;
-                }
+                var mp = Utils.GetMediaParts(fi.Name);
+                if (mp.Episode != Selected.Episode || (mp.Season != Selected.Season && Selected.Season > 0 && mp.Season > 0))
+                    continue;
 
                 string title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
 
@@ -85,9 +82,10 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
 
                 if (fi.Name.Contains("utf8"))
                 {
+                    int pos = -1;
                     foreach (var lang2 in Config.Subtitles.Languages)
-                        if (fi.Name.Contains($"{lang2.IdSubLanguage}.utf8"))
-                            { lang = lang2; converted = true; break; }
+                        if ((pos = fi.Name.IndexOf($"{lang2.IdSubLanguage}.utf8") - 1) > 0)
+                            { lang = lang2; converted = true; title = fi.Name[..(pos - 1)]; break; }
                 }
                 Log.Debug($"Adding [{lang}] {file}");
 

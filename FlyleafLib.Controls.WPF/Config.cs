@@ -55,7 +55,7 @@ namespace FlyleafLib.Controls.WPF
 
         internal void UpdateSubsMargin()
         {
-            Utils.UIInvokeIfRequired(() =>
+            Utils.UI(() =>
             {
                 float vy = 0;
                 if (SubsWithinViewport && flyleaf != null && flyleaf.Player != null)

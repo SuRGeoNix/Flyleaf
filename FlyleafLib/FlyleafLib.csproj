@@ -8,25 +8,27 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.38</Version>
+	<Version>3.7.39</Version>
 	<Authors>SuRGeoNix</Authors>
-	<Copyright>SuRGeoNix © 2023</Copyright>
+	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
 	<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework download extract ffmpeg vortice directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Engine.Audio: Adds support for endpoints with the same FriendlyName but different Id
-		- Engine.Audio: Fixes a deadlock issue duing device removal when the device was assigned to a player
-		- Config: Introduces Decoder.AudioCodecOpt/VideoCodecOpt/SubtitlesCodecOpt to support all codec options per codec type
-		- Config: Introduces Decoder.LowDelay which improves low latency and will be auto-enabled with Player.MaxLatency
+		- AudioDecoder: Exposes/Shares CircularBufferLocker to handle possible access violations during re-allocation
+		- Player/Demuxer: Introduces ForceDuration to manual set the duration when unknown (which enables seeking)
+		- Renderer: Fixes a possible Access Violation during Video Processor Switch
+		- Renderer: Introduces ViewportChanged event
+
+		- Config.Subtitles.SearchOnline: Will force a direct online search when enabled
+		- Plugins.OpenSubtiles: Improves local searching with more accurate results
+		- Plugins.OpenSubtitlesOrg: Improves online searching with more accurate results
+		- Plugins.BitSwarm: Fixes a possible Access Violation during Stop/Initialize
 
 		[Breaking Changes]
-		- Engine.Audio.GetDeviceId/GetDeviceName methods removed
-		- Engine.Audio.Devices changed from ObservableCollection&gt;string&lt; to ObservableCollection&gt;AudioEndPoint&lt;
-		- Player.Audio.Device changed from string to AudioEndPoint (can be found in Engine.Audio.Devices)
-		- Player.Audio.DeviceId has been removed
+		- Config.Decoder.MaxSubsFrames changed (from 2 to 1 for better resync with embedded streams)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
