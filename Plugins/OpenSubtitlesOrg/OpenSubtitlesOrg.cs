@@ -41,7 +41,7 @@ namespace FlyleafLib.Plugins
                 if (filename.EndsWith(".srt", StringComparison.OrdinalIgnoreCase))
                     filename = filename.Substring(0, filename.Length - 4);
 
-                string zipPath = Path.GetTempPath() + filename + "." + sub.SubLanguageID + ".srt.gz";
+                string zipPath = Path.GetTempPath() + filename + ".srt.gz";
 
                 File.Delete(zipPath);
                 File.Delete(zipPath.Substring(0, zipPath.Length - 3));
@@ -51,6 +51,7 @@ namespace FlyleafLib.Plugins
 
                 Log.Debug($"Unzipping {zipPath}");
                 string unzipPath = Utils.GZipDecompress(zipPath);
+                File.Delete(zipPath);
                 Log.Debug($"Unzipped at {unzipPath}");
 
                 sub.AvailableAt = unzipPath;
