@@ -860,11 +860,7 @@ public partial class DecoderContext
                 }
 
                 // 5. Search online if allowed (not async)
-                if (!Playlist.Selected.SearchedOnline && Config.Subtitles.SearchOnline && (Config.Subtitles.SearchOnlineOnInputType == null || Config.Subtitles.SearchOnlineOnInputType.Count == 0 || Config.Subtitles.SearchOnlineOnInputType.Contains(Playlist.InputType)))
-                {
-                    Log.Debug("[Subtitles] Searching Online");
-                    SearchOnlineSubtitles();
-                }
+                SearchOnlineSubtitles();
 
                 if (sessionId != OpenItemCounter)
                 {

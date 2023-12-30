@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 #endif
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml.Serialization;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
@@ -799,7 +800,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Whether to use online search plugins (see also <see cref="SearchOnlineOnInputType"/>)
         /// </summary>
-        public bool             SearchOnline        { get => _SearchOnline; set => Set(ref _SearchOnline, value); }
+        public bool             SearchOnline        { get => _SearchOnline; set { Set(ref _SearchOnline, value); if (player != null && player.Video.isOpened) Task.Run(() => { if (player != null && player.Video.isOpened) player.decoder.SearchOnlineSubtitles(); }); } }
         bool _SearchOnline = false;
 
         /// <summary>
