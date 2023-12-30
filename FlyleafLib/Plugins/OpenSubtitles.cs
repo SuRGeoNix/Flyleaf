@@ -52,53 +52,55 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
          * 3) Confidence
          */
 
-        List<string> files = new();
-
         try
         {
-            foreach (var lang in Config.Subtitles.Languages)
+            string folder = Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs");
+            if (!Directory.Exists(folder))
+                return;
+
+            string[] filesCur = Directory.GetFiles(folder, $"*.srt"); // We consider Subs/ folder has only subs for this movie/series
+
+            foreach(string file in filesCur)
             {
-                //FileInfo fi = new FileInfo(Handler.Playlist.Url);
-                string prefix = Selected.Title[..Math.Min(Selected.Title.Length, 4)];
+                bool exists = false;
+                foreach(var extStream in Selected.ExternalSubtitlesStreams)
+                    if (extStream.Url == file)
+                        { exists = true; break; }
+                if (exists) continue;
 
-                string folder = Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs");
-                if (!Directory.Exists(folder))
-                    return;
+                FileInfo fi = new(file);
 
-                string[] filesCur = Directory.GetFiles(Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs"), $"{prefix}*{lang.IdSubLanguage}.utf8*.srt");
-                foreach(string file in filesCur)
+                // We might have same Subs/ folder for more than one episode/season then filename requires to have season/episode
+                if (Selected.Episode > 0 && filesCur.Length > 2)
                 {
-                    bool exists = false;
-                    foreach(var extStream in Selected.ExternalSubtitlesStreams)
-                        if (extStream.Url == file)
-                            { exists = true; break; }
-                    if (exists) continue;
-
-                    var mp = Utils.GetMediaParts(file);
-                    if (Selected.Season > 0 && (Selected.Season != mp.Season || Selected.Episode != mp.Episode))
+                    var mp = Utils.GetMediaParts(fi.Name);
+                    if (mp.Episode != Selected.Episode || (mp.Season != Selected.Season && Selected.Season > 0 && mp.Season > 0))
                         continue;
-
-                    Log.Debug($"Adding [{lang}] {file}");
-
-                    string title;
-                    try
-                    {
-                        FileInfo fi = new(file);
-                        title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
-                    }
-                    catch { title = file; }
-
-                    AddExternalStream(new ExternalSubtitlesStream()
-                    {
-                        Url         = file,
-                        Title       = title,
-                        Converted   = true,
-                        Downloaded  = true,
-                        Language    = lang
-                    });
                 }
+
+                string title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
+
+                // Until we analyze the actual text to identify the language we just use the filename
+                bool converted = false;
+                var lang = Language.Unknown;
+
+                if (fi.Name.Contains("utf8"))
+                {
+                    foreach (var lang2 in Config.Subtitles.Languages)
+                        if (fi.Name.Contains($"{lang2.IdSubLanguage}.utf8"))
+                            { lang = lang2; converted = true; break; }
+                }
+                Log.Debug($"Adding [{lang}] {file}");
+
+                AddExternalStream(new ExternalSubtitlesStream()
+                {
+                    Url         = file,
+                    Title       = title,
+                    Converted   = converted,
+                    Downloaded  = true,
+                    Language    = lang
+                });
             }
-            
-        } catch { }
+        } catch (Exception e) { Log.Error($"SearchLocalSubtitles failed ({e.Message})"); }
     }
 }

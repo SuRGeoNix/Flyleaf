@@ -416,16 +416,20 @@ public class PluginHandler
     }
     public void SearchOnlineSubtitles()
     {
-        var plugins = PluginsSearchOnlineSubtitles.Values.OrderBy(x => x.Priority);
-        foreach(var plugin in plugins)
+        if (!Playlist.Selected.SearchedOnline && Config.Subtitles.SearchOnline && (Config.Subtitles.SearchOnlineOnInputType == null || Config.Subtitles.SearchOnlineOnInputType.Count == 0 || Config.Subtitles.SearchOnlineOnInputType.Contains(Playlist.InputType)))
         {
-            if (Interrupt)
-                return;
+            Log.Debug("[Subtitles] Searching Online");
+            var plugins = PluginsSearchOnlineSubtitles.Values.OrderBy(x => x.Priority);
+            foreach(var plugin in plugins)
+            {
+                if (Interrupt)
+                    return;
 
-            plugin.SearchOnlineSubtitles();
+                plugin.SearchOnlineSubtitles();
+            }
+
+            Playlist.Selected.SearchedOnline = true;
         }
-
-        Playlist.Selected.SearchedOnline = true;
     }
     public bool DownloadSubtitles(ExternalSubtitlesStream extStream)
     {
