@@ -19,30 +19,32 @@ namespace FlyleafLib.Controls.WPF
         #if NET5_0_OR_GREATER
         [JsonIgnore]
         #endif
-        public bool         Loaded          { get; private set; }
+        public bool         Loaded              { get; private set; }
 
         public ObservableCollection<UITheme> 
-                            Themes          { get; set; }
-        public string       SelectedTheme   { get => _SelectedTheme;    set => Set(ref _SelectedTheme, value); }
+                            Themes              { get; set; }
+        public string       SelectedTheme       { get => _SelectedTheme;        set => Set(ref _SelectedTheme, value); }
         string _SelectedTheme;
 
-        public int          ActivityTimeout { get; set; } // we just store it to file
+        public int          ActivityTimeout     { get; set; } // we just store it to file
 
-        public string       SubsFontFamily  { get => _SubsFontFamily;   set => Set(ref _SubsFontFamily, value); }
+        public string       SubsFontFamily      { get => _SubsFontFamily;       set => Set(ref _SubsFontFamily, value); }
         string _SubsFontFamily;
-        public double       SubsFontSize    { get => _SubsFontSize;     set => Set(ref _SubsFontSize, value); }
+        public double       SubsFontSize        { get => _SubsFontSize;         set => Set(ref _SubsFontSize, value); }
         double _SubsFontSize;
-        public Color        SubsFontColor   { get => _SubsFontColor;    set => Set(ref _SubsFontColor, value); }
+        public Color        SubsFontColor       { get => _SubsFontColor;        set => Set(ref _SubsFontColor, value); }
         Color _SubsFontColor;
-        public string       SubsFontStretch { get => _SubsFontStretch;  set => Set(ref _SubsFontStretch, value); }
+        public string       SubsFontStretch     { get => _SubsFontStretch;      set => Set(ref _SubsFontStretch, value); }
         string _SubsFontStretch;
-        public string       SubsFontWeight  { get => _SubsFontWeight;   set => Set(ref _SubsFontWeight, value); }
+        public string       SubsFontWeight      { get => _SubsFontWeight;       set => Set(ref _SubsFontWeight, value); }
         string _SubsFontWeight;
-        public string       SubsFontStyle   { get => _SubsFontStyle;    set => Set(ref _SubsFontStyle, value); }
+        public string       SubsFontStyle       { get => _SubsFontStyle;        set => Set(ref _SubsFontStyle, value); }
         string _SubsFontStyle;
-        public Thickness    SubsMargin      { get => _SubsMargin;       set => Set(ref _SubsMargin, value); }
+        public Thickness    SubsMargin          { get => _SubsMargin;           set => Set(ref _SubsMargin, value); }
+        public double       SubsStrokeThickness { get => _SubsStrokeThickness;  set => Set(ref _SubsStrokeThickness, value); }
+        double _SubsStrokeThickness;
         Thickness _SubsMargin;
-
+        
         internal FlyleafME flyleaf;
 
         public UIConfig() { }

@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Documents;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -22,15 +18,10 @@ namespace FlyleafLib.Controls.WPF
     [ContentProperty("Text")]
     public class OutlinedTextBlock : FrameworkElement
     {
-        double initialFontSize;
-        bool loaded;
-
         public OutlinedTextBlock()
         {
             UpdatePen();
             TextDecorations = new TextDecorationCollection();
-            initialFontSize = 0;
-            loaded = false;
         }
 
         private void UpdatePen()
@@ -44,97 +35,97 @@ namespace FlyleafLib.Controls.WPF
             };
 
             if (StrokePosition == StrokePosition.Outside || StrokePosition == StrokePosition.Inside)
-            {
                 _Pen.Thickness = StrokeThickness * 2;
-            }
 
             InvalidateVisual();
         }
 
         #region dependency properties
-
-        public StrokePosition StrokePosition
-        {
-            get { return (StrokePosition)GetValue(StrokePositionProperty); }
-            set { SetValue(StrokePositionProperty, value); }
-        }
-
-        public static readonly DependencyProperty StrokePositionProperty =
-            DependencyProperty.Register("StrokePosition",
-                typeof(StrokePosition),
-                typeof(OutlinedTextBlock),
-                new FrameworkPropertyMetadata(StrokePosition.Outside, FrameworkPropertyMetadataOptions.AffectsRender));
-
         public static readonly DependencyProperty FillProperty = DependencyProperty.Register(
-          "Fill",
-          typeof(Brush),
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender));
+            nameof(Fill),
+            typeof(Brush),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public static readonly DependencyProperty StrokeProperty = DependencyProperty.Register(
-          "Stroke",
-          typeof(Brush),
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender));
+            nameof(Stroke),
+            typeof(Brush),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public static readonly DependencyProperty StrokeThicknessProperty = DependencyProperty.Register(
-          "StrokeThickness",
-          typeof(double),
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(1d, FrameworkPropertyMetadataOptions.AffectsRender));
+            nameof(StrokeThickness),
+            typeof(double),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(1d, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public static readonly DependencyProperty FontFamilyProperty = TextElement.FontFamilyProperty.AddOwner(
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty FontSizeProperty = TextElement.FontSizeProperty.AddOwner(
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(
-                61d,
-                FrameworkPropertyMetadataOptions.None,
-                OnFormattedTextUpdated));
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+
+        public static readonly DependencyProperty FontSizeInitialProperty = DependencyProperty.Register(
+            nameof(FontSizeInitial), 
+            typeof(double), 
+            typeof(OutlinedTextBlock), 
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty FontStretchProperty = TextElement.FontStretchProperty.AddOwner(
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty FontStyleProperty = TextElement.FontStyleProperty.AddOwner(
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty FontWeightProperty = TextElement.FontWeightProperty.AddOwner(
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+
+        public static readonly DependencyProperty StrokePositionProperty = DependencyProperty.Register(
+            nameof(StrokePosition),
+            typeof(StrokePosition),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(StrokePosition.Outside, FrameworkPropertyMetadataOptions.AffectsRender));
+
+        public static readonly DependencyProperty StrokeThicknessInitialProperty = DependencyProperty.Register(
+            nameof(StrokeThicknessInitial), 
+            typeof(double),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty TextProperty = DependencyProperty.Register(
-          "Text",
-          typeof(string),
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextInvalidated));
+            nameof(Text),
+            typeof(string),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextInvalidated));
 
         public static readonly DependencyProperty TextAlignmentProperty = DependencyProperty.Register(
-          "TextAlignment",
-          typeof(TextAlignment),
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+            nameof(TextAlignment),
+            typeof(TextAlignment),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty TextDecorationsProperty = DependencyProperty.Register(
-          "TextDecorations",
-          typeof(TextDecorationCollection),
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+            nameof(TextDecorations),
+            typeof(TextDecorationCollection),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty TextTrimmingProperty = DependencyProperty.Register(
-          "TextTrimming",
-          typeof(TextTrimming),
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(OnFormattedTextUpdated));
+            nameof(TextTrimming),
+            typeof(TextTrimming),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty TextWrappingProperty = DependencyProperty.Register(
-          "TextWrapping",
-          typeof(TextWrapping),
-          typeof(OutlinedTextBlock),
-          new FrameworkPropertyMetadata(TextWrapping.NoWrap, OnFormattedTextUpdated));
+            nameof(TextWrapping),
+            typeof(TextWrapping),
+            typeof(OutlinedTextBlock),
+            new FrameworkPropertyMetadata(TextWrapping.NoWrap, OnFormattedTextUpdated));
 
         private FormattedText _FormattedText;
         private Geometry _TextGeometry;
@@ -158,6 +149,13 @@ namespace FlyleafLib.Controls.WPF
         {
             get { return (double)GetValue(FontSizeProperty); }
             set { SetValue(FontSizeProperty, value); }
+        }
+
+        [TypeConverter(typeof(FontSizeConverter))]
+        public double FontSizeInitial
+        {
+            get { return (double)GetValue(FontSizeInitialProperty); }
+            set { SetValue(FontSizeInitialProperty, value); }
         }
 
         public FontStretch FontStretch
@@ -184,10 +182,22 @@ namespace FlyleafLib.Controls.WPF
             set { SetValue(StrokeProperty, value); }
         }
 
+        public StrokePosition StrokePosition
+        {
+            get { return (StrokePosition)GetValue(StrokePositionProperty); }
+            set { SetValue(StrokePositionProperty, value); }
+        }
+
         public double StrokeThickness
         {
             get { return (double)GetValue(StrokeThicknessProperty); }
             set { SetValue(StrokeThicknessProperty, value); }
+        }
+
+        public double StrokeThicknessInitial
+        {
+            get { return (double)GetValue(StrokeThicknessInitialProperty); }
+            set { SetValue(StrokeThicknessInitialProperty, value); }
         }
 
         public string Text
@@ -229,42 +239,36 @@ namespace FlyleafLib.Controls.WPF
             drawingContext.DrawGeometry(Fill, null, _TextGeometry);
 
             if (StrokePosition == StrokePosition.Outside)
-            {
                 drawingContext.PushClip(_clipGeometry);
-            }
             else if (StrokePosition == StrokePosition.Inside)
-            {
                 drawingContext.PushClip(_TextGeometry);
-            }
 
             drawingContext.DrawGeometry(null, _Pen, _TextGeometry);
 
             if (StrokePosition == StrokePosition.Outside || StrokePosition == StrokePosition.Inside)
-            {
                 drawingContext.Pop();
-            }
         }
         
         protected override Size MeasureOverride(Size availableSize)
         {
             EnsureFormattedText();
+
             // constrain the formatted text according to the available size
             double w = availableSize.Width;
             double h = availableSize.Height;
 
-            if (!loaded && FontSize != 61d)
+            if (FontSizeInitial > 0)
             {
-                initialFontSize = FontSize;
-                loaded = true;
+                double r = w / 1920; // FontSizeInitial should be based on fixed Screen Width (eg. Full HD 1920)
+                FontSize = FontSizeInitial * r;
+                _FormattedText.SetFontSize(FontSize);
             }
-            if (loaded)
+
+            if (StrokeThicknessInitial > 0)
             {
-                double r = w / SystemParameters.PrimaryScreenWidth;
-                double strokeThickness = 3 * r;
-                if (strokeThickness < 1)
-                    strokeThickness = 1;
-                UpdateFormattedTextStrokeThickness((int)strokeThickness);
-                UpdateFormattedTextFontSize(initialFontSize * r);
+                double r = FontSize / 48; // StrokeThicknessInitial should be based on fixed FontSize (eg. 48)
+                StrokeThickness = Math.Max(1, StrokeThicknessInitial * r);
+                UpdatePen();
             }
 
             // the Math.Min call is important - without this constraint (which seems arbitrary, but is the maximum allowable text width), things blow up when availableSize is infinite in both directions
@@ -305,7 +309,8 @@ namespace FlyleafLib.Controls.WPF
         private static void OnFormattedTextUpdated(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e)
         {
             var outlinedTextBlock = (OutlinedTextBlock)dependencyObject;
-            outlinedTextBlock.UpdateFormattedText();
+            if (outlinedTextBlock._FormattedText != null)
+                outlinedTextBlock.UpdateFormattedText();
             outlinedTextBlock._TextGeometry = null;
 
             outlinedTextBlock.InvalidateMeasure();
@@ -315,9 +320,7 @@ namespace FlyleafLib.Controls.WPF
         private void EnsureFormattedText()
         {
             if (_FormattedText != null)
-            {
                 return;
-            }
 
             _FormattedText = new FormattedText(
               Text ?? "",
@@ -332,11 +335,6 @@ namespace FlyleafLib.Controls.WPF
 
         private void UpdateFormattedText()
         {
-            if (_FormattedText == null)
-            {
-                return;
-            }
-
             _FormattedText.MaxLineCount = TextWrapping == TextWrapping.NoWrap ? 1 : int.MaxValue;
             _FormattedText.TextAlignment = TextAlignment;
             _FormattedText.Trimming = TextTrimming;    
@@ -351,9 +349,8 @@ namespace FlyleafLib.Controls.WPF
         private void UpdateFormattedTextFontSize(double fontSize)
         {
             if (_FormattedText == null)
-            {
                 return;
-            }
+
             FontSize = fontSize;
             _FormattedText.SetFontSize(FontSize);
         }
@@ -367,9 +364,7 @@ namespace FlyleafLib.Controls.WPF
         private void EnsureGeometry()
         {
             if (_TextGeometry != null)
-            {
                 return;
-            }
 
             EnsureFormattedText();
             _TextGeometry = _FormattedText.BuildGeometry(new Point(0, 0));
