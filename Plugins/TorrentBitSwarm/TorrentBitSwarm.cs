@@ -78,9 +78,9 @@ namespace FlyleafLib.Plugins
         }
 
         public override void OnInitializing()
-        {
-            Dispose();
-        }
+            => TorrentStream?.Cancel();
+        public override void OnInitialized()
+            => Dispose();
         public override void OnInitializingSwitch()
         {
             if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return;

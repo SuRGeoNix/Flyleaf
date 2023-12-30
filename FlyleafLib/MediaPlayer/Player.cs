@@ -178,6 +178,26 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     long _Duration, duration;
 
     /// <summary>
+    /// Forces Player's and Demuxer's Duration to allow Seek
+    /// </summary>
+    /// <param name="duration">Duration (Ticks)</param>
+    /// <exception cref="ArgumentNullException">Demuxer must be opened before forcing the duration</exception>
+    public void ForceDuration(long duration)
+    {
+        if (MainDemuxer == null)
+            throw new ArgumentNullException(nameof(MainDemuxer));
+
+        this.duration = duration;
+        MainDemuxer.ForceDuration(duration);
+        isLive = MainDemuxer.IsLive;
+        UI(() =>
+        {
+            Duration= Duration;
+            IsLive  = IsLive;
+        });
+    }
+
+    /// <summary>
     /// The current buffered duration in the demuxer
     /// </summary>
     public long         BufferedDuration    { get => MainDemuxer == null ? 0 : MainDemuxer.BufferedDuration;
@@ -405,7 +425,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         decoder.OpenExternalVideoStreamCompleted       += Decoder_OpenExternalVideoStreamCompleted;
         decoder.OpenExternalSubtitlesStreamCompleted   += Decoder_OpenExternalSubtitlesStreamCompleted;
 
-        AudioDecoder.CBufAlloc      = () => { Audio.ClearBuffer(); aFrame = null; };
+        AudioDecoder.CBufAlloc      = () => { if (aFrame != null) aFrame.dataPtr = IntPtr.Zero; aFrame = null; Audio.ClearBuffer(); aFrame = null; };
         AudioDecoder.CodecChanged   = Decoder_AudioCodecChanged;
         VideoDecoder.CodecChanged   = Decoder_VideoCodecChanged;
         decoder.RecordingCompleted += (o, e) => { IsRecording = false; };
