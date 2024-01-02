@@ -223,7 +223,7 @@ namespace FlyleafLib.Controls.WPF
             }
 
             Player.renderer.ViewportChanged += ViewportChanged;
-            UIConfig.UpdateSubsMargin();
+            ViewportChanged(null, null);
             //Raise(null);
             //settings?.Raise(null);
 
@@ -231,7 +231,7 @@ namespace FlyleafLib.Controls.WPF
             //Unloaded += (o, e) => { Dispose(); };
         }
 
-        private void ViewportChanged(object sender, EventArgs e) => UIConfig.UpdateSubsMargin();
+        private void ViewportChanged(object sender, EventArgs e) => UIConfig?.UpdateSubsMargin();
 
         public override void SetOverlay()
         {

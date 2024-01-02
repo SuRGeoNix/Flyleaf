@@ -24,22 +24,6 @@ namespace FlyleafLib.Controls.WPF
             TextDecorations = new TextDecorationCollection();
         }
 
-        private void UpdatePen()
-        {
-            _Pen = new Pen(Stroke, StrokeThickness)
-            {
-                DashCap = PenLineCap.Round,
-                EndLineCap = PenLineCap.Round,
-                LineJoin = PenLineJoin.Round,
-                StartLineCap = PenLineCap.Round
-            };
-
-            if (StrokePosition == StrokePosition.Outside || StrokePosition == StrokePosition.Inside)
-                _Pen.Thickness = StrokeThickness * 2;
-
-            InvalidateVisual();
-        }
-
         #region dependency properties
         public static readonly DependencyProperty FillProperty = DependencyProperty.Register(
             nameof(Fill),
@@ -232,6 +216,22 @@ namespace FlyleafLib.Controls.WPF
 
         #endregion
 
+        private void UpdatePen()
+        {
+            _Pen = new Pen(Stroke, StrokeThickness)
+            {
+                DashCap     = PenLineCap.Round,
+                EndLineCap  = PenLineCap.Round,
+                LineJoin    = PenLineJoin.Round,
+                StartLineCap= PenLineCap.Round
+            };
+
+            if (StrokePosition == StrokePosition.Outside || StrokePosition == StrokePosition.Inside)
+                _Pen.Thickness = StrokeThickness * 2;
+
+            InvalidateVisual();
+        }
+
         protected override void OnRender(DrawingContext drawingContext)
         {
             EnsureGeometry();
@@ -274,7 +274,7 @@ namespace FlyleafLib.Controls.WPF
             // the Math.Min call is important - without this constraint (which seems arbitrary, but is the maximum allowable text width), things blow up when availableSize is infinite in both directions
             // the Math.Max call is to ensure we don't hit zero, which will cause MaxTextHeight to throw
             _FormattedText.MaxTextWidth = Math.Min(3579139, w);
-            _FormattedText.MaxTextHeight = Math.Max(0.0001d, h);
+            _FormattedText.MaxTextHeight= Math.Max(0.0001d, h);
 
             // return the desired size
             return new Size(Math.Ceiling(_FormattedText.Width), Math.Ceiling(_FormattedText.Height));
@@ -328,7 +328,8 @@ namespace FlyleafLib.Controls.WPF
               FlowDirection,
               new Typeface(FontFamily, FontStyle, FontWeight, FontStretch),
               FontSize,
-              Brushes.Black);
+              Brushes.Black,
+              VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
             UpdateFormattedText();
         }
@@ -344,21 +345,6 @@ namespace FlyleafLib.Controls.WPF
             _FormattedText.SetFontFamily(FontFamily);
             _FormattedText.SetFontStretch(FontStretch);
             _FormattedText.SetTextDecorations(TextDecorations);
-        }
-
-        private void UpdateFormattedTextFontSize(double fontSize)
-        {
-            if (_FormattedText == null)
-                return;
-
-            FontSize = fontSize;
-            _FormattedText.SetFontSize(FontSize);
-        }
-
-        private void UpdateFormattedTextStrokeThickness(double strokeThickness)
-        {
-            StrokeThickness = strokeThickness;
-            UpdatePen();
         }
 
         private void EnsureGeometry()

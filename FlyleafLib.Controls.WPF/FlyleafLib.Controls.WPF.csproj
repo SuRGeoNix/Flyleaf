@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0-windows;net6.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.3.1</Version>
+    <Version>1.3.2</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2024</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,13 +14,8 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		- Adds stroke arround subtitles text (UIConfig.SubsStrokeThickness) [Thanks @Brandon689]
-		- Adds auto-resize for subtitles fonts
-		- Adds subtitles margin based on renderer's viewport (UIConfig.SubsWithinViewport)
+		- Fixes a critical null reference issue
 		- Updates FlyleafLib
-
-		[Breaking Changes]
-		- Default Subtitles FontSize/Margin have been changed
 	</PackageReleaseNotes>
   </PropertyGroup>
 
