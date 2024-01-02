@@ -45,6 +45,7 @@ public unsafe partial class AudioDecoder : DecoderBase
     static int              AOutChannels        = AOutChannelLayout.nb_channels;
     static int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
 
+    public readonly object  CircularBufferLocker= new();
     internal Action         CBufAlloc;          // Informs Audio player to clear buffer pointers to avoid access violation
     static int              cBufTimesSize       = 4;
     int                     cBufTimesCur        = 1;
@@ -439,7 +440,6 @@ public unsafe partial class AudioDecoder : DecoderBase
         }
         
     }
-    public object CircularBufferLocker { get; private set; } = new();
 
     #region Recording
     internal Action<MediaType> 
