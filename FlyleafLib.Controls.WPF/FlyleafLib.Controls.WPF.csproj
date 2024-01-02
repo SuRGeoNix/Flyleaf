@@ -10,7 +10,7 @@
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
     <PackageIcon>Flyleaf.png</PackageIcon>
-    <PackageIconUrl />
+    <PackageIconUrl/>
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
