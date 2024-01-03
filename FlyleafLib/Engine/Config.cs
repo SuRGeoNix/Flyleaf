@@ -415,6 +415,11 @@ public class Config : NotifyPropertyChanged
         public string           ForceFormat     { get; set; }
 
         /// <summary>
+        /// Forces FPS for NoTimestamp formats (such as h264/hevc)
+        /// </summary>
+        public double           ForceFPS        { get; set; }
+
+        /// <summary>
         /// FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
         /// eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
         /// </summary>
