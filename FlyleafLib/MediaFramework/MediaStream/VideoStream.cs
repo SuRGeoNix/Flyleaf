@@ -49,24 +49,29 @@ public unsafe class VideoStream : StreamBase
         PixelFormatStr  = PixelFormat.ToString().Replace("AV_PIX_FMT_","").ToLower();
         Width           = AVStream->codecpar->width;
         Height          = AVStream->codecpar->height;
-        FPS             = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
-        FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
-        TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
-
+        
         // TBR: Maybe required also for input formats with AVFMT_NOTIMESTAMPS (and audio/subs) 
         // Possible FFmpeg.Autogen bug with Demuxer.FormatContext->iformat->flags (should be uint?) does not contain AVFMT_NOTIMESTAMPS (256 instead of 384)
         if (Demuxer.Name == "h264" || Demuxer.Name == "hevc")
         {
             FixTimestamps = true;
+            
+            if (Demuxer.Config.ForceFPS > 0)
+                FPS = Demuxer.Config.ForceFPS;
+            else
+                FPS = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
 
             if (FPS == 0)
-            {
                 FPS = 25;
-                FrameDuration = (long) (10000000 / FPS);
-            }
         }
         else
+        {
             FixTimestamps = false;
+            FPS  = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
+        }
+
+        FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
+        TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
 
         int x, y;
         AVRational sar = av_guess_sample_aspect_ratio(null, AVStream, null);

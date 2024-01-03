@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.39</Version>
+	<Version>3.7.40</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,18 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- AudioDecoder: Exposes/Shares CircularBufferLocker to handle possible access violations during re-allocation
-		- Player/Demuxer: Introduces ForceDuration to manual set the duration when unknown (which enables seeking)
-		- Renderer: Fixes a possible Access Violation during Video Processor Switch
-		- Renderer: Introduces ViewportChanged event
-
-		- Config.Subtitles.SearchOnline: Will force a direct online search when enabled
-		- Plugins.OpenSubtiles: Improves local searching with more accurate results
-		- Plugins.OpenSubtitlesOrg: Improves online searching with more accurate results
-		- Plugins.BitSwarm: Fixes a possible Access Violation during Stop/Initialize
-
-		[Breaking Changes]
-		- Config.Decoder.MaxSubsFrames changed (from 2 to 1 for better resync with embedded streams)
+		Config: Introduces Demuxer.ForceFPS to manually set FPS on NOTIMESTAMP formats (such as h264/hevc)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
