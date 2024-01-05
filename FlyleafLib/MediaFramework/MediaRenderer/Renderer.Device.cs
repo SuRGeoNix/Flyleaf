@@ -140,18 +140,24 @@ public unsafe partial class Renderer
                 else
                     Device.Tag = adapter.Description.Luid.ToString();
 
-                GPUAdapter = Engine.Video.GPUAdapters[adapter.Description1.Luid];
-                Config.Video.MaxVerticalResolutionAuto = GPUAdapter.MaxHeight;
-
-                if (CanDebug)
+                if (Engine.Video.GPUAdapters.ContainsKey(adapter.Description1.Luid))
                 {
-                    string dump = $"GPU Adapter\r\n{GPUAdapter}\r\n";
+                    GPUAdapter = Engine.Video.GPUAdapters[adapter.Description1.Luid];
+                    Config.Video.MaxVerticalResolutionAuto = GPUAdapter.MaxHeight;
 
-                    for (int i=0; i<GPUAdapter.Outputs.Count; i++)
-                        dump += $"[Output #{i+1}] {GPUAdapter.Outputs[i]}\r\n";
+                    if (CanDebug)
+                    {
+                        string dump = $"GPU Adapter\r\n{GPUAdapter}\r\n";
 
-                    Log.Debug(dump);
+                        for (int i=0; i<GPUAdapter.Outputs.Count; i++)
+                            dump += $"[Output #{i+1}] {GPUAdapter.Outputs[i]}\r\n";
+
+                        Log.Debug(dump);
+                    }
                 }
+                else
+                    Log.Debug($"GPU Adapter: Unknown (Possible WARP without Luid)");
+                
 
                 tempDevice.Dispose();
                 adapter.Dispose();
