@@ -100,7 +100,7 @@ public unsafe partial class Renderer
             return;
 
         // TBR: Replica performance issue with D3D11 (more zoom more gpu overload)
-        if (videoProcessor == VideoProcessors.D3D11)
+        if (frame.srvs == null) // videoProcessor can be FlyleafVP but the player can send us a cached frame from prev videoProcessor D3D11VP (check frame.srv instead of videoProcessor)
         {
             if (frame.bufRef != null)
             {
@@ -121,9 +121,6 @@ public unsafe partial class Renderer
         }
         else
         {
-            if (frame.srvs == null)
-                throw new NullReferenceException(); // To avoid AccessViolation - When we change the video processor and the player already got a processed frame (which was for D3D11VP)
-
             context.OMSetRenderTargets(backBufferRtv);
             context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
             context.RSSetViewport(GetViewport);
