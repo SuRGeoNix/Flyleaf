@@ -623,7 +623,7 @@ public unsafe class Demuxer : RunThreadBase
 
                         VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
                         AVStreamToStream.Add(fmtCtx->streams[i]->index, VideoStreams[^1]);
-                        hasVideo = !Config.AllowFindStreamInfo || VideoStreams[^1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE;
+                        hasVideo |= !Config.AllowFindStreamInfo || VideoStreams[^1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE;
 
                         break;
 
