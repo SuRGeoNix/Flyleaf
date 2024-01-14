@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.40</Version>
+	<Version>3.7.41</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Config: Introduces Demuxer.ForceFPS to manually set FPS on NOTIMESTAMP formats (such as h264/hevc)
+		- Demuxer: Fixes an issue when a corrupted video stream exists and prevents other to work properly
+		- Renderer: Better handling of possible Access Violation during Video Processor switch
+		- Renderer: Possible fix for old systems with WARP device not listed in adapters
+		- FlyleafHost: Fixes an issue with WindowChrome
 	</PackageReleaseNotes>
   </PropertyGroup>
 
