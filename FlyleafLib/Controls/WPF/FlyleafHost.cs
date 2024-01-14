@@ -907,6 +907,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             if (!IsAttached || OwnerHandle == ownerHandle)
                 return; // Check OwnerHandle changed (NOTE: Owner can be the same class/window but the handle can be different)
 
+            Owner.SizeChanged -= Owner_SizeChanged;
+
             Surface.Hide();
             Overlay?.Hide();
             Detach();
@@ -916,13 +918,14 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Surface.Title   = Owner.Title;
             Surface.Icon    = Owner.Icon;
 
+            Owner.SizeChanged += Owner_SizeChanged;
             Attach();
             rectDetachedLast = Rect.Empty; // Attach will set it wrong first time
             Host_IsVisibleChanged(null, new());
 
             return;
         }
-
+        
         Owner           = owner;
         OwnerHandle     = ownerHandle;
         HostDataContext = DataContext;
@@ -932,6 +935,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         Surface.Title   = Owner.Title;
         Surface.Icon    = Owner.Icon;
         
+        Owner.SizeChanged   += Owner_SizeChanged;
         DataContextChanged  += Host_DataContextChanged;
         LayoutUpdated       += Host_LayoutUpdated;
         IsVisibleChanged    += Host_IsVisibleChanged;
@@ -957,6 +961,11 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Overlay?.Show();
         }
     }
+
+    // WindowChrome Issue #410: It will not properly move child windows when resized from top or left
+    private void Owner_SizeChanged(object sender, SizeChangedEventArgs e)
+        => rectInitLast = Rect.Empty;
+
     private void Host_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e) =>
         // TBR
         // 1. this.DataContext: FlyleafHost's DataContext will not be affected (Inheritance)
@@ -2234,6 +2243,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                     Surface.Close();
                 }
             }
+
+            if (Owner != null)
+                Owner.SizeChanged -= Owner_SizeChanged;
 
             Surface = null;
             Overlay = null;
