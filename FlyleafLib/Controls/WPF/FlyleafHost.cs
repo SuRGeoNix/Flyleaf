@@ -940,10 +940,13 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         LayoutUpdated       += Host_LayoutUpdated;
         IsVisibleChanged    += Host_IsVisibleChanged;
         
+        // TBR: We need to ensure that Surface/Overlay will be initial Show once to work properly (issue #415)
         if (IsAttached)
         {
             Attach();
             rectDetachedLast = Rect.Empty; // Attach will set it wrong first time
+            Surface.Show();
+            Overlay?.Show();
             Host_IsVisibleChanged(null, new());
         }
         else
@@ -1914,6 +1917,11 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (Surface.IsVisible)
             Overlay.Show();
+        else
+        {
+            Overlay.Show();
+            Overlay.Hide();
+        }
 
         if (IsAttached && IsLoaded && Owner == null)
             Host_Loaded(null, null);
