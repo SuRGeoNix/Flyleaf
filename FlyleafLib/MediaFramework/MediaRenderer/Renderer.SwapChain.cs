@@ -205,7 +205,12 @@ public partial class Renderer
                 ControlHandle = IntPtr.Zero;
             }
 
-            SwapChainWinUIClbk = null;
+            if (SwapChainWinUIClbk != null)
+            {
+                SwapChainWinUIClbk.Invoke(null);
+                SwapChainWinUIClbk = null;
+                swapChain?.Release(); // TBR: SwapChainPanel (SCP) should be disposed and create new instance instead (currently used from Template)
+            }
 
             dCompVisual?.Dispose();
             dCompTarget?.Dispose();
