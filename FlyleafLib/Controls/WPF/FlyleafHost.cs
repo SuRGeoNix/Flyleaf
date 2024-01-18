@@ -1917,7 +1917,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (Surface.IsVisible)
             Overlay.Show();
-        else
+        else if (!IsStandAlone && !Overlay.IsVisible)
         {
             Overlay.Show();
             Overlay.Hide();
