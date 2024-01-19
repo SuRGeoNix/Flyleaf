@@ -160,6 +160,8 @@
                 <MenuItem Header="180°"     CommandParameter="180"  Command="{Binding Player.Commands.RotationSet}"/>
                 <MenuItem Header="270°"     CommandParameter="270"  Command="{Binding Player.Commands.RotationSet}"/>
             </MenuItem>
+            <MenuItem Header="H. Flip" IsCheckable="True" IsChecked="{Binding Player.HFlip}"/>
+            <MenuItem Header="V. Flip" IsCheckable="True" IsChecked="{Binding Player.VFlip}"/>
             <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
             <MenuItem Header="{Binding Player.Speed}" HeaderStringFormat="Speed (x{0})">
                 <MenuItem Header=" x 8"     CommandParameter="8"    Command="{Binding Player.Commands.SpeedSet}"/>

@@ -102,6 +102,12 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
     bool rotationLinesize; // if negative should be vertically flipped
 
+    public bool             HFlip           { get => _HFlip;set { _HFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
+    bool _HFlip;
+
+    public bool             VFlip           { get => _VFlip;set { _VFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
+    bool _VFlip;
+
     public VideoProcessors  VideoProcessor      { get => videoProcessor;    private set => SetUI(ref videoProcessor, value); }
     VideoProcessors videoProcessor = VideoProcessors.Flyleaf;
 
