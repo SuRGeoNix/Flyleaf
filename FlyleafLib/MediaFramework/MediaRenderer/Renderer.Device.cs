@@ -49,6 +49,7 @@ public unsafe partial class Renderer
 
     ID3D11Buffer        vertexBuffer;
     ID3D11InputLayout   vertexLayout;
+    ID3D11RasterizerState rasterizerState;
 
     ID3D11VertexShader  ShaderVS;
     ID3D11PixelShader   ShaderPS;
@@ -180,6 +181,8 @@ public unsafe partial class Renderer
 
                 InitPS();
                 
+                rasterizerState = Device.CreateRasterizerState(new(CullMode.None, FillMode.Solid));
+                context.RSSetState(rasterizerState);
 
                 ShaderVS = Device.CreateVertexShader(ShaderCompiler.VSBlob);
                 vertexLayout = Device.CreateInputLayout(inputElements, ShaderCompiler.VSBlob);
@@ -300,6 +303,7 @@ public unsafe partial class Renderer
             vsBuffer?.Dispose();
             vertexLayout?.Dispose();
             vertexBuffer?.Dispose();
+            rasterizerState?.Dispose();
             DisposeSwapChain();
 
             singleGpu?.Dispose();

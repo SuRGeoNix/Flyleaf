@@ -290,6 +290,16 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
+    /// Pan Horizontal Flip (FlyleafVP only)
+    /// </summary>
+    public bool HFlip { get => renderer.HFlip; set => renderer.HFlip = value; }
+
+    /// <summary>
+    /// Pan Vertical Flip (FlyleafVP only)
+    /// </summary>
+    public bool VFlip { get => renderer.VFlip; set => renderer.VFlip = value; }
+
+    /// <summary>
     /// Whether to use reverse playback mode
     /// </summary>
     public bool         ReversePlayback

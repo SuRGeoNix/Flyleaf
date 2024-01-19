@@ -120,6 +120,7 @@ unsafe public partial class Renderer
     AVMasteringDisplayMetadata          displayData = new();
 
     uint actualRotation;
+    bool actualHFlip, actualVFlip;
     bool configLoadedChecked;
 
     void InitializeVideoProcessor()
@@ -561,10 +562,12 @@ unsafe public partial class Renderer
 
         newRotation %= 360;
 
-        if (actualRotation == newRotation || Disposed)
+        if (Disposed || (actualRotation == newRotation && actualHFlip == _HFlip && actualVFlip == _VFlip))
             return;
 
-        actualRotation = newRotation;
+        actualRotation  = newRotation;
+        actualHFlip     = _HFlip;
+        actualVFlip     = _VFlip;
 
         if (actualRotation < 45 || actualRotation == 360)
             _d3d11vpRotation = VideoProcessorRotation.Identity;
@@ -575,8 +578,8 @@ unsafe public partial class Renderer
         else if (actualRotation < 360)
             _d3d11vpRotation = VideoProcessorRotation.Rotation270;
         
-        vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * actualRotation));
-        //vsBufferData.mat = Matrix4x4.Transpose(vsBufferData.mat); TBR
+        vsBufferData.mat  = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * actualRotation));
+        vsBufferData.mat *= Matrix4x4.CreateScale(_HFlip ? -1 : 1, _VFlip ? -1 : 1, 1);
 
         if (parent == null)
             context.UpdateSubresource(vsBufferData, vsBuffer);
