@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.41</Version>
+	<Version>3.7.42</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Fixes an issue when a corrupted video stream exists and prevents other to work properly
-		- Renderer: Better handling of possible Access Violation during Video Processor switch
-		- Renderer: Possible fix for old systems with WARP device not listed in adapters
-		- FlyleafHost: Fixes an issue with WindowChrome
+		- Player: Introduces HFlip/VFlip to support Horizontal and Vertical Pan Flip (Mirror)
+		- FlyleafHost.Wpf: Fixes an issue when initial visibility state is hidden/collapsed
+		- FlyleafHost.WinUI: Fixes a critical RAM/GPU leak issue
 	</PackageReleaseNotes>
   </PropertyGroup>
 
