@@ -1052,6 +1052,13 @@ public unsafe class VideoDecoder : DecoderBase
             keyFoundWithNoPts = false;
         }
 
+        if (!filledFromCodec) // Ensures we have a proper frame before filling from codec
+        {
+            ret = FillFromCodec(frame);
+            if (ret == -1234)
+                return -1;
+        }
+
         return 0;
     }
 
