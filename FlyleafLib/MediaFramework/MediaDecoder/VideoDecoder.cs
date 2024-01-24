@@ -996,6 +996,13 @@ public unsafe class VideoDecoder : DecoderBase
             }
 
             ret = avcodec_send_packet(codecCtx, demuxer.packet);
+
+            if (swFallback) // Should use 'global' packet to reset it in get_format (same packet should use also from DecoderContext)
+            {
+                SWFallback();
+                ret = avcodec_send_packet(codecCtx, demuxer.packet);
+            }
+
             av_packet_unref(demuxer.packet);
 
             if (ret != 0 && ret != AVERROR(EAGAIN))
