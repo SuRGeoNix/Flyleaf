@@ -30,6 +30,11 @@ partial class Player
     }
 
     /// <summary>
+    /// Fires on seek completed for the specified ms (ms will be -1 on failure)
+    /// </summary>
+    public event EventHandler<int> SeekCompleted;
+
+    /// <summary>
     /// Plays AVS streams
     /// </summary>
     public void Play()
@@ -255,6 +260,7 @@ partial class Player
                                 Log.Warn("Seek failed 2");
 
                             VideoDemuxer.Start();
+                            SeekCompleted?.Invoke(this, -1);
                         }
                         else
                         {
@@ -263,9 +269,11 @@ partial class Player
                                 Log.Warn("Seek failed 3");
 
                             AudioDemuxer.Start();
+                            SeekCompleted?.Invoke(this, -1);
                         }
 
                         decoder.PauseOnQueueFull();
+                        SeekCompleted?.Invoke(this, seekData.ms);
                     }
                     else
                     {
@@ -274,6 +282,7 @@ partial class Player
                         if (ret < 0)
                         {
                             if (CanWarn) Log.Warn("Seek failed");
+                            SeekCompleted?.Invoke(this, -1);
                         }
                         else if (!ReversePlayback && CanPlay)
                         {
@@ -283,6 +292,7 @@ partial class Player
                             AudioDemuxer.Start();
                             SubtitlesDemuxer.Start();
                             decoder.PauseOnQueueFull();
+                            SeekCompleted?.Invoke(this, seekData.ms);
                         }
                     }
 
