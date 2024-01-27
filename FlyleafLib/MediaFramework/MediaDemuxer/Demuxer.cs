@@ -710,7 +710,7 @@ public unsafe class Demuxer : RunThreadBase
                 while (AudioPackets.Count > 0)
                 {
                     var packet = AudioPackets.Peek();
-                    if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * AudioStream.Timebase)
+                    if (packet->pts != AV_NOPTS_VALUE && (packet->pts + packet->duration) * AudioStream.Timebase >= ticks)
                     {
                         if (Type == MediaType.Audio || VideoStream == null)
                             found = true;
@@ -930,7 +930,7 @@ public unsafe class Demuxer : RunThreadBase
 
                 if (IsHLSLive)
                     UpdateHLSTime();
-
+                
                 if (CanTrace)
                 {
                     var stream = AVStreamToStream[packet->stream_index];
@@ -1002,7 +1002,7 @@ public unsafe class Demuxer : RunThreadBase
 
         // To demux further for buffering (related to BufferDuration)
         int maxQueueSize = 2;
-        curReverseSeekOffset = av_rescale_q(3 * 1000 * 10000 / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+        curReverseSeekOffset = av_rescale_q(3 * 1000 * 10000 / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
 
         do
         {
@@ -1182,7 +1182,7 @@ public unsafe class Demuxer : RunThreadBase
     {
         IsReversePlayback = true;
         Seek(StartTime + timestamp);
-        curReverseStopRequestedPts = av_rescale_q((StartTime + timestamp) / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+        curReverseStopRequestedPts = av_rescale_q((StartTime + timestamp) / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
     }
     public void DisableReversePlayback() => IsReversePlayback = false;
     #endregion
@@ -1565,6 +1565,7 @@ public unsafe class PacketQueue
     public long BufferedDuration    { get; private set; }
     public long CurTime             { get; private set; }
     public int  Count               => packets.Count;
+    public bool IsEmpty             => packets.IsEmpty;
 
     public long FirstTimestamp      { get; private set; } = AV_NOPTS_VALUE;
     public long LastTimestamp       { get; private set; } = AV_NOPTS_VALUE;

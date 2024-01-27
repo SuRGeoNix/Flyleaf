@@ -253,26 +253,29 @@ public class Audio : NotifyPropertyChanged
     [System.Security.SecurityCritical]
     internal void AddSamples(AudioFrame aFrame)
     {
-        try
+        lock (locker) // required for submittedSamples only? (ClearBuffer() can be called during audio decocder circular buffer reallocation)
         {
-            if (CanTrace)
-                player.Log.Trace($"[A] Presenting {Utils.TicksToTime(player.aFrame.timestamp)}");
+            try
+            {
+                if (CanTrace)
+                    player.Log.Trace($"[A] Presenting {Utils.TicksToTime(player.aFrame.timestamp)}");
 
-            framesDisplayed++;
+                framesDisplayed++;
 
-            submittedSamples += (ulong) (aFrame.dataLen / 4); // ASampleBytes
-            SamplesAdded?.Invoke(this, aFrame);
+                submittedSamples += (ulong) (aFrame.dataLen / 4); // ASampleBytes
+                SamplesAdded?.Invoke(this, aFrame);
             
-            audioBuffer.AudioDataPointer= aFrame.dataPtr;
-            audioBuffer.AudioBytes      = aFrame.dataLen;
-            sourceVoice.SubmitSourceBuffer(audioBuffer);
-        }
-        catch (Exception e) // Happens on audio device changed/removed
-        {
-            if (CanDebug)
-                player.Log.Debug($"[Audio] Submitting samples failed ({e.Message})");
+                audioBuffer.AudioDataPointer= aFrame.dataPtr;
+                audioBuffer.AudioBytes      = aFrame.dataLen;
+                sourceVoice.SubmitSourceBuffer(audioBuffer);
+            }
+            catch (Exception e) // Happens on audio device changed/removed
+            {
+                if (CanDebug)
+                    player.Log.Debug($"[Audio] Submitting samples failed ({e.Message})");
 
-            ClearBuffer(); // TBR: Inform player to resync audio?
+                ClearBuffer(); // TBR: Inform player to resync audio?
+            }
         }
     }
     internal long GetBufferedDuration() { lock (locker) { return (long) ((submittedSamples - sourceVoice.State.SamplesPlayed) * Timebase); } }

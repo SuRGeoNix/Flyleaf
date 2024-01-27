@@ -422,38 +422,27 @@ public unsafe partial class DecoderContext : PluginHandler
         // TBR: Between seek and GetVideoFrame lockCodecCtx is lost and if VideoDecoder is running will already have decoded some frames (Currently ensure you pause VideDecoder before seek)
 
         int ret;
-        var packet = av_packet_alloc();
-        var frame  = av_frame_alloc();
-
+        AVPacket* packet;
+        
         lock (VideoDemuxer.lockFmtCtx)
         lock (VideoDecoder.lockCodecCtx)
         while (VideoDemuxer.VideoStream != null && !Interrupt)
         {
-            if (VideoDemuxer.VideoPackets.Count == 0)
+            if (VideoDemuxer.VideoPackets.IsEmpty)
             {
+                packet = av_packet_alloc();
                 VideoDemuxer.Interrupter.ReadRequest();
                 ret = av_read_frame(VideoDemuxer.FormatContext, packet);
-                if (ret != 0) return -1;
+                if (ret != 0)
+                {
+                    av_packet_free(&packet);
+                    return -1;
+                }
             }
             else
-            {
                 packet = VideoDemuxer.VideoPackets.Dequeue();
-            }
 
-            if (!VideoDemuxer.EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
-
-            var codecType = VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type;
-
-            if (VideoDecoder.keyFrameRequired && VideoDecoder.keyFrameRequiredPacket)
-            {
-                if (codecType != AVMEDIA_TYPE_VIDEO || (packet->flags & AV_PKT_FLAG_KEY) == 0)
-                    { av_packet_unref(packet); continue; }
-
-                VideoDecoder.keyFrameRequiredPacket = false;
-            }
-
-            if (VideoDemuxer.IsHLSLive)
-                VideoDemuxer.UpdateHLSTime();
+            if (!VideoDemuxer.EnabledStreams.Contains(packet->stream_index)) { av_packet_free(&packet); continue; }
 
             if (CanTrace)
             {
@@ -463,21 +452,34 @@ public unsafe partial class DecoderContext : PluginHandler
                 Log.Trace($"[{stream.Type}] DTS: {(dts == -1 ? "-" : TicksToTime(dts))} PTS: {(pts == -1 ? "-" : TicksToTime(pts))} | FLPTS: {(pts == -1 ? "-" : TicksToTime(pts - VideoDemuxer.StartTime))} | CurTime: {TicksToTime(VideoDemuxer.CurTime)} | Buffered: {TicksToTime(VideoDemuxer.BufferedDuration)}");
             }
 
+            var codecType = VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type;
+
+            if (codecType == AVMEDIA_TYPE_VIDEO && VideoDecoder.keyFrameRequired && VideoDecoder.keyFrameRequiredPacket)
+            {
+                if ((packet->flags & AV_PKT_FLAG_KEY) == 0)
+                    { av_packet_free(&packet); continue; }
+
+                VideoDecoder.keyFrameRequiredPacket = false;
+            }
+                
+            if (VideoDemuxer.IsHLSLive)
+                VideoDemuxer.UpdateHLSTime();
+
             switch (codecType)
             {
                 case AVMEDIA_TYPE_AUDIO:
-                    if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * AudioStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
+                    if (timestamp == -1 || (long)(packet->pts * AudioStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.AudioPackets.Enqueue(packet);
-                    
-                    packet = av_packet_alloc();
+                    else
+                        av_packet_free(&packet);
 
                     continue;
 
                 case AVMEDIA_TYPE_SUBTITLE:
-                    if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
+                    if (timestamp == -1 || (long)(packet->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.SubtitlesPackets.Enqueue(packet);
-
-                    packet = av_packet_alloc();
+                    else
+                        av_packet_free(&packet);
 
                     continue;
 
@@ -490,10 +492,14 @@ public unsafe partial class DecoderContext : PluginHandler
                         ret = avcodec_send_packet(VideoDecoder.CodecCtx, packet);
                     }
 
-                    if (ret != 0) { av_packet_free(&packet); return -1; }
+                    av_packet_free(&packet);
+
+                    if (ret != 0)
+                        return -1;
                     
                     //VideoDemuxer.UpdateCurTime();
 
+                    var frame = av_frame_alloc();
                     while (VideoDemuxer.VideoStream != null && !Interrupt)
                     {
                         ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
@@ -511,14 +517,14 @@ public unsafe partial class DecoderContext : PluginHandler
                             }
 
                             frame->pts = VideoDecoder.lastFixedPts + VideoStream.StartTimePts;
-                            VideoDecoder.lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+                            VideoDecoder.lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
                         }
 
                         if (VideoDecoder.keyFrameRequired)
                         {
                             if (!VideoDecoder.keyFoundWithNoPts && frame->key_frame != 1)
                             {
-                                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}] [{(packet->flags & AV_PKT_FLAG_KEY) == 0}]");
+                                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
                                 av_frame_unref(frame);
                                 continue;
                             }
@@ -533,7 +539,6 @@ public unsafe partial class DecoderContext : PluginHandler
 
                             if (ret == -1234)
                             {
-                                av_packet_free(&packet);
                                 av_frame_free(&frame);
                                 return -1;
                             }
@@ -554,30 +559,28 @@ public unsafe partial class DecoderContext : PluginHandler
                             
                         do
                         {
-                            av_frame_free(&frame);
-                            frame = av_frame_alloc();
                             ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                             if (ret != 0) break;
                             mFrame = VideoDecoder.Renderer.FillPlanes(frame);
                             if (mFrame != null) VideoDecoder.Frames.Enqueue(mFrame);
                         } while (!VideoDemuxer.Disposed && !Interrupt);
 
-                        av_packet_free(&packet);
                         av_frame_free(&frame);
                         return mFrame.timestamp;
                     }
 
-                    av_packet_free(&packet);
-                    packet = av_packet_alloc();
+                    av_frame_free(&frame);
 
                     break; // Switch break
+
+                default:
+                    av_packet_free(&packet);
+                    continue;
 
             } // Switch
 
         } // While
 
-        av_packet_free(&packet);
-        av_frame_free(&frame);
         return -1;
     }
     public new void Dispose()
