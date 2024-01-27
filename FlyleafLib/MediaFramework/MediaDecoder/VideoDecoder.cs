@@ -556,7 +556,7 @@ public unsafe class VideoDecoder : DecoderBase
                         
                         // Create timestamps for h264/hevc raw streams (Needs also to handle this with the remuxer / no recording currently supported!)
                         frame->pts = lastFixedPts + VideoStream.StartTimePts;
-                        lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+                        lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
                     }
 
                     if (keyFrameRequired)
@@ -1042,7 +1042,7 @@ public unsafe class VideoDecoder : DecoderBase
             }
 
             frame->pts = lastFixedPts + VideoStream.StartTimePts;
-            lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, av_get_time_base_q(), VideoStream.AVStream->time_base);
+            lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
         }
 
         if (keyFrameRequired)

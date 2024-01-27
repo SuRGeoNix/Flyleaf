@@ -15,7 +15,8 @@ public class FFmpegEngine
     public bool     FiltersLoaded   { get; set; }
     public bool     DevicesLoaded   { get; set; }
 
-    const int       AV_LOG_BUFFER_SIZE = 5 * 1024;
+    const int           AV_LOG_BUFFER_SIZE = 5 * 1024;
+    internal AVRational AV_TIMEBASE_Q;
 
     internal FFmpegEngine()
     {
@@ -34,7 +35,7 @@ public class FFmpegEngine
             try { avfilter_version(); FiltersLoaded = true; } catch { FiltersLoaded = false; }
 
             SetLogLevel();
-            
+            AV_TIMEBASE_Q   = av_get_time_base_q();
             Engine.Log.Info($"FFmpeg Loaded (Location: {Folder}, Ver: {Version}) [Devices: {(DevicesLoaded ? "yes" : "no")}, Filters: {(FiltersLoaded ? "yes" : "no")}]");
         } catch (Exception e)
         {

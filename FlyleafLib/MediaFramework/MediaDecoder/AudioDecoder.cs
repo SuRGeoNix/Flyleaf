@@ -55,6 +55,9 @@ public unsafe partial class AudioDecoder : DecoderBase
     internal bool           resyncWithVideoRequired;
     SwrContext*             swrCtx;
 
+    long                    nextPts;
+    double                  sampleRateTimebase;
+
     public AudioDecoder(Config config, int uniqueId = -1, VideoDecoder syncDecoder = null) : base(config, uniqueId)
         => VideoDecoder = syncDecoder;
 
@@ -104,6 +107,7 @@ public unsafe partial class AudioDecoder : DecoderBase
         cBuf            = null;
         cBufSamples     = 0;
         filledFromCodec = false;
+        nextPts         = AV_NOPTS_VALUE;
     }
     public void DisposeFrames() => Frames = new();
     public void Flush()
@@ -111,7 +115,8 @@ public unsafe partial class AudioDecoder : DecoderBase
         lock (lockActions)
             lock (lockCodecCtx)
             {
-                if (Disposed) return;
+                if (Disposed)
+                    return;
 
                 if (Status == Status.Ended)
                     Status = Status.Stopped;
@@ -119,7 +124,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                     Status = Status.Stopping;
 
                 resyncWithVideoRequired = !VideoDecoder.Disposed;
-
+                nextPts = AV_NOPTS_VALUE;
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
                 if (filterGraph != null)
@@ -281,8 +286,20 @@ public unsafe partial class AudioDecoder : DecoderBase
                     if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
                         frame->pts = frame->best_effort_timestamp;
                     else if (frame->pts == AV_NOPTS_VALUE)
-                        { av_frame_unref(frame); continue; }
+                    {
+                        if (nextPts == AV_NOPTS_VALUE && filledFromCodec) // Possible after seek (maybe set based on pkt_pos?)
+                        {
+                            av_frame_unref(frame);
+                            continue;
+                        }
 
+                        frame->pts = nextPts;
+                    }
+
+                    // We could fix it down to the demuxer based on size?
+                    if (frame->pkt_duration <= 0)
+                        frame->pkt_duration = av_rescale_q((long)(frame->nb_samples * sampleRateTimebase), Engine.FFmpeg.AV_TIMEBASE_Q, Stream.AVStream->time_base);
+                    
                     bool codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
 
                     if (!filledFromCodec || codecChanged)
@@ -304,6 +321,11 @@ public unsafe partial class AudioDecoder : DecoderBase
                         AudioStream.AVStream->time_base = codecCtx->pkt_timebase;
                         AudioStream.Refresh();
                         resyncWithVideoRequired = !VideoDecoder.Disposed;
+                        sampleRateTimebase = 1000 * 1000.0 / codecCtx->sample_rate;
+                        nextPts = AudioStream.StartTimePts;
+                        
+                        if (frame->pts == AV_NOPTS_VALUE)
+                            frame->pts = nextPts;
 
                         ret = SetupFiltersOrSwr();
 
@@ -312,17 +334,24 @@ public unsafe partial class AudioDecoder : DecoderBase
                         if (ret != 0)
                         {
                             Status = Status.Stopping;
+                            av_frame_unref(frame);
                             break;
+                        }
+
+                        if (nextPts == AV_NOPTS_VALUE)
+                        {
+                            av_frame_unref(frame);
+                            continue;
                         }
                     }
 
                     if (resyncWithVideoRequired)
                     {
                         // TODO: in case of long distance will spin (CPU issue), possible reseek?
-                        long ts = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay + 500000; // 50 ms offset
-
                         while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning && resyncWithVideoRequired)
                             Thread.Sleep(10);
+
+                        long ts = (long)((frame->pts + frame->pkt_duration) * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay;
 
                         if (ts < VideoDecoder.StartTime)
                         {
@@ -358,6 +387,8 @@ public unsafe partial class AudioDecoder : DecoderBase
     {
         try
         {
+            nextPts = frame->pts + frame->pkt_duration;
+
             var dataLen     = frame->nb_samples * ASampleBytes;
             var speedDataLen= Utils.Align((int)(dataLen / speed), ASampleBytes);
 

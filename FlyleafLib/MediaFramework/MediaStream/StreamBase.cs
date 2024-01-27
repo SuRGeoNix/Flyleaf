@@ -50,7 +50,7 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
         StreamIndex = AVStream->index;
         Timebase    = av_q2d(AVStream->time_base) * 10000.0 * 1000.0;
         StartTime   = AVStream->start_time != AV_NOPTS_VALUE && Demuxer.hlsCtx == null ? (long)(AVStream->start_time * Timebase) : Demuxer.StartTime;
-        StartTimePts= AVStream->start_time != AV_NOPTS_VALUE ? AVStream->start_time : av_rescale_q(StartTime/10, av_get_time_base_q(), AVStream->time_base);
+        StartTimePts= AVStream->start_time != AV_NOPTS_VALUE ? AVStream->start_time : av_rescale_q(StartTime/10, Engine.FFmpeg.AV_TIMEBASE_Q, AVStream->time_base);
         Duration    = AVStream->duration   != AV_NOPTS_VALUE ? (long)(AVStream->duration * Timebase) : Demuxer.Duration;
         Type        = this is VideoStream ? MediaType.Video : (this is AudioStream ? MediaType.Audio : MediaType.Subs);
 

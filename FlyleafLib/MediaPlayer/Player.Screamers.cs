@@ -427,7 +427,7 @@ unsafe partial class Player
 
                     aFrame = null;
                 }
-                else if (aDistanceMs > 1000) // Drops few audio frames in case of wrong timestamps
+                else if (aDistanceMs > 4000) // Drops few audio frames in case of wrong timestamps (Note this should be lower, until swr has min/max samples for about 20-70ms)
                 {
                     if (allowedLateAudioDrops > 0)
                     {
@@ -625,36 +625,47 @@ unsafe partial class Player
         return Math.Max(decoder, demuxer);
     }
 
-    private bool AudioBuffer()
+    private void AudioBuffer()
     {
-        while ((isVideoSwitch || isAudioSwitch) && IsPlaying) Thread.Sleep(10);
-        if (!IsPlaying) return false;
+        if (CanTrace) Log.Trace("Buffering");
+
+        while ((isVideoSwitch || isAudioSwitch) && IsPlaying)
+            Thread.Sleep(10);
+
+        if (!IsPlaying)
+            return;
 
         aFrame = null;
         Audio.ClearBuffer();
         decoder.AudioStream.Demuxer.Start();
         AudioDecoder.Start();
 
-        while(AudioDecoder.Frames.IsEmpty && IsPlaying && AudioDecoder.IsRunning) Thread.Sleep(10);
-        AudioDecoder.Frames.TryDequeue(out aFrame);
+        while(AudioDecoder.Frames.IsEmpty && IsPlaying && AudioDecoder.IsRunning)
+            Thread.Sleep(10);
+
+        AudioDecoder.Frames.TryPeek(out aFrame);
+
         if (aFrame == null) 
-            return false;
+            return;
 
         lock (seeks)
             if (seeks.IsEmpty)
             {
-                if (MainDemuxer.IsHLSLive)
-                    curTime = aFrame.timestamp;
-                UI(() => UpdateCurTime());
+                curTime = !MainDemuxer.IsHLSLive ? aFrame.timestamp : MainDemuxer.CurTime;
+                UI(() =>
+                {
+                    Set(ref _CurTime, curTime, true, nameof(CurTime));
+                    UpdateBufferedDuration();
+                });
             }
 
         while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Player.MinBufferDuration && AudioDecoder.Frames.Count < Config.Decoder.MaxAudioFrames / 2 && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull)
             Thread.Sleep(20);
-
-        return IsPlaying && !AudioDecoder.Frames.IsEmpty && seeks.IsEmpty;
     }
     private void ScreamerAudioOnly()
     {
+        long bufferedDuration = 0;
+        
         while (IsPlaying)
         {
             if (seeks.TryPop(out var seekData))
@@ -679,62 +690,67 @@ unsafe partial class Player
                 OnBufferingStarted();
                 AudioBuffer();
                 requiresBuffering = false;
+
                 if (!seeks.IsEmpty)
                     continue;
+
+                if (!IsPlaying || AudioDecoder.Frames.IsEmpty)
+                    break;
+
                 OnBufferingCompleted();
             }
 
-            if (Status != Status.Playing)
-                break;
-
-            if (aFrame == null)
+            if (AudioDecoder.Frames.IsEmpty)
             {
-                if (AudioDecoder.Status == MediaFramework.Status.Ended)
-                    break;
+                if (bufferedDuration == 0)
+                {
+                    if (!IsPlaying || AudioDecoder.Status == MediaFramework.Status.Ended)
+                        break;
 
-                Log.Warn("No audio frames");
-                requiresBuffering = true;
+                    Log.Warn("No audio frames");
+                    requiresBuffering = true;
+                }
+                else
+                {
+                    Thread.Sleep(50); // waiting for audio buffer to be played before end
+                    bufferedDuration = Audio.GetBufferedDuration();
+                }   
+                
                 continue;
             }
 
-            lock (seeks)
-            {
-                curTime = aFrame.timestamp;
-
-                if (!Engine.Config.UICurTimePerSecond || curTime / 10000000 != _CurTime / 10000000)
-                {
-                    UI(() =>
-                    {
-                        Set(ref _CurTime, curTime, true, nameof(CurTime));
-                        UpdateBufferedDuration();
-                    });
-                }
-            }
-
-            for (int i = 0; i < Math.Min(5, AudioDecoder.Frames.Count); i++)
-            {
-                Audio.AddSamples(aFrame);
-                AudioDecoder.Frames.TryDequeue(out aFrame);
-                if (aFrame != null)
-                    break;
-            }
+            bufferedDuration = Audio.GetBufferedDuration();
             
-            // This can cause high cpu with small samples (increase max audio frames and consider using min samples/duration for audio frames)
-            lock (Audio.locker)
+            if (bufferedDuration < 300 * 10000)
             {
-                var state = Audio.sourceVoice.State;
-
-                while (state.BuffersQueued >= XAudio2.MaximumQueuedBuffers - 5 && IsPlaying)
+                do
                 {
-                    Thread.Sleep(10);
-                    state = Audio.sourceVoice.State;
-                }
-                
-                var bufferedDuration = (long) ((Audio.submittedSamples - state.SamplesPlayed) * Audio.Timebase);
+                    AudioDecoder.Frames.TryDequeue(out aFrame);
+                    if (aFrame == null || !IsPlaying)
+                        break;
 
-                if (bufferedDuration > 40 * 10000)
-                    Thread.Sleep(10);
+                    Audio.AddSamples(aFrame);
+                    bufferedDuration += (long) ((aFrame.dataLen / 4) * Audio.Timebase);
+                    curTime = !MainDemuxer.IsHLSLive ? aFrame.timestamp : MainDemuxer.CurTime;
+                } while (bufferedDuration < 100 * 10000);
+
+                lock (seeks)
+                    if (seeks.IsEmpty)
+                    {
+                        if (!Engine.Config.UICurTimePerSecond || curTime / 10000000 != _CurTime / 10000000)
+                        {
+                            UI(() =>
+                            {
+                                Set(ref _CurTime, curTime, true, nameof(CurTime));
+                                UpdateBufferedDuration();
+                            });
+                        }
+                    }
+
+                Thread.Sleep(20);
             }
+            else
+                Thread.Sleep(50);
         }
     }
 

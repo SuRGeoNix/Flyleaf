@@ -25,7 +25,6 @@ public unsafe partial class AudioDecoder
     object                  lockSpeed = new();
     AVRational              sinkTimebase;
     AVFrame*                filtframe;
-    long                    expectedPts;      // check filters resync
 
     private AVFilterContext* CreateFilter(string name, string args, AVFilterContext* prevCtx = null, string id = null)
     {
@@ -258,9 +257,10 @@ public unsafe partial class AudioDecoder
             curSamples      = 0;
             missedSamples   = 0;
         }
-        else if (Math.Abs((frame->pts - expectedPts) * AudioStream.Timebase) > 80 * 10000) // 80ms distance should resync filters (TBR: it should be 0ms however we might get 0 pkt_duration for unknown?)
+        else if (Math.Abs(frame->pts - nextPts) > 10 * 10000) // 10ms distance should resync filters (TBR: it should be 0ms however we might get 0 pkt_duration for unknown?)
         {
-            Log.Warn($"Resync filters! ({Utils.TicksToTime((long)((frame->pts - expectedPts) * AudioStream.Timebase))} distance)");
+            DrainFilters();
+            Log.Warn($"Resync filters! ({Utils.TicksToTime((long)((frame->pts - nextPts) * AudioStream.Timebase))} distance)");
             //resyncWithVideoRequired = !VideoDecoder.Disposed;
             DisposeFrames();
             avcodec_flush_buffers(codecCtx);
@@ -269,7 +269,7 @@ public unsafe partial class AudioDecoder
             return;
         }
 
-        expectedPts = frame->pts + frame->pkt_duration;
+        nextPts = frame->pts + frame->pkt_duration;
 
         int ret;
         
