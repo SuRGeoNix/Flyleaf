@@ -64,9 +64,9 @@ namespace FlyleafPlayer
             };
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
-            FlyleafME.ConfigPath    = "Flyleaf.Config.json";
-            FlyleafME.EnginePath    = "Flyleaf.Engine.json";
-            FlyleafME.UIConfigPath  = "Flyleaf.UIConfig.json";
+            FlyleafME.ConfigPath    = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.Config.json");
+            FlyleafME.EnginePath    = App.EnginePath;
+            FlyleafME.UIConfigPath  = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.UIConfig.json");
             
             InitializeComponent();
 
@@ -90,8 +90,8 @@ namespace FlyleafPlayer
             // Player's Config (Cannot be initialized before Engine's initialization)
             #if RELEASE
             // Load Player's Config
-            if (File.Exists("Flyleaf.Config.json"))
-                try { playerConfig = Config.Load("Flyleaf.Config.json"); } catch { playerConfig = DefaultConfig(); }
+            if (File.Exists(FlyleafME.ConfigPath))
+                try { playerConfig = Config.Load(FlyleafME.ConfigPath); } catch { playerConfig = DefaultConfig(); }
             else
                 playerConfig = DefaultConfig();
             #else
@@ -230,7 +230,7 @@ namespace FlyleafPlayer
                 try
                 {
                     Utils.AddFirewallRule();
-                    playerConfig.Save("Flyleaf.Config.json");
+                    playerConfig.Save(FlyleafME.ConfigPath);
                 } catch { }
             }
 
@@ -241,7 +241,7 @@ namespace FlyleafPlayer
                 Engine.Config.LogLevel       = LogLevel.Quiet;
                 //Engine.Config.FFmpegDevices  = false;
 
-                try { Engine.Config.Save("Flyleaf.Engine.json"); } catch { }
+                try { Engine.Config.Save(App.EnginePath); } catch { }
             }
             #endif
         }
