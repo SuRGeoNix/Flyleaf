@@ -340,7 +340,7 @@ color = float4(
 
                         if (VideoStream.PixelComp0Depth > 8)
                         {
-                            curPSUniqueId += "a";
+                            curPSUniqueId += VideoStream.PixelComp0Depth;
 
                             for (int i=0; i<VideoStream.PixelPlanes; i++)
                                 textDesc[i].Format = srvDesc[i].Format = Format.R16_UNorm;
@@ -502,7 +502,7 @@ color = float4(
 
                         if (VideoStream.PixelComp0Depth > 8)
                         {
-                            curPSUniqueId += "a";
+                            curPSUniqueId += VideoStream.PixelComp0Depth;
 
                             for (int i=0; i<VideoStream.PixelPlanes; i++)
                                 textDesc[i].Format = srvDesc[i].Format = Format.R16_UNorm;

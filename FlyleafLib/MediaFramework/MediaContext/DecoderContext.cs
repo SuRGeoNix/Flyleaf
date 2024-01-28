@@ -173,8 +173,15 @@ public unsafe partial class DecoderContext : PluginHandler
             }
 
             VideoDecoder.Flush();
+            if (ms == 0)
+                VideoDecoder.keyFrameRequiredPacket = false;
+
             if (AudioStream != null && AudioDecoder.OnVideoDemuxer)
+            {
                 AudioDecoder.Flush();
+                if (ms == 0)
+                    AudioDecoder.nextPts = AudioDecoder.Stream.StartTimePts;
+            }
 
             if (SubtitlesStream != null && SubtitlesDecoder.OnVideoDemuxer)
                 SubtitlesDecoder.Flush();
