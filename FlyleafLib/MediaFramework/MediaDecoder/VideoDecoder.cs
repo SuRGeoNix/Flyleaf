@@ -1113,20 +1113,24 @@ public unsafe class VideoDecoder : DecoderBase
             return;
 
         if (frame.textures != null)
+        {
             for (int i=0; i<frame.textures.Length; i++)
                 frame.textures[i].Dispose();
 
+            frame.textures = null;
+        }
+        
         if (frame.srvs != null)
+        {
             for (int i=0; i<frame.srvs.Length; i++)
                 frame.srvs[i].Dispose();
 
-        if (frame.bufRef != null)
-            fixed (AVBufferRef** ptr = &frame.bufRef)
-                av_buffer_unref(ptr);
-
-        frame.srvs      = null;
-        frame.textures  = null;
-        frame.bufRef    = null;
+            frame.srvs = null;
+        }
+        
+        if (frame.avFrame != null)
+            fixed(AVFrame** ptr = &frame.avFrame)
+            av_frame_free(ptr);
     }
     protected override void DisposeInternal()
     {

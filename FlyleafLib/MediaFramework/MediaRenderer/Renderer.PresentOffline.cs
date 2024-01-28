@@ -40,9 +40,9 @@ public partial class Renderer
             vc.VideoProcessorSetStreamDestRect(vp, 0, true, rect);
             vc.VideoProcessorSetOutputTargetRect(vp, true, rect);
 
-            if (frame.bufRef != null)
+            if (frame.avFrame != null)
             {
-                vpivd.Texture2D.ArraySlice = frame.subresource;
+                vpivd.Texture2D.ArraySlice = (int) frame.avFrame->data[1];
                 vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
             }
             else
@@ -81,7 +81,7 @@ public partial class Renderer
             {
                 frame ??= LastFrame;
 
-                if (Disposed || frame == null || (frame.textures == null && frame.bufRef == null))
+                if (Disposed || frame == null || (frame.textures == null && frame.avFrame == null))
                     return null;
 
                 if (width == -1 && height == -1)
