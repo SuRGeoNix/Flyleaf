@@ -74,19 +74,44 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 if (mp.Episode != Selected.Episode || (mp.Season != Selected.Season && Selected.Season > 0 && mp.Season > 0))
                     continue;
 
-                string title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
+                string title = null;
 
                 // Until we analyze the actual text to identify the language we just use the filename
                 bool converted = false;
                 var lang = Language.Unknown;
 
-                if (fi.Name.Contains("utf8"))
+                if (fi.Name.IndexOf(".utf8", StringComparison.OrdinalIgnoreCase) != -1)
                 {
+                    converted = true;
+
                     int pos = -1;
-                    foreach (var lang2 in Config.Subtitles.Languages)
-                        if ((pos = fi.Name.IndexOf($"{lang2.IdSubLanguage}.utf8") - 1) > 0)
-                            { lang = lang2; converted = true; title = fi.Name[..(pos - 1)]; break; }
+                    if ((pos = fi.Name.IndexOf($".{Language.Unknown.IdSubLanguage}.utf8", StringComparison.OrdinalIgnoreCase)) != -1)
+                        title = fi.Name[..pos];
+                    else
+                        foreach (var lang2 in Config.Subtitles.Languages)
+                            if ((pos = fi.Name.IndexOf($".{lang2.IdSubLanguage}.utf8", StringComparison.OrdinalIgnoreCase)) != -1)
+                                { lang = lang2; title = fi.Name[..pos]; break; }
+
+                    if (title == null)
+                        title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
                 }
+                else
+                {
+                    title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
+
+                    bool utf8Exists = false;
+
+                    foreach(string file2 in filesCur)
+                    {
+                        FileInfo fi2 = new(file2);
+                        if (fi2.Name.IndexOf(".utf8", StringComparison.OrdinalIgnoreCase) != -1 && fi2.Name.IndexOf(title, StringComparison.OrdinalIgnoreCase) != -1)
+                            { utf8Exists = true; break; }
+                    }
+
+                    if (utf8Exists)
+                        continue;
+                }
+
                 Log.Debug($"Adding [{lang}] {file}");
 
                 AddExternalStream(new ExternalSubtitlesStream()

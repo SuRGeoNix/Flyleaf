@@ -636,11 +636,14 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             if (curPSCase == PSCase.HWZeroCopy)
             {
                 mFrame.srvs         = new ID3D11ShaderResourceView[2];
-                mFrame.bufRef       = av_buffer_ref(frame->buf[0]);
                 srvDesc[0].Texture2DArray.FirstArraySlice = srvDesc[1].Texture2DArray.FirstArraySlice = (int) frame->data[1];
 
                 mFrame.srvs[0]      = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDesc[0]);
                 mFrame.srvs[1]      = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDesc[1]);
+
+                mFrame.avFrame = av_frame_alloc();
+                av_frame_move_ref(mFrame.avFrame, frame);
+                return mFrame;
             }
 
             else if (curPSCase == PSCase.HW)
@@ -660,8 +663,9 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
 
             else if (curPSCase == PSCase.HWD3D11VPZeroCopy)
             {
-                mFrame.subresource  = (int) frame->data[1];
-                mFrame.bufRef       = av_buffer_ref(frame->buf[0]); // TBR: should we ref all buf refs / the whole avframe?
+                mFrame.avFrame = av_frame_alloc();
+                av_frame_move_ref(mFrame.avFrame, frame);
+                return mFrame;
             }
 
             else if (curPSCase == PSCase.HWD3D11VP)
@@ -722,16 +726,14 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                 }
             }
 
+            av_frame_unref(frame);
             return mFrame;
         }
         catch (Exception e)
         {
+            av_frame_unref(frame);
             Log.Error($"Failed to process frame ({e.Message})");
             return null; 
-        }
-        finally
-        {
-            av_frame_unref(frame);
         }
     }
 

@@ -12,6 +12,5 @@ public unsafe class VideoFrame : FrameBase
     public ID3D11ShaderResourceView[]   srvs;           // Views
 
     // Zero-Copy
-    public int                          subresource;    // FFmpeg texture's array index
-    public AVBufferRef*                 bufRef;         // Lets ffmpeg to know that we still need it
+    public AVFrame*                     avFrame;        // Lets ffmpeg to know that we still need it
 }

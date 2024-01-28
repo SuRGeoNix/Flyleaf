@@ -102,9 +102,9 @@ public unsafe partial class Renderer
         // TBR: Replica performance issue with D3D11 (more zoom more gpu overload)
         if (frame.srvs == null) // videoProcessor can be FlyleafVP but the player can send us a cached frame from prev videoProcessor D3D11VP (check frame.srv instead of videoProcessor)
         {
-            if (frame.bufRef != null)
+            if (frame.avFrame != null)
             {
-                vpivd.Texture2D.ArraySlice = frame.subresource;
+                vpivd.Texture2D.ArraySlice = (int) frame.avFrame->data[1];
                 vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
             }
             else
@@ -142,7 +142,7 @@ public unsafe partial class Renderer
                 if (SCDisposed)
                     return;
 
-                if (LastFrame != null && (LastFrame.textures != null || LastFrame.bufRef != null))
+                if (LastFrame != null && (LastFrame.textures != null || LastFrame.avFrame != null))
                     PresentInternal(LastFrame);
                 else
                 {
