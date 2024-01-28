@@ -10,6 +10,7 @@ namespace FlyleafPlayer
     public partial class App : Application
     {
         public static string CmdUrl { get; set; } = null;
+        public static string EnginePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.Engine.json");
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -26,8 +27,8 @@ namespace FlyleafPlayer
 
             // Engine's Config
             #if RELEASE
-            if (File.Exists("Flyleaf.Engine.json"))
-                try { engineConfig = EngineConfig.Load("Flyleaf.Engine.json"); } catch { engineConfig = DefaultEngineConfig(); }
+            if (File.Exists(EnginePath))
+                try { engineConfig = EngineConfig.Load(EnginePath); } catch { engineConfig = DefaultEngineConfig(); }
             else
                 engineConfig = DefaultEngineConfig();
             #else
@@ -49,7 +50,7 @@ namespace FlyleafPlayer
             engineConfig.FFmpegDevices  = true;
 
             #if RELEASE
-            engineConfig.LogOutput      = "Flyleaf.FirstRun.log";
+            engineConfig.LogOutput      = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.FirstRun.log");
             engineConfig.LogLevel       = LogLevel.Debug;
             #else
             engineConfig.LogOutput      = ":debug";
