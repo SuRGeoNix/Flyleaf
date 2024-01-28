@@ -88,7 +88,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                     return error = $"[{Type} avcodec_parameters_to_context] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
 
                 codecCtx->pkt_timebase  = stream.AVStream->time_base;
-                //codecCtx->codec_id      = codec->id;
+                codecCtx->codec_id      = codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
 
                 if (Config.Decoder.ShowCorrupted)
                     codecCtx->flags |= AV_CODEC_FLAG_OUTPUT_CORRUPT;

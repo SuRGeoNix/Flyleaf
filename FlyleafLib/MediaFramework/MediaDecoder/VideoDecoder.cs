@@ -313,7 +313,7 @@ public unsafe class VideoDecoder : DecoderBase
         // TBR: during swFallback (keyFrameRequiredPacket should not reset, currenlty saved in SWFallback)
         keyFrameRequired= true;
         keyFrameRequiredPacket
-                        = true;
+                        = false; // allow no key packet after open (lot of videos missing this)
         keyFoundWithNoPts
                         = false;
         ZeroCopy        = false;
@@ -496,7 +496,7 @@ public unsafe class VideoDecoder : DecoderBase
                     if (recGotKeyframe)
                         curRecorder.Write(av_packet_clone(packet));
                 }
-
+                
                 if (keyFrameRequired && keyFrameRequiredPacket)
                 {
                     if ((packet->flags & AV_PKT_FLAG_KEY) == 0)

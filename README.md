@@ -47,7 +47,7 @@
 - *Aspect Ratio (Keep / Fill / Custom)*
 - *Deinterlace (Bob)*
 - *HDR to SDR (Aces / Hable / Reinhard)* <sub>[BT2020 / SMPTE 2084 to BT709]</sub>
-- *Pan Move / Zoom / Rotate*
+- *Pan Move / Zoom / Rotate / HFlip-VFlip (Replica Renderer/Interactive Zoom)*
 - *Record / Snapshot*
 - *Video Acceleration*
 - *Video Filters (Brightness / Contrast / Hue / Saturation)*

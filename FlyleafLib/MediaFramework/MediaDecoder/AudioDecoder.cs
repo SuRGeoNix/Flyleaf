@@ -55,7 +55,7 @@ public unsafe partial class AudioDecoder : DecoderBase
     internal bool           resyncWithVideoRequired;
     SwrContext*             swrCtx;
 
-    long                    nextPts;
+    internal long           nextPts;
     double                  sampleRateTimebase;
 
     public AudioDecoder(Config config, int uniqueId = -1, VideoDecoder syncDecoder = null) : base(config, uniqueId)
