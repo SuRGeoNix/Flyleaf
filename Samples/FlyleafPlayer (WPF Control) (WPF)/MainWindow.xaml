@@ -329,7 +329,7 @@
                             <Button Style="{StaticResource MaterialDesignOutlinedSecondaryButton}" Command="{Binding Tag.ShowNextImage}" IsEnabled="{Binding Tag.CanNextImage}" Focusable="False" Content="{materialDesign:PackIcon Kind=ArrowRight,Size=30}" Padding="0" Margin="0" VerticalContentAlignment="Center" Width="40" Height="100" VerticalAlignment="Center" HorizontalAlignment="Right"/>
 
                             <!--Index / Total-->
-                            <TextBlock VerticalAlignment="Bottom" HorizontalAlignment="Right" d:Text="526 / 1000" FontWeight="Bold" FontSize="14" Margin="20" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
+                            <TextBlock VerticalAlignment="Bottom" HorizontalAlignment="Center" d:Text="526 / 1000" FontWeight="Bold" FontSize="14" Margin="0 0 0 20" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
                                 <TextBlock.Text>
                                     <MultiBinding StringFormat="{}{0} / {1}">
                                         <Binding Path="Tag.UIImageIndex" />
