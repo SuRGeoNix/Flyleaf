@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.43</Version>
+	<Version>3.7.44</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,19 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Player: AV Sync improvements (mainly after seeking)
-		- Player: AudioOnly playback improvements and fixing a number of issues
-		- Player: Introduces SeekCompleted event (will fire only when Player is paused/not running)
-		- Player: Fixes a minon issue with CurTime update
-		- Renderer: Fixes an issue with PixelShaders with > 8 bit depth (it wouldn't update properly the shader when switching from one depth to another)
-		- Decoder: Fixes an issue with CodecIDs which could cause open codec to fail (mainly for MP2/AV1)
-		- AudioDecoder: Adds support for frames without duration
-		- AudioDecoder: Adds support for frames without timestamps
-		- AudioDecoder: Force pts 0 for no timestamps after seek to 0 (start)
-		- VideoDecoder: Allows first packet to be a non-keyframe
-		- VideoDecoder: Fixes an issue with the GetFrame() when used directly after Open
-		- VideoFrame: Keeps reference to AVFrame instead of AVBufferRef
-		- Plugins.OpenSubtitles: Fixes an issue which converts to utf8 the same file everytime
+		- Renderer: Fixes an access violation with broken files [Fixes #424]
+		- Subtitles: Prevents Local/Online Search for 'small' duration videos (less than 25 minutes)
+		- VideoDecoder: Fixes (possible) an issue with the codec's announced rotation
+		- Player.Keys: Allows overwriting existing keys instead of throwing an exception
+		- Player: Introduces Opening event
+		- FlyleafHost.Wpf: Activates Surface/Overlay window after DragNDrop
+		- PlayerDebug.Wpf: Adds full Url
 	</PackageReleaseNotes>
   </PropertyGroup>
 
