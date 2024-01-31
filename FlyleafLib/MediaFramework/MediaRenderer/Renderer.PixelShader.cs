@@ -708,11 +708,18 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                         subData[0].DataPointer  = (IntPtr) frame->data[i];
                         subData[0].DataPointer -= (subData[0].RowPitch * (VideoStream.Height - 1));
                         
-                    } else
+                    }
+                    else
                     {
                         newRotationLinesize     = false;
                         subData[0].RowPitch     = frame->linesize[i];
                         subData[0].DataPointer  = (IntPtr) frame->data[i];
+                    }
+
+                    if (subData[0].RowPitch < textDesc[i].Width) // Prevent reading more than the actual data (Access Violation #424)
+                    {
+                        av_frame_unref(frame);
+                        return null;
                     }
 
                     mFrame.textures[i]  = Device.CreateTexture2D(textDesc[i], subData);

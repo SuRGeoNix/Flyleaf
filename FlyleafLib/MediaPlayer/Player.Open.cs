@@ -16,6 +16,8 @@ namespace FlyleafLib.MediaPlayer;
 unsafe partial class Player
 {
     #region Events
+    
+    public event EventHandler<OpeningArgs>                              Opening; // Will be also used for subtitles
     public event EventHandler<OpenCompletedArgs>                        OpenCompleted; // Will be also used for subtitles
     public event EventHandler<OpenPlaylistItemCompletedArgs>            OpenPlaylistItemCompleted;
     public event EventHandler<OpenSessionCompletedArgs>                 OpenSessionCompleted;
@@ -28,6 +30,8 @@ unsafe partial class Player
     public event EventHandler<OpenExternalVideoStreamCompletedArgs>     OpenExternalVideoStreamCompleted;
     public event EventHandler<OpenExternalSubtitlesStreamCompletedArgs> OpenExternalSubtitlesStreamCompleted;
 
+    private void OnOpening(OpeningArgs args = null)
+        => Opening?.Invoke(this, args);
     private void OnOpenCompleted(OpenCompletedArgs args = null)
         => OpenCompleted?.Invoke(this, args);
     private void OnOpenSessionCompleted(OpenSessionCompletedArgs args = null)
@@ -235,7 +239,6 @@ unsafe partial class Player
         }
     }
 
-
     /// <summary>
     /// Opens a new media file (audio/subtitles/video)
     /// </summary>
@@ -246,9 +249,18 @@ unsafe partial class Player
     /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
     /// <returns></returns>
     public OpenCompletedArgs Open(string url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-        => ExtensionsSubtitles.Contains(GetUrlExtention(url))
-        ? OpenSubtitles(url)
-        : OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+    {
+        if (ExtensionsSubtitles.Contains(GetUrlExtention(url)))
+        {
+            OnOpening(new() { Url = url, IsSubtitles = true});
+            return OpenSubtitles(url);
+        }
+        else
+        {
+            OnOpening(new() { Url = url });
+            return OpenInternal(url, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+        }
+    }
 
     /// <summary>
     /// Opens a new media file (audio/subtitles/video) without blocking
@@ -272,7 +284,10 @@ unsafe partial class Player
     /// <param name="defaultSubtitles">Whether to open the default subtitles stream from plugin suggestions</param>
     /// <returns></returns>
     public OpenCompletedArgs Open(Stream iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
-        => OpenInternal(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+    {
+        OnOpening(new() { IOStream = iostream });
+        return OpenInternal(iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
+    }
 
     /// <summary>
     /// Opens a new media I/O stream (audio/video) without blocking
@@ -815,10 +830,19 @@ unsafe partial class Player
         lock (lockActions)
         {
             if ((url_iostream is string) && ExtensionsSubtitles.Contains(GetUrlExtention(url_iostream.ToString())))
+            {
+                OnOpening(new() { Url = url_iostream.ToString(), IsSubtitles = true});
                 openSubtitles.Push(new OpenAsyncData(url_iostream));
+            }
             else
             {
                 decoder.Interrupt = true;
+
+                if (url_iostream is string)
+                    OnOpening(new() { Url = url_iostream.ToString() });
+                else
+                    OnOpening(new() { IOStream = (Stream)url_iostream });
+
                 openInputs.Push(new OpenAsyncData(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles));
             }
 
@@ -912,6 +936,13 @@ unsafe partial class Player
     ConcurrentStack<OpenAsyncData> openAudio    = new();
     ConcurrentStack<OpenAsyncData> openSubtitles= new();
     #endregion
+}
+
+public class OpeningArgs
+{
+    public string       Url;
+    public Stream       IOStream;
+    public bool         IsSubtitles;
 }
 
 public class OpenCompletedArgs
