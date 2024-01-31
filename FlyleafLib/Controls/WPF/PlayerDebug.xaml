@@ -47,8 +47,9 @@
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
-
-    <Grid>
+    <StackPanel>
+        <TextBlock HorizontalAlignment="Left" Background="{Binding BoxColor, ElementName=DebugControl}" Style="{StaticResource TextValue}" Padding="10" Width="690" TextWrapping="Wrap" Text="{Binding Player.Playlist.Url}"/>    
+        <Grid x:Name="rootGrid">
         <Grid.ColumnDefinitions>
             <ColumnDefinition/>
             <ColumnDefinition/>
@@ -354,5 +355,6 @@
             </StackPanel>
         </StackPanel>
     </Grid>
+    </StackPanel>
 </UserControl>
 

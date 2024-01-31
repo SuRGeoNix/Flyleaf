@@ -117,6 +117,7 @@ internal unsafe partial class ffmpegEx
     #endregion
 
     #region av_display_rotation_get
+    // TBR: This possible has issues with negatives, should update FFmpeg.Autogen to 6?
     static double Hypot(double x, double y) => Math.Sqrt(Math.Pow(x, 2) + Math.Pow(y, 2));
     static double CONVFP(double x) => x / (1 << 16);
     public static double av_display_rotation_get(byte* matrixBytes)
@@ -124,7 +125,7 @@ internal unsafe partial class ffmpegEx
         if (matrixBytes == null)
             return 0;
 
-        var matrix = (UInt32*) matrixBytes;
+        var matrix = (int*) matrixBytes;
 
         double[] scale = new double[2];
 
@@ -136,7 +137,7 @@ internal unsafe partial class ffmpegEx
 
         double rotation = -(Math.Atan2(CONVFP(matrix[1]) / scale[1], CONVFP(matrix[0]) / scale[0]) * 180 / Math.PI);
         
-        return rotation < 0 ? 360 + rotation : rotation;
+        return (((int)(-rotation) % 360) + 360) % 360;
     }
     #endregion
 
@@ -270,3 +271,4 @@ internal unsafe partial class ffmpegEx
 #pragma warning restore CS0169
 #pragma warning restore CS0649
 }
+    

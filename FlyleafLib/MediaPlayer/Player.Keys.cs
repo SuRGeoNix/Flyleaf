@@ -158,7 +158,14 @@ public class KeysConfig
     {
         for (int i=0; i<Keys.Count; i++)
             if (Keys[i].Key == key && Keys[i].Alt == alt && Keys[i].Ctrl == ctrl && Keys[i].Shift == shift)
-                throw new Exception($"Keybinding {(alt ? "Alt + " : "")}{(ctrl ? "Ctrl + " : "")}{(shift ? "Shift + " : "")}{key} already assigned");
+            {
+                Keys[i].IsKeyUp = isKeyUp;
+                Keys[i].Action = KeyBindingAction.Custom;
+                Keys[i].ActionName = actionName;
+                Keys[i].ActionInternal = action;
+
+                return;
+            }
 
         Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, Key = key, IsKeyUp = isKeyUp, Action = KeyBindingAction.Custom, ActionName = actionName, ActionInternal = action });
     }
@@ -176,7 +183,13 @@ public class KeysConfig
     {
         for (int i=0; i<Keys.Count; i++)
             if (Keys[i].Key == key && Keys[i].Alt == alt && Keys[i].Ctrl == ctrl && Keys[i].Shift == shift)
-                throw new Exception($"Keybinding {(alt ? "Alt + " : "")}{(ctrl ? "Ctrl + " : "")}{(shift ? "Shift + " : "")}{key} already assigned");
+            {
+                Keys[i].IsKeyUp = isKeyUpBinding.Contains(action);
+                Keys[i].Action = action;
+                Keys[i].ActionInternal = player != null ? GetKeyBindingAction(action) : null;
+
+                return;
+            }
 
         if (player == null)
             Keys.Add(new KeyBinding() { Alt = alt, Ctrl = ctrl, Shift = shift, Key = key, IsKeyUp = isKeyUpBinding.Contains(action), Action = action });
