@@ -819,6 +819,10 @@ public partial class DecoderContext
                 }
             }
 
+            // 4. Prevent Local/Online Search for 'small' duration videos
+            if (VideoDemuxer.Duration < TimeSpan.FromMinutes(25).Ticks)
+                return;
+
         } catch (Exception e)
         {
             Log.Debug($"OpenSuggestedSubtitles canceled? [{e.Message}]");
@@ -838,11 +842,8 @@ public partial class DecoderContext
                 ExternalSubtitlesStream extStream;
 
                 // 4. Search offline if allowed (not async)
-                if (!Playlist.Selected.SearchedLocal && Config.Subtitles.SearchLocal && (Config.Subtitles.SearchLocalOnInputType == null || Config.Subtitles.SearchLocalOnInputType.Count == 0 || Config.Subtitles.SearchLocalOnInputType.Contains(Playlist.InputType)))
+                if (SearchLocalSubtitles())
                 {
-                    Log.Debug("[Subtitles] Searching Local");
-                    SearchLocalSubtitles();
-
                     // 4.1 Check external streams for high suggest (again for the new additions if any)
                     extStream = SuggestBestExternalSubtitles();
                     if (extStream != null)

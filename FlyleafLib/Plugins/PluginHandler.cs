@@ -401,18 +401,26 @@ public class PluginHandler
         return null;
     }
 
-    public void SearchLocalSubtitles()
+    public bool SearchLocalSubtitles()
     {
-        var plugins = PluginsSearchLocalSubtitles.Values.OrderBy(x => x.Priority);
-        foreach(var plugin in plugins)
+        if (!Playlist.Selected.SearchedLocal && Config.Subtitles.SearchLocal && (Config.Subtitles.SearchLocalOnInputType == null || Config.Subtitles.SearchLocalOnInputType.Count == 0 || Config.Subtitles.SearchLocalOnInputType.Contains(Playlist.InputType)))
         {
-            if (Interrupt)
-                return;
+            Log.Debug("[Subtitles] Searching Local");
+            var plugins = PluginsSearchLocalSubtitles.Values.OrderBy(x => x.Priority);
+            foreach(var plugin in plugins)
+            {
+                if (Interrupt)
+                    return false;
 
-            plugin.SearchLocalSubtitles();
+                plugin.SearchLocalSubtitles();
+            }
+
+            Playlist.Selected.SearchedLocal = true;
+
+            return true;
         }
 
-        Playlist.Selected.SearchedLocal = true;
+        return false;
     }
     public void SearchOnlineSubtitles()
     {

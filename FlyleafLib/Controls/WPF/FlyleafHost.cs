@@ -1130,6 +1130,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             if (text.Length > 0)
                 Player.OpenAsync(text);
         }
+
+        Surface.Activate();
     }
     private void Overlay_Drop(object sender, DragEventArgs e)
     {
@@ -1162,6 +1164,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             if (text.Length > 0)
                 Player.OpenAsync(text);
         }
+
+        Overlay.Activate();
     }
     private void Surface_DragEnter(object sender, DragEventArgs e) { if (Player != null) e.Effects = DragDropEffects.All; }
     private void Overlay_DragEnter(object sender, DragEventArgs e) { if (Player != null) e.Effects = DragDropEffects.All; }
