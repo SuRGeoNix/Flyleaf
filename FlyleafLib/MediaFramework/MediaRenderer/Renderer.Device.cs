@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using Vortice;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
-using Vortice.DirectComposition;
 using Vortice.DXGI;
 using Vortice.DXGI.Debug;
 
@@ -50,6 +49,7 @@ public unsafe partial class Renderer
     ID3D11Buffer        vertexBuffer;
     ID3D11InputLayout   vertexLayout;
     ID3D11RasterizerState rasterizerState;
+    ID3D11BlendState    blendStateAlpha;
 
     ID3D11VertexShader  ShaderVS;
     ID3D11PixelShader   ShaderPS;
@@ -62,7 +62,6 @@ public unsafe partial class Renderer
 
     internal object     lockDevice = new();
     bool                isFlushing;
-
 
     public void Initialize(bool swapChain = true)
     {
@@ -213,7 +212,18 @@ public unsafe partial class Renderer
                 context.VSSetConstantBuffer(0, vsBuffer);
                 vsBufferData.mat = Matrix4x4.Identity;
                 context.UpdateSubresource(vsBufferData, vsBuffer);
-                
+
+                var blendDesc = new BlendDescription();
+                blendDesc.RenderTarget[0].BlendEnable           = true;
+                blendDesc.RenderTarget[0].SourceBlend           = Blend.SourceAlpha;
+                blendDesc.RenderTarget[0].DestinationBlend      = Blend.Zero;
+                blendDesc.RenderTarget[0].BlendOperation        = BlendOperation.Add;
+                blendDesc.RenderTarget[0].SourceBlendAlpha      = Blend.One;
+                blendDesc.RenderTarget[0].DestinationBlendAlpha = Blend.Zero;
+                blendDesc.RenderTarget[0].BlendOperationAlpha   = BlendOperation.Add;
+                blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
+                blendStateAlpha = Device.CreateBlendState(blendDesc);
+
                 InitializeVideoProcessor();
                 // TBR: Device Removal Event
                 //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
@@ -304,6 +314,7 @@ public unsafe partial class Renderer
             vertexLayout?.Dispose();
             vertexBuffer?.Dispose();
             rasterizerState?.Dispose();
+            blendStateAlpha?.Dispose();
             DisposeSwapChain();
 
             singleGpu?.Dispose();
