@@ -357,7 +357,7 @@ color = float4(
                                 textDesc[i].Format = srvDesc[i].Format = Format.R8_UNorm;
                         }
 
-                        if (VideoStream.PixelPlanes != 4)
+                        // if (VideoStream.PixelPlanes != 4) // TBR: seems causing issues
                         SetPS(curPSUniqueId, shader + @"
     color.a = 1;
 ", defines);
@@ -558,7 +558,8 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             }
 
             //AV_PIX_FMT_FLAG_ALPHA (currently used only for RGBA?)
-            context.OMSetBlendState(curPSCase == PSCase.RGBPacked || (curPSCase == PSCase.RGBPlanar && VideoStream.PixelPlanes == 4) ? blendStateAlpha : null);
+            //context.OMSetBlendState(curPSCase == PSCase.RGBPacked || (curPSCase == PSCase.RGBPlanar && VideoStream.PixelPlanes == 4) ? blendStateAlpha : null);
+            context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
             
             Log.Debug($"Prepared planes for {VideoStream.PixelFormatStr} with {videoProcessor} [{curPSCase}]");
 
