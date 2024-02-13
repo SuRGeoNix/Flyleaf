@@ -278,12 +278,15 @@ color = float4(
                             textDesc[0].Format  = srvDesc[0].Format = Format.R8G8B8A8_UNorm; // B8G8R8X8_UNorm for 0[rgb]?
 
                         string offsets = "";
-                        for (int i=0; i<4; i++)
+                        for (int i = 0; i < VideoStream.PixelComps.Length; i++)
                             offsets += pixelOffsets[(int) (VideoStream.PixelComps[i].offset / Math.Ceiling(VideoStream.PixelComp0Depth / 8.0))];
 
                         curPSUniqueId += offsets;
 
-                        SetPS(curPSUniqueId, $"color = Texture1.Sample(Sampler, input.Texture).{offsets};");
+                        if (VideoStream.PixelComps.Length > 3)
+                            SetPS(curPSUniqueId, $"color = Texture1.Sample(Sampler, input.Texture).{offsets};");
+                        else
+                            SetPS(curPSUniqueId, $"color = float4(Texture1.Sample(Sampler, input.Texture).{offsets}, 1.0);");
                     }
                         
                     // [BGR/RGB]16
