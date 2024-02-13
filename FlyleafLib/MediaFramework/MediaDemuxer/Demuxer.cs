@@ -412,7 +412,7 @@ public unsafe class Demuxer : RunThreadBase
                 }
             }
 
-            // Some devices required to be opened from a UI thread | after 20-40 sec. of demuxing -> [gdigrab @ 0000019affe3f2c0] Failed to capture image (error 6) or (error 8)
+            // Some devices required to be opened from a UI or STA thread | after 20-40 sec. of demuxing -> [gdigrab @ 0000019affe3f2c0] Failed to capture image (error 6) or (error 8)
             bool isDevice = inFmt != null && inFmt->priv_class != null && (
                     inFmt->priv_class->category.HasFlag(AVClassCategory.AV_CLASS_CATEGORY_DEVICE_AUDIO_INPUT) ||
                     inFmt->priv_class->category.HasFlag(AVClassCategory.AV_CLASS_CATEGORY_DEVICE_AUDIO_OUTPUT) ||
@@ -434,7 +434,14 @@ public unsafe class Demuxer : RunThreadBase
             }
             
             if (isDevice)
-                Utils.UIInvoke(() => OpenFormat(url, inFmt, fmtOptExtra, out ret));
+            {
+                string fmtName = Utils.BytePtrToStringUTF8(inFmt->name);
+
+                if (fmtName == "decklink") // avoid using UI thread for decklink (STA should be enough for CoInitialize/CoCreateInstance)
+                    Utils.STAInvoke(() => OpenFormat(url, inFmt, fmtOptExtra, out ret));
+                else
+                    Utils.UIInvoke(() => OpenFormat(url, inFmt, fmtOptExtra, out ret));
+            }
             else
                 OpenFormat(url, inFmt, fmtOptExtra, out ret);
 
