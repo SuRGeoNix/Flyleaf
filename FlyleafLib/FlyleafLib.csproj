@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.44</Version>
+	<Version>3.7.45</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer: Fixes an access violation with broken files [Fixes #424]
-		- Subtitles: Prevents Local/Online Search for 'small' duration videos (less than 25 minutes)
-		- VideoDecoder: Fixes (possible) an issue with the codec's announced rotation
-		- Player.Keys: Allows overwriting existing keys instead of throwing an exception
-		- Player: Introduces Opening event
-		- FlyleafHost.Wpf: Activates Surface/Overlay window after DragNDrop
-		- PlayerDebug.Wpf: Adds full Url
+		- Demuxer: Uses STA (instead of UI) thread for opening decklink devices
+		- Renderer: Adds alpha blend support
+		- VideoDecoder: Adds Exif orientation support
 	</PackageReleaseNotes>
   </PropertyGroup>
 
