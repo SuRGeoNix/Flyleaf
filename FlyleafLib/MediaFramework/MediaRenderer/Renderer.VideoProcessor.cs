@@ -279,21 +279,6 @@ unsafe public partial class Renderer
                     return;
                 }
 
-                // TODO: Check supported GUIDs/Profiles
-                //for (int i = 0; i < vd1.VideoDecoderProfileCount; i++)
-                //{
-                //    Guid cur = vd1.GetVideoDecoderProfile(i);
-                //    if (MediaDecoder.VideoDecoder.DXVADecoderProfiles.ContainsKey(cur))
-                //    {
-                //        if (MediaDecoder.VideoDecoder.DXVADecoderProfilesDesc.ContainsKey(MediaDecoder.VideoDecoder.DXVADecoderProfiles[cur]))
-                //            Log.Debug($"{cur} | {MediaDecoder.VideoDecoder.DXVADecoderProfiles[cur]} | {MediaDecoder.VideoDecoder.DXVADecoderProfilesDesc[MediaDecoder.VideoDecoder.DXVADecoderProfiles[cur]]}");
-                //        else
-                //            Log.Debug($"{cur} | {MediaDecoder.VideoDecoder.DXVADecoderProfiles[cur]}");
-                //    }   
-                //    else
-                //        Log.Debug($"{cur}");
-                //}
-                
                 cache.Failed = false;
                 Log.Info($"D3D11 Video Processor Initialized (Rate Caps #{typeIndex})");
 
@@ -518,35 +503,6 @@ unsafe public partial class Renderer
             if (!VideoDecoder.IsRunning)
                 Present();
         }
-
-        /* TODO
-            * 
-            * https://github.com/xbmc/xbmc/blob/1d0dc77d43b4730f3b8708a84d931ce3c161d2d0/xbmc/cores/VideoPlayer/VideoRenderers/HwDecRender/DXVAHD.cpp
-            * 
-            var sc4 = swapChain.QueryInterface<IDXGISwapChain4>();
-            var t1 = new HdrMetadataHdr10();
-            t1.RedPrimary[0]   = 34000; // Display P3 primaries
-            t1.RedPrimary[1]   = 16000;
-            t1.GreenPrimary[0] = 13250;
-            t1.GreenPrimary[1] = 34500;
-            t1.BluePrimary[0]  = 7500;
-            t1.BluePrimary[1]  = 3000;
-            t1.WhitePoint[0]   = 15635;
-            t1.WhitePoint[1]   = 16450;
-            t1.MaxMasteringLuminance = 1000 * 10000; // 1000 nits
-            t1.MinMasteringLuminance = 100;          // 0.01 nits
-
-            sc4.SetHDRMetaData(HdrMetadataType.Hdr10, t1);
-            sc4.Dispose();
-
-
-            vc1.VideoProcessorSetStreamColorSpace1(vp, 0, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020);
-            vc1.VideoProcessorSetStreamColorSpace1(vp, 0, ColorSpaceType.YcbcrStudioG2084LeftP2020);
-
-            // HDR output?
-            pVideoContext1->VideoProcessorSetOutputColorSpace1(m_pVideoProcessor, DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
-            * 
-            */
     }
     void UpdateRotation(uint angle, bool refresh = true)
     {
@@ -565,6 +521,8 @@ unsafe public partial class Renderer
         if (Disposed || (actualRotation == newRotation && actualHFlip == _HFlip && actualVFlip == _VFlip))
             return;
 
+        bool hvFlipChanged = (actualHFlip || actualVFlip) != (_HFlip || _VFlip);
+
         actualRotation  = newRotation;
         actualHFlip     = _HFlip;
         actualVFlip     = _VFlip;
@@ -579,7 +537,25 @@ unsafe public partial class Renderer
             _d3d11vpRotation = VideoProcessorRotation.Rotation270;
         
         vsBufferData.mat  = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * actualRotation));
-        vsBufferData.mat *= Matrix4x4.CreateScale(_HFlip ? -1 : 1, _VFlip ? -1 : 1, 1);
+
+        if (_HFlip || _VFlip)
+        {
+            vsBufferData.mat *= Matrix4x4.CreateScale(_HFlip ? -1 : 1, _VFlip ? -1 : 1, 1);
+            if (hvFlipChanged)
+            {
+                // Renders both sides required for H-V Flip - TBR: consider for performance changing the vertex buffer / input layout instead?
+                rasterizerState?.Dispose();
+                rasterizerState = Device.CreateRasterizerState(new(CullMode.None, FillMode.Solid));
+                context.RSSetState(rasterizerState);
+            }
+        }
+        else if (hvFlipChanged)
+        {
+            // Removes back rendering for better performance
+            rasterizerState?.Dispose();
+            rasterizerState = Device.CreateRasterizerState(new(CullMode.Back, FillMode.Solid));
+            context.RSSetState(rasterizerState);
+        }
 
         if (parent == null)
             context.UpdateSubresource(vsBufferData, vsBuffer);
@@ -609,7 +585,6 @@ unsafe public partial class Renderer
         ConfigPlanes();
         Present();
     }
-    
 }
 
 public class VideoFilter : NotifyPropertyChanged
