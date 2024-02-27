@@ -688,16 +688,16 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
 
             else if (curPSCase == PSCase.SwsScale)
             {
-                mFrame.textures     = new ID3D11Texture2D[1];
-                mFrame.srvs         = new ID3D11ShaderResourceView[1];
+                mFrame.textures         = new ID3D11Texture2D[1];
+                mFrame.srvs             = new ID3D11ShaderResourceView[1];
 
                 sws_scale(VideoDecoder.swsCtx, frame->data, frame->linesize, 0, frame->height, VideoDecoder.swsData, VideoDecoder.swsLineSize);
 
-                subData[0].DataPointer      = (IntPtr) VideoDecoder.swsData[0];
-                subData[0].RowPitch         = VideoDecoder.swsLineSize[0];
+                subData[0].DataPointer  = (IntPtr) VideoDecoder.swsData[0];
+                subData[0].RowPitch     = VideoDecoder.swsLineSize[0];
 
-                mFrame.textures[0]  = Device.CreateTexture2D(textDesc[0], subData);
-                mFrame.srvs[0]      = Device.CreateShaderResourceView(mFrame.textures[0], srvDesc[0]);
+                mFrame.textures[0]      = Device.CreateTexture2D(textDesc[0], subData);
+                mFrame.srvs[0]          = Device.CreateShaderResourceView(mFrame.textures[0], srvDesc[0]);
             }
 
             else
@@ -715,7 +715,6 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                         subData[0].RowPitch     = -1 * frame->linesize[i];
                         subData[0].DataPointer  = (IntPtr) frame->data[i];
                         subData[0].DataPointer -= (subData[0].RowPitch * (VideoStream.Height - 1));
-                        
                     }
                     else
                     {

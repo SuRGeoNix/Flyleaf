@@ -19,9 +19,26 @@ public unsafe partial class Renderer
 {
     static InputElementDescription[] inputElements =
     {
-        new InputElementDescription("POSITION", 0, Format.R32G32B32_Float,     0),
-        new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float,        0),
+        new("POSITION", 0, Format.R32G32B32_Float,     0),
+        new("TEXCOORD", 0, Format.R32G32_Float,        0),
     };
+
+    static BufferDescription vertexBufferDesc = new()
+    {
+        BindFlags = BindFlags.VertexBuffer
+    };
+
+    static float[] vertexBufferData = new[]
+    {
+        -1.0f,  -1.0f,  0,      0.0f, 1.0f,
+        -1.0f,   1.0f,  0,      0.0f, 0.0f,
+         1.0f,  -1.0f,  0,      1.0f, 1.0f,
+
+         1.0f,  -1.0f,  0,      1.0f, 1.0f,
+        -1.0f,   1.0f,  0,      0.0f, 0.0f,
+         1.0f,   1.0f,  0,      1.0f, 0.0f
+    };
+
     static FeatureLevel[] featureLevelsAll = new[]
     {
         FeatureLevel.Level_12_1,
@@ -34,6 +51,7 @@ public unsafe partial class Renderer
         FeatureLevel.Level_9_2,
         FeatureLevel.Level_9_1
     };
+
     static FeatureLevel[] featureLevels = new[] 
     {
         FeatureLevel.Level_11_0,
@@ -47,7 +65,7 @@ public unsafe partial class Renderer
     ID3D11DeviceContext context;
 
     ID3D11Buffer        vertexBuffer;
-    ID3D11InputLayout   vertexLayout;
+    ID3D11InputLayout   inputLayout;
     ID3D11RasterizerState rasterizerState;
     ID3D11BlendState    blendStateAlpha;
 
@@ -55,10 +73,10 @@ public unsafe partial class Renderer
     ID3D11PixelShader   ShaderPS;
 
     ID3D11Buffer        psBuffer;
-    PSBufferType        psBufferData = new();
+    PSBufferType        psBufferData;
 
     ID3D11Buffer        vsBuffer;
-    VSBufferType        vsBufferData = new();
+    VSBufferType        vsBufferData;
 
     internal object     lockDevice = new();
     bool                isFlushing;
@@ -158,39 +176,39 @@ public unsafe partial class Renderer
                 else
                     Log.Debug($"GPU Adapter: Unknown (Possible WARP without Luid)");
                 
-
                 tempDevice.Dispose();
                 adapter.Dispose();
 
                 using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
                 using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
 
-                ReadOnlySpan<float> vertexBufferData = new float[]
-                {
-                    -1.0f,  -1.0f,  0,      0.0f, 1.0f,
-                    -1.0f,   1.0f,  0,      0.0f, 0.0f,
-                     1.0f,  -1.0f,  0,      1.0f, 1.0f,
+                // Input Layout
+                inputLayout = Device.CreateInputLayout(inputElements, ShaderCompiler.VSBlob);
+                context.IASetInputLayout(inputLayout);
+                context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
 
-                     1.0f,  -1.0f,  0,      1.0f, 1.0f,
-                    -1.0f,   1.0f,  0,      0.0f, 0.0f,
-                     1.0f,   1.0f,  0,      1.0f, 0.0f
-                };
-                vertexBuffer = Device.CreateBuffer(vertexBufferData, new BufferDescription() { BindFlags = BindFlags.VertexBuffer });
+                // Vertex Shader
+                vertexBuffer = Device.CreateBuffer<float>(vertexBufferData, vertexBufferDesc);
                 context.IASetVertexBuffer(0, vertexBuffer, sizeof(float) * 5);
 
-                InitPS();
-                
-                rasterizerState = Device.CreateRasterizerState(new(CullMode.None, FillMode.Solid));
-                context.RSSetState(rasterizerState);
-
                 ShaderVS = Device.CreateVertexShader(ShaderCompiler.VSBlob);
-                vertexLayout = Device.CreateInputLayout(inputElements, ShaderCompiler.VSBlob);
-
-                context.IASetInputLayout(vertexLayout);
-                context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
                 context.VSSetShader(ShaderVS);
 
-                psBuffer = Device.CreateBuffer(new BufferDescription()
+                vsBuffer = Device.CreateBuffer(new()
+                {
+                    Usage           = ResourceUsage.Default,
+                    BindFlags       = BindFlags.ConstantBuffer,
+                    CPUAccessFlags  = CpuAccessFlags.None,
+                    ByteWidth       = sizeof(VSBufferType) + (16 - (sizeof(VSBufferType) % 16))
+                });
+                context.VSSetConstantBuffer(0, vsBuffer);
+                
+                vsBufferData.mat = Matrix4x4.Identity;
+                context.UpdateSubresource(vsBufferData, vsBuffer);
+
+                // Pixel Shader
+                InitPS();
+                psBuffer = Device.CreateBuffer(new()
                 {
                     Usage           = ResourceUsage.Default,
                     BindFlags       = BindFlags.ConstantBuffer,
@@ -200,19 +218,8 @@ public unsafe partial class Renderer
                 context.PSSetConstantBuffer(0, psBuffer);
                 psBufferData.hdrmethod = HDRtoSDRMethod.None;
                 context.UpdateSubresource(psBufferData, psBuffer);
-
-                vsBuffer = Device.CreateBuffer(new BufferDescription()
-                {
-                    Usage           = ResourceUsage.Default,
-                    BindFlags       = BindFlags.ConstantBuffer,
-                    CPUAccessFlags  = CpuAccessFlags.None,
-                    ByteWidth       = sizeof(VSBufferType) + (16 - (sizeof(VSBufferType) % 16))
-                });
-
-                context.VSSetConstantBuffer(0, vsBuffer);
-                vsBufferData.mat = Matrix4x4.Identity;
-                context.UpdateSubresource(vsBufferData, vsBuffer);
-
+                
+                // Blend State (currently used -mainly- for RGBA images)
                 var blendDesc = new BlendDescription();
                 blendDesc.RenderTarget[0].BlendEnable           = true;
                 blendDesc.RenderTarget[0].SourceBlend           = Blend.SourceAlpha;
@@ -224,9 +231,11 @@ public unsafe partial class Renderer
                 blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
                 blendStateAlpha = Device.CreateBlendState(blendDesc);
 
+                // Rasterizer (Will change CullMode to None for H-V Flip)
+                rasterizerState = Device.CreateRasterizerState(new(CullMode.Back, FillMode.Solid));
+                context.RSSetState(rasterizerState);
+
                 InitializeVideoProcessor();
-                // TBR: Device Removal Event
-                //ID3D11Device4 device4 = Device.QueryInterface<ID3D11Device4>(); device4.RegisterDeviceRemovedEvent(..);
 
                 if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{((int)Device.FeatureLevel >> 8) & 0xf}");
 
@@ -311,7 +320,7 @@ public unsafe partial class Renderer
             prevPSUniqueId = curPSUniqueId = ""; // Ensure we re-create ShaderPS for FlyleafVP on ConfigPlanes
             psBuffer?.Dispose();
             vsBuffer?.Dispose();
-            vertexLayout?.Dispose();
+            inputLayout?.Dispose();
             vertexBuffer?.Dispose();
             rasterizerState?.Dispose();
             blendStateAlpha?.Dispose();
