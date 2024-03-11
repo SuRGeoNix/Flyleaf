@@ -2,6 +2,7 @@
 using System.Drawing.Imaging;
 using System.Drawing;
 using System.Threading;
+using System.Windows.Media.Imaging;
 
 using SharpGen.Runtime;
 
@@ -151,6 +152,98 @@ public partial class Renderer
 
         bitmap.UnlockBits(bitmapData);
         context.Unmap(stageTexture, 0);
+
+        return bitmap;
+    }
+    /// <summary>
+    /// Gets BitmapSource from a video frame
+    /// </summary>
+    /// <param name="width">Specify the width (-1: will keep the ratio based on height)</param>
+    /// <param name="height">Specify the height (-1: will keep the ratio based on width)</param>
+    /// <param name="frame">Video frame to process (null: will use the current/last frame)</param>
+    /// <returns></returns>
+    unsafe public BitmapSource GetBitmapSource(int width = -1, int height = -1, VideoFrame frame = null)
+    {
+        try
+        {
+            lock (lockDevice)
+            {
+                frame ??= LastFrame;
+
+                if (Disposed || frame == null || (frame.textures == null && frame.avFrame == null))
+                    return null;
+
+                if (width == -1 && height == -1)
+                {
+                    width = VideoRect.Right;
+                    height = VideoRect.Bottom;
+                }
+                else if (width != -1 && height == -1)
+                    height = (int)(width / curRatio);
+                else if (height != -1 && width == -1)
+                    width = (int)(height * curRatio);
+
+                if (singleStageDesc.Width != width || singleStageDesc.Height != height)
+                {
+                    singleGpu?.Dispose();
+                    singleStage?.Dispose();
+                    singleGpuRtv?.Dispose();
+
+                    singleStageDesc.Width = width;
+                    singleStageDesc.Height = height;
+                    singleGpuDesc.Width = width;
+                    singleGpuDesc.Height = height;
+
+                    singleStage = Device.CreateTexture2D(singleStageDesc);
+                    singleGpu = Device.CreateTexture2D(singleGpuDesc);
+                    singleGpuRtv = Device.CreateRenderTargetView(singleGpu);
+
+                    singleViewport = new Viewport(width, height);
+                }
+
+                PresentOffline(frame, singleGpuRtv, singleViewport);
+
+                if (videoProcessor == VideoProcessors.D3D11)
+                    SetViewport();
+            }
+
+            context.CopyResource(singleStage, singleGpu);
+            return GetBitmapSource(singleStage);
+
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"GetBitmapSource failed with: {e.Message}");
+            return null;
+        }
+    }
+    public BitmapSource GetBitmapSource(ID3D11Texture2D stageTexture)
+    {
+        WriteableBitmap bitmap = new(stageTexture.Description.Width, stageTexture.Description.Height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+        var db          = context.Map(stageTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
+        bitmap.Lock();
+
+        if (db.RowPitch == bitmap.BackBufferStride)
+            MemoryHelpers.CopyMemory(bitmap.BackBuffer, db.DataPointer, bitmap.PixelWidth * bitmap.PixelHeight * 4);
+        else
+        {
+            var sourcePtr   = db.DataPointer;
+            var destPtr     = bitmap.BackBuffer;
+
+            for (int y = 0; y < bitmap.Height; y++)
+            {
+                MemoryHelpers.CopyMemory(destPtr, sourcePtr, bitmap.PixelWidth * 4);
+
+                sourcePtr = IntPtr.Add(sourcePtr, db.RowPitch);
+                destPtr = IntPtr.Add(destPtr, bitmap.BackBufferStride);
+            }
+        }
+
+        bitmap.Unlock();
+        context.Unmap(stageTexture, 0);
+
+        // Freezing animated wpf assets improves performance
+        bitmap.Freeze();
 
         return bitmap;
     }
