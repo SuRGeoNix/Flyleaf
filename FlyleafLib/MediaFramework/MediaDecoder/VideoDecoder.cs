@@ -540,6 +540,12 @@ public unsafe class VideoDecoder : DecoderBase
                     ret = avcodec_receive_frame(codecCtx, frame);
                     if (ret != 0) { av_frame_unref(frame); break; }
 
+                    if (frame->height != VideoStream.Height || frame->width != VideoStream.Width)
+                    {
+                        // Resolution changed, refresh VideoStream from codec
+                        filledFromCodec = false;
+                    }
+
                     if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
                         frame->pts = frame->best_effort_timestamp;
 
