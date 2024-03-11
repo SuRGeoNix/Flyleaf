@@ -74,10 +74,13 @@ public abstract class RunThreadBase : NotifyPropertyChanged
             int retries = 1;
             while (thread != null && thread.IsAlive && CriticalArea)
             {
-                if (CanTrace) Log.Trace($"Start Retry {retries}/5");
-                Thread.Sleep(20);
+                Thread.Sleep(5); // use small steps to re-check CriticalArea (demuxer can have 0 packets again after processing the received ones)
                 retries++;
-                if (retries > 5) return;
+                if (retries > 16)
+                {
+                    if (CanTrace) Log.Trace($"Start() exhausted");
+                    return;
+                }
             }
 
             lock (lockStatus)
