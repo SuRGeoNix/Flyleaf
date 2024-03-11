@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.45</Version>
+	<Version>3.7.46</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Uses STA (instead of UI) thread for opening decklink devices
-		- Renderer: Adds alpha blend support
-		- VideoDecoder: Adds Exif orientation support
+		- Decoders: Fixes a possible delay during start
+		- VideoDecoder: Monitors for codec changes also for software frames
+		- Player: Fixes a delay issue during buffering
+		- Renderer: Add Snapshot API for BitmapSource
+		- Renderer: Performance improvements (restores CullMode after adding H/V flip)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
