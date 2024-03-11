@@ -258,7 +258,16 @@ unsafe partial class Player
             return false;
         }
 
-        while(seeks.IsEmpty && GetBufferedDuration() < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull) Thread.Sleep(20);
+        // Negative Buffer Duration during codec change (we don't dipose the cached frames or we receive them later) *skip waiting for now
+        var bufDuration = GetBufferedDuration();
+        if (bufDuration >= 0)
+            while(seeks.IsEmpty && bufDuration < Config.Player.MinBufferDuration && IsPlaying && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull)
+            {
+                Thread.Sleep(20);
+                bufDuration = GetBufferedDuration();
+                if (bufDuration < 0)
+                    break;
+            }
 
         if (!seeks.IsEmpty)
             return false;
