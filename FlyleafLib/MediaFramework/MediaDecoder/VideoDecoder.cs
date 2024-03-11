@@ -540,9 +540,11 @@ public unsafe class VideoDecoder : DecoderBase
                     ret = avcodec_receive_frame(codecCtx, frame);
                     if (ret != 0) { av_frame_unref(frame); break; }
 
+                    // GetFormat checks already for this but only for hardware accelerated (should also check for codec/fps* and possible reset sws if required)
+                    // Might use AVERROR_INPUT_CHANGED to let ffmpeg check for those (requires a flag to be set*)
                     if (frame->height != VideoStream.Height || frame->width != VideoStream.Width)
                     {
-                        // Resolution changed, refresh VideoStream from codec
+                        Log.Warn($"Codec changed {VideoStream.CodecID} {VideoStream.Width}x{VideoStream.Height} => {codecCtx->codec_id} {frame->width}x{frame->height}");
                         filledFromCodec = false;
                     }
 
