@@ -582,9 +582,9 @@ public class Config : NotifyPropertyChanged
         internal Vortice.Mathematics.Color _BackgroundColor = (Vortice.Mathematics.Color)Vortice.Mathematics.Colors.Black;
 
         /// <summary>
-        /// Delays the clear screen of the last frame until the new input has been opened
+        /// Clears the screen on stop/close/open
         /// </summary>
-        public bool             ClearScreenOnOpen           { get; set; }
+        public bool             ClearScreen                 { get; set; } = true;
 
         /// <summary>
         /// Whether video should be allowed
