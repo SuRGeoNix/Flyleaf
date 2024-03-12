@@ -119,9 +119,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
     public void Initialize()
     {
-        if (!Config.Video.ClearScreenOnOpen)
-            VideoDecoder.Renderer?.ClearScreen();
-
+        VideoDecoder.Renderer?.ClearScreen();
         RequiresResync = false;
 
         OnInitializing();
@@ -130,9 +128,7 @@ public unsafe partial class DecoderContext : PluginHandler
     }
     public void InitializeSwitch()
     {
-        if (!Config.Video.ClearScreenOnOpen)
-            VideoDecoder.Renderer?.ClearScreen();
-
+        VideoDecoder.Renderer?.ClearScreen();
         RequiresResync = false;
         ClosedAudioStream = null;
         ClosedVideoStream = null;
