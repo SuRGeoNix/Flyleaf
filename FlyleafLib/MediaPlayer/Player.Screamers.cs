@@ -395,7 +395,7 @@ unsafe partial class Player
                 : int.MaxValue;
 
             sleepMs = Math.Min(vDistanceMs, aDistanceMs) - 1;
-            if (sleepMs < 0)
+            if (sleepMs < 0 || sleepMs == int.MaxValue)
                 sleepMs = 0;
 
             if (sleepMs > 2)
