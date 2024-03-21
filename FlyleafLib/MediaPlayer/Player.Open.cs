@@ -25,6 +25,7 @@ unsafe partial class Player
     public event EventHandler<OpenAudioStreamCompletedArgs>             OpenAudioStreamCompleted;
     public event EventHandler<OpenVideoStreamCompletedArgs>             OpenVideoStreamCompleted;
     public event EventHandler<OpenSubtitlesStreamCompletedArgs>         OpenSubtitlesStreamCompleted;
+    public event EventHandler<OpenDataStreamCompletedArgs>              OpenDataStreamCompleted;
 
     public event EventHandler<OpenExternalAudioStreamCompletedArgs>     OpenExternalAudioStreamCompleted;
     public event EventHandler<OpenExternalVideoStreamCompletedArgs>     OpenExternalVideoStreamCompleted;
@@ -45,6 +46,8 @@ unsafe partial class Player
         => OpenVideoStreamCompleted?.Invoke(this, args);
     private void OnOpenSubtitlesStreamCompleted(OpenSubtitlesStreamCompletedArgs args = null)
         => OpenSubtitlesStreamCompleted?.Invoke(this, args);
+    private void OnOpenDataStreamCompleted(OpenDataStreamCompletedArgs args = null)
+        => OpenDataStreamCompleted?.Invoke(this, args);
 
     private void OnOpenExternalAudioStreamCompleted(OpenExternalAudioStreamCompletedArgs args = null)
         => OpenExternalAudioStreamCompleted?.Invoke(this, args);
@@ -114,6 +117,23 @@ unsafe partial class Player
                 {
                     SubtitlesDemuxer.Start();
                     SubtitlesDecoder.Start();
+                }
+        }
+    }
+
+    private void Decoder_OpenDataStreamCompleted(object sender, OpenDataStreamCompletedArgs e)
+    {
+        Data.Refresh();
+        UIAll();
+        if (Config.Data.Enabled)
+        {
+            lock (lockSubtitles)
+                if (DataDecoder.OnVideoDemuxer)
+                    DataDecoder.Start();
+                else// if (!decoder.RequiresResync)
+                {
+                    DataDemuxer.Start();
+                    DataDecoder.Start();
                 }
         }
     }
@@ -506,6 +526,7 @@ unsafe partial class Player
                 VideoDemuxer.Start();
                 AudioDemuxer.Start();
                 SubtitlesDemuxer.Start();
+                DataDemuxer.Start();
                 decoder.PauseOnQueueFull();
 
                 // Initialize will Reset those and is posible that Codec Changed will not be called (as they are not chaning necessary)
@@ -590,6 +611,11 @@ unsafe partial class Player
                 Config.Subtitles.SetEnabled(true);
                 args = decoder.OpenSubtitlesStream(sstream);
             }
+            else if (stream is DataStream dstream)
+            {
+                Config.Data.SetEnabled(true);
+                args = decoder.OpenDataStream(dstream);
+            }
 
             if (resync)
             {
@@ -619,8 +645,10 @@ unsafe partial class Player
                 OnOpenVideoStreamCompleted((OpenVideoStreamCompletedArgs)args);
             else if (stream is AudioStream)
                 OnOpenAudioStreamCompleted((OpenAudioStreamCompletedArgs)args);
-            else
+            else if (stream is SubtitlesStream)
                 OnOpenSubtitlesStreamCompleted((OpenSubtitlesStreamCompletedArgs)args);
+            else
+                OnOpenDataStreamCompleted((OpenDataStreamCompletedArgs)args);
         }
     }
 
@@ -691,6 +719,7 @@ unsafe partial class Player
             isVideoSwitch = true;
             isAudioSwitch = true;
             isSubsSwitch = true;
+            isDataSwitch = true;
             requiresBuffering = true;
 
             if (accurate && Video.IsOpened)
@@ -707,6 +736,8 @@ unsafe partial class Player
             isVideoSwitch = false;
             sFrame = null;
             isSubsSwitch = false;
+            dFrame = null;
+            isDataSwitch = false;
 
             if (!IsPlaying)
             {
@@ -730,7 +761,7 @@ unsafe partial class Player
                 aFrame = null;
                 isAudioSwitch = false;
             }
-            else
+            else if (stream.Demuxer.Type == MediaType.Subs)
             {
                 isSubsSwitch = true;
                 decoder.SeekSubtitles();
@@ -739,6 +770,13 @@ unsafe partial class Player
                 if (Subtitles._SubsText != "")
                     UI(() => Subtitles.SubsText = Subtitles.SubsText);
                 isSubsSwitch = false;
+            }
+            else
+            {
+                isDataSwitch = true;
+                decoder.SeekData();
+                dFrame = null;
+                isDataSwitch = false;
             }
 
             if (IsPlaying)
