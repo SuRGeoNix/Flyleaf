@@ -55,6 +55,11 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     public Subtitles            Subtitles           { get; private set; }
 
     /// <summary>
+    /// Player's Data
+    /// </summary>
+    public Data                 Data                { get; private set; }
+
+    /// <summary>
     /// Player's Renderer
     /// (Normally you should not access this directly)
     /// </summary>
@@ -85,6 +90,12 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     public SubtitlesDecoder     SubtitlesDecoder    => decoder.SubtitlesDecoder;
 
     /// <summary>
+    /// Data Decoder
+    /// (Normally you should not access this directly)
+    /// </summary>
+    public DataDecoder          DataDecoder         => decoder.DataDecoder;
+
+    /// <summary>
     /// Main Demuxer (if video disabled or audio only can be AudioDemuxer instead of VideoDemuxer)
     /// (Normally you should not access this directly)
     /// </summary>
@@ -107,6 +118,12 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// (Normally you should not access this directly)
     /// </summary>
     public Demuxer              SubtitlesDemuxer    => decoder.SubtitlesDemuxer;
+
+    /// <summary>
+    /// Data Demuxer
+    /// (Normally you should not access this directly)
+    /// </summary>
+    public Demuxer DataDemuxer => decoder.DataDemuxer;
 
 
     /// <summary>
@@ -321,6 +338,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             {
                 bool shouldPlay = IsPlaying || (Status == Status.Ended && Config.Player.AutoPlay);
                 Pause();
+                dFrame = null;
                 sFrame = null;
                 Subtitles.subsText = "";
                 if (Subtitles._SubsText != "")
@@ -378,6 +396,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     internal AudioFrame     aFrame;
     internal VideoFrame     vFrame;
     internal SubtitlesFrame sFrame, sFramePrev;
+    internal DataFrame      dFrame;
     internal PlayerStats    stats = new();
     internal LogHandler     Log;
 
@@ -387,6 +406,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     bool isVideoSwitch;
     bool isAudioSwitch;
     bool isSubsSwitch;
+    bool isDataSwitch;
     #endregion
 
 	public Player(Config config = null)
@@ -409,6 +429,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         Audio       = new Audio(this);
         Video       = new Video(this);
         Subtitles   = new Subtitles(this);
+        Data        = new Data(this);
         Commands    = new Commands(this);
 
         Config.SetPlayer(this);
@@ -430,6 +451,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         decoder.OpenAudioStreamCompleted               += Decoder_OpenAudioStreamCompleted;
         decoder.OpenVideoStreamCompleted               += Decoder_OpenVideoStreamCompleted;
         decoder.OpenSubtitlesStreamCompleted           += Decoder_OpenSubtitlesStreamCompleted;
+        decoder.OpenDataStreamCompleted                += Decoder_OpenDataStreamCompleted;
 
         decoder.OpenExternalAudioStreamCompleted       += Decoder_OpenExternalAudioStreamCompleted;
         decoder.OpenExternalVideoStreamCompleted       += Decoder_OpenExternalVideoStreamCompleted;

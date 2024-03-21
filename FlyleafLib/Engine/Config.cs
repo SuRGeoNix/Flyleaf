@@ -129,6 +129,7 @@ public class Config : NotifyPropertyChanged
     public VideoConfig      Video       { get; set; } = new VideoConfig();
     public AudioConfig      Audio       { get; set; } = new AudioConfig();
     public SubtitlesConfig  Subtitles   { get; set; } = new SubtitlesConfig();
+    public DataConfig       Data        { get; set; } = new DataConfig();
 
     public SerializableDictionary<string, SerializableDictionary<string, string>>
                             Plugins     { get; set; } = new();
@@ -504,6 +505,11 @@ public class Config : NotifyPropertyChanged
         public int              MaxSubsFrames   { get; set; } = 1;
 
         /// <summary>
+        /// Maximum data frames to be decoded
+        /// </summary>
+        public int MaxDataFrames { get; set; } = 100;
+
+        /// <summary>
         /// Maximum allowed errors before stopping
         /// </summary>
         public int              MaxErrors       { get; set; } = 200;
@@ -823,6 +829,27 @@ public class Config : NotifyPropertyChanged
         #endif
         public Action<SubtitlesFrame>
                                 Parser              { get; set; } = ParseSubtitles.Parse;
+    }
+    public class DataConfig : NotifyPropertyChanged
+    {
+        public DataConfig Clone()
+        {
+            DataConfig data = new();
+            data = (DataConfig)MemberwiseClone();
+
+            data.player = null;
+
+            return data;
+        }
+
+        internal Player player;
+
+        /// <summary>
+        /// Whether subtitles should be allowed
+        /// </summary>
+        public bool Enabled { get => _Enabled; set { if (Set(ref _Enabled, value)) if (value) player?.Data.Enable(); else player?.Data.Disable(); } }
+        bool    _Enabled = true;
+        internal void SetEnabled(bool enabled) => Set(ref _Enabled, enabled, true, nameof(Enabled));
     }
 }
 

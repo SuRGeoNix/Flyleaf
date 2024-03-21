@@ -16,7 +16,8 @@ public enum MediaType
 {
     Audio,
     Video,
-    Subs
+    Subs,
+    Data
 }
 public enum InputType
 {

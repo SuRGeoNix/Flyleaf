@@ -291,6 +291,7 @@ partial class Player
                             VideoDemuxer.Start();
                             AudioDemuxer.Start();
                             SubtitlesDemuxer.Start();
+                            DataDemuxer.Start();
                             decoder.PauseOnQueueFull();
                             SeekCompleted?.Invoke(this, seekData.ms);
                         }
