@@ -32,7 +32,7 @@ namespace FlyleafDownloader
 
             // Prepares Player's Configuration
             Config = new Config();
-
+            Config.Demuxer.FormatOptToUnderlying = true;        // Mainly for HLS to pass the original query which might includes session keys
             Config.Demuxer.BufferDuration = 60 * 1000 * 10000;  // 60 seconds should be enough to allow max download speed
             Config.Demuxer.ReadTimeout    = 60 * 1000 * 10000;  // 60 seconds to retry or fail
             Config.Video.MaxVerticalResolutionCustom = 1080;    // Default Plugins Suggest based on this
