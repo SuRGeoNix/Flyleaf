@@ -426,10 +426,23 @@ public class Config : NotifyPropertyChanged
         public int              FormatFlags     { get; set; } = FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
 
         /// <summary>
-        /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt to the underlying contexts)
+        /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt and HTTPQuery params to the underlying contexts)
         /// </summary>
         public bool             FormatOptToUnderlying
                                                 { get; set; }
+
+        /// <summary>
+        /// Passes original's Url HTTP Query String parameters to underlying
+        /// </summary>
+        public bool             DefaultHTTPQueryToUnderlying
+                                                { get; set; } = true;
+
+        /// <summary>
+        /// HTTP Query String parameters to pass to underlying
+        /// </summary>
+        public SerializableDictionary<string, string>
+                                ExtraHTTPQueryParamsToUnderlying
+                                                { get; set; } = new();
 
         /// <summary>
         /// FFmpeg's format options for demuxer
@@ -444,6 +457,8 @@ public class Config : NotifyPropertyChanged
 
         public static SerializableDictionary<string, string> DefaultVideoFormatOpt()
         {
+            // TODO: Those should be set based on the demuxer format/protocol (to avoid false warnings about invalid options and best fit for the input, eg. live stream)
+
             SerializableDictionary<string, string> defaults = new()
             {
                 // General
@@ -452,9 +467,12 @@ public class Config : NotifyPropertyChanged
 
                 // HTTP
                 { "reconnect",          "1" },                                       // auto reconnect after disconnect before EOF
-                { "reconnect_streamed", "1" },                                       // auto reconnect streamed / non seekable streams
+                { "reconnect_streamed", "1" },                                       // auto reconnect streamed / non seekable streams (this can cause issues with HLS ts segments - disable this or http_persistent)
                 { "reconnect_delay_max","7" },                                       // max reconnect delay in seconds after which to give up
                 { "user_agent",         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36" },
+
+                // HLS
+                { "http_persistent",    "0" },                                       // Disables keep alive for HLS - mainly when use reconnect_streamed and non-live HLS streams
 
                 // RTSP
                 { "rtsp_transport",     "tcp" },                                     // Seems UDP causing issues
