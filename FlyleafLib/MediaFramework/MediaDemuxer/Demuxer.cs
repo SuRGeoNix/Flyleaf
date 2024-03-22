@@ -1026,6 +1026,7 @@ public unsafe class Demuxer : RunThreadBase
                             break;
 
                         case AVMEDIA_TYPE_DATA:
+                            // Some data streams only have nopts, set pts to last video packet pts
                             if (packet->pts == AV_NOPTS_VALUE)
                                 packet->pts = lastVideoPacketPts;
                             DataPackets.Enqueue(packet);
