@@ -144,7 +144,7 @@ public unsafe partial class Renderer
 
                 if (LastFrame != null && (LastFrame.textures != null || LastFrame.avFrame != null))
                     PresentInternal(LastFrame);
-                else
+                else if (Config.Video.ClearScreen)
                 {
                     context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);

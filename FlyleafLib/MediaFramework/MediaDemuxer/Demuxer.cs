@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -164,10 +165,12 @@ public unsafe class Demuxer : RunThreadBase
                             curReverseVideoStack    = new();
     long                    curReverseSeekOffset;
 
-    // Required for passing AV Options to the underlying contexts
+    // Required for passing AV Options and HTTP Query params to the underlying contexts
     AVFormatContext_io_open ioopen;
     AVFormatContext_io_open ioopenDefault;
     AVDictionary*           avoptCopy;
+    NameValueCollection     queryParams;
+    string                  queryParamsStrCached = "";
 
     public Demuxer(DemuxerConfig config, MediaType type = MediaType.Video, int uniqueId = -1, bool useAVSPackets = true) : base(uniqueId)
     {
@@ -281,6 +284,8 @@ public unsafe class Demuxer : RunThreadBase
             VideoStream = null;
             SubtitlesStream = null;
             DataStream = null;
+            queryParams = null;
+            queryParamsStrCached = "";
 
             DisposePackets();
 
@@ -422,6 +427,38 @@ public unsafe class Demuxer : RunThreadBase
                 }
             }
 
+            if (Config.FormatOptToUnderlying && (url.StartsWith("http://") || url.StartsWith("https://")))
+            {
+                // TBR: Url encode required and priority of cur/default/extra params?
+
+                queryParams = new();
+                if (Config.DefaultHTTPQueryToUnderlying)
+                {
+                    int queryStarts = url.IndexOf('?');
+                    if (queryStarts != -1)
+                    {
+                        string query = Url[(queryStarts + 1)..];
+                        var qp = HttpUtility.ParseQueryString(query);
+                        foreach (string p in qp)
+                            queryParams.Set(p, qp[p]);
+                    }
+                }
+
+                foreach (var kv in Config.ExtraHTTPQueryParamsToUnderlying)
+                    queryParams.Set(kv.Key, kv.Value);
+
+                if (queryParams.Count > 0)
+                {
+                    queryParamsStrCached = "?";
+                    foreach (string q in queryParams)
+                        queryParamsStrCached += $"{q}={queryParams[q]}&";
+
+                    queryParamsStrCached = queryParamsStrCached[..(queryParamsStrCached.Length - 1)];
+                }
+                else
+                    queryParams = null;
+            }
+
             // Some devices required to be opened from a UI or STA thread | after 20-40 sec. of demuxing -> [gdigrab @ 0000019affe3f2c0] Failed to capture image (error 6) or (error 8)
             bool isDevice = inFmt != null && inFmt->priv_class != null && (
                     inFmt->priv_class->category.HasFlag(AVClassCategory.AV_CLASS_CATEGORY_DEVICE_AUDIO_INPUT) ||
@@ -507,6 +544,31 @@ public unsafe class Demuxer : RunThreadBase
         {
             while ((t = av_dict_get(avoptCopy, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
                 av_dict_set(avFmtOpts, Utils.BytePtrToStringUTF8(t->key), Utils.BytePtrToStringUTF8(t->value), 0);
+        }
+
+        if (queryParams != null)
+        {
+            int queryStarts = url.IndexOf('?');
+            if (queryStarts != -1)
+            {
+                string query = Url[(queryStarts + 1)..];
+                var qp = HttpUtility.ParseQueryString(query);
+                url = url[..queryStarts] + "?";
+
+                if (qp.Count > 0)
+                {
+                    foreach (string q in queryParams)
+                        if (qp.Get(q) == null)
+                            qp.Set(q, queryParams[q]);
+
+                    foreach (string q in qp)
+                        url += $"{q}={qp[q]}&";
+
+                    //url = url.Substring(0, url.Length - 1);
+                }
+            }
+            else
+                url += queryParamsStrCached;
         }
 
         int ret = ioopenDefault(s, pb, url, flags, avFmtOpts);
