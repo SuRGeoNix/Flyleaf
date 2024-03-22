@@ -99,6 +99,7 @@ unsafe partial class Player
         lock (lockActions)
         {
             Pause();
+            dFrame = null;
             sFrame = null;
             Subtitles.subsText = "";
             if (Subtitles._SubsText != "")

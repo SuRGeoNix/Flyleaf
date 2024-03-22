@@ -76,6 +76,8 @@ public unsafe class Demuxer : RunThreadBase
                                     VideoStreams    { get; private set; } = new ObservableCollection<VideoStream>();
     public ObservableCollection<SubtitlesStream>    
                                     SubtitlesStreams{ get; private set; } = new ObservableCollection<SubtitlesStream>();
+    public ObservableCollection<DataStream>
+                                    DataStreams     { get; private set; } = new ObservableCollection<DataStream>();
     readonly object lockStreams = new();
 
     public List<int>                EnabledStreams  { get; private set; } = new List<int>();
@@ -85,6 +87,7 @@ public unsafe class Demuxer : RunThreadBase
     public AudioStream              AudioStream     { get; private set; }
     public VideoStream              VideoStream     { get; private set; }
     public SubtitlesStream          SubtitlesStream { get; private set; }
+    public DataStream               DataStream      { get; private set; }
 
     // Audio/Video Stream's HLSPlaylist
     internal HLSPlaylist*           HLSPlaylist     { get; private set; }
@@ -94,6 +97,7 @@ public unsafe class Demuxer : RunThreadBase
     public PacketQueue              AudioPackets    { get; private set; }
     public PacketQueue              VideoPackets    { get; private set; }
     public PacketQueue              SubtitlesPackets{ get; private set; }
+    public PacketQueue              DataPackets     { get; private set; }
     public PacketQueue              CurPackets      { get; private set; }
 
     public bool                     UseAVSPackets   { get; private set; }
@@ -105,6 +109,7 @@ public unsafe class Demuxer : RunThreadBase
     public ConcurrentQueue<ConcurrentStack<List<IntPtr>>>
                                     VideoPacketsReverse
                                                     { get; private set; } = new ConcurrentQueue<ConcurrentStack<List<IntPtr>>>();
+
     public bool                     IsReversePlayback
                                                     { get; private set; }
     
@@ -179,6 +184,7 @@ public unsafe class Demuxer : RunThreadBase
         AudioPackets    = new PacketQueue(this);
         VideoPackets    = new PacketQueue(this);
         SubtitlesPackets= new PacketQueue(this);
+        DataPackets     = new PacketQueue(this);
         CurPackets      = Packets; // Will be updated on stream switch in case of AVS
 
         string typeStr = Type == MediaType.Video ? "Main" : Type.ToString();
@@ -190,6 +196,7 @@ public unsafe class Demuxer : RunThreadBase
             BindingOperations.EnableCollectionSynchronization(AudioStreams,     lockStreams);
             BindingOperations.EnableCollectionSynchronization(VideoStreams,     lockStreams);
             BindingOperations.EnableCollectionSynchronization(SubtitlesStreams, lockStreams);
+            BindingOperations.EnableCollectionSynchronization(DataStreams,      lockStreams);
         });
 
         ioopen = IOOpen;
@@ -204,6 +211,7 @@ public unsafe class Demuxer : RunThreadBase
             AudioPackets.Clear();
             VideoPackets.Clear();
             SubtitlesPackets.Clear();
+            DataPackets.Clear();
 
             DisposePacketsReverse();
         }
@@ -268,12 +276,14 @@ public unsafe class Demuxer : RunThreadBase
                 AudioStreams.Clear();
                 VideoStreams.Clear();
                 SubtitlesStreams.Clear();
+                DataStreams.Clear();
                 Programs.Clear();
             }
             EnabledStreams.Clear();
             AudioStream = null;
             VideoStream = null;
             SubtitlesStream = null;
+            DataStream = null;
             queryParams = null;
             queryParamsStrCached = "";
 
@@ -690,6 +700,11 @@ public unsafe class Demuxer : RunThreadBase
                         if ((fmtCtx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0) 
                             { Log.Info($"Excluding image stream #{i}"); continue; }
 
+                        if (((AVPixelFormat)fmtCtx->streams[i]->codecpar->format) == AVPixelFormat.AV_PIX_FMT_NONE)
+                        {
+                            Log.Info($"Excluding invalid video stream #{i}");
+                            continue;
+                        }
                         VideoStreams.Add(new VideoStream(this, fmtCtx->streams[i]));
                         AVStreamToStream.Add(fmtCtx->streams[i]->index, VideoStreams[^1]);
                         hasVideo |= !Config.AllowFindStreamInfo || VideoStreams[^1].PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE;
@@ -701,6 +716,12 @@ public unsafe class Demuxer : RunThreadBase
                         AVStreamToStream.Add(fmtCtx->streams[i]->index, SubtitlesStreams[^1]);
                         subsHasEng = SubtitlesStreams[^1].Language == Language.English;
                         
+                        break;
+
+                    case AVMEDIA_TYPE_DATA:
+                        DataStreams.Add(new DataStream(this, fmtCtx->streams[i]));
+                        AVStreamToStream.Add(fmtCtx->streams[i]->index, DataStreams[^1]);
+
                         break;
 
                     default:
@@ -803,6 +824,21 @@ public unsafe class Demuxer : RunThreadBase
                     }
 
                     SubtitlesPackets.Dequeue();
+                    av_packet_free(&packet);
+                }
+
+                while (DataPackets.Count > 0)
+                {
+                    var packet = DataPackets.Peek();
+                    if (packet->pts != AV_NOPTS_VALUE && ticks < (packet->pts + packet->duration) * DataStream.Timebase)
+                    {
+                        if (Type == MediaType.Data)
+                            found = true;
+
+                        break;
+                    }
+
+                    DataPackets.Dequeue();
                     av_packet_free(&packet);
                 }
 
@@ -927,6 +963,7 @@ public unsafe class Demuxer : RunThreadBase
         int allowedErrors = Config.MaxErrors;
         bool gotAVERROR_EXIT = false;
         audioBufferLimitFired = false;
+        long lastVideoPacketPts = 0;
 
         do
         {
@@ -1038,7 +1075,7 @@ public unsafe class Demuxer : RunThreadBase
 
                         case AVMEDIA_TYPE_VIDEO:
                             //Log($"Video => {Utils.TicksToTime((long)(packet->pts * VideoStream.Timebase))} | {Utils.TicksToTime(CurTime)}");
-
+                            lastVideoPacketPts = packet->pts;
                             VideoPackets.Enqueue(packet);
                             packet = av_packet_alloc();
 
@@ -1048,6 +1085,15 @@ public unsafe class Demuxer : RunThreadBase
                             SubtitlesPackets.Enqueue(packet);
                             packet = av_packet_alloc();
                         
+                            break;
+
+                        case AVMEDIA_TYPE_DATA:
+                            // Some data streams only have nopts, set pts to last video packet pts
+                            if (packet->pts == AV_NOPTS_VALUE)
+                                packet->pts = lastVideoPacketPts;
+                            DataPackets.Enqueue(packet);
+                            packet = av_packet_alloc();
+
                             break;
 
                         default:
@@ -1359,10 +1405,15 @@ public unsafe class Demuxer : RunThreadBase
                     SubtitlesStream = (SubtitlesStream) stream;
 
                     break;
+
+                case MediaType.Data:
+                    DataStream = (DataStream) stream;
+
+                    break;
             }
 
             if (UseAVSPackets)
-                CurPackets = VideoStream != null ? VideoPackets : (AudioStream != null ? AudioPackets : SubtitlesPackets);
+                CurPackets = VideoStream != null ? VideoPackets : (AudioStream != null ? AudioPackets : (SubtitlesStream != null ? SubtitlesPackets : DataPackets));
 
             if (CanInfo) Log.Info($"[{stream.Type} #{stream.StreamIndex}] Enabled");
         }
@@ -1432,6 +1483,12 @@ public unsafe class Demuxer : RunThreadBase
                     SubtitlesPackets.Clear();
 
                     break;
+
+                case MediaType.Data:
+                    DataStream = null;
+                    DataPackets.Clear();
+
+                    break;
             }
 
             if (UseAVSPackets)
@@ -1448,8 +1505,10 @@ public unsafe class Demuxer : RunThreadBase
                 DisableStream(AudioStream);
             else if (stream.Type == MediaType.Video)
                 DisableStream(VideoStream);
-            else
+            else if (stream.Type == MediaType.Subs)
                 DisableStream(SubtitlesStream);
+            else
+                DisableStream(DataStream);
 
             EnableStream(stream);
         }

@@ -6,6 +6,7 @@ using FFmpeg.AutoGen;
 using Vortice.XAudio2;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
+using FlyleafLib.MediaFramework.MediaFrame;
 
 using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
@@ -14,6 +15,12 @@ namespace FlyleafLib.MediaPlayer;
 
 unsafe partial class Player
 {
+    /// <summary>
+    /// Fires on Data frame when it's supposed to be shown according to the stream
+    /// Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
+    /// </summary>
+    public event EventHandler<DataFrame> OnDataFrame;
+
     /// <summary>
     /// Fires on buffering started
     /// Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
@@ -55,6 +62,7 @@ unsafe partial class Player
     int     vDistanceMs;
     int     aDistanceMs;
     int     sDistanceMs;
+    int     dDistanceMs;
     int     sleepMs;
         
     long    elapsedTicks;
@@ -137,11 +145,23 @@ unsafe partial class Player
             }
         }
 
+        if (Data.isOpened && Config.Data.Enabled)
+        {
+            if (DataDecoder.OnVideoDemuxer)
+                DataDecoder.Start();
+            else if (!decoder.RequiresResync)
+            {
+                DataDemuxer.Start();
+                DataDecoder.Start();
+            }
+        }
+
         VideoDecoder.DisposeFrame(vFrame);
         vFrame = null;
         aFrame = null;
         sFrame = null;
         sFramePrev = null;
+        dFrame = null;
 
         //Subtitles.subsText = "";
         //if (Subtitles._SubsText != "")
@@ -354,6 +374,9 @@ unsafe partial class Player
             if (sFrame == null && !isSubsSwitch )
                 SubtitlesDecoder.Frames.TryPeek(out sFrame);
 
+            if (dFrame == null && !isDataSwitch)
+                DataDecoder.Frames.TryPeek(out dFrame);
+
             elapsedTicks = (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS); // Do we really need ticks precision?
 
             vDistanceMs = 
@@ -392,6 +415,10 @@ unsafe partial class Player
             
             sDistanceMs = sFrame != null 
                 ? (int) ((((sFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000) 
+                : int.MaxValue;
+
+            dDistanceMs = dFrame != null
+                ? (int)((((dFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000)
                 : int.MaxValue;
 
             sleepMs = Math.Min(vDistanceMs, aDistanceMs) - 1;
@@ -553,6 +580,25 @@ unsafe partial class Player
 
                     sFrame = null;
                     SubtitlesDecoder.Frames.TryDequeue(out var devnull);
+                }
+            }
+
+            if (dFrame != null)
+            {
+                if (Math.Abs(dDistanceMs - sleepMs) < 30 || (dDistanceMs < -30))
+                {
+                    OnDataFrame?.Invoke(this, dFrame);
+
+                    dFrame = null;
+                    DataDecoder.Frames.TryDequeue(out var devnull);
+                }
+                else if (dDistanceMs < -30)
+                {
+                    if (CanDebug)
+                        Log.Debug($"dDistanceMs = {dDistanceMs}");
+
+                    dFrame = null;
+                    DataDecoder.Frames.TryDequeue(out var devnull);
                 }
             }
         }

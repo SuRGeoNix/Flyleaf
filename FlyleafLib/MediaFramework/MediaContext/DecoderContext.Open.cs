@@ -23,6 +23,7 @@ public partial class DecoderContext
     public event EventHandler<OpenAudioStreamCompletedArgs>             OpenAudioStreamCompleted;
     public event EventHandler<OpenVideoStreamCompletedArgs>             OpenVideoStreamCompleted;
     public event EventHandler<OpenSubtitlesStreamCompletedArgs>         OpenSubtitlesStreamCompleted;
+    public event EventHandler<OpenDataStreamCompletedArgs>              OpenDataStreamCompleted;
 
     public event EventHandler<OpenExternalAudioStreamCompletedArgs>     OpenExternalAudioStreamCompleted;
     public event EventHandler<OpenExternalVideoStreamCompletedArgs>     OpenExternalVideoStreamCompleted;
@@ -83,6 +84,12 @@ public partial class DecoderContext
         public new SubtitlesStream Stream   => (SubtitlesStream)base.Stream;
         public new SubtitlesStream OldStream=> (SubtitlesStream)base.OldStream;
         public OpenSubtitlesStreamCompletedArgs(SubtitlesStream stream = null, SubtitlesStream oldStream = null, string error = null): base(stream, oldStream, error) { }
+    }
+    public class OpenDataStreamCompletedArgs : StreamOpenedArgs
+    {
+        public new DataStream Stream => (DataStream)base.Stream;
+        public new DataStream OldStream => (DataStream)base.OldStream;
+        public OpenDataStreamCompletedArgs(DataStream stream = null, DataStream oldStream = null, string error = null) : base(stream, oldStream, error) { }
     }
     public class ExternalStreamOpenedArgs : EventArgs
     {
@@ -198,6 +205,18 @@ public partial class DecoderContext
 
         if (CanInfo) Log.Info($"[OpenSubtitlesStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error  + "]": "")}");
         OpenSubtitlesStreamCompleted?.Invoke(this, args);
+    }
+    private void OnOpenDataStreamCompleted(OpenDataStreamCompletedArgs args = null)
+    {
+        if (shouldDispose)
+        {
+            Dispose();
+            return;
+        }
+
+        if (CanInfo)
+            Log.Info($"[OpenDataStream] #{(args.OldStream != null ? args.OldStream.StreamIndex.ToString() : "_")} => #{(args.Stream != null ? args.Stream.StreamIndex.ToString() : "_")}{(!args.Success ? " [Error: " + args.Error + "]" : "")}");
+        OpenDataStreamCompleted?.Invoke(this, args);
     }
     private void OnOpenExternalAudioStreamCompleted(OpenExternalAudioStreamCompletedArgs args = null)
     {
@@ -458,6 +477,11 @@ public partial class DecoderContext
                     OpenSuggestedSubtitles();
             }
 
+            if (Config.Data.Enabled)
+            {
+                OpenSuggestedData();
+            }
+
             return args;
         } catch (Exception e)
         {
@@ -551,11 +575,15 @@ public partial class DecoderContext
                     suggestedStream = streamIndex == -1 ? SuggestVideo(demuxer.VideoStreams) : demuxer.AVStreamToStream[streamIndex];
                 else if (demuxer.Type == MediaType.Audio)
                     suggestedStream = streamIndex == -1 ? SuggestAudio(demuxer.AudioStreams) : demuxer.AVStreamToStream[streamIndex];
-                else
+                else if (demuxer.Type == MediaType.Subs)
                 {
                     System.Collections.Generic.List<Language> langs = Config.Subtitles.Languages.ToList();
                     langs.Add(Language.Unknown);
                     suggestedStream = streamIndex == -1 ? SuggestSubtitles(demuxer.SubtitlesStreams, langs) : demuxer.AVStreamToStream[streamIndex];
+                }
+                else
+                {
+                    suggestedStream = demuxer.AVStreamToStream[streamIndex];
                 }
 
                 if (suggestedStream == null)
@@ -594,6 +622,8 @@ public partial class DecoderContext
         => Open(stream);
     public StreamOpenedArgs OpenSubtitlesStream(SubtitlesStream stream)
         => Open(stream);
+    public StreamOpenedArgs OpenDataStream(DataStream stream)
+        => Open(stream);
     private StreamOpenedArgs Open(StreamBase stream, bool defaultAudio = false)
     {
         StreamOpenedArgs args = null;
@@ -603,7 +633,7 @@ public partial class DecoderContext
             lock (stream.Demuxer.lockActions)
             lock (stream.Demuxer.lockFmtCtx)
             {
-                var oldStream = stream.Type == MediaType.Video ? VideoStream : (stream.Type == MediaType.Audio ? AudioStream : (StreamBase)SubtitlesStream);
+                var oldStream = stream.Type == MediaType.Video ? VideoStream : (stream.Type == MediaType.Audio ? AudioStream : (stream.Type == MediaType.Subs ? SubtitlesStream : (StreamBase)DataStream));
 
                 // Close external demuxers when opening embedded
                 if (stream.Demuxer.Type == MediaType.Video)
@@ -627,6 +657,10 @@ public partial class DecoderContext
                             Playlist.Selected.ExternalSubtitlesStream = null;
                         }
                     }
+                    else if (stream.Type == MediaType.Data)
+                    {
+                        if (!EnableDecoding) DataDemuxer.Dispose();
+                    }
                 }
                 else if (!EnableDecoding)
                 {
@@ -649,7 +683,9 @@ public partial class DecoderContext
                             ? (args = new OpenVideoStreamCompletedArgs((VideoStream)stream, (VideoStream)oldStream, $"Failed to open video stream #{stream.StreamIndex}\r\n{ret}"))
                             : stream.Type == MediaType.Audio
                             ? (args = new OpenAudioStreamCompletedArgs((AudioStream)stream, (AudioStream)oldStream, $"Failed to open audio stream #{stream.StreamIndex}\r\n{ret}"))
-                            : (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream, $"Failed to open subtitles stream #{stream.StreamIndex}\r\n{ret}"));
+                            : stream.Type == MediaType.Subs
+                            ? (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream, $"Failed to open subtitles stream #{stream.StreamIndex}\r\n{ret}"))
+                            : (args = new OpenDataStreamCompletedArgs((DataStream)stream, (DataStream)oldStream, $"Failed to open data stream #{stream.StreamIndex}\r\n{ret}"));
                         }
                 }
                 else
@@ -690,7 +726,9 @@ public partial class DecoderContext
                     ? (args = new OpenVideoStreamCompletedArgs((VideoStream)stream, (VideoStream)oldStream))
                     : stream.Type == MediaType.Audio
                     ? (args = new OpenAudioStreamCompletedArgs((AudioStream)stream, (AudioStream)oldStream))
-                    : (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream));
+                    : stream.Type == MediaType.Subs
+                    ? (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream))
+                    : (args = new OpenDataStreamCompletedArgs((DataStream)stream, (DataStream)oldStream));
                 }
         } catch(Exception e)
         {
@@ -701,8 +739,10 @@ public partial class DecoderContext
                 OnOpenVideoStreamCompleted((OpenVideoStreamCompletedArgs)args);
             else if (stream.Type == MediaType.Audio)
                 OnOpenAudioStreamCompleted((OpenAudioStreamCompletedArgs)args);
-            else
+            else if (stream.Type == MediaType.Subs)
                 OnOpenSubtitlesStreamCompleted((OpenSubtitlesStreamCompletedArgs)args);
+            else
+                OnOpenDataStreamCompleted((OpenDataStreamCompletedArgs)args);
         }
     }
 
@@ -882,6 +922,18 @@ public partial class DecoderContext
             }
         });
     }
+    public string OpenSuggestedData()
+    {
+        DataStream stream;
+        string error = null;
+
+        SuggestData(out stream, VideoDemuxer.DataStreams);
+
+        if (stream != null)
+            error = Open(stream).Error;
+
+        return error;
+    }
 
     public string OpenDemuxerInput(Demuxer demuxer, DemuxerInput demuxerInput)
     {
@@ -986,6 +1038,10 @@ public partial class DecoderContext
         }
 
         SubtitlesDecoder.Dispose(true);
+    }
+    public void CloseData()
+    {
+        DataDecoder.Dispose(true);
     }
     #endregion
 }
