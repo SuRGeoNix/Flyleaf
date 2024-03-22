@@ -845,10 +845,10 @@ public class Config : NotifyPropertyChanged
         internal Player player;
 
         /// <summary>
-        /// Whether subtitles should be allowed
+        /// Whether data should be processed
         /// </summary>
         public bool Enabled { get => _Enabled; set { if (Set(ref _Enabled, value)) if (value) player?.Data.Enable(); else player?.Data.Disable(); } }
-        bool    _Enabled = true;
+        bool    _Enabled = false;
         internal void SetEnabled(bool enabled) => Set(ref _Enabled, enabled, true, nameof(Enabled));
     }
 }
