@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
-using System.Collections.Generic;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 public unsafe class DataDecoder : DecoderBase
@@ -42,7 +41,6 @@ public unsafe class DataDecoder : DecoderBase
 
     protected override void RunInternal()
     {
-        int ret = 0;
         int allowedErrors = Config.Decoder.MaxErrors;
         AVPacket *packet;
 
@@ -118,7 +116,6 @@ public unsafe class DataDecoder : DecoderBase
                 lock (lockStatus)
                 {
                     CriticalArea = false;
-                    //if (Status != Status.QueueEmpty && Status != Status.Draining) break;
                     if (Status != Status.Draining)
                         Status = Status.Running;
                 }

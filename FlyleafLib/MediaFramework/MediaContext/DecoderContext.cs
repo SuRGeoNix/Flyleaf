@@ -296,9 +296,6 @@ public unsafe partial class DecoderContext : PluginHandler
         lock (DataDecoder.lockActions)
             lock (DataDecoder.lockCodecCtx)
             {
-                // Currently disabled as it will fail to seek within the queue the most of the times
-                //lock (SubtitlesDemuxer.lockActions)
-                //if (SubtitlesDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
                 ret = DataDemuxer.Seek(seekTimestamp, forward);
 
                 DataDecoder.Flush();
@@ -460,7 +457,7 @@ public unsafe partial class DecoderContext : PluginHandler
             if (timestamp == -1)
                 timestamp = VideoDemuxer.CurTime;
             if (CanInfo)
-                Log.Info($"Resync subs to {TicksToTime(timestamp)}");
+                Log.Info($"Resync data to {TicksToTime(timestamp)}");
 
             SeekData(timestamp / 10000);
             if (isRunning)
