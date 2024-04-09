@@ -612,6 +612,11 @@ public class Config : NotifyPropertyChanged
         internal void SetEnabled(bool enabled)              => Set(ref _Enabled, enabled, true, nameof(Enabled));
 
         /// <summary>
+        /// Used to limit the number of frames rendered, particularly at increased speed
+        /// </summary>
+        public int              MaxOutputFps                { get; set; } = 30;
+
+        /// <summary>
         /// The max resolution that the current system can achieve and will be used from the input/stream suggester plugins
         /// </summary>
         [XmlIgnore]

@@ -23,7 +23,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
     protected virtual void OnSpeedChanged(double value) { }
 
     internal bool               filledFromCodec;
-    protected int               curSpeedFrame = 1;
+    protected int               framesSinceFlush= 0;
     protected AVFrame*          frame;
     protected AVCodecContext*   codecCtx;
     internal  object            lockCodecCtx    = new();
@@ -190,7 +190,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
             demuxer         = null;
             Stream          = null;
             Status          = Status.Stopped;
-            curSpeedFrame   = (int)speed;
+            framesSinceFlush= 0;
             Disposed        = true;
             Log.Info("Disposed");
         }
