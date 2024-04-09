@@ -142,7 +142,7 @@ public unsafe class DataDecoder : DecoderBase
     {
         IntPtr ptr = new IntPtr(packet->data);
         byte[] dataFrame = new byte[packet->size];
-        Marshal.Copy(ptr, dataFrame, 0, packet->size);
+        Marshal.Copy(ptr, dataFrame, 0, packet->size); // for performance/in case of large data we could just keep the avpacket data directly (DataFrame instead of byte[] Data just use AVPacket* and move ref?)
 
         DataFrame mFrame = new()
         {

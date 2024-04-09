@@ -448,7 +448,7 @@ public unsafe partial class DecoderContext : PluginHandler
             }
         }
 
-        if (DataStream != null && Config.Data.Enabled)
+        if (DataStream != null && Config.Data.Enabled) // Should check if it actually an external (not embedded) stream DataStream.Demuxer.Type != MediaType.Video ?
         {
             if (timestamp == -1)
                 timestamp = VideoDemuxer.CurTime;
@@ -564,7 +564,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
                     continue;
 
-                case AVMEDIA_TYPE_DATA:
+                case AVMEDIA_TYPE_DATA: // this should catch the data stream packets until we have a valid vidoe keyframe (it should fill the pts if NOPTS with lastVideoPacketPts similarly to the demuxer)
                     if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * DataStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.DataPackets.Enqueue(packet);
 
