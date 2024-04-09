@@ -40,6 +40,8 @@ public abstract unsafe class DecoderBase : RunThreadBase
             Type = MediaType.Audio;
         else if (this is SubtitlesDecoder)
             Type = MediaType.Subs;
+        else if (this is DataDecoder)
+            Type = MediaType.Data;
 
         threadName = $"Decoder: {Type,5}";
     }
@@ -74,54 +76,57 @@ public abstract unsafe class DecoderBase : RunThreadBase
                 Stream  = stream;
                 demuxer = stream.Demuxer;
 
-                // avcodec_find_decoder will use libdav1d which does not support hardware decoding (software fallback with openStream = false from av1 to default:libdav1d) [#340]
-                var codec = stream.CodecID == AVCodecID.AV_CODEC_ID_AV1 && openStream ? avcodec_find_decoder_by_name("av1") : avcodec_find_decoder(stream.CodecID);
-                if (codec == null)
-                    return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
-
-                codecCtx = avcodec_alloc_context3(codec); // Pass codec to use default settings
-                if (codecCtx == null)
-                    return error = $"[{Type} avcodec_alloc_context3] Failed to allocate context3";
-
-                ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
-                if (ret < 0)
-                    return error = $"[{Type} avcodec_parameters_to_context] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
-
-                codecCtx->pkt_timebase  = stream.AVStream->time_base;
-                codecCtx->codec_id      = codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
-
-                if (Config.Decoder.ShowCorrupted)
-                    codecCtx->flags |= AV_CODEC_FLAG_OUTPUT_CORRUPT;
-
-                if (Config.Decoder.LowDelay)
-                    codecCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
-                    
-                try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
-                if (ret < 0)
-                    return error = $"[{Type} Setup] {ret}";
-
-                var codecOpts = Config.Decoder.GetCodecOptPtr(stream.Type);
-                AVDictionary* avopt = null;
-                foreach(var optKV in codecOpts)
-                    av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
-
-                ret = avcodec_open2(codecCtx, codec, avopt == null ? null : &avopt);
-
-                if (avopt != null)
+                if (stream is not DataStream) // if we don't open/use a data codec context why not just push the Data Frames directly from the Demuxer? no need to have DataDecoder*
                 {
-                    if (ret >= 0)
-                    {
-                        AVDictionaryEntry *t = null;
+                    // avcodec_find_decoder will use libdav1d which does not support hardware decoding (software fallback with openStream = false from av1 to default:libdav1d) [#340]
+                    var codec = stream.CodecID == AVCodecID.AV_CODEC_ID_AV1 && openStream ? avcodec_find_decoder_by_name("av1") : avcodec_find_decoder(stream.CodecID);
+                    if (codec == null)
+                        return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
 
-                        while ((t = av_dict_get(avopt, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
-                            Log.Debug($"Ignoring codec option {Utils.BytePtrToStringUTF8(t->key)}");
+                    codecCtx = avcodec_alloc_context3(codec); // Pass codec to use default settings
+                    if (codecCtx == null)
+                        return error = $"[{Type} avcodec_alloc_context3] Failed to allocate context3";
+
+                    ret = avcodec_parameters_to_context(codecCtx, stream.AVStream->codecpar);
+                    if (ret < 0)
+                        return error = $"[{Type} avcodec_parameters_to_context] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
+
+                    codecCtx->pkt_timebase  = stream.AVStream->time_base;
+                    codecCtx->codec_id      = codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
+
+                    if (Config.Decoder.ShowCorrupted)
+                        codecCtx->flags |= AV_CODEC_FLAG_OUTPUT_CORRUPT;
+
+                    if (Config.Decoder.LowDelay)
+                        codecCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
+
+                    try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
+                    if (ret < 0)
+                        return error = $"[{Type} Setup] {ret}";
+
+                    var codecOpts = Config.Decoder.GetCodecOptPtr(stream.Type);
+                    AVDictionary* avopt = null;
+                    foreach(var optKV in codecOpts)
+                        av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+
+                    ret = avcodec_open2(codecCtx, codec, avopt == null ? null : &avopt);
+
+                    if (avopt != null)
+                    {
+                        if (ret >= 0)
+                        {
+                            AVDictionaryEntry *t = null;
+
+                            while ((t = av_dict_get(avopt, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
+                                Log.Debug($"Ignoring codec option {Utils.BytePtrToStringUTF8(t->key)}");
+                        }
+
+                        av_dict_free(&avopt);
                     }
 
-                    av_dict_free(&avopt);
+                    if (ret < 0)
+                        return error = $"[{Type} avcodec_open2] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
                 }
-
-                if (ret < 0)
-                    return error = $"[{Type} avcodec_open2] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";
 
                 if (openStream)
                 {

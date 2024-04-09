@@ -503,4 +503,16 @@ public class PluginHandler
         return null;
     }
     #endregion
+
+    #region Data
+    public void SuggestData(out DataStream stream, ObservableCollection<DataStream> streams)
+    {
+        stream = null;
+
+        if (Interrupt)
+            return;
+
+        stream = streams.FirstOrDefault();
+    }
+    #endregion
 }
