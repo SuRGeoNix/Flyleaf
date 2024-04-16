@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.46</Version>
+	<Version>3.7.47</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Decoders: Fixes a possible delay during start
-		- VideoDecoder: Monitors for codec changes also for software frames
-		- Player: Fixes a delay issue during buffering
-		- Renderer: Add Snapshot API for BitmapSource
-		- Renderer: Performance improvements (restores CullMode after adding H/V flip)
+		- Demuxer/Decoder: Adds Data Stream support
+		- Demuxer: Introduces (Config.Demuxer.) DefaultHTTPQueryToUnderlying and ExtraHTTPQueryParamsToUnderlying to pass HTTP query parameters to the underlying contexts
+		- Player: Fixes possible infinite sleep
+		- Renderer: Fixes the old (Config.Video.) ClearScreenOnOpen which has been now renamed to ClearScreen to work properly (when false will keep the last rendered frame after stop/close/open)
+
+		[Breaking Changes]
+		- Config.Video.ClearScreenOnOpen renamed to ClearScreen
+		- Disables http_persistent for DASH/HLS by default in the Config.Demuxer Format Options
 	</PackageReleaseNotes>
   </PropertyGroup>
 
