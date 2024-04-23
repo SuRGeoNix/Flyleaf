@@ -427,7 +427,7 @@ public unsafe class Demuxer : RunThreadBase
                 }
             }
 
-            if (Config.FormatOptToUnderlying && (url.StartsWith("http://") || url.StartsWith("https://")))
+            if (Config.FormatOptToUnderlying && url != null && (url.StartsWith("http://") || url.StartsWith("https://")))
             {
                 // TBR: Url encode required and priority of cur/default/extra params?
 
