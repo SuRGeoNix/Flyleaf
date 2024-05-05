@@ -190,7 +190,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
             demuxer         = null;
             Stream          = null;
             Status          = Status.Stopped;
-            curSpeedFrame   = 1;
+            curSpeedFrame   = (int)speed;
             Disposed        = true;
             Log.Info("Disposed");
         }
