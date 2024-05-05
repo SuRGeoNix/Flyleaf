@@ -377,7 +377,7 @@ public unsafe class VideoDecoder : DecoderBase
                 keyFoundWithNoPts
                                 = false;
                 StartTime       = AV_NOPTS_VALUE;
-                framesSinceFlush= 0;
+                curSpeedFrame   = (int)speed;
             }
     }
 
@@ -537,7 +537,6 @@ public unsafe class VideoDecoder : DecoderBase
                 
                 while (true)
                 {
-                    framesSinceFlush++;
                     ret = avcodec_receive_frame(codecCtx, frame);
                     if (ret != 0) { av_frame_unref(frame); break; }
 
@@ -597,12 +596,14 @@ public unsafe class VideoDecoder : DecoderBase
                     double inputRate = speed * VideoStream.FPS;
                     if (inputRate > Config.Video.MaxOutputFps)
                     {
+                        curSpeedFrame++;
                         double inputOutputRatio = inputRate / Config.Video.MaxOutputFps;
-                        if (framesSinceFlush % inputOutputRatio > 1)
+                        if (curSpeedFrame < inputOutputRatio)
                         {
                             av_frame_unref(frame);
                             continue;
                         }
+                        curSpeedFrame = 0;
                     }
 
                     var mFrame = Renderer.FillPlanes(frame);
