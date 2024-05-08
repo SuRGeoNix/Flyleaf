@@ -59,10 +59,24 @@ public unsafe class VideoDecoder : DecoderBase
     List<VideoFrame>        curReverseVideoFrames   = new();
     int                     curReversePacketPos     = 0;
 
+    // Drop frames if FPS is higher than allowed
+    int                     curSpeedFrame           = 9999; // don't skip first frame (on start/after seek-flush)
+    double                  skipSpeedFrames         = 0;
+
     public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
         => getHWformat = new AVCodecContext_get_format(get_format);
 
-    protected override void OnSpeedChanged(double value) { oldSpeed = speed; speed = value; speed = speed < 1 ? 1 : (int)speed; }
+    protected override void OnSpeedChanged(double value)
+    {
+        speed = value;
+        skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
+    }
+
+    /// <summary>
+    /// Prevents to get the first frame after seek/flush
+    /// </summary>
+    public void ResetSpeedFrame()
+        => curSpeedFrame = 0;
 
     public void CreateRenderer() // TBR: It should be in the constructor but DecoderContext will not work with null VideoDecoder for AudioOnly
     {
@@ -377,7 +391,7 @@ public unsafe class VideoDecoder : DecoderBase
                 keyFoundWithNoPts
                                 = false;
                 StartTime       = AV_NOPTS_VALUE;
-                curSpeedFrame   = (int)speed;
+                curSpeedFrame   = 9999;
             }
     }
 
@@ -590,16 +604,16 @@ public unsafe class VideoDecoder : DecoderBase
                             break;
                         }
                     }
-                    
-                    if (speed != 1)
+
+                    if (skipSpeedFrames > 1)
                     {
                         curSpeedFrame++;
-                        if (curSpeedFrame < speed)
+                        if (curSpeedFrame < skipSpeedFrames)
                         {
                             av_frame_unref(frame);
                             continue;
                         }
-                        curSpeedFrame = 0; 
+                        curSpeedFrame = 0;
                     }
 
                     var mFrame = Renderer.FillPlanes(frame);
@@ -641,6 +655,7 @@ public unsafe class VideoDecoder : DecoderBase
                     VideoStream.Demuxer.VideoPackets.frameDuration = VideoStream.FrameDuration;
             }
             
+            skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
             CodecChanged?.Invoke(this);
 
             if (!Renderer.ConfigPlanes())
@@ -1163,6 +1178,7 @@ public unsafe class VideoDecoder : DecoderBase
             swsCtx      = null;
             StartTime   = AV_NOPTS_VALUE;
             swFallback  = false;
+            curSpeedFrame= 9999;
         }
     }
     #endregion
