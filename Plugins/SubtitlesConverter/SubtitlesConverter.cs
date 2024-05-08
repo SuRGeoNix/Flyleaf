@@ -27,7 +27,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 
                 using (var stream = new FileStream(Selected.ExternalSubtitlesStream.Url, FileMode.Open))
                 {
-                    int buflen = (int)Math.Min(stream.Length, 1024);
+                    int buflen = (int)Math.Min(stream.Length, 10 * 1024);
                     byte[] buf = new byte[buflen];
                     stream.Read(buf, 0, buflen);
                     detector.Feed(buf, 0, buf.Length);
