@@ -130,8 +130,9 @@ namespace FlyleafExtractor
              */
 
             SaveFrame(VideoDecoder.GetFrame(start), start); // Possible to get null frame?
-
+            Config.Video.MaxOutputFps = DecCtx.VideoStream.FPS; // might FPS change after fill from codec
             VideoDecoder.Speed = step;
+            VideoDecoder.ResetSpeedFrame(); // make sures we skip by step (will not get the first frame as we manually do with GetFrame)
             DecCtx.Start();
 
             int curFrameNumber = start + step;
@@ -188,6 +189,7 @@ namespace FlyleafExtractor
                 return;
             }
 
+            Config.Video.MaxOutputFps = DecCtx.VideoStream.FPS; // Making speed acting as step
             txtEndAt.Text = DecCtx.VideoStream.TotalFrames.ToString();
             btnExtract.Enabled = true;
 
