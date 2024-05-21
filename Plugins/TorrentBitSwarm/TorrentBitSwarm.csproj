@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
 	<TargetFrameworks>net8.0-windows;net6.0-windows;net472</TargetFrameworks>
@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BitSwarm" Version="2.4.11" />
+    <PackageReference Include="BitSwarm" Version="2.4.12" />
   </ItemGroup>
 
   <ItemGroup>
