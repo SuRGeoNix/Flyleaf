@@ -769,7 +769,7 @@ public partial class DecoderContext
             error = Open(stream, defaultAudio).Error;
         else if (extStream != null)
             error = Open(extStream, defaultAudio).Error;
-        else if (defaultAudio)
+        else if (defaultAudio && Config.Audio.Enabled)
             error = OpenSuggestedAudio(); // We still need audio if no video exists
 
         return error;
