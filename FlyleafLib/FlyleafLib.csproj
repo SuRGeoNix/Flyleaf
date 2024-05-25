@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.48</Version>
+	<Version>3.7.49</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Fixes a null reference issue with custom IOStreams when used with the new Config.Demuxer.FormatOptToUnderlying
-		- Plugins.SubtitlesConverter: Increases buffer length for char detector
-		- VideoDecoder: Introduces (Config.Video.) MaxOutputFps which limits the processed frames for rendering (mainly on increased speed)
+		- Demuxer: Fixes an issue while passing HTTP Query Parameters
+		- Demuxer: When AllowFindStreamInfo is disabled will allow video streams with unidentified pixel formats (will be identified during decoding)
+		- Renderer: Fixes a memory leak with D3D11VP during PresentOffline (eg. called by TakeSnapshot)
+		- DecoderContext: Prevent opening audio stream when audio is disabled
+		- VideoDecoder: Fixes an issue with AV1 when the video acceleration is disabled
 	</PackageReleaseNotes>
   </PropertyGroup>
 
