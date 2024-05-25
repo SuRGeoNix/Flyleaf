@@ -695,6 +695,8 @@ public unsafe class VideoDecoder : DecoderBase
 
     private void RunInternalReverse()
     {
+        // Bug with B-frames, we should not remove the ref packets (we miss frames each time we restart decoding the gop)
+
         int ret = 0;
         int allowedErrors = Config.Decoder.MaxErrors;
         AVPacket *packet;
