@@ -34,7 +34,8 @@ public partial class Renderer
     {
         if (videoProcessor == VideoProcessors.D3D11)
         {
-            vd1.CreateVideoProcessorOutputView(rtv.Resource, vpe, vpovd, out var vpov);
+            var tmpResource = rtv.Resource;
+            vd1.CreateVideoProcessorOutputView(tmpResource, vpe, vpovd, out var vpov);
 
             RawRect rect = new((int)viewport.X, (int)viewport.Y, (int)(viewport.Width + viewport.X), (int)(viewport.Height + viewport.Y));
             vc.VideoProcessorSetStreamSourceRect(vp, 0, true, VideoRect);
@@ -56,6 +57,7 @@ public partial class Renderer
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
             vpiv.Dispose();
             vpov.Dispose();
+            tmpResource.Dispose();
         }
         else
         {
