@@ -292,6 +292,7 @@ public unsafe partial class Renderer
                     child.InitializeWinUISwapChain();
             }
 
+            child.Disposed = false;
             child.SetViewport();
         }
     }
@@ -373,6 +374,7 @@ public unsafe partial class Renderer
         {
             child.DisposeSwapChain();
             child.DisposeVideoProcessor();
+            child.Disposed = true;
 
             if (!isFlushing)
             {

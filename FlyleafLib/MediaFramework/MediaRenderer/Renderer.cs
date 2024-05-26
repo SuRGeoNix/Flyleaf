@@ -224,7 +224,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     }
 
     #region Replica Renderer (Expiremental)
-    internal Renderer child;
+    public Renderer child; // allow access to child renderer (not safe)
     Renderer parent;
     public Renderer(Renderer renderer, IntPtr handle, int uniqueId = -1)
     {
