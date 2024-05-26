@@ -734,7 +734,7 @@ unsafe partial class Player
             aFrame = null;
             isAudioSwitch = false;
             isVideoSwitch = false;
-            sFrame = null;
+            sFrame = sFramePrev = null;
             isSubsSwitch = false;
             dFrame = null;
             isDataSwitch = false;
@@ -746,7 +746,7 @@ unsafe partial class Player
                 ShowOneFrame();
             }
             else
-            {
+            {   
                 Subtitles.subsText = "";
                 if (Subtitles._SubsText != "")
                     UI(() => Subtitles.SubsText = Subtitles.SubsText);
@@ -765,7 +765,7 @@ unsafe partial class Player
             {
                 isSubsSwitch = true;
                 decoder.SeekSubtitles();
-                sFrame = null;
+                sFrame = sFramePrev = null;
                 Subtitles.subsText = "";
                 if (Subtitles._SubsText != "")
                     UI(() => Subtitles.SubsText = Subtitles.SubsText);
