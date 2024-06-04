@@ -646,7 +646,7 @@ public unsafe class VideoDecoder : DecoderBase
             avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
             VideoStream.AVStream->time_base = codecCtx->pkt_timebase;
             VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.AV_PIX_FMT_NONE ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt, frame);
-
+            
             if (!(VideoStream.FPS > 0)) // NaN
             {
                 VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : 0;
@@ -658,7 +658,7 @@ public unsafe class VideoDecoder : DecoderBase
             skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
             CodecChanged?.Invoke(this);
 
-            if (!Renderer.ConfigPlanes())
+            if (VideoStream.PixelFormat == AVPixelFormat.AV_PIX_FMT_NONE || !Renderer.ConfigPlanes())
             {
                 Log.Error("[Pixel Format] Unknown");
                 return -1234;
@@ -695,6 +695,8 @@ public unsafe class VideoDecoder : DecoderBase
 
     private void RunInternalReverse()
     {
+        // Bug with B-frames, we should not remove the ref packets (we miss frames each time we restart decoding the gop)
+
         int ret = 0;
         int allowedErrors = Config.Decoder.MaxErrors;
         AVPacket *packet;

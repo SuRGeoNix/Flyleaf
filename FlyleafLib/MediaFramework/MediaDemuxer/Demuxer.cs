@@ -551,7 +551,7 @@ public unsafe class Demuxer : RunThreadBase
             int queryStarts = url.IndexOf('?');
             if (queryStarts != -1)
             {
-                string query = Url[(queryStarts + 1)..];
+                string query = url[(queryStarts + 1)..];
                 var qp = HttpUtility.ParseQueryString(query);
                 url = url[..queryStarts] + "?";
 
@@ -700,7 +700,8 @@ public unsafe class Demuxer : RunThreadBase
                         if ((fmtCtx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0) 
                             { Log.Info($"Excluding image stream #{i}"); continue; }
 
-                        if (((AVPixelFormat)fmtCtx->streams[i]->codecpar->format) == AVPixelFormat.AV_PIX_FMT_NONE)
+                        // TBR: When AllowFindStreamInfo = false we can get valid pixel format during decoding (in case of remuxing only this might crash, possible check if usedecoders?)
+                        if (((AVPixelFormat)fmtCtx->streams[i]->codecpar->format) == AVPixelFormat.AV_PIX_FMT_NONE && Config.AllowFindStreamInfo)
                         {
                             Log.Info($"Excluding invalid video stream #{i}");
                             continue;
