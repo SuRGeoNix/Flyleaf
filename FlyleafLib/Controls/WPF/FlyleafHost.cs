@@ -102,6 +102,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     public event EventHandler SurfaceCreated;
     public event EventHandler OverlayCreated;
+    public event DragEventHandler OnSurfaceDrop;
+    public event DragEventHandler OnOverlayDrop;
 
     static bool isDesginMode;
     static int  idGenerator = 1;
@@ -1116,19 +1118,25 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (Player == null)
             return;
 
-        // Player Open File
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
-        {
-            string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
-            Player.OpenAsync(filename);
-        }
+        // Invoke event first and see if it gets handled
+        OnSurfaceDrop?.Invoke(this, e);
 
-        // Player Open Text
-        else if (e.Data.GetDataPresent(DataFormats.Text))
+        if (!e.Handled)
         {
-            string text = e.Data.GetData(DataFormats.Text, false).ToString();
-            if (text.Length > 0)
-                Player.OpenAsync(text);
+            // Player Open File
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
+                Player.OpenAsync(filename);
+            }
+
+            // Player Open Text
+            else if (e.Data.GetDataPresent(DataFormats.Text))
+            {
+                string text = e.Data.GetData(DataFormats.Text, false).ToString();
+                if (text.Length > 0)
+                    Player.OpenAsync(text);
+            }
         }
 
         Surface.Activate();
@@ -1150,19 +1158,25 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (Player == null)
             return;
 
-        // Player Open File
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
-        {
-            string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
-            Player.OpenAsync(filename);
-        }
+        // Invoke event first and see if it gets handled
+        OnOverlayDrop?.Invoke(this, e);
 
-        // Player Open Text
-        else if (e.Data.GetDataPresent(DataFormats.Text))
+        if (!e.Handled)
         {
-            string text = e.Data.GetData(DataFormats.Text, false).ToString();
-            if (text.Length > 0)
-                Player.OpenAsync(text);
+            // Player Open File
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
+                Player.OpenAsync(filename);
+            }
+
+            // Player Open Text
+            else if (e.Data.GetDataPresent(DataFormats.Text))
+            {
+                string text = e.Data.GetData(DataFormats.Text, false).ToString();
+                if (text.Length > 0)
+                    Player.OpenAsync(text);
+            }
         }
 
         Overlay.Activate();
