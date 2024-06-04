@@ -93,6 +93,7 @@ partial class Player
             {
                 VideoDecoder.DisposeFrame(vFrame);
                 vFrame = null;
+                sFrame = null;
                     
                 if (Status == Status.Stopped)
                     decoder?.Initialize();
@@ -249,6 +250,14 @@ partial class Player
                         wasEnded = true;
                         status = Status.Paused;
                         UI(() => Status = Status);
+                    }
+
+                    if (sFramePrev != null)
+                    {
+                        sFramePrev = null;
+                        Subtitles.subsText = "";
+                        if (Subtitles._SubsText != "")
+                            UI(() => Subtitles.SubsText = Subtitles.SubsText);
                     }
 
                     if (!Video.IsOpened)

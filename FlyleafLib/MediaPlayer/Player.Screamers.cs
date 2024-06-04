@@ -80,32 +80,35 @@ unsafe partial class Player
     private void ShowOneFrame()
     {
         sFrame = null;
-        Subtitles.subsText = "";
-        if (Subtitles._SubsText != "")
-            UIAdd(() => Subtitles.SubsText = Subtitles.SubsText);
+        if (VideoDecoder.Frames.IsEmpty || !VideoDecoder.Frames.TryDequeue(out vFrame))
+            return;
+        
+        renderer.Present(vFrame);
 
-        if (!VideoDecoder.Frames.IsEmpty)
+        if (!seeks.IsEmpty)
+            return;
+
+        if (!VideoDemuxer.IsHLSLive)
+            curTime = vFrame.timestamp;
+
+        UIAdd(() => UpdateCurTime());
+
+        // Clear last subtitles text if video timestamp is not within subs timestamp + duration (to prevent clearing current subs on pause/play)
+        if (sFramePrev == null || sFramePrev.timestamp > vFrame.timestamp || (sFramePrev.timestamp + (sFramePrev.duration * (long)10000)) < vFrame.timestamp)
         {
-            VideoDecoder.Frames.TryDequeue(out vFrame);
-            if (vFrame != null) // might come from video input switch interrupt
-                renderer.Present(vFrame);
-
-            if (seeks.IsEmpty)
-            {
-                if (!VideoDemuxer.IsHLSLive)
-                    curTime = vFrame.timestamp;
-                UIAdd(() => UpdateCurTime());
-                UIAll();
-            }
-
-            // Required for buffering on paused
-            if (decoder.RequiresResync && !IsPlaying && seeks.IsEmpty)
-                decoder.Resync(vFrame.timestamp);
-
-            vFrame = null;
+            sFramePrev = null;
+            Subtitles.subsText = "";
+            if (Subtitles._SubsText != "")
+                UIAdd(() => Subtitles.SubsText = Subtitles.SubsText);
         }
 
         UIAll();
+
+        // Required for buffering on paused
+        if (decoder.RequiresResync && !IsPlaying && seeks.IsEmpty)
+            decoder.Resync(vFrame.timestamp);
+
+        vFrame = null;
     }
 
     // !!! NEEDS RECODING (We show one frame, we dispose it, we get another one and we show it also after buffering which can be in 'no time' which can leave us without any more decoded frames so we rebuffer)
@@ -160,12 +163,7 @@ unsafe partial class Player
         vFrame = null;
         aFrame = null;
         sFrame = null;
-        sFramePrev = null;
         dFrame = null;
-
-        //Subtitles.subsText = "";
-        //if (Subtitles._SubsText != "")
-        //    UI(() => Subtitles.SubsText = Subtitles.SubsText);
 
         bool gotAudio       = !Audio.IsOpened || Config.Player.MaxLatency != 0;
         bool gotVideo       = false;
@@ -308,6 +306,14 @@ unsafe partial class Player
             {
                 seeks.Clear();
                 requiresBuffering = true;
+
+                if (sFramePrev != null)
+                {
+                    sFramePrev = null;
+                    Subtitles.subsText = "";
+                    if (Subtitles._SubsText != "")
+                        UI(() => Subtitles.SubsText = Subtitles.SubsText);
+                }
 
                 decoder.PauseDecoders(); // TBR: Required to avoid gettings packets between Seek and ShowFrame which causes resync issues
 
@@ -557,10 +563,9 @@ unsafe partial class Player
 
             if (sFramePrev != null && ((sFramePrev.timestamp - startTicks + (sFramePrev.duration * (long)10000)) / speed) - (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS) < 0)
             {
+                sFramePrev = null;
                 Subtitles.subsText = "";
                 UI(() => Subtitles.SubsText = Subtitles.SubsText);
-
-                sFramePrev = null;
             }
 
             if (sFrame != null)
