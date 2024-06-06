@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.49</Version>
+	<Version>3.7.50</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Fixes an issue while passing HTTP Query Parameters
-		- Demuxer: When AllowFindStreamInfo is disabled will allow video streams with unidentified pixel formats (will be identified during decoding)
-		- Renderer: Fixes a memory leak with D3D11VP during PresentOffline (eg. called by TakeSnapshot)
-		- DecoderContext: Prevent opening audio stream when audio is disabled
-		- VideoDecoder: Fixes an issue with AV1 when the video acceleration is disabled
+		- DataDecoder: Fix null ref on demuxer when disposing player
+		- Renderer: Exposes child renderer to allow config changes separately
+		- Player.Keys: Better handling of Key Bindings
+		- Player.Subtitles: Keeps the last subtitles text on pause/play
+		- FlyleafHost.Wpf: Add custom drop events for overlay and surface in wpf flyleafhost
 	</PackageReleaseNotes>
   </PropertyGroup>
 
