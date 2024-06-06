@@ -116,6 +116,8 @@ public unsafe class DataDecoder : DecoderBase
                 lock (lockStatus)
                 {
                     CriticalArea = false;
+                    if (Status != Status.QueueEmpty && Status != Status.Draining)
+                        break;
                     if (Status != Status.Draining)
                         Status = Status.Running;
                 }
@@ -136,6 +138,8 @@ public unsafe class DataDecoder : DecoderBase
                 av_packet_free(&packet);
             }
         } while (Status == Status.Running);
+
+        if (Status == Status.Draining) Status = Status.Ended;
     }
 
     private DataFrame ProcessDataFrame(AVPacket* packet)
