@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Windows.Input;
 
 using static FlyleafLib.Logger;
@@ -16,6 +17,8 @@ partial class Player
      * Exposes KeyDown/KeyUp if required to listen on additional Controls/Windows
      * Allows KeyBindingAction.Custom to set an external Action for Key Binding
      */
+
+    Tuple<KeyBinding,long> onKeyUpBinding;
 
     /// <summary>
     /// Can be used to route KeyDown events (WPF)
@@ -63,47 +66,70 @@ partial class Player
             return false;
 
         player.Activity.RefreshActive();
-        
-        if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
+
+        if (player.onKeyUpBinding != null)
+        {
+            if (player.onKeyUpBinding.Item1.Key == key)
+                return true;
+
+            if (DateTime.UtcNow.Ticks - player.onKeyUpBinding.Item2 < TimeSpan.FromSeconds(2).Ticks)
+                return false;
+
+            player.onKeyUpBinding = null; // In case of keyboard lost capture (should be handled from hosts)
+        }
+
+        List<KeyBinding> keysList = new();
+        #if NETFRAMEWORK
+        foreach(var binding in player.Config.Player.KeyBindings.Keys)
+        #else
+        var spanList = CollectionsMarshal.AsSpan(player.Config.Player.KeyBindings.Keys); // should create dictionary here with key+alt+ctrl+shift hash
+        foreach(var binding in spanList)
+        #endif
+            if (binding.Key == key)
+                keysList.Add(binding);
+
+        if (keysList.Count == 0)
             return false;
 
-        foreach(var binding in player.Config.Player.KeyBindings.Keys)
-            if (binding.Key     == key && !binding.IsKeyUp &&
-                binding.Alt     == (Keyboard.IsKeyDown(Key.LeftAlt)     || Keyboard.IsKeyDown(Key.RightAlt)) &&
-                binding.Ctrl    == (Keyboard.IsKeyDown(Key.LeftCtrl)    || Keyboard.IsKeyDown(Key.RightCtrl)) &&
-                binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
-                )
+        bool alt, ctrl, shift;
+        alt     = Keyboard.IsKeyDown(Key.LeftAlt)   || Keyboard.IsKeyDown(Key.RightAlt);
+        ctrl    = Keyboard.IsKeyDown(Key.LeftCtrl)  || Keyboard.IsKeyDown(Key.RightCtrl);
+        shift   = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+
+         #if NETFRAMEWORK
+        foreach(var binding in keysList)
+        #else
+        var spanList2 = CollectionsMarshal.AsSpan(keysList);
+        foreach(var binding in spanList2)
+        #endif
+        {
+            if (binding.Alt == alt && binding.Ctrl == ctrl && binding.Shift == shift)
             {
-                if (CanDebug) player.Log.Debug($"[Keys|Down] {(binding.Action == KeyBindingAction.Custom && binding.ActionName != null ? binding.ActionName : binding.Action)}");
-                binding.ActionInternal?.Invoke();
-                
+                if (binding.IsKeyUp)
+                    player.onKeyUpBinding = new(binding, DateTime.UtcNow.Ticks);
+                else
+                    ExecuteBinding(player, binding, false);
+
                 return true;
             }
+        }
 
         return false;
     }
     public static bool KeyUp(Player player, Key key)
     {
-        if (player == null)
+        if (player == null || player.onKeyUpBinding == null || player.onKeyUpBinding.Item1.Key != key)
             return false;
 
-        if (key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftShift || key == Key.RightShift)
-            return false;
+        ExecuteBinding(player, player.onKeyUpBinding.Item1, true);
+        player.onKeyUpBinding = null;
+        return true;
+    }
 
-        foreach (var binding in player.Config.Player.KeyBindings.Keys)
-            if (binding.Key     == key && binding.IsKeyUp &&
-                binding.Alt     == (Keyboard.IsKeyDown(Key.LeftAlt)     || Keyboard.IsKeyDown(Key.RightAlt)) &&
-                binding.Ctrl    == (Keyboard.IsKeyDown(Key.LeftCtrl)    || Keyboard.IsKeyDown(Key.RightCtrl)) &&
-                binding.Shift   == (Keyboard.IsKeyDown(Key.LeftShift)   || Keyboard.IsKeyDown(Key.RightShift))
-                )
-            {
-                if (CanDebug) player.Log.Debug($"[Keys|Up] {(binding.Action == KeyBindingAction.Custom && binding.ActionName != null ? binding.ActionName : binding.Action)}");
-                binding.ActionInternal?.Invoke();
-
-                return true;
-            }
-
-        return false;
+    static void ExecuteBinding(Player player, KeyBinding binding, bool isKeyUp)
+    {
+        if (CanDebug) player.Log.Debug($"[Keys|{(isKeyUp ? "Up" : "Down")}] {(binding.Action == KeyBindingAction.Custom && binding.ActionName != null ? binding.ActionName : binding.Action)}");
+        binding.ActionInternal?.Invoke();
     }
 }
 
@@ -469,25 +495,25 @@ public class KeysConfig
 
         // Having issues with alt/ctrl/shift (should save state of alt/ctrl/shift on keydown and not checked on keyup)
 
-        //{ KeyBindingAction.OpenFromClipboard },
+        { KeyBindingAction.OpenFromClipboard },
         { KeyBindingAction.OpenFromFileDialog },
-        //{ KeyBindingAction.CopyToClipboard },
+        { KeyBindingAction.CopyToClipboard },
         { KeyBindingAction.TakeSnapshot },
         { KeyBindingAction.NormalScreen },
         { KeyBindingAction.FullScreen },
         { KeyBindingAction.ToggleFullScreen },
-        //{ KeyBindingAction.ToggleAudio },
-        //{ KeyBindingAction.ToggleVideo },
+        { KeyBindingAction.ToggleAudio },
+        { KeyBindingAction.ToggleVideo },
         { KeyBindingAction.ToggleKeepRatio },
         { KeyBindingAction.ToggleVideoAcceleration },
-        //{ KeyBindingAction.ToggleSubtitles },
+        { KeyBindingAction.ToggleSubtitles },
         { KeyBindingAction.ToggleMute },
         { KeyBindingAction.TogglePlayPause },
-        //{ KeyBindingAction.ToggleRecording },
-        //{ KeyBindingAction.ToggleReversePlayback },
+        { KeyBindingAction.ToggleRecording },
+        { KeyBindingAction.ToggleReversePlayback },
         { KeyBindingAction.Play },
         { KeyBindingAction.Pause },
-        //{ KeyBindingAction.Stop },
+        { KeyBindingAction.Stop },
         { KeyBindingAction.Flush },
         { KeyBindingAction.ToggleSeekAccurate },
         { KeyBindingAction.SpeedAdd },
