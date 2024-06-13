@@ -935,7 +935,6 @@ public class FlyleafHost : ContentControl, IHostPlayer
                 return; // Check OwnerHandle changed (NOTE: Owner can be the same class/window but the handle can be different)
 
             Owner.SizeChanged -= Owner_SizeChanged;
-            Owner.Closing     -= Owner_Closing;
 
             Surface.Hide();
             Overlay?.Hide();
@@ -947,7 +946,6 @@ public class FlyleafHost : ContentControl, IHostPlayer
             Surface.Icon    = Owner.Icon;
 
             Owner.SizeChanged += Owner_SizeChanged;
-            Owner.Closing     += Owner_Closing;
             Attach();
             rectDetachedLast = Rect.Empty; // Attach will set it wrong first time
             EnsureVisibility();
@@ -965,7 +963,6 @@ public class FlyleafHost : ContentControl, IHostPlayer
         Surface.Icon    = Owner.Icon;
 
         Owner.SizeChanged   += Owner_SizeChanged;
-        Owner.Closing       += Owner_Closing;
 
         EnsureOverlayCreated();
 
@@ -988,13 +985,6 @@ public class FlyleafHost : ContentControl, IHostPlayer
             UpdateCurRatio();
         }
         EnsureVisibility();
-    }
-
-    private void Owner_Closing(object sender, CancelEventArgs e)
-    {
-        // Known WPF bug: closing a window will not unload components
-        if (IsLoaded)
-            Host_Unloaded(null, null);
     }
 
     private void Host_Unloaded(object sender, RoutedEventArgs e)
@@ -1032,7 +1022,6 @@ public class FlyleafHost : ContentControl, IHostPlayer
             if (Owner != null)
             {
                 Owner.SizeChanged -= Owner_SizeChanged;
-                Owner.Closing     -= Owner_Closing;
             }
 
             Owner = null;
@@ -1645,9 +1634,16 @@ public class FlyleafHost : ContentControl, IHostPlayer
         SetSurface();
         Overlay = standAloneOverlay;
         Overlay.IsVisibleChanged += OverlayStandAlone_IsVisibleChanged;
+        standAloneOverlay.Closed += StandAloneOverlay_Closed;
         Surface.ShowInTaskbar = false; Surface.ShowInTaskbar = true; // It will not be visible in taskbar if user clicks in another window when loading
         OverlayStandAlone_IsVisibleChanged(null, new());
     }
+
+    private void StandAloneOverlay_Closed(object sender, EventArgs e)
+    {
+        Host_Unloaded(null, null);
+    }
+
     private void OverlayStandAlone_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         // Surface should be visible first (this happens only on initialization of standalone)
