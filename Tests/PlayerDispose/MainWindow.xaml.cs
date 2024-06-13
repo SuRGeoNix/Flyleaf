@@ -37,9 +37,6 @@ namespace DisposePlayer
             });
 
             InitializeComponent();
-
-            Closing += (o, e) => 
-            FlyleafHost?.Dispose();
         }
         private void Button_Click(object sender, RoutedEventArgs e)
         {
