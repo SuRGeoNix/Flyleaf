@@ -813,6 +813,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         host.Player.Activity.Timeout = host.ActivityTimeout;
     }
+    bool setTemplate; // TBR: probably not required just set overlay's template anyway?
     private static void OnOverlayTemplateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (isDesginMode)
@@ -822,9 +823,12 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (host.Disposed)
             return;
 
+        host.setTemplate = true;
         host.Overlay ??= new Window() { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true };
+        host.setTemplate = false;
 
-        host.Overlay.Template = host.OverlayTemplate;
+        // Issue #481 - FlyleafME overrides SetOverlay - which will be called above - and then initializes without template (no popup/settings)
+        //host.Overlay.Template = host.OverlayTemplate;
     }
     private static void OnOverlayChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -1932,6 +1936,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         Overlay.AllowDrop =
             OpenOnDrop == AvailableWindows.Overlay || OpenOnDrop == AvailableWindows.Both ||
             SwapOnDrop == AvailableWindows.Overlay || SwapOnDrop == AvailableWindows.Both;
+
+        if (setTemplate)
+            Overlay.Template = OverlayTemplate;
 
         if (Surface.IsVisible)
             Overlay.Show();
