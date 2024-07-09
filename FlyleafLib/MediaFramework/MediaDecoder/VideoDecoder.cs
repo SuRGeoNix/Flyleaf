@@ -261,7 +261,7 @@ public unsafe class VideoDecoder : DecoderBase
             return -1;
 
         AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)codecCtx->hw_frames_ctx->data;
-        hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames; // TBR: Texture 2D Array seems to have up limit to 128 (total=17+MaxVideoFrames)?
+        hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames; // TBR: Texture 2D Array seems to have up limit to 128 (total=17+MaxVideoFrames)? (should use extra hw frames instead**)
 
         AVD3D11VAFramesContext *va_frames_ctx = (AVD3D11VAFramesContext *)hw_frames_ctx->hwctx;
         va_frames_ctx->BindFlags  |= (uint)BindFlags.Decoder | (uint)BindFlags.ShaderResource;
@@ -558,6 +558,8 @@ public unsafe class VideoDecoder : DecoderBase
                     // Might use AVERROR_INPUT_CHANGED to let ffmpeg check for those (requires a flag to be set*)
                     if (frame->height != VideoStream.Height || frame->width != VideoStream.Width)
                     {
+                        // THIS IS Wrong and can cause filledFromCodec all the time. comparing frame<->videostream dimensions but we update the videostream from codecparam dimensions (which we pass from codecCtx w/h)
+                        // Related with display dimensions / coded dimensions / frame-crop dimensions (and apply_cropping) - it could happen when frame->crop... are not 0
                         Log.Warn($"Codec changed {VideoStream.CodecID} {VideoStream.Width}x{VideoStream.Height} => {codecCtx->codec_id} {frame->width}x{frame->height}");
                         filledFromCodec = false;
                     }

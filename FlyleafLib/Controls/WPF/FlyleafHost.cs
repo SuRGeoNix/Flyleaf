@@ -813,7 +813,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         host.Player.Activity.Timeout = host.ActivityTimeout;
     }
-    bool setTemplate; // TBR: probably not required just set overlay's template anyway?
+    bool setTemplate; // Issue #481 - FlyleafME override SetOverlay will not have a template to initialize properly *bool required if SetOverlay can be called multiple times and with different configs
     private static void OnOverlayTemplateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (isDesginMode)
@@ -823,12 +823,14 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (host.Disposed)
             return;
 
-        host.setTemplate = true;
-        host.Overlay ??= new Window() { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true };
-        host.setTemplate = false;
-
-        // Issue #481 - FlyleafME overrides SetOverlay - which will be called above - and then initializes without template (no popup/settings)
-        //host.Overlay.Template = host.OverlayTemplate;
+        if (host.Overlay == null)
+        {
+            host.setTemplate= true;
+            host.Overlay    = new Window() { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true };
+            host.setTemplate= false;
+        }
+        else
+            host.Overlay.Template = host.OverlayTemplate;
     }
     private static void OnOverlayChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
