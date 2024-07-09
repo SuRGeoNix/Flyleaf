@@ -440,9 +440,11 @@ namespace FlyleafLib.Controls.WPF
             foreach(var filter in Config.Video.Filters.Values)
                 saveFilterValues.Add(filter.Filter, filter.Value);
 
+            var wasOnTop = DetachedTopMost;
+            DetachedTopMost = false;
             var prevConfig = Config.Video.Clone();
             var result = await DialogHost.Show(settings, dialogSettingsIdentifier);
-
+            DetachedTopMost = wasOnTop;
             Player.Activity.IsEnabled = true;
             KeyBindings = prevKeys;
 

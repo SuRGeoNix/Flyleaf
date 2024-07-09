@@ -410,13 +410,18 @@ namespace FlyleafPlayer
 
                 case MediaViewer.Slide:
                     FlyleafME.ToggleFullScreenOnDoubleClick = AvailableWindows.Surface;
-                    FlyleafME.KeyBindings = AvailableWindows.Surface;
+                    FlyleafME.KeyBindings = AvailableWindows.Both;
                     FlyleafME.KeepRatioOnResize = false;
 
                     SlideKeysAdd();
                     break;
             }
         }
+
+        private void DialogHost_DialogOpened(object sender, MaterialDesignThemes.Wpf.DialogOpenedEventArgs eventArgs)
+            { if (MediaViewer == MediaViewer.Slide) FlyleafME.KeyBindings = AvailableWindows.Surface; }
+        private void DialogHost_DialogClosed(object sender, MaterialDesignThemes.Wpf.DialogClosedEventArgs eventArgs)
+            { if (MediaViewer == MediaViewer.Slide) FlyleafME.KeyBindings = AvailableWindows.Both; }
 
         void SlideShowCheck()
         {
