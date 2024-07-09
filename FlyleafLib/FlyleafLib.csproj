@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.50</Version>
+	<Version>3.7.51</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- DataDecoder: Fix null ref on demuxer when disposing player
-		- Renderer: Exposes child renderer to allow config changes separately
-		- Player.Keys: Better handling of Key Bindings
-		- Player.Subtitles: Keeps the last subtitles text on pause/play
-		- FlyleafHost.Wpf: Add custom drop events for overlay and surface in wpf flyleafhost
+		- FlyleafHost.Wpf: Fixes an issue with overlay's template (ensure it will be set before showing the window)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
