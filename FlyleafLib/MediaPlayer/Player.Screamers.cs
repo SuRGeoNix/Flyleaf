@@ -367,8 +367,20 @@ unsafe partial class Player
             if (vFrame == null)
             {
                 if (VideoDecoder.Status == MediaFramework.Status.Ended)
-                    break;
+                {
+                    if (!MainDemuxer.IsHLSLive)
+                    {
+                        if (Math.Abs(MainDemuxer.Duration - curTime) < 2 * VideoDemuxer.VideoStream.FrameDuration)
+                            curTime = MainDemuxer.Duration;
+                        else
+                            curTime += VideoDemuxer.VideoStream.FrameDuration;
 
+                        UI(() => Set(ref _CurTime, curTime, true, nameof(CurTime)));
+                    }
+
+                    break;
+                }
+                
                 Log.Warn("No video frames");
                 requiresBuffering = true;
                 continue;
