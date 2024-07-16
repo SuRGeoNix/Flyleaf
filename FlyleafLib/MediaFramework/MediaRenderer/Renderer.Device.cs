@@ -62,15 +62,32 @@ public unsafe partial class Renderer
         FeatureLevel.Level_9_1
     };
 
+    static BlendDescription blendDesc = new();
+
+    static Renderer()
+    {
+        blendDesc.RenderTarget[0].BlendEnable           = true;
+        blendDesc.RenderTarget[0].SourceBlend           = Blend.SourceAlpha;
+        blendDesc.RenderTarget[0].DestinationBlend      = Blend.InverseSourceAlpha;
+        blendDesc.RenderTarget[0].BlendOperation        = BlendOperation.Add;
+        blendDesc.RenderTarget[0].SourceBlendAlpha      = Blend.Zero;
+        blendDesc.RenderTarget[0].DestinationBlendAlpha = Blend.Zero;
+        blendDesc.RenderTarget[0].BlendOperationAlpha   = BlendOperation.Add;
+        blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
+    }
+    
+
     ID3D11DeviceContext context;
 
     ID3D11Buffer        vertexBuffer;
     ID3D11InputLayout   inputLayout;
-    ID3D11RasterizerState rasterizerState;
+    ID3D11RasterizerState
+                        rasterizerState;
     ID3D11BlendState    blendStateAlpha;
 
     ID3D11VertexShader  ShaderVS;
     ID3D11PixelShader   ShaderPS;
+    ID3D11PixelShader   ShaderBGRA;
 
     ID3D11Buffer        psBuffer;
     PSBufferType        psBufferData;
@@ -180,7 +197,7 @@ public unsafe partial class Renderer
                 adapter.Dispose();
 
                 using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
-                using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = 1;
+                using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = Config.Video.MaxFrameLatency;
 
                 // Input Layout
                 inputLayout = Device.CreateInputLayout(inputElements, ShaderCompiler.VSBlob);
@@ -218,17 +235,11 @@ public unsafe partial class Renderer
                 context.PSSetConstantBuffer(0, psBuffer);
                 psBufferData.hdrmethod = HDRtoSDRMethod.None;
                 context.UpdateSubresource(psBufferData, psBuffer);
+
+                // subs
+                ShaderBGRA = ShaderCompiler.CompilePS(Device, "bgra", @"color = float4(Texture1.Sample(Sampler, input.Texture).rgba);", null);
                 
-                // Blend State (currently used -mainly- for RGBA images)
-                var blendDesc = new BlendDescription();
-                blendDesc.RenderTarget[0].BlendEnable           = true;
-                blendDesc.RenderTarget[0].SourceBlend           = Blend.SourceAlpha;
-                blendDesc.RenderTarget[0].DestinationBlend      = Blend.Zero;
-                blendDesc.RenderTarget[0].BlendOperation        = BlendOperation.Add;
-                blendDesc.RenderTarget[0].SourceBlendAlpha      = Blend.One;
-                blendDesc.RenderTarget[0].DestinationBlendAlpha = Blend.Zero;
-                blendDesc.RenderTarget[0].BlendOperationAlpha   = BlendOperation.Add;
-                blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
+                // Blend State (currently used -mainly- for RGBA images and OverlayTexture)
                 blendStateAlpha = Device.CreateBlendState(blendDesc);
 
                 // Rasterizer (Will change CullMode to None for H-V Flip)
@@ -326,6 +337,10 @@ public unsafe partial class Renderer
             rasterizerState?.Dispose();
             blendStateAlpha?.Dispose();
             DisposeSwapChain();
+
+            overlayTexture?.Dispose();
+            overlayTextureSrv?.Dispose();
+            ShaderBGRA?.Dispose();
 
             singleGpu?.Dispose();
             singleStage?.Dispose();

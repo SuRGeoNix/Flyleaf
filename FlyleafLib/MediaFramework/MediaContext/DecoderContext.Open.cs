@@ -861,7 +861,18 @@ public partial class DecoderContext
 
             // 4. Prevent Local/Online Search for 'small' duration videos
             if (VideoDemuxer.Duration < TimeSpan.FromMinutes(25).Ticks)
+            {
+                // 6. (Any) Check embedded/external streams for config languages (including 'undefined')
+                SuggestSubtitles(out var stream, out var extStream);
+
+                if (stream != null)
+                    Open(stream);
+                else if (extStream != null)
+                    Open(extStream);
+
                 return;
+            }
+                
 
         } catch (Exception e)
         {

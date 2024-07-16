@@ -275,7 +275,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             decoder.RequiresResync  = true;
             requiresBuffering       = true;
             Subtitles.subsText      = "";
-
+            renderer.ClearOverlayTexture();
             UI(() =>
             {
                 Subtitles.SubsText = Subtitles.SubsText;
@@ -340,6 +340,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
                 Pause();
                 dFrame = null;
                 sFrame = null;
+                renderer.ClearOverlayTexture();
                 Subtitles.subsText = "";
                 if (Subtitles._SubsText != "")
                     UI(() => Subtitles.SubsText = Subtitles.SubsText);

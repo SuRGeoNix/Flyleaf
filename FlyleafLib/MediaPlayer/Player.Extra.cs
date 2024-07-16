@@ -101,6 +101,7 @@ unsafe partial class Player
             Pause();
             dFrame = null;
             sFrame = null;
+            renderer.ClearOverlayTexture();
             Subtitles.subsText = "";
             if (Subtitles._SubsText != "")
                 UI(() => Subtitles.SubsText = Subtitles.SubsText);
@@ -158,6 +159,8 @@ unsafe partial class Player
                 Subtitles.subsText = "";
                 Subtitles.SubsText = Subtitles.SubsText;
             }
+            else
+                renderer.ClearOverlayTexture();
 
             if (VideoDecoder.Frames.IsEmpty)
                 vFrame = VideoDecoder.GetFrameNext();
@@ -208,6 +211,8 @@ unsafe partial class Player
                 Subtitles.subsText = "";
                 Subtitles.SubsText = Subtitles.SubsText;
             }
+            else
+                renderer.ClearOverlayTexture();
 
             if (VideoDecoder.Frames.IsEmpty)
             {

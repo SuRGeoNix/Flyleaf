@@ -97,6 +97,7 @@ unsafe partial class Player
         if (sFramePrev == null || sFramePrev.timestamp > vFrame.timestamp || (sFramePrev.timestamp + (sFramePrev.duration * (long)10000)) < vFrame.timestamp)
         {
             sFramePrev = null;
+            renderer.ClearOverlayTexture();
             Subtitles.subsText = "";
             if (Subtitles._SubsText != "")
                 UIAdd(() => Subtitles.SubsText = Subtitles.SubsText);
@@ -310,6 +311,7 @@ unsafe partial class Player
                 if (sFramePrev != null)
                 {
                     sFramePrev = null;
+                    renderer.ClearOverlayTexture();
                     Subtitles.subsText = "";
                     if (Subtitles._SubsText != "")
                         UI(() => Subtitles.SubsText = Subtitles.SubsText);
@@ -575,18 +577,37 @@ unsafe partial class Player
 
             if (sFramePrev != null && ((sFramePrev.timestamp - startTicks + (sFramePrev.duration * (long)10000)) / speed) - (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS) < 0)
             {
+                if (string.IsNullOrEmpty(sFramePrev.text))
+                    renderer.ClearOverlayTexture();
+                else
+                {
+                    Subtitles.subsText = "";
+                    UI(() => Subtitles.SubsText = Subtitles.SubsText);
+                }
+
                 sFramePrev = null;
-                Subtitles.subsText = "";
-                UI(() => Subtitles.SubsText = Subtitles.SubsText);
             }
 
             if (sFrame != null)
             {
                 if (Math.Abs(sDistanceMs - sleepMs) < 30 || (sDistanceMs < -30 && sFrame.duration + sDistanceMs > 0))
                 {
-                    Subtitles.subsText = sFrame.text;
-                    UI(() => Subtitles.SubsText = Subtitles.SubsText);
-                    
+                    if (string.IsNullOrEmpty(sFrame.text))
+                    {
+                        if (sFrame.sub.num_rects > 0)
+                        {
+                            renderer.CreateOverlayTexture(sFrame, SubtitlesDecoder.SubtitlesStream.Width, SubtitlesDecoder.SubtitlesStream.Height);
+                            SubtitlesDecoder.DisposeFrame(sFrame); // only rects
+                        }
+                        else
+                            renderer.ClearOverlayTexture();
+                    }
+                    else
+                    {
+                        Subtitles.subsText = sFrame.text;
+                        UI(() => Subtitles.SubsText = Subtitles.SubsText);
+                    }
+
                     sFramePrev = sFrame;
                     sFrame = null;
                     SubtitlesDecoder.Frames.TryDequeue(out var devnull);
@@ -595,6 +616,8 @@ unsafe partial class Player
                 {
                     if (CanDebug) Log.Debug($"sDistanceMs = {sDistanceMs}");
 
+                    SubtitlesDecoder.DisposeFrame(sFrame);
+                    renderer.ClearOverlayTexture();
                     sFrame = null;
                     SubtitlesDecoder.Frames.TryDequeue(out var devnull);
                 }
@@ -630,12 +653,7 @@ unsafe partial class Player
         if (CanDebug)
             Log.Debug($"[Latency {curLatency/10000}ms] Frames: {VideoDecoder.Frames.Count} Packets: {VideoDemuxer.VideoPackets.Count} Speed: {speed}");
 
-        if (curLatency < 1 || VideoDemuxer.VideoPackets.Count < 1) // No buffer
-        {
-            ChangeSpeedWithoutBuffering(1);
-            return;
-        }
-        else if (curLatency <= Config.Player.MinLatency) // We've reached the down limit (back to speed x1)
+        if (curLatency <= Config.Player.MinLatency) // We've reached the down limit (back to speed x1)
         {
             ChangeSpeedWithoutBuffering(1);
             return;
@@ -686,10 +704,7 @@ unsafe partial class Player
     }
     private long GetBufferedDuration()
     {
-        if (VideoDecoder.Frames.IsEmpty)
-            return 0;
-
-        var decoder = VideoDecoder.Frames.ToArray()[^1].timestamp - vFrame.timestamp;
+        var decoder = VideoDecoder.Frames.IsEmpty ? 0 : VideoDecoder.Frames.ToArray()[^1].timestamp - vFrame.timestamp;
         var demuxer = VideoDemuxer.VideoPackets.LastTimestamp == ffmpeg.AV_NOPTS_VALUE
             ? 0 : 
             (VideoDemuxer.VideoPackets.LastTimestamp - VideoDemuxer.StartTime) - vFrame.timestamp;

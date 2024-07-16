@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Vortice.DXGI;
+using Vortice.Direct3D11;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -126,11 +127,108 @@ public unsafe partial class Renderer
             context.RSSetViewport(GetViewport);
             context.PSSetShaderResources(0, frame.srvs);
             context.Draw(6, 0);
+
+            if (overlayTexture != null)
+            {
+                var ratiox = (double)GetViewport.Width / overlayTextureOriginalWidth;
+                var ratioy = (double)GetViewport.Height / overlayTextureOriginalHeight;
+
+                context.OMSetBlendState(blendStateAlpha);
+                context.PSSetShaderResources(0, overlayTextureSRVs);
+                context.RSSetViewport((float) (GetViewport.X + (overlayTextureOriginalPosX * ratiox)), (float) (GetViewport.Y + (overlayTextureOriginalPosY * ratioy)), (float) (overlayTexture.Description.Width * ratiox), (float) (overlayTexture.Description.Height * ratioy));
+                context.PSSetShader(ShaderBGRA);
+                context.Draw(6, 0);
+
+                // restore context
+                context.PSSetShader(ShaderPS);
+                context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
+            }
+
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
         }
 
-        if (child != null)
-            child.PresentInternal(frame);
+        child?.PresentInternal(frame);
+    }
+
+    public void ClearOverlayTexture()
+    {
+        if (overlayTexture == null)
+            return;
+
+        overlayTexture?.Dispose();
+        overlayTextureSrv?.Dispose();
+        overlayTexture      = null;
+        overlayTextureSrv   = null;
+    }
+
+    internal void CreateOverlayTexture(SubtitlesFrame frame, int streamWidth, int streamHeight)
+    {
+        var rect    = frame.sub.rects[0];
+        var stride  = rect->linesize[0] * 4;
+        var ratiox = (double)GetViewport.Width  / streamWidth;
+        var ratioy = (double)GetViewport.Height / streamHeight;
+
+        overlayTextureOriginalWidth = streamWidth;
+        overlayTextureOriginalHeight= streamHeight;
+        overlayTextureOriginalPosX  = rect->x;
+        overlayTextureOriginalPosY  = rect->y;
+        overlayTextureDesc.Width    = rect->w;
+        overlayTextureDesc.Height   = rect->h;
+
+        byte[] data = new byte[rect->w * rect->h * 4];
+
+        fixed(byte* ptr = data)
+        {
+            uint[] colors   = new uint[256];
+            var colorsData  = new Span<uint>(rect->data[1], rect->nb_colors);
+
+            for (int i = 0; i < colorsData.Length; i++)
+                colors[i] = colorsData[i];
+
+            ConvertPal(colors, 256, false);
+
+            for (int y = 0; y < rect->h; y++)
+            {
+                uint* xout =(uint*) (ptr + y * stride);
+                byte* xin = rect->data[0] + y * rect->linesize[0];
+
+                for (int x = 0; x < rect->w; x++)
+                    *xout++ = colors[*xin++];
+            }
+
+            SubresourceData subData = new()
+            {
+                DataPointer = (nint)ptr,
+                RowPitch    = stride
+            };
+
+            overlayTexture?.Dispose();
+            overlayTextureSrv?.Dispose();
+            overlayTexture          = Device.CreateTexture2D(overlayTextureDesc, new SubresourceData[] { subData });
+            overlayTextureSrv       = Device.CreateShaderResourceView(overlayTexture);
+            overlayTextureSRVs[0]   = overlayTextureSrv;
+        }
+    }
+
+    static void ConvertPal(uint[] colors, int count, bool gray) // subs bitmap (source: mpv)
+    {
+        for (int n = 0; n < count; n++)
+        {
+            uint c = colors[n];
+            uint b = c & 0xFF;
+            uint g = (c >> 8) & 0xFF;
+            uint r = (c >> 16) & 0xFF;
+            uint a = (c >> 24) & 0xFF;
+
+            if (gray)
+                r = g = b = (r + g + b) / 3;
+
+            // from straight to pre-multiplied alpha
+            b = b * a / 255;
+            g = g * a / 255;
+            r = r * a / 255;
+            colors[n] = b | (g << 8) | (r << 16) | (a << 24);
+        }
     }
 
     public void RefreshLayout()
@@ -162,6 +260,7 @@ public unsafe partial class Renderer
     }
     public void ClearScreen()
     {
+        ClearOverlayTexture();
         VideoDecoder.DisposeFrame(LastFrame);
         Present();
     }

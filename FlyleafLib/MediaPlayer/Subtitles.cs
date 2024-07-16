@@ -51,6 +51,7 @@ public class Subtitles : NotifyPropertyChanged
         isOpened    = false;
         subsText    = "";
         player.sFramePrev = null;
+        player.renderer?.ClearOverlayTexture();
 
         player.UIAdd(uiAction);
     }
@@ -62,6 +63,7 @@ public class Subtitles : NotifyPropertyChanged
         isOpened    =!decoder.SubtitlesDecoder.Disposed;
         subsText    = "";
         player.sFramePrev = null;
+        player.renderer?.ClearOverlayTexture();
 
         player.UIAdd(uiAction);
     }

@@ -193,6 +193,18 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         Config      = videoDecoder.Config;
         Log         = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
 
+        overlayTextureDesc = new()
+        {
+            Usage       = ResourceUsage.Default,
+            Width       = 0,
+            Height      = 0,
+            Format      = Format.B8G8R8A8_UNorm,
+            ArraySize   = 1,
+            MipLevels   = 1,
+            BindFlags   = BindFlags.ShaderResource,
+            SampleDescription = new SampleDescription(1, 0)
+        };
+
         singleStageDesc = new Texture2DDescription()
         {
             Usage       = ResourceUsage.Staging,

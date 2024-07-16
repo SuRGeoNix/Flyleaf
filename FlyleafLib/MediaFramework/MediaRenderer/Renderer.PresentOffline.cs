@@ -18,6 +18,17 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public partial class Renderer
 {
+    // subs
+    Texture2DDescription                    overlayTextureDesc;
+    ID3D11Texture2D                         overlayTexture;
+    ID3D11ShaderResourceView                overlayTextureSrv;
+    int                                     overlayTextureOriginalWidth;
+    int                                     overlayTextureOriginalHeight;
+    int                                     overlayTextureOriginalPosX;
+    int                                     overlayTextureOriginalPosY;
+    
+    ID3D11ShaderResourceView[]              overlayTextureSRVs = new ID3D11ShaderResourceView[1];
+
     // Used for off screen rendering
     Texture2DDescription                    singleStageDesc, singleGpuDesc;
     ID3D11Texture2D                         singleStage;
