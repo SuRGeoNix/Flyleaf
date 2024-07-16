@@ -498,6 +498,20 @@ public unsafe class Demuxer : RunThreadBase
             // Find Streams Info
             if (Config.AllowFindStreamInfo)
             {
+                // TBR: Tested and even if it requires more analyze duration it does not actually use it
+                bool requiresMoreAnalyse = false;
+                for (int i = 0; i < fmtCtx->nb_streams; i++)
+                    if (fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.AV_CODEC_ID_HDMV_PGS_SUBTITLE || 
+                        fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.AV_CODEC_ID_DVD_SUBTITLE
+                        )
+                        { requiresMoreAnalyse = true; break; }
+
+                if (requiresMoreAnalyse)
+                {
+                    fmtCtx->probesize = Math.Max(fmtCtx->probesize, 5000 * (long)1024 * 1024); // Bytes
+                    fmtCtx->max_analyze_duration = Math.Max(fmtCtx->max_analyze_duration, 1000 * (long)1000 * 1000); // Mcs
+                }
+                
                 ret = avformat_find_stream_info(fmtCtx, null);
                 if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) return error = "Cancelled";
                 if (ret < 0) return error = $"[avformat_find_stream_info] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})";

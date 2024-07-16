@@ -623,6 +623,11 @@ public class Config : NotifyPropertyChanged
         public double           MaxOutputFps                { get; set; } = 60;
 
         /// <summary>
+        /// DXGI Maximum Frame Latency (1 - 16)
+        /// </summary>
+        public int              MaxFrameLatency             { get; set; } = 1;
+
+        /// <summary>
         /// The max resolution that the current system can achieve and will be used from the input/stream suggester plugins
         /// </summary>
         [XmlIgnore]

@@ -255,6 +255,7 @@ partial class Player
                     if (sFramePrev != null)
                     {
                         sFramePrev = null;
+                        renderer.ClearOverlayTexture();
                         Subtitles.subsText = "";
                         if (Subtitles._SubsText != "")
                             UI(() => Subtitles.SubsText = Subtitles.SubsText);
@@ -339,7 +340,7 @@ partial class Player
         lock (lockActions)
         {
             Initialize();
-            renderer.Flush();
+            renderer?.Flush();
         }
     }
 }

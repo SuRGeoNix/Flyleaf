@@ -77,10 +77,10 @@
                     </Grid.RowDefinitions>
 
                     <!--Title Bar-->
-                    <Grid Grid.Row="0" x:Name="HeaderGrid" Margin="-2 0 -2 0">
-                        <Grid.Background>
+                    <Grid Grid.Row="0" x:Name="HeaderGrid" Margin="-2 0 -2 0" Background="#AA000000">
+                        <!--<Grid.Background>
                             <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
-                        </Grid.Background>
+                        </Grid.Background>-->
                         <Grid.RowDefinitions>
                             <RowDefinition Height="50"/>
                         </Grid.RowDefinitions>

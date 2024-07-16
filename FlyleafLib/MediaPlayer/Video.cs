@@ -161,6 +161,7 @@ public class Video : NotifyPropertyChanged
 
         player.Pause();
         decoder.CloseVideo();
+        player.renderer.ClearOverlayTexture();
         player.Subtitles.subsText = "";
         player.UIAdd(() => player.Subtitles.SubsText = player.Subtitles.SubsText);
 

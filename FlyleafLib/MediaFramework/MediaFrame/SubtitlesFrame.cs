@@ -1,17 +1,16 @@
-﻿using System.Collections.Generic;
+﻿using FFmpeg.AutoGen;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 
 namespace FlyleafLib.MediaFramework.MediaFrame;
 
-public class SubtitlesFrame : FrameBase
+public unsafe class SubtitlesFrame : FrameBase
 {
-    public int duration;
+    public uint duration;
     public string text;
     public List<SubStyle> subStyles;
-
-    public SubtitlesFrame(string text)
-        => this.text = text;
+    public AVSubtitle sub;
 }
 
 public struct SubStyle

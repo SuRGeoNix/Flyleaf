@@ -744,7 +744,8 @@ unsafe partial class Player
                 ShowOneFrame();
             }
             else
-            {   
+            {
+                renderer?.ClearOverlayTexture();
                 Subtitles.subsText = "";
                 if (Subtitles._SubsText != "")
                     UI(() => Subtitles.SubsText = Subtitles.SubsText);
@@ -763,6 +764,7 @@ unsafe partial class Player
             {
                 isSubsSwitch = true;
                 decoder.SeekSubtitles();
+                renderer.ClearOverlayTexture();
                 sFrame = sFramePrev = null;
                 Subtitles.subsText = "";
                 if (Subtitles._SubsText != "")

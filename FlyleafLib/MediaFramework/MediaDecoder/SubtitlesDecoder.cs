@@ -24,7 +24,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
     protected override unsafe int Setup(AVCodec* codec) => 0;
 
     protected override void DisposeInternal()
-        => Frames = new ConcurrentQueue<SubtitlesFrame>();
+        => DisposeFrames();
 
     public void Flush()
     {
@@ -121,9 +121,13 @@ public unsafe class SubtitlesDecoder : DecoderBase
             {
                 if (Status == Status.Stopped || demuxer.SubtitlesPackets.Count == 0) continue;
                 packet = demuxer.SubtitlesPackets.Dequeue();
+
                 int gotFrame = 0;
-                AVSubtitle sub = new();
-                ret = avcodec_decode_subtitle2(codecCtx, &sub, &gotFrame, packet);
+                SubtitlesFrame subFrame = new();
+
+                fixed(AVSubtitle* subPtr = &subFrame.sub)
+                    ret = avcodec_decode_subtitle2(codecCtx, subPtr, &gotFrame, packet);
+
                 if (ret < 0)
                 {
                     allowedErrors--;
@@ -133,9 +137,12 @@ public unsafe class SubtitlesDecoder : DecoderBase
 
                     continue;
                 }
-                        
-                if (gotFrame < 1 || sub.num_rects < 1 ) continue;
-                if (packet->pts == AV_NOPTS_VALUE) { avsubtitle_free(&sub); av_packet_free(&packet); continue; }
+
+                if (gotFrame < 1 || packet->pts == AV_NOPTS_VALUE)
+                {
+                    av_packet_free(&packet);
+                    continue;
+                }
 
                 // TODO: CodecChanged? And when findstreaminfo is disabled as it is an external demuxer will not know the main demuxer's start time
                 if (!filledFromCodec)
@@ -147,54 +154,63 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     CodecChanged?.Invoke(this);
                 }
 
-                var mFrame = ProcessSubtitlesFrame(packet, &sub);
-                if (mFrame != null) Frames.Enqueue(mFrame);
+                if (subFrame.sub.num_rects < 1)
+                {
+                    if (SubtitlesStream.IsBitmap) // clear prev subs frame
+                    {
+                        subFrame.duration    = subFrame.sub.end_display_time;
+                        subFrame.timestamp   = (long)(packet->pts * SubtitlesStream.Timebase) + (subFrame.sub.start_display_time * 10000) - demuxer.StartTime + Config.Subtitles.Delay;
+                        Frames.Enqueue(subFrame);
+                    }
 
-                avsubtitle_free(&sub);
+                    fixed(AVSubtitle* subPtr = &subFrame.sub)
+                        avsubtitle_free(subPtr);
+
+                    av_packet_free(&packet);
+                    continue;
+                }
+
+                subFrame.duration    = subFrame.sub.end_display_time;
+                subFrame.timestamp   = (long)(packet->pts * SubtitlesStream.Timebase) + (subFrame.sub.start_display_time * 10000) - demuxer.StartTime + Config.Subtitles.Delay;
+
+                if (subFrame.sub.rects[0]->type == AVSubtitleType.SUBTITLE_ASS || 
+                    subFrame.sub.rects[0]->type == AVSubtitleType.SUBTITLE_TEXT)
+                {
+                    subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->ass);
+                    Config.Subtitles.Parser(subFrame);
+
+                    fixed(AVSubtitle* subPtr = &subFrame.sub)
+                        avsubtitle_free(subPtr);
+                }
+            
+                if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(subFrame.timestamp)}");
+
+                Frames.Enqueue(subFrame);
+
                 av_packet_free(&packet);
             }
         } while (Status == Status.Running);
     }
 
-    private SubtitlesFrame ProcessSubtitlesFrame(AVPacket* packet, AVSubtitle* sub)
+    public static void DisposeFrame(SubtitlesFrame frame)
     {
-
-        try
-        {
-            string  line    = "";
-            byte[]  buffer;
-            var     rects   = sub->rects;
-            var     cur     = rects[0];
-            
-            switch (cur->type)
-            {
-                case AVSubtitleType.SUBTITLE_ASS:
-                case AVSubtitleType.SUBTITLE_TEXT:
-                    buffer = new byte[1024];
-                    line = Utils.BytePtrToStringUTF8(cur->ass);
-                    break;
-
-                //case AVSubtitleType.SUBTITLE_BITMAP:
-                    //Log("Subtitles BITMAP -> Not Implemented yet");
-
-                default:
-                    return null;
-            }
-
-            SubtitlesFrame mFrame = new(line)
-            {
-                duration    = (int)(sub->end_display_time - sub->start_display_time),
-                timestamp   = (long)(packet->pts * SubtitlesStream.Timebase) - demuxer.StartTime + Config.Subtitles.Delay
-            };
-
-            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
-
-            Config.Subtitles.Parser(mFrame);
-
-            return mFrame;
-        } catch (Exception e) { Log.Error($"Failed to process frame ({e.Message})"); return null; }
+        if (frame.sub.num_rects > 0)
+            fixed(AVSubtitle* ptr = &frame.sub)
+                avsubtitle_free(ptr);
     }
 
     public void DisposeFrames()
-        => Frames = new ConcurrentQueue<SubtitlesFrame>();
+    {
+        if (!SubtitlesStream.IsBitmap)
+            Frames = new ConcurrentQueue<SubtitlesFrame>();
+        else
+        {
+            while (!Frames.IsEmpty)
+            {
+                Frames.TryDequeue(out var frame);
+                DisposeFrame(frame);
+            }
+        }
+            
+    }
 }
