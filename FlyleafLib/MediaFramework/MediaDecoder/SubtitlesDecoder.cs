@@ -138,14 +138,21 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     continue;
                 }
 
-                if (gotFrame < 1 || packet->pts == AV_NOPTS_VALUE)
+                if (gotFrame == 0)
                 {
                     av_packet_free(&packet);
                     continue;
                 }
 
-                // TODO: CodecChanged? And when findstreaminfo is disabled as it is an external demuxer will not know the main demuxer's start time
-                if (!filledFromCodec)
+                long pts = subFrame.sub.pts != AV_NOPTS_VALUE ? subFrame.sub.pts /*mcs*/ * 10 : (packet->pts != AV_NOPTS_VALUE ? (long)(packet->pts * SubtitlesStream.Timebase) : AV_NOPTS_VALUE);
+                av_packet_free(&packet);
+
+                if (pts == AV_NOPTS_VALUE)
+                    continue;
+
+                pts += subFrame.sub.start_display_time /*ms*/ * 10000L;
+
+                if (!filledFromCodec) // TODO: CodecChanged? And when findstreaminfo is disabled as it is an external demuxer will not know the main demuxer's start time
                 {
                     filledFromCodec = true;
                     avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
@@ -158,36 +165,45 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 {
                     if (SubtitlesStream.IsBitmap) // clear prev subs frame
                     {
-                        subFrame.duration    = subFrame.sub.end_display_time;
-                        subFrame.timestamp   = (long)(packet->pts * SubtitlesStream.Timebase) + (subFrame.sub.start_display_time * 10000) - demuxer.StartTime + Config.Subtitles.Delay;
+                        subFrame.duration   = uint.MaxValue;
+                        subFrame.timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
                         Frames.Enqueue(subFrame);
                     }
 
                     fixed(AVSubtitle* subPtr = &subFrame.sub)
                         avsubtitle_free(subPtr);
 
-                    av_packet_free(&packet);
                     continue;
                 }
 
-                subFrame.duration    = subFrame.sub.end_display_time;
-                subFrame.timestamp   = (long)(packet->pts * SubtitlesStream.Timebase) + (subFrame.sub.start_display_time * 10000) - demuxer.StartTime + Config.Subtitles.Delay;
+                subFrame.duration   = subFrame.sub.end_display_time;
+                subFrame.timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
 
-                if (subFrame.sub.rects[0]->type == AVSubtitleType.SUBTITLE_ASS || 
-                    subFrame.sub.rects[0]->type == AVSubtitleType.SUBTITLE_TEXT)
+                if (subFrame.sub.rects[0]->type == AVSubtitleType.SUBTITLE_ASS)
                 {
                     subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->ass);
                     Config.Subtitles.Parser(subFrame);
 
                     fixed(AVSubtitle* subPtr = &subFrame.sub)
                         avsubtitle_free(subPtr);
+
+                    if (string.IsNullOrEmpty(subFrame.text))
+                        continue;
+                }
+                else if (subFrame.sub.rects[0]->type == AVSubtitleType.SUBTITLE_TEXT)
+                {
+                    subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->text);
+
+                    fixed(AVSubtitle* subPtr = &subFrame.sub)
+                        avsubtitle_free(subPtr);
+
+                    if (string.IsNullOrEmpty(subFrame.text))
+                        continue;
                 }
             
                 if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(subFrame.timestamp)}");
 
                 Frames.Enqueue(subFrame);
-
-                av_packet_free(&packet);
             }
         } while (Status == Status.Running);
     }
@@ -211,6 +227,5 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 DisposeFrame(frame);
             }
         }
-            
     }
 }
