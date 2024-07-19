@@ -59,15 +59,15 @@ public unsafe class VideoStream : StreamBase
             if (Demuxer.Config.ForceFPS > 0)
                 FPS = Demuxer.Config.ForceFPS;
             else
-                FPS = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
+                FPS = av_q2d(av_guess_frame_rate(Demuxer.FormatContext, AVStream, frame));
 
             if (FPS == 0)
                 FPS = 25;
         }
         else
-        {
+        { 
             FixTimestamps = false;
-            FPS  = av_q2d(AVStream->avg_frame_rate) > 0 ? av_q2d(AVStream->avg_frame_rate) : av_q2d(AVStream->r_frame_rate);
+            FPS  = av_q2d(av_guess_frame_rate(Demuxer.FormatContext, AVStream, frame));
         }
 
         FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;

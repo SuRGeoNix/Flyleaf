@@ -103,16 +103,12 @@ public unsafe partial class AudioDecoder
             // OUT (abuffersink)
             abufferSinkCtx = CreateFilter("abuffersink", null, null);
 
-            AVSampleFormat[] sample_fmts = new AVSampleFormat[] { AOutSampleFormat, AVSampleFormat.AV_SAMPLE_FMT_NONE };
-            int[] sample_rates = new int[] { AudioStream.SampleRate, -1 };
-
-            fixed (AVSampleFormat* ptr = &sample_fmts[0])
-                ret = av_opt_set_bin(abufferSinkCtx , "sample_fmts"         , (byte*)ptr, sizeof(AVSampleFormat) * 2    , AV_OPT_SEARCH_CHILDREN);
-            fixed(int* ptr = &sample_rates[0])
-                ret = av_opt_set_bin(abufferSinkCtx , "sample_rates"        , (byte*)ptr, sizeof(int)                   , AV_OPT_SEARCH_CHILDREN);
-            // if ch_layouts is not set, all valid channel layouts are accepted except for UNSPEC layouts, unless all_channel_counts is set
-            ret = av_opt_set_int(abufferSinkCtx     , "all_channel_counts"  , 0                                         , AV_OPT_SEARCH_CHILDREN);
-            ret = av_opt_set(abufferSinkCtx         , "ch_layouts"          , "stereo"                                  , AV_OPT_SEARCH_CHILDREN);
+            int tmpSampleRate = AudioStream.SampleRate;
+            fixed (AVSampleFormat* ptr = &AOutSampleFormat)
+                ret = av_opt_set_bin(abufferSinkCtx , "sample_fmts"         , (byte*)ptr,            sizeof(AVSampleFormat) , AV_OPT_SEARCH_CHILDREN);
+            ret = av_opt_set_bin(abufferSinkCtx     , "sample_rates"        , (byte*)&tmpSampleRate, sizeof(int)            , AV_OPT_SEARCH_CHILDREN);
+            ret = av_opt_set_int(abufferSinkCtx     , "all_channel_counts"  , 0                                             , AV_OPT_SEARCH_CHILDREN);
+            ret = av_opt_set(abufferSinkCtx         , "ch_layouts"          , "stereo"                                      , AV_OPT_SEARCH_CHILDREN);
             avfilter_link(linkCtx, 0, abufferSinkCtx, 0);
             
             // GRAPH CONFIG
