@@ -180,11 +180,12 @@ unsafe public partial class Renderer
 
                     if (IsHDR)
                     {
-                        if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.AVCOL_TRC_ARIB_STD_B67)
-                        {
-                            defines.Add(PSDefines.HLG.ToString());
-                            curPSUniqueId += "g";
-                        }
+                        // TBR: It currently works better without it
+                        //if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.AVCOL_TRC_ARIB_STD_B67)
+                        //{
+                        //    defines.Add(PSDefines.HLG.ToString());
+                        //    curPSUniqueId += "g";
+                        //}
 
                         curPSUniqueId += "h";
                         defines.Add(PSDefines.HDR.ToString());
