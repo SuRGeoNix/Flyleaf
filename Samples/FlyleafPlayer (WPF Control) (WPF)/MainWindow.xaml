@@ -77,10 +77,10 @@
                     </Grid.RowDefinitions>
 
                     <!--Title Bar-->
-                    <Grid Grid.Row="0" x:Name="HeaderGrid" Margin="-2 0 -2 0" Background="#AA000000">
-                        <!--<Grid.Background>
+                    <Grid Grid.Row="0" x:Name="HeaderGrid" Margin="-2 0 -2 0">
+                        <Grid.Background>
                             <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
-                        </Grid.Background>-->
+                        </Grid.Background>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="50"/>
                         </Grid.RowDefinitions>
@@ -117,7 +117,7 @@
 
                         <StackPanel Orientation="Horizontal">
                             <Image Source="Flyleaf.ico" Stretch="UniformToFill" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="{Binding Tag.FlyleafLibVer}"/>
-                            <TextBlock Margin="10 0 0 0" Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}"/>
+                            <TextBlock Background="#AA000000" Margin="10 0 0 0" Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}"/>
                         </StackPanel>
                         <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontWeight="Bold" FontStyle="Italic" FontFamily="Mistral" FontSize="34" Foreground="{DynamicResource MaterialDesign.Brush.Primary}"/>
 
