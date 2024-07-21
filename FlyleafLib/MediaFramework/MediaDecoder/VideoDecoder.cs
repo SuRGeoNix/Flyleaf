@@ -621,7 +621,7 @@ public unsafe class VideoDecoder : DecoderBase
                     var mFrame = Renderer.FillPlanes(frame);
                     if (mFrame != null) Frames.Enqueue(mFrame); // TBR: Does not respect Config.Decoder.MaxVideoFrames
 
-                    if (Frames.Count > 2) // Fast decoding affects rendering (mainly when we use large Frame Queues)
+                    if (!Config.Video.PresentFlags.HasFlag(PresentFlags.DoNotWait) && Frames.Count > 2)
                         Thread.Sleep(10);
                 }
 
@@ -865,9 +865,8 @@ public unsafe class VideoDecoder : DecoderBase
 
                 } // Lock CodecCtx
 
-                // Import Sleep required to prevent delay during Renderer.Present
-                // TBR: Might Monitor.TryEnter with priorities between decoding and rendering will work better
-                if (Frames.Count > 2)
+                // Import Sleep required to prevent delay during Renderer.Present for waitable swap chains
+                if (!Config.Video.PresentFlags.HasFlag(PresentFlags.DoNotWait) && Frames.Count > 2)
                     Thread.Sleep(10);
                 
             } // while curReverseVideoPackets.Count > 0

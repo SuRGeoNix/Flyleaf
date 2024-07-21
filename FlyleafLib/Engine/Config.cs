@@ -667,11 +667,11 @@ public class Config : NotifyPropertyChanged
         public bool             VideoAcceleration           { get; set; } = true;
 
         /// <summary>
-        /// Whether to use embedded video processor with custom pixel shaders or D3D11
-        /// (Currently D3D11 works only on video accelerated / hardware surfaces)
-        /// * FLVP supports HDR to SDR, D3D11 does not
-        /// * FLVP supports Pan Move/Zoom, D3D11 does not
-        /// * D3D11 possible performs better with color conversion and filters, FLVP supports only brightness/contrast filters
+        /// Whether to use embedded video processor with custom pixel shaders or D3D11<br/>
+        /// (Currently D3D11 works only on video accelerated / hardware surfaces)<br/>
+        /// * FLVP supports HDR to SDR, D3D11 does not<br/>
+        /// * FLVP supports Pan Move/Zoom, D3D11 does not<br/>
+        /// * D3D11 possible performs better with color conversion and filters, FLVP supports only brightness/contrast filters<br/>
         /// * D3D11 supports deinterlace (bob)
         /// </summary>
         public VideoProcessors  VideoProcessor              { get => _VideoProcessor; set { if (Set(ref _VideoProcessor, value)) player?.renderer?.UpdateVideoProcessor(); } }
@@ -681,6 +681,13 @@ public class Config : NotifyPropertyChanged
         /// Whether Vsync should be enabled (0: Disabled, 1: Enabled)
         /// </summary>
         public short            VSync                       { get; set; }
+
+        /// <summary>
+        /// Swap chain's present flags (mainly for waitable -None- or non-waitable -DoNotWait) (default: non-waitable)<br/>
+        /// Non-waitable swap chain will reduce re-buffering and audio/video desyncs
+        /// </summary>
+        public Vortice.DXGI.PresentFlags
+                                PresentFlags                { get; set; } = Vortice.DXGI.PresentFlags.DoNotWait;
 
         /// <summary>
         /// Enables the video processor to perform post process deinterlacing
@@ -717,7 +724,7 @@ public class Config : NotifyPropertyChanged
 
         /// <summary>
         /// <para>
-        /// Whether the renderer will use R8G8B8A8_UNorm instead of B8G8R8A8_UNorm format for the swap chain (experimental)
+        /// Whether the renderer will use R8G8B8A8_UNorm instead of B8G8R8A8_UNorm format for the swap chain (experimental)<br/>
         /// (TBR: causes slightly different colors with D3D11VP)
         /// </para>
         /// </summary>
@@ -764,20 +771,16 @@ public class Config : NotifyPropertyChanged
         internal void SetEnabled(bool enabled)      => Set(ref _Enabled, enabled, true, nameof(Enabled));
 
         /// <summary>
-        /// <para>
-        /// Whether to process samples with Filters or SWR (experimental)
-        /// 1. Requires FFmpeg avfilter lib
-        /// 2. Currently SWR performs better if you dont need filters
-        /// </para>
+        /// Whether to process samples with Filters or SWR (experimental)<br/>
+        /// 1. Requires FFmpeg avfilter lib<br/>
+        /// 2. Currently SWR performs better if you dont need filters<br/>
         /// </summary>
         public bool             FiltersEnabled      { get => _FiltersEnabled; set { if (Set(ref _FiltersEnabled, value && Engine.FFmpeg.FiltersLoaded)) player?.AudioDecoder.SetupFiltersOrSwr(); } }
         bool _FiltersEnabled = false;
 
         /// <summary>
-        /// <para>
-        /// List of filters for post processing the audio samples (experimental)
+        /// List of filters for post processing the audio samples (experimental)<br/>
         /// (Requires FiltersEnabled)
-        /// </para>
         /// </summary>
         public List<Filter>     Filters             { get; set; }
 
