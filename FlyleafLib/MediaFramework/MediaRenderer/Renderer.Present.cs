@@ -19,13 +19,13 @@ public unsafe partial class Renderer
     long    lastPresentRequestAt= 0;
     object  lockPresentTask     = new();
 
-    public bool Present(VideoFrame frame)
+    public bool Present(VideoFrame frame, bool forceWait = true)
     {
         if (Monitor.TryEnter(lockDevice, frame.timestamp == 0 ? 100 : 5)) // Allow more time for first frame
         {
             try
             {
-                PresentInternal(frame);
+                PresentInternal(frame, forceWait);
                 VideoDecoder.DisposeFrame(LastFrame);
                 LastFrame = frame;
 
@@ -95,7 +95,7 @@ public unsafe partial class Renderer
             isPresenting = false;
         });
     }
-    internal void PresentInternal(VideoFrame frame)
+    internal void PresentInternal(VideoFrame frame, bool forceWait = true)
     {
         if (SCDisposed)
             return;
@@ -116,7 +116,7 @@ public unsafe partial class Renderer
 
             vpsa[0].InputSurface = vpiv;
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
-            swapChain.Present(Config.Video.VSync, Config.Video.PresentFlags);
+            swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
             
             vpiv.Dispose();
         }
@@ -144,7 +144,7 @@ public unsafe partial class Renderer
                 context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
             }
 
-            swapChain.Present(Config.Video.VSync, Config.Video.PresentFlags);
+            swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
         }
 
         child?.PresentInternal(frame);
@@ -245,7 +245,7 @@ public unsafe partial class Renderer
                 else if (Config.Video.ClearScreen)
                 {
                     context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                    swapChain.Present(Config.Video.VSync, PresentFlags.DoNotWait);
+                    swapChain.Present(Config.Video.VSync, PresentFlags.None);
                 }
             }
             catch (Exception e)
