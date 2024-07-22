@@ -190,7 +190,7 @@ public partial class Renderer
                 try
                 {
                     context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                    swapChain.Present(Config.Video.VSync, PresentFlags.DoNotWait);
+                    swapChain.Present(Config.Video.VSync, PresentFlags.None);
                 }
                 catch { }
             }

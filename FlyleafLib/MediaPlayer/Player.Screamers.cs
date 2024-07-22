@@ -538,7 +538,7 @@ unsafe partial class Player
             {
                 if (CanTrace) Log.Trace($"[V] Presenting {TicksToTime(vFrame.timestamp)}");
 
-                if (decoder.VideoDecoder.Renderer.Present(vFrame))
+                if (decoder.VideoDecoder.Renderer.Present(vFrame, false))
                     Video.framesDisplayed++;
                 else
                     Video.framesDropped++;
@@ -705,7 +705,7 @@ unsafe partial class Player
     private long GetBufferedDuration()
     {
         var decoder = VideoDecoder.Frames.IsEmpty ? 0 : VideoDecoder.Frames.ToArray()[^1].timestamp - vFrame.timestamp;
-        var demuxer = VideoDemuxer.VideoPackets.LastTimestamp == ffmpeg.AV_NOPTS_VALUE
+        var demuxer = VideoDemuxer.VideoPackets.IsEmpty || VideoDemuxer.VideoPackets.LastTimestamp == ffmpeg.AV_NOPTS_VALUE
             ? 0 : 
             (VideoDemuxer.VideoPackets.LastTimestamp - VideoDemuxer.StartTime) - vFrame.timestamp;
 
@@ -920,7 +920,7 @@ unsafe partial class Player
                 Thread.Sleep(sleepMs);
             }
 
-            decoder.VideoDecoder.Renderer.Present(vFrame);
+            decoder.VideoDecoder.Renderer.Present(vFrame, false);
             if (!MainDemuxer.IsHLSLive && seeks.IsEmpty)
             {
                 curTime = (long) (vFrame.timestamp * Speed);
