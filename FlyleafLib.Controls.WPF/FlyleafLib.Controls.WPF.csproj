@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0-windows;net6.0-windows;net472</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.3.11</Version>
+    <Version>1.3.12</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2024</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,7 +14,7 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		- Fixes an issue that it wouldn't properly initialize with the overlay's template (no popups / settings)
+		Updates FlyleafLib
 	</PackageReleaseNotes>
   </PropertyGroup>
 

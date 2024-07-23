@@ -27,7 +27,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 
                 using (var stream = new FileStream(Selected.ExternalSubtitlesStream.Url, FileMode.Open))
                 {
-                    int buflen = (int)Math.Min(stream.Length, 10 * 1024);
+                    int buflen = (int)Math.Min(stream.Length, 20 * 1024);
                     byte[] buf = new byte[buflen];
                     stream.Read(buf, 0, buflen);
                     detector.Feed(buf, 0, buf.Length);
@@ -50,7 +50,6 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 
                 try
                 {
-                    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
                     subsEnc = Encoding.GetEncoding(ansi);
                     foundFrom = "System Default 1";
                 }
@@ -99,7 +98,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
                     
                     if (subsEnc != Encoding.UTF8)
                     {
-                        Log.Info($"Converting from {subsEnc} | Path: {filename} | Detector: {foundFrom}");
+                        Log.Info($"Converting from {subsEnc.BodyName} | Path: {filename} | Detector: {foundFrom}");
                         Convert(Selected.ExternalSubtitlesStream.Url, newUrl, subsEnc, new UTF8Encoding(false));
 
                         if (isTemp)
