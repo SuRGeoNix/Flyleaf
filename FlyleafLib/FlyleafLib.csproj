@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.51</Version>
+	<Version>3.7.52</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,22 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- FlyleafHost.Wpf: Fixes an issue with overlay's template (ensure it will be set before showing the window)
+		* Renderer: Alpha blend improvements
+		* Renderer: Introduces Config.Video.PresentFlags which allows to configure waitable / non-waitable swap chains
+		* Renderer: Removes HLG define for pixel shader (currently works better without it)
+		* Renderer: Exposing Config.Video.MaxFrameLatency to manually set it if required
+		* Renderer: Adds support for big-endian pixel formats through SwsScale
+		* AudioDecoder: Minor filter graph improvements
+		* VideoStream: Fixes an issue with fps (mainly for broken formats)
+		* Subtitles: Adds Bitmap support with alpha blend (mainly for dvd/blu-ray)
+		* Player: Fixes an issue with the duration reported as one frame duration less
+		* Player: Latency improvements
+		* Updates MaterialDesignThemes and System.Text.Json packages
+
+		[Breaking Changes]
+
+		Changing the swap chain to non-waitable by default which should reduce player's re-buffering during GPU overload (e.g. when user interacts with the UI and decodes a 4K/8K video or using multiple swap chains/players).
+		This also reduces the latency as the decoder does not require to wait for 10ms (sleep). You can use the previous behaviour by setting PresentFlags back to None.
 	</PackageReleaseNotes>
   </PropertyGroup>
 
