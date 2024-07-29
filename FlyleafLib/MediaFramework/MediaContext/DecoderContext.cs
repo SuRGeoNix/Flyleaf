@@ -504,11 +504,18 @@ public unsafe partial class DecoderContext : PluginHandler
 
         int ret;
         AVPacket* packet;
-        
+
+        const int maxFrameSeekNum = 60;
+        int seekCount = 0;
         lock (VideoDemuxer.lockFmtCtx)
         lock (VideoDecoder.lockCodecCtx)
         while (VideoDemuxer.VideoStream != null && !Interrupt)
         {
+                    
+            if (seekCount > maxFrameSeekNum)
+                return -1;
+            seekCount++;
+
             if (VideoDemuxer.VideoPackets.IsEmpty)
             {
                 packet = av_packet_alloc();
@@ -584,7 +591,7 @@ public unsafe partial class DecoderContext : PluginHandler
                     av_packet_free(&packet);
 
                     if (ret != 0)
-                        return -1;
+                        continue;
                     
                     //VideoDemuxer.UpdateCurTime();
 
