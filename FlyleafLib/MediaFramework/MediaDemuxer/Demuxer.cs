@@ -648,6 +648,9 @@ public unsafe class Demuxer : RunThreadBase
             //UpdateHLSTime(); Maybe with default 0 playlist
         }
 
+        if (fmtCtx->nb_streams == 1 && fmtCtx->streams[0]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) // External Streams (mainly for .sub will have as start time the first subs timestamp)
+            StartTime = 0;
+
         IsLive = Duration == 0 || hlsCtx != null;
 
         bool hasVideo = false;
@@ -730,7 +733,6 @@ public unsafe class Demuxer : RunThreadBase
                         SubtitlesStreams.Add(new SubtitlesStream(this, fmtCtx->streams[i]));
                         AVStreamToStream.Add(fmtCtx->streams[i]->index, SubtitlesStreams[^1]);
                         subsHasEng = SubtitlesStreams[^1].Language == Language.English;
-                        
                         break;
 
                     case AVMEDIA_TYPE_DATA:

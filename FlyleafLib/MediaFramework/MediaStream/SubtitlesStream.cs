@@ -1,4 +1,7 @@
-﻿using FFmpeg.AutoGen;
+﻿using System;
+using System.IO;
+
+using FFmpeg.AutoGen;
 using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
@@ -7,8 +10,6 @@ namespace FlyleafLib.MediaFramework.MediaStream;
 
 public unsafe class SubtitlesStream : StreamBase
 {
-    public int      Height      { get; set; }
-    public int      Width       { get; set; }
     public bool     IsBitmap    { get; set; }
 
     public override string GetDump()
@@ -21,9 +22,28 @@ public unsafe class SubtitlesStream : StreamBase
     {
         base.Refresh();
 
-        Width           = AVStream->codecpar->width;
-        Height          = AVStream->codecpar->height;
         var codecDescr  = avcodec_descriptor_get(CodecID);
         IsBitmap        = codecDescr != null && (codecDescr->props & AV_CODEC_PROP_BITMAP_SUB) != 0;
+
+        if (Demuxer.FormatContext->nb_streams == 1) // External Streams (mainly for .sub will have as start time the first subs timestamp)
+            StartTime = 0;
+    }
+
+    public void ExternalStreamAdded()
+    {
+        // VobSub (parse .idx data to extradata - based on .sub url)
+        if (CodecID == AVCodecID.AV_CODEC_ID_DVD_SUBTITLE && ExternalStream != null && ExternalStream.Url.EndsWith(".sub", StringComparison.OrdinalIgnoreCase))
+        {
+            var idxFile = ExternalStream.Url.Substring(0, ExternalStream.Url.Length - 3) + "idx";
+            if (File.Exists(idxFile))
+            {
+                var bytes = File.ReadAllBytes(idxFile);
+                AVStream->codecpar->extradata = (byte*)av_malloc((ulong)bytes.Length);
+                AVStream->codecpar->extradata_size = bytes.Length;
+                Span<byte> src = new(bytes);
+                Span<byte> dst = new(AVStream->codecpar->extradata, bytes.Length);
+                src.CopyTo(dst);
+            }
+        }
     }
 }

@@ -21,11 +21,13 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 return new OpenSubtitlesResults(extStream);
 
         string title;
+        bool converted = false;
 
         try
         {
             FileInfo fi = new(url);
             title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
+            converted = fi.Extension.Equals(".sub", StringComparison.OrdinalIgnoreCase);
         }
         catch { title = url; }
                 
@@ -33,7 +35,8 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
         {
             Url         = url,
             Title       = title,
-            Downloaded  = true
+            Downloaded  = true,
+            Converted   = converted
         };
 
         AddExternalStream(newExtStream);
@@ -57,7 +60,16 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
             if (!Directory.Exists(folder))
                 return;
 
-            string[] filesCur = Directory.GetFiles(folder, $"*.srt"); // We consider Subs/ folder has only subs for this movie/series
+            string[] filesCur1 = Directory.GetFiles(folder, $"*.srt"); // We consider Subs/ folder has only subs for this movie/series
+            string[] filesCur2 = Directory.GetFiles(folder, $"*.sub");
+
+            string[] filesCur = new string[filesCur1.Length + filesCur2.Length];
+
+            for (int i = 0; i < filesCur1.Length; i++)
+                filesCur[i] = filesCur1[i];
+
+            for (int i = 0; i < filesCur2.Length; i++)
+                filesCur[i + filesCur1.Length] = filesCur2[i];
 
             foreach(string file in filesCur)
             {
@@ -80,6 +92,11 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 bool converted = false;
                 var lang = Language.Unknown;
 
+                if (fi.Extension.Equals(".sub", StringComparison.OrdinalIgnoreCase))
+                {
+                    title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
+                    converted = true;
+                }
                 if (fi.Name.IndexOf(".utf8", StringComparison.OrdinalIgnoreCase) != -1)
                 {
                     converted = true;
