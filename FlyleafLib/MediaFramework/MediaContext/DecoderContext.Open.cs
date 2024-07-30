@@ -558,8 +558,11 @@ public partial class DecoderContext
             foreach (var embStream in demuxer.AudioStreams)
                 embStream.ExternalStream = extStream;
             foreach (var embStream in demuxer.SubtitlesStreams)
+            {
                 embStream.ExternalStream = extStream;
-
+                embStream.ExternalStreamAdded(); // Copies VobSub's .idx file to extradata (based on external url .sub)
+            }
+            
             // Open embedded stream
             if (streamIndex != -2)
             {

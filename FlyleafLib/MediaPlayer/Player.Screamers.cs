@@ -596,7 +596,7 @@ unsafe partial class Player
                     {
                         if (sFrame.sub.num_rects > 0)
                         {
-                            renderer.CreateOverlayTexture(sFrame, SubtitlesDecoder.SubtitlesStream.Width, SubtitlesDecoder.SubtitlesStream.Height);
+                            renderer.CreateOverlayTexture(sFrame, SubtitlesDecoder.CodecCtx->width, SubtitlesDecoder.CodecCtx->height);
                             SubtitlesDecoder.DisposeFrame(sFrame); // only rects
                         }
                         else

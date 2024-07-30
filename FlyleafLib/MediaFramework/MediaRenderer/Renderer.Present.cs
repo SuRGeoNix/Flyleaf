@@ -130,12 +130,13 @@ public unsafe partial class Renderer
 
             if (overlayTexture != null)
             {
+                // Don't stretch the overlay (reduce height based on ratiox) | Sub's stream size might be different from video size (fix y based on percentage)
                 var ratiox = (double)GetViewport.Width / overlayTextureOriginalWidth;
-                var ratioy = (double)GetViewport.Height / overlayTextureOriginalHeight;
+                var ratioy = (double)overlayTextureOriginalPosY / overlayTextureOriginalHeight;
 
                 context.OMSetBlendState(blendStateAlpha);
                 context.PSSetShaderResources(0, overlayTextureSRVs);
-                context.RSSetViewport((float) (GetViewport.X + (overlayTextureOriginalPosX * ratiox)), (float) (GetViewport.Y + (overlayTextureOriginalPosY * ratioy)), (float) (overlayTexture.Description.Width * ratiox), (float) (overlayTexture.Description.Height * ratioy));
+                context.RSSetViewport((float) (GetViewport.X + (overlayTextureOriginalPosX * ratiox)), (float) (GetViewport.Y + (GetViewport.Height * ratioy)), (float) (overlayTexture.Description.Width * ratiox), (float) (overlayTexture.Description.Height * ratiox));
                 context.PSSetShader(ShaderBGRA);
                 context.Draw(6, 0);
 
@@ -165,8 +166,6 @@ public unsafe partial class Renderer
     {
         var rect    = frame.sub.rects[0];
         var stride  = rect->linesize[0] * 4;
-        var ratiox = (double)GetViewport.Width  / streamWidth;
-        var ratioy = (double)GetViewport.Height / streamHeight;
 
         overlayTextureOriginalWidth = streamWidth;
         overlayTextureOriginalHeight= streamHeight;
