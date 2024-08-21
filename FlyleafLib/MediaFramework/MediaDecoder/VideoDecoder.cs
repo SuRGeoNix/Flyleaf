@@ -68,6 +68,7 @@ public unsafe class VideoDecoder : DecoderBase
 
     protected override void OnSpeedChanged(double value)
     {
+        if (VideoStream == null) return;
         speed = value;
         skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
     }
