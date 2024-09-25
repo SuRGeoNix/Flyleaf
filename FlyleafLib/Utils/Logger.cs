@@ -13,6 +13,7 @@ using FlyleafLib;
 using FlyleafLib.Utils;
 */
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace FlyleafLib;
 
@@ -39,6 +40,7 @@ public static class Logger
     static object       lockFileStream = new();
     static Dictionary<LogLevel, string>
                         logLevels = new();
+    public static ILogger _ilogger = null;
 
     static Logger()
     {
@@ -90,6 +92,14 @@ public static class Logger
                     lastOutput = ":debug";
                 }
             }
+            else if (output == ":ilogger")
+            {
+                if (lastOutput != ":ilogger")
+                {
+                    Output = ILoggerPtr;
+                    lastOutput = ":ilogger";
+                }
+            }
             else
                 throw new Exception("Invalid log output");
         }
@@ -127,7 +137,8 @@ public static class Logger
         if (!fileTaskRunning && fileData.Count > Engine.Config.LogCachedLines)
             FlushFileData();
     }
-
+    static void ILoggerPtr(string msg) => _ilogger?.LogTrace("{msg}",msg);  //Assert TRACE MSEL LogLevel for anything that reaches here
+    
     static void FlushFileData()
     {
         fileTaskRunning = true;
@@ -157,8 +168,24 @@ public static class Logger
 
     internal static void Log(string msg, LogLevel logLevel)
     {
-        if (logLevel <= Engine.Config.LogLevel)
+        if (logLevel > Engine.Config.LogLevel) return;
+        if (_ilogger == null)
             Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | {logLevels[logLevel]} | {msg}");
+        else
+            _ilogger.Log(AsMSELLogLevel(logLevel), "{msg}",msg);        
+    }
+
+    static Microsoft.Extensions.Logging.LogLevel AsMSELLogLevel(LogLevel subject)
+    {
+        return subject switch
+        {
+            LogLevel.Error => Microsoft.Extensions.Logging.LogLevel.Error,
+            LogLevel.Warn => Microsoft.Extensions.Logging.LogLevel.Warning,
+            LogLevel.Info => Microsoft.Extensions.Logging.LogLevel.Information,
+            LogLevel.Debug => Microsoft.Extensions.Logging.LogLevel.Debug,
+            LogLevel.Trace => Microsoft.Extensions.Logging.LogLevel.Trace,
+            _ => Microsoft.Extensions.Logging.LogLevel.None
+        };
     }
 }
 
