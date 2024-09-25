@@ -67,7 +67,7 @@ public class FFmpegEngine
         av_log_format_line2(p0, level, format, vl, buffer, AV_LOG_BUFFER_SIZE, &printPrefix);
         string  line = Utils.BytePtrToStringUTF8(buffer);
 
-        Logger.Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | FFmpeg | {(FFmpegLogLevel)level,-7} | {line.Trim()}");
+        Logger.Output($"FFmpeg|{(FFmpegLogLevel)level,-7}|{line.Trim()}");
     };
 
     internal unsafe static string ErrorCodeToMsg(int error)
