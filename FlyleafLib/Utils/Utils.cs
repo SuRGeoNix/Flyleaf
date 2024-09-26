@@ -432,6 +432,34 @@ public static partial class Utils
 
         return url;
     }
+    
+    /// <summary>
+    /// Convert Windows lnk file path to target path
+    /// </summary>
+    /// <param name="filepath">lnk file path</param>
+    /// <returns>target path</returns>
+    public static string GetLnkTargetPath(string filepath)
+    {
+        // ref: https://stackoverflow.com/a/64126237
+        using var br = new BinaryReader(System.IO.File.OpenRead(filepath));
+
+        br.ReadBytes(0x14);
+        uint lflags = br.ReadUInt32();
+        if ((lflags & 0x01) == 1)
+        {
+            br.ReadBytes(0x34);
+            var skip = br.ReadUInt16();
+            br.ReadBytes(skip);
+        }
+        var length = br.ReadUInt32();
+        br.ReadBytes(0x0C);
+        var lbpos = br.ReadUInt32();
+        br.ReadBytes((int)lbpos - 0x14);
+        var size = length - lbpos - 0x02;
+        var bytePath = br.ReadBytes((int)size);
+        var path = Encoding.UTF8.GetString(bytePath, 0, bytePath.Length);
+        return path;
+    }
 
     public static string GetBytesReadable(long i)
     {

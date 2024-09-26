@@ -867,6 +867,16 @@ unsafe partial class Player
     {
         lock (lockActions)
         {
+            if (url_iostream is string url_iostream_str)
+            {
+                // convert Windows lnk file to targetPath
+                if (Path.GetExtension(url_iostream_str).Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+                {
+                    string targetPath = GetLnkTargetPath(url_iostream_str);
+                    url_iostream = targetPath;
+                }
+            }
+            
             if ((url_iostream is string) && ExtensionsSubtitles.Contains(GetUrlExtention(url_iostream.ToString())))
             {
                 OnOpening(new() { Url = url_iostream.ToString(), IsSubtitles = true});
