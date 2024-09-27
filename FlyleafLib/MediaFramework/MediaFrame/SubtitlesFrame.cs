@@ -88,7 +88,9 @@ public static class ParseSubtitles
                             if (color.from == -1) break;
 
                             color.len = pos - color.from;
-                            if (color.value != Color.Transparent) styles.Add(color);
+                            if (color.value != Color.Transparent)
+                                styles.Add(color);
+
                             color = new SubStyle(SubStyles.COLOR);
                         }
                         else
@@ -97,10 +99,11 @@ public static class ParseSubtitles
                             color.value = Color.Transparent;
                             if (code.Length < 7) break;
 
-                            int colorEnd = code.LastIndexOf("&");
+                            int colorEnd = code.LastIndexOf('&');
                             if (colorEnd < 6) break;
 
-                            string hexColor = code[4..colorEnd ];
+                            string hexColor = code[4..colorEnd];
+
                             int red = int.Parse(hexColor.Substring(hexColor.Length - 2, 2), NumberStyles.HexNumber);
                             int green = 0;
                             int blue = 0;
@@ -108,11 +111,18 @@ public static class ParseSubtitles
                             if (hexColor.Length - 2 > 0)
                             {
                                 hexColor = hexColor[..^2];
+                                if (hexColor.Length == 1)
+                                    hexColor = "0" + hexColor;
+
                                 green = int.Parse(hexColor.Substring(hexColor.Length - 2, 2), NumberStyles.HexNumber);
                             }
+
                             if (hexColor.Length - 2 > 0)
                             {
                                 hexColor = hexColor[..^2];
+                                if (hexColor.Length == 1)
+                                    hexColor = "0" + hexColor;
+
                                 blue = int.Parse(hexColor.Substring(hexColor.Length - 2, 2), NumberStyles.HexNumber);
                             }
 
@@ -170,7 +180,7 @@ public static class ParseSubtitles
                         break;
 
                     case 'i':
-                        if (code[2] == '0')
+                        if (code.Length > 2 && code[2] == '0')
                         {
                             if (italic.from == -1) break;
 
