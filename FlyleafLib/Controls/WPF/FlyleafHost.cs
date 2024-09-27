@@ -2172,7 +2172,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
         else
         {
-            
+            Surface.WindowState = WindowState.Normal;
+
             if (IsAttached)
             {
                 Attach(true);
@@ -2192,9 +2193,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             if (CornerRadius != zeroCornerRadius)
                 ((Border)Surface.Content).CornerRadius = CornerRadius;
-
-            Surface.WindowState = WindowState.Normal;
-
         }
     }
     public void SetRect(ref Rect rect)
