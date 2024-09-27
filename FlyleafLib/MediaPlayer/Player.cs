@@ -266,7 +266,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             else if (value > 16)
                 newValue = 16;
             
-            if (newValue == speed || (newValue > 1 && ReversePlayback))
+            if (newValue == speed)
                 return;
             
             AudioDecoder.Speed      = newValue;
