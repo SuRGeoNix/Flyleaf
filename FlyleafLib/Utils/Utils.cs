@@ -265,15 +265,25 @@ public static partial class Utils
         MediaParts mp = new();
         List<int> indices = new();
 
-        // s|season 01 ... e|episode 01
-        res = Regex.Match(title, @"(^|[^a-z0-9])(s|season)[^a-z0-9]*(?<season>[0-9]{1,2})[^a-z0-9]*(e|episode)[^a-z0-9]*(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
-        if (!res.Success) // 01x01
+        // s|season 01 ... e|episode|part 01
+        res = Regex.Match(title, @"(^|[^a-z0-9])(s|season)[^a-z0-9]*(?<season>[0-9]{1,2})[^a-z0-9]*(e|episode|part)[^a-z0-9]*(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
+        if (!res.Success)
+        {
+            // 01x01
             res = Regex.Match(title, @"(^|[^a-z0-9])(?<season>[0-9]{1,2})x(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
 
-        if (res.Success && res.Groups["season"].Value != "" && res.Groups["episode"].Value != "")
+            // TODO: in case of single season should check only for e|episode|part 01
+            if (!res.Success)
+                res = Regex.Match(title, @"(^|[^a-z0-9])(episode|part)[^a-z0-9]*(?<episode>[0-9]{1,2})($|[^a-z0-9])", RegexOptions.IgnoreCase);
+        }
+
+        if (res.Groups.Count > 1)
         {
-            mp.Season = int.Parse(res.Groups["season"].Value);
-            mp.Episode = int.Parse(res.Groups["episode"].Value);
+            if (res.Groups["season"].Value != "")
+                mp.Season = int.Parse(res.Groups["season"].Value);
+
+            if (res.Groups["episode"].Value != "")
+                mp.Episode = int.Parse(res.Groups["episode"].Value);
 
             if (movieOnly)
                 return mp;
