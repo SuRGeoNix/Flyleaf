@@ -447,8 +447,8 @@ unsafe public partial class Renderer
 
                             textDesc[0].Width   = VideoStream.Width;
                             textDesc[0].Height  = VideoStream.Height;
-                            textDesc[1].Width   = VideoStream.Width  + 1 >> VideoStream.PixelFormatDesc->log2_chroma_w;
-                            textDesc[1].Height  = VideoStream.Height + 1 >> VideoStream.PixelFormatDesc->log2_chroma_h;
+                            textDesc[1].Width   = VideoStream.PixelFormatDesc->log2_chroma_w > 0 ? (VideoStream.Width  + 1) >> VideoStream.PixelFormatDesc->log2_chroma_w : VideoStream.Width  >> VideoStream.PixelFormatDesc->log2_chroma_w;
+                            textDesc[1].Height  = VideoStream.PixelFormatDesc->log2_chroma_h > 0 ? (VideoStream.Height + 1) >> VideoStream.PixelFormatDesc->log2_chroma_h : VideoStream.Height >> VideoStream.PixelFormatDesc->log2_chroma_h;
 
                             string offsets = VideoStream.PixelComps[1].offset > VideoStream.PixelComps[2].offset ? "gr" : "rg";
 
@@ -480,8 +480,8 @@ unsafe public partial class Renderer
 
                             textDesc[0].Width   = textDesc[3].Width = VideoStream.Width;
                             textDesc[0].Height  = textDesc[3].Height= VideoStream.Height;
-                            textDesc[1].Width   = textDesc[2].Width = VideoStream.Width  + 1 >> VideoStream.PixelFormatDesc->log2_chroma_w;
-                            textDesc[1].Height  = textDesc[2].Height= VideoStream.Height + 1 >> VideoStream.PixelFormatDesc->log2_chroma_h;
+                            textDesc[1].Width   = textDesc[2].Width = VideoStream.PixelFormatDesc->log2_chroma_w > 0 ? (VideoStream.Width  + 1) >> VideoStream.PixelFormatDesc->log2_chroma_w : VideoStream.Width  >> VideoStream.PixelFormatDesc->log2_chroma_w;
+                            textDesc[1].Height  = textDesc[2].Height= VideoStream.PixelFormatDesc->log2_chroma_h > 0 ? (VideoStream.Height + 1) >> VideoStream.PixelFormatDesc->log2_chroma_h : VideoStream.Height >> VideoStream.PixelFormatDesc->log2_chroma_h;
 
                             string shader = @"
         color.r = Texture1.Sample(Sampler, input.Texture).r;
