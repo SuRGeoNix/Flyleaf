@@ -54,8 +54,8 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
             } catch { }
 
 
-            // Playlists (M3U, PLS | TODO: WPL, XSPF)
-            if (ext == "m3u")
+            // Playlists (M3U, M3U8, PLS | TODO: WPL, XSPF)
+            if (ext == "m3u")// || ext == "m3u8")
             {
                 Playlist.InputType = InputType.Web; // TBR: Can be mixed
                 Playlist.FolderBase = Path.GetTempPath();
@@ -100,7 +100,6 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
 
                 return new OpenResults();
             }
-
 
             // Single Playlist Item
 
