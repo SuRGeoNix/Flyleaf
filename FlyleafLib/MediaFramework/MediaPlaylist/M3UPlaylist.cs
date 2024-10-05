@@ -26,7 +26,7 @@ public class M3UPlaylist
     {
         string downStr = Utils.DownloadToString(url, timeoutMs);
         if (downStr == null)
-            return null;
+            return new();
 
         using StringReader reader = new(downStr);
         return Parse(reader);
@@ -100,6 +100,18 @@ public class M3UPlaylist
                 item.Url = line;
                 items.Add(item);
             }
+
+            // TODO: for m3u8 saved from windows media player
+            //else if (!line.StartsWith("#"))
+            //{
+            //    M3UPlaylistItem item = new();
+            //    item.Url = line.Trim(); // this can be relative path (base path from the root m3u8) in case of http(s) this can be another m3u8*
+            //    if (item.Url.Length > 0)
+            //    {
+            //        item.Title = Path.GetFileName(item.Url);
+            //        items.Add(item);
+            //    }
+            //}
         }
 
         return items;
