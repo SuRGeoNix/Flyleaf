@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj" />
     <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" />
   </ItemGroup>
 
