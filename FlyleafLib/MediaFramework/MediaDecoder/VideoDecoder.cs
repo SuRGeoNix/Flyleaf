@@ -85,8 +85,6 @@ public unsafe class VideoDecoder : DecoderBase
             Renderer = new Renderer(this, IntPtr.Zero, UniqueId);
         else if (Renderer.Disposed)
             Renderer.Initialize();
-
-        Disposed = false; // We don't dipose the renderer (decoderContext does)
     }
     public void DestroyRenderer() => Renderer?.Dispose();
     public void CreateSwapChain(IntPtr handle)
