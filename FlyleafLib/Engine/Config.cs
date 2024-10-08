@@ -205,8 +205,6 @@ public class Config : NotifyPropertyChanged
                 {
                     if (config.Demuxer.BufferDuration < value * 2)
                         config.Demuxer.BufferDuration = value * 2;
-
-                    config.Decoder.LowDelay = true;
                 }
 
                 // Small min buffer to avoid enabling latency speed directly
