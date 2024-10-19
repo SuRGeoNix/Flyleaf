@@ -503,6 +503,7 @@ public unsafe partial class DecoderContext : PluginHandler
         // TBR: Between seek and GetVideoFrame lockCodecCtx is lost and if VideoDecoder is running will already have decoded some frames (Currently ensure you pause VideDecoder before seek)
 
         int ret;
+        int allowedErrors = Config.Decoder.MaxErrors;
         AVPacket* packet;
         
         lock (VideoDemuxer.lockFmtCtx)
@@ -584,8 +585,15 @@ public unsafe partial class DecoderContext : PluginHandler
                     av_packet_free(&packet);
 
                     if (ret != 0)
-                        return -1;
-                    
+                    {
+                        allowedErrors--;
+                        if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+
+                        if (allowedErrors == 0) { Log.Error("Too many errors!");  return -1; }
+
+                        continue;
+                    }
+
                     //VideoDemuxer.UpdateCurTime();
 
                     var frame = av_frame_alloc();
