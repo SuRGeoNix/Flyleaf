@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.53</Version>
+	<Version>3.7.54</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* Logger: Adds support for .NET's ILogger
-		* Player: Adds support for .lnk files
-		* Player: Adds support for reverse playback with speed
-		* Renderer: Fixes an issue with odd width/height source frames
-		* Subtitles: Adds VobSub support (for .sub/.idx)
-		* Subtitles: Minor fixes &amp; improvements
-		* VideoDecoder: Fixes an NPE issue during speed change
+		* VideoDecoder: Prevents renderer's creation to set Disposed = false
 	</PackageReleaseNotes>
   </PropertyGroup>
 
