@@ -8,7 +8,7 @@
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
     <Authors>SuRGeoNix</Authors>
-    <Version>1.0.32</Version>
+    <Version>1.0.33</Version>
     <Copyright>SuRGeoNix © 2024</Copyright>
     <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
     <PackageIcon>Flyleaf.png</PackageIcon>

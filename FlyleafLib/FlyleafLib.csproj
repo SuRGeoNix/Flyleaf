@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.54</Version>
+	<Version>3.7.55</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* VideoDecoder: Prevents renderer's creation to set Disposed = false
+		* DecoderContext: Allows decoding errors during seeking
+		* FlyleafHost.Wpf: Fixes a possible issue with normal/fullscreen
+		* Updates System.Text.Json
 	</PackageReleaseNotes>
   </PropertyGroup>
 
