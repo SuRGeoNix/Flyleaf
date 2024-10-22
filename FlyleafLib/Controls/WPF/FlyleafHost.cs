@@ -877,7 +877,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         // This does not set the background color we do that with the renderer (which causes some issues eg. when returning from fullscreen to normalscreen)
         Surface.Content = new Border()
         {
-            Background          = Brushes.Black,
+            Background          = Brushes.Black, // TBR: for alpha channel -> Background == Brushes.Transparent || Background ==null ? new SolidColorBrush(Color.FromArgb(1,0,0,0)) : Background
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment   = VerticalAlignment.Stretch,
             CornerRadius        = CornerRadius,
@@ -2172,7 +2172,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
         else
         {
-            Surface.WindowState = WindowState.Normal;
+            if (IsStandAlone)
+                Surface.WindowState = WindowState.Normal;
 
             if (IsAttached)
             {
@@ -2193,6 +2194,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             if (CornerRadius != zeroCornerRadius)
                 ((Border)Surface.Content).CornerRadius = CornerRadius;
+
+            if (!IsStandAlone) //when play with alpha video and not standalone, we need to set window state to normal last, otherwise it will be lost the background
+                Surface.WindowState = WindowState.Normal;
         }
     }
     public void SetRect(ref Rect rect)
