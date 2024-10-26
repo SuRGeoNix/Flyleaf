@@ -40,9 +40,7 @@ public unsafe class VideoDecoder : DecoderBase
     internal int_array4     swsLineSize;
 
     internal bool           swFallback;
-    internal bool           keyFrameRequired;
-    internal bool           keyFrameRequiredPacket;
-    internal bool           keyFoundWithNoPts;
+    internal bool           keyPacketRequired;
     internal long           lastFixedPts;
 
     bool                    checkExtraFrames; // DecodeFrameNext
@@ -319,11 +317,7 @@ public unsafe class VideoDecoder : DecoderBase
         //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
         
         // TBR: during swFallback (keyFrameRequiredPacket should not reset, currenlty saved in SWFallback)
-        keyFrameRequired= true;
-        keyFrameRequiredPacket
-                        = false; // allow no key packet after open (lot of videos missing this)
-        keyFoundWithNoPts
-                        = false;
+        keyPacketRequired = false; // allow no key packet after open (lot of videos missing this)
         ZeroCopy        = false;
         filledFromCodec = false;
         
@@ -379,11 +373,8 @@ public unsafe class VideoDecoder : DecoderBase
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
             
-                keyFrameRequired= true;
-                keyFrameRequiredPacket
+                keyPacketRequired
                                 = true;
-                keyFoundWithNoPts
-                                = false;
                 StartTime       = AV_NOPTS_VALUE;
                 curSpeedFrame   = 9999;
             }
@@ -495,22 +486,26 @@ public unsafe class VideoDecoder : DecoderBase
 
                 if (isRecording)
                 {
-                    if (!recGotKeyframe && (packet->flags & PktFlags.Key) != 0)
+                    if (!recKeyPacketRequired && (packet->flags & PktFlags.Key) != 0)
                     {
-                        recGotKeyframe = true;
+                        recKeyPacketRequired = true;
                         StartRecordTime = (long)(packet->pts * VideoStream.Timebase) - demuxer.StartTime;
                     }
 
-                    if (recGotKeyframe)
+                    if (recKeyPacketRequired)
                         curRecorder.Write(av_packet_clone(packet));
                 }
-                
-                if (keyFrameRequired && keyFrameRequiredPacket)
-                {
-                    if ((packet->flags & PktFlags.Key) == 0)
-                        { av_packet_free(&packet); continue; }
 
-                    keyFrameRequiredPacket = false;
+                if (keyPacketRequired)
+                {
+                    if (packet->flags.HasFlag(PktFlags.Key))
+                        keyPacketRequired = false;
+                    else
+                    {
+                        if (CanWarn) Log.Warn("Ignoring non-key packet");
+                        av_packet_unref(packet);
+                        continue;
+                    }
                 }
 
                 // TBR: AVERROR(EAGAIN) means avcodec_receive_frame but after resend the same packet
@@ -524,30 +519,23 @@ public unsafe class VideoDecoder : DecoderBase
 
                 if (ret != 0 && ret != AVERROR(EAGAIN))
                 {
-                    if (keyFrameRequired && VideoAccelerated) // CRIT TBR: av1 fails?*
+                    // TBR: Possible check for VA failed here (normally this will happen during get_format)
+                    av_packet_free(&packet);
+
+                    if (ret == AVERROR_EOF)
                     {
-                        SWFallback();
-                        ret = avcodec_send_packet(codecCtx, packet); // check error
+                        if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); continue; } // TBR: Happens on HLS while switching video streams
+                        Status = Status.Ended;
+                        break;
                     }
                     else
                     {
-                        av_packet_free(&packet);
+                        allowedErrors--;
+                        if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                        if (ret == AVERROR_EOF)
-                        {
-                            if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); continue; } // TBR: Happens on HLS while switching video streams
-                            Status = Status.Ended;
-                            break;
-                        }
-                        else
-                        {
-                            allowedErrors--;
-                            if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+                        if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
-                            if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
-
-                            continue;
-                        }
+                        continue;
                     }
                 }
                 
@@ -575,7 +563,6 @@ public unsafe class VideoDecoder : DecoderBase
                         {
                             // TBR: it is possible to have a single frame / image with no dts/pts which actually means pts = 0 ? (ticket_3449.264) - GenPts will not affect it
                             // TBR: first frame might no have dts/pts which probably means pts = 0 (and not start time!)
-                            keyFoundWithNoPts = keyFoundWithNoPts || frame->flags.HasFlag(FrameFlags.Key);
                             av_frame_unref(frame);
                             continue;                            
                         }
@@ -585,20 +572,8 @@ public unsafe class VideoDecoder : DecoderBase
                         lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
                     }
 
-                    if (keyFrameRequired)
-                    {
-                        if (!keyFoundWithNoPts && !frame->flags.HasFlag(FrameFlags.Key))
-                        {
-                            if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type}");
-                            // CRIT TBR: for some reason ffmpeg 7.1 does not set first frame as keyframe
-                            //av_frame_unref(frame);
-                            //continue;
-                        }
-
+                    if (StartTime == NoTs)
                         StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
-                        keyFrameRequired = false;
-                        keyFoundWithNoPts = false;
-                    }
 
                     if (!filledFromCodec) // Ensures we have a proper frame before filling from codec
                     {
@@ -687,9 +662,9 @@ public unsafe class VideoDecoder : DecoderBase
             codecCtx        = null;
             swFallback      = true;
             bool oldKeyFrameRequiredPacket
-                            = keyFrameRequiredPacket;
+                            = keyPacketRequired;
             ret = Open2(Stream, null, false); // TBR:  Dispose() on failure could cause a deadlock
-            keyFrameRequiredPacket
+            keyPacketRequired
                             = oldKeyFrameRequiredPacket;
             swFallback      = false;
             filledFromCodec = false;
@@ -771,8 +746,6 @@ public unsafe class VideoDecoder : DecoderBase
                 curReversePacketPos = 0;
             }
 
-            keyFrameRequired = false;
-
             while (curReverseVideoPackets.Count > 0 && Status == Status.Running)
             {
                 // Wait until Queue not Full or Stopped
@@ -792,8 +765,9 @@ public unsafe class VideoDecoder : DecoderBase
 
                 lock (lockCodecCtx)
                 {
-                    if (keyFrameRequired == true)
+                    if (keyPacketRequired == true)
                     {
+                        keyPacketRequired = false;
                         curReversePacketPos = 0;
                         break;
                     }
@@ -849,7 +823,7 @@ public unsafe class VideoDecoder : DecoderBase
                             if (mFrame != null) curReverseVideoFrames.Add(mFrame);
                         }
                         else
-                        av_frame_unref(frame);
+                            av_frame_unref(frame);
                     }
 
                     if (curReversePacketPos == curReverseVideoPackets.Count)
@@ -1016,12 +990,16 @@ public unsafe class VideoDecoder : DecoderBase
                 return DecodeFrameNext();
             }
 
-            if (keyFrameRequired && keyFrameRequiredPacket)
+            if (keyPacketRequired)
             {
-                if ((demuxer.packet->flags & PktFlags.Key) == 0)
-                    { av_packet_unref(demuxer.packet); continue; }
-
-                keyFrameRequiredPacket = false;
+                if (demuxer.packet->flags.HasFlag(PktFlags.Key))
+                    keyPacketRequired = false;
+                else
+                {
+                    if (CanWarn) Log.Warn("Ignoring non-key packet");
+                    av_packet_unref(demuxer.packet);
+                    continue;
+                }
             }
 
             ret = avcodec_send_packet(codecCtx, demuxer.packet);
@@ -1064,7 +1042,6 @@ public unsafe class VideoDecoder : DecoderBase
         {
             if (!VideoStream.FixTimestamps)
             {
-                keyFoundWithNoPts = keyFoundWithNoPts || frame->flags.HasFlag(FrameFlags.Key);
                 av_frame_unref(frame);
                 
                 return DecodeFrameNextInternal();
@@ -1074,20 +1051,9 @@ public unsafe class VideoDecoder : DecoderBase
             lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
         }
 
-        if (keyFrameRequired)
-        {
-            if (!keyFoundWithNoPts && !frame->flags.HasFlag(FrameFlags.Key))
-            {
-                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type}");
-                av_frame_unref(frame);
-                return DecodeFrameNextInternal();
-            }
-
+        if (StartTime == NoTs)
             StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
-            keyFrameRequired = false;
-            keyFoundWithNoPts = false;
-        }
-
+        
         if (!filledFromCodec) // Ensures we have a proper frame before filling from codec
         {
             ret = FillFromCodec(frame);
@@ -1192,7 +1158,7 @@ public unsafe class VideoDecoder : DecoderBase
     #region Recording
     internal Action<MediaType> recCompleted;
     Remuxer curRecorder;
-    bool recGotKeyframe;
+    bool recKeyPacketRequired;
     internal bool isRecording;
 
     internal void StartRecording(Remuxer remuxer)
@@ -1201,7 +1167,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         StartRecordTime     = AV_NOPTS_VALUE;
         curRecorder         = remuxer;
-        recGotKeyframe      = false;
+        recKeyPacketRequired= false;
         isRecording         = true;
     }
     internal void StopRecording() => isRecording = false;
