@@ -17,7 +17,19 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* TODO
+		* VideoDecoder: Stability and performance improvements
+		* VideoStream: Fixes an issue with rotation
+
+		- Dependencies
+		* Replaces FFmpeg.Autogen with Flyleaf.FFmpeg.Bindings
+		* Replaces Microsoft ILoggger with a generic custom callback
+		* Updates FFmpeg libs to v7.1 (patched *and mingw downgrade)
+		* Updates Vortice libs to v3.6.2
+
+		- Breaking Changes
+		* Deprecates .NET Framework and .NET 6 (Support only .NET 8)
+		* FFmpegLogLevel changed to Flyleaf.FFmpeg.LogLevel
+		* FFmpeg v7.1 support only
 	</PackageReleaseNotes>
   </PropertyGroup>
 
