@@ -1,9 +1,7 @@
-﻿using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
-using System;
-using System.Threading;
+﻿using System.Threading;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
 

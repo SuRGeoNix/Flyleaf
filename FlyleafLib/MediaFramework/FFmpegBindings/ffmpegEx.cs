@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace FFmpeg.AutoGen;
+﻿namespace Flyleaf.FFmpeg;
 
 /// <summary>
 /// Additional bindings required by Flyleaf (mostly private- ensure dll's are same versions)
@@ -53,14 +51,13 @@ internal unsafe partial class ffmpegEx
     {
         PLS_TYPE_UNSPECIFIED = 0,
         PLS_TYPE_EVENT = 1,
-        PLS_TYPE_VOD =2
+        PLS_TYPE_VOD = 2
     }
     public unsafe struct HLSPlaylist // latest
     {
         public byte_array4096 url;
-        //public AVIOContext pb;
         public FFIOContext pb;
-        //public byte* read_buffer; // No idea why! (.dll? autogen?)
+        public byte* read_buffer;
         public AVIOContext *input;
         public int input_read_done;
         public AVIOContext *input_next;
@@ -80,8 +77,8 @@ internal unsafe partial class ffmpegEx
         public PlaylistType type;
         public long target_duration;
         public long start_seq_no;
-        public int time_offset_flag;    // Added in 5.1
-        public long start_time_offset;  // Added in 5.1
+        public int time_offset_flag;
+        public long start_time_offset;
         public int n_segments;
         public Segment **segments;
         public int needed;
@@ -116,31 +113,6 @@ internal unsafe partial class ffmpegEx
     }
     #endregion
 
-    #region av_display_rotation_get
-    // TBR: This possible has issues with negatives, should update FFmpeg.Autogen to 6?
-    static double Hypot(double x, double y) => Math.Sqrt(Math.Pow(x, 2) + Math.Pow(y, 2));
-    static double CONVFP(double x) => x / (1 << 16);
-    public static double av_display_rotation_get(byte* matrixBytes)
-    {
-        if (matrixBytes == null)
-            return 0;
-
-        var matrix = (int*) matrixBytes;
-
-        double[] scale = new double[2];
-
-        scale[0] = Hypot(CONVFP(matrix[0]), CONVFP(matrix[3]));
-        scale[1] = Hypot(CONVFP(matrix[1]), CONVFP(matrix[4]));
-
-        if (scale[0] == 0 && scale[1] == 0)
-            return 0;
-
-        double rotation = -(Math.Atan2(CONVFP(matrix[1]) / scale[1], CONVFP(matrix[0]) / scale[0]) * 180 / Math.PI);
-        
-        return (((int)(-rotation) % 360) + 360) % 360;
-    }
-    #endregion
-
     #region misc
     public struct FFIOContext
     {
@@ -156,13 +128,7 @@ internal unsafe partial class ffmpegEx
         public int  tt2;
         public int  tt3;
     }
-    public struct HLSAudioSetupInfo
-    {
-        AVCodecID codec_id;
-        UInt32 codec_tag;
-        UInt16 priming;
-        byte_array10 setup_data;
-    }
+
     public unsafe struct byte_array4096
     {
         public static readonly int Size = 4096;
@@ -184,27 +150,6 @@ internal unsafe partial class ffmpegEx
         public static implicit operator byte[](byte_array4096 @struct) => @struct.ToArray();
     }
 
-    public unsafe struct byte_array10
-    {
-        public static readonly int Size = 10;
-        fixed byte _[10];
-    
-        public byte this[uint i]
-        {
-            get { if (i >= Size) throw new ArgumentOutOfRangeException(); fixed (byte_array10* p = &this) { return p->_[i]; } }
-            set { if (i >= Size) throw new ArgumentOutOfRangeException(); fixed (byte_array10* p = &this) { p->_[i] = value; } }
-        }
-        public byte[] ToArray()
-        {
-            fixed (byte_array10* p = &this) { byte[] a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
-        }
-        public void UpdateFrom(byte[] array)
-        {
-            fixed (byte_array10* p = &this) { uint i = 0; foreach(byte value in array) { p->_[i++] = value; if (i >= Size) return; } }
-        }
-        public static implicit operator byte[](byte_array10 @struct) => @struct.ToArray();
-    }
-
     public unsafe struct byte_array16
     {
         public static readonly int Size = 16;
@@ -224,48 +169,6 @@ internal unsafe partial class ffmpegEx
             fixed (byte_array16* p = &this) { uint i = 0; foreach(byte value in array) { p->_[i++] = value; if (i >= Size) return; } }
         }
         public static implicit operator byte[](byte_array16 @struct) => @struct.ToArray();
-    }
-
-    public unsafe struct byte_array64
-    {
-        public static readonly int Size = 64;
-        fixed byte _[64];
-    
-        public byte this[uint i]
-        {
-            get { if (i >= Size) throw new ArgumentOutOfRangeException(); fixed (byte_array64* p = &this) { return p->_[i]; } }
-            set { if (i >= Size) throw new ArgumentOutOfRangeException(); fixed (byte_array64* p = &this) { p->_[i] = value; } }
-        }
-        public byte[] ToArray()
-        {
-            fixed (byte_array64* p = &this) { byte[] a = new byte[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
-        }
-        public void UpdateFrom(byte[] array)
-        {
-            fixed (byte_array64* p = &this) { uint i = 0; foreach(byte value in array) { p->_[i++] = value; if (i >= Size) return; } }
-        }
-        public static implicit operator byte[](byte_array64 @struct) => @struct.ToArray();
-    }
-
-    public unsafe struct int_array16
-    {
-        public static readonly int Size = 16;
-        fixed int _[16];
-    
-        public int this[uint i]
-        {
-            get { if (i >= Size) throw new ArgumentOutOfRangeException(); fixed (int_array16* p = &this) { return p->_[i]; } }
-            set { if (i >= Size) throw new ArgumentOutOfRangeException(); fixed (int_array16* p = &this) { p->_[i] = value; } }
-        }
-        public int[] ToArray()
-        {
-            fixed (int_array16* p = &this) { int[] a = new int[Size]; for (uint i = 0; i < Size; i++) a[i] = p->_[i]; return a; }
-        }
-        public void UpdateFrom(int[] array)
-        {
-            fixed (int_array16* p = &this) { uint i = 0; foreach(int value in array) { p->_[i++] = value; if (i >= Size) return; } }
-        }
-        public static implicit operator int[](int_array16 @struct) => @struct.ToArray();
     }
     #endregion
 #pragma warning restore CS0169

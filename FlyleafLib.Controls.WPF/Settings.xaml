@@ -6,6 +6,7 @@
              
              xmlns:local="clr-namespace:FlyleafLib.Controls.WPF"
              xmlns:fl="clr-namespace:FlyleafLib;assembly=FlyleafLib"
+             xmlns:ffmpeg="clr-namespace:Flyleaf.FFmpeg;assembly=Flyleaf.FFmpeg.Bindings"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:dragablz="clr-namespace:Dragablz;assembly=Dragablz"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
@@ -130,7 +131,7 @@
 
             <ObjectDataProvider x:Key="FFmpegLogLevelEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
                 <ObjectDataProvider.MethodParameters>
-                    <x:Type TypeName="fl:FFmpegLogLevel"/>
+                    <x:Type TypeName="ffmpeg:LogLevel"/>
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
 

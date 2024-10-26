@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
-
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
-using static FFmpeg.AutoGen.AVMediaType;
 
 namespace FlyleafLib.MediaFramework.MediaRemuxer;
 
@@ -50,7 +45,7 @@ public unsafe class Remuxer
     {
         int ret = -1;
 
-        if (in_stream == null || (in_stream->codecpar->codec_type != AVMEDIA_TYPE_VIDEO && in_stream->codecpar->codec_type != AVMEDIA_TYPE_AUDIO)) return ret;
+        if (in_stream == null || (in_stream->codecpar->codec_type != AVMediaType.Video && in_stream->codecpar->codec_type != AVMediaType.Audio)) return ret;
         
         AVStream *out_stream;
         var in_codecpar = in_stream->codecpar;
@@ -65,7 +60,7 @@ public unsafe class Remuxer
         AVDictionaryEntry* b = null;
         while (true)
         {
-            b = av_dict_get(in_stream->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
+            b = av_dict_get(in_stream->metadata, "", b, DictReadFlags.IgnoreSuffix);
             if (b == null) break;
 
             if (Utils.BytePtrToStringUTF8(b->key).ToLower() == "language" || Utils.BytePtrToStringUTF8(b->key).ToLower() == "lang")
@@ -103,7 +98,7 @@ public unsafe class Remuxer
 
         int ret;
 
-        ret = avio_open(&fmtCtx->pb, Filename, AVIO_FLAG_WRITE);
+        ret = avio_open(&fmtCtx->pb, Filename, IOFlags.Write);
         if (ret < 0) { Dispose(); return ret; }
 
         ret = avformat_write_header(fmtCtx, null);
@@ -135,12 +130,12 @@ public unsafe class Remuxer
                     mapInStreamToDts.Add(in_stream->index, packet->dts);
                 }
 
-                packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
-                packet->dts = av_rescale_q_rnd(packet->dts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.NearInf | AVRounding.PassMinmax);
+                packet->dts = av_rescale_q_rnd(packet->dts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.NearInf | AVRounding.PassMinmax);
             }
             else
             {   
-                packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.AV_ROUND_NEAR_INF | AVRounding.AV_ROUND_PASS_MINMAX);
+                packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.NearInf | AVRounding.PassMinmax);
                 packet->dts = AV_NOPTS_VALUE;
             }
 

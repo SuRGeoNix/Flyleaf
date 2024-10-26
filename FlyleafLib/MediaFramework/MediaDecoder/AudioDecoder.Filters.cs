@@ -1,9 +1,5 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Threading;
-
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -61,7 +57,7 @@ public unsafe partial class AudioDecoder
 
             AVFilterContext* linkCtx;
 
-            sinkTimebase    = new() { num = 1, den = codecCtx->sample_rate};
+            sinkTimebase    = new() { Num = 1, Den = codecCtx->sample_rate};
             filtframe       = av_frame_alloc();
             filterGraph     = avfilter_graph_alloc();
             setFirstPts     = true;
@@ -69,7 +65,7 @@ public unsafe partial class AudioDecoder
 
             // IN (abuffersrc)
             linkCtx = abufferCtx = CreateFilter("abuffer", 
-                $"channel_layout={AudioStream.ChannelLayoutStr}:sample_fmt={AudioStream.SampleFormatStr}:sample_rate={codecCtx->sample_rate}:time_base={sinkTimebase.num}/{sinkTimebase.den}");
+                $"channel_layout={AudioStream.ChannelLayoutStr}:sample_fmt={AudioStream.SampleFormatStr}:sample_rate={codecCtx->sample_rate}:time_base={sinkTimebase.Num}/{sinkTimebase.Den}");
             
             // USER DEFINED
             if (Config.Audio.Filters != null)
@@ -105,19 +101,19 @@ public unsafe partial class AudioDecoder
 
             int tmpSampleRate = AudioStream.SampleRate;
             fixed (AVSampleFormat* ptr = &AOutSampleFormat)
-                ret = av_opt_set_bin(abufferSinkCtx , "sample_fmts"         , (byte*)ptr,            sizeof(AVSampleFormat) , AV_OPT_SEARCH_CHILDREN);
-            ret = av_opt_set_bin(abufferSinkCtx     , "sample_rates"        , (byte*)&tmpSampleRate, sizeof(int)            , AV_OPT_SEARCH_CHILDREN);
-            ret = av_opt_set_int(abufferSinkCtx     , "all_channel_counts"  , 0                                             , AV_OPT_SEARCH_CHILDREN);
-            ret = av_opt_set(abufferSinkCtx         , "ch_layouts"          , "stereo"                                      , AV_OPT_SEARCH_CHILDREN);
+                ret = av_opt_set_bin(abufferSinkCtx , "sample_fmts"         , (byte*)ptr,            sizeof(AVSampleFormat) , OptSearchFlags.Children);
+            ret = av_opt_set_bin(abufferSinkCtx     , "sample_rates"        , (byte*)&tmpSampleRate, sizeof(int)            , OptSearchFlags.Children);
+            ret = av_opt_set_int(abufferSinkCtx     , "all_channel_counts"  , 0                                             , OptSearchFlags.Children);
+            ret = av_opt_set(abufferSinkCtx         , "ch_layouts"          , "stereo"                                      , OptSearchFlags.Children);
             avfilter_link(linkCtx, 0, abufferSinkCtx, 0);
             
             // GRAPH CONFIG
             ret = avfilter_graph_config(filterGraph, null);
 
-            // Ensures we have at least 20-70ms samples to avoid audio crackling and av sync issues
-            var tb = 1000 * 10000.0 / sinkTimebase.den;
-            abufferSinkCtx->inputs[0]->min_samples = (int) (20 * 10000 / tb);
-            abufferSinkCtx->inputs[0]->max_samples = (int) (70 * 10000 / tb);
+            // CRIT TBR:!!!
+            //var tb = 1000 * 10000.0 / sinkTimebase.Den; // Ensures we have at least 20-70ms samples to avoid audio crackling and av sync issues
+            //abufferSinkCtx->inputs[0]->min_samples = (int) (20 * 10000 / tb);
+            //abufferSinkCtx->inputs[0]->max_samples = (int) (70 * 10000 / tb);
 
             return ret < 0 
                 ? throw new Exception($"[FilterGraph] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})") 
@@ -265,11 +261,11 @@ public unsafe partial class AudioDecoder
             return;
         }
 
-        nextPts = frame->pts + frame->pkt_duration;
+        nextPts = frame->pts + frame->duration;
 
         int ret;
         
-        if ((ret = av_buffersrc_add_frame_flags(abufferCtx, frame, 1 | 8)) < 0) // AV_BUFFERSRC_FLAG_KEEP_REF = 8, AV_BUFFERSRC_FLAG_NO_CHECK_FORMAT = 1 (we check format change manually before here)
+        if ((ret = av_buffersrc_add_frame_flags(abufferCtx, frame, AVBuffersrcFlag.KeepRef | AVBuffersrcFlag.NoCheckFormat)) < 0) // AV_BUFFERSRC_FLAG_KEEP_REF = 8, AV_BUFFERSRC_FLAG_NO_CHECK_FORMAT = 1 (we check format change manually before here)
         {
             Log.Warn($"[buffersrc] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
             Status = Status.Stopping;

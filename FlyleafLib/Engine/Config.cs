@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
-#if NET5_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -62,14 +59,7 @@ public class Config : NotifyPropertyChanged
     }
     public static Config Load(string path)
     {
-        #if NET5_0_OR_GREATER
         Config config       = JsonSerializer.Deserialize<Config>(File.ReadAllText(path));
-        #else
-        using FileStream fs = new(path, FileMode.Open);
-        XmlSerializer xmlSerializer
-                            = new(typeof(Config));
-        Config config       = (Config) xmlSerializer.Deserialize(fs);
-        #endif
         config.Loaded       = true;
         config.LoadedPath   = path;
 
@@ -85,13 +75,7 @@ public class Config : NotifyPropertyChanged
             path = LoadedPath;
         }
 
-        #if NET5_0_OR_GREATER
         File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions() { WriteIndented = true }));
-        #else
-        using FileStream fs = new(path, FileMode.Create);
-        XmlSerializer xmlSerializer = new(GetType());
-        xmlSerializer.Serialize(fs, this);
-        #endif
     }
 
     internal void SetPlayer(Player player)
@@ -109,18 +93,14 @@ public class Config : NotifyPropertyChanged
     /// Whether configuration has been loaded from file
     /// </summary>
     [XmlIgnore]
-    #if NET5_0_OR_GREATER
     [JsonIgnore]
-    #endif
     public bool             Loaded      { get; private set; }
 
     /// <summary>
     /// The path that this configuration has been loaded from
     /// </summary>
     [XmlIgnore]
-    #if NET5_0_OR_GREATER
     [JsonIgnore]
-    #endif
     public string           LoadedPath  { get; private set; }
 
     public PlayerConfig     Player      { get; set; } = new PlayerConfig();
@@ -424,7 +404,7 @@ public class Config : NotifyPropertyChanged
         /// FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
         /// eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
         /// </summary>
-        public int              FormatFlags     { get; set; } = FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
+        public DemuxerFlags     FormatFlags     { get; set; } = DemuxerFlags.DiscardCorrupt;// FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
 
         /// <summary>
         /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt and HTTPQuery params to the underlying contexts)
@@ -625,15 +605,13 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// DXGI Maximum Frame Latency (1 - 16)
         /// </summary>
-        public int              MaxFrameLatency             { get; set; } = 1;
+        public uint             MaxFrameLatency             { get; set; } = 1;
 
         /// <summary>
         /// The max resolution that the current system can achieve and will be used from the input/stream suggester plugins
         /// </summary>
         [XmlIgnore]
-        #if NET5_0_OR_GREATER
         [JsonIgnore]
-        #endif
         public int              MaxVerticalResolutionAuto   { get; internal set; }
 
         /// <summary>
@@ -646,9 +624,7 @@ public class Config : NotifyPropertyChanged
         /// The max resolution that is currently used (based on Auto/Custom)
         /// </summary>
         [XmlIgnore]
-        #if NET5_0_OR_GREATER
         [JsonIgnore]
-        #endif
         public int              MaxVerticalResolution       => MaxVerticalResolutionCustom == 0 ? (MaxVerticalResolutionAuto != 0 ? MaxVerticalResolutionAuto : 1080) : MaxVerticalResolutionCustom;
 
         /// <summary>
@@ -680,7 +656,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Whether Vsync should be enabled (0: Disabled, 1: Enabled)
         /// </summary>
-        public short            VSync                       { get; set; }
+        public uint             VSync                       { get; set; }
 
         /// <summary>
         /// Swap chain's present flags (mainly for waitable -None- or non-waitable -DoNotWait) (default: non-waitable)<br/>
@@ -720,7 +696,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// The number of buffers to use for the renderer's swap chain
         /// </summary>
-        public int              SwapBuffers                 { get; set; } = 2;
+        public uint             SwapBuffers                 { get; set; } = 2;
 
         /// <summary>
         /// <para>
@@ -855,9 +831,7 @@ public class Config : NotifyPropertyChanged
         /// Subtitles parser (can be used for custom parsing)
         /// </summary>
         [XmlIgnore]
-        #if NET5_0_OR_GREATER
         [JsonIgnore]
-        #endif
         public Action<SubtitlesFrame>
                                 Parser              { get; set; } = ParseSubtitles.Parse;
     }
@@ -919,26 +893,22 @@ public class EngineConfig
     /// <summary>
     /// Sets FFmpeg logger's level
     /// </summary>
-    public FFmpegLogLevel 
+    public Flyleaf.FFmpeg.LogLevel 
                     FFmpegLogLevel          { get => _FFmpegLogLevel; set { _FFmpegLogLevel = value; if (Engine.IsLoaded) FFmpegEngine.SetLogLevel(); } }
-    FFmpegLogLevel _FFmpegLogLevel = FFmpegLogLevel.Quiet;
+    Flyleaf.FFmpeg.LogLevel _FFmpegLogLevel = Flyleaf.FFmpeg.LogLevel.Quiet;
 
     /// <summary>
     /// Whether configuration has been loaded from file
     /// </summary>
     [XmlIgnore]
-    #if NET5_0_OR_GREATER
     [JsonIgnore]
-    #endif
     public bool     Loaded                  { get; private set; }
 
     /// <summary>
     /// The path that this configuration has been loaded from
     /// </summary>
     [XmlIgnore]
-    #if NET5_0_OR_GREATER
     [JsonIgnore]
-    #endif
     public string   LoadedPath              { get; private set; }
 
     /// <summary>
@@ -1002,14 +972,7 @@ public class EngineConfig
     /// <returns></returns>
     public static EngineConfig Load(string path)
     {
-        #if NET5_0_OR_GREATER
         EngineConfig config = JsonSerializer.Deserialize<EngineConfig>(File.ReadAllText(path));
-        #else
-        using FileStream fs = new(path, FileMode.Open);
-        XmlSerializer xmlSerializer
-                            = new(typeof(EngineConfig));
-        EngineConfig config = (EngineConfig)xmlSerializer.Deserialize(fs);
-        #endif
         config.Loaded       = true;
         config.LoadedPath   = path;
 
@@ -1030,14 +993,6 @@ public class EngineConfig
             path = LoadedPath;
         }
 
-        #if NET5_0_OR_GREATER
         File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions() { WriteIndented = true, }));
-        #else
-        using FileStream fs = new(path, FileMode.Create);
-        XmlSerializer xmlSerializer
-                            = new(GetType());
-
-        xmlSerializer.Serialize(fs, this);
-        #endif
     }
 }

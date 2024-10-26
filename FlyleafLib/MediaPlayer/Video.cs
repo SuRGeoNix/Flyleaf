@@ -124,8 +124,8 @@ public class Video : NotifyPropertyChanged
         aspectRatio = decoder.VideoStream.AspectRatio;
         fps         = decoder.VideoStream.FPS;
         pixelFormat = decoder.VideoStream.PixelFormatStr;
-        width       = decoder.VideoStream.Width;
-        height      = decoder.VideoStream.Height;
+        width       = (int)decoder.VideoStream.Width;
+        height      = (int)decoder.VideoStream.Height;
         framesTotal = decoder.VideoStream.TotalFrames;
         videoAcceleration
                     = decoder.VideoDecoder.VideoAccelerated;

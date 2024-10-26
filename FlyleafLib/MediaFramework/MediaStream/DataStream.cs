@@ -1,7 +1,7 @@
-﻿using FFmpeg.AutoGen;
-using FlyleafLib.MediaFramework.MediaDemuxer;
+﻿using FlyleafLib.MediaFramework.MediaDemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaStream;
+
 public unsafe class DataStream : StreamBase
 {
 

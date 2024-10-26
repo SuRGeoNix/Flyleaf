@@ -31,7 +31,7 @@ namespace FlyleafExtractor
                 #if DEBUG
                 LogOutput       = ":debug",
                 LogLevel        = LogLevel.Debug,
-                FFmpegLogLevel  = FFmpegLogLevel.Warning,
+                FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
                 #endif
                 
                 PluginsPath     = ":Plugins",

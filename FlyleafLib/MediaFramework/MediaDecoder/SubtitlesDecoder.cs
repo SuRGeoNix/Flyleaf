@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Threading;
-
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -179,7 +175,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 subFrame.duration   = subFrame.sub.end_display_time;
                 subFrame.timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
 
-                if (subFrame.sub.rects[0]->type == AVSubtitleType.SUBTITLE_ASS)
+                if (subFrame.sub.rects[0]->type == AVSubtitleType.Ass)
                 {
                     subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->ass);
                     Config.Subtitles.Parser(subFrame);
@@ -190,7 +186,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     if (string.IsNullOrEmpty(subFrame.text))
                         continue;
                 }
-                else if (subFrame.sub.rects[0]->type == AVSubtitleType.SUBTITLE_TEXT)
+                else if (subFrame.sub.rects[0]->type == AVSubtitleType.Text)
                 {
                     subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->text);
 

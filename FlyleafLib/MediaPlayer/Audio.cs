@@ -217,7 +217,7 @@ public class Audio : NotifyPropertyChanged
                 }
 
                 sourceVoice = xaudio2.CreateSourceVoice(waveFormat, false);
-                sourceVoice.SetSourceSampleRate(SampleRate);
+                sourceVoice.SetSourceSampleRate((uint)SampleRate);
                 sourceVoice.Start();
 
                 submittedSamples        = 0;
@@ -266,7 +266,7 @@ public class Audio : NotifyPropertyChanged
                 SamplesAdded?.Invoke(this, aFrame);
             
                 audioBuffer.AudioDataPointer= aFrame.dataPtr;
-                audioBuffer.AudioBytes      = aFrame.dataLen;
+                audioBuffer.AudioBytes      = (uint)aFrame.dataLen;
                 sourceVoice.SubmitSourceBuffer(audioBuffer);
             }
             catch (Exception e) // Happens on audio device changed/removed

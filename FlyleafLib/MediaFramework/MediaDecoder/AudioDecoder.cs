@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Threading;
-
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -39,9 +35,9 @@ public unsafe partial class AudioDecoder : DecoderBase
     public ConcurrentQueue<AudioFrame>
                             Frames              { get; protected set; } = new();
 
-    static AVSampleFormat   AOutSampleFormat    = AVSampleFormat.AV_SAMPLE_FMT_S16;
+    static AVSampleFormat   AOutSampleFormat    = AVSampleFormat.S16;
     static string           AOutSampleFormatStr = av_get_sample_fmt_name(AOutSampleFormat);
-    static AVChannelLayout  AOutChannelLayout   = new() { order = AVChannelOrder.AV_CHANNEL_ORDER_NATIVE, nb_channels = 2, u = new AVChannelLayout_u() { mask = AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT} };
+    static AVChannelLayout  AOutChannelLayout   = AV_CHANNEL_LAYOUT_STEREO;// new() { order = AVChannelOrder.Native, nb_channels = 2, u = new AVChannelLayout_u() { mask = AVChannel.for AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT} };
     static int              AOutChannels        = AOutChannelLayout.nb_channels;
     static int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
 
@@ -297,8 +293,8 @@ public unsafe partial class AudioDecoder : DecoderBase
                     }
 
                     // We could fix it down to the demuxer based on size?
-                    if (frame->pkt_duration <= 0)
-                        frame->pkt_duration = av_rescale_q((long)(frame->nb_samples * sampleRateTimebase), Engine.FFmpeg.AV_TIMEBASE_Q, Stream.AVStream->time_base);
+                    if (frame->duration <= 0)
+                        frame->duration = av_rescale_q((long)(frame->nb_samples * sampleRateTimebase), Engine.FFmpeg.AV_TIMEBASE_Q, Stream.AVStream->time_base);
                     
                     bool codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
 
@@ -309,7 +305,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                             byte[] buf = new byte[50];
                             fixed (byte* bufPtr = buf)
                             {
-                                av_channel_layout_describe(&codecCtx->ch_layout, bufPtr, (ulong)buf.Length);
+                                av_channel_layout_describe(&codecCtx->ch_layout, bufPtr, (nuint)buf.Length);
                                 Log.Warn($"Codec changed {AudioStream.CodecIDOrig} {AudioStream.SampleFormat} {AudioStream.SampleRate} {AudioStream.ChannelLayoutStr} => {codecCtx->codec_id} {codecCtx->sample_fmt} {codecCtx->sample_rate} {Utils.BytePtrToStringUTF8(bufPtr)}");
                             }
                         }
@@ -351,7 +347,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                         while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning && resyncWithVideoRequired)
                             Thread.Sleep(10);
 
-                        long ts = (long)((frame->pts + frame->pkt_duration) * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay;
+                        long ts = (long)((frame->pts + frame->duration) * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay;
 
                         if (ts < VideoDecoder.StartTime)
                         {
@@ -387,7 +383,7 @@ public unsafe partial class AudioDecoder : DecoderBase
     {
         try
         {
-            nextPts = frame->pts + frame->pkt_duration;
+            nextPts = frame->pts + frame->duration;
 
             var dataLen     = frame->nb_samples * ASampleBytes;
             var speedDataLen= Utils.Align((int)(dataLen / speed), ASampleBytes);

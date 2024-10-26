@@ -1,9 +1,5 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Threading;
-
-using FFmpeg.AutoGen;
-using Vortice.XAudio2;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -705,7 +701,7 @@ unsafe partial class Player
     private long GetBufferedDuration()
     {
         var decoder = VideoDecoder.Frames.IsEmpty ? 0 : VideoDecoder.Frames.ToArray()[^1].timestamp - vFrame.timestamp;
-        var demuxer = VideoDemuxer.VideoPackets.IsEmpty || VideoDemuxer.VideoPackets.LastTimestamp == ffmpeg.AV_NOPTS_VALUE
+        var demuxer = VideoDemuxer.VideoPackets.IsEmpty || VideoDemuxer.VideoPackets.LastTimestamp == NoTs
             ? 0 : 
             (VideoDemuxer.VideoPackets.LastTimestamp - VideoDemuxer.StartTime) - vFrame.timestamp;
 

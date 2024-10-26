@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows;
 
@@ -11,6 +10,8 @@ using Vortice.Mathematics;
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
+
+using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -215,8 +216,8 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
             CPUAccessFlags      = CpuAccessFlags.Read,
             SampleDescription   = new SampleDescription(1, 0),
 
-            Width       = -1,
-            Height      = -1
+            Width       = 0,
+            Height      = 0
         };
 
         singleGpuDesc = new Texture2DDescription()

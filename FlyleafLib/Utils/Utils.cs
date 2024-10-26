@@ -471,7 +471,7 @@ public static partial class Utils
         return path;
     }
 
-    public static string GetBytesReadable(long i)
+    public static string GetBytesReadable(nuint i)
     {
         // Determine the suffix and readable value
         string suffix;

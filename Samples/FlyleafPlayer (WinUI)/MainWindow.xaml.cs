@@ -38,7 +38,7 @@ public sealed partial class MainWindow : Window
             #if DEBUG
             LogOutput       = ":debug",
             LogLevel        = LogLevel.Debug,
-            FFmpegLogLevel  = FFmpegLogLevel.Warning,
+            FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
             #endif
 
             UIRefresh       = false, // For Activity Mode usage
