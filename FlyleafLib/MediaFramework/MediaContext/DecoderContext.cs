@@ -172,7 +172,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
             VideoDecoder.Flush();
             if (ms == 0)
-                VideoDecoder.keyFrameRequiredPacket = false;
+                VideoDecoder.keyPacketRequired = false; // TBR
 
             if (AudioStream != null && AudioDecoder.OnVideoDemuxer)
             {
@@ -530,12 +530,16 @@ public unsafe partial class DecoderContext : PluginHandler
 
             var codecType = VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type;
 
-            if (codecType == AVMediaType.Video && VideoDecoder.keyFrameRequired && VideoDecoder.keyFrameRequiredPacket)
+            if (codecType == AVMediaType.Video && VideoDecoder.keyPacketRequired)
             {
-                if ((packet->flags & PktFlags.Key) == 0)
-                    { av_packet_free(&packet); continue; }
-
-                VideoDecoder.keyFrameRequiredPacket = false;
+                if (packet->flags.HasFlag(PktFlags.Key))
+                    VideoDecoder.keyPacketRequired = false;
+                else
+                {
+                    if (CanWarn) Log.Warn("Ignoring non-key packet");
+                    av_packet_free(&packet);
+                    continue;
+                }
             }
                 
             if (VideoDemuxer.IsHLSLive)
@@ -560,7 +564,7 @@ public unsafe partial class DecoderContext : PluginHandler
                     continue;
 
                 case AVMediaType.Data: // this should catch the data stream packets until we have a valid vidoe keyframe (it should fill the pts if NOPTS with lastVideoPacketPts similarly to the demuxer)
-                    if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * DataStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
+                    if ((timestamp == -1 && VideoDecoder.StartTime != NoTs) || (long)(packet->pts * DataStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.DataPackets.Enqueue(packet);
 
                     packet = av_packet_alloc();
@@ -602,26 +606,12 @@ public unsafe partial class DecoderContext : PluginHandler
                         {
                             if (!VideoStream.FixTimestamps)
                             {
-                                VideoDecoder.keyFoundWithNoPts = VideoDecoder.keyFoundWithNoPts || frame->flags.HasFlag(FrameFlags.Key);
                                 av_frame_unref(frame);
                                 continue;                            
                             }
 
                             frame->pts = VideoDecoder.lastFixedPts + VideoStream.StartTimePts;
                             VideoDecoder.lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
-                        }
-
-                        if (VideoDecoder.keyFrameRequired)
-                        {
-                            if (!VideoDecoder.keyFoundWithNoPts && !frame->flags.HasFlag(FrameFlags.Key))
-                            {
-                                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type}");
-                                av_frame_unref(frame);
-                                continue;
-                            }
-
-                            VideoDecoder.keyFrameRequired = false;
-                            VideoDecoder.keyFoundWithNoPts = false;
                         }
 
                         if (!VideoDecoder.filledFromCodec)
