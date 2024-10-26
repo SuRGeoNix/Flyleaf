@@ -1,17 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net8.0-windows;net6.0-windows;net472</TargetFrameworks>
+		<TargetFrameworks>net8.0-windows</TargetFrameworks>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<AssemblyVersion>1.2.0.0</AssemblyVersion>
 		<FileVersion>1.2.0.0</FileVersion>
 	</PropertyGroup>
 
-	<ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
-		<Reference Include="System.Net.Http" />
-		<PackageReference Include="System.Text.Json" Version="8.0.5" />
-	</ItemGroup>
-	
 	<ItemGroup>
 		<ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj">
 			<Private>false</Private>

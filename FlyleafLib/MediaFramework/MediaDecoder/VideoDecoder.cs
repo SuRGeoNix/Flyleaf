@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
-
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
-using static FFmpeg.AutoGen.AVCodecID;
 
 using Vortice.DXGI;
 using Vortice.Direct3D11;
@@ -35,9 +30,9 @@ public unsafe class VideoDecoder : DecoderBase
     public long             StartTime           { get; internal set; } = AV_NOPTS_VALUE;
     public long             StartRecordTime     { get; internal set; } = AV_NOPTS_VALUE;
 
-    const AVPixelFormat     PIX_FMT_HWACCEL     = AVPixelFormat.AV_PIX_FMT_D3D11;
-    const int               SCALING_HQ          = SWS_ACCURATE_RND | SWS_BITEXACT | SWS_LANCZOS | SWS_FULL_CHR_H_INT | SWS_FULL_CHR_H_INP;
-    const int               SCALING_LQ          = SWS_BICUBIC;
+    const AVPixelFormat     PIX_FMT_HWACCEL     = AVPixelFormat.D3d11;
+    const SwsFlags          SCALING_HQ          = SwsFlags.AccurateRnd | SwsFlags.Bitexact | SwsFlags.Lanczos | SwsFlags.FullChrHInt | SwsFlags.FullChrHInp;
+    const SwsFlags          SCALING_LQ          = SwsFlags.Bicublin;
 
     internal SwsContext*    swsCtx;
     IntPtr                  swsBufferPtr;
@@ -103,7 +98,7 @@ public unsafe class VideoDecoder : DecoderBase
 
     #region Video Acceleration (Should be disposed seperately)
     const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
-    const AVHWDeviceType    HW_DEVICE = AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA;
+    const AVHWDeviceType    HW_DEVICE = AVHWDeviceType.D3d11va;
 
     internal ID3D11Texture2D
                             textureFFmpeg;
@@ -118,7 +113,7 @@ public unsafe class VideoDecoder : DecoderBase
         {
             var config = avcodec_get_hw_config(codec, i);
             if (config == null) break;
-            if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) == 0 || config->pix_fmt == AVPixelFormat.AV_PIX_FMT_NONE) continue;
+            if ((config->methods & AVCodecHwConfigMethod.HwDeviceCtx) == 0 || config->pix_fmt == AVPixelFormat.None) continue;
             
             if (config->device_type == HW_DEVICE && config->pix_fmt == PIX_FMT_HWACCEL) return true;
         }
@@ -138,7 +133,7 @@ public unsafe class VideoDecoder : DecoderBase
         device_ctx          = (AVHWDeviceContext*) hw_device_ctx->data;
         d3d11va_device_ctx  = (AVD3D11VADeviceContext*) device_ctx->hwctx;
         d3d11va_device_ctx->device
-                            = (FFmpeg.AutoGen.ID3D11Device*) Renderer.Device.NativePointer;
+                            = (Flyleaf.FFmpeg.ID3D11Device*) Renderer.Device.NativePointer;
 
         ret = av_hwdevice_ctx_init(hw_device_ctx);
         if (ret != 0)
@@ -165,7 +160,7 @@ public unsafe class VideoDecoder : DecoderBase
             if (CanTrace)
             {
                 var save = pix_fmts;
-                while (*pix_fmts != AVPixelFormat.AV_PIX_FMT_NONE)
+                while (*pix_fmts != AVPixelFormat.None)
                 {
                     Log.Trace($"{*pix_fmts}");
                     pix_fmts++;
@@ -176,7 +171,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         bool foundHWformat = false;
         
-        while (*pix_fmts != AVPixelFormat.AV_PIX_FMT_NONE)
+        while (*pix_fmts != AVPixelFormat.None)
         {
             if ((*pix_fmts) == PIX_FMT_HWACCEL)
             {
@@ -260,7 +255,7 @@ public unsafe class VideoDecoder : DecoderBase
             return -1;
 
         AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)codecCtx->hw_frames_ctx->data;
-        hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames; // TBR: Texture 2D Array seems to have up limit to 128 (total=17+MaxVideoFrames)? (should use extra hw frames instead**)
+        //hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames; // TBR: Texture 2D Array seems to have up limit to 128 (total=17+MaxVideoFrames)? (should use extra hw frames instead**)
 
         AVD3D11VAFramesContext *va_frames_ctx = (AVD3D11VAFramesContext *)hw_frames_ctx->hwctx;
         va_frames_ctx->BindFlags  |= (uint)BindFlags.Decoder | (uint)BindFlags.ShaderResource;
@@ -336,23 +331,23 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (VideoAccelerated)
         {
-            codecCtx->thread_count = 1;
-            codecCtx->hwaccel_flags |= AV_HWACCEL_FLAG_IGNORE_LEVEL;
+            codecCtx->thread_count      = 1;
+            codecCtx->hwaccel_flags    |= HWAccelFlags.IgnoreLevel;
             if (Config.Decoder.AllowProfileMismatch)
-                codecCtx->hwaccel_flags |= AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH;
+                codecCtx->hwaccel_flags|= HWAccelFlags.AllowProfileMismatch;
 
-            codecCtx->pix_fmt = PIX_FMT_HWACCEL;
-            codecCtx->get_format = getHWformat;
+            codecCtx->get_format        = getHWformat;
+            codecCtx->extra_hw_frames   = Config.Decoder.MaxVideoFrames;
         }
         else
-            codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AV_CODEC_ID_HEVC ? 32 : 16);
-
+            codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AVCodecID.Hevc ? 32 : 16);
+        
         return 0;
     }
     internal bool SetupSws()
     {
         Marshal.FreeHGlobal(swsBufferPtr);
-        var fmt         = AVPixelFormat.AV_PIX_FMT_RGBA;
+        var fmt         = AVPixelFormat.Rgba;
         swsData         = new byte_ptrArray4();
         swsLineSize     = new int_array4();
         int outBufferSize
@@ -500,7 +495,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                 if (isRecording)
                 {
-                    if (!recGotKeyframe && (packet->flags & AV_PKT_FLAG_KEY) != 0)
+                    if (!recGotKeyframe && (packet->flags & PktFlags.Key) != 0)
                     {
                         recGotKeyframe = true;
                         StartRecordTime = (long)(packet->pts * VideoStream.Timebase) - demuxer.StartTime;
@@ -512,7 +507,7 @@ public unsafe class VideoDecoder : DecoderBase
                 
                 if (keyFrameRequired && keyFrameRequiredPacket)
                 {
-                    if ((packet->flags & AV_PKT_FLAG_KEY) == 0)
+                    if ((packet->flags & PktFlags.Key) == 0)
                         { av_packet_free(&packet); continue; }
 
                     keyFrameRequiredPacket = false;
@@ -529,22 +524,30 @@ public unsafe class VideoDecoder : DecoderBase
 
                 if (ret != 0 && ret != AVERROR(EAGAIN))
                 {
-                    av_packet_free(&packet);
-
-                    if (ret == AVERROR_EOF)
+                    if (keyFrameRequired && VideoAccelerated) // CRIT TBR: av1 fails?*
                     {
-                        if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); continue; } // TBR: Happens on HLS while switching video streams
-                        Status = Status.Ended;
-                        break;
+                        SWFallback();
+                        ret = avcodec_send_packet(codecCtx, packet); // check error
                     }
                     else
                     {
-                        allowedErrors--;
-                        if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+                        av_packet_free(&packet);
 
-                        if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
+                        if (ret == AVERROR_EOF)
+                        {
+                            if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); continue; } // TBR: Happens on HLS while switching video streams
+                            Status = Status.Ended;
+                            break;
+                        }
+                        else
+                        {
+                            allowedErrors--;
+                            if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                        continue;
+                            if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
+
+                            continue;
+                        }
                     }
                 }
                 
@@ -568,11 +571,11 @@ public unsafe class VideoDecoder : DecoderBase
 
                     else if (frame->pts == AV_NOPTS_VALUE)
                     {
-                        if (!VideoStream.FixTimestamps)
+                        if (!VideoStream.FixTimestamps && VideoStream.Duration > TimeSpan.FromSeconds(1).Ticks)
                         {
                             // TBR: it is possible to have a single frame / image with no dts/pts which actually means pts = 0 ? (ticket_3449.264) - GenPts will not affect it
                             // TBR: first frame might no have dts/pts which probably means pts = 0 (and not start time!)
-                            keyFoundWithNoPts = keyFoundWithNoPts || frame->key_frame == 1;
+                            keyFoundWithNoPts = keyFoundWithNoPts || frame->flags.HasFlag(FrameFlags.Key);
                             av_frame_unref(frame);
                             continue;                            
                         }
@@ -584,11 +587,12 @@ public unsafe class VideoDecoder : DecoderBase
 
                     if (keyFrameRequired)
                     {
-                        if (!keyFoundWithNoPts && frame->key_frame != 1)
+                        if (!keyFoundWithNoPts && !frame->flags.HasFlag(FrameFlags.Key))
                         {
-                            if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
-                            av_frame_unref(frame);
-                            continue;
+                            if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type}");
+                            // CRIT TBR: for some reason ffmpeg 7.1 does not set first frame as keyframe
+                            //av_frame_unref(frame);
+                            //continue;
                         }
 
                         StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
@@ -646,7 +650,7 @@ public unsafe class VideoDecoder : DecoderBase
 
             avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
             VideoStream.AVStream->time_base = codecCtx->pkt_timebase;
-            VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.AV_PIX_FMT_NONE ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt, frame);
+            VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.None ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt, frame);
             
             if (!(VideoStream.FPS > 0)) // NaN
             {
@@ -659,7 +663,7 @@ public unsafe class VideoDecoder : DecoderBase
             skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
             CodecChanged?.Invoke(this);
 
-            if (VideoStream.PixelFormat == AVPixelFormat.AV_PIX_FMT_NONE || !Renderer.ConfigPlanes())
+            if (VideoStream.PixelFormat == AVPixelFormat.None || !Renderer.ConfigPlanes())
             {
                 Log.Error("[Pixel Format] Unknown");
                 return -1234;
@@ -931,9 +935,9 @@ public unsafe class VideoDecoder : DecoderBase
         // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC
         // More issues with mpegts seeking backwards (those should be used also in the reverse playback in the demuxer)
         demuxer.Interrupter.SeekRequest();
-        ret = codecCtx->codec_id == AV_CODEC_ID_HEVC || (demuxer.FormatContext->iformat != null && demuxer.FormatContext->iformat->read_seek.Pointer == IntPtr.Zero)
-            ? av_seek_frame(demuxer.FormatContext, -1, Math.Max(0, frameTimestamp - (3 * (long)1000 * 10000)) / 10, AVSEEK_FLAG_ANY)
-            : av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWARD);
+        ret = codecCtx->codec_id == AVCodecID.Hevc|| (demuxer.FormatContext->iformat != null) // TBR: this is on FFInputFormat now -> && demuxer.FormatContext->iformat-> read_seek.Pointer == IntPtr.Zero)
+            ? av_seek_frame(demuxer.FormatContext, -1, Math.Max(0, frameTimestamp - (3 * (long)1000 * 10000)) / 10, SeekFlags.Any)
+            : av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, SeekFlags.Frame | SeekFlags.Backward);
 
         demuxer.DisposePackets();
 
@@ -1014,7 +1018,7 @@ public unsafe class VideoDecoder : DecoderBase
 
             if (keyFrameRequired && keyFrameRequiredPacket)
             {
-                if ((demuxer.packet->flags & AV_PKT_FLAG_KEY) == 0)
+                if ((demuxer.packet->flags & PktFlags.Key) == 0)
                     { av_packet_unref(demuxer.packet); continue; }
 
                 keyFrameRequiredPacket = false;
@@ -1060,7 +1064,7 @@ public unsafe class VideoDecoder : DecoderBase
         {
             if (!VideoStream.FixTimestamps)
             {
-                keyFoundWithNoPts = keyFoundWithNoPts || frame->key_frame == 1;
+                keyFoundWithNoPts = keyFoundWithNoPts || frame->flags.HasFlag(FrameFlags.Key);
                 av_frame_unref(frame);
                 
                 return DecodeFrameNextInternal();
@@ -1072,9 +1076,9 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (keyFrameRequired)
         {
-            if (!keyFoundWithNoPts && frame->key_frame != 1)
+            if (!keyFoundWithNoPts && !frame->flags.HasFlag(FrameFlags.Key))
             {
-                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
+                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type}");
                 av_frame_unref(frame);
                 return DecodeFrameNextInternal();
             }

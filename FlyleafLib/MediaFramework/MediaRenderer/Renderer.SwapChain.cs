@@ -1,5 +1,4 @@
-﻿using System;
-using System.Windows;
+﻿using System.Windows;
 
 using Vortice;
 using Vortice.Direct3D;
@@ -8,6 +7,7 @@ using Vortice.DirectComposition;
 using Vortice.DXGI;
 
 using static FlyleafLib.Utils.NativeMethods;
+using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -36,8 +36,8 @@ public partial class Renderer
             {
                 BufferUsage = Usage.RenderTargetOutput,
                 Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : Format.B8G8R8A8_UNorm,
-                Width       = width,
-                Height      = height,
+                Width       = (uint)width,
+                Height      = (uint)height,
                 AlphaMode   = AlphaMode.Ignore,
                 SwapEffect  = isComp ? SwapEffect.FlipSequential : SwapEffect.Discard, // will this work for warp?
                 Scaling     = Scaling.Stretch,
@@ -53,8 +53,8 @@ public partial class Renderer
             {
                 BufferUsage = Usage.RenderTargetOutput,
                 Format      = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : (Config.Video.SwapForceR8G8B8A8 ? Format.R8G8B8A8_UNorm : Format.B8G8R8A8_UNorm),
-                Width       = width,
-                Height      = height,
+                Width       = (uint)width,
+                Height      = (uint)height,
                 AlphaMode   = alpha  ? AlphaMode.Premultiplied : AlphaMode.Ignore,
                 SwapEffect  = swapEffect,
                 Scaling     = isComp ? Scaling.Stretch : Scaling.None,
@@ -400,7 +400,7 @@ public partial class Renderer
             backBufferRtv.Dispose();
             vpov?.Dispose();
             backBuffer.Dispose();
-            swapChain.ResizeBuffers(0, ControlWidth, ControlHeight, Format.Unknown, SwapChainFlags.None);
+            swapChain.ResizeBuffers(0, (uint)ControlWidth, (uint)ControlHeight, Format.Unknown, SwapChainFlags.None);
             UpdateCornerRadius();
             backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
             backBufferRtv = Device.CreateRenderTargetView(backBuffer);

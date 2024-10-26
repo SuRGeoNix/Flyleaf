@@ -1,5 +1,4 @@
-﻿using System;
-using System.Drawing.Imaging;
+﻿using System.Drawing.Imaging;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Media.Imaging;
@@ -13,6 +12,8 @@ using Vortice.Mathematics;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
+
+using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -55,7 +56,7 @@ public partial class Renderer
 
             if (frame.avFrame != null)
             {
-                vpivd.Texture2D.ArraySlice = (int) frame.avFrame->data[1];
+                vpivd.Texture2D.ArraySlice = (uint) frame.avFrame->data[1];
                 vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
             }
             else
@@ -114,10 +115,10 @@ public partial class Renderer
                     singleStage?.Dispose();
                     singleGpuRtv?.Dispose();
 
-                    singleStageDesc.Width   = width;
-                    singleStageDesc.Height  = height;
-                    singleGpuDesc.Width     = width;
-                    singleGpuDesc.Height    = height;
+                    singleStageDesc.Width   = (uint)width;
+                    singleStageDesc.Height  = (uint)height;
+                    singleGpuDesc.Width     = (uint)width;
+                    singleGpuDesc.Height    = (uint)height;
 
                     singleStage = Device.CreateTexture2D(singleStageDesc);
                     singleGpu   = Device.CreateTexture2D(singleGpuDesc);
@@ -143,7 +144,7 @@ public partial class Renderer
     }
     public Bitmap GetBitmap(ID3D11Texture2D stageTexture)
     {
-        Bitmap bitmap   = new(stageTexture.Description.Width, stageTexture.Description.Height);
+        Bitmap bitmap   = new((int)stageTexture.Description.Width, (int)stageTexture.Description.Height);
         var db          = context.Map(stageTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
         var bitmapData  = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
 
@@ -158,7 +159,7 @@ public partial class Renderer
             {
                 MemoryHelpers.CopyMemory(destPtr, sourcePtr, bitmap.Width * 4);
 
-                sourcePtr   = IntPtr.Add(sourcePtr, db.RowPitch);
+                sourcePtr   = IntPtr.Add(sourcePtr, (int)db.RowPitch);
                 destPtr     = IntPtr.Add(destPtr, bitmapData.Stride);
             }
         }
@@ -202,10 +203,10 @@ public partial class Renderer
                     singleStage?.Dispose();
                     singleGpuRtv?.Dispose();
 
-                    singleStageDesc.Width = width;
-                    singleStageDesc.Height = height;
-                    singleGpuDesc.Width = width;
-                    singleGpuDesc.Height = height;
+                    singleStageDesc.Width   = (uint)width;
+                    singleStageDesc.Height  = (uint)height;
+                    singleGpuDesc.Width     = (uint)width;
+                    singleGpuDesc.Height    = (uint)height;
 
                     singleStage = Device.CreateTexture2D(singleStageDesc);
                     singleGpu = Device.CreateTexture2D(singleGpuDesc);
@@ -232,7 +233,7 @@ public partial class Renderer
     }
     public BitmapSource GetBitmapSource(ID3D11Texture2D stageTexture)
     {
-        WriteableBitmap bitmap = new(stageTexture.Description.Width, stageTexture.Description.Height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+        WriteableBitmap bitmap = new((int)stageTexture.Description.Width, (int)stageTexture.Description.Height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
         var db          = context.Map(stageTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
         bitmap.Lock();
 
@@ -247,7 +248,7 @@ public partial class Renderer
             {
                 MemoryHelpers.CopyMemory(destPtr, sourcePtr, bitmap.PixelWidth * 4);
 
-                sourcePtr = IntPtr.Add(sourcePtr, db.RowPitch);
+                sourcePtr = IntPtr.Add(sourcePtr, (int)db.RowPitch);
                 destPtr = IntPtr.Add(destPtr, bitmap.BackBufferStride);
             }
         }

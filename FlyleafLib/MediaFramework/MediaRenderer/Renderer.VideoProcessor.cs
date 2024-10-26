@@ -1,13 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Numerics;
-#if NET5_0_OR_GREATER
 using System.Text.Json.Serialization;
-#endif
 using System.Xml.Serialization;
-
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
 
 using Vortice.DXGI;
 using Vortice.Direct3D11;
@@ -162,7 +156,7 @@ unsafe public partial class Renderer
                     }
 
                     // if (!VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex != -1)
-                    vd1.CreateVideoProcessor(vpe, VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex, out vp);
+                    vd1.CreateVideoProcessor(vpe, (uint)VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex, out vp);
                     InitializeFilters();
 
                     return;
@@ -235,9 +229,9 @@ unsafe public partial class Renderer
                         dump += $"{cap,-25} {((vpCaps.AutoStreamCaps & cap) != 0 ? "yes" : "no")}\r\n";
                 }
 
-                int typeIndex = -1;
+                uint typeIndex = 0;
                 VideoProcessorRateConversionCaps rcCap = new();
-                for (int i = 0; i < vpCaps.RateConversionCapsCount; i++)
+                for (uint i = 0; i < vpCaps.RateConversionCapsCount; i++)
                 {
                     vpe.GetVideoProcessorRateConversionCaps(i, out rcCap);
                     VideoProcessorProcessorCaps pCaps = (VideoProcessorProcessorCaps) rcCap.ProcessorCaps;
@@ -265,14 +259,14 @@ unsafe public partial class Renderer
 
                 if (CanDebug) Log.Debug($"D3D11 Video Processor\r\n{dump}");
 
-                cache.TypeIndex = typeIndex;
+                cache.TypeIndex = (int)typeIndex;
                 cache.HLG = supportHLG;
                 cache.HDR10Limited = supportHDR10Limited;
                 cache.VideoProcessorCaps = vpCaps;
                 cache.VideoProcessorRateConversionCaps = rcCap;
 
                 //if (typeIndex != -1)
-                vd1.CreateVideoProcessor(vpe, typeIndex, out vp);
+                vd1.CreateVideoProcessor(vpe, (uint)typeIndex, out vp);
                 if (vp == null)
                 {
                     VPFailed();
@@ -591,9 +585,7 @@ public class VideoFilter : NotifyPropertyChanged
 {
     internal Renderer renderer;
 
-    #if NET5_0_OR_GREATER
     [JsonIgnore]
-    #endif
     [XmlIgnore]
     public bool         Available   { get => _Available;    set => SetUI(ref _Available, value); }
     bool _Available;

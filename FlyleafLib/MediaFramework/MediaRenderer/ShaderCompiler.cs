@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
@@ -7,6 +6,7 @@ using Vortice.D3DCompiler;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 
+using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
 using static FlyleafLib.Utils;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;

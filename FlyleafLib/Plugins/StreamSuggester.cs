@@ -2,9 +2,6 @@
 using System.Collections.ObjectModel;
 using System.Linq;
 
-using static FFmpeg.AutoGen.AVMediaType;
-using static FFmpeg.AutoGen.ffmpeg;
-
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
@@ -48,7 +45,7 @@ public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggest
             // Fall-back to FFmpeg's default
             int streamIndex;
             lock (streams[0].Demuxer.lockFmtCtx)
-                streamIndex = av_find_best_stream(streams[0].Demuxer.FormatContext, AVMEDIA_TYPE_AUDIO, -1, streams[0].Demuxer.VideoStream != null ? streams[0].Demuxer.VideoStream.StreamIndex : -1, null, 0);
+                streamIndex = av_find_best_stream(streams[0].Demuxer.FormatContext, AVMediaType.Audio, -1, streams[0].Demuxer.VideoStream != null ? streams[0].Demuxer.VideoStream.StreamIndex : -1, null, 0);
 
             foreach (var stream in streams)
                 if (stream.StreamIndex == streamIndex)
@@ -82,7 +79,7 @@ public unsafe class StreamSuggester : PluginBase, ISuggestPlaylistItem, ISuggest
             // Fall-back to FFmpeg's default
             int streamIndex;
             lock (streams[0].Demuxer.lockFmtCtx)
-                streamIndex = av_find_best_stream(streams[0].Demuxer.FormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, null, 0);
+                streamIndex = av_find_best_stream(streams[0].Demuxer.FormatContext, AVMediaType.Video, -1, -1, null, 0);
             if (streamIndex < 0) return null;
 
             foreach (var vstream in streams)

@@ -1,6 +1,4 @@
-﻿using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
-using static FFmpeg.AutoGen.ffmpegEx;
+﻿using System.Runtime.InteropServices;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
@@ -16,7 +14,7 @@ public unsafe class VideoStream : StreamBase
     public double                       Rotation            { get; set; }
     public double                       FPS                 { get; set; }
     public long                         FrameDuration       { get ;set; }
-    public int                          Height              { get; set; }
+    public uint                         Height              { get; set; }
     public bool                         IsRGB               { get; set; }
     public AVComponentDescriptor[]      PixelComps          { get; set; }
     public int                          PixelComp0Depth     { get; set; }
@@ -27,7 +25,7 @@ public unsafe class VideoStream : StreamBase
     public bool                         PixelSameDepth      { get; set; }
     public bool                         PixelInterleaved    { get; set; }
     public int                          TotalFrames         { get; set; }
-    public int                          Width               { get; set; }
+    public uint                         Width               { get; set; }
     public bool                         FixTimestamps       { get; set; } // TBR: For formats such as h264/hevc that have no or invalid pts values
 
     public override string GetDump()
@@ -41,14 +39,14 @@ public unsafe class VideoStream : StreamBase
         Refresh();
     }
 
-    public void Refresh(AVPixelFormat format = AVPixelFormat.AV_PIX_FMT_NONE, AVFrame* frame = null)
+    public void Refresh(AVPixelFormat format = AVPixelFormat.None, AVFrame* frame = null)
     {
         base.Refresh();
 
-        PixelFormat     = format == AVPixelFormat.AV_PIX_FMT_NONE ? (AVPixelFormat)AVStream->codecpar->format : format;
+        PixelFormat     = format == AVPixelFormat.None ? (AVPixelFormat)AVStream->codecpar->format : format;
         PixelFormatStr  = PixelFormat.ToString().Replace("AV_PIX_FMT_","").ToLower();
-        Width           = AVStream->codecpar->width;
-        Height          = AVStream->codecpar->height;
+        Width           = (uint)AVStream->codecpar->width;
+        Height          = (uint)AVStream->codecpar->height;
         
         // TBR: Maybe required also for input formats with AVFMT_NOTIMESTAMPS (and audio/subs) 
         // Possible FFmpeg.Autogen bug with Demuxer.FormatContext->iformat->flags (should be uint?) does not contain AVFMT_NOTIMESTAMPS (256 instead of 384)
@@ -78,18 +76,18 @@ public unsafe class VideoStream : StreamBase
         if (av_cmp_q(sar, av_make_q(0, 1)) <= 0)
             sar = av_make_q(1, 1);
 
-        av_reduce(&x, &y, Width  * sar.num, Height * sar.den, 1024 * 1024);
+        av_reduce(&x, &y, Width  * sar.Num, Height * sar.Den, 1024 * 1024);
         AspectRatio = new AspectRatio(x, y);
 
-        if (PixelFormat != AVPixelFormat.AV_PIX_FMT_NONE)
+        if (PixelFormat != AVPixelFormat.None)
         {
-            ColorRange = AVStream->codecpar->color_range == AVColorRange.AVCOL_RANGE_JPEG ? ColorRange.Full : ColorRange.Limited;
+            ColorRange = AVStream->codecpar->color_range == AVColorRange.Jpeg ? ColorRange.Full : ColorRange.Limited;
 
-            if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT470BG)
+            if (AVStream->codecpar->color_space == AVColorSpace.Bt470bg)
                 ColorSpace = ColorSpace.BT601;
-            else if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT709)
+            else if (AVStream->codecpar->color_space == AVColorSpace.Bt709)
                 ColorSpace = ColorSpace.BT709;
-            else ColorSpace = AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_CL || AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_BT2020_NCL
+            else ColorSpace = AVStream->codecpar->color_space == AVColorSpace.Bt2020Cl || AVStream->codecpar->color_space == AVColorSpace.Bt2020Ncl
                 ? ColorSpace.BT2020
                 : Height > 576 ? ColorSpace.BT709 : ColorSpace.BT601;
 
@@ -104,10 +102,14 @@ public unsafe class VideoStream : StreamBase
 
             // We get rotation from frame side data only from 1st frame in case of exif orientation (mainly for jpeg) - TBR if required to check for each frame
             AVFrameSideData* frameSideData;
-            if (frame != null && (frameSideData = av_frame_get_side_data(frame, AVFrameSideDataType.AV_FRAME_DATA_DISPLAYMATRIX)) != null)
-                Rotation = av_display_rotation_get(frameSideData->data);
-            else
-                Rotation = av_display_rotation_get(av_stream_get_side_data(AVStream, AVPacketSideDataType.AV_PKT_DATA_DISPLAYMATRIX, null));
+            AVPacketSideData* pktSideData;
+            double rotation = 0;
+            if (frame != null && (frameSideData = av_frame_get_side_data(frame, AVFrameSideDataType.Displaymatrix)) != null && frameSideData->data != null)
+                rotation = -Math.Round(av_display_rotation_get((int*)frameSideData->data)); //int_array9 displayMatrix = Marshal.PtrToStructure<int_array9>((nint)frameSideData->data); TBR: NaN why?
+            else if ((pktSideData = av_packet_side_data_get(AVStream->codecpar->coded_side_data, AVStream->codecpar->nb_coded_side_data, AVPacketSideDataType.Displaymatrix)) != null && pktSideData->data != null)
+                rotation = -Math.Round(av_display_rotation_get((int*)pktSideData->data));
+
+            Rotation = rotation - (360*Math.Floor(rotation/360 + 0.9/360));
 
             PixelFormatDesc = av_pix_fmt_desc_get(PixelFormat);
             var comps       = PixelFormatDesc->comp.ToArray();
@@ -116,7 +118,7 @@ public unsafe class VideoStream : StreamBase
                 PixelComps[i] = comps[i];
 
             PixelInterleaved= PixelFormatDesc->log2_chroma_w != PixelFormatDesc->log2_chroma_h;
-            IsRGB           = (PixelFormatDesc->flags & AV_PIX_FMT_FLAG_RGB) != 0;
+            IsRGB           = (PixelFormatDesc->flags & PixFmtFlags.Rgb) != 0;
 
             PixelSameDepth  = true;
             PixelPlanes     = 0;

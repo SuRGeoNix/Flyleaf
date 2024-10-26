@@ -44,14 +44,14 @@ public class VideoEngine
         
         string dump = "";
 
-        for (int i=0; Factory.EnumAdapters1(i, out var adapter).Success; i++)
+        for (uint i=0; Factory.EnumAdapters1(i, out var adapter).Success; i++)
         {
             bool hasOutput = false;
 
             List<GPUOutput> outputs = new();
 
             int maxHeight = 0;
-            for (int o=0; adapter.EnumOutputs(o, out var output).Success; o++)
+            for (uint o=0; adapter.EnumOutputs(o, out var output).Success; o++)
             {
                 GPUOutput gpout = new()
                 {
@@ -81,9 +81,9 @@ public class VideoEngine
 
             adapters[adapter.Description1.Luid] = new GPUAdapter()
             {
-                SystemMemory    = adapter.Description1.DedicatedSystemMemory,
-                VideoMemory     = adapter.Description1.DedicatedVideoMemory,
-                SharedMemory    = adapter.Description1.SharedSystemMemory,
+                SystemMemory    = adapter.Description1.DedicatedSystemMemory.Value,
+                VideoMemory     = adapter.Description1.DedicatedVideoMemory.Value,
+                SharedMemory    = adapter.Description1.SharedSystemMemory.Value,
                 Vendor          = VendorIdStr(adapter.Description1.VendorId),
                 Description     = adapter.Description1.Description,
                 Id              = adapter.Description1.DeviceId,
@@ -115,7 +115,7 @@ public class VideoEngine
         return null;
     }
 
-    private static string VendorIdStr(int vendorId)
+    private static string VendorIdStr(uint vendorId)
     {
         switch (vendorId)
         {

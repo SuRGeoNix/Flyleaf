@@ -105,7 +105,7 @@ public unsafe partial class Renderer
         {
             if (frame.avFrame != null)
             {
-                vpivd.Texture2D.ArraySlice = (int) frame.avFrame->data[1];
+                vpivd.Texture2D.ArraySlice = (uint) frame.avFrame->data[1];
                 vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
             }
             else
@@ -171,15 +171,15 @@ public unsafe partial class Renderer
         overlayTextureOriginalHeight= streamHeight;
         overlayTextureOriginalPosX  = rect->x;
         overlayTextureOriginalPosY  = rect->y;
-        overlayTextureDesc.Width    = rect->w;
-        overlayTextureDesc.Height   = rect->h;
+        overlayTextureDesc.Width    = (uint)rect->w;
+        overlayTextureDesc.Height   = (uint)rect->h;
 
         byte[] data = new byte[rect->w * rect->h * 4];
 
         fixed(byte* ptr = data)
         {
             uint[] colors   = new uint[256];
-            var colorsData  = new Span<uint>(rect->data[1], rect->nb_colors);
+            var colorsData  = new Span<uint>((byte*)rect->data[1], rect->nb_colors);
 
             for (int i = 0; i < colorsData.Length; i++)
                 colors[i] = colorsData[i];
@@ -189,7 +189,7 @@ public unsafe partial class Renderer
             for (int y = 0; y < rect->h; y++)
             {
                 uint* xout =(uint*) (ptr + y * stride);
-                byte* xin = rect->data[0] + y * rect->linesize[0];
+                byte* xin = ((byte*)rect->data[0]) + y * rect->linesize[0];
 
                 for (int x = 0; x < rect->w; x++)
                     *xout++ = colors[*xin++];
@@ -198,7 +198,7 @@ public unsafe partial class Renderer
             SubresourceData subData = new()
             {
                 DataPointer = (nint)ptr,
-                RowPitch    = stride
+                RowPitch    = (uint)stride
             };
 
             overlayTexture?.Dispose();

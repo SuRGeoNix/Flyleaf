@@ -1,4 +1,8 @@
-﻿using System.Collections.Generic;
+﻿global using System;
+global using Flyleaf.FFmpeg;
+global using static Flyleaf.FFmpeg.Raw;
+
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -86,12 +90,12 @@ public class GPUOutput
 public class GPUAdapter
 {
     public int      MaxHeight       { get; internal set; }
-    public long     SystemMemory    { get; internal set; }
-    public long     VideoMemory     { get; internal set; }
-    public long     SharedMemory    { get; internal set; }
+    public nuint    SystemMemory    { get; internal set; }
+    public nuint    VideoMemory     { get; internal set; }
+    public nuint    SharedMemory    { get; internal set; }
     
 
-    public int      Id              { get; internal set; }
+    public uint     Id              { get; internal set; }
     public string   Vendor          { get; internal set; }
     public string   Description     { get; internal set; }
     public long     Luid            { get; internal set; }

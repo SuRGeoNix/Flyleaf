@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows;net6.0-windows;net472</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
 	<UseWPF>true</UseWPF>
 	<PackageIcon>Flyleaf.png</PackageIcon>
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.7.55</Version>
+	<Version>3.8.0</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* DecoderContext: Allows decoding errors during seeking
-		* FlyleafHost.Wpf: Fixes a possible issue with normal/fullscreen
-		* Updates System.Text.Json
+		* TODO
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -36,14 +34,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net6.0-windows|AnyCPU'">
-    <WarningLevel>6</WarningLevel>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net6.0-windows|AnyCPU'">
-    <WarningLevel>6</WarningLevel>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-windows|AnyCPU'">
     <WarningLevel>6</WarningLevel>
   </PropertyGroup>
@@ -51,17 +41,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-windows|AnyCPU'">
     <WarningLevel>6</WarningLevel>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="FFmpeg.AutoGen" Version="5.1.2.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0-rc.1.24431.7" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="[2.4.2]" />
-    <PackageReference Include="Vortice.Direct3D11" Version="[2.4.2]" />
-    <PackageReference Include="Vortice.DirectComposition" Version="[2.4.2]" />
-    <PackageReference Include="Vortice.Mathematics" Version="[1.4.26]" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="[2.4.2]" />
-    <PackageReference Include="Vortice.XAudio2" Version="[2.4.2]" />
-  </ItemGroup>
   
   <ItemGroup>
 	<Import Include="System" />
@@ -77,17 +56,22 @@
     <Import Include="WindowsBase" />
     <Import Include="WindowsFormsIntegration" />
   </ItemGroup>
-	
-	<ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
-		<Reference Include="System.Net.Http" />
-		<Reference Include="System.Web" />
-	</ItemGroup>
   
   <ItemGroup>
     <None Include="..\Images\Flyleaf.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Flyleaf.FFmpeg.Bindings" Version="7.1.0" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
+    <PackageReference Include="Vortice.DirectComposition" Version="3.6.2" />
+    <PackageReference Include="Vortice.Mathematics" Version="1.9.2" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="3.6.2" />
+    <PackageReference Include="Vortice.XAudio2" Version="3.6.2" />
   </ItemGroup>
 
 </Project>

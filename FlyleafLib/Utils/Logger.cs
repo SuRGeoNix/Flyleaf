@@ -1,34 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
-
-/* Unmerged change from project 'FlyleafLib (net5.0-windows)'
-Before:
 using System.Threading.Tasks;
-After:
-using System.Threading.Tasks;
-using FlyleafLib;
-using FlyleafLib.Utils;
-*/
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace FlyleafLib;
 
 public static class Logger
 {
-    /* TODO
-        * 1) Rotation and file size control
-        */
-
     public static bool CanError => Engine.Config.LogLevel >= LogLevel.Error;
-    public static bool CanWarn => Engine.Config.LogLevel >= LogLevel.Warn;
-    public static bool CanInfo => Engine.Config.LogLevel >= LogLevel.Info;
+    public static bool CanWarn  => Engine.Config.LogLevel >= LogLevel.Warn;
+    public static bool CanInfo  => Engine.Config.LogLevel >= LogLevel.Info;
     public static bool CanDebug => Engine.Config.LogLevel >= LogLevel.Debug;
     public static bool CanTrace => Engine.Config.LogLevel >= LogLevel.Trace;
 
+
+    public static Action<string>
+                        CustomOutput = DevNullPtr;
     internal static Action<string>
                         Output = DevNullPtr;
     static string       lastOutput = "";
@@ -40,7 +28,6 @@ public static class Logger
     static object       lockFileStream = new();
     static Dictionary<LogLevel, string>
                         logLevels = new();
-    public static ILogger _ilogger = null;
 
     static Logger()
     {
@@ -92,12 +79,12 @@ public static class Logger
                     lastOutput = ":debug";
                 }
             }
-            else if (output == ":ilogger")
+            else if (output == ":custom")
             {
-                if (lastOutput != ":ilogger")
+                if (lastOutput != ":custom")
                 {
-                    Output = ILoggerPtr;
-                    lastOutput = ":ilogger";
+                    Output = CustomOutput;
+                    lastOutput = ":custom";
                 }
             }
             else
@@ -137,7 +124,6 @@ public static class Logger
         if (!fileTaskRunning && fileData.Count > Engine.Config.LogCachedLines)
             FlushFileData();
     }
-    static void ILoggerPtr(string msg) => _ilogger?.LogTrace("{msg}",msg);  //Assert TRACE MSEL LogLevel for anything that reaches here
     
     static void FlushFileData()
     {
@@ -168,24 +154,8 @@ public static class Logger
 
     internal static void Log(string msg, LogLevel logLevel)
     {
-        if (logLevel > Engine.Config.LogLevel) return;
-        if (_ilogger == null)
-            Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | {logLevels[logLevel]} | {msg}");
-        else
-            _ilogger.Log(AsMSELLogLevel(logLevel), "{msg}",msg);        
-    }
-
-    static Microsoft.Extensions.Logging.LogLevel AsMSELLogLevel(LogLevel subject)
-    {
-        return subject switch
-        {
-            LogLevel.Error => Microsoft.Extensions.Logging.LogLevel.Error,
-            LogLevel.Warn => Microsoft.Extensions.Logging.LogLevel.Warning,
-            LogLevel.Info => Microsoft.Extensions.Logging.LogLevel.Information,
-            LogLevel.Debug => Microsoft.Extensions.Logging.LogLevel.Debug,
-            LogLevel.Trace => Microsoft.Extensions.Logging.LogLevel.Trace,
-            _ => Microsoft.Extensions.Logging.LogLevel.None
-        };
+        if (logLevel <= Engine.Config.LogLevel)
+            Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | {logLevels[logLevel]} | {msg}");     
     }
 }
 
@@ -195,19 +165,20 @@ public class LogHandler
 
     public LogHandler(string prefix = "")
         => Prefix = prefix;
-    public void Error(string msg) => Logger.Log($"{Prefix}{msg}", LogLevel.Error);
-    public void Info(string msg) => Logger.Log($"{Prefix}{msg}", LogLevel.Info);
-    public void Warn(string msg) => Logger.Log($"{Prefix}{msg}", LogLevel.Warn);
-    public void Debug(string msg) => Logger.Log($"{Prefix}{msg}", LogLevel.Debug);
-    public void Trace(string msg) => Logger.Log($"{Prefix}{msg}", LogLevel.Trace);
+
+    public void Error(string msg)   => Logger.Log($"{Prefix}{msg}", LogLevel.Error);
+    public void Info(string msg)    => Logger.Log($"{Prefix}{msg}", LogLevel.Info);
+    public void Warn(string msg)    => Logger.Log($"{Prefix}{msg}", LogLevel.Warn);
+    public void Debug(string msg)   => Logger.Log($"{Prefix}{msg}", LogLevel.Debug);
+    public void Trace(string msg)   => Logger.Log($"{Prefix}{msg}", LogLevel.Trace);
 }
 
 public enum LogLevel
 {
-    Quiet = 0x00,
-    Error = 0x10,
-    Warn = 0x20,
-    Info = 0x30,
-    Debug = 0x40,
-    Trace = 0x50
+    Quiet   = 0x00,
+    Error   = 0x10,
+    Warn    = 0x20,
+    Info    = 0x30,
+    Debug   = 0x40,
+    Trace   = 0x50
 }

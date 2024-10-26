@@ -1,5 +1,4 @@
-﻿using System;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Text.RegularExpressions;
 
 using Vortice;
@@ -12,6 +11,9 @@ using FlyleafLib.MediaFramework.MediaDecoder;
 
 using static FlyleafLib.Logger;
 using System.Runtime.InteropServices;
+
+using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
+using ID3D11DeviceContext = Vortice.Direct3D11.ID3D11DeviceContext;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -127,7 +129,7 @@ public unsafe partial class Renderer
                 // Finding User Definied adapter
                 if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() != "WARP")
                 {
-                    for (int i=0; Engine.Video.Factory.EnumAdapters1(i, out adapter).Success; i++)
+                    for (uint i=0; Engine.Video.Factory.EnumAdapters1(i, out adapter).Success; i++)
                     {
                         if (adapter.Description1.Description == Config.Video.GPUAdapter)
                             break;
@@ -216,7 +218,7 @@ public unsafe partial class Renderer
                     Usage           = ResourceUsage.Default,
                     BindFlags       = BindFlags.ConstantBuffer,
                     CPUAccessFlags  = CpuAccessFlags.None,
-                    ByteWidth       = sizeof(VSBufferType) + (16 - (sizeof(VSBufferType) % 16))
+                    ByteWidth       = (uint)(sizeof(VSBufferType) + (16 - (sizeof(VSBufferType) % 16)))
                 });
                 context.VSSetConstantBuffer(0, vsBuffer);
                 
@@ -230,7 +232,7 @@ public unsafe partial class Renderer
                     Usage           = ResourceUsage.Default,
                     BindFlags       = BindFlags.ConstantBuffer,
                     CPUAccessFlags  = CpuAccessFlags.None,
-                    ByteWidth       = sizeof(PSBufferType) + (16 - (sizeof(PSBufferType) % 16))
+                    ByteWidth       = (uint)(sizeof(PSBufferType) + (16 - (sizeof(PSBufferType) % 16)))
                 });
                 context.PSSetConstantBuffer(0, psBuffer);
                 psBufferData.hdrmethod = HDRtoSDRMethod.None;
@@ -345,7 +347,7 @@ public unsafe partial class Renderer
             singleGpu?.Dispose();
             singleStage?.Dispose();
             singleGpuRtv?.Dispose();
-            singleStageDesc.Width = -1; // ensures re-allocation
+            singleStageDesc.Width = 0; // ensures re-allocation
 
             if (rtv2 != null)
             {

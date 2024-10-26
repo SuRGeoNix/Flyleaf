@@ -1,10 +1,4 @@
-﻿using System;
-
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.AVMediaType;
-using static FFmpeg.AutoGen.ffmpeg;
-
-using FlyleafLib.MediaFramework.MediaDecoder;
+﻿using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaRemuxer;
@@ -536,9 +530,9 @@ public unsafe partial class DecoderContext : PluginHandler
 
             var codecType = VideoDemuxer.FormatContext->streams[packet->stream_index]->codecpar->codec_type;
 
-            if (codecType == AVMEDIA_TYPE_VIDEO && VideoDecoder.keyFrameRequired && VideoDecoder.keyFrameRequiredPacket)
+            if (codecType == AVMediaType.Video && VideoDecoder.keyFrameRequired && VideoDecoder.keyFrameRequiredPacket)
             {
-                if ((packet->flags & AV_PKT_FLAG_KEY) == 0)
+                if ((packet->flags & PktFlags.Key) == 0)
                     { av_packet_free(&packet); continue; }
 
                 VideoDecoder.keyFrameRequiredPacket = false;
@@ -549,7 +543,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
             switch (codecType)
             {
-                case AVMEDIA_TYPE_AUDIO:
+                case AVMediaType.Audio:
                     if (timestamp == -1 || (long)(packet->pts * AudioStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.AudioPackets.Enqueue(packet);
                     else
@@ -557,7 +551,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
                     continue;
 
-                case AVMEDIA_TYPE_SUBTITLE:
+                case AVMediaType.Subtitle:
                     if (timestamp == -1 || (long)(packet->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.SubtitlesPackets.Enqueue(packet);
                     else
@@ -565,7 +559,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
                     continue;
 
-                case AVMEDIA_TYPE_DATA: // this should catch the data stream packets until we have a valid vidoe keyframe (it should fill the pts if NOPTS with lastVideoPacketPts similarly to the demuxer)
+                case AVMediaType.Data: // this should catch the data stream packets until we have a valid vidoe keyframe (it should fill the pts if NOPTS with lastVideoPacketPts similarly to the demuxer)
                     if ((timestamp == -1 && !VideoDecoder.keyFrameRequired) || (long)(packet->pts * DataStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.DataPackets.Enqueue(packet);
 
@@ -573,7 +567,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
                     continue;
 
-                case AVMEDIA_TYPE_VIDEO:
+                case AVMediaType.Video:
                     ret = avcodec_send_packet(VideoDecoder.CodecCtx, packet);
 
                     if (VideoDecoder.swFallback)
@@ -608,7 +602,7 @@ public unsafe partial class DecoderContext : PluginHandler
                         {
                             if (!VideoStream.FixTimestamps)
                             {
-                                VideoDecoder.keyFoundWithNoPts = VideoDecoder.keyFoundWithNoPts || frame->key_frame == 1;
+                                VideoDecoder.keyFoundWithNoPts = VideoDecoder.keyFoundWithNoPts || frame->flags.HasFlag(FrameFlags.Key);
                                 av_frame_unref(frame);
                                 continue;                            
                             }
@@ -619,9 +613,9 @@ public unsafe partial class DecoderContext : PluginHandler
 
                         if (VideoDecoder.keyFrameRequired)
                         {
-                            if (!VideoDecoder.keyFoundWithNoPts && frame->key_frame != 1)
+                            if (!VideoDecoder.keyFoundWithNoPts && !frame->flags.HasFlag(FrameFlags.Key))
                             {
-                                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type} | {frame->key_frame}]");
+                                if (CanWarn) Log.Warn($"Seek to keyframe failed [{frame->pict_type}");
                                 av_frame_unref(frame);
                                 continue;
                             }

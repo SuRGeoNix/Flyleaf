@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
-#if NET5_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
 using System.Windows;
 using System.Windows.Media;
 using System.Xml.Serialization;
@@ -16,9 +13,7 @@ namespace FlyleafLib.Controls.WPF
     public class UIConfig : NotifyPropertyChanged
     {
         [XmlIgnore]
-        #if NET5_0_OR_GREATER
         [JsonIgnore]
-        #endif
         public bool         Loaded              { get; private set; }
 
         public ObservableCollection<UITheme> 
@@ -43,9 +38,7 @@ namespace FlyleafLib.Controls.WPF
         public Thickness    SubsMargin          { get => _SubsMargin;           set { Set(ref _SubsMargin, value); UpdateSubsMargin(); } }
         Thickness _SubsMargin;
         [XmlIgnore]
-        #if NET5_0_OR_GREATER
         [JsonIgnore]
-        #endif
         public Thickness    SubsMargin2         { get => _SubsMargin2;          set => Set(ref _SubsMargin2, value); }
         Thickness _SubsMargin2;
         public double       SubsStrokeThickness { get => _SubsStrokeThickness;  set => Set(ref _SubsStrokeThickness, value); }
@@ -72,15 +65,7 @@ namespace FlyleafLib.Controls.WPF
 
         public static void Load(FlyleafME flyleaf, string path)
         {
-            #if NET5_0_OR_GREATER
             flyleaf.UIConfig = JsonSerializer.Deserialize<UIConfig>(File.ReadAllText(path));
-            #else
-            using (FileStream fs = new FileStream(path, FileMode.Open))
-            {
-                XmlSerializer xmlSerializer = new XmlSerializer(typeof(UIConfig));
-                flyleaf.UIConfig = (UIConfig) xmlSerializer.Deserialize(fs);
-            }
-            #endif
             flyleaf.ActivityTimeout = flyleaf.UIConfig.ActivityTimeout;
             flyleaf.UIConfig.Loaded = true;
             flyleaf.UIConfig.flyleaf = flyleaf;
@@ -94,15 +79,7 @@ namespace FlyleafLib.Controls.WPF
             if (!string.IsNullOrEmpty(uiConfigPath))
             {
                 flyleaf.UIConfig.ActivityTimeout = flyleaf.ActivityTimeout;
-                #if NET5_0_OR_GREATER
                 File.WriteAllText(uiConfigPath, JsonSerializer.Serialize(flyleaf.UIConfig, new JsonSerializerOptions() { WriteIndented = true, }));
-                #else
-                using (FileStream fs = new FileStream(uiConfigPath, FileMode.Create))
-                {
-                    XmlSerializer xmlSerializer = new XmlSerializer(typeof(UIConfig));
-                    xmlSerializer.Serialize(fs, flyleaf.UIConfig);
-                }
-                #endif
             }
 
             if (!string.IsNullOrEmpty(configPath) && flyleaf.Config != null)
@@ -116,9 +93,7 @@ namespace FlyleafLib.Controls.WPF
     public class UITheme : NotifyPropertyChanged
     {
         [XmlIgnore]
-        #if NET5_0_OR_GREATER
         [JsonIgnore]
-        #endif
         public FlyleafME flyleaf;
 
         public UITheme() { }

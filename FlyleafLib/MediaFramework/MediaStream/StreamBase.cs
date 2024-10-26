@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
 
-using FFmpeg.AutoGen;
-using static FFmpeg.AutoGen.ffmpeg;
-using static FFmpeg.AutoGen.ffmpegEx;
+using static Flyleaf.FFmpeg.ffmpegEx;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
@@ -65,7 +63,7 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
                         Demuxer.Log.Debug($"Stream #{StreamIndex} Found in playlist {i}");
                         HLSPlaylist = playlists[i];
                         break;
-                    }   
+                    }
             }
         }
             
@@ -74,7 +72,7 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
         AVDictionaryEntry* b = null;
         while (true)
         {
-            b = av_dict_get(AVStream->metadata, "", b, AV_DICT_IGNORE_SUFFIX);
+            b = av_dict_get(AVStream->metadata, "", b, DictReadFlags.IgnoreSuffix);
             if (b == null) break;
             Metadata.Add(Utils.BytePtrToStringUTF8(b->key), Utils.BytePtrToStringUTF8(b->value));
         }

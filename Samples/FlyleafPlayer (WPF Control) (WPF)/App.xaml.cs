@@ -55,7 +55,7 @@ namespace FlyleafPlayer
             #else
             engineConfig.LogOutput      = ":debug";
             engineConfig.LogLevel       = LogLevel.Debug;
-            engineConfig.FFmpegLogLevel = FFmpegLogLevel.Warning;
+            engineConfig.FFmpegLogLevel = Flyleaf.FFmpeg.LogLevel.Warn;
             #endif
 
             return engineConfig;
