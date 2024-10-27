@@ -18,7 +18,7 @@
         
         <winui:FullScreenContainer x:Name="FSC">
             <winui:FlyleafHost x:Name="flyleafHost" Player="{Binding Player}">
-                <Grid VerticalAlignment="Bottom" Background="#A3000000" Margin="0 0 0 0" AllowFocusOnInteraction="False">
+                <Grid VerticalAlignment="Bottom" Background="#A3000000" Margin="0 0 0 0">
                     <Grid.RowDefinitions>
                         <RowDefinition/>
                         <RowDefinition/>
