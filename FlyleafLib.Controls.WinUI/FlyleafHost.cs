@@ -73,6 +73,12 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
         Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
     }
 
+    protected override void OnDoubleTapped(DoubleTappedRoutedEventArgs e)
+    {
+        if (FSC != null)
+            FSC.IsFullScreen = !FSC.IsFullScreen;
+    }
+
     protected override void OnApplyTemplate()
     {
         base.OnApplyTemplate();
@@ -115,7 +121,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
 
 
         if (Player != null)
-                PlayerChanged(null);
+            PlayerChanged(null);
     }
 
     private void KFC_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -124,11 +130,9 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
         { if (KeyBindings) Player.KeyUp(Player, System.Windows.Input.KeyInterop.KeyFromVirtualKey((int)e.Key)); }
 
     private void SCP_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-    {
-        if (FSC == null)
-            return;
-
-        FSC.IsFullScreen = !FSC.IsFullScreen;
+    { // not working?
+        if (FSC != null)
+            FSC.IsFullScreen = !FSC.IsFullScreen;
     }
 
     private void Scp_PointerPressed(object sender, PointerRoutedEventArgs e)

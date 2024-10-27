@@ -1,44 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-	<TargetFrameworks>net8.0-windows10.0.19041.0</TargetFrameworks>
-    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
-    <RootNamespace>FlyleafLib.Controls.WinUI</RootNamespace>
-    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-	<UseRidGraph>true</UseRidGraph>
-    <UseWinUI>true</UseWinUI>
-    <Nullable>enable</Nullable>
-    <Authors>SuRGeoNix</Authors>
-    <Version>1.1.0</Version>
-    <Copyright>SuRGeoNix © 2024</Copyright>
-    <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
-    <PackageIcon>Flyleaf.png</PackageIcon>
-    <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
-    <PackageTags>flyleaf flyleaflib flyleafhost video audio winui media player element control</PackageTags>
-    <Description>FlyleafHost.WinUI: Direct3D 11 Hardware Accelerated Media Surface (based on FlyleafLib)</Description>
-	  <PackageReleaseNotes>
-		  Updates FlyleafLib
-	  </PackageReleaseNotes>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-windows10.0.19041.0|AnyCPU'">
-    <WarningLevel>6</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-windows10.0.19041.0|AnyCPU'">
-    <WarningLevel>6</WarningLevel>
-  </PropertyGroup>
-  <ItemGroup>
-    <None Include="..\Images\Flyleaf.png">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
-  </ItemGroup>
+	<PropertyGroup>
+		<TargetFrameworks>net8.0-windows10.0.19041.0</TargetFrameworks>
+		<RootNamespace>FlyleafLib.Controls.WinUI</RootNamespace>
+		<UseWinUI>true</UseWinUI>
+		<Nullable>enable</Nullable>
+		<Authors>SuRGeoNix</Authors>
+		<Version>1.1.0</Version>
+		<Copyright>SuRGeoNix © 2024</Copyright>
+		<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
+		<PackageIcon>Flyleaf.png</PackageIcon>
+		<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
+		<PackageTags>flyleaf flyleaflib flyleafhost video audio winui media player element control</PackageTags>
+		<Description>FlyleafHost.WinUI: Direct3D 11 Hardware Accelerated Media Surface (based on FlyleafLib)</Description>
+		<PackageReleaseNotes>
+			Updates FlyleafLib
+		</PackageReleaseNotes>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-windows10.0.19041.0|AnyCPU'">
+		<WarningLevel>6</WarningLevel>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-windows10.0.19041.0|AnyCPU'">
+		<WarningLevel>6</WarningLevel>
+	</PropertyGroup>
+	<ItemGroup>
+		<None Include="..\Images\Flyleaf.png">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
 
-  <ItemGroup>
-      <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.2.230313.1" />
-      <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.755" />
-      <PackageReference Include="Vortice.WinUI" Version="2.4.2" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.240923002" />
+		<PackageReference Include="Vortice.WinUI" Version="3.6.2" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\FlyleafLib\FlyleafLib.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\FlyleafLib\FlyleafLib.csproj" />
+	</ItemGroup>
 </Project>

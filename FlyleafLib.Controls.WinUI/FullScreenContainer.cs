@@ -2,7 +2,6 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -77,24 +76,16 @@ public sealed class FullScreenContainer : ContentControl
     {
         base.OnApplyTemplate();
 
-        // Requires WindowsAppSDK 1.3.230202101-experimental1 (Let the user set it for now or use Main/Core window)
-        //var visual = ElementCompositionPreview.GetElementVisual(this);
-        //visual.Compositor.DispatcherQueue.TryEnqueue(() =>
-        //{
-        //    var contentIsland = ContentIsland.FindByVisual(visual);
-            
-        //    foreach (IntPtr hWnd in EnumerateProcessWindowHandles(Process.GetCurrentProcess().Id))
-        //    {
-        //        WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
-        //        var appWin = AppWindow.GetFromWindowId(wndId);
-                
-        //        if (wndId == contentIsland.Window.WindowId)
-        //            Owner = appWin;
-        //    }
-        //});
+        var contentIsland = XamlRoot?.ContentIslandEnvironment?.AppWindowId;
 
-        if (Owner == null)
-            FindOwner();
+        foreach (IntPtr hWnd in EnumerateProcessWindowHandles(Process.GetCurrentProcess().Id))
+        {
+            WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            var appWin = AppWindow.GetFromWindowId(wndId);
+
+            if (wndId == contentIsland)
+                Owner = appWin;
+        }
 
         if (FSW == null)
             CreateFSW();
@@ -162,6 +153,8 @@ public sealed class FullScreenContainer : ContentControl
         }
         FSWApp.Move(p);
         FSWApp.SetPresenter(AppWindowPresenterKind.FullScreen);
+        
+        Owner?.Hide();
 
         // Move Content from current FSC to FSW
         UIElement content = (UIElement)Content;
@@ -169,7 +162,7 @@ public sealed class FullScreenContainer : ContentControl
         FSWGrid.DataContext = DataContext;
         FSWGrid.Children.Add(content);
         FSW.Activate();
-
+        
         FullScreenEnter?.Invoke(this, new());
     }
 
