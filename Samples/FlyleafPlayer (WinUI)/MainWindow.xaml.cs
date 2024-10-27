@@ -63,6 +63,7 @@ public sealed partial class MainWindow : Window
         WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
         MainAppWindow = AppWindow.GetFromWindowId(wndId);
 
+        // WinUI bug: keyboard focus
         FSC.FullScreenEnter += (o, e) =>
         {
             btnFullScreen.Content = iconNormal;
@@ -74,6 +75,11 @@ public sealed partial class MainWindow : Window
         {
             btnFullScreen.Content = iconFullScreen;
             MainAppWindow.IsShownInSwitchers = true;
+            Task.Run(() => { Thread.Sleep(10); Utils.UIInvoke(() => flyleafHost.KFC.Focus(FocusState.Keyboard)); });
+        };
+
+        rootGrid.PointerReleased += (o, e) =>
+        {
             Task.Run(() => { Thread.Sleep(10); Utils.UIInvoke(() => flyleafHost.KFC.Focus(FocusState.Keyboard)); });
         };
 

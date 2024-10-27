@@ -6,6 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Windows.Graphics;
 using WinRT.Interop;
 
@@ -38,6 +40,7 @@ public sealed class FullScreenContainer : ContentControl
             host.ExitFullScreen();
     }
 
+    public nint OwnerHwnd;
     public AppWindow Owner
     {
         get { return (AppWindow)GetValue(OwnerProperty); }
@@ -46,6 +49,7 @@ public sealed class FullScreenContainer : ContentControl
     public static readonly DependencyProperty OwnerProperty =
         DependencyProperty.Register(nameof(Owner), typeof(AppWindow), typeof(FullScreenContainer), new PropertyMetadata(null));
 
+    public nint FSWHwnd;
     public static Window?       FSW;
     public static AppWindow?    FSWApp;
     private static Grid         FSWGrid = new();
@@ -84,27 +88,14 @@ public sealed class FullScreenContainer : ContentControl
             var appWin = AppWindow.GetFromWindowId(wndId);
 
             if (wndId == contentIsland)
+            {
+                OwnerHwnd = hWnd;
                 Owner = appWin;
+            }
         }
-
+        
         if (FSW == null)
             CreateFSW();
-    }
-
-    private void FindOwner()
-    {
-        IntPtr FSWhWnd = FSW != null ? WindowNative.GetWindowHandle(FSW) : IntPtr.Zero;
-
-        foreach (IntPtr hWnd in EnumerateProcessWindowHandles(Process.GetCurrentProcess().Id))
-        {
-            if (hWnd == FSWhWnd)
-                continue;
-
-            WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
-            Owner = AppWindow.GetFromWindowId(wndId);
-            break;
-                
-        }
     }
     
     private void CreateFSW()
@@ -112,8 +103,8 @@ public sealed class FullScreenContainer : ContentControl
         FSW = new Window();
         FSW.Content = FSWGrid;
 
-        IntPtr hWnd = WindowNative.GetWindowHandle(FSW);
-        WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
+        FSWHwnd = WindowNative.GetWindowHandle(FSW);
+        WindowId wndId = Win32Interop.GetWindowIdFromWindow(FSWHwnd);
         
         FSWApp = AppWindow.GetFromWindowId(wndId);
         OverlappedPresenter op = ((OverlappedPresenter)FSWApp.Presenter);
@@ -161,7 +152,14 @@ public sealed class FullScreenContainer : ContentControl
         Content = null;
         FSWGrid.DataContext = DataContext;
         FSWGrid.Children.Add(content);
+
+        // WinUI bug: Activate will not SetForegroundWindow
         FSW.Activate();
+        Task.Run(() =>
+        {
+            Thread.Sleep(100);
+            SetForegroundWindow(FSWHwnd);
+        });
         
         FullScreenEnter?.Invoke(this, new());
     }
@@ -186,10 +184,19 @@ public sealed class FullScreenContainer : ContentControl
 
         FSCInUse = null;
 
-        // OwnerWindow.Activate() ?
+        // WinUI bug: Activate will not SetForegroundWindow
+        Owner.Show();
+        Task.Run(() =>
+        {
+            Thread.Sleep(100);
+            SetForegroundWindow(OwnerHwnd);
+        });
 
         FullScreenExit?.Invoke(this, new());
     }
+
+    [DllImport("user32.dll")]
+    static extern void SetForegroundWindow(IntPtr hWnd);
 
     private PointInt32 GetPosition()
     {
