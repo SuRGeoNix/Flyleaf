@@ -1049,7 +1049,16 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             FrameworkElement parent = this;
             while ((parent = VisualTreeHelper.GetParent(parent) as FrameworkElement) != null)
-                rectIntersect.Intersect(new Rect(parent.TransformToAncestor(Owner).Transform(zeroPoint), parent.RenderSize));
+            {
+                if (parent.FlowDirection == FlowDirection.RightToLeft)
+                {
+                    var location = parent.TransformToAncestor(Owner).Transform(zeroPoint);
+                    location.X -= parent.RenderSize.Width;
+                    rectIntersect.Intersect(new Rect(location, parent.RenderSize));
+                }
+                else
+                    rectIntersect.Intersect(new Rect(parent.TransformToAncestor(Owner).Transform(zeroPoint), parent.RenderSize));
+            }
 
             if (rectInit != rectInitLast)
             {
