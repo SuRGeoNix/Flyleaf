@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-//using System.Management;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -25,68 +23,57 @@ namespace FlyleafLib.Plugins
          * 2) Check Best Audio bitrates/quality (mainly for audio only player)
          * 3) Dispose ytdl and not tag it to every item (use only format if required)
          */
-        public new int              Priority        { get; set; } = 1999;
-
-        static string               plugin_path     = "yt-dlp.exe";
-
+        public new int      Priority        { get; set; } = 1999;
+        static string       plugin_path     = "yt-dlp.exe";
         static JsonSerializerOptions
-                                    jsonSettings    = new JsonSerializerOptions();
-        static string               defaultBrowser;
+                            jsonSettings    = new JsonSerializerOptions();
 
-        FileSystemWatcher watcher;
-        string workingDir;
-        List<Process> procToKill = new List<Process>();
-        Process proc;
-        bool addingItem;
-
-        //int retries; TBR
+        FileSystemWatcher   watcher;
+        string              workingDir;
+        List<Process>       procToKill = [];
+        Process             proc;
+        bool                addingItem;
+        //int               retries; TBR
 
         static YoutubeDL()
         {
             // Default priority of which browser's cookies will be used (default profile)
             // https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/cookies.py
 
-            string appdata = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string appdataroaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            // Disabled by default because of https://github.com/yt-dlp/yt-dlp/issues/7271 (possible allow this for all except chrome?)
+            //string appdata = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            //string appdataroaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             
-            if (Directory.Exists(Path.Combine(appdata, @"BraveSoftware\Brave-Browser\User Data")))
-                defaultBrowser = "brave";
-            else if (Directory.Exists(Path.Combine(appdata, @"Google\Chrome\User Data")))
-                defaultBrowser = "chrome";
-            else if (Directory.Exists(Path.Combine(appdata, @"Mozilla\Firefox\Profiles")))
-                defaultBrowser = "firefox";
-            else if (Directory.Exists(Path.Combine(appdataroaming, @"Opera Software\Opera Stable")))
-                defaultBrowser = "opera";
-            else if (Directory.Exists(Path.Combine(appdata, @"Vivaldi\User Data")))
-                defaultBrowser = "vivaldi";
-            else if (Directory.Exists(Path.Combine(appdata, @"Chromium\User Data")))
-                defaultBrowser = "chromium";
-            else if (Directory.Exists(Path.Combine(appdata, @"Microsoft\Edge\User Data")))
-                defaultBrowser = "edge";
+            //if (Directory.Exists(Path.Combine(appdata, @"BraveSoftware\Brave-Browser\User Data")))
+            //    defaultBrowser = "brave";
+            //else if (Directory.Exists(Path.Combine(appdata, @"Google\Chrome\User Data")))
+            //    defaultBrowser = "chrome";
+            //else if (Directory.Exists(Path.Combine(appdata, @"Mozilla\Firefox\Profiles")))
+            //    defaultBrowser = "firefox";
+            //else if (Directory.Exists(Path.Combine(appdataroaming, @"Opera Software\Opera Stable")))
+            //    defaultBrowser = "opera";
+            //else if (Directory.Exists(Path.Combine(appdata, @"Vivaldi\User Data")))
+            //    defaultBrowser = "vivaldi";
+            //else if (Directory.Exists(Path.Combine(appdata, @"Chromium\User Data")))
+            //    defaultBrowser = "chromium";
+            //else if (Directory.Exists(Path.Combine(appdata, @"Microsoft\Edge\User Data")))
+            //    defaultBrowser = "edge";
 
             
             jsonSettings.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         }
 
         public override SerializableDictionary<string, string> GetDefaultOptions()
-        {
-            SerializableDictionary<string, string> defaultOptions = new SerializableDictionary<string, string>();
-
-            // 1.Default Browser/Profile
-            // 2.Forces also ipv4 (ipv6 causes delays for some reason)
-            defaultOptions.Add("ExtraArguments", defaultBrowser == null ? "" : $"--cookies-from-browser {defaultBrowser}");
-
-            return defaultOptions;
-        }
+            => new()
+            {
+                { "ExtraArguments", "" } // 1.Default Browser/Profile => defaultBrowser == null ? "" : $"--cookies-from-browser {defaultBrowser}
+            };
 
         public override void OnInitialized()
-        {
-            DisposeInternal(false);
-        }        
+            => DisposeInternal(false);
+
         public override void Dispose()
-        {
-            DisposeInternal(true);
-        }
+            => DisposeInternal(true);
 
         private Format GetAudioOnly(YoutubeDLJson ytdl)
         {
@@ -247,11 +234,7 @@ namespace FlyleafLib.Plugins
 
                     Log.Debug($"Killing process {proc.Id}");
                     var procId = proc.Id;
-                    #if NET5_0_OR_GREATER
                     proc.Kill(true);
-                    #else
-                    proc.Kill();
-                    #endif
                     Log.Debug($"Killed process {procId}");
                 } catch (Exception e) { Log.Debug($"Killing process task failed with {e.Message}"); }            
             }
@@ -572,10 +555,7 @@ namespace FlyleafLib.Plugins
             return new OpenResults();
         }
         public OpenResults OpenItem()
-        {
-            //TBR: should check expiration for Urls and re-download json if required for the specific playlist item
-            return new OpenResults();
-        }
+            => new(); // TBR: should check expiration for Urls and re-download json if required for the specific playlist item
 
         public ExternalAudioStream SuggestExternalAudio()
         {
