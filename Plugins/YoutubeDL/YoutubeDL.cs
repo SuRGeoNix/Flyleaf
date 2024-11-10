@@ -22,58 +22,38 @@ namespace FlyleafLib.Plugins
          * 1) Check Audio streams if we need to add also video streams with audio
          * 2) Check Best Audio bitrates/quality (mainly for audio only player)
          * 3) Dispose ytdl and not tag it to every item (use only format if required)
+         * 4) Use playlist_index to set the default playlist item
          */
+
         public new int      Priority        { get; set; } = 1999;
         static string       plugin_path     = "yt-dlp.exe";
         static JsonSerializerOptions
-                            jsonSettings    = new JsonSerializerOptions();
+                            jsonSettings    = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
         FileSystemWatcher   watcher;
         string              workingDir;
-        List<Process>       procToKill = [];
+        
         Process             proc;
+        int                 procId = -1;
+        object              procLocker = new();
+
         bool                addingItem;
-        //int               retries; TBR
-
-        static YoutubeDL()
-        {
-            // Default priority of which browser's cookies will be used (default profile)
-            // https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/cookies.py
-
-            // Disabled by default because of https://github.com/yt-dlp/yt-dlp/issues/7271 (possible allow this for all except chrome?)
-            //string appdata = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            //string appdataroaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            
-            //if (Directory.Exists(Path.Combine(appdata, @"BraveSoftware\Brave-Browser\User Data")))
-            //    defaultBrowser = "brave";
-            //else if (Directory.Exists(Path.Combine(appdata, @"Google\Chrome\User Data")))
-            //    defaultBrowser = "chrome";
-            //else if (Directory.Exists(Path.Combine(appdata, @"Mozilla\Firefox\Profiles")))
-            //    defaultBrowser = "firefox";
-            //else if (Directory.Exists(Path.Combine(appdataroaming, @"Opera Software\Opera Stable")))
-            //    defaultBrowser = "opera";
-            //else if (Directory.Exists(Path.Combine(appdata, @"Vivaldi\User Data")))
-            //    defaultBrowser = "vivaldi";
-            //else if (Directory.Exists(Path.Combine(appdata, @"Chromium\User Data")))
-            //    defaultBrowser = "chromium";
-            //else if (Directory.Exists(Path.Combine(appdata, @"Microsoft\Edge\User Data")))
-            //    defaultBrowser = "edge";
-
-            
-            jsonSettings.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-        }
+        string              dynamicOptions = "";
+        bool                errGenericImpersonate;
+        long                sessionId = -1; // same for playlists
+        int                 retries;
 
         public override SerializableDictionary<string, string> GetDefaultOptions()
             => new()
             {
-                { "ExtraArguments", "" } // 1.Default Browser/Profile => defaultBrowser == null ? "" : $"--cookies-from-browser {defaultBrowser}
+                { "ExtraArguments", "" } // TBR: Restore default functionality with --cookies-from-browser {defaultBrowser} || https://github.com/yt-dlp/yt-dlp/issues/7271
             };
 
-        public override void OnInitialized()
-            => DisposeInternal(false);
+        public override void OnInitializing()
+            => DisposeInternal();
 
         public override void Dispose()
-            => DisposeInternal(true);
+            => DisposeInternal();
 
         private Format GetAudioOnly(YoutubeDLJson ytdl)
         {
@@ -92,7 +72,7 @@ namespace FlyleafLib.Plugins
         private Format GetBestMatch(YoutubeDLJson ytdl)
         {
             // TODO: Expose in settings (vCodecs Blacklist) || Create a HW decoding failed list dynamic (check also for whitelist)
-            List<string> vCodecsBlacklist = new List<string>();
+            List<string> vCodecsBlacklist = [];
 
             // Video Streams Order based on Screen Resolution
             var iresults =
@@ -170,101 +150,84 @@ namespace FlyleafLib.Plugins
             return false;
         }
 
-        private void DisposeInternal(bool fullDispose)
+        private void DisposeInternal()
         {
-            lock (procToKill)
+            lock (procLocker)
             {
-                if (proc != null)
+                if (Disposed)
+                    return;
+
+                Log.Debug($"Disposing ({procId})");
+                
+                if (procId != -1)
                 {
-                    if (!proc.HasExited)
-                        procToKill.Add(proc);
-                    proc = null;
-                }
-
-                if (procToKill.Count > 0)
-                {
-                    if (fullDispose)
-                        KillProcesses();
-                    else
-                        KillProcessesAsync();
-                }
-            }
-
-            if (Disposed)
-                return;
-
-            Disposed = true;
-
-            if (watcher != null)
-            {
-                Log.Debug($"Disposing watcher");
-                watcher.Dispose();
-            }
-
-            if (workingDir != null)
-            {
-                Log.Debug($"Removing folder {workingDir}");
-                Directory.Delete(workingDir, true);
-            }
-
-            watcher = null;
-            workingDir = null;
-        }
-        private void KillProcessesAsync()
-        {
-            Task.Run(() => KillProcesses());
-        }
-        private void KillProcesses()
-        {
-            // yt-dlp will create two processes so we need to kill also child processes
-            // 1. NOT WORKING for .Net 4
-            // 2. Causes hang issues on debug mode (VS messes with process tree?)
-            while (procToKill.Count > 0)
-            {
-                try
-                {
-                    Process proc;
-                    lock(procToKill)
+                    Process.Start(new ProcessStartInfo
                     {
-                        proc = procToKill[0];
-                        procToKill.RemoveAt(0);
-                    }
-                    if (proc.HasExited)
-                        continue;
+                        FileName        = "taskkill",
+                        Arguments       = $"/pid {procId} /f /t",
+                        CreateNoWindow  = true,
+                        UseShellExecute = false,
+                        WindowStyle     = ProcessWindowStyle.Hidden,
+                    }).WaitForExit();
+                }
 
-                    Log.Debug($"Killing process {proc.Id}");
-                    var procId = proc.Id;
-                    proc.Kill(true);
-                    Log.Debug($"Killed process {procId}");
-                } catch (Exception e) { Log.Debug($"Killing process task failed with {e.Message}"); }            
+                retries         =  0;
+                sessionId       = -1;
+                dynamicOptions  = "";
+                errGenericImpersonate = false;
+
+                if (watcher != null)
+                {
+                    watcher.Dispose();
+                    watcher = null;
+                }
+
+                if (workingDir != null)
+                {
+                    Log.Debug($"Folder deleted ({workingDir})");
+                    Directory.Delete(workingDir, true);
+                    workingDir = null;
+                }
+
+                Disposed = true;
+                Log.Debug($"Disposed ({procId})");
             }
         }
+        
         private void NewPlaylistItem(string path)
         {
             string json = null;
-
+            
             // File Watcher informs us on rename but the process still accessing the file
             for (int i=0; i<3; i++)
             {
                 Thread.Sleep(20);
-                try { json = File.ReadAllText(path); } catch { continue; }
+                try { json = File.ReadAllText(path); } catch { if (sessionId != Handler.OpenCounter) return; continue; }
                 break;
             }
             
-            var ytdl = JsonSerializer.Deserialize<YoutubeDLJson>(json, jsonSettings);
+            YoutubeDLJson ytdl = null;
+
+            try
+            {
+                ytdl = JsonSerializer.Deserialize<YoutubeDLJson>(json, jsonSettings);
+            } catch (Exception e)
+            {
+                Log.Error($"[JsonSerializer] {e.Message}");
+            }
+
+            if (sessionId != Handler.OpenCounter) return;
+
             if (ytdl == null)
                 return;
 
             if (ytdl._type == "playlist")
                 return;
 
-            PlaylistItem item = new PlaylistItem();
+            PlaylistItem item = new();
             
             if (Playlist.ExpectingItems == 0)
-            {
-                if (int.TryParse(ytdl.playlist_count, out int pcount))
-                    Playlist.ExpectingItems = pcount;
-            }
+                Playlist.ExpectingItems = (int)ytdl.playlist_count;
 
             if (Playlist.Title == null)
             {
@@ -287,14 +250,14 @@ namespace FlyleafLib.Plugins
 
             // If no formats still could have a single format attched to the main root class
             if (ytdl.formats == null)
-            {
-                ytdl.formats = new List<Format>();
-                ytdl.formats.Add(ytdl);
-            }
+                ytdl.formats = [ytdl];
 
             // Audio / Video Streams
             for (int i=0; i<ytdl.formats.Count; i++)
             {
+                if (sessionId != Handler.OpenCounter)
+                    return;
+
                 Format fmt = ytdl.formats[i];
 
                 if (ytdl.formats[i].vcodec == null)
@@ -318,29 +281,29 @@ namespace FlyleafLib.Plugins
                 {
                     extStream = new ExternalVideoStream()
                     {
-                        Url = fmt.url,
+                        Url         = fmt.url,
                         UrlFallback = string.IsNullOrEmpty(fmt.manifest_url) ? ytdl.manifest_url : fmt.manifest_url,
-                        Protocol = fmt.protocol,
-                        HasAudio = hasAudio,
-                        BitRate = (long)fmt.vbr,
-                        Codec = fmt.vcodec,
+                        Protocol    = fmt.protocol,
+                        HasAudio    = hasAudio,
+                        BitRate     = (long)fmt.vbr,
+                        Codec       = fmt.vcodec,
                         //Language = Language.Get(fmt.language),
-                        Width = (int)fmt.width,
-                        Height = (int)fmt.height,
-                        FPS = fmt.fps
+                        Width       = (int)fmt.width,
+                        Height      = (int)fmt.height,
+                        FPS         = fmt.fps
                     };
                 }
                 else
                 {
                     extStream = new ExternalAudioStream()
                     {
-                        Url = fmt.url,
+                        Url         = fmt.url,
                         UrlFallback = string.IsNullOrEmpty(fmt.manifest_url) ? ytdl.manifest_url : fmt.manifest_url,
-                        Protocol = fmt.protocol,
-                        HasVideo = hasVideo,
-                        BitRate = (long)fmt.abr,
-                        Codec = fmt.acodec,
-                        Language = Language.Get(fmt.language)
+                        Protocol    = fmt.protocol,
+                        HasVideo    = hasVideo,
+                        BitRate     = (long)fmt.abr,
+                        Codec       = fmt.acodec,
+                        Language    = Language.Get(fmt.language)
                     };
                 }
 
@@ -364,6 +327,9 @@ namespace FlyleafLib.Plugins
 
                     foreach (var subtitle1 in ytdl.automatic_captions)
                     {
+                        if (sessionId != Handler.OpenCounter)
+                            return;
+
                         lang = Language.Get(subtitle1.Key);
                         if (!Config.Subtitles.Languages.Contains(lang))
                             continue;
@@ -397,6 +363,9 @@ namespace FlyleafLib.Plugins
 
                             foreach (var subtitle in subtitle1.Value)
                             {
+                                if (sessionId != Handler.OpenCounter)
+                                    return;
+
                                 if (subtitle.ext.ToLower() != "vtt")
                                     continue;
 
@@ -466,96 +435,125 @@ namespace FlyleafLib.Plugins
         {
             try
             {
-                Disposed = false;
-                long sessionId = Handler.OpenCounter;
-                Playlist.InputType = InputType.Web;
-
-                workingDir = Path.GetTempPath() + Guid.NewGuid().ToString();
-
-                Log.Debug($"Creating folder {workingDir}");
-                Directory.CreateDirectory(workingDir);
-
-                proc = new Process
+                lock (procLocker)
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName        = Path.Combine(Engine.Plugins.Folder, Name, plugin_path),
-                        Arguments       = $"{Options["ExtraArguments"]} --no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -P \"{workingDir}\" \"{Playlist.Url}\" -o \"%(title).220B\"", // 418 max filename length
-                        CreateNoWindow  = true,
-                        UseShellExecute = false,
-                        WindowStyle     = ProcessWindowStyle.Hidden,
-                        //RedirectStandardError = true,
-                        //RedirectStandardOutput = true
-                    }
-                };
+                    Disposed = false;
+                    sessionId = Handler.OpenCounter;
+                    Playlist.InputType = InputType.Web;
 
-                watcher = new FileSystemWatcher(workingDir);
-                watcher.EnableRaisingEvents = true;
-                watcher.Renamed += (o, e) =>
-                {
-                    try
+                    workingDir = Path.GetTempPath() + Guid.NewGuid().ToString();
+
+                    Log.Debug($"Folder created ({workingDir})");
+                    Directory.CreateDirectory(workingDir);
+                    proc = new Process
                     {
-                        if (Handler.Interrupt || sessionId != Handler.OpenCounter)
+                        EnableRaisingEvents = true,
+
+                        StartInfo = new ProcessStartInfo
                         {
-                            Log.Debug($"[Cancelled] Adding {e.FullPath}");
-                            return;
+                            FileName        = Path.Combine(Engine.Plugins.Folder, Name, plugin_path),
+                            Arguments       = $"{dynamicOptions}{Options["ExtraArguments"]} --no-check-certificate --skip-download --youtube-skip-dash-manifest --write-info-json -P \"{workingDir}\" \"{Playlist.Url}\" -o \"%(title).220B\"", // 418 max filename length
+                            CreateNoWindow  = true,
+                            UseShellExecute = false,
+                            WindowStyle     = ProcessWindowStyle.Hidden,
+                            RedirectStandardError   = true,
+                            RedirectStandardOutput  = Logger.CanDebug,
                         }
+                    };
 
-                        addingItem = true;
-                        NewPlaylistItem(e.FullPath);
-                    } catch (Exception e2) { Log.Warn($"Renamed Event Error {e2.Message} | {sessionId != Handler.OpenCounter}"); }
+                    proc.Exited += (o, e) =>
+                    {
+                        lock (procLocker)
+                        {
+                            if (Logger.CanDebug)
+                                Log.Debug($"Process completed ({(procId == -1 ? "Killed" : $"{procId}")})");
 
-                    addingItem = false;
-                };
-                proc.EnableRaisingEvents = true;
-                proc.Start();
-                Log.Debug($"Process {proc.Id} started");
-                var procId = proc.Id;
+                            proc.Close();
+                            proc    = null;
+                            procId  = -1;
+                        }
+                    };
 
-                proc.Exited += (o, e) => {
-                    Log.Debug($"Process {procId} stopped");
+                    proc.ErrorDataReceived += (o, e) =>
+                    {
+                        if (sessionId != Handler.OpenCounter || e.Data == null)
+                            return;
 
-                    while (Playlist.Items.Count < 1 && addingItem && !Handler.Interrupt && sessionId == Handler.OpenCounter)
-                        Thread.Sleep(35);
+                        Log.Debug($"[stderr] {e.Data}");
 
-                    if (!Handler.Interrupt && sessionId == Handler.OpenCounter && Playlist.Items.Count > 0)
-                        Handler.OnPlaylistCompleted();
-                };
+                        if (!errGenericImpersonate && e.Data.Contains("generic:impersonate"))
+                            errGenericImpersonate = true;
+                    };
 
-                while (Playlist.Items.Count < 1 && (!proc.HasExited || addingItem) && !Handler.Interrupt && sessionId == Handler.OpenCounter)
+                    if (Logger.CanDebug)
+                        proc.OutputDataReceived += (o, e) =>
+                        {
+                            if (sessionId == Handler.OpenCounter)
+                                Log.Debug($"[stdout] {e.Data}");
+                        };
+
+                    watcher = new()
+                    {
+                        Path = workingDir,
+                        EnableRaisingEvents = true,    
+                    };
+                    watcher.Renamed += (o, e) =>
+                    {
+                        try
+                        {
+                            if (sessionId != Handler.OpenCounter)
+                                return;
+
+                            addingItem = true;
+
+                            NewPlaylistItem(e.FullPath);
+
+                            if (Playlist.Items.Count == 1)
+                                Handler.OnPlaylistCompleted();
+
+                        } catch (Exception e2) { Log.Warn($"Renamed Event Error {e2.Message} | {sessionId != Handler.OpenCounter}");
+                        } finally { addingItem = false; }
+                    };
+
+                    proc.Start();
+                    procId = proc.Id;
+                    Log.Debug($"Process started ({procId})");
+
+                    // Don't try to read them at once at the end as the buffers (hardcoded to 4096) can be full and proc will freeze
+                    proc.BeginErrorReadLine();
+                    if (Logger.CanDebug)
+                        proc.BeginOutputReadLine();
+                }
+                
+                while (Playlist.Items.Count < 1 && (proc != null || addingItem) && sessionId == Handler.OpenCounter)
                     Thread.Sleep(35);
 
-                if (Handler.Interrupt || sessionId != Handler.OpenCounter)
+                if (sessionId != Handler.OpenCounter)
                 {
-                    Log.Info("Cancelled");
-                    //DisposeInternal(false);
-                    //KillProcessesAsync(); // Normally after interrupt OnInitialized will be called
-
+                    Log.Info("Session cancelled");
+                    DisposeInternal();
                     return null;
                 }
 
                 if (Playlist.Items.Count == 0) // Allow fallback to default plugin in case of YT-DLP bug with windows filename (this affects proper direct URLs as well)
-                    return null;
+                { 
+                    if (!errGenericImpersonate || retries > 0)
+                        return null;
 
-                //    if (Logger.CanDebug)
-                //    {
-                //        try { Log.Debug($"[StandardOutput]\r\n{proc.StandardOutput.ReadToEnd()}"); } catch { }
-                //        try { Log.Debug($"[StandardError] \r\n{proc.StandardError. ReadToEnd()}"); } catch { }
-                //    }
-
-                //    if (retries == 0 && !Handler.Interrupt)
-                //    {
-                //        retries++;
-                //        Log.Info("Retry");
-                //        return Open(url);
-                //    }
+                    Log.Warn("Re-trying with --extractor-args \"generic:impersonate\"");
+                    DisposeInternal();
+                    retries = 1;
+                    dynamicOptions = "--extractor-args \"generic:impersonate\" ";
+                    return Open();
+                }
             }
             catch (Exception e) { Log.Error($"Open ({e.Message})"); return new OpenResults(e.Message); }
 
             return new OpenResults();
         }
+
         public OpenResults OpenItem()
-            => new(); // TBR: should check expiration for Urls and re-download json if required for the specific playlist item
+            => new();
 
         public ExternalAudioStream SuggestExternalAudio()
         {

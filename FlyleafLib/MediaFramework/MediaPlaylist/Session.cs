@@ -18,6 +18,8 @@ public class Session
     public long     AudioDelay              { get; set; }
     public long     SubtitlesDelay          { get; set; }
 
+    internal bool   isReopen; // temp fix for opening existing playlist item as a new session (should not re-initialize - is like switch)
+
     //public SavedSession() { }
     //public SavedSession(int extVideoStream, int videoStream, int extAudioStream, int audioStream, int extSubtitlesStream, int subtitlesStream, long curTime, long audioDelay, long subtitlesDelay)
     //{

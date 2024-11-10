@@ -332,7 +332,7 @@ unsafe partial class Player
         {
             Playlist.Selected?.AddTag(GetCurrentSession(), playerSessionTag);
 
-            Initialize(Status.Opening);
+            Initialize(Status.Opening, true, session.isReopen);
             args.Error = decoder.Open(session).Error;
 
             if (!args.Success || !CanPlay)

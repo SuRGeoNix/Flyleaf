@@ -23,7 +23,7 @@ public abstract class PluginBase : PluginType, IPlugin
 
     public PluginHandler            Handler         { get; internal set; }
     public LogHandler               Log             { get; internal set; }
-    public bool                     Disposed        { get; protected set;}
+    public bool                     Disposed        { get; protected set;} = true;
     public int                      Priority        { get; set; } = 1000;
 
     public virtual void OnLoaded() { }
