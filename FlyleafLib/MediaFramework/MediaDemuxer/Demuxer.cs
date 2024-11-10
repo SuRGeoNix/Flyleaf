@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -426,7 +425,7 @@ public unsafe class Demuxer : RunThreadBase
 
             if (Config.FormatOptToUnderlying && url != null && (url.StartsWith("http://") || url.StartsWith("https://")))
             {
-                // TBR: Url encode required and priority of cur/default/extra params?
+                // TBR: Priority of cur/default/extra params?
 
                 queryParams = new();
                 if (Config.DefaultHTTPQueryToUnderlying)
@@ -437,7 +436,7 @@ public unsafe class Demuxer : RunThreadBase
                         string query = Url[(queryStarts + 1)..];
                         var qp = HttpUtility.ParseQueryString(query);
                         foreach (string p in qp)
-                            queryParams.Set(p, qp[p]);
+                            queryParams.Set(p, HttpUtility.UrlEncode(qp[p]));
                     }
                 }
 
@@ -552,7 +551,7 @@ public unsafe class Demuxer : RunThreadBase
         int ret;
         AVDictionaryEntry *t = null;
         string url = Utils.BytePtrToStringUTF8(urlb);
-
+        
         if (avoptCopy != null)
         {
             while ((t = av_dict_get(avoptCopy, "", t, DictReadFlags.IgnoreSuffix)) != null)
@@ -575,9 +574,12 @@ public unsafe class Demuxer : RunThreadBase
                             qp.Set(q, queryParams[q]);
 
                     foreach (string q in qp)
-                        url += $"{q}={qp[q]}&";
-
-                    //url = url.Substring(0, url.Length - 1);
+                    {
+                        if (q == null)
+                            url += $"{HttpUtility.UrlEncode(qp[q])}&";
+                        else
+                            url += $"{q}={HttpUtility.UrlEncode(qp[q])}&";
+                    }
                 }
             }
             else

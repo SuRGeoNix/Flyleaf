@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -239,7 +238,6 @@ public class PluginHandler
             Log.Debug("Playlist Completed");
             Playlist.UpdatePrevNextItem();
         }
-            
     }
 
     public void ScrapeItem(PlaylistItem item)
