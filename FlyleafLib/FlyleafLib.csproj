@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.0</Version>
+	<Version>3.8.1</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,19 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		* VideoDecoder: Stability and performance improvements
-		* VideoStream: Fixes an issue with rotation
-
-		- Dependencies
-		* Replaces FFmpeg.Autogen with Flyleaf.FFmpeg.Bindings
-		* Replaces Microsoft ILoggger with a generic custom callback
-		* Updates FFmpeg libs to v7.1 (patched *and mingw downgrade)
-		* Updates Vortice libs to v3.6.2
-
-		- Breaking Changes
-		* Deprecates .NET Framework and .NET 6 (Support only .NET 8)
-		* FFmpegLogLevel changed to Flyleaf.FFmpeg.LogLevel
-		* FFmpeg v7.1 support only
+		- Demuxer: Performance and stability improvements (query params/nested ioopen)
+		- DecoderContext: Prevents setting Referer always as it can cause issues
+		- FlyleafHost.Wpf: Changes the order of drop File/Text to Text/File (as firefox sets both)
+		- FlyleafHost.Wpf: Fixes an issue with FlowDirection.RightToLeft
+		- Plugins.YoutubeDL: Adds cookies support and removes unused JSON properties (could cause issues)
+		- Plugins.YoutubeDL: Removes '--cookies-from-browser' option by default (could cause issues, mainly with chrome)
+		- Plugins.YoutubeDL: Adds stdout/stderr and handles/retries on specific errors (eg. generic:impersonate)
+		- Plugins.YoutubeDL: Performance and stability improvements (kill process tree/interrupts/locks)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
