@@ -33,10 +33,6 @@
 	</PackageReleaseNotes>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <LangVersion>11</LangVersion>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DocumentationFile>FlyleafLib.xml</DocumentationFile>

@@ -1,13 +1,12 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Data;
-using System.Web;
 
 using static Flyleaf.FFmpeg.ffmpegEx;
 
@@ -165,8 +164,9 @@ public unsafe class Demuxer : RunThreadBase
     AVFormatContext_io_open ioopen;
     AVFormatContext_io_open ioopenDefault;
     AVDictionary*           avoptCopy;
-    NameValueCollection     queryParams;
-    string                  queryParamsStrCached = "";
+    Dictionary<string, string>
+                            queryParams;
+    byte[]                  queryCachedBytes;
 
     public Demuxer(DemuxerConfig config, MediaType type = MediaType.Video, int uniqueId = -1, bool useAVSPackets = true) : base(uniqueId)
     {
@@ -276,12 +276,12 @@ public unsafe class Demuxer : RunThreadBase
                 Programs.Clear();
             }
             EnabledStreams.Clear();
-            AudioStream = null;
-            VideoStream = null;
-            SubtitlesStream = null;
-            DataStream = null;
-            queryParams = null;
-            queryParamsStrCached = "";
+            AudioStream         = null;
+            VideoStream         = null;
+            SubtitlesStream     = null;
+            DataStream          = null;
+            queryParams         = null;
+            queryCachedBytes    = null;
 
             DisposePackets();
 
@@ -393,11 +393,7 @@ public unsafe class Demuxer : RunThreadBase
                         urlFromUrl  = query[..inputEnds];
                         query       = query[(inputEnds + 1)..];
                         
-                        var qp = HttpUtility.ParseQueryString(query);
-
-                        fmtOptExtra = new();
-                        foreach (string p in qp)
-                            fmtOptExtra.Add(p, qp[p]);
+                        fmtOptExtra = Utils.ParseQueryString(query);
                     }
                 }
 
@@ -409,47 +405,41 @@ public unsafe class Demuxer : RunThreadBase
             }
             else if (url.StartsWith("srt://"))
             {
-                int queryStarts = url.IndexOf('?');
+                ReadOnlySpan<char> urlSpan = url.AsSpan();
+                int queryPos = urlSpan.IndexOf('?');
 
-                if (queryStarts != -1)
+                if (queryPos != -1)
                 {
-                    url = Url[..Url.IndexOf('?')];
-                    string query = Url[(queryStarts + 1)..];
-                    var qp = HttpUtility.ParseQueryString(query);
-
-                    fmtOptExtra = new();
-                    foreach (string p in qp)
-                        fmtOptExtra.Add(p, qp[p]);
+                    fmtOptExtra = Utils.ParseQueryString(urlSpan.Slice(queryPos + 1));
+                    url = urlSpan[..queryPos].ToString();
                 }
             }
 
             if (Config.FormatOptToUnderlying && url != null && (url.StartsWith("http://") || url.StartsWith("https://")))
             {
-                // TBR: Priority of cur/default/extra params?
-
-                queryParams = new();
+                queryParams = [];
                 if (Config.DefaultHTTPQueryToUnderlying)
                 {
                     int queryStarts = url.IndexOf('?');
                     if (queryStarts != -1)
                     {
-                        string query = Url[(queryStarts + 1)..];
-                        var qp = HttpUtility.ParseQueryString(query);
-                        foreach (string p in qp)
-                            queryParams.Set(p, HttpUtility.UrlEncode(qp[p]));
+                        var qp = Utils.ParseQueryString(url.AsSpan()[(queryStarts + 1)..]);
+                        foreach (var kv in qp)
+                            queryParams[kv.Key] = kv.Value;
                     }
                 }
 
                 foreach (var kv in Config.ExtraHTTPQueryParamsToUnderlying)
-                    queryParams.Set(kv.Key, kv.Value);
+                    queryParams[kv.Key] = kv.Value;
 
                 if (queryParams.Count > 0)
                 {
-                    queryParamsStrCached = "?";
-                    foreach (string q in queryParams)
-                        queryParamsStrCached += $"{q}={queryParams[q]}&";
-
-                    queryParamsStrCached = queryParamsStrCached[..(queryParamsStrCached.Length - 1)];
+                    var queryCachedStr = "?";
+                    foreach (var kv in queryParams)
+                        queryCachedStr += kv.Value == null ? $"{kv.Key}&" : $"{kv.Key}={kv.Value}&";
+                    
+                    queryCachedStr = queryCachedStr[..^1];
+                    queryCachedBytes = Encoding.UTF8.GetBytes(queryCachedStr);
                 }
                 else
                     queryParams = null;
@@ -550,53 +540,64 @@ public unsafe class Demuxer : RunThreadBase
     {
         int ret;
         AVDictionaryEntry *t = null;
-        string url = Utils.BytePtrToStringUTF8(urlb);
         
         if (avoptCopy != null)
         {
             while ((t = av_dict_get(avoptCopy, "", t, DictReadFlags.IgnoreSuffix)) != null)
-                av_dict_set(avFmtOpts, Utils.BytePtrToStringUTF8(t->key), Utils.BytePtrToStringUTF8(t->value), 0);
+                _ = av_dict_set(avFmtOpts, Utils.BytePtrToStringUTF8(t->key), Utils.BytePtrToStringUTF8(t->value), 0);
         }
 
-        if (queryParams != null)
-        {
-            int queryStarts = url.IndexOf('?');
-            if (queryStarts != -1)
-            {
-                string query = url[(queryStarts + 1)..];
-                var qp = HttpUtility.ParseQueryString(query);
-                url = url[..queryStarts] + "?";
-
-                if (qp.Count > 0)
-                {
-                    foreach (string q in queryParams)
-                        if (qp.Get(q) == null)
-                            qp.Set(q, queryParams[q]);
-
-                    foreach (string q in qp)
-                    {
-                        if (q == null)
-                            url += $"{HttpUtility.UrlEncode(qp[q])}&";
-                        else
-                            url += $"{q}={HttpUtility.UrlEncode(qp[q])}&";
-                    }
-                }
-            }
-            else
-                url += queryParamsStrCached;
-
-            byte* urlbNew = av_strdup(url); // TBR: free?*
-            ret = ioopenDefault(s, pb, urlbNew, flags, avFmtOpts);
-        }
-        else
+        if (queryParams == null)
             ret = ioopenDefault(s, pb, urlb, flags, avFmtOpts);
+        else
+        {
+            int urlLength   =  0;
+            int queryPos    = -1;
+            while (urlb[urlLength] != '\0')
+            {
+                if (urlb[urlLength] == '?' && queryPos == -1 && urlb[urlLength + 1] != '\0')
+                    queryPos = urlLength;
 
-        // TBR if required
-        //if (ret >= 0 && avFmtOpts != null)
-        //{
-        //    while ((t = av_dict_get(*avFmtOpts, "", t, AV_DICT_IGNORE_SUFFIX)) != null)
-        //        Log.Trace($"Ignoring format option {Utils.BytePtrToStringUTF8(t->key)}"); // Should not be considered as an issue here
-        //}
+                urlLength++;
+            }
+
+            // urlNoQuery + ? + queryCachedBytes
+            if (queryPos == -1)
+            {
+                ReadOnlySpan<byte> urlNoQuery = new(urlb, urlLength);
+                int         newLength   = urlLength + queryCachedBytes.Length + 1;
+                Span<byte>  urlSpan     = newLength < 1024 ? stackalloc byte[newLength] : new byte[newLength];// new(urlPtr, newLength);
+                urlNoQuery.CopyTo(urlSpan);
+                queryCachedBytes.AsSpan().CopyTo(urlSpan[urlNoQuery.Length..]);
+
+                fixed(byte* urlPtr =  urlSpan)
+                    ret = ioopenDefault(s, pb, urlPtr, flags, avFmtOpts);
+            }
+
+            // urlNoQuery + ? + existingParams/queryParams combined 
+            else
+            {
+                ReadOnlySpan<byte> urlNoQuery   = new(urlb, queryPos);
+                ReadOnlySpan<byte> urlQuery     = new(urlb + queryPos + 1, urlLength - queryPos - 1);
+                var qps = Utils.ParseQueryString(Encoding.UTF8.GetString(urlQuery));
+
+                foreach (var kv in queryParams)
+                    if (!qps.ContainsKey(kv.Key))
+                        qps[kv.Key] = kv.Value;
+
+                string newQuery = "?";
+                foreach (var kv in qps)
+                    newQuery += kv.Value == null ? $"{kv.Key}&" : $"{kv.Key}={kv.Value}&";
+
+                int         newLength   = urlNoQuery.Length + newQuery.Length + 1;
+                Span<byte>  urlSpan     = newLength < 1024 ? stackalloc byte[newLength] : new byte[newLength];// new(urlPtr, newLength);
+                urlNoQuery.CopyTo(urlSpan);
+                Encoding.UTF8.GetBytes(newQuery).AsSpan().CopyTo(urlSpan[urlNoQuery.Length..]);
+
+                fixed(byte* urlPtr =  urlSpan)
+                    ret = ioopenDefault(s, pb, urlPtr, flags, avFmtOpts);
+            }
+        }
 
         return ret;
     }

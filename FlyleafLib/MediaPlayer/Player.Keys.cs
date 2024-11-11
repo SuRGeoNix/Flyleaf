@@ -79,12 +79,8 @@ partial class Player
         }
 
         List<KeyBinding> keysList = new();
-        #if NETFRAMEWORK
-        foreach(var binding in player.Config.Player.KeyBindings.Keys)
-        #else
         var spanList = CollectionsMarshal.AsSpan(player.Config.Player.KeyBindings.Keys); // should create dictionary here with key+alt+ctrl+shift hash
         foreach(var binding in spanList)
-        #endif
             if (binding.Key == key)
                 keysList.Add(binding);
 
@@ -96,12 +92,8 @@ partial class Player
         ctrl    = Keyboard.IsKeyDown(Key.LeftCtrl)  || Keyboard.IsKeyDown(Key.RightCtrl);
         shift   = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
 
-         #if NETFRAMEWORK
-        foreach(var binding in keysList)
-        #else
         var spanList2 = CollectionsMarshal.AsSpan(keysList);
         foreach(var binding in spanList2)
-        #endif
         {
             if (binding.Alt == alt && binding.Ctrl == ctrl && binding.Shift == shift)
             {
