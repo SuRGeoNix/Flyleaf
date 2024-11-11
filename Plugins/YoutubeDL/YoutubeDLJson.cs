@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
-
-using static FlyleafLib.Plugins.YoutubeDLJson;
 
 namespace FlyleafLib.Plugins
 {
@@ -126,6 +123,7 @@ namespace FlyleafLib.Plugins
         public string   format      { get; set; }
         public Dictionary<string, string> 
                         http_headers{ get; set; }
+        public string   cookies     { get; set; }
         public double   fps         { get; set; }
         public double   height      { get; set; }
         public double   width       { get; set; }

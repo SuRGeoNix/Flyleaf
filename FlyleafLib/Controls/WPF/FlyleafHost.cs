@@ -1138,19 +1138,19 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (!e.Handled)
         {
-            // Player Open File
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
-                Player.OpenAsync(filename);
-            }
-
-            // Player Open Text
-            else if (e.Data.GetDataPresent(DataFormats.Text))
+            // Player Open Text (TBR: Priority matters, eg. firefox will set both - cached file thumbnail of a video & the link of the video)
+            if (e.Data.GetDataPresent(DataFormats.Text))
             {
                 string text = e.Data.GetData(DataFormats.Text, false).ToString();
                 if (text.Length > 0)
                     Player.OpenAsync(text);
+            }
+
+            // Player Open File
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
+                Player.OpenAsync(filename);
             }
         }
 
@@ -1178,19 +1178,19 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (!e.Handled)
         {
-            // Player Open File
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
-                Player.OpenAsync(filename);
-            }
-
             // Player Open Text
-            else if (e.Data.GetDataPresent(DataFormats.Text))
+            if (e.Data.GetDataPresent(DataFormats.Text))
             {
                 string text = e.Data.GetData(DataFormats.Text, false).ToString();
                 if (text.Length > 0)
                     Player.OpenAsync(text);
+            }
+
+            // Player Open File
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string filename = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
+                Player.OpenAsync(filename);
             }
         }
 

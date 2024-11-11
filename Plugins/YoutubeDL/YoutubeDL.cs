@@ -389,19 +389,23 @@ namespace FlyleafLib.Plugins
         {
             if (fmt.http_headers != null)
             {
-                if (fmt.http_headers.ContainsKey("User-Agent"))
+                if (fmt.http_headers.TryGetValue("User-Agent", out string value))
                 {
-                    extStream.UserAgent = fmt.http_headers["User-Agent"];
+                    extStream.UserAgent = value;
                     fmt.http_headers.Remove("User-Agent");
                 }
 
-                if (fmt.http_headers.ContainsKey("Referer"))
+                if (fmt.http_headers.TryGetValue("Referer", out value))
                 {
-                    extStream.Referrer = fmt.http_headers["Referer"];
+                    extStream.Referrer = value;
                     fmt.http_headers.Remove("Referer");
                 }
-                            
+
                 extStream.HTTPHeaders = fmt.http_headers;
+
+                if (!string.IsNullOrEmpty(fmt.cookies))
+                    extStream.HTTPHeaders.Add("Cookies", fmt.cookies);
+
             }
         }
 

@@ -563,30 +563,41 @@ public static partial class Utils
         return newFileName;
     }
 
-    public unsafe static string BytePtrToStringUTF8(byte* bytePtr)
+    public static Dictionary<string, string> ParseQueryString(ReadOnlySpan<char> query)
     {
-        #if NETFRAMEWORK
-        if (bytePtr == null) return null;
-        if (*bytePtr == 0) return string.Empty;
+        Dictionary<string, string> dict = [];
 
-        List<byte> byteBuffer = new(1024);
-        byte currentByte = default(byte);
-
-        while (true)
+        int nameStart   = 0;
+        int equalPos    = -1;
+        for (int i = 0; i < query.Length; i++)
         {
-            currentByte = *bytePtr;
-            if (currentByte == 0)
-                break;
+            if (query[i] == '=')
+                equalPos = i;
+            else if (query[i] == '&')
+            {
+                if (equalPos == -1)
+                    dict[query[nameStart..i].ToString()] = null;
+                else
+                    dict[query[nameStart..equalPos].ToString()] = query.Slice(equalPos + 1, i - equalPos - 1).ToString();
 
-            byteBuffer.Add(currentByte);
-            bytePtr++;
+                equalPos    = -1;
+                nameStart   = i + 1;
+            }
         }
 
-        return Encoding.UTF8.GetString(byteBuffer.ToArray());
-        #else
-        return Marshal.PtrToStringUTF8((nint)bytePtr);
-        #endif
+        if (nameStart < query.Length - 1)
+        {
+            if (equalPos == -1)
+                dict[query[nameStart..].ToString()] = null;
+            else
+                dict[query[nameStart..equalPos].ToString()] = query.Slice(equalPos + 1, query.Length - equalPos - 1).ToString();
+        }
+
+        return dict;
     }
+
+    public unsafe static string BytePtrToStringUTF8(byte* bytePtr)
+        => Marshal.PtrToStringUTF8((nint)bytePtr);
 
     public static System.Windows.Media.Color WinFormsToWPFColor(System.Drawing.Color sColor)
         => System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B);

@@ -18,9 +18,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 
             string foundFrom = "";
             Encoding subsEnc = null;
-#if !NETFRAMEWORK
-            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-#endif
+
             try
             {
                 ICharsetDetector detector = new CharsetDetector();
@@ -43,9 +41,6 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 
             if (subsEnc == null)
             {
-#if NETFRAMEWORK
-                subsEnc = Encoding.Default;
-#else
                 int ansi = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
 
                 try
@@ -73,7 +68,6 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
                     }
                     catch (Exception) { }
                 }
-#endif
             }
 
             if (subsEnc == null)

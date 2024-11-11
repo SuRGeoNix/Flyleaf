@@ -974,8 +974,10 @@ public partial class DecoderContext
 
                 if (demuxerInput.Referrer != null)
                     formatOpt["referer"] = demuxerInput.Referrer;
-                else if (!formatOpt.ContainsKey("referer") && Playlist.Url != null)
-                    formatOpt["referer"] = Playlist.Url;
+
+                // this can cause issues
+                //else if (!formatOpt.ContainsKey("referer") && Playlist.Url != null)
+                //    formatOpt["referer"] = Playlist.Url;
 
                 if (demuxerInput.HTTPHeaders != null)
                 {
