@@ -18,6 +18,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
 
             string foundFrom = "";
             Encoding subsEnc = null;
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             try
             {
