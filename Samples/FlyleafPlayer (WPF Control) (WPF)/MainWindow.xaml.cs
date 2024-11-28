@@ -321,7 +321,7 @@ namespace FlyleafPlayer
         bool                imageFilesChanged;
         bool                userKeepRatioOnResize;
 
-        [GeneratedRegex("\\.(apng|avif|bmp|jpg|jpeg|gif|ico|png|svg|tiff|webp)$", RegexOptions.IgnoreCase, "en-US")]
+        [GeneratedRegex("\\.(apng|avif|bmp|jpg|jpeg|gif|ico|png|svg|tiff|webp|jfif)$", RegexOptions.IgnoreCase, "en-US")]
         private static partial Regex RegexImages();
 
         void Player_Opening(object sender, OpeningArgs e)

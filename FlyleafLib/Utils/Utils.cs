@@ -39,7 +39,7 @@ public static partial class Utils
 
     public static List<string> ExtensionsPictures = new()
     {
-        "apng", "bmp", "gif", "jpg", "jpeg", "png", "ico", "tif", "tiff", "tga"
+        "apng", "bmp", "gif", "jpg", "jpeg", "png", "ico", "tif", "tiff", "tga","jfif"
     };
 
     public static List<string> ExtensionsSubtitles = new()
