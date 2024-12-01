@@ -98,10 +98,12 @@ namespace FlyleafLib.Plugins
             var iresults =
                 from    format in ytdl.formats
                 where   HasVideo(format) && format.height <= Config.Video.MaxVerticalResolution && (!Regex.IsMatch(format.protocol, "dash", RegexOptions.IgnoreCase) || format.vcodec.ToLower() == "vp9")
-                orderby format.tbr      descending
-                orderby format.fps      descending
-                orderby format.height   descending
-                orderby format.width    descending
+                orderby format.width    descending,
+                        format.height   descending,
+                        format.protocol descending, // prefer m3u8 over https
+                        format.vcodec,              // prefer avc over vp09 (because YT can't seek vp09 at all)
+                        format.tbr      descending,
+                        format.fps      descending
                 select  format;
             
             if (iresults == null || iresults.Count() == 0)
@@ -110,10 +112,12 @@ namespace FlyleafLib.Plugins
                 iresults =
                     from    format in ytdl.formats
                     where   HasVideo(format)
-                    orderby format.tbr      descending
-                    orderby format.fps      descending
-                    orderby format.height   descending
-                    orderby format.width    descending
+                    orderby format.width    descending,
+                            format.height   descending,
+                            format.protocol descending,
+                            format.vcodec,
+                            format.tbr      descending,
+                            format.fps      descending
                     select  format;
 
                 if (iresults == null || iresults.Count() == 0) return null;
