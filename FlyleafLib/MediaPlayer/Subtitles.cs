@@ -29,6 +29,8 @@ public class Subtitles : NotifyPropertyChanged
     public string   SubsText        { get => subsText;     internal set => Set(ref _SubsText,  value); }
     internal string _SubsText = "", subsText = "";
 
+    public Player Player => player;
+
     Action uiAction;
     Player player;
     DecoderContext decoder => player?.decoder;

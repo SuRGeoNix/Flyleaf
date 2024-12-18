@@ -73,6 +73,8 @@ public class Video : NotifyPropertyChanged
     public bool         ZeroCopy        { get => zeroCopy;          internal set => Set(ref _ZeroCopy, value); }
     internal bool   _ZeroCopy, zeroCopy;
 
+    public Player Player => player;
+
     Action uiAction;
     Player player;
     DecoderContext decoder => player.decoder;
