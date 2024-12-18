@@ -146,6 +146,8 @@ public class Audio : NotifyPropertyChanged
     #endregion
 
     #region Declaration
+    public Player Player => player;
+
     Player                  player;
     Config                  Config => player.Config;
     DecoderContext          decoder => player?.decoder;
