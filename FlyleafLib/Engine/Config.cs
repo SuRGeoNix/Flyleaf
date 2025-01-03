@@ -575,7 +575,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Custom aspect ratio (AspectRatio must be set to Custom to have an effect)
         /// </summary>
-        public AspectRatio      CustomAspectRatio           { get => _CustomAspectRatio;  set { if (Set(ref _CustomAspectRatio, value)) AspectRatio = AspectRatio.Custom; } }
+        public AspectRatio      CustomAspectRatio           { get => _CustomAspectRatio;  set { if (Set(ref _CustomAspectRatio, value) && AspectRatio == AspectRatio.Custom) { _AspectRatio = AspectRatio.Fill; AspectRatio = AspectRatio.Custom; } } }
         AspectRatio    _CustomAspectRatio = new(16, 9);
 
         /// <summary>
