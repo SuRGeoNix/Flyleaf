@@ -10416,15 +10416,15 @@ static int mov_switch_root(AVFormatContext *s, int64_t target, int index)
 
     if (index >= 0 && index < mov->frag_index.nb_items)
         target = mov->frag_index.item[index].moof_offset;
-    if (avio_seek(s->pb, target, SEEK_SET) != target) {
+    if (target >= 0 && avio_seek(s->pb, target, SEEK_SET) != target) {
         av_log(mov->fc, AV_LOG_ERROR, "root atom offset 0x%"PRIx64": partial file\n", target);
         return AVERROR_INVALIDDATA;
     }
 
     mov->next_root_atom = 0;
-    if (index < 0 || index >= mov->frag_index.nb_items)
+    if ((index < 0 && target >= 0) || index >= mov->frag_index.nb_items)
         index = search_frag_moof_offset(&mov->frag_index, target);
-    if (index < mov->frag_index.nb_items &&
+    if (index >= 0 && index < mov->frag_index.nb_items &&
         mov->frag_index.item[index].moof_offset == target) {
         if (index + 1 < mov->frag_index.nb_items)
             mov->next_root_atom = mov->frag_index.item[index + 1].moof_offset;
