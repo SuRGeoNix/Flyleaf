@@ -872,8 +872,9 @@ unsafe partial class Player
                 // convert Windows lnk file to targetPath
                 if (Path.GetExtension(url_iostream_str).Equals(".lnk", StringComparison.OrdinalIgnoreCase))
                 {
-                    string targetPath = GetLnkTargetPath(url_iostream_str);
-                    url_iostream = targetPath;
+                    var targetPath = GetLnkTargetPath(url_iostream_str);
+                    if (targetPath != null)
+                        url_iostream = targetPath;
                 }
             }
             
