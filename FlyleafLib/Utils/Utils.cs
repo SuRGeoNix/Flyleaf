@@ -447,28 +447,30 @@ public static partial class Utils
     /// Convert Windows lnk file path to target path
     /// </summary>
     /// <param name="filepath">lnk file path</param>
-    /// <returns>target path</returns>
+    /// <returns>targetPath or null</returns>
     public static string GetLnkTargetPath(string filepath)
     {
-        // ref: https://stackoverflow.com/a/64126237
-        using var br = new BinaryReader(System.IO.File.OpenRead(filepath));
-
-        br.ReadBytes(0x14);
-        uint lflags = br.ReadUInt32();
-        if ((lflags & 0x01) == 1)
+        try
         {
-            br.ReadBytes(0x34);
-            var skip = br.ReadUInt16();
-            br.ReadBytes(skip);
+            // Using dynamic COM
+            // ref: https://stackoverflow.com/a/49198242/9070784
+            dynamic windowsShell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell", true)!);
+            dynamic shortcut = windowsShell!.CreateShortcut(filepath);
+            string targetPath = shortcut.TargetPath;
+
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                throw new InvalidOperationException("TargetPath is empty.");
+            }
+
+            return targetPath;
         }
-        var length = br.ReadUInt32();
-        br.ReadBytes(0x0C);
-        var lbpos = br.ReadUInt32();
-        br.ReadBytes((int)lbpos - 0x14);
-        var size = length - lbpos - 0x02;
-        var bytePath = br.ReadBytes((int)size);
-        var path = Encoding.UTF8.GetString(bytePath, 0, bytePath.Length);
-        return path;
+        catch (Exception e)
+        {
+            Log($"Resolving Windows Link failed {e.Message} [FilePath: {filepath}]");
+
+            return null;
+        }
     }
 
     public static string GetBytesReadable(nuint i)
