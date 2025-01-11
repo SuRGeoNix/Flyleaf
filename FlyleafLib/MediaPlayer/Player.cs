@@ -463,6 +463,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         AudioDecoder.CodecChanged   = Decoder_AudioCodecChanged;
         VideoDecoder.CodecChanged   = Decoder_VideoCodecChanged;
         decoder.RecordingCompleted += (o, e) => { IsRecording = false; };
+        Chapters.CollectionChanged += (o, e) => { RaiseUI(nameof(Chapters)); };
 
         status = Status.Stopped;
         Reset();
