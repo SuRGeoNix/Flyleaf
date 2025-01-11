@@ -113,7 +113,8 @@ public unsafe class Demuxer : RunThreadBase
     // Interrupt
     public Interrupter              Interrupter     { get; private set; }
 
-    public List<Chapter>            Chapters        { get; private set; } = new List<Chapter>();
+    public ObservableCollection<Chapter>
+                                    Chapters        { get; private set; } = new ObservableCollection<Chapter>();
     public class Chapter
     {
         public long     StartTime   { get; set; }
@@ -193,6 +194,8 @@ public unsafe class Demuxer : RunThreadBase
             BindingOperations.EnableCollectionSynchronization(VideoStreams,     lockStreams);
             BindingOperations.EnableCollectionSynchronization(SubtitlesStreams, lockStreams);
             BindingOperations.EnableCollectionSynchronization(DataStreams,      lockStreams);
+            
+            BindingOperations.EnableCollectionSynchronization(Chapters,         lockStreams);
         });
 
         ioopen = IOOpen;
@@ -274,6 +277,8 @@ public unsafe class Demuxer : RunThreadBase
                 SubtitlesStreams.Clear();
                 DataStreams.Clear();
                 Programs.Clear();
+                
+                Chapters.Clear();
             }
             EnabledStreams.Clear();
             AudioStream         = null;

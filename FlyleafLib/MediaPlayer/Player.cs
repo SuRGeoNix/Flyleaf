@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Threading;
 
 using FlyleafLib.Controls;
@@ -152,7 +153,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// <summary>
     /// The list of chapters
     /// </summary>
-    public List<Demuxer.Chapter> 
+    public ObservableCollection<Demuxer.Chapter> 
                         Chapters            => VideoDemuxer?.Chapters;
 
     /// <summary>
