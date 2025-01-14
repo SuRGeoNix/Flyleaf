@@ -436,7 +436,7 @@ unsafe partial class Player
         Speed = 1;
 
         bool npx = renderer.PanXOffset != 0;
-        bool npy = renderer.PanXOffset != 0;
+        bool npy = renderer.PanYOffset != 0;
         bool npr = renderer.Rotation != 0;
         bool npz = renderer.Zoom != 1;
         renderer.SetPanAll(0, 0, 0, 1, Renderer.ZoomCenterPoint, true); // Pan X/Y, Rotation, Zoom, Zoomcenter, Refresh
