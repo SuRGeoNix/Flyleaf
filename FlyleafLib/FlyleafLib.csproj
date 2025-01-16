@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.1</Version>
+	<Version>3.8.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2024</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,12 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Performance and stability improvements (query params/nested ioopen)
-		- DecoderContext: Prevents setting Referer always as it can cause issues
-		- FlyleafHost.Wpf: Changes the order of drop File/Text to Text/File (as firefox sets both)
-		- FlyleafHost.Wpf: Fixes an issue with FlowDirection.RightToLeft
-		- Plugins.YoutubeDL: Adds cookies support and removes unused JSON properties (could cause issues)
-		- Plugins.YoutubeDL: Removes '--cookies-from-browser' option by default (could cause issues, mainly with chrome)
-		- Plugins.YoutubeDL: Adds stdout/stderr and handles/retries on specific errors (eg. generic:impersonate)
-		- Plugins.YoutubeDL: Performance and stability improvements (kill process tree/interrupts/locks)
+		- Config: Update viewport when Config.Video.CustomAspectRatio changes
+		- FFmpeg Libraries: Fixes HLS seek patch
+		- Player: Exposes player to Audio/Video/Subtitles
+		- Player: Fixes an issue with resolving windows link files in external fs
+		- Plugins.SubtitlesConverter: Fixes a critical issue by restoring code which removed by mistake after deprecating .NETFramework in 3.8.1
+		- Plugins.YoutubeDL: Improved video stream selection for YT
 	</PackageReleaseNotes>
   </PropertyGroup>
 
