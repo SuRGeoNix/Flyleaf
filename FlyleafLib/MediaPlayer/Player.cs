@@ -411,7 +411,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     bool isDataSwitch;
     #endregion
 
-	public Player(Config config = null)
+    public Player(Config config = null)
     {
         if (config != null)
         {
