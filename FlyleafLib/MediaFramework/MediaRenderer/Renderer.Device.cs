@@ -54,7 +54,7 @@ public unsafe partial class Renderer
         FeatureLevel.Level_9_1
     };
 
-    static FeatureLevel[] featureLevels = new[] 
+    static FeatureLevel[] featureLevels = new[]
     {
         FeatureLevel.Level_11_0,
         FeatureLevel.Level_10_1,
@@ -77,7 +77,7 @@ public unsafe partial class Renderer
         blendDesc.RenderTarget[0].BlendOperationAlpha   = BlendOperation.Add;
         blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
     }
-    
+
 
     ID3D11DeviceContext context;
 
@@ -194,7 +194,7 @@ public unsafe partial class Renderer
                 }
                 else
                     Log.Debug($"GPU Adapter: Unknown (Possible WARP without Luid)");
-                
+
                 tempDevice.Dispose();
                 adapter.Dispose();
 
@@ -221,7 +221,7 @@ public unsafe partial class Renderer
                     ByteWidth       = (uint)(sizeof(VSBufferType) + (16 - (sizeof(VSBufferType) % 16)))
                 });
                 context.VSSetConstantBuffer(0, vsBuffer);
-                
+
                 vsBufferData.mat = Matrix4x4.Identity;
                 context.UpdateSubresource(vsBufferData, vsBuffer);
 
@@ -240,7 +240,7 @@ public unsafe partial class Renderer
 
                 // subs
                 ShaderBGRA = ShaderCompiler.CompilePS(Device, "bgra", @"color = float4(Texture1.Sample(Sampler, input.Texture).rgba);", null);
-                
+
                 // Blend State (currently used -mainly- for RGBA images and OverlayTexture)
                 blendStateAlpha = Device.CreateBlendState(blendDesc);
 
@@ -309,7 +309,7 @@ public unsafe partial class Renderer
             child.SetViewport();
         }
     }
-    
+
     public void Dispose()
     {
         lock (lockDevice)
@@ -319,7 +319,7 @@ public unsafe partial class Renderer
 
             if (child != null)
                 DisposeChild();
-            
+
             Disposed = true;
 
             if (CanDebug) Log.Debug("Disposing");

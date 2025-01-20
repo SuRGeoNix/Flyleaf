@@ -26,7 +26,7 @@ namespace FlyleafPlayer
         public event PropertyChangedEventHandler PropertyChanged;
         public void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new(propertyName));
         public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
-        
+
         /// <summary>
         /// Flyleaf Player binded to FlyleafME (This can be swapped and will nto belong to this window)
         /// </summary>
@@ -39,7 +39,7 @@ namespace FlyleafPlayer
 
         public ICommand     OpenWindow  { get; set; }
         public ICommand     CloseWindow { get; set; }
-        
+
         static bool runOnce;
         Config playerConfig;
         bool ReversePlaybackChecked;
@@ -60,7 +60,7 @@ namespace FlyleafPlayer
                 KeyBindings         = AvailableWindows.Both,
                 DetachedResize      = AvailableWindows.Overlay,
                 DetachedDragMove    = AvailableWindows.Both,
-                ToggleFullScreenOnDoubleClick 
+                ToggleFullScreenOnDoubleClick
                                     = AvailableWindows.Both,
                 KeepRatioOnResize   = true,
                 OpenOnDrop          = AvailableWindows.Both,
@@ -73,7 +73,7 @@ namespace FlyleafPlayer
             FlyleafME.ConfigPath    = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.Config.json");
             FlyleafME.EnginePath    = App.EnginePath;
             FlyleafME.UIConfigPath  = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.UIConfig.json");
-            
+
             InitializeComponent();
 
             // Allowing FlyleafHost to access our Player
@@ -117,7 +117,7 @@ namespace FlyleafPlayer
               ////new() { Name ="rubberband", Args="pitch=1.5" }
             //};
             #endif
-            
+
             // Initializes the Player
             Player = new Player(playerConfig);
 
@@ -171,7 +171,7 @@ namespace FlyleafPlayer
             var keys = playerConfig.Player.KeyBindings;
             keys.AddCustom(Key.N, true, () => CreateNewWindow(Player), "New Window", false, true, false);
             keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).Close(), "Close Window", false, true, false);
-            
+
             // We might saved the tmp keys (restore them)
             if (Player.Config.Loaded && keys.Exists("tmp01"))
             {
@@ -193,7 +193,7 @@ namespace FlyleafPlayer
 
             return mw;
         }
-        private static void CreateNewWindow(Player player) 
+        private static void CreateNewWindow(Player player)
         {
             var mw = GetWindowFromPlayer(player);
 
@@ -492,7 +492,7 @@ namespace FlyleafPlayer
                             slideShowWatcher = new(imageFolder);
                             slideShowWatcher.EnableRaisingEvents = true;
                             slideShowWatcher.NotifyFilter = NotifyFilters.FileName;
-                            
+
                             slideShowWatcher.Renamed += (o, e) =>
                             {
                                 if (!imageFilesChanged && RegexImages().IsMatch(e.Name))
@@ -603,8 +603,8 @@ namespace FlyleafPlayer
                 {
                     slideShowCancel.Cancel();
                     slideShowCancel = new();
-                }                
-                
+                }
+
                 ImageIndex = index;
                 CanPrevImage = ImageIndex > 0;
                 CanNextImage = ImageIndex < ImageFiles.Count - 1;
@@ -709,7 +709,7 @@ namespace FlyleafPlayer
         {
             if (deleteConfirmation && MessageBox.Show("Are you sure to delete this image?", "Delete Confirmation", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
                 return;
-            
+
             Player.Stop();
             try { File.Delete(ImageInfo.FullName); imageFilesChanged = true; } catch(Exception) { return; }
             SlideShowGoTo(ImageIndex); //canNextImage ? ImageIndex + 1 : (canPrevImage ? ImageIndex - 1 : 0));

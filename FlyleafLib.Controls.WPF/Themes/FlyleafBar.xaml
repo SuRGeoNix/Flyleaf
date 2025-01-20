@@ -178,8 +178,8 @@
                                     <materialDesign:PackIcon Kind="VideoInputAntenna" Height="20" Width="20" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}" VerticalAlignment="Center" Visibility="{Binding Player.IsLive, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
                                     <TextBlock VerticalAlignment="Center" FontStyle="Italic" Margin="5,0,0,0" Text="{Binding Player.Playlist.Selected.Title}"/>
                                 </StackPanel>
-                                
-                                
+
+
                                 <Button Grid.Column="3" Content="{materialDesign:PackIcon Kind=SkipPrevious}" Command="{Binding Player.Commands.Reopen}" CommandParameter="{Binding Player.Playlist.PrevItem}">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
@@ -237,8 +237,8 @@
 
                                 <!--Toggle Fullscreen Button-->
                                 <ToggleButton Grid.Column="8" Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Background="Transparent" Focusable="False"
-                                                          IsChecked="{Binding Player.Host.IsFullScreen}" 
-                                                          Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}" 
+                                                          IsChecked="{Binding Player.Host.IsFullScreen}"
+                                                          Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}"
                                                           materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=FullscreenExit, Size=28}"/>
                             </Grid>
                         </Grid>

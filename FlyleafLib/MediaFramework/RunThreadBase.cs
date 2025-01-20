@@ -8,9 +8,9 @@ public abstract class RunThreadBase : NotifyPropertyChanged
 {
     Status _Status = Status.Stopped;
     public Status               Status          {
-        get => _Status; 
-        set 
-        { 
+        get => _Status;
+        set
+        {
             lock (lockStatus)
             {
                 if (CanDebug && _Status != Status.QueueFull && value != Status.QueueFull && _Status != Status.QueueEmpty && value != Status.QueueEmpty)
@@ -18,7 +18,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
 
                 _Status = value;
             }
-        } 
+        }
     }
     public bool                 IsRunning       {
         get
@@ -36,7 +36,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
 
     protected Thread            thread;
     protected AutoResetEvent    threadARE       = new(false);
-    protected string            threadName      { 
+    protected string            threadName      {
         get => _threadName;
         set
         {
@@ -99,7 +99,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
                 {
                     threadARE.Set();
                     while (Status == Status.Paused) Thread.Sleep(3);
-                    return; 
+                    return;
                 }
 
                 if (thread != null && thread.IsAlive) return; // might re-check CriticalArea
@@ -165,7 +165,7 @@ public enum Status
 
     Stopping,
     Stopped,
-    
+
     Pausing,
     Paused,
 

@@ -132,7 +132,7 @@ public sealed partial class MainWindow : Window
     private void Root_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
 
-        ((UIElement)sender).ReleasePointerCaptures();        
+        ((UIElement)sender).ReleasePointerCaptures();
         bMoving = false;
     }
 

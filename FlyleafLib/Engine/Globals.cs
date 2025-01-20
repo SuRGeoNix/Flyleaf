@@ -93,14 +93,14 @@ public class GPUAdapter
     public nuint    SystemMemory    { get; internal set; }
     public nuint    VideoMemory     { get; internal set; }
     public nuint    SharedMemory    { get; internal set; }
-    
+
 
     public uint     Id              { get; internal set; }
     public string   Vendor          { get; internal set; }
     public string   Description     { get; internal set; }
     public long     Luid            { get; internal set; }
     public bool     HasOutput       { get; internal set; }
-    public List<GPUOutput> 
+    public List<GPUOutput>
                     Outputs         { get; internal set; }
 
     public override string ToString()
@@ -254,7 +254,7 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
         //if (!DisableNotifications)
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
-        
+
 
     protected void RaiseUI([CallerMemberName] string propertyName = "")
     {

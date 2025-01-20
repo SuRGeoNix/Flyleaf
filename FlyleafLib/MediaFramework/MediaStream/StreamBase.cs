@@ -41,7 +41,7 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
     }
 
     public virtual void Refresh()
-    {   
+    {
         BitRate     = AVStream->codecpar->bit_rate;
         CodecID     = AVStream->codecpar->codec_id;
         Codec       = avcodec_get_name(AVStream->codecpar->codec_id);
@@ -66,7 +66,7 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
                     }
             }
         }
-            
+
         Metadata.Clear();
 
         AVDictionaryEntry* b = null;

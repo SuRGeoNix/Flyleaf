@@ -4,20 +4,20 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FlyleafPlayer"
-        
+
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
         FontFamily="{materialDesign:MaterialDesignFont}"
         TextOptions.TextFormattingMode="Ideal"
-        TextOptions.TextRenderingMode="Auto"        
+        TextOptions.TextRenderingMode="Auto"
         TextElement.Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
         TextElement.FontWeight="Medium"
         TextElement.FontSize="14"
-        
+
         Title="Flyleaf" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent"
-        
+
         MinWidth="150" MinHeight="80"
         Height="450" Width="800" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
 
@@ -138,8 +138,8 @@
                             </Button>
                             <Button Focusable="False" x:Name="BtnMinimize" Content="{materialDesign:PackIcon Kind=Minimize}" VerticalContentAlignment="Bottom" Style="{StaticResource MaterialDesignIconButton}" Click="BtnMinimize_Click"/>
                             <ToggleButton Style="{StaticResource MaterialDesignActionToggleButton}" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" Background="Transparent" Focusable="False"
-                                                          IsChecked="{Binding Player.Host.IsFullScreen}" 
-                                                          Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}" 
+                                                          IsChecked="{Binding Player.Host.IsFullScreen}"
+                                                          Content="{materialDesign:PackIcon Kind=Fullscreen, Size=28}"
                                                           materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=FullscreenExit, Size=28}"/>
                             <Button Focusable="False" x:Name="BtnClose" Click="BtnClose_Click" Content="{materialDesign:PackIcon Kind=Close,Size=30}" Style="{StaticResource MaterialDesignIconButton}" />
                         </StackPanel>
@@ -218,7 +218,7 @@
                         <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
 
                         <!--Subtitles-->
-                        <flwpf:OutlinedTextBlock Stroke="{Binding Player.Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}" 
+                        <flwpf:OutlinedTextBlock Stroke="{Binding Player.Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}"
                          ClipToBounds="False"
                          Fill="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}"
                          StrokePosition="Outside"

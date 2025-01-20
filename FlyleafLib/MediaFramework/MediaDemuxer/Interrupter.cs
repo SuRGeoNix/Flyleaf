@@ -15,13 +15,13 @@ public unsafe class Interrupter
     Stopwatch sw = new();
     internal AVIOInterruptCB_callback interruptClbk;
     long curTimeoutMs;
-    
+
     internal int ShouldInterrupt(void* opaque)
     {
         if (demuxer.Status == Status.Stopping)
         {
             if (CanDebug) demuxer.Log.Debug($"{Requester} Interrupt (Stopping) !!!");
-            
+
             return Interrupted = 1;
         }
 

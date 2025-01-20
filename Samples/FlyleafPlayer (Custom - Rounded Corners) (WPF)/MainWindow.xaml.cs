@@ -37,7 +37,7 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
                 LogLevel        = LogLevel.Debug,
                 FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
                 #endif
-                
+
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
 
@@ -62,7 +62,7 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
             Config = new Config();
 
             // Inform the lib to refresh stats
-            Config.Player.Stats = true; 
+            Config.Player.Stats = true;
 
             Player = new Player(Config);
             FlyleafHost.Player = Player;

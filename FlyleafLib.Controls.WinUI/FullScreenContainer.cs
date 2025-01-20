@@ -54,18 +54,18 @@ public sealed class FullScreenContainer : ContentControl
     public static AppWindow?    FSWApp;
     private static Grid         FSWGrid = new();
 
-    public static FullScreenContainer? 
+    public static FullScreenContainer?
                                 FSCInUse; // Each monitor should have one
 
     public static int           FSCCounter;
-    
+
     public static event EventHandler? CustomizeFullScreenWindow;
 
     public FullScreenContainer()
     {
         DefaultStyleKey = typeof(FullScreenContainer);
         IsTabStop = false;
-        
+
 
         Loaded += (o, e) => FSCCounter++;
         Unloaded += (o, e) =>
@@ -93,11 +93,11 @@ public sealed class FullScreenContainer : ContentControl
                 Owner = appWin;
             }
         }
-        
+
         if (FSW == null)
             CreateFSW();
     }
-    
+
     private void CreateFSW()
     {
         FSW = new Window();
@@ -105,13 +105,13 @@ public sealed class FullScreenContainer : ContentControl
 
         FSWHwnd = WindowNative.GetWindowHandle(FSW);
         WindowId wndId = Win32Interop.GetWindowIdFromWindow(FSWHwnd);
-        
+
         FSWApp = AppWindow.GetFromWindowId(wndId);
         OverlappedPresenter op = ((OverlappedPresenter)FSWApp.Presenter);
         op.SetBorderAndTitleBar(false, false);
         op.IsMinimizable = false;
         op.IsResizable = false;
-        
+
         FSWApp.IsShownInSwitchers = true;
         FSWApp.Resize(new(1,1));
         FSWApp.Hide();
@@ -128,7 +128,7 @@ public sealed class FullScreenContainer : ContentControl
 
             FSCInUse.IsFullScreen = false;
         }
-        
+
         if (Content == null || FSW == null || FSWApp == null)
             return;
 
@@ -144,7 +144,7 @@ public sealed class FullScreenContainer : ContentControl
         }
         FSWApp.Move(p);
         FSWApp.SetPresenter(AppWindowPresenterKind.FullScreen);
-        
+
         Owner?.Hide();
 
         // Move Content from current FSC to FSW
@@ -160,7 +160,7 @@ public sealed class FullScreenContainer : ContentControl
             Thread.Sleep(100);
             SetForegroundWindow(FSWHwnd);
         });
-        
+
         FullScreenEnter?.Invoke(this, new());
     }
 
@@ -229,7 +229,7 @@ public sealed class FullScreenContainer : ContentControl
         var handles = new List<IntPtr>();
 
         foreach (ProcessThread thread in Process.GetProcessById(processId).Threads)
-            EnumThreadWindows(thread.Id, 
+            EnumThreadWindows(thread.Id,
                 (hWnd, lParam) => { handles.Add(hWnd); return true; }, IntPtr.Zero);
 
         return handles;
@@ -240,4 +240,3 @@ public interface IFullScreen
 {
     public bool IsFullScreen { get; set; }
 }
-

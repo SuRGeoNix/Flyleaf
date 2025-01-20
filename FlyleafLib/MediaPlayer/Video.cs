@@ -30,7 +30,7 @@ public class Video : NotifyPropertyChanged
     internal double _BitRate, bitRate;
 
     public AspectRatio  AspectRatio     { get => aspectRatio;       internal set => Set(ref _AspectRatio, value); }
-    internal AspectRatio 
+    internal AspectRatio
                     _AspectRatio, aspectRatio;
 
     ///// <summary>

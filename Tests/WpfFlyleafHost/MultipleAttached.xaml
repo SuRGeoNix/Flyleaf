@@ -10,21 +10,21 @@
         Topmost="False"
         Title="Attached" Height="600" Width="860" Background="DarkCyan">
     <Grid>
-        
+
         <!-- Notes
         Each FlyleafHost has three zorder Layers
             1. Host/Detach Content *User*       (FlyleafHost Control)
             2. Surface Content *Renderer*       (Surface Window)        Owner's Child / Overlay's Parent
             3. Video Overlay Content *User*     (Overlay Window)        Surface's Child
-        
+
         All the required changes for the Windows should be done through the FlyleafHost Control and not direclty on the Windows
         (eg. IsFullScrreen/IsMinimized for Window States, same for the Window Sizes)
-        
+
         If you don't specify the Size on the FlyleafHost it will be calculated from the Detached content if any,
         otherwise from the Overlay content (only the first time). Updating the Content on the Overlay, it will not update the size of the Windows.
-        
+
         -->
-        
+
         <!--Overlay Border / Resize on Overlay (Recommended)-->
         <fl:FlyleafHost Width="140" Height="110" Margin="100 300 0 0" VerticalAlignment="Top" HorizontalAlignment="Left"
                         AttachedDragMove="Surface" AttachedResize="Surface" CornerRadius="30" Player="{Binding Player2}">
@@ -34,7 +34,7 @@
                 </Viewbox>
             </Border>
         </fl:FlyleafHost>
-        
+
         <!--Host Border / No Overlay / Resizable (useful when overlay is not required, so we add the border on host)-->
         <Border x:Name="BorderMarginTarget" Margin="200 100 0 0" VerticalAlignment="Top" HorizontalAlignment="Left"
                 BorderBrush="DarkBlue" BorderThickness="4">
@@ -42,19 +42,19 @@
                             AttachedDragMove="Surface" AttachedResize="Surface" MarginTarget="{Binding ElementName=BorderMarginTarget}">
             </fl:FlyleafHost>
         </Border>
-        
+
         <!--Attach / Detach-->
         <fl:FlyleafHost Player="{Binding Player1}" Margin="300 200 0 0" Width="140" Height="110" VerticalAlignment="Top" HorizontalAlignment="Left"
                         AttachedDragMove="Surface" AttachedResize="Overlay"
                         DetachedDragMove="Both" DetachedResize="Overlay" DetachedTopMost="True"
-                        
+
                         IsAttached="False"
                         KeepRatioOnResize="True"
-                        
+
                         DetachedRememberPosition="True" DetachedRememberSize="True"
                         DetachedFixedPosition="100 100" DetachedFixedSize="350 200"
                         DetachedPosition="BottomRight" DetachedPositionMargin="0 0 10 50"
-                        
+
                         PanMoveOnCtrl="None" PanZoomOnCtrlWheel="None" PanRotateOnShiftWheel="None"
                         >
 
@@ -77,12 +77,12 @@
                     </StackPanel>
                 </Grid>
             </fl:FlyleafHost.DetachedContent>
-            
+
             <Border BorderBrush="DarkBlue" BorderThickness="4">
                 <ToggleButton Content="Attach / Detach" Foreground="Red" Background="Black" IsChecked="{Binding IsAttached, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </Border>
         </fl:FlyleafHost>
-        
+
         <!--Multiple Hosts with ControlTemplate-->
         <Grid>
             <Grid.Resources>
@@ -132,8 +132,8 @@
                 </Grid>
             </fl:FlyleafSharedOverlay>
         </Grid>
-        
-        
+
+
         <!--ScrollViewer Clip Rectangle-->
         <ScrollViewer Background="Bisque" Margin="200 300 0 0" Width="200" Height="100" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Center" HorizontalAlignment="Center">
             <StackPanel x:Name="FixMyScrollSurfaceOverlay">
@@ -151,7 +151,7 @@
                 </fl:FlyleafHost>
             </StackPanel>
         </ScrollViewer>
-        
+
         <!-- [Should be fixed] Fail Sample 1 (Border) - Will not measure the content - Possible allow sometimes Host to follow Overlay's rendersize? -->
         <!--Should only use x/y Constrained panels (not to content) - https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/panels-overview?view=netframeworkdesktop-4.8-->
         <Border VerticalAlignment="Top" HorizontalAlignment="Left"
@@ -162,7 +162,7 @@
         </Border>
 
         <!--Fail Sample 2 - When content change size on the Overlay, it will not resize (gives priority to detached content/rendersize)
-                        Not safe to update two way (FlyleafHost <-> Surface/Overlay) could cause an infinite loop? / generally will drop performance 
+                        Not safe to update two way (FlyleafHost <-> Surface/Overlay) could cause an infinite loop? / generally will drop performance
                         For now we consider Width/Height will be specified (either directly or through detached content if any or first time measurement of the overly content)
         -->
         <Border VerticalAlignment="Top" HorizontalAlignment="Left"

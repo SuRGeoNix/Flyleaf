@@ -24,7 +24,7 @@ public unsafe class VideoDecoder : DecoderBase
     public Renderer         Renderer            { get; private set; }
     public bool             VideoAccelerated    { get; internal set; }
     public bool             ZeroCopy            { get; internal set; }
-    
+
     public VideoStream      VideoStream         => (VideoStream) Stream;
 
     public long             StartTime           { get; internal set; } = AV_NOPTS_VALUE;
@@ -100,7 +100,7 @@ public unsafe class VideoDecoder : DecoderBase
 
     internal ID3D11Texture2D
                             textureFFmpeg;
-    AVCodecContext_get_format 
+    AVCodecContext_get_format
                             getHWformat;
     AVBufferRef*            hwframes;
     AVBufferRef*            hw_device_ctx;
@@ -112,7 +112,7 @@ public unsafe class VideoDecoder : DecoderBase
             var config = avcodec_get_hw_config(codec, i);
             if (config == null) break;
             if ((config->methods & AVCodecHwConfigMethod.HwDeviceCtx) == 0 || config->pix_fmt == AVPixelFormat.None) continue;
-            
+
             if (config->device_type == HW_DEVICE && config->pix_fmt == PIX_FMT_HWACCEL) return true;
         }
 
@@ -137,7 +137,7 @@ public unsafe class VideoDecoder : DecoderBase
         if (ret != 0)
         {
             Log.Error($"VA Failed - {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
-            
+
             fixed(AVBufferRef** ptr = &hw_device_ctx)
                 av_buffer_unref(ptr);
 
@@ -168,7 +168,7 @@ public unsafe class VideoDecoder : DecoderBase
         }
 
         bool foundHWformat = false;
-        
+
         while (*pix_fmts != AVPixelFormat.None)
         {
             if ((*pix_fmts) == PIX_FMT_HWACCEL)
@@ -200,7 +200,7 @@ public unsafe class VideoDecoder : DecoderBase
                 swFallback = true;
                 return avcodec_default_get_format(avctx, pix_fmts);
             }
-            
+
             if (CanDebug)
                 Log.Debug("HW frame allocation completed");
 
@@ -243,7 +243,7 @@ public unsafe class VideoDecoder : DecoderBase
         if (hwframes != null)
             fixed(AVBufferRef** ptr = &hwframes)
                 av_buffer_unref(ptr);
-        
+
         hwframes = null;
 
         if (codecCtx->hw_frames_ctx != null)
@@ -257,7 +257,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         AVD3D11VAFramesContext *va_frames_ctx = (AVD3D11VAFramesContext *)hw_frames_ctx->hwctx;
         va_frames_ctx->BindFlags  |= (uint)BindFlags.Decoder | (uint)BindFlags.ShaderResource;
-        
+
         hwframes = av_buffer_ref(codecCtx->hw_frames_ctx);
 
         int ret = av_hwframe_ctx_init(codecCtx->hw_frames_ctx);
@@ -292,7 +292,7 @@ public unsafe class VideoDecoder : DecoderBase
     {
         // Ensures we have a renderer (no swap chain is required)
         CreateRenderer();
-        
+
         VideoAccelerated = false;
 
         if (!swFallback && Config.Video.VideoAcceleration && Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0)
@@ -315,12 +315,12 @@ public unsafe class VideoDecoder : DecoderBase
         // Can't get data from here?
         //var t1 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_MASTERING_DISPLAY_METADATA, null);
         //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
-        
+
         // TBR: during swFallback (keyFrameRequiredPacket should not reset, currenlty saved in SWFallback)
         keyPacketRequired = false; // allow no key packet after open (lot of videos missing this)
         ZeroCopy        = false;
         filledFromCodec = false;
-        
+
         lastFixedPts    = 0; // TBR: might need to set this to first known pts/dts
 
         if (VideoAccelerated)
@@ -335,7 +335,7 @@ public unsafe class VideoDecoder : DecoderBase
         }
         else
             codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AVCodecID.Hevc ? 32 : 16);
-        
+
         return 0;
     }
     internal bool SetupSws()
@@ -372,7 +372,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
-            
+
                 keyPacketRequired
                                 = true;
                 StartTime       = AV_NOPTS_VALUE;
@@ -433,7 +433,7 @@ public unsafe class VideoDecoder : DecoderBase
                             drainPacket->size = 0;
                             demuxer.VideoPackets.Enqueue(drainPacket);
                         }
-                        
+
                         break;
                     }
                     else if (!demuxer.IsRunning)
@@ -462,7 +462,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                         break;
                     }
-                    
+
                     Thread.Sleep(sleepMs);
                 }
 
@@ -538,7 +538,7 @@ public unsafe class VideoDecoder : DecoderBase
                         continue;
                     }
                 }
-                
+
                 while (true)
                 {
                     ret = avcodec_receive_frame(codecCtx, frame);
@@ -564,9 +564,9 @@ public unsafe class VideoDecoder : DecoderBase
                             // TBR: it is possible to have a single frame / image with no dts/pts which actually means pts = 0 ? (ticket_3449.264) - GenPts will not affect it
                             // TBR: first frame might no have dts/pts which probably means pts = 0 (and not start time!)
                             av_frame_unref(frame);
-                            continue;                            
+                            continue;
                         }
-                        
+
                         // Create timestamps for h264/hevc raw streams (Needs also to handle this with the remuxer / no recording currently supported!)
                         frame->pts = lastFixedPts + VideoStream.StartTimePts;
                         lastFixedPts += av_rescale_q(VideoStream.FrameDuration / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
@@ -626,7 +626,7 @@ public unsafe class VideoDecoder : DecoderBase
             avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
             VideoStream.AVStream->time_base = codecCtx->pkt_timebase;
             VideoStream.Refresh(codecCtx->sw_pix_fmt != AVPixelFormat.None ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt, frame);
-            
+
             if (!(VideoStream.FPS > 0)) // NaN
             {
                 VideoStream.FPS             = av_q2d(codecCtx->framerate) > 0 ? av_q2d(codecCtx->framerate) : 0;
@@ -634,7 +634,7 @@ public unsafe class VideoDecoder : DecoderBase
                 if (VideoStream.FrameDuration > 0)
                     VideoStream.Demuxer.VideoPackets.frameDuration = VideoStream.FrameDuration;
             }
-            
+
             skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
             CodecChanged?.Invoke(this);
 
@@ -690,13 +690,13 @@ public unsafe class VideoDecoder : DecoderBase
 
                 lock (lockStatus)
                     if (Status == Status.Running) Status = Status.QueueEmpty;
-                
+
                 while (demuxer.VideoPacketsReverse.IsEmpty && Status == Status.QueueEmpty)
                 {
                     if (demuxer.Status == Status.Ended) // TODO
                     {
                         lock (lockStatus) Status = Status.Ended;
-                        
+
                         break;
                     }
                     else if (!demuxer.IsRunning)
@@ -725,10 +725,10 @@ public unsafe class VideoDecoder : DecoderBase
 
                         break;
                     }
-                    
+
                     Thread.Sleep(20);
                 }
-                
+
                 lock (lockStatus)
                 {
                     CriticalArea = false;
@@ -836,7 +836,7 @@ public unsafe class VideoDecoder : DecoderBase
                             Frames.Enqueue(curReverseVideoFrames[i]);
 
                         curReverseVideoFrames.Clear();
-                        
+
                         break; // force recheck for max queues etc...
                     }
 
@@ -845,7 +845,7 @@ public unsafe class VideoDecoder : DecoderBase
                 // Import Sleep required to prevent delay during Renderer.Present for waitable swap chains
                 if (!Config.Video.PresentFlags.HasFlag(PresentFlags.DoNotWait) && Frames.Count > 2)
                     Thread.Sleep(10);
-                
+
             } // while curReverseVideoPackets.Count > 0
 
         } while (Status == Status.Running);
@@ -927,7 +927,7 @@ public unsafe class VideoDecoder : DecoderBase
             {
                 //Log.Debug($"[Skip] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | [fltime: {Utils.TicksToTime(((long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime))}]");
                 av_frame_unref(frame);
-                continue; 
+                continue;
             }
 
             //Log.Debug($"[Found] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | {Utils.TicksToTime(VideoStream.StartTime + (index * VideoStream.FrameDuration))} | [fltime: {Utils.TicksToTime(((long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime))}]");
@@ -936,7 +936,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         return null;
     }
-    
+
     /// <summary>
     /// Gets next VideoFrame (Decoder/Demuxer must not be running)
     /// </summary>
@@ -970,7 +970,7 @@ public unsafe class VideoDecoder : DecoderBase
 
             checkExtraFrames = false;
         }
-        
+
         while (true)
         {
             ret = demuxer.GetNextVideoPacket();
@@ -1043,7 +1043,7 @@ public unsafe class VideoDecoder : DecoderBase
             if (!VideoStream.FixTimestamps)
             {
                 av_frame_unref(frame);
-                
+
                 return DecodeFrameNextInternal();
             }
 
@@ -1053,7 +1053,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (StartTime == NoTs)
             StartTime = (long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime;
-        
+
         if (!filledFromCodec) // Ensures we have a proper frame before filling from codec
         {
             ret = FillFromCodec(frame);
@@ -1081,7 +1081,7 @@ public unsafe class VideoDecoder : DecoderBase
         {
             curReverseVideoStack.TryPop(out var t2);
             for (int i = 0; i<t2.Count; i++)
-            { 
+            {
                 if (t2[i] == IntPtr.Zero) continue;
                 AVPacket* packet = (AVPacket*)t2[i];
                 av_packet_free(&packet);
@@ -1089,7 +1089,7 @@ public unsafe class VideoDecoder : DecoderBase
         }
 
         for (int i = 0; i<curReverseVideoPackets.Count; i++)
-        { 
+        {
             if (curReverseVideoPackets[i] == IntPtr.Zero) continue;
             AVPacket* packet = (AVPacket*)curReverseVideoPackets[i];
             av_packet_free(&packet);
@@ -1114,7 +1114,7 @@ public unsafe class VideoDecoder : DecoderBase
 
             frame.textures = null;
         }
-        
+
         if (frame.srvs != null)
         {
             for (int i=0; i<frame.srvs.Length; i++)
@@ -1122,7 +1122,7 @@ public unsafe class VideoDecoder : DecoderBase
 
             frame.srvs = null;
         }
-        
+
         if (frame.avFrame != null)
             fixed(AVFrame** ptr = &frame.avFrame)
             av_frame_free(ptr);
@@ -1136,7 +1136,7 @@ public unsafe class VideoDecoder : DecoderBase
             if (hwframes != null)
                 fixed(AVBufferRef** ptr = &hwframes)
                     av_buffer_unref(ptr);
-            
+
             if (hw_device_ctx != null)
                 fixed(AVBufferRef** ptr = &hw_device_ctx)
                     av_buffer_unref(ptr);

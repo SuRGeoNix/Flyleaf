@@ -72,7 +72,7 @@ partial class Player
                     ScreamerAudioOnly();
                 else
                 {
-                    if (ReversePlayback) 
+                    if (ReversePlayback)
                     {
                         shouldFlushNext = true;
                         ScreamerReverse();
@@ -82,7 +82,7 @@ partial class Player
                         shouldFlushPrev = true;
                         Screamer();
                     }
-                        
+
                 }
 
             } catch (Exception e)
@@ -94,10 +94,10 @@ partial class Player
                 VideoDecoder.DisposeFrame(vFrame);
                 vFrame = null;
                 sFrame = null;
-                    
+
                 if (Status == Status.Stopped)
                     decoder?.Initialize();
-                else if (decoder != null) 
+                else if (decoder != null)
                 {
                     decoder.PauseOnQueueFull();
                     decoder.PauseDecoders();
@@ -175,7 +175,7 @@ partial class Player
     {
         if (IsPlaying)
             Pause();
-        else 
+        else
             Play();
     }
 
@@ -210,7 +210,7 @@ partial class Player
             seeks.Push(new SeekData(ms, forward, accurate));
         }
         Raise(nameof(CurTime));
-        
+
         if (Status == Status.Playing)
             return;
 
@@ -218,7 +218,7 @@ partial class Player
         {
             if (taskSeekRuns)
                 return;
-            
+
             taskSeekRuns = true;
         }
 
@@ -231,7 +231,7 @@ partial class Player
             try
             {
                 Engine.TimeBeginPeriod1();
-                
+
                 while (true)
                 {
                     lock (seeks)
@@ -349,7 +349,7 @@ public class PlaybackStoppedArgs : EventArgs
 {
     public string   Error       { get; }
     public bool     Success     { get; }
-        
+
     public PlaybackStoppedArgs(string error)
     {
         Error   = error;

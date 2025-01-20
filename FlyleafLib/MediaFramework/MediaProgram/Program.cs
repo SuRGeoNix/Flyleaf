@@ -15,7 +15,7 @@ public class Program
     public IReadOnlyDictionary<string, string>
                     Metadata        { get; internal set; }
 
-    public IReadOnlyList<StreamBase> 
+    public IReadOnlyList<StreamBase>
                     Streams         { get; internal set; }
 
     public string   Name            => Metadata.ContainsKey("name") ? Metadata["name"] : string.Empty;

@@ -25,7 +25,7 @@ unsafe partial class Player
     protected virtual void OnBufferingStarted()
     {
         if (onBufferingStarted != onBufferingCompleted) return;
-        BufferingStarted?.Invoke(this, new EventArgs()); 
+        BufferingStarted?.Invoke(this, new EventArgs());
         onBufferingStarted++;
 
         if (CanDebug) Log.Debug($"OnBufferingStarted");
@@ -60,7 +60,7 @@ unsafe partial class Player
     int     sDistanceMs;
     int     dDistanceMs;
     int     sleepMs;
-        
+
     long    elapsedTicks;
     long    elapsedSec;
     long    startTicks;
@@ -78,7 +78,7 @@ unsafe partial class Player
         sFrame = null;
         if (VideoDecoder.Frames.IsEmpty || !VideoDecoder.Frames.TryDequeue(out vFrame))
             return;
-        
+
         renderer.Present(vFrame);
 
         if (!seeks.IsEmpty)
@@ -209,8 +209,8 @@ unsafe partial class Player
                 {
                     for (int i=0; i<Math.Min(20, AudioDecoder.Frames.Count); i++)
                     {
-                        if (aFrame == null 
-                            || aFrame.timestamp - curAudioDeviceDelay > vFrame.timestamp 
+                        if (aFrame == null
+                            || aFrame.timestamp - curAudioDeviceDelay > vFrame.timestamp
                             || vFrame.timestamp > Duration)
                         {
                             gotAudio = true;
@@ -320,7 +320,7 @@ unsafe partial class Player
                 else if (seekData.accurate)
                     decoder.GetVideoFrame(seekData.ms * (long)10000);
             }
-            
+
             if (requiresBuffering)
             {
                 if (VideoDemuxer.Interrupter.Timedout)
@@ -349,7 +349,7 @@ unsafe partial class Player
                 // Give enough time for the 1st frame to be presented
                 while (IsPlaying && DateTime.UtcNow.Ticks - showOneFrameTicks < VideoDecoder.VideoStream.FrameDuration)
                     Thread.Sleep(4);
-                
+
                 OnBufferingCompleted();
 
                 audioBufferedDuration = 0;
@@ -378,7 +378,7 @@ unsafe partial class Player
 
                     break;
                 }
-                
+
                 Log.Warn("No video frames");
                 requiresBuffering = true;
                 continue;
@@ -395,7 +395,7 @@ unsafe partial class Player
 
             elapsedTicks = (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS); // Do we really need ticks precision?
 
-            vDistanceMs = 
+            vDistanceMs =
                   (int) ((((vFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000);
 
             if (aFrame != null)
@@ -428,9 +428,9 @@ unsafe partial class Player
             }
             else
                 aDistanceMs = int.MaxValue;
-            
-            sDistanceMs = sFrame != null 
-                ? (int) ((((sFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000) 
+
+            sDistanceMs = sFrame != null
+                ? (int) ((((sFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000)
                 : int.MaxValue;
 
             dDistanceMs = dFrame != null
@@ -656,7 +656,7 @@ unsafe partial class Player
         }
         else if (curLatency < Config.Player.MaxLatency)
             return;
-        
+
         var newSpeed = Math.Max(Math.Round((double)curLatency / Config.Player.MaxLatency, 1, MidpointRounding.ToPositiveInfinity), 1.1);
 
         if (newSpeed > 4) // TBR: dispose only as much as required to avoid rebuffering
@@ -698,7 +698,7 @@ unsafe partial class Player
     {
         var decoder = VideoDecoder.Frames.IsEmpty ? 0 : VideoDecoder.Frames.ToArray()[^1].timestamp - vFrame.timestamp;
         var demuxer = VideoDemuxer.VideoPackets.IsEmpty || VideoDemuxer.VideoPackets.LastTimestamp == NoTs
-            ? 0 : 
+            ? 0 :
             (VideoDemuxer.VideoPackets.LastTimestamp - VideoDemuxer.StartTime) - vFrame.timestamp;
 
         return Math.Max(decoder, demuxer);
@@ -724,7 +724,7 @@ unsafe partial class Player
 
         AudioDecoder.Frames.TryPeek(out aFrame);
 
-        if (aFrame == null) 
+        if (aFrame == null)
             return;
 
         lock (seeks)
@@ -744,14 +744,14 @@ unsafe partial class Player
     private void ScreamerAudioOnly()
     {
         long bufferedDuration = 0;
-        
+
         while (IsPlaying)
         {
             if (seeks.TryPop(out var seekData))
             {
                 seeks.Clear();
                 requiresBuffering = true;
-                
+
                 if (AudioDecoder.OnVideoDemuxer)
                 {
                     if (decoder.Seek(seekData.ms, seekData.forward) < 0)
@@ -793,13 +793,13 @@ unsafe partial class Player
                 {
                     Thread.Sleep(50); // waiting for audio buffer to be played before end
                     bufferedDuration = Audio.GetBufferedDuration();
-                }   
-                
+                }
+
                 continue;
             }
 
             bufferedDuration = Audio.GetBufferedDuration();
-            
+
             if (bufferedDuration < 300 * 10000)
             {
                 do
@@ -902,7 +902,7 @@ unsafe partial class Player
 
                 // Every seconds informs the application with CurTime / Bitrates (invokes UI thread to ensure the updates will actually happen)
                 if (Engine.Config.UICurTimePerSecond && (
-                    (!MainDemuxer.IsHLSLive && curTime / 10000000 != _CurTime / 10000000) || 
+                    (!MainDemuxer.IsHLSLive && curTime / 10000000 != _CurTime / 10000000) ||
                     (MainDemuxer.IsHLSLive && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                 {
                     elapsedSec  = elapsedTicks;
@@ -920,7 +920,7 @@ unsafe partial class Player
                 if (Config.Player.UICurTimePerFrame)
                     UI(() => UpdateCurTime());
             }
-                
+
             VideoDecoder.Frames.TryDequeue(out vFrame);
             if (vFrame != null)
                 vFrame.timestamp = (long) (vFrame.timestamp / Speed);
@@ -932,7 +932,7 @@ public class BufferingCompletedArgs : EventArgs
 {
     public string   Error       { get; }
     public bool     Success     { get; }
-        
+
     public BufferingCompletedArgs(string error)
     {
         Error   = error;

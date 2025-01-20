@@ -121,7 +121,7 @@ internal static class ShaderCompiler
     //    }
     //}
 
-    // Loads compiled blob shaders 
+    // Loads compiled blob shaders
     //private static void LoadShaders()
     //{
     //    Assembly assembly = Assembly.GetExecutingAssembly();
@@ -206,7 +206,7 @@ static const float4x4 coefs[] =
         { 1.67867422, -0.650424361, 0, 0 },
         { -0.915688038, 0.347458541, -1.14814520, 1 }
     },
-    
+
         // BT709
     {
         { 1.16438341, 1.16438341, 1.16438341, 0 },
@@ -316,13 +316,13 @@ float4 main(PSInput input) : SV_TARGET
 ";
 
     const string PS_FOOTER = @"
-    
+
 	// YUV to RGB
 #if defined(YUV)
     color = mul(color, coefs[coefsIndex]);
 #endif
-    
-    
+
+
 	// HDR
 #if defined(HDR)
     // BT2020 -> BT709
