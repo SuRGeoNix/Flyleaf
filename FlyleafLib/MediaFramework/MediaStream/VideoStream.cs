@@ -47,13 +47,13 @@ public unsafe class VideoStream : StreamBase
         PixelFormatStr  = PixelFormat.ToString().Replace("AV_PIX_FMT_","").ToLower();
         Width           = (uint)AVStream->codecpar->width;
         Height          = (uint)AVStream->codecpar->height;
-        
-        // TBR: Maybe required also for input formats with AVFMT_NOTIMESTAMPS (and audio/subs) 
+
+        // TBR: Maybe required also for input formats with AVFMT_NOTIMESTAMPS (and audio/subs)
         // Possible FFmpeg.Autogen bug with Demuxer.FormatContext->iformat->flags (should be uint?) does not contain AVFMT_NOTIMESTAMPS (256 instead of 384)
         if (Demuxer.Name == "h264" || Demuxer.Name == "hevc")
         {
             FixTimestamps = true;
-            
+
             if (Demuxer.Config.ForceFPS > 0)
                 FPS = Demuxer.Config.ForceFPS;
             else
@@ -63,7 +63,7 @@ public unsafe class VideoStream : StreamBase
                 FPS = 25;
         }
         else
-        { 
+        {
             FixTimestamps = false;
             FPS  = av_q2d(av_guess_frame_rate(Demuxer.FormatContext, AVStream, frame));
         }

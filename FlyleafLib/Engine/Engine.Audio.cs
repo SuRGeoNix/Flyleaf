@@ -30,7 +30,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
     /// <summary>
     /// List of Audio Capture Devices
     /// </summary>
-    public ObservableCollection<AudioDevice> 
+    public ObservableCollection<AudioDevice>
                         CapDevices          { get; set; } = new();
 
     public void         RefreshCapDevices() => AudioDevice.RefreshDevices();
@@ -38,7 +38,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
     /// <summary>
     /// List of Audio Devices
     /// </summary>
-    public ObservableCollection<AudioEndpoint> 
+    public ObservableCollection<AudioEndpoint>
                         Devices             { get; private set; } = new();
 
     private readonly object lockDevices = new();
@@ -124,7 +124,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
                         foreach (var device in Devices)
                             if (cur.Id == device.Id)
                                 { exists = true; break; }
-                        
+
                         if (!exists)
                         {
                             Engine.Log.Info($"Audio device {cur} added");

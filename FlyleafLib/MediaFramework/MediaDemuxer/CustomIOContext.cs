@@ -20,16 +20,16 @@ public unsafe class CustomIOContext
 
         ioread = IORead;
         ioseek = IOSeek;
-        avioCtx = avio_alloc_context((byte*)av_malloc((nuint)demuxer.Config.IOStreamBufferSize), demuxer.Config.IOStreamBufferSize, 0, null, ioread, null, ioseek);            
+        avioCtx = avio_alloc_context((byte*)av_malloc((nuint)demuxer.Config.IOStreamBufferSize), demuxer.Config.IOStreamBufferSize, 0, null, ioread, null, ioseek);
         demuxer.FormatContext->pb     = avioCtx;
         demuxer.FormatContext->flags |= FmtFlags2.CustomIo;
     }
 
     public void Dispose()
     {
-        if (avioCtx != null) 
+        if (avioCtx != null)
         {
-            av_free(avioCtx->buffer); 
+            av_free(avioCtx->buffer);
             fixed (AVIOContext** ptr = &avioCtx) avio_context_free(ptr);
         }
         avioCtx = null;

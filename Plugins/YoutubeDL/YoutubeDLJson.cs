@@ -21,35 +21,35 @@ namespace FlyleafLib.Plugins
         //public double   average_rating  { get; set; }
         //public double   age_limit       { get; set; }
         public string   webpage_url     { get; set; }
-        
+
         //public bool     playable_in_embed { get; set; }
         //public bool     is_live         { get; set; }
         //public bool     was_live        { get; set; }
         //public string   live_status     { get; set; }
-        
+
         // Playlist
         public string   _type           { get; set; }
         public double   playlist_count  { get; set; }
         //public double   playlist_index  { get; set; }
         public string   playlist        { get; set; }
         public string   playlist_title  { get; set; }
-        
+
 
 
         public Dictionary<string, List<SubtitlesFormat>>
                         automatic_captions { get; set; }
-        //public List<string> 
+        //public List<string>
         //                categories      { get; set; }
-        public List<Format> 
+        public List<Format>
                         formats         { get; set; }
-        //public List<Thumbnail> 
+        //public List<Thumbnail>
         //                thumbnails      { get; set; }
 
         //public double   like_count      { get; set; }
         //public double   dislike_count   { get; set; }
         //public string   channel         { get; set; }
         //public string   availability    { get; set; }
-        //public string   webpage_url_basename 
+        //public string   webpage_url_basename
         //                                { get; set; }
         //public string   extractor       { get; set; }
         //public string   extractor_key   { get; set; }
@@ -101,27 +101,27 @@ namespace FlyleafLib.Plugins
     {
         //public double   asr         { get; set; }
         //public double   filesize    { get; set; }
-        //public string   format_id   { get; set; }   
+        //public string   format_id   { get; set; }
         //public string   format_note { get; set; }
         //public double   quality     { get; set; }
         public double   tbr         { get; set; }
         public string   url         { get; set; }
         public string   manifest_url{ get; set; }
         public string   language    { get; set; }
-        //public int      language_preference 
+        //public int      language_preference
         //                            { get; set; }
         //public string   ext         { get; set; }
         public string   vcodec      { get; set; }
         public string   acodec      { get; set; }
         public double   abr         { get; set; }
-        //public DownloaderOptions 
+        //public DownloaderOptions
         //                downloader_options { get; set; }
         //public string   container   { get; set; }
         public string   protocol    { get; set; }
         //public string   audio_ext   { get; set; }
         //public string   video_ext   { get; set; }
         public string   format      { get; set; }
-        public Dictionary<string, string> 
+        public Dictionary<string, string>
                         http_headers{ get; set; }
         public string   cookies     { get; set; }
         public double   fps         { get; set; }

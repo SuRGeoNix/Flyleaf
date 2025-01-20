@@ -24,7 +24,7 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
                 LogLevel        = LogLevel.Debug,
                 FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
                 #endif
-                
+
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
             });

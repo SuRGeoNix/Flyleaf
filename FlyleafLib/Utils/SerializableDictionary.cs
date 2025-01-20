@@ -113,7 +113,7 @@ public static partial class Utils
         public new TVal this[TKey key]
         {
             get => base[key];
-        
+
             set
             {
                 if (ContainsKey(key) && base[key].Equals(value)) return;

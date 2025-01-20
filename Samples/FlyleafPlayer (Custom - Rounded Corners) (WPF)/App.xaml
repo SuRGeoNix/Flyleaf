@@ -4,6 +4,6 @@
              xmlns:local="clr-namespace:FlyleafPlayer__Custom___Rounded_Corners___WPF_"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+
     </Application.Resources>
 </Application>

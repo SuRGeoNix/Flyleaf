@@ -16,7 +16,7 @@ namespace FlyleafLib.MediaPlayer;
 unsafe partial class Player
 {
     #region Events
-    
+
     public event EventHandler<OpeningArgs>                              Opening; // Will be also used for subtitles
     public event EventHandler<OpenCompletedArgs>                        OpenCompleted; // Will be also used for subtitles
     public event EventHandler<OpenPlaylistItemCompletedArgs>            OpenPlaylistItemCompleted;
@@ -178,7 +178,7 @@ unsafe partial class Player
 
             Initialize(Status.Opening);
             var args2 = decoder.Open(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
-            
+
             args.Url = args2.Url;
             args.IOStream = args2.IOStream;
             args.Error = args2.Error;
@@ -191,7 +191,7 @@ unsafe partial class Player
             else if (CanPlay)
             {
                 status = Status.Paused;
-                
+
                 if (Config.Player.AutoPlay)
                     Play();
             }
@@ -343,7 +343,7 @@ unsafe partial class Player
             else
             {
                 status = Status.Paused;
-                
+
                 if (Config.Player.AutoPlay)
                     Play();
             }
@@ -461,7 +461,7 @@ unsafe partial class Player
     public ExternalStreamOpenedArgs Open(ExternalStream extStream, bool resync = true, bool defaultAudio = true, int streamIndex = -1)
     {
         /* TODO
-         * 
+         *
          * Decoder.Stop() should not be called on video input switch as it will close the other inputs as well (audio/subs)
          * If the input is from different plugin we don't dispose the current plugin (eg.  switching between recent/history plugin with torrents) (?)
          */
@@ -705,7 +705,7 @@ unsafe partial class Player
     internal void ReSync(StreamBase stream, int syncMs = -1, bool accurate = false)
     {
         /* TODO
-         * 
+         *
          * HLS live resync on stream switch should be from the end not from the start (could have different cache/duration)
          */
 
@@ -784,7 +784,7 @@ unsafe partial class Player
                 stream.Demuxer.Start();
                 decoder.GetDecoderPtr(stream.Type).Start();
             }
-        }    
+        }
     }
     #endregion
 
@@ -794,11 +794,11 @@ unsafe partial class Player
         lock (lockActions)
             if (taskOpenAsyncRuns)
                 return;
-        
+
         taskOpenAsyncRuns = true;
 
         Task.Run(() =>
-        { 
+        {
             if (IsDisposed)
                 return;
 
@@ -877,7 +877,7 @@ unsafe partial class Player
                         url_iostream = targetPath;
                 }
             }
-            
+
             if ((url_iostream is string) && ExtensionsSubtitles.Contains(GetUrlExtention(url_iostream.ToString())))
             {
                 OnOpening(new() { Url = url_iostream.ToString(), IsSubtitles = true});
@@ -977,7 +977,7 @@ unsafe partial class Player
             OpenAsync();
         }
     }
-    
+
     ConcurrentStack<OpenAsyncData> openInputs   = new();
     ConcurrentStack<OpenAsyncData> openSessions = new();
     ConcurrentStack<OpenAsyncData> openItems    = new();

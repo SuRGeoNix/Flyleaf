@@ -7,12 +7,12 @@
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
         mc:Ignorable="d" WindowStyle="None" AllowsTransparency="True"
         Title="OverlayStandAlone" Height="450" Width="800">
-    
+
     <Grid>
         <TextBlock Text="FlyleafHost Overlay Main" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="40" Foreground="DarkRed" Background="Yellow"/>
-        
+
         <Slider Value="{Binding Player.Zoom,Mode=TwoWay}" Minimum="0" Maximum="500" VerticalAlignment="Center" HorizontalAlignment="Left" Width="200" Margin="20 0 0 0"/>
-        
+
         <!--As parent overlay is transparent to be able to handle mouse events requires fake transparency-->
         <!--Testing Main's Player Replicate to another FlyleafHost-->
         <Grid x:Name="marginTarget" Background="#01000000" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="20 60 0 0">
@@ -30,6 +30,6 @@
                 </Grid>
             </fl:FlyleafHost>
         </Grid>
-        
+
     </Grid>
 </Window>

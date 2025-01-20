@@ -32,7 +32,7 @@ namespace FlyleafLib.Plugins
 
         FileSystemWatcher   watcher;
         string              workingDir;
-        
+
         Process             proc;
         int                 procId = -1;
         object              procLocker = new();
@@ -85,7 +85,7 @@ namespace FlyleafLib.Plugins
                         format.tbr      descending,
                         format.fps      descending
                 select  format;
-            
+
             if (iresults == null || iresults.Count() == 0)
             {
                 // Fall-back to any
@@ -144,7 +144,7 @@ namespace FlyleafLib.Plugins
             if (fmt.height > 0 || fmt.vbr > 0 || fmt.vcodec != "none")
                 return true;
 
-            return false; 
+            return false;
         }
         private static bool HasAudio(Format fmt)
         {
@@ -162,7 +162,7 @@ namespace FlyleafLib.Plugins
                     return;
 
                 Log.Debug($"Disposing ({procId})");
-                
+
                 if (procId != -1)
                 {
                     Process.Start(new ProcessStartInfo
@@ -197,11 +197,11 @@ namespace FlyleafLib.Plugins
                 Log.Debug($"Disposed ({procId})");
             }
         }
-        
+
         private void NewPlaylistItem(string path)
         {
             string json = null;
-            
+
             // File Watcher informs us on rename but the process still accessing the file
             for (int i=0; i<3; i++)
             {
@@ -209,7 +209,7 @@ namespace FlyleafLib.Plugins
                 try { json = File.ReadAllText(path); } catch { if (sessionId != Handler.OpenCounter) return; continue; }
                 break;
             }
-            
+
             YoutubeDLJson ytdl = null;
 
             try
@@ -229,7 +229,7 @@ namespace FlyleafLib.Plugins
                 return;
 
             PlaylistItem item = new();
-            
+
             if (Playlist.ExpectingItems == 0)
                 Playlist.ExpectingItems = (int)ytdl.playlist_count;
 
@@ -422,7 +422,7 @@ namespace FlyleafLib.Plugins
 
                 Uri uri = new Uri(Playlist.Url);
                 string scheme = uri.Scheme.ToLower();
-                
+
                 if (scheme != "http" && scheme != "https")
                     return false;
 
@@ -503,7 +503,7 @@ namespace FlyleafLib.Plugins
                     watcher = new()
                     {
                         Path = workingDir,
-                        EnableRaisingEvents = true,    
+                        EnableRaisingEvents = true,
                     };
                     watcher.Renamed += (o, e) =>
                     {
@@ -532,7 +532,7 @@ namespace FlyleafLib.Plugins
                     if (Logger.CanDebug)
                         proc.BeginOutputReadLine();
                 }
-                
+
                 while (Playlist.Items.Count < 1 && (proc != null || addingItem) && sessionId == Handler.OpenCounter)
                     Thread.Sleep(35);
 
@@ -544,7 +544,7 @@ namespace FlyleafLib.Plugins
                 }
 
                 if (Playlist.Items.Count == 0) // Allow fallback to default plugin in case of YT-DLP bug with windows filename (this affects proper direct URLs as well)
-                { 
+                {
                     if (!errGenericImpersonate || retries > 0)
                         return null;
 

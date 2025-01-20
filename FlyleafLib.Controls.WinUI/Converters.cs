@@ -7,7 +7,7 @@ namespace FlyleafLib.Controls.WinUI;
 public class TicksToTimeSpanConverter : IValueConverter
 {
 	public object Convert(object value, Type targetType, object parameter, string language)     => new TimeSpan((long)value);
-	public object ConvertBack(object value, Type targetType, object parameter, string language) => ((TimeSpan)value).Ticks; 
+	public object ConvertBack(object value, Type targetType, object parameter, string language) => ((TimeSpan)value).Ticks;
 }
 
 public class TicksToTimeConverter : IValueConverter
@@ -32,7 +32,7 @@ public class TicksToMilliSecondsConverter : IValueConverter
 
 public class StringToRationalConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, string language)		=> (AspectRatio)value.ToString(); 
+    public object Convert(object value, Type targetType, object parameter, string language)		=> (AspectRatio)value.ToString();
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => new AspectRatio(value.ToString());
 }

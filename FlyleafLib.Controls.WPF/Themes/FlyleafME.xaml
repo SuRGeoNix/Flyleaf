@@ -3,7 +3,7 @@
                     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                     mc:Ignorable="d"
-                    
+
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
                     xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
                     xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF">
@@ -84,5 +84,5 @@
             </Setter.Value>
         </Setter>
     </Style>
-    
+
 </ResourceDictionary>

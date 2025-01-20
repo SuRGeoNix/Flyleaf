@@ -117,7 +117,7 @@ public unsafe partial class Renderer
             vpsa[0].InputSurface = vpiv;
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
             swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
-            
+
             vpiv.Dispose();
         }
         else

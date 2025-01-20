@@ -19,7 +19,7 @@ namespace FlyleafLib.Controls.WPF
             _4k
         }
 
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)     
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             int videoHeight = (int) value;
 
@@ -29,7 +29,7 @@ namespace FlyleafLib.Controls.WPF
                 return Qualities.High;
             else if (videoHeight == 720)
                 return Qualities.Med;
-            else 
+            else
                 return Qualities.Low;
         }
 		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
@@ -45,7 +45,7 @@ namespace FlyleafLib.Controls.WPF
             High
         }
 
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)     
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             int volume = (int) value;
 
@@ -63,7 +63,7 @@ namespace FlyleafLib.Controls.WPF
 
     public class CheckNullConverter : IMultiValueConverter
     {
-		public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)     
+		public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value == null) return true;
             if (value[0] == null || value[0] == System.Windows.DependencyProperty.UnsetValue) return true;
@@ -172,7 +172,7 @@ namespace FlyleafLib.Controls.WPF
 
     public class GetDictionaryItemConverter : IMultiValueConverter
     {
-		public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)     
+		public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value == null) return null;
             if (value[0] == null || value[0] == System.Windows.DependencyProperty.UnsetValue) return null;
@@ -259,6 +259,6 @@ namespace FlyleafLib.Controls.WPF
 
             return Binding.DoNothing;
         }
-            
+
     }
 }

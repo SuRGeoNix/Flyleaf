@@ -442,7 +442,7 @@ public static partial class Utils
 
         return url;
     }
-    
+
     /// <summary>
     /// Convert Windows lnk file path to target path
     /// </summary>

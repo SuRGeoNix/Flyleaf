@@ -10,7 +10,7 @@ using System.Windows;
 namespace FlyleafLib;
 
 public static partial class Utils
-{    
+{
     public static class ZOrderHandler
     {
         [DllImport("user32.dll", SetLastError = true)]

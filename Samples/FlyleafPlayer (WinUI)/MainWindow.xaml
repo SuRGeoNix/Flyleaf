@@ -5,7 +5,7 @@
     xmlns:local="using:FlyleafPlayer__WinUI_"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    
+
     xmlns:winui="using:FlyleafLib.Controls.WinUI"
 
     mc:Ignorable="d">
@@ -15,7 +15,7 @@
             <winui:TicksToTimeConverter x:Key="TicksToTime"/>
             <winui:TicksToSecondsConverter x:Key="TicksToSeconds" />
         </Grid.Resources>
-        
+
         <winui:FullScreenContainer x:Name="FSC">
             <winui:FlyleafHost x:Name="flyleafHost" Player="{Binding Player}">
                 <Grid VerticalAlignment="Bottom" Background="#A3000000" Margin="0 0 0 0">
@@ -33,18 +33,18 @@
 
                         <!--Current Time | Slider | Duration-->
                         <TextBlock Grid.Column="0"
-                                   HorizontalAlignment="Left" 
+                                   HorizontalAlignment="Left"
                                    VerticalAlignment="Center"
                                    Text="{Binding Player.CurTime, Converter={StaticResource TicksToTime}}"/>
-                        
-                        <Slider IsTabStop="False" Grid.Column="1" Margin="10,0,10,0" 
+
+                        <Slider IsTabStop="False" Grid.Column="1" Margin="10,0,10,0"
                                 VerticalAlignment="Center"
                                 IsThumbToolTipEnabled="False"
-                                Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}" 
+                                Value="{Binding Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSeconds}}"
                                 Maximum="{Binding Player.Duration, Converter={StaticResource TicksToSeconds}}"/>
-                        
+
                         <TextBlock Grid.Column="2"
-                                   HorizontalAlignment="Center" 
+                                   HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    Text="{Binding Player.Duration, Converter={StaticResource TicksToTime}}"/>
                     </Grid>
@@ -62,7 +62,7 @@
                                 <SymbolIcon Symbol="Stop"/>
                             </Button>
                         </StackPanel>
-                        
+
                         <TextBlock Grid.Column="1" Text="{Binding Player.Playlist.Selected.Title}" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="16"/>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal">

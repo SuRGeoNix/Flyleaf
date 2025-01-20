@@ -42,7 +42,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-windows|AnyCPU'">
     <WarningLevel>6</WarningLevel>
   </PropertyGroup>
-  
+
   <ItemGroup>
 	<Import Include="System" />
     <Import Include="System.Drawing" />
@@ -57,14 +57,14 @@
     <Import Include="WindowsBase" />
     <Import Include="WindowsFormsIntegration" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <None Include="..\Images\Flyleaf.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
   </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="Flyleaf.FFmpeg.Bindings" Version="7.1.0" />
     <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />

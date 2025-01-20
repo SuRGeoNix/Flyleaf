@@ -24,7 +24,7 @@ namespace WpfFlyleafHost
                 flyleafHost.Surface.MouseWheel += FlyleafHost_MouseWheel;
                 flyleafHost.Overlay.MouseWheel += FlyleafHost_MouseWheel;
             }
-                
+
         }
 
         private void FlyleafHost_MouseWheel(object sender, MouseWheelEventArgs e) => FixMyScrollSurfaceOverlay.RaiseEvent(e);

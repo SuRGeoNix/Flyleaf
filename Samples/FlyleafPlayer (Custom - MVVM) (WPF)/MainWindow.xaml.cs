@@ -35,7 +35,7 @@ namespace FlyleafPlayer__Custom___MVVM_
                 LogLevel        = LogLevel.Debug,
                 FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
                 #endif
-                
+
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
 
@@ -52,7 +52,7 @@ namespace FlyleafPlayer__Custom___MVVM_
             Config = new Config();
 
             // Inform the lib to refresh stats
-            Config.Player.Stats = true; 
+            Config.Player.Stats = true;
 
             Player = new Player(Config);
 

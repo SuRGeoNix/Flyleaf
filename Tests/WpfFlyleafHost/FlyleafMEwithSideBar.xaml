@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfFlyleafHost"
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib" xmlns:fl1="clr-namespace:FlyleafLib.MediaPlayer;assembly=FlyleafLib"
-        xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF" 
+        xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
         Title="FlyleafMEwithSideBar" Height="450" Width="800">
@@ -76,7 +76,7 @@
                                 FontStyle="{Binding UIConfig.SubsFontStyle}"
                                 Text="{Binding Player.Subtitles.SubsText}">
                                     </flwpf:OutlinedTextBlock>
-                                    
+
                                     <!--Playlist SideBar-->
                                     <StackPanel HorizontalAlignment="Right">
                                         <TextBlock Text="Sidebar" FontSize="20" Background="DarkGray" />

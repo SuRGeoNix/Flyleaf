@@ -73,7 +73,7 @@ public partial class Renderer
 
             if (Disposed && parent == null)
                 Initialize(false);
-            
+
             ControlHandle   = handle;
             RECT rect       = new();
             GetWindowRect(ControlHandle,ref rect);
@@ -108,7 +108,7 @@ public partial class Renderer
                 if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
                 {
                     try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
-                        
+
                     Log.Warn($"[SwapChain] Initialization failed ({e.Message}). Failling back to WARP device.");
                     Config.Video.GPUAdapter = "WARP";
                     Flush();
@@ -121,7 +121,7 @@ public partial class Renderer
 
                 return;
             }
-            
+
             backBuffer      = swapChain.GetBuffer<ID3D11Texture2D>(0);
             backBufferRtv   = Device.CreateRenderTargetView(backBuffer);
             SCDisposed      = false;
@@ -158,7 +158,7 @@ public partial class Renderer
             }
             catch (Exception e)
             {
-                Log.Error($"Initialization failed [{e.Message}]"); 
+                Log.Error($"Initialization failed [{e.Message}]");
 
                 // TODO fallback to WARP?
 
@@ -248,13 +248,13 @@ public partial class Renderer
     public void ZoomWithCenterPoint(Point p, double zoom)
     {
         /* Notes
-         * 
+         *
          * Zoomed Point (ZP)    // the current point in a -possible- zoomed viewport
          * Zoom (Z)
          * Unzoomed Point (UP)  // the actual pixel of the current point
          * Viewport Point (VP)
          * Center Point (CP)
-         * 
+         *
          * UP = (VP + ZP) / Z =>
          * ZP = (UP * Z) - VP
          * CP = VP / (ZP - 1) (when UP = ZP)
@@ -282,7 +282,7 @@ public partial class Renderer
     {
         float ratio;
         int x, y, newWidth, newHeight, xZoomPixels, yZoomPixels;
-        
+
         if (Config.Video.AspectRatio == AspectRatio.Keep)
             ratio = curRatio;
         else ratio = Config.Video.AspectRatio == AspectRatio.Fill
@@ -307,7 +307,7 @@ public partial class Renderer
             x = PanXOffset + SideXPixels / 2;
 
             yZoomPixels = newHeight - ControlHeight;
-            xZoomPixels = newWidth - (ControlWidth - SideXPixels);   
+            xZoomPixels = newWidth - (ControlWidth - SideXPixels);
         }
         else
         {
@@ -319,7 +319,7 @@ public partial class Renderer
 
             x = PanXOffset;
             y = PanYOffset + SideYPixels / 2;
-            
+
             xZoomPixels = newWidth - ControlWidth;
             yZoomPixels = newHeight - (ControlHeight - SideYPixels);
         }
@@ -333,7 +333,7 @@ public partial class Renderer
 
             if (GetViewport.Width < 1 || GetViewport.X + GetViewport.Width <= 0 || GetViewport.X >= ControlWidth || GetViewport.Y + GetViewport.Height <= 0 || GetViewport.Y >= ControlHeight)
             { // Out of screen
-                src = new RawRect(); 
+                src = new RawRect();
                 dst = new RawRect();
             }
             else
@@ -344,7 +344,7 @@ public partial class Renderer
                 int cropBottom  = GetViewport.Y + GetViewport.Height > ControlHeight ? (int) (GetViewport.Y + GetViewport.Height - ControlHeight) : 0;
 
                 dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));
-                    
+
                 if (_RotationAngle == 90)
                 {
                     src = new RawRect(
@@ -378,12 +378,12 @@ public partial class Renderer
                         VideoRect.Bottom - (int) (cropBottom * VideoRect.Bottom / GetViewport.Height));
                 }
             }
-            
+
             vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
             vc.VideoProcessorSetStreamDestRect  (vp, 0, true, dst);
             vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, ControlWidth, ControlHeight));
         }
-        
+
         if (refresh)
             Present();
     }
@@ -393,7 +393,7 @@ public partial class Renderer
         {
             if (SCDisposed)
                 return;
-                
+
             ControlWidth = width;
             ControlHeight = height;
 

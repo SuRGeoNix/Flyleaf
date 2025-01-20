@@ -67,7 +67,7 @@ public partial class DecoderContext
         public bool         Success => Error == null;
         public StreamOpenedArgs(StreamBase stream = null, StreamBase oldStream = null, string error = null) { Stream = stream; OldStream= oldStream; Error = error; }
     }
-    public class OpenAudioStreamCompletedArgs : StreamOpenedArgs 
+    public class OpenAudioStreamCompletedArgs : StreamOpenedArgs
     {
         public new AudioStream Stream   => (AudioStream)base.Stream;
         public new AudioStream OldStream=> (AudioStream)base.OldStream;
@@ -98,12 +98,12 @@ public partial class DecoderContext
         public string           Error;
         public bool             Success => Error == null;
         public ExternalStreamOpenedArgs(ExternalStream extStream = null, ExternalStream oldExtStream = null, string error = null) { ExtStream = extStream; OldExtStream= oldExtStream; Error = error; }
-    } 
+    }
     public class OpenExternalAudioStreamCompletedArgs : ExternalStreamOpenedArgs
     {
         public new ExternalAudioStream ExtStream   => (ExternalAudioStream)base.ExtStream;
         public new ExternalAudioStream OldExtStream=> (ExternalAudioStream)base.OldExtStream;
-        public OpenExternalAudioStreamCompletedArgs(ExternalAudioStream extStream = null, ExternalAudioStream oldExtStream = null, string error = null) : base(extStream, oldExtStream, error) { } 
+        public OpenExternalAudioStreamCompletedArgs(ExternalAudioStream extStream = null, ExternalAudioStream oldExtStream = null, string error = null) : base(extStream, oldExtStream, error) { }
     }
     public class OpenExternalVideoStreamCompletedArgs : ExternalStreamOpenedArgs
     {
@@ -405,7 +405,7 @@ public partial class DecoderContext
     public OpenPlaylistItemCompletedArgs Open(PlaylistItem item, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
     {
         OpenPlaylistItemCompletedArgs args = new(item);
-        
+
         try
         {
             long stoppedTime = GetCurTime();
@@ -453,7 +453,7 @@ public partial class DecoderContext
 
             if (Playlist.Selected.Url != null || Playlist.Selected.IOStream != null)
                 args.Error = OpenDemuxerInput(VideoDemuxer, Playlist.Selected);
-            
+
             if (!args.Success)
                 return args;
 
@@ -539,7 +539,7 @@ public partial class DecoderContext
 
                 if (!Playlist.Selected.ExternalSubtitlesStream.Downloaded)
                     DownloadSubtitles(Playlist.Selected.ExternalSubtitlesStream);
-                    
+
                 foreach(var plugin in Plugins.Values)
                     plugin.OnOpenExternalSubtitles();
 
@@ -562,7 +562,7 @@ public partial class DecoderContext
                 embStream.ExternalStream = extStream;
                 embStream.ExternalStreamAdded(); // Copies VobSub's .idx file to extradata (based on external url .sub)
             }
-            
+
             // Open embedded stream
             if (streamIndex != -2)
             {
@@ -630,7 +630,7 @@ public partial class DecoderContext
     private StreamOpenedArgs Open(StreamBase stream, bool defaultAudio = false)
     {
         StreamOpenedArgs args = null;
-        
+
         try
         {
             lock (stream.Demuxer.lockActions)
@@ -875,7 +875,7 @@ public partial class DecoderContext
 
                 return;
             }
-                
+
 
         } catch (Exception e)
         {

@@ -23,7 +23,7 @@ public class PlaylistItem : DemuxerInput
     /// </summary>
     public string   Folder                  { get; set; } = "";
 
-    
+
     //public long     StoppedAt               { get; set; }
     //public long     SubtitlesDelay          { get; set; }
     //public long     AudioDelay              { get; set; }
@@ -85,7 +85,7 @@ public class PlaylistItem : DemuxerInput
                     ExternalVideoStreams    { get; set; } = new ObservableCollection<ExternalVideoStream>();
     public ObservableCollection<ExternalAudioStream>
                     ExternalAudioStreams    { get; set; } = new ObservableCollection<ExternalAudioStream>();
-    public ObservableCollection<ExternalSubtitlesStream> 
+    public ObservableCollection<ExternalSubtitlesStream>
                     ExternalSubtitlesStreams{ get; set; } = new ObservableCollection<ExternalSubtitlesStream>();
     internal object lockExternalStreams = new();
 

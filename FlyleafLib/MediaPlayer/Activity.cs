@@ -6,9 +6,9 @@ namespace FlyleafLib.MediaPlayer;
 public class Activity : NotifyPropertyChanged
 {
     /* Player Activity Mode ( Idle / Active / FullActive )
-     * 
+     *
      * Required Engine's Thread (UIRefresh)
-     * 
+     *
      * TODO: Static?
      */
 
@@ -52,7 +52,7 @@ public class Activity : NotifyPropertyChanged
                 }
                 else
                     _IsEnabled = false;
-                
+
             }
             else
             {
@@ -98,8 +98,8 @@ public class Activity : NotifyPropertyChanged
                 while (Utils.NativeMethods.ShowCursor(false) >= 0) { }
                 isCursorHidden = true;
             }
-            
-        }    
+
+        }
         else if (isCursorHidden && player.Activity.Mode == ActivityMode.FullActive)
         {
             lock (cursorLocker)
@@ -167,7 +167,7 @@ public class Activity : NotifyPropertyChanged
                         foreach(var player in Engine.Players)
                             player.Activity.RefreshFullActive();
                     }
-                    
+
                 } catch { }
             }
 

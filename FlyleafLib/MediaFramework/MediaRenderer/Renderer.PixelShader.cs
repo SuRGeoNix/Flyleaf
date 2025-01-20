@@ -41,7 +41,7 @@ unsafe public partial class Renderer
     bool    checkHDR;
     PSCase  curPSCase;
     string  curPSUniqueId;
-    float   curRatio = 1.0f; 
+    float   curRatio = 1.0f;
     string  prevPSUniqueId;
     internal bool forceNotExtractor; // TBR: workaround until we separate the Extractor?
 
@@ -234,7 +234,7 @@ unsafe public partial class Renderer
 
                         SetPS(curPSUniqueId, @"
     color = float4(
-        Texture1.Sample(Sampler, input.Texture).r, 
+        Texture1.Sample(Sampler, input.Texture).r,
         Texture2.Sample(Sampler, input.Texture).rg,
         1.0);
     ", defines);
@@ -282,7 +282,7 @@ unsafe public partial class Renderer
                             else
                                 SetPS(curPSUniqueId, $"color = float4(Texture1.Sample(Sampler, input.Texture).{offsets}, 1.0);");
                         }
-                        
+
                         // [BGR/RGB]16
                         else if (VideoStream.PixelPlanes == 1 && (
                             VideoStream.PixelFormat == AVPixelFormat.Rgb444le||
@@ -329,7 +329,7 @@ unsafe public partial class Renderer
                             if (VideoStream.PixelPlanes == 4)
                             {
                                 curPSUniqueId += "x";
-                        
+
                                 shader += @"
         color.a = Texture4.Sample(Sampler, input.Texture).r;
     ";
@@ -437,7 +437,7 @@ unsafe public partial class Renderer
     ", defines);
                             }
                         }
-                        
+
                         // Y_UV | nv12,nv21,nv24,nv42,p010le,p016le,p410le,p416le | (log2_chroma_w != log2_chroma_h / Interleaved) (? nv16,nv20le,p210le,p216le)
                         // This covers all planes == 2 YUV (Semi-Planar)
                         else if (VideoStream.PixelPlanes == 2) // && VideoStream.PixelSameDepth) && !VideoStream.PixelInterleaved)
@@ -466,12 +466,12 @@ unsafe public partial class Renderer
 
                             SetPS(curPSUniqueId, @"
     color = float4(
-        Texture1.Sample(Sampler, input.Texture).r, 
+        Texture1.Sample(Sampler, input.Texture).r,
         Texture2.Sample(Sampler, input.Texture)." + offsets + @",
         1.0);
     ", defines);
                         }
-                        
+
                         // Y_U_V
                         else if (VideoStream.PixelPlanes > 2)
                         {
@@ -492,7 +492,7 @@ unsafe public partial class Renderer
                             if (VideoStream.PixelPlanes == 4)
                             {
                                 curPSUniqueId += "x";
-                        
+
                                 shader += @"
         color.a = Texture4.Sample(Sampler, input.Texture).r;
     ";
@@ -558,7 +558,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             //AV_PIX_FMT_FLAG_ALPHA (currently used only for RGBA?)
             //context.OMSetBlendState(curPSCase == PSCase.RGBPacked || (curPSCase == PSCase.RGBPlanar && VideoStream.PixelPlanes == 4) ? blendStateAlpha : null);
             context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
-            
+
             Log.Debug($"Prepared planes for {VideoStream.PixelFormatStr} with {videoProcessor} [{curPSCase}]");
 
             return true;
@@ -589,7 +589,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                     child.VideoRect     = VideoRect;
                     child.videoProcessor= videoProcessor;
                     child.SetViewport();
-                }   
+                }
             }
             Monitor.Exit(lockDevice);
             Monitor.Exit(VideoDecoder.lockCodecCtx);
@@ -609,7 +609,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                 //var hdrSideDolpyDynamic = av_frame_get_side_data(frame, AVFrameSideDataType.AV_FRAME_DATA_DOVI_METADATA);
 
                 var hdrSideDynamic = av_frame_get_side_data(frame, AVFrameSideDataType.DynamicHdrPlus);
-                
+
                 if (hdrSideDynamic != null && hdrSideDynamic->data != null)
                 {
                     hdrPlusData = (AVDynamicHDRPlus*) hdrSideDynamic->data;
@@ -619,7 +619,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
                 {
                     var lightSide   = av_frame_get_side_data(frame, AVFrameSideDataType.ContentLightLevel);
                     var displaySide = av_frame_get_side_data(frame, AVFrameSideDataType.MasteringDisplayMetadata);
-                 
+
                     if (lightSide != null && lightSide->data != null && ((AVContentLightMetadata*)lightSide->data)->MaxCLL != 0)
                     {
                         lightData = *((AVContentLightMetadata*) lightSide->data);
@@ -742,7 +742,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
         {
             av_frame_unref(frame);
             Log.Error($"Failed to process frame ({e.Message})");
-            return null; 
+            return null;
         }
     }
 

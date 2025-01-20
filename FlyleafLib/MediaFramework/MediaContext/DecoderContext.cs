@@ -13,16 +13,16 @@ namespace FlyleafLib.MediaFramework.MediaContext;
 public unsafe partial class DecoderContext : PluginHandler
 {
     /* TODO
-     * 
+     *
      * 1) Lock delay on demuxers' Format Context (for network streams)
      *      Ensure we interrupt if we are planning to seek
      *      Merge Seek witih GetVideoFrame (To seek accurate or to ensure keyframe)
      *      Long delay on Enable/Disable demuxer's streams (lock might not required)
-     * 
+     *
      * 2) Resync implementation / CurTime
      *      Transfer player's resync implementation here
      *      Ensure we can trust CurTime on lower level (eg. on decoders - demuxers using dts)
-     * 
+     *
      * 3) Timestamps / Memory leak
      *      If we have embedded audio/video and the audio decoder will stop/fail for some reason the demuxer will keep filling audio packets
      *      Should also check at lower level (demuxer) to prevent wrong packet timestamps (too early or too late)
@@ -33,7 +33,7 @@ public unsafe partial class DecoderContext : PluginHandler
     public object               Tag                 { get; set; } // Upper Layer Object (eg. Player, Downloader) - mainly for plugins to access it
     public bool                 EnableDecoding      { get; set; }
     public new bool             Interrupt
-    { 
+    {
         get => base.Interrupt;
         set
         {
@@ -310,7 +310,7 @@ public unsafe partial class DecoderContext : PluginHandler
         if (demuxer.Type == MediaType.Audio) ticks -= Config.Audio.Delay;
         if (demuxer.Type == MediaType.Subs ) ticks -= Config.Subtitles.Delay + (2 * 1000 * 10000); // We even want the previous subtitles
 
-        if (ticks < startTime) 
+        if (ticks < startTime)
         {
             ticks = startTime;
             forward = true;
@@ -367,7 +367,7 @@ public unsafe partial class DecoderContext : PluginHandler
             VideoDemuxer.Start();
             VideoDecoder.Start();
         }
-        
+
         if (Config.Subtitles.Enabled)
         {
             SubtitlesDemuxer.Start();
@@ -470,7 +470,7 @@ public unsafe partial class DecoderContext : PluginHandler
             if (SubtitlesStream.Demuxer.Type != MediaType.Video)
                 SeekSubtitles(timestamp / 10000);
             else
-                
+
             if (VideoDemuxer.IsRunning)
             {
                 SubtitlesDemuxer.Start();
@@ -499,7 +499,7 @@ public unsafe partial class DecoderContext : PluginHandler
         int ret;
         int allowedErrors = Config.Decoder.MaxErrors;
         AVPacket* packet;
-        
+
         lock (VideoDemuxer.lockFmtCtx)
         lock (VideoDecoder.lockCodecCtx)
         while (VideoDemuxer.VideoStream != null && !Interrupt)
@@ -541,7 +541,7 @@ public unsafe partial class DecoderContext : PluginHandler
                     continue;
                 }
             }
-                
+
             if (VideoDemuxer.IsHLSLive)
                 VideoDemuxer.UpdateHLSTime();
 
@@ -607,7 +607,7 @@ public unsafe partial class DecoderContext : PluginHandler
                             if (!VideoStream.FixTimestamps)
                             {
                                 av_frame_unref(frame);
-                                continue;                            
+                                continue;
                             }
 
                             frame->pts = VideoDecoder.lastFixedPts + VideoStream.StartTimePts;
@@ -637,7 +637,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
                         var mFrame = VideoDecoder.Renderer.FillPlanes(frame);
                         if (mFrame != null) VideoDecoder.Frames.Enqueue(mFrame);
-                            
+
                         do
                         {
                             ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);

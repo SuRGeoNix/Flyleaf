@@ -25,7 +25,7 @@ namespace FlyleafDownloader
                 LogLevel        = LogLevel.Debug,
                 FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
                 #endif
-                
+
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
             });
@@ -52,7 +52,7 @@ namespace FlyleafDownloader
             Height = splitContainer1.SplitterDistance + 50;
 
             txtSavePath.Text = Path.GetTempPath();
-            
+
             txtUrl.AllowDrop = true;
             txtUrl.DragEnter += TxtUrl_DragEnter;
             txtUrl.DragDrop += TxtUrl_DragDrop;
@@ -249,7 +249,7 @@ namespace FlyleafDownloader
                 lstVideoInputs.SelectedIndexChanged += lstVideoInputs_SelectedIndexChanged;
                 return;
             }
-            
+
             string error = Downloader.Open(txtUrl.Text);
             if (error != null)
             {
@@ -412,14 +412,14 @@ namespace FlyleafDownloader
             string ext = !Downloader.DecCtx.VideoDemuxer.Disposed ? Downloader.DecCtx.VideoDemuxer.Extension : Downloader.DecCtx.AudioDemuxer.Extension;
 
             filename = Utils.FindNextAvailableFile(Path.Combine(txtSavePath.Text, filename + "." + ext));
-            Downloader.Download(ref filename, false); 
+            Downloader.Download(ref filename, false);
         }
 
         // We prevent to add audio from both embedded and external input
         private void lstAudioStreams_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (lstAudioStreams.SelectedItems.Count == 0) return;
-            
+
             lstAudioStreams2.SelectedItems.Clear();
         }
 

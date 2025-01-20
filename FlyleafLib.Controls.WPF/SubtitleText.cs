@@ -52,9 +52,9 @@ namespace FlyleafLib.Controls.WPF
             new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty FontSizeInitialProperty = DependencyProperty.Register(
-            nameof(FontSizeInitial), 
-            typeof(double), 
-            typeof(OutlinedTextBlock), 
+            nameof(FontSizeInitial),
+            typeof(double),
+            typeof(OutlinedTextBlock),
             new FrameworkPropertyMetadata(OnFormattedTextUpdated));
 
         public static readonly DependencyProperty FontStretchProperty = TextElement.FontStretchProperty.AddOwner(
@@ -76,7 +76,7 @@ namespace FlyleafLib.Controls.WPF
             new FrameworkPropertyMetadata(StrokePosition.Outside, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public static readonly DependencyProperty StrokeThicknessInitialProperty = DependencyProperty.Register(
-            nameof(StrokeThicknessInitial), 
+            nameof(StrokeThicknessInitial),
             typeof(double),
             typeof(OutlinedTextBlock),
             new FrameworkPropertyMetadata(OnFormattedTextUpdated));
@@ -248,7 +248,7 @@ namespace FlyleafLib.Controls.WPF
             if (StrokePosition == StrokePosition.Outside || StrokePosition == StrokePosition.Inside)
                 drawingContext.Pop();
         }
-        
+
         protected override Size MeasureOverride(Size availableSize)
         {
             EnsureFormattedText();
@@ -338,7 +338,7 @@ namespace FlyleafLib.Controls.WPF
         {
             _FormattedText.MaxLineCount = TextWrapping == TextWrapping.NoWrap ? 1 : int.MaxValue;
             _FormattedText.TextAlignment = TextAlignment;
-            _FormattedText.Trimming = TextTrimming;    
+            _FormattedText.Trimming = TextTrimming;
             _FormattedText.SetFontSize(FontSize);
             _FormattedText.SetFontStyle(FontStyle);
             _FormattedText.SetFontWeight(FontWeight);
