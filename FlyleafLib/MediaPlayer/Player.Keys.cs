@@ -451,6 +451,12 @@ public class KeysConfig
             case KeyBindingAction.SeekForward2:
                 return player.SeekForward2;
 
+            case KeyBindingAction.SeekBackward3:
+                return player.SeekBackward3;
+
+            case KeyBindingAction.SeekForward3:
+                return player.SeekForward3;
+
             case KeyBindingAction.SpeedAdd:
                 return player.SpeedUp;
 
@@ -560,7 +566,7 @@ public enum KeyBindingAction
     ToggleKeepRatio,
     ToggleVideoAcceleration,
     ToggleRecording,
-    ToggleSeekAccurate, SeekForward, SeekBackward, SeekForward2, SeekBackward2,
+    ToggleSeekAccurate, SeekForward, SeekBackward, SeekForward2, SeekBackward2, SeekForward3, SeekBackward3,
     SpeedAdd, SpeedAdd2, SpeedRemove, SpeedRemove2,
     ShowNextFrame, ShowPrevFrame,
 
