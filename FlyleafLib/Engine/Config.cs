@@ -291,7 +291,7 @@ public class Config : NotifyPropertyChanged
 
             return demuxer;
         }
-        
+
         internal Player player;
         internal Config config;
 
@@ -683,7 +683,7 @@ public class Config : NotifyPropertyChanged
         HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
 
         /// <summary>
-        /// The HDR to SDR Tone float correnction (not used by Reinhard) 
+        /// The HDR to SDR Tone float correnction (not used by Reinhard)
         /// </summary>
         public unsafe float     HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); } }
         float _HDRtoSDRTone = 1.4f;
@@ -893,7 +893,7 @@ public class EngineConfig
     /// <summary>
     /// Sets FFmpeg logger's level
     /// </summary>
-    public Flyleaf.FFmpeg.LogLevel 
+    public Flyleaf.FFmpeg.LogLevel
                     FFmpegLogLevel          { get => _FFmpegLogLevel; set { _FFmpegLogLevel = value; if (Engine.IsLoaded) FFmpegEngine.SetLogLevel(); } }
     Flyleaf.FFmpeg.LogLevel _FFmpegLogLevel = Flyleaf.FFmpeg.LogLevel.Quiet;
 
@@ -919,7 +919,7 @@ public class EngineConfig
     /// </summary>
     public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.IsLoaded) Logger.SetOutput(); } }
     string _LogOutput = "";
-    
+
     /// <summary>
     /// Sets logger's level
     /// </summary>

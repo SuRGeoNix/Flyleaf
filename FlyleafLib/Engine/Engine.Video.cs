@@ -41,7 +41,7 @@ public class VideoEngine
     private Dictionary<long, GPUAdapter> GetAdapters()
     {
         Dictionary<long, GPUAdapter> adapters = new();
-        
+
         string dump = "";
 
         for (uint i=0; Factory.EnumAdapters1(i, out var adapter).Success; i++)

@@ -14,7 +14,7 @@ public class DeviceBase<T>
 {
     public string   FriendlyName            { get; }
     public string   SymbolicLink            { get; }
-    public IList<T> 
+    public IList<T>
                     Streams                 { get; protected set; }
     public string   Url                     { get; protected set; } // default Url
 

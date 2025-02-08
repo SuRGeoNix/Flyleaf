@@ -146,7 +146,7 @@ public class VideoDeviceStream : DeviceStreamBase
         MediaFactory.MFGetAttributeSize(mediaType, MediaTypeAttributeKeys.FrameSize, out uint frameSizeWidth, out uint frameSizeHeight);
 
         // MF_MT_FRAME_RATE
-        // The frame rate is expressed as a ratio.The upper 32 bits of the attribute value contain the numerator and the lower 32 bits contain the denominator. 
+        // The frame rate is expressed as a ratio.The upper 32 bits of the attribute value contain the numerator and the lower 32 bits contain the denominator.
         // For example, if the frame rate is 30 frames per second(fps), the ratio is 30 / 1.If the frame rate is 29.97 fps, the ratio is 30,000 / 1001.
         // we report this back to the user as a decimal
         MediaFactory.MFGetAttributeRatio(mediaType, MediaTypeAttributeKeys.FrameRate, out uint frameRate, out uint frameRateDenominator);

@@ -57,7 +57,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 {
                     if (Status != Status.QueueFull) break;
                     Status = Status.Running;
-                }       
+                }
             }
 
             // While Packets Queue Empty (Ended | Quit if Demuxer stopped | Wait until we get packets)
@@ -101,7 +101,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
 
                         break;
                     }
-                    
+
                     Thread.Sleep(20);
                 }
 
@@ -112,7 +112,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     Status = Status.Running;
                 }
             }
-            
+
             lock (lockCodecCtx)
             {
                 if (Status == Status.Stopped || demuxer.SubtitlesPackets.Count == 0) continue;
@@ -196,7 +196,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     if (string.IsNullOrEmpty(subFrame.text))
                         continue;
                 }
-            
+
                 if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(subFrame.timestamp)}");
 
                 Frames.Enqueue(subFrame);

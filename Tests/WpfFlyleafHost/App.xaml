@@ -5,6 +5,6 @@
              ShutdownMode="OnLastWindowClose"
              StartupUri="MultipleAttached.xaml">
     <Application.Resources>
-         
+
     </Application.Resources>
 </Application>

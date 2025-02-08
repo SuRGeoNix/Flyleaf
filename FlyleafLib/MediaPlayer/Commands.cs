@@ -56,9 +56,9 @@ public class Commands
     public ICommand TakeSnapshot            { get; set; }
     public ICommand ZoomIn                  { get; set; }
     public ICommand ZoomOut                 { get; set; }
-    public ICommand RotationSet             { get; set; } 
-    public ICommand RotateLeft              { get; set; } 
-    public ICommand RotateRight             { get; set; } 
+    public ICommand RotationSet             { get; set; }
+    public ICommand RotateLeft              { get; set; }
+    public ICommand RotateRight             { get; set; }
     public ICommand ResetAll                { get; set; }
 
     public ICommand SpeedSet                { get; set; }

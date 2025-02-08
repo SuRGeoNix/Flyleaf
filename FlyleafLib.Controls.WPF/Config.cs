@@ -16,7 +16,7 @@ namespace FlyleafLib.Controls.WPF
         [JsonIgnore]
         public bool         Loaded              { get; private set; }
 
-        public ObservableCollection<UITheme> 
+        public ObservableCollection<UITheme>
                             Themes              { get; set; }
         public string       SelectedTheme       { get => _SelectedTheme;        set => Set(ref _SelectedTheme, value); }
         string _SelectedTheme;
@@ -57,7 +57,7 @@ namespace FlyleafLib.Controls.WPF
                 Set(ref _SubsMargin2, new Thickness(SubsMargin.Left, SubsMargin.Top, SubsMargin.Right, SubsMargin.Bottom + vy), false, nameof(SubsMargin2));
             });
         }
-        
+
         internal FlyleafME flyleaf;
 
         public UIConfig() { }
@@ -71,7 +71,7 @@ namespace FlyleafLib.Controls.WPF
             flyleaf.UIConfig.flyleaf = flyleaf;
             foreach(var theme in flyleaf.UIConfig.Themes)
                 theme.flyleaf = flyleaf;
-            
+
         }
 
         public static void Save(FlyleafME flyleaf, string uiConfigPath, string configPath, string enginePath)
@@ -127,7 +127,7 @@ namespace FlyleafLib.Controls.WPF
         }
         Color _PrimaryColor;
 
-        public Color SecondaryColor { 
+        public Color SecondaryColor {
             get => _SecondaryColor;
             set
             {
@@ -142,7 +142,7 @@ namespace FlyleafLib.Controls.WPF
         }
         Color _SecondaryColor;
 
-        public Color BackgroundColor { 
+        public Color BackgroundColor {
             get => _BackgroundColor;
             set
             {
@@ -159,7 +159,7 @@ namespace FlyleafLib.Controls.WPF
 
         public Color SurfaceColor      {
             get => _SurfaceColor;
-            set 
+            set
             {
                 if (!Set(ref _SurfaceColor, value)) return;
                 if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;

@@ -4,6 +4,6 @@
              xmlns:local="clr-namespace:FlyleafPlayer__Custom___MVVM_"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+
     </Application.Resources>
 </Application>

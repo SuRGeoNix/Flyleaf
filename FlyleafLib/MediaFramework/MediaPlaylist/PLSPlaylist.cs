@@ -44,7 +44,7 @@ public class PLSPlaylist
     public static string GetINIAttribute(string name, string key, string path)
     {
         StringBuilder sb = new(255);
-        return GetPrivateProfileString(name, key, "", sb, 255, path) > 0 
+        return GetPrivateProfileString(name, key, "", sb, 255, path) > 0
             ? sb.ToString() : null;
     }
 }

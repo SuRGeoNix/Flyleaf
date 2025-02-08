@@ -25,7 +25,7 @@ namespace DisposePlayer
 
             InitializeComponent();
 
-            Closing += (o, e) => Player.Dispose(); 
+            Closing += (o, e) => Player.Dispose();
         }
     }
 }

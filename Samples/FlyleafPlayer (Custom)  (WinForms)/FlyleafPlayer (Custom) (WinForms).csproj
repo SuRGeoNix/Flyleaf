@@ -7,7 +7,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Platforms>AnyCPU;x86;x64</Platforms>
   </PropertyGroup>
-	
+
   <ItemGroup>
     <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" />
   </ItemGroup>

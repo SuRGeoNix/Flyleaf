@@ -18,13 +18,13 @@ public class FFmpegEngine
             Engine.Log.Info($"Loading FFmpeg libraries from '{Engine.Config.FFmpegPath}'");
             Folder = Utils.GetFolderPath(Engine.Config.FFmpegPath);
             LoadLibraries(Folder, Engine.Config.FFmpegDevices ? LoadProfile.All : LoadProfile.Filters);
-            
+
             FiltersLoaded = true; // Possible allow only main profile?
             DevicesLoaded = Engine.Config.FFmpegDevices;
 
             uint ver = avformat_version();
             Version = $"{ver >> 16}.{(ver >> 8) & 255}.{ver & 255}";
-            
+
             SetLogLevel();
             AV_TIMEBASE_Q   = av_get_time_base_q();
             Engine.Log.Info($"FFmpeg Loaded (Location: {Folder}, Ver: {Version}) [Devices: {(DevicesLoaded ? "yes" : "no")}, Filters: {(FiltersLoaded ? "yes" : "no")}]");

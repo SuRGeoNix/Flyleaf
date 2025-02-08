@@ -46,7 +46,7 @@ public unsafe class Remuxer
         int ret = -1;
 
         if (in_stream == null || (in_stream->codecpar->codec_type != AVMediaType.Video && in_stream->codecpar->codec_type != AVMediaType.Audio)) return ret;
-        
+
         AVStream *out_stream;
         var in_codecpar = in_stream->codecpar;
 
@@ -55,7 +55,7 @@ public unsafe class Remuxer
 
         ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
         if (ret < 0) return ret;
-        
+
         // Copy metadata (currently only language)
         AVDictionaryEntry* b = null;
         while (true)
@@ -104,7 +104,7 @@ public unsafe class Remuxer
         ret = avformat_write_header(fmtCtx, null);
 
         if (ret < 0) { Dispose(); return ret; }
-        
+
         HeaderWritten = true;
 
         return 0;
@@ -134,7 +134,7 @@ public unsafe class Remuxer
                 packet->dts = av_rescale_q_rnd(packet->dts - mapInStreamToDts[in_stream->index], in_stream->time_base, out_stream->time_base, AVRounding.NearInf | AVRounding.PassMinmax);
             }
             else
-            {   
+            {
                 packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.NearInf | AVRounding.PassMinmax);
                 packet->dts = AV_NOPTS_VALUE;
             }

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
-        
+
         mc:Ignorable="d"
         Title="Flyleaf Player (Custom - Rounded Corners)" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent"
         Width="960" Height="540">
@@ -32,11 +32,11 @@
 
         <TextBox Text="{Binding FlyleafHost.CornerRadius, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20"/>
 
-        <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" 
+        <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center"
                                Player="{Binding Player}"
                                BoxColor="#A0000000"
-                               HeaderColor="DarkOrange" 
-                               InfoColor="White" 
+                               HeaderColor="DarkOrange"
+                               InfoColor="White"
                                ValueColor="LightSteelBlue"
                                />
         <StackPanel Width="450" VerticalAlignment="Bottom" HorizontalAlignment="Left">

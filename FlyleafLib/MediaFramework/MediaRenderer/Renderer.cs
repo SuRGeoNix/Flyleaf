@@ -19,18 +19,18 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
  * 1) Attach on every frame video output configuration so we will not have to worry for video codec change etc.
  *      this will fix also dynamic video stream change
  *      we might have issue with bufRef / ffmpeg texture array on zero copy
- *      
+ *
  * 2) Use different context/video processor for off rendering so we dont have to reset pixel shaders/viewports etc (review also rtvs for extractor)
- * 
+ *
  * 3) Add Crop (Left/Right/Top/Bottom) -on Source- support per pixels (easy implemantation with D3D11VP, FlyleafVP requires more research)
- * 
+ *
  * 4) Improve A/V Sync
- * 
+ *
  *  a. vsync / vblack
  *  b. Present can cause a delay (based on device load), consider using more buffers for high frame rates that could minimize the delay
  *  c. display refresh rate vs input rate, consider using max latency > 1 ?
  *  d. frame drops
- *  
+ *
  *      swapChain.GetFrameStatistics(out var stats);
  *      swapChain.LastPresentCount - stats.PresentCount;
  */
@@ -42,7 +42,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public int              ControlHeight   { get; private set; }
     internal IntPtr         ControlHandle;
 
-    internal Action<IDXGISwapChain2> 
+    internal Action<IDXGISwapChain2>
                             SwapChainWinUIClbk;
 
     public ID3D11Device     Device          { get; private set; }
@@ -180,7 +180,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
 
     public int              UniqueId        { get; private set; }
 
-    public Dictionary<VideoFilters, VideoFilter> 
+    public Dictionary<VideoFilters, VideoFilter>
                             Filters         { get; set; }
     public VideoFrame       LastFrame       { get; set; }
     public RawRect          VideoRect       { get; set; }
@@ -264,7 +264,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
 
             child = new(this, handle, UniqueId);
             InitializeChildSwapChain();
-        }        
+        }
     }
     #endregion
 }

@@ -4,6 +4,6 @@
              xmlns:local="clr-namespace:FlyleafMultiPlayer__WPF_"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+
     </Application.Resources>
 </Application>

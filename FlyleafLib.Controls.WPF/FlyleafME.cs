@@ -20,7 +20,7 @@ using static FlyleafLib.Utils;
 namespace FlyleafLib.Controls.WPF
 {
     /* TODO
-     * 
+     *
      * Parse user's content into a new PART_grid within the main Grid
      */
 
@@ -34,7 +34,7 @@ namespace FlyleafLib.Controls.WPF
         public FlyleafME()
         {
             // Design Only? (Will affect detached content)
-            Resources.MergedDictionaries.Add(new ResourceDictionary() { 
+            Resources.MergedDictionaries.Add(new ResourceDictionary() {
                 Source = new Uri("pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml") });
         }
 
@@ -49,7 +49,7 @@ namespace FlyleafLib.Controls.WPF
 
         UIConfig _UIConfig;
         public UIConfig     UIConfig            { get => _UIConfig; set { if (_UIConfig == value) return; _UIConfig = value; Raise(nameof(UIConfig)); } }
-        
+
 
         public AudioEngine  AudioEngine         => Engine.Audio;
         public EngineConfig ConfigEngine        => Engine.Config;
@@ -86,7 +86,7 @@ namespace FlyleafLib.Controls.WPF
                 }
                 else
                     theme = Overlay.Resources.GetTheme();
-                
+
                 theme.SetPrimaryColor(value.PrimaryColor);
                 theme.SetSecondaryColor(value.SecondaryColor);
                 theme.Background = value.BackgroundColor;
@@ -100,7 +100,7 @@ namespace FlyleafLib.Controls.WPF
         }
         UITheme _SelectedTheme;
 
-        public Color SelectedColor  { 
+        public Color SelectedColor  {
             get => _SelectedColor;
             set
             {
@@ -184,7 +184,7 @@ namespace FlyleafLib.Controls.WPF
             foreach (var binding in Config.Player.KeyBindings.Keys)
             {
                 if (binding.Action != KeyBindingAction.Custom || string.IsNullOrEmpty(binding.ActionName))
-                    continue; 
+                    continue;
 
                 switch (binding.ActionName)
                 {
@@ -266,7 +266,7 @@ namespace FlyleafLib.Controls.WPF
             Engine.Config.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
             Overlay.Resources.MergedDictionaries.Add(new ResourceDictionary() {
                 Source = new Uri("pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml") });
-            
+
             NamedColors = GetColors();
 
             DialogHost dialogSettings;
@@ -280,7 +280,7 @@ namespace FlyleafLib.Controls.WPF
                 popUpMenu       = ((FrameworkElement)Overlay.Template.FindName("PART_ContextMenuOwner", Overlay))?.ContextMenu;
                 dialogSettings  = (DialogHost)Overlay.Template.FindName("PART_DialogSettings", Overlay);
             }
-            
+
             if (dialogSettings != null)
             {
                 dialogSettingsIdentifier = $"DialogSettings_{Guid.NewGuid()}";
@@ -312,7 +312,7 @@ namespace FlyleafLib.Controls.WPF
                 UIConfig.SubsStrokeThickness= 3;
                 UIConfig.SubsFontColor      = Colors.White;
                 UIConfig.SubsWithinViewport = true;
-                
+
                 var theme = Overlay.Resources.GetTheme();
                 var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, BackgroundColor = theme.Background, SurfaceColor = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};
                 UIConfig.Themes = new ObservableCollection<UITheme>
@@ -341,7 +341,7 @@ namespace FlyleafLib.Controls.WPF
             subsInitialMargin   = UIConfig.SubsMargin;
 
             if (popUpMenu != null)
-                Surface.MouseRightButtonUp += (o, e) => { 
+                Surface.MouseRightButtonUp += (o, e) => {
                     popUpMenu.PlacementTarget = Overlay; popUpMenu.DataContext = this; popUpMenu.IsOpen = true; };
 
             Overlay.KeyUp += (o, e) =>
@@ -409,7 +409,7 @@ namespace FlyleafLib.Controls.WPF
             SetSubsPositionY    = new RelayCommand(SetSubsPositionYAction);
             ResetSubsPositionY  = new RelayCommand(ResetSubsPositionYAction);
         }
-        
+
         public ICommand OpenFileDialog { get; set; }
         public void OpenFileDialogAction(object obj = null) => Player.OpenFromFileDialog();
 
@@ -475,7 +475,7 @@ namespace FlyleafLib.Controls.WPF
         public ICommand OpenColorPicker { get; set; }
         public async void OpenColorPickerAction(object curColor)
         {
-            selectedColor = curColor.ToString(); 
+            selectedColor = curColor.ToString();
 
             if (selectedColor == "Primary")
                 SelectedColor = ((UITheme)settings.cmbThemes.SelectedItem).PrimaryColor;
