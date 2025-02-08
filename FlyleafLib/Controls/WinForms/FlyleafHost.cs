@@ -11,11 +11,11 @@ namespace FlyleafLib.Controls.WinForms;
 public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChanged
 {
     /* TODO
-     * 
+     *
      * Attached: (UserControl) Host = Surface
      * Detached: (Form) Surface
      * (Form) Overlay
-     * 
+     *
      */
 
     #region Properties / Variables
@@ -24,18 +24,18 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         get => _Player;
         set {
             if (_Player == value)
-                return; 
+                return;
 
-            var oldPlayer = _Player; 
-            _Player = value; 
-            SetPlayer(oldPlayer); 
+            var oldPlayer = _Player;
+            _Player = value;
+            SetPlayer(oldPlayer);
             Raise(nameof(Player));
-            } 
+            }
         }
 
     bool _IsFullScreen;
-    public bool         IsFullScreen    { 
-        get => _IsFullScreen; 
+    public bool         IsFullScreen    {
+        get => _IsFullScreen;
         set
             {
             if (_IsFullScreen == value)
@@ -45,11 +45,11 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
                 FullScreen();
             else
                 NormalScreen();
-            } 
+            }
         }
 
     bool _ToggleFullScreenOnDoubleClick = true;
-    public bool         ToggleFullScreenOnDoubleClick 
+    public bool         ToggleFullScreenOnDoubleClick
                                                 { get => _ToggleFullScreenOnDoubleClick; set => Set(ref _ToggleFullScreenOnDoubleClick, value); }
 
     public int          UniqueId                { get; private set; } = -1;
@@ -65,19 +65,19 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
 
     bool _PanRotateOnShiftWheel = true;
     public bool         PanRotateOnShiftWheel   { get => _PanRotateOnShiftWheel; set => Set(ref _PanRotateOnShiftWheel, value); }
-    
+
     bool _DragMove = true;
     public bool         DragMove                { get => _DragMove; set => Set(ref _DragMove, value); }
 
     bool _OpenOnDrop;
     public bool         OpenOnDrop              { get => _OpenOnDrop; set { Set(ref _OpenOnDrop, value); AllowDrop = _SwapOnDrop || _OpenOnDrop; } }
-    
+
     bool _SwapOnDrop = true;
     public bool         SwapOnDrop              { get => _SwapOnDrop; set { Set(ref _SwapOnDrop, value);  AllowDrop = _SwapOnDrop || _OpenOnDrop; } }
-    
+
     bool _SwapDragEnterOnShift = true;
     public bool         SwapDragEnterOnShift    { get => _SwapDragEnterOnShift; set => Set(ref _SwapDragEnterOnShift, value); }
-    
+
 
     int panPrevX, panPrevY;
     Point mouseLeftDownPoint = new(0, 0);
@@ -227,7 +227,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
 
         // De-assign new Player's Handle/FlyleafHost
         Player.Host?.Player_Disposed();
-            
+
 
         // Assign new Player's (Handle/FlyleafHost)
         Log.Debug($"Assign Player #{Player.PlayerId}");

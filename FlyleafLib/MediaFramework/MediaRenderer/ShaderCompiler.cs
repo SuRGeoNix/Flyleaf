@@ -121,7 +121,7 @@ internal static class ShaderCompiler
     //    }
     //}
 
-    // Loads compiled blob shaders 
+    // Loads compiled blob shaders
     //private static void LoadShaders()
     //{
     //    Assembly assembly = Assembly.GetExecutingAssembly();
@@ -206,7 +206,7 @@ static const float4x4 coefs[] =
         { 1.67867422, -0.650424361, 0, 0 },
         { -0.915688038, 0.347458541, -1.14814520, 1 }
     },
-    
+
         // BT709
     {
         { 1.16438341, 1.16438341, 1.16438341, 0 },
@@ -303,27 +303,27 @@ float reinhard(float x)
 
 struct PSInput
 {
-	float4 Position : SV_POSITION;
-	float2 Texture  : TEXCOORD;
+    float4 Position : SV_POSITION;
+    float2 Texture  : TEXCOORD;
 };
 
 float4 main(PSInput input) : SV_TARGET
 {
-	float4 color;
+    float4 color;
 
-	// Dynamic Sampling
+    // Dynamic Sampling
 
 ";
 
     const string PS_FOOTER = @"
-    
-	// YUV to RGB
+
+    // YUV to RGB
 #if defined(YUV)
     color = mul(color, coefs[coefsIndex]);
 #endif
-    
-    
-	// HDR
+
+
+    // HDR
 #if defined(HDR)
     // BT2020 -> BT709
     color.rgb = pow(max(0.0, color.rgb), 2.4f);
@@ -360,11 +360,11 @@ float4 main(PSInput input) : SV_TARGET
     #endif
 #endif
 
-	// Contrast / Brightness / Saturate / Hue
+    // Contrast / Brightness / Saturate / Hue
     color *= contrast * 2.0f;
     color += brightness - 0.5f;
 
-	return color;
+    return color;
 }
 ";
 

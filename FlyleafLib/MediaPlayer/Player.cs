@@ -153,7 +153,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// <summary>
     /// The list of chapters
     /// </summary>
-    public ObservableCollection<Demuxer.Chapter> 
+    public ObservableCollection<Demuxer.Chapter>
                         Chapters            => VideoDemuxer?.Chapters;
 
     /// <summary>
@@ -258,7 +258,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// Playback's speed (x1 - x4)
     /// </summary>
     public double       Speed {
-        get => speed; 
+        get => speed;
         set
         {
             double newValue = Math.Round(value, 3);
@@ -266,10 +266,10 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
                 newValue = 0.125;
             else if (value > 16)
                 newValue = 16;
-            
+
             if (newValue == speed)
                 return;
-            
+
             AudioDecoder.Speed      = newValue;
             VideoDecoder.Speed      = newValue;
             speed                   = newValue;
@@ -299,7 +299,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// <summary>
     /// Pan rotation angle (for D3D11 VP allowed values are 0, 90, 180, 270 only)
     /// </summary>
-    public uint Rotation            { get => renderer.Rotation; 
+    public uint Rotation            { get => renderer.Rotation;
         set
         {
             renderer.Rotation = value;
@@ -379,7 +379,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     public object       Tag                 { get => tag; set => Set(ref  tag, value); }
     object tag;
 
-    public string       LastError           { get => lastError; set => Set(ref _LastError, value); } 
+    public string       LastError           { get => lastError; set => Set(ref _LastError, value); }
     string _LastError, lastError;
     bool decoderHasEnded => decoder != null && (VideoDecoder.Status == MediaFramework.Status.Ended || (VideoDecoder.Disposed && AudioDecoder.Status == MediaFramework.Status.Ended));
     #endregion
@@ -411,7 +411,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     bool isDataSwitch;
     #endregion
 
-	public Player(Config config = null)
+    public Player(Config config = null)
     {
         if (config != null)
         {
@@ -435,7 +435,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         Commands    = new Commands(this);
 
         Config.SetPlayer(this);
-        
+
         if (Config.Player.Usage == Usage.Audio)
         {
             Config.Video.Enabled = false;
@@ -449,7 +449,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             decoder.VideoDecoder.Renderer.forceNotExtractor = true;
 
         //decoder.OpenPlaylistItemCompleted              += Decoder_OnOpenExternalSubtitlesStreamCompleted;
-        
+
         decoder.OpenAudioStreamCompleted               += Decoder_OpenAudioStreamCompleted;
         decoder.OpenVideoStreamCompleted               += Decoder_OpenVideoStreamCompleted;
         decoder.OpenSubtitlesStreamCompleted           += Decoder_OpenSubtitlesStreamCompleted;
@@ -484,7 +484,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             try
             {
                 Initialize();
-                Audio.Dispose(); 
+                Audio.Dispose();
                 decoder.Dispose();
                 Host?.Player_Disposed();
                 Log.Info("Disposed");

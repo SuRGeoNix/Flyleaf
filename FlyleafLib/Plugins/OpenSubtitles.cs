@@ -30,7 +30,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
             converted = fi.Extension.Equals(".sub", StringComparison.OrdinalIgnoreCase);
         }
         catch { title = url; }
-                
+
         ExternalSubtitlesStream newExtStream = new()
         {
             Url         = url,

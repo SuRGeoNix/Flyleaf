@@ -84,7 +84,7 @@ namespace FlyleafLib.Plugins
         public override void OnInitializingSwitch()
         {
             if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return;
-            
+
             if (cfg != null) cfg.EnableBuffering = false;
             TorrentStream?.Cancel();
         }
@@ -183,7 +183,7 @@ namespace FlyleafLib.Plugins
                 }
 
                 Handler.OnPlaylistCompleted();
-                    
+
             }
             catch (Exception e2)
             {

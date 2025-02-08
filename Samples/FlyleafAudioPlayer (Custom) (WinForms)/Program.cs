@@ -1,4 +1,4 @@
-namespace FlyleafAudioPlayer__Custom___WinForms_
+﻿namespace FlyleafAudioPlayer__Custom___WinForms_
 {
     internal static class Program
     {

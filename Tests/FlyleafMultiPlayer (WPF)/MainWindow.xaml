@@ -4,8 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FlyleafMultiPlayer__WPF_"
-        
-        xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF" 
+
+        xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib.Controls.WPF"
         mc:Ignorable="d"
         Title="Flyleaf MultiPlayer" Height="450" Width="853" Background="Black">
 
@@ -28,7 +28,7 @@
                 <RowDefinition/>
                 <RowDefinition/>
             </Grid.RowDefinitions>
-            
+
             <flwpf:FlyleafME Grid.Row="0" Grid.Column="0" Player="{Binding PlayerView1, Mode=TwoWay}" x:Name="FlyleafME1"/>
             <flwpf:FlyleafME Grid.Row="0" Grid.Column="1" Player="{Binding PlayerView2, Mode=TwoWay}"/>
             <flwpf:FlyleafME Grid.Row="1" Grid.Column="1" Player="{Binding PlayerView3, Mode=TwoWay}"/>

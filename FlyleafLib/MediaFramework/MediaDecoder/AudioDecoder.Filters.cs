@@ -64,9 +64,9 @@ public unsafe partial class AudioDecoder
             abufferDrained  = false;
 
             // IN (abuffersrc)
-            linkCtx = abufferCtx = CreateFilter("abuffer", 
+            linkCtx = abufferCtx = CreateFilter("abuffer",
                 $"channel_layout={AudioStream.ChannelLayoutStr}:sample_fmt={AudioStream.SampleFormatStr}:sample_rate={codecCtx->sample_rate}:time_base={sinkTimebase.Num}/{sinkTimebase.Den}");
-            
+
             // USER DEFINED
             if (Config.Audio.Filters != null)
                 foreach (var filter in Config.Audio.Filters)
@@ -80,7 +80,7 @@ public unsafe partial class AudioDecoder
             if (speed != 1)
             {
                 if (speed >= 0.5 && speed <= 2)
-                    linkCtx = CreateFilter("atempo", $"tempo={speed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);   
+                    linkCtx = CreateFilter("atempo", $"tempo={speed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
                 else if ((speed > 2 & speed <= 4) || (speed >= 0.25 && speed < 0.5))
                 {
                     var singleAtempoSpeed = Math.Sqrt(speed);
@@ -95,7 +95,7 @@ public unsafe partial class AudioDecoder
                     linkCtx = CreateFilter("atempo", $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
                 }
             }
-            
+
             // OUT (abuffersink)
             abufferSinkCtx = CreateFilter("abuffersink", null, null);
 
@@ -106,7 +106,7 @@ public unsafe partial class AudioDecoder
             ret = av_opt_set_int(abufferSinkCtx     , "all_channel_counts"  , 0                                             , OptSearchFlags.Children);
             ret = av_opt_set(abufferSinkCtx         , "ch_layouts"          , "stereo"                                      , OptSearchFlags.Children);
             avfilter_link(linkCtx, 0, abufferSinkCtx, 0);
-            
+
             // GRAPH CONFIG
             ret = avfilter_graph_config(filterGraph, null);
 
@@ -115,8 +115,8 @@ public unsafe partial class AudioDecoder
             ((FilterLink*)abufferSinkCtx->inputs[0])->min_samples = (int) (20 * 10000 / tb);
             ((FilterLink*)abufferSinkCtx->inputs[0])->max_samples = (int) (70 * 10000 / tb);
 
-            return ret < 0 
-                ? throw new Exception($"[FilterGraph] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})") 
+            return ret < 0
+                ? throw new Exception($"[FilterGraph] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})")
                 : 0;
         }
         catch (Exception e)
@@ -146,10 +146,10 @@ public unsafe partial class AudioDecoder
     {
         if (filterGraph == null)
             return;
-        
+
         fixed(AVFilterGraph** filterGraphPtr = &filterGraph)
             avfilter_graph_free(filterGraphPtr);
-        
+
         if (filtframe != null)
             fixed (AVFrame** ptr = &filtframe)
                 av_frame_free(ptr);
@@ -277,19 +277,19 @@ public unsafe partial class AudioDecoder
         nextPts = frame->pts + frame->duration;
 
         int ret;
-        
+
         if ((ret = av_buffersrc_add_frame_flags(abufferCtx, frame, AVBuffersrcFlag.KeepRef | AVBuffersrcFlag.NoCheckFormat)) < 0) // AV_BUFFERSRC_FLAG_KEEP_REF = 8, AV_BUFFERSRC_FLAG_NO_CHECK_FORMAT = 1 (we check format change manually before here)
         {
             Log.Warn($"[buffersrc] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
             Status = Status.Stopping;
             return;
         }
-        
+
         while (true)
         {
             if ((ret = av_buffersink_get_frame_flags(abufferSinkCtx, filtframe, 0)) < 0) // Sometimes we get AccessViolationException while we UpdateFilter (possible related with .NET7 debug only bug)
                 return; // EAGAIN (Some filters will send EAGAIN even if EOF currently we handled cause our Status will be Draining)
-            
+
             if (filtframe->pts == AV_NOPTS_VALUE) // we might desync here (we dont count frames->nb_samples) ?
             {
                 av_frame_unref(filtframe);
@@ -305,10 +305,10 @@ public unsafe partial class AudioDecoder
                 lock (lockStatus)
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
-                
+
                 while (Frames.Count >= Config.Decoder.MaxAudioFrames * cBufTimesCur && (Status == Status.QueueFull || Status == Status.Draining))
                     Thread.Sleep(20);
-                
+
                 Monitor.Enter(lockCodecCtx);
 
                 lock (lockStatus)
@@ -329,8 +329,8 @@ public unsafe partial class AudioDecoder
         abufferDrained = true;
 
         int ret;
-        
-        if ((ret = av_buffersrc_add_frame(abufferCtx, null)) < 0) 
+
+        if ((ret = av_buffersrc_add_frame(abufferCtx, null)) < 0)
         {
             Log.Warn($"[buffersrc] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
             return;
@@ -340,7 +340,7 @@ public unsafe partial class AudioDecoder
         {
             if ((ret = av_buffersink_get_frame_flags(abufferSinkCtx, filtframe, 0)) < 0)
                 return;
-            
+
             if (filtframe->pts == AV_NOPTS_VALUE)
             {
                 av_frame_unref(filtframe);
@@ -358,7 +358,7 @@ public unsafe partial class AudioDecoder
             AllocateCircularBuffer(filtframe->nb_samples);
         else if (cBufPos + curLen >= cBuf.Length)
             cBufPos = 0;
-            
+
         long newPts         = filterFirstPts + av_rescale_q((long)(curSamples + missedSamples), sinkTimebase, AudioStream.AVStream->time_base);
         var samplesSpeed1   = filtframe->nb_samples * speed;
         missedSamples      += samplesSpeed1 - (int)samplesSpeed1;

@@ -10,9 +10,9 @@ namespace FlyleafLib.MediaPlayer;
 partial class Player
 {
     /* Player Key Bindings
-     * 
+     *
      * Config.Player.KeyBindings.Keys
-     * 
+     *
      * KeyDown / KeyUp Events (Control / WinFormsHost / WindowFront (FlyleafWindow))
      * Exposes KeyDown/KeyUp if required to listen on additional Controls/Windows
      * Allows KeyBindingAction.Custom to set an external Action for Key Binding

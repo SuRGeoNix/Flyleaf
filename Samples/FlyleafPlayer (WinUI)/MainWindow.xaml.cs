@@ -1,4 +1,4 @@
-using Microsoft.UI;
+﻿using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -132,7 +132,7 @@ public sealed partial class MainWindow : Window
     private void Root_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
 
-        ((UIElement)sender).ReleasePointerCaptures();        
+        ((UIElement)sender).ReleasePointerCaptures();
         bMoving = false;
     }
 

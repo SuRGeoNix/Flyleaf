@@ -48,10 +48,10 @@ public static class Engine
     /// </summary>
     public static List<Player>      Players         { get; private set; }
 
-    public static event EventHandler 
+    public static event EventHandler
                     Loaded;
 
-    internal static LogHandler 
+    internal static LogHandler
                     Log;
 
     static Thread   tMaster;
@@ -134,7 +134,7 @@ public static class Engine
         {
             Config.UIRefresh = false;
             Config.UIRefreshInterval = 1;
-                
+
             while (Players.Count != 0)
                 Players[0].Dispose();
         };

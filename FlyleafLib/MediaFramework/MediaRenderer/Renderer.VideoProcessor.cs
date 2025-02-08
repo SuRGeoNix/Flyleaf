@@ -468,7 +468,7 @@ unsafe public partial class Renderer
             else if (displayData.has_luminance != 0)
                 lum1 = (float)av_q2d(displayData.max_luminance);
         }
-        
+
         psBufferData.hdrmethod = Config.Video.HDRtoSDRMethod;
 
         if (psBufferData.hdrmethod == HDRtoSDRMethod.Hable)
@@ -529,7 +529,7 @@ unsafe public partial class Renderer
             _d3d11vpRotation = VideoProcessorRotation.Rotation180;
         else if (actualRotation < 360)
             _d3d11vpRotation = VideoProcessorRotation.Rotation270;
-        
+
         vsBufferData.mat  = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * actualRotation));
 
         if (_HFlip || _VFlip)
@@ -553,7 +553,7 @@ unsafe public partial class Renderer
 
         if (parent == null)
             context.UpdateSubresource(vsBufferData, vsBuffer);
-        
+
         if (child != null)
         {
             child.actualRotation    = actualRotation;
@@ -575,7 +575,7 @@ unsafe public partial class Renderer
 
         if (Config.Video.VideoProcessor == videoProcessor || (Config.Video.VideoProcessor == VideoProcessors.D3D11 && D3D11VPFailed))
             return;
-        
+
         ConfigPlanes();
         Present();
     }

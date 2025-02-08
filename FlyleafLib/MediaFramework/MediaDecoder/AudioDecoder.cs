@@ -10,11 +10,11 @@ using static FlyleafLib.Logger;
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 /* TODO
- * 
+ *
  * Circular Buffer
  * - Safe re-allocation and check also actual frames in queue (as now during draining we can overwrite them)
  * - Locking with Audio.AddSamples during re-allocation and re-write old data to the new buffer and update the pointers in queue
- * 
+ *
  * Filters
  * - Note: Performance issue (for seek/speed change). We can't drain the buffersrc and re-use the filtergraph without re-initializing it, is not supported
  * - Check if av_buffersrc_get_nb_failed_requests required
@@ -22,7 +22,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
  * - Review Access Violation issue with dynaudnorm/loudnorm filters in combination with atempo (when changing speed to fast?)
  * - Use multiple atempo for better quality (for < 0.5 and > 2, use eg. 2 of sqrt(X) * sqrt(X) to achive this)
  * - Review locks / recode RunInternal to be able to continue from where it stopped (eg. ProcessFilter)
- * 
+ *
  * Custom Frames Queue to notify when the queue is not full anymore (to avoid thread sleep which can cause delays)
  * Support more output formats/channels/sampleRates (and currently output to 32-bit, sample rate to 48Khz and not the same as input? - should calculate possible delays)
  */
@@ -30,7 +30,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 public unsafe partial class AudioDecoder : DecoderBase
 {
     public AudioStream      AudioStream         => (AudioStream) Stream;
-    public readonly 
+    public readonly
             VideoDecoder    VideoDecoder;
     public ConcurrentQueue<AudioFrame>
                             Frames              { get; protected set; } = new();
@@ -134,7 +134,7 @@ public unsafe partial class AudioDecoder : DecoderBase
         int allowedErrors = Config.Decoder.MaxErrors;
         int sleepMs = Config.Decoder.MaxAudioFrames > 5 && Config.Player.MaxLatency == 0 ? 10 : 4;
         AVPacket *packet;
-        
+
         do
         {
             // Wait until Queue not Full or Stopped
@@ -153,7 +153,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                         break;
 
                     Status = Status.Running;
-                }       
+                }
             }
 
             // While Packets Queue Empty (Ended | Quit if Demuxer stopped | Wait until we get packets)
@@ -207,7 +207,7 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                         break;
                     }
-                    
+
                     Thread.Sleep(sleepMs);
                 }
 
@@ -255,18 +255,18 @@ public unsafe partial class AudioDecoder : DecoderBase
                         if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
                         if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
-                        
+
                         Monitor.Exit(lockCodecCtx); continue;
                     }
                 }
-                
+
                 while (true)
                 {
                     ret = avcodec_receive_frame(codecCtx, frame);
                     if (ret != 0)
                     {
-                        av_frame_unref(frame); 
-                        
+                        av_frame_unref(frame);
+
                         if (ret == AVERROR_EOF && filterGraph != null)
                         {
                             lock (lockSpeed)
@@ -295,7 +295,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                     // We could fix it down to the demuxer based on size?
                     if (frame->duration <= 0)
                         frame->duration = av_rescale_q((long)(frame->nb_samples * sampleRateTimebase), Engine.FFmpeg.AV_TIMEBASE_Q, Stream.AVStream->time_base);
-                    
+
                     bool codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
 
                     if (!filledFromCodec || codecChanged)
@@ -319,7 +319,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                         resyncWithVideoRequired = !VideoDecoder.Disposed;
                         sampleRateTimebase = 1000 * 1000.0 / codecCtx->sample_rate;
                         nextPts = AudioStream.StartTimePts;
-                        
+
                         if (frame->pts == AV_NOPTS_VALUE)
                             frame->pts = nextPts;
 
@@ -372,7 +372,7 @@ public unsafe partial class AudioDecoder : DecoderBase
             } catch { }
 
             Monitor.Exit(lockCodecCtx);
-            
+
         } while (Status == Status.Running);
 
         if (isRecording) { StopRecording(); recCompleted(MediaType.Audio); }
@@ -465,11 +465,11 @@ public unsafe partial class AudioDecoder : DecoderBase
             cBufPos     = 0;
             cBufSamples = samples;
         }
-        
+
     }
 
     #region Recording
-    internal Action<MediaType> 
+    internal Action<MediaType>
             recCompleted;
     Remuxer curRecorder;
     bool    recGotKeyframe;

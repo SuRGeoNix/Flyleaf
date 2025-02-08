@@ -58,7 +58,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
                         foreach (EncodingInfo ei in Encoding.GetEncodings())
                         {
                             Encoding e = ei.GetEncoding();
-                            // 20'127: US-ASCII 
+                            // 20'127: US-ASCII
                             if (e.WindowsCodePage == ansi && e.CodePage != 20127)
                             {
                                 foundFrom = "System Default 2";
@@ -90,7 +90,7 @@ namespace FlyleafLib.Plugins.SubtitlesConverter
                     var filename = Utils.FindNextAvailableFile(Path.Combine(folder, $"{fi.Name.Remove(fi.Name.Length - fi.Extension.Length)}.{Selected.ExternalSubtitlesStream.Language.IdSubLanguage}.utf8.srt"));
 
                     var newUrl = Path.Combine(folder, filename);
-                    
+
                     if (subsEnc != Encoding.UTF8)
                     {
                         Log.Info($"Converting from {subsEnc.BodyName} | Path: {filename} | Detector: {foundFrom}");

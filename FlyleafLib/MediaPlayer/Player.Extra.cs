@@ -17,7 +17,7 @@ unsafe partial class Player
 {
     public bool IsOpenFileDialogOpen    { get; private set; }
 
-    
+
     public void SeekBackward()  => SeekBackward_(Config.Player.SeekOffset);
     public void SeekBackward2() => SeekBackward_(Config.Player.SeekOffset2);
     public void SeekBackward3() => SeekBackward_(Config.Player.SeekOffset3);
@@ -62,7 +62,7 @@ unsafe partial class Player
 
     public void CopyToClipboard()
     {
-        if (decoder.Playlist.Url == null) 
+        if (decoder.Playlist.Url == null)
             Clipboard.SetText("");
         else
             Clipboard.SetText(decoder.Playlist.Url);
@@ -115,7 +115,7 @@ unsafe partial class Player
 
             curTime = vFrame.timestamp;
             renderer.Present(vFrame);
-            reversePlaybackResync = true;                
+            reversePlaybackResync = true;
             vFrame = null;
 
             UI(() => UpdateCurTime());
@@ -144,7 +144,7 @@ unsafe partial class Player
             decoder.RequiresResync = true;
 
             if (shouldFlushNext)
-            {   
+            {
                 decoder.StopThreads();
                 decoder.Flush();
                 shouldFlushNext = false;
@@ -188,7 +188,7 @@ unsafe partial class Player
         lock (lockActions)
         {
             Pause();
-            
+
             if (Status == Status.Ended)
             {
                 status = Status.Paused;

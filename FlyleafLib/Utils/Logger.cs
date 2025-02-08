@@ -124,7 +124,7 @@ public static class Logger
         if (!fileTaskRunning && fileData.Count > Engine.Config.LogCachedLines)
             FlushFileData();
     }
-    
+
     static void FlushFileData()
     {
         fileTaskRunning = true;
@@ -155,7 +155,7 @@ public static class Logger
     internal static void Log(string msg, LogLevel logLevel)
     {
         if (logLevel <= Engine.Config.LogLevel)
-            Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | {logLevels[logLevel]} | {msg}");     
+            Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | {logLevels[logLevel]} | {msg}");
     }
 }
 

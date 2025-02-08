@@ -27,7 +27,7 @@ public partial class Renderer
     int                                     overlayTextureOriginalHeight;
     int                                     overlayTextureOriginalPosX;
     int                                     overlayTextureOriginalPosY;
-    
+
     ID3D11ShaderResourceView[]              overlayTextureSRVs = new ID3D11ShaderResourceView[1];
 
     // Used for off screen rendering

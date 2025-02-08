@@ -49,7 +49,7 @@ namespace FlyleafLib.Controls.WPF
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
             {
                 Visual visual  = (Visual)VisualTreeHelper.GetChild(parent, i);
-                
+
                 if (visual == null) break;
                 if (visual is FrameworkElement)
                 {
@@ -67,7 +67,7 @@ namespace FlyleafLib.Controls.WPF
                             case ComboBox c:
                                 c.GetBindingExpression(ComboBox.SelectedItemProperty).UpdateSource();
                                 break;
-                        } 
+                        }
                     }
                 }
 
@@ -93,7 +93,7 @@ namespace FlyleafLib.Controls.WPF
         private void ValidationNumericPositive(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^[0-9]+$"); }
         private void ValidationNumeric(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^-?[0-9]*$"); }
         private void ValidationRatio(object sender, System.Windows.Input.TextCompositionEventArgs e) { e.Handled = !Regex.IsMatch(e.Text, @"^[0-9\.\,\/\:]+$"); }
-        
+
         private void PluginValueChanged(object sender, RoutedEventArgs e)
         {
             string curPlugin = ((TextBlock)((Panel)((FrameworkElement)sender).Parent).Children[0]).Text;

@@ -133,7 +133,7 @@ internal unsafe partial class ffmpegEx
     {
         public static readonly int Size = 4096;
         fixed byte _[4096];
-    
+
         public byte this[uint i]
         {
             get { if (i >= Size) throw new ArgumentOutOfRangeException(); fixed (byte_array4096* p = &this) { return p->_[i]; } }
@@ -154,7 +154,7 @@ internal unsafe partial class ffmpegEx
     {
         public static readonly int Size = 16;
         fixed byte _[16];
-    
+
         public byte this[uint i]
         {
             get { if (i >= Size) throw new ArgumentOutOfRangeException(); fixed (byte_array16* p = &this) { return p->_[i]; } }
@@ -174,4 +174,3 @@ internal unsafe partial class ffmpegEx
 #pragma warning restore CS0169
 #pragma warning restore CS0649
 }
-    

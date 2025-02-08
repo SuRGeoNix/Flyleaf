@@ -260,7 +260,7 @@ namespace FlyleafLib.Plugins
                 {
                     string title = subs[i].MovieName == null || subs[i].MovieName.Trim() == "" ? null : subs[i].MovieName;
 
-                    if ((title != null && 
+                    if ((title != null &&
                         Selected.Title.ToLower().Contains(title.ToLower())) ||
                         Selected.Title.ToLower().Contains(Utils.GetMediaParts(subs[i].SubFileName).Title.ToLower()))
                     {
@@ -329,7 +329,7 @@ namespace FlyleafLib.Plugins
                     Language= Language.Get(sub.SubLanguageID)
                 }, sub);
             }
-                
+
         }
 
         void CleanSubs(List<OpenSubtitlesOrgJson> subs)

@@ -27,7 +27,7 @@ namespace FlyleafMultiPlayer__WPF_
         public event PropertyChangedEventHandler PropertyChanged;
 
         public ICommand RotatePlayers { get; set; }
-        
+
         List<Player> Players = new List<Player>();
 
         public MainWindow()
@@ -40,7 +40,7 @@ namespace FlyleafMultiPlayer__WPF_
                 LogLevel        = LogLevel.Debug,
                 FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
                 #endif
-                
+
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
             });

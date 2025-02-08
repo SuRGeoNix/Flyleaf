@@ -9,7 +9,7 @@ using static FlyleafLib.Logger;
 
 /* TODO
  * Don't let audio go further than video (because of large duration without video)?
- * 
+ *
  */
 
 namespace FlyleafLib.MediaFramework.MediaContext;
@@ -87,7 +87,7 @@ public unsafe class Downloader : RunThreadBase
     /// <param name="defaultAudio">Whether to open the default audio stream from plugin suggestions</param>
     /// <returns></returns>
     public string Open(Stream stream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true) => Open((object) stream, defaultPlaylistItem, defaultVideo, defaultAudio);
-    
+
     internal string Open(object url, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true)
     {
         lock (lockActions)
@@ -161,7 +161,7 @@ public unsafe class Downloader : RunThreadBase
 
             DecCtx.Dispose();
             Remuxer.Dispose();
-            
+
             Status = Status.Stopped;
             Disposed = true;
         }
@@ -207,7 +207,7 @@ public unsafe class Downloader : RunThreadBase
                     {
                         Status = Status.Ended;
                         if (Demuxer.Interrupter.Interrupted == 0)
-                        { 
+                        {
                             CurTime = _Duration;
                             DownloadPercentage = 100;
                         }
@@ -230,7 +230,7 @@ public unsafe class Downloader : RunThreadBase
 
                         break;
                     }
-                    
+
                     Thread.Sleep(20);
                 }
 

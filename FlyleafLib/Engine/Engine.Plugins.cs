@@ -49,8 +49,8 @@ public class PluginsEngine
     /// <param name="assembly">The assembly to search for plugins</param>
     public void LoadPlugin(Assembly assembly)
     {
-        try 
-        { 
+        try
+        {
             var types = assembly.GetTypes();
 
             foreach (var type in types)

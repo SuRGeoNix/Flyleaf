@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -18,11 +18,11 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
     /*
      * Fix issue with key events / focus (in combination of those we have the issue with DoubleTap for FullScreen)
      * Note: On PointerReleased we can't set the focus element as it will change it after that (that's why a dispatcher is required... for delay)
-     * 
+     *
      *  1) https://github.com/microsoft/microsoft-ui-xaml/issues/7330
      *  2) https://github.com/microsoft/microsoft-ui-xaml/issues/3986
      *  3) https://github.com/microsoft/microsoft-ui-xaml/issues/6179
-     * 
+     *
      */
 
     public SwapChainPanel           SCP         { get; set; } = null!;
@@ -113,7 +113,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
                 SCP.PointerPressed += Scp_PointerPressed;
                 SCP.PointerReleased += SCP_PointerReleased;
             }
-            
+
             //SCP.DoubleTapped += SCP_DoubleTapped; // Disabled causes issues
         }
         else
@@ -168,10 +168,10 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
 
         // De-assign new Player's Handle/FlyleafHost
         Player.Host?.Player_Disposed();
-        
+
         if (Player == null) // We might just de-assign our Player
             return;
-            
+
         // Assign new Player's (Handle/FlyleafHost)
         Log.Debug($"Assign Player #{Player.PlayerId}");
         Player.Host = this;

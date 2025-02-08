@@ -8,11 +8,11 @@ namespace FlyleafLib.Plugins;
 public class OpenDefault : PluginBase, IOpen, IScrapeItem
 {
     /* TODO
-     * 
+     *
      * 1) Current Url Syntax issues
      *  ..\..\..\..\folder\file.mp3 | Cannot handle this
      *  file:///C:/folder/fi%20le.mp3 | FFmpeg & File.Exists cannot handle this
-     * 
+     *
      */
 
     public new int  Priority    { get; set; } = 3000;
@@ -118,7 +118,7 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
                 Playlist.FolderBase = Path.GetTempPath();
             }
             else if (uriType == "unc")
-            { 
+            {
                 Playlist.InputType = InputType.UNC;
                 Playlist.FolderBase = Path.GetTempPath();
             }

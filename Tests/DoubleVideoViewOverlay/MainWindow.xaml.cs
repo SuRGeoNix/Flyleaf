@@ -11,7 +11,7 @@ namespace DoubleFlyleafHostOverlay
 {
     /// <summary>
     /// Testing FlyleafHost within another FlyleafHost
-    /// 
+    ///
     /// This sample demonstrates a second videoview which follows the first videoview's input
     /// and previews the seeking frame/position before the actual seeking on the main player
     /// </summary>
@@ -35,7 +35,7 @@ namespace DoubleFlyleafHostOverlay
                 LogLevel        = LogLevel.Debug,
                 FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
                 #endif
-                
+
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
 
@@ -98,7 +98,7 @@ namespace DoubleFlyleafHostOverlay
 
             IsSeeking = false;
         }
-        
+
         private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (!IsSeeking)

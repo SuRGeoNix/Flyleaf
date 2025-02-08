@@ -5,9 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DoubleFlyleafHostOverlay"
         mc:Ignorable="d"
-        
+
         xmlns:fl="clr-namespace:FlyleafLib.Controls.WPF;assembly=FlyleafLib"
-        
+
         Title="MainWindow" Height="450" Width="800" Background="Black">
     <Grid>
         <fl:FlyleafHost Player="{Binding Player}">
@@ -28,6 +28,6 @@
                 </StackPanel>
             </Grid>
         </fl:FlyleafHost>
-        
+
     </Grid>
 </Window>

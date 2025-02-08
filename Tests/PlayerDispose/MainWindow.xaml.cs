@@ -31,14 +31,14 @@ namespace DisposePlayer
                 LogLevel        = LogLevel.Debug,
                 FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
                 #endif
-                
+
                 PluginsPath     = ":Plugins",
                 FFmpegPath      = ":FFmpeg",
             });
 
             InitializeComponent();
 
-            Closing += (o, e) => 
+            Closing += (o, e) =>
             FlyleafHost?.Dispose();
         }
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -85,9 +85,9 @@ namespace DisposePlayer
 
                     Application.Current.Dispatcher.BeginInvoke(new Action(() => sample1.Close()));
                 });
-                
 
-                
+
+
             }
         }
     }

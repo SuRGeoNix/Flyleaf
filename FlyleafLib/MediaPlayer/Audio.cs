@@ -86,7 +86,7 @@ public class Audio : NotifyPropertyChanged
         {
             if (value > Config.Player.VolumeMax || value < 0)
                 return;
-            
+
             if (value == 0)
                 Mute = true;
             else if (Mute)
@@ -211,11 +211,11 @@ public class Audio : NotifyPropertyChanged
 
                 try
                 {
-	                masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDevice ? null : _Device.Id);
+                    masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDevice ? null : _Device.Id);
                 }
                 catch (Exception) // Win 7/8 compatibility issue https://social.msdn.microsoft.com/Forums/en-US/4989237b-814c-4a7a-8a35-00714d36b327/xaudio2-how-to-get-device-id-for-mastering-voice?forum=windowspro-audiodevelopment
                 {
-                    masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDevice ? null : (@"\\?\swd#mmdevapi#" + _Device.Id.ToLower() + @"#{e6327cad-dcec-4949-ae8a-991e976a79d2}")); 
+                    masteringVoice = xaudio2.CreateMasteringVoice(0, 0, AudioStreamCategory.GameEffects, _Device == Engine.Audio.DefaultDevice ? null : (@"\\?\swd#mmdevapi#" + _Device.Id.ToLower() + @"#{e6327cad-dcec-4949-ae8a-991e976a79d2}"));
                 }
 
                 sourceVoice = xaudio2.CreateSourceVoice(waveFormat, false);
@@ -266,7 +266,7 @@ public class Audio : NotifyPropertyChanged
 
                 submittedSamples += (ulong) (aFrame.dataLen / 4); // ASampleBytes
                 SamplesAdded?.Invoke(this, aFrame);
-            
+
                 audioBuffer.AudioDataPointer= aFrame.dataPtr;
                 audioBuffer.AudioBytes      = (uint)aFrame.dataLen;
                 sourceVoice.SubmitSourceBuffer(audioBuffer);
