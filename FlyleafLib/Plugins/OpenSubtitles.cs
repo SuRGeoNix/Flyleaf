@@ -27,7 +27,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
         {
             FileInfo fi = new(url);
             title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
-            converted = fi.Extension.Equals(".sub", StringComparison.OrdinalIgnoreCase);
+            converted = Utils.ExtensionsSubtitlesBitmap.Contains(fi.Extension.TrimStart('.').ToLower());
         }
         catch { title = url; }
 
@@ -92,7 +92,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 bool converted = false;
                 var lang = Language.Unknown;
 
-                if (fi.Extension.Equals(".sub", StringComparison.OrdinalIgnoreCase))
+                if (Utils.ExtensionsSubtitlesBitmap.Contains(fi.Extension.TrimStart('.').ToLower()))
                 {
                     title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
                     converted = true;
