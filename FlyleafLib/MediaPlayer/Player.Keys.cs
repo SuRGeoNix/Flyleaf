@@ -520,7 +520,8 @@ public class KeysConfig
         { KeyBindingAction.SpeedRemove2 },
         { KeyBindingAction.ForceIdle },
         { KeyBindingAction.ForceActive },
-        { KeyBindingAction.ForceFullActive }
+        { KeyBindingAction.ForceFullActive },
+        { KeyBindingAction.ResetAll }
     };
 }
 public class KeyBinding
