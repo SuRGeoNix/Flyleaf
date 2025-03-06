@@ -95,7 +95,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
 
     static int idGenerator;
     bool surfaceClosed, surfaceClosing, overlayClosed;
-    static bool isDesginMode;
+    static bool isDesignMode;
     int panPrevX, panPrevY;
     bool ownedRestoreToMaximize;
     bool isMouseBindingsSubscribedSurface;
@@ -427,7 +427,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     #region Events
     private static void OnMouseBindings(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -437,7 +437,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnDetachedTopMostChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -459,7 +459,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnCurResizeRatioChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -481,7 +481,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnKeepRatioOnResizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -491,7 +491,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -499,7 +499,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnIsFullScreenChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -507,7 +507,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnIsMinimizedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -515,7 +515,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnIsAttachedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -542,7 +542,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnOverlayTemplateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -555,7 +555,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     {
         FlyleafHostOld host = d as FlyleafHostOld;
 
-        if (!isDesginMode)
+        if (!isDesignMode)
             host.SetOverlay();
         else
         {
@@ -564,7 +564,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static void OnCornerRadiusChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -594,7 +594,7 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     }
     private static object OnContentChanging(DependencyObject d, object baseValue)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return baseValue;
 
         FlyleafHostOld host = d as FlyleafHostOld;
@@ -1307,8 +1307,8 @@ public class FlyleafHostOld : ContentControl, IHostPlayer, IDisposable
     public FlyleafHostOld()
     {
         UniqueId = idGenerator++;
-        isDesginMode = DesignerProperties.GetIsInDesignMode(this);
-        if (isDesginMode)
+        isDesignMode = DesignerProperties.GetIsInDesignMode(this);
+        if (isDesignMode)
             return;
 
         MarginTarget = this;
