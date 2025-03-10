@@ -39,7 +39,7 @@ public class FlyleafSharedOverlay : ContentControl
 
     private static object OnContentChanging(DependencyObject d, object baseValue)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return baseValue;
 
         FlyleafSharedOverlay host = d as FlyleafSharedOverlay;
@@ -48,7 +48,7 @@ public class FlyleafSharedOverlay : ContentControl
     }
     private static void OnOverlayTemplateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         FlyleafHost host = d as FlyleafHost;
@@ -61,7 +61,7 @@ public class FlyleafSharedOverlay : ContentControl
     public Window       Overlay         { get; private set; } = new Window() { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true };
     public IntPtr       OverlayHandle   { get; private set; }
 
-    static bool isDesginMode;
+    static bool isDesignMode;
     Point zeroPoint = new(0, 0);
     static Rect rectRandom = new(1, 2, 3, 4);
     Rect rectIntersectLast = rectRandom;
@@ -74,8 +74,8 @@ public class FlyleafSharedOverlay : ContentControl
     }
     public FlyleafSharedOverlay()
     {
-        isDesginMode = DesignerProperties.GetIsInDesignMode(this);
-        if (isDesginMode)
+        isDesignMode = DesignerProperties.GetIsInDesignMode(this);
+        if (isDesignMode)
             return;
 
         Loaded              += Host_Loaded;
@@ -84,7 +84,7 @@ public class FlyleafSharedOverlay : ContentControl
 
     private void Host_Loaded(object sender, RoutedEventArgs e)
     {
-        if (isDesginMode)
+        if (isDesignMode)
             return;
 
         Owner                   = Window.GetWindow(this);
