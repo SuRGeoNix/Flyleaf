@@ -140,7 +140,26 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// <summary>
     /// Player's Status
     /// </summary>
-    public Status       Status              { get => status;            private set => Set(ref _Status, value); }
+    public Status       Status
+    {
+        get => status;
+        private set
+        {
+            if (Set(ref _Status, value))
+            {
+                // Loop Playback
+                if (value == Status.Ended)
+                {
+                    if (LoopPlayback && !ReversePlayback)
+                    {
+                        int seekMs = (int)(MainDemuxer.StartTime == 0 ? 0 : MainDemuxer.StartTime / 10000);
+                        Seek(seekMs);
+                    }
+                }
+            }
+        }
+    }
+
     Status _Status = Status.Stopped, status = Status.Stopped;
     public bool         IsPlaying           => status == Status.Playing;
 
@@ -375,6 +394,9 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         }
     }
     bool _ReversePlayback;
+
+    public bool         LoopPlayback        { get => _LoopPlayback; set => Set(ref _LoopPlayback, value); }
+    bool _LoopPlayback;
 
     public object       Tag                 { get => tag; set => Set(ref  tag, value); }
     object tag;
