@@ -163,6 +163,7 @@
             <MenuItem Header="H. Flip" IsCheckable="True" IsChecked="{Binding Player.HFlip}"/>
             <MenuItem Header="V. Flip" IsCheckable="True" IsChecked="{Binding Player.VFlip}"/>
             <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
+            <MenuItem Header="Loop Playback"    IsCheckable="True" IsChecked="{Binding Player.LoopPlayback}"/>
             <MenuItem Header="{Binding Player.Speed}" HeaderStringFormat="Speed (x{0})">
                 <MenuItem Header=" x 8"     CommandParameter="8"    Command="{Binding Player.Commands.SpeedSet}"/>
                 <MenuItem Header=" x 4"     CommandParameter="4"    Command="{Binding Player.Commands.SpeedSet}"/>
