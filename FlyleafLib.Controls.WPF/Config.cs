@@ -12,7 +12,6 @@ namespace FlyleafLib.Controls.WPF
 {
     public class UIConfig : NotifyPropertyChanged
     {
-        [XmlIgnore]
         [JsonIgnore]
         public bool         Loaded              { get; private set; }
 
@@ -37,7 +36,6 @@ namespace FlyleafLib.Controls.WPF
         string _SubsFontStyle;
         public Thickness    SubsMargin          { get => _SubsMargin;           set { Set(ref _SubsMargin, value); UpdateSubsMargin(); } }
         Thickness _SubsMargin;
-        [XmlIgnore]
         [JsonIgnore]
         public Thickness    SubsMargin2         { get => _SubsMargin2;          set => Set(ref _SubsMargin2, value); }
         Thickness _SubsMargin2;
@@ -92,7 +90,6 @@ namespace FlyleafLib.Controls.WPF
 
     public class UITheme : NotifyPropertyChanged
     {
-        [XmlIgnore]
         [JsonIgnore]
         public FlyleafME flyleaf;
 

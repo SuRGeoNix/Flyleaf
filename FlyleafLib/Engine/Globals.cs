@@ -209,7 +209,6 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler PropertyChanged;
 
-    //[System.Xml.Serialization.XmlIgnore]
     //public bool DisableNotifications { get; set; }
 
     //private static bool IsUI() => System.Threading.Thread.CurrentThread.ManagedThreadId == System.Windows.Application.Current.Dispatcher.Thread.ManagedThreadId;

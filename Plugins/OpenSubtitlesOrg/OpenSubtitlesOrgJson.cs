@@ -14,7 +14,6 @@
 
         public string MatchedBy { get; set; }
         public string IDSubMovieFile { get; set; }
-        [System.Xml.Serialization.XmlIgnore]
         public string MovieHash { get; set; }
         public string MovieByteSize { get; set; }
         public string MovieTimeMS { get; set; }
