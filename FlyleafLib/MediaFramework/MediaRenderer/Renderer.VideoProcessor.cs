@@ -586,7 +586,6 @@ public class VideoFilter : NotifyPropertyChanged
     internal Renderer renderer;
 
     [JsonIgnore]
-    [XmlIgnore]
     public bool         Available   { get => _Available;    set => SetUI(ref _Available, value); }
     bool _Available;
 
