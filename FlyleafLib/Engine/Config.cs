@@ -32,7 +32,7 @@ public class Config : NotifyPropertyChanged
 
             if (defaultOptions == null || defaultOptions.Count == 0) continue;
 
-            Plugins.Add(plugin.Name, new SerializableDictionary<string, string>());
+            Plugins.Add(plugin.Name, new ObservableDictionary<string, string>());
             foreach (var opt in defaultOptions)
                 Plugins[plugin.Name].Add(opt.Key, opt.Value);
         }
@@ -109,7 +109,7 @@ public class Config : NotifyPropertyChanged
     public SubtitlesConfig  Subtitles   { get; set; } = new SubtitlesConfig();
     public DataConfig       Data        { get; set; } = new DataConfig();
 
-    public SerializableDictionary<string, SerializableDictionary<string, string>>
+    public Dictionary<string, ObservableDictionary<string, string>>
                             Plugins     { get; set; } = new();
     public class PlayerConfig : NotifyPropertyChanged
     {
@@ -276,9 +276,9 @@ public class Config : NotifyPropertyChanged
         {
             DemuxerConfig demuxer = (DemuxerConfig) MemberwiseClone();
 
-            demuxer.FormatOpt       = new SerializableDictionary<string, string>();
-            demuxer.AudioFormatOpt  = new SerializableDictionary<string, string>();
-            demuxer.SubtitlesFormatOpt = new SerializableDictionary<string, string>();
+            demuxer.FormatOpt       = new Dictionary<string, string>();
+            demuxer.AudioFormatOpt  = new Dictionary<string, string>();
+            demuxer.SubtitlesFormatOpt = new Dictionary<string, string>();
 
             foreach (var kv in FormatOpt) demuxer.FormatOpt.Add(kv.Key, kv.Value);
             foreach (var kv in AudioFormatOpt) demuxer.AudioFormatOpt.Add(kv.Key, kv.Value);
@@ -419,26 +419,26 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// HTTP Query String parameters to pass to underlying
         /// </summary>
-        public SerializableDictionary<string, string>
+        public Dictionary<string, string>
                                 ExtraHTTPQueryParamsToUnderlying
                                                 { get; set; } = new();
 
         /// <summary>
         /// FFmpeg's format options for demuxer
         /// </summary>
-        public SerializableDictionary<string, string>
+        public Dictionary<string, string>
                                 FormatOpt       { get; set; } = DefaultVideoFormatOpt();
-        public SerializableDictionary<string, string>
+        public Dictionary<string, string>
                                 AudioFormatOpt  { get; set; } = DefaultVideoFormatOpt();
 
-        public SerializableDictionary<string, string>
+        public Dictionary<string, string>
                                 SubtitlesFormatOpt  { get; set; } = DefaultVideoFormatOpt();
 
-        public static SerializableDictionary<string, string> DefaultVideoFormatOpt()
+        public static Dictionary<string, string> DefaultVideoFormatOpt()
         {
             // TODO: Those should be set based on the demuxer format/protocol (to avoid false warnings about invalid options and best fit for the input, eg. live stream)
 
-            SerializableDictionary<string, string> defaults = new()
+            Dictionary<string, string> defaults = new()
             {
                 // General
                 { "probesize",          (50 * (long)1024 * 1024).ToString() },      // (Bytes) Default 5MB | Higher for weird formats (such as .ts?) and 4K/Hevc
@@ -464,7 +464,7 @@ public class Config : NotifyPropertyChanged
             return defaults;
         }
 
-        public SerializableDictionary<string, string> GetFormatOptPtr(MediaType type)
+        public Dictionary<string, string> GetFormatOptPtr(MediaType type)
             => type == MediaType.Video ? FormatOpt : type == MediaType.Audio ? AudioFormatOpt : SubtitlesFormatOpt;
     }
     public class DecoderConfig : NotifyPropertyChanged
@@ -536,14 +536,14 @@ public class Config : NotifyPropertyChanged
         public bool             LowDelay        { get => _LowDelay; set => SetUI(ref _LowDelay, value); }
         bool _LowDelay;
 
-        public SerializableDictionary<string, string>
+        public Dictionary<string, string>
                                 AudioCodecOpt       { get; set; } = new();
-        public SerializableDictionary<string, string>
+        public Dictionary<string, string>
                                 VideoCodecOpt       { get; set; } = new();
-        public SerializableDictionary<string, string>
+        public Dictionary<string, string>
                                 SubtitlesCodecOpt   { get; set; } = new();
 
-        public SerializableDictionary<string, string> GetCodecOptPtr(MediaType type)
+        public Dictionary<string, string> GetCodecOptPtr(MediaType type)
             => type == MediaType.Video ? VideoCodecOpt : type == MediaType.Audio ? AudioCodecOpt : SubtitlesCodecOpt;
     }
     public class VideoConfig : NotifyPropertyChanged
@@ -702,11 +702,11 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public bool             SwapForceR8G8B8A8           { get; set; }
 
-        public SerializableDictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
+        public Dictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
 
-        public static SerializableDictionary<VideoFilters, VideoFilter> DefaultFilters()
+        public static Dictionary<VideoFilters, VideoFilter> DefaultFilters()
         {
-            SerializableDictionary<VideoFilters, VideoFilter> filters = new();
+            Dictionary<VideoFilters, VideoFilter> filters = new();
 
             var available = Enum.GetValues(typeof(VideoFilters));
 

@@ -35,7 +35,7 @@ namespace FlyleafLib.Plugins
         List<string>    sortedPaths;
         long            openId;
         long            openItemId;
-        static SerializableDictionary<string, string>
+        static Dictionary<string, string>
                         defaultOptions;
 
         public override void OnLoaded()
@@ -47,12 +47,12 @@ namespace FlyleafLib.Plugins
                 Options_PropertyChanged(this, new PropertyChangedEventArgs(prop.Name));
         }
 
-        public override SerializableDictionary<string, string> GetDefaultOptions()
+        public override Dictionary<string, string> GetDefaultOptions()
         {
             if (defaultOptions != null)
                 return defaultOptions;
 
-            defaultOptions = new SerializableDictionary<string, string>();
+            defaultOptions = new Dictionary<string, string>();
 
             var cfg = new TorrentOptions();
             foreach (var prop in cfg.GetType().GetProperties())
