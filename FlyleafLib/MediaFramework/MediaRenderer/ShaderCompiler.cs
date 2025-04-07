@@ -322,8 +322,12 @@ float4 main(PSInput input) : SV_TARGET
     color = mul(color, coefs[coefsIndex]);
 #endif
 
-
-    // HDR
+    //Get the Alpha of yuva420p/yuva422p/yuva444p
+#if defined(YUVA)
+    color.a = Texture4.Sample(Sampler, input.Texture).r;
+#endif
+    
+	// HDR
 #if defined(HDR)
     // BT2020 -> BT709
     color.rgb = pow(max(0.0, color.rgb), 2.4f);
@@ -364,7 +368,9 @@ float4 main(PSInput input) : SV_TARGET
     color *= contrast * 2.0f;
     color += brightness - 0.5f;
 
-    return color;
+    if(color.a < 1.0f)
+        color.rgb *= color.a;
+	return color;
 }
 ";
 

@@ -643,6 +643,11 @@ public class Config : NotifyPropertyChanged
         public bool             VideoAcceleration           { get; set; } = true;
 
         /// <summary>
+        /// Set the video codec (name) want,but it depend on device
+        /// </summary>
+        public string           Codec                       { get; set; }
+
+        /// <summary>
         /// Whether to use embedded video processor with custom pixel shaders or D3D11<br/>
         /// (Currently D3D11 works only on video accelerated / hardware surfaces)<br/>
         /// * FLVP supports HDR to SDR, D3D11 does not<br/>

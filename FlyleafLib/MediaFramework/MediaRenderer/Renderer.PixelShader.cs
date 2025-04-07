@@ -19,7 +19,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 unsafe public partial class Renderer
 {
     static string[] pixelOffsets = new[] { "r", "g", "b", "a" };
-    enum PSDefines { HDR, HLG, YUV }
+    enum PSDefines { HDR, HLG, YUV, YUVA }
     enum PSCase : int
     {
         None,
@@ -276,7 +276,7 @@ unsafe public partial class Renderer
                                 offsets += pixelOffsets[(int) (VideoStream.PixelComps[i].offset / Math.Ceiling(VideoStream.PixelComp0Depth / 8.0))];
 
                             curPSUniqueId += offsets;
-
+                            
                             if (VideoStream.PixelComps.Length > 3)
                                 SetPS(curPSUniqueId, $"color = Texture1.Sample(Sampler, input.Texture).{offsets};");
                             else
@@ -484,18 +484,21 @@ unsafe public partial class Renderer
                             textDesc[1].Height  = textDesc[2].Height= VideoStream.PixelFormatDesc->log2_chroma_h > 0 ? (VideoStream.Height + 1) >> VideoStream.PixelFormatDesc->log2_chroma_h : VideoStream.Height >> VideoStream.PixelFormatDesc->log2_chroma_h;
 
                             string shader = @"
-        color.r = Texture1.Sample(Sampler, input.Texture).r;
-        color.g = Texture2.Sample(Sampler, input.Texture).r;
-        color.b = Texture3.Sample(Sampler, input.Texture).r;
+        color = float4(
+            Texture1.Sample(Sampler, input.Texture).r,
+            Texture2.Sample(Sampler, input.Texture).r,
+            Texture3.Sample(Sampler, input.Texture).r,
+            1.0);
     ";
 
                             if (VideoStream.PixelPlanes == 4)
                             {
                                 curPSUniqueId += "x";
 
-                                shader += @"
-        color.a = Texture4.Sample(Sampler, input.Texture).r;
-    ";
+                                defines.Add(PSDefines.YUVA.ToString());//yuva, ShaderCompiler.cs line-327
+    //                            shader += @"
+    //    color.a = Texture4.Sample(Sampler, input.Texture).r;
+    //";
                             }
 
                             if (VideoStream.PixelComp0Depth > 8)
@@ -517,9 +520,7 @@ unsafe public partial class Renderer
                                     textDesc[i].Format = srvDesc[i].Format = Format.R8_UNorm;
                             }
 
-                            SetPS(curPSUniqueId, shader + @"
-        color.a = 1;
-    ", defines);
+                            SetPS(curPSUniqueId, shader , defines);
                         }
                     }
                 }
@@ -557,7 +558,8 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
 
             //AV_PIX_FMT_FLAG_ALPHA (currently used only for RGBA?)
             //context.OMSetBlendState(curPSCase == PSCase.RGBPacked || (curPSCase == PSCase.RGBPlanar && VideoStream.PixelPlanes == 4) ? blendStateAlpha : null);
-            context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
+            //for alpha channel , can not set blend state 
+            //context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
 
             Log.Debug($"Prepared planes for {VideoStream.PixelFormatStr} with {videoProcessor} [{curPSCase}]");
 
