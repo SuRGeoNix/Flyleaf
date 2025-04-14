@@ -1,7 +1,5 @@
 ﻿using System.Collections.Generic;
 
-using static Flyleaf.FFmpeg.ffmpegEx;
-
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaStream;
@@ -12,7 +10,7 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
 
     public Demuxer                      Demuxer             { get; internal set; }
     public AVStream*                    AVStream            { get; internal set; }
-    internal HLSPlaylist*               HLSPlaylist         { get; set; }
+    internal playlist*                  HLSPlaylist         { get; set; }
     public int                          StreamIndex         { get; internal set; } = -1;
     public double                       Timebase            { get; internal set; }
 
@@ -56,7 +54,7 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
         {
             for (int i=0; i<Demuxer.hlsCtx->n_playlists; i++)
             {
-                HLSPlaylist** playlists = (HLSPlaylist**) Demuxer.hlsCtx->playlists;
+                playlist** playlists = Demuxer.hlsCtx->playlists;
                 for (int l=0; l<playlists[i]->n_main_streams; l++)
                     if (playlists[i]->main_streams[l]->index == StreamIndex)
                     {

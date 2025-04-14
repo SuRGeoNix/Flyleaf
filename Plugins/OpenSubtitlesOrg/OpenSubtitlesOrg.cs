@@ -212,6 +212,7 @@ namespace FlyleafLib.Plugins
         {
             List<OpenSubtitlesOrgJson> subsCopy = new List<OpenSubtitlesOrgJson>();
 
+            name = name.ToLower();
             if (cache.ContainsKey(name + "|" + lang))
             {
                 foreach (OpenSubtitlesOrgJson sub in cache[name + "|" + lang]) subsCopy.Add(sub);
@@ -229,8 +230,9 @@ namespace FlyleafLib.Plugins
 
                 try
                 {
-                    Log.Debug($"Searching for /query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}");
-                    resp = client.PostAsync($"{restUrl}/query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}", null).Result.Content.ReadAsStringAsync().Result;
+                    var qr = $"/query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}";
+                    Log.Debug($"Searching for {qr}");
+                    resp = client.PostAsync($"{restUrl}{qr}", null).Result.Content.ReadAsStringAsync().Result;
                     subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
                     Log.Debug($"Search Results {subs.Count}");
 
