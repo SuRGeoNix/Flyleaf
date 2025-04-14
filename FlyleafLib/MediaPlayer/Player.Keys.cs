@@ -436,6 +436,9 @@ public class KeysConfig
             case KeyBindingAction.ToggleReversePlayback:
                 return player.ToggleReversePlayback;
 
+            case KeyBindingAction.ToggleLoopPlayback:
+                return player.ToggleLoopPlayback;
+
             case KeyBindingAction.ToggleSeekAccurate:
                 return player.ToggleSeekAccurate;
 
@@ -509,6 +512,7 @@ public class KeysConfig
         { KeyBindingAction.TogglePlayPause },
         { KeyBindingAction.ToggleRecording },
         { KeyBindingAction.ToggleReversePlayback },
+        { KeyBindingAction.ToggleLoopPlayback },
         { KeyBindingAction.Play },
         { KeyBindingAction.Pause },
         { KeyBindingAction.Stop },
@@ -558,7 +562,7 @@ public enum KeyBindingAction
     SubtitlesDelayAdd, SubtitlesDelayAdd2, SubtitlesDelayRemove, SubtitlesDelayRemove2,
 
     CopyToClipboard, CopyItemToClipboard, OpenFromClipboard, OpenFromFileDialog,
-    Stop, Pause, Play, TogglePlayPause, ToggleReversePlayback, Flush,
+    Stop, Pause, Play, TogglePlayPause, ToggleReversePlayback, ToggleLoopPlayback, Flush,
     TakeSnapshot,
     NormalScreen, FullScreen, ToggleFullScreen,
 
