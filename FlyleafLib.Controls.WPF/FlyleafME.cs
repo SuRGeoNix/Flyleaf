@@ -54,7 +54,7 @@ namespace FlyleafLib.Controls.WPF
         public AudioEngine  AudioEngine         => Engine.Audio;
         public EngineConfig ConfigEngine        => Engine.Config;
 
-        public SerializableDictionary<string, SerializableDictionary<string, string>>
+        public Dictionary<string, ObservableDictionary<string, string>>
                             PluginsConfig       => Config?.Plugins;
 
         public bool         ShowDebug           { get => _ShowDebug; set { Set(ref _ShowDebug, value); Config.Player.Stats = value; } }

@@ -586,7 +586,6 @@ public class VideoFilter : NotifyPropertyChanged
     internal Renderer renderer;
 
     [JsonIgnore]
-    [XmlIgnore]
     public bool         Available   { get => _Available;    set => SetUI(ref _Available, value); }
     bool _Available;
 
@@ -624,5 +623,5 @@ public class VideoProcessorCapsCache
     public VideoProcessorCaps               VideoProcessorCaps;
     public VideoProcessorRateConversionCaps VideoProcessorRateConversionCaps;
 
-    public SerializableDictionary<VideoFilters, VideoFilter> Filters { get; set; } = new SerializableDictionary<VideoFilters, VideoFilter>();
+    public Dictionary<VideoFilters, VideoFilter> Filters { get; set; } = new();
 }
