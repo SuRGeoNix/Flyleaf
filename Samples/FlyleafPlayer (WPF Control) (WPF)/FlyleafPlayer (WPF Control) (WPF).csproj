@@ -25,19 +25,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MaterialDesignThemes" Version="5.1.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Resource Include="Flyleaf.ico" />
   </ItemGroup>
 
   <Target Name="PostPublish" AfterTargets="Publish">
-    <Exec Command="del /S /F /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;del /S /F /Q &quot;$(PublishDir)FFmpeg\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)FFmpeg\&quot;&#xD;&#xA;del &quot;$(PublishDir)*.pdb&quot;&#xD;&#xA;del &quot;$(PublishDir)*.xml&quot;&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(PublishDir)Plugins&quot; mkdir &quot;$(PublishDir)Plugins&quot;&#xD;&#xA;if not exist &quot;$(PublishDir)FFmpeg&quot; mkdir &quot;$(PublishDir)FFmpeg&quot;&#xD;&#xA;&#xD;&#xA;xcopy &quot;$(SolutionDir)FFmpeg\*&quot; &quot;$(PublishDir)FFmpeg\&quot; /E /Y&#xD;&#xA;xcopy &quot;$(SolutionDir)\Plugins\bin\Plugins.NET8\*&quot; &quot;$(PublishDir)Plugins\&quot; /E /Y" />
+    <Exec Command="del /S /F /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)Plugins\&quot;&#xD;&#xA;del /S /F /Q &quot;$(PublishDir)FFmpeg\&quot;&#xD;&#xA;rmdir /S /Q &quot;$(PublishDir)FFmpeg\&quot;&#xD;&#xA;del &quot;$(PublishDir)*.pdb&quot;&#xD;&#xA;del &quot;$(PublishDir)*.xml&quot;&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(PublishDir)Plugins&quot; mkdir &quot;$(PublishDir)Plugins&quot;&#xD;&#xA;if not exist &quot;$(PublishDir)FFmpeg&quot; mkdir &quot;$(PublishDir)FFmpeg&quot;&#xD;&#xA;&#xD;&#xA;xcopy &quot;$(SolutionDir)FFmpeg\*&quot; &quot;$(PublishDir)FFmpeg\&quot; /E /Y&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\bin\Plugins.NET8\*&quot; &quot;$(PublishDir)Plugins\&quot; /E /Y" />
   </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)\Plugins\bin\Plugins.NET8\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
+    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\bin\Plugins.NET8\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
   </Target>
 
 </Project>

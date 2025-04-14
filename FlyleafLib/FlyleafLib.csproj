@@ -8,21 +8,21 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.2</Version>
+	<Version>3.8.3</Version>
 	<Authors>SuRGeoNix</Authors>
-	<Copyright>SuRGeoNix © 2024</Copyright>
+	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
 	<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework download extract ffmpeg vortice directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Config: Update viewport when Config.Video.CustomAspectRatio changes
-		- FFmpeg Libraries: Fixes HLS seek patch
-		- Player: Exposes player to Audio/Video/Subtitles
-		- Player: Fixes an issue with resolving windows link files in external fs
-		- Plugins.SubtitlesConverter: Fixes a critical issue by restoring code which removed by mistake after deprecating .NETFramework in 3.8.1
-		- Plugins.YoutubeDL: Improved video stream selection for YT
+		- Dependencies: Updates FFmpeg to v7.1.1 (48c0f071d4+patched for HLS)
+		- Player: Allows to open any input as subtitles by using forceSubtitles = true
+		- Player: Adds an addtional (3rd) Seek Backward/Forward KeyBinding action
+		- Player: Sets ResetAll KeyBinding to fire on KeyUp
+		- Player: Fixes a UI update issue with Playlist
+		- Player: Adds Loop Playback support
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -44,21 +44,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<Import Include="System" />
-    <Import Include="System.Drawing" />
-    <Import Include="System.Net.Http" />
-    <Import Include="System.Numerics" />
-    <Import Include="System.Windows" />
-    <Import Include="System.Windows.Forms" />
-    <Import Include="System.Xaml" />
-    <Import Include="System.Xml.Linq" />
-    <Import Include="Microsoft.CSharp" />
-    <Import Include="System.Xml" />
-    <Import Include="WindowsBase" />
-    <Import Include="WindowsFormsIntegration" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="..\Images\Flyleaf.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
@@ -66,13 +51,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Flyleaf.FFmpeg.Bindings" Version="7.1.0" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
-    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
-    <PackageReference Include="Vortice.DirectComposition" Version="3.6.2" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.9.2" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="3.6.2" />
-    <PackageReference Include="Vortice.XAudio2" Version="3.6.2" />
+	<PackageReference Include="Flyleaf.FFmpeg.Bindings" Version="7.1.1" />
+	<PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
+	<PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
+	<PackageReference Include="Vortice.DirectComposition" Version="3.6.2" />
+	<PackageReference Include="Vortice.Mathematics" Version="1.9.2" />
+	<PackageReference Include="Vortice.MediaFoundation" Version="3.6.2" />
+	<PackageReference Include="Vortice.XAudio2" Version="3.6.2" />
   </ItemGroup>
 
 </Project>
