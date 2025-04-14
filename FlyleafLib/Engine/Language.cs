@@ -16,23 +16,18 @@ public class Language : IEquatable<Language>
     string _CultureName;
 
     [JsonIgnore]
-    [XmlIgnore]
     public string       TopEnglishName    { get; private set; }
 
     [JsonIgnore]
-    [XmlIgnore]
     public CultureInfo  Culture         { get; private set; }
 
     [JsonIgnore]
-    [XmlIgnore]
     public CultureInfo  TopCulture      { get; private set; }
 
     [JsonIgnore]
-    [XmlIgnore]
     public string       IdSubLanguage   { get; private set; } // Can search for online subtitles with this id
 
     [JsonIgnore]
-    [XmlIgnore]
     public string       OriginalInput   { get; private set; } // Only for Undetermined language (return clone)
 
 
