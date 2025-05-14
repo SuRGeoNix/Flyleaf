@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json.Serialization;
-using System.Xml.Serialization;
-
 using Vortice.DXGI;
 using Vortice.Direct3D11;
 

@@ -25,7 +25,7 @@ namespace FlyleafLib.Plugins
         public TorrentStream    TorrentStream       { get; private set; }
 
         BitSwarm        bitSwarm;
-        TorrentOptions  cfg = new TorrentOptions();
+        TorrentOptions  cfg = new();
         Torrent         torrent;
         string          errorMsg;
         int             fileIndex;
@@ -52,9 +52,9 @@ namespace FlyleafLib.Plugins
             if (defaultOptions != null)
                 return defaultOptions;
 
-            defaultOptions = new Dictionary<string, string>();
+            defaultOptions = [];
 
-            var cfg = new TorrentOptions();
+            TorrentOptions cfg = new();
             foreach (var prop in cfg.GetType().GetProperties())
                 defaultOptions.Add(prop.Name, prop.GetValue(cfg).ToString());
 
@@ -170,10 +170,6 @@ namespace FlyleafLib.Plugins
                     else
                         item.Title = path;
 
-                    string ext = GetUrlExtention(item.Title);
-                    if (ext != null && ext.Length < 5)
-                        item.Title = item.Title.Substring(0, item.Title.Length - ext.Length -1);
-
                     item.FileSize = torrent.file.lengths[fileIndex];
 
                     if (torrent.data.files[fileIndex] != null && torrent.data.files[fileIndex].Created)
@@ -219,9 +215,7 @@ namespace FlyleafLib.Plugins
         }
 
         public bool CanOpen()
-        {
-            return ValidateInput(Playlist.Url) != BitSwarm.InputType.Unkown;
-        }
+            => ValidateInput(Playlist.Url) != BitSwarm.InputType.Unkown;
 
         public OpenResults Open()
         {
@@ -244,24 +238,24 @@ namespace FlyleafLib.Plugins
 
                 while (!torrentReceived && errorMsg == null && !Handler.Interrupt && openId == Handler.OpenCounter) { Thread.Sleep(35); }
 
-                if (!string.IsNullOrEmpty(errorMsg)) { Dispose(); return new OpenResults(errorMsg); }
+                if (!string.IsNullOrEmpty(errorMsg)) { Dispose(); return new(errorMsg); }
 
                 if (Handler.Interrupt || openId != Handler.OpenCounter) { Dispose(); return null; }
 
-                if (sortedPaths == null || sortedPaths.Count == 0) { Dispose(); return new OpenResults("No video files found in torrent"); }
+                if (sortedPaths == null || sortedPaths.Count == 0) { Dispose(); return new("No video files found in torrent"); }
 
-                return new OpenResults();
+                return new();
             }
             catch(Exception e)
             {
                 if (Regex.IsMatch(e.Message, "completed or is invalid"))
                 {
                     MetadataReceived(this, new MetadataReceivedArgs(bitSwarm.torrent));
-                    return new OpenResults();
+                    return new();
                 }
 
                 Log.Error("Error ... " + e.Message);
-                return new OpenResults(e.Message);
+                return new(e.Message);
             }
         }
 
@@ -293,7 +287,7 @@ namespace FlyleafLib.Plugins
             {
                 TorrentStream = torrent.GetTorrentStream(FileName);
                 Selected.IOStream  = TorrentStream;
-                bitSwarm.IncludeFiles(new List<string>() { FileName });
+                bitSwarm.IncludeFiles([FileName]);
                 if (!bitSwarm.isRunning) { Log.Info("Starting"); bitSwarm.Start(); }
 
                 // Prepare for subs
@@ -327,9 +321,9 @@ namespace FlyleafLib.Plugins
                 if (!DownloadNext()) { Log.Info("Pausing"); bitSwarm.Pause(); }
             }
             else
-                return new OpenResults("File not found");
+                return new("File not found");
 
-            return new OpenResults();
+            return new();
         }
 
         public class TorrentOptions : Options

@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaPlaylist;
@@ -12,48 +11,72 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
 
     public OpenSubtitlesResults Open(string url)
     {
-        /* TODO
-         * 1) Identify language
-         */
-
         foreach(var extStream in Selected.ExternalSubtitlesStreams)
             if (extStream.Url == url)
-                return new OpenSubtitlesResults(extStream);
+                return new(extStream);
 
-        string title;
-        bool converted = false;
+        string      title;
+        bool        converted   = false;
+        Language    lang        = Language.Unknown;
 
-        try
+        if (File.Exists(url))
         {
-            FileInfo fi = new(url);
-            title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
-            converted = Utils.ExtensionsSubtitlesBitmap.Contains(fi.Extension.TrimStart('.').ToLower());
-        }
-        catch { title = url; }
+            Selected.FillMediaParts();
 
+            FileInfo fi = new(url);
+            title       = fi.Name;
+            
+            if (title.Contains(".utf8"))
+            {
+                converted = true;
+
+                if (!title.Contains($".{Language.Unknown.IdSubLanguage}.utf8"))
+                    foreach (var lang2 in Config.Subtitles.Languages)
+                        if (title.Contains($".{lang2.IdSubLanguage}.utf8", StringComparison.OrdinalIgnoreCase))
+                            { lang = lang2; break; }
+            }
+            else if (Utils.ExtensionsSubtitlesBitmap.Contains(Utils.GetUrlExtention(title)))
+                converted = true;
+        }
+        else
+        {
+            try
+            {
+                Uri uri = new(url);
+                title = Path.GetFileName(uri.LocalPath);
+                if (Utils.ExtensionsSubtitlesBitmap.Contains(Utils.GetUrlExtention(title)))
+                    converted = true;
+
+                if (title == null || title.Trim().Length == 0)
+                    title = url;
+
+            } catch
+            {
+                if (Utils.ExtensionsSubtitlesBitmap.Contains(Utils.GetUrlExtention(url)))
+                    converted = true;
+
+                title = url;
+            }
+        }
+        
         ExternalSubtitlesStream newExtStream = new()
         {
             Url         = url,
             Title       = title,
             Downloaded  = true,
-            Converted   = converted
+            Converted   = converted,
+            Language    = lang
         };
 
         AddExternalStream(newExtStream);
 
-        return new OpenSubtitlesResults(newExtStream);
+        return new(newExtStream);
     }
 
     public OpenSubtitlesResults Open(Stream iostream) => null;
 
     public void SearchLocalSubtitles()
     {
-        /* TODO
-         * 1) Subs folder could exist under Season X (it will suggest another season's subtitle)
-         * 2) Identify language
-         * 3) Confidence
-         */
-
         try
         {
             string folder = Path.Combine(Playlist.FolderBase, Selected.Folder, "Subs");
@@ -71,62 +94,41 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
             for (int i = 0; i < filesCur2.Length; i++)
                 filesCur[i + filesCur1.Length] = filesCur2[i];
 
+            if (filesCur.Length > 0)
+                Selected.FillMediaParts();
+
             foreach(string file in filesCur)
             {
                 bool exists = false;
                 foreach(var extStream in Selected.ExternalSubtitlesStreams)
                     if (extStream.Url == file)
                         { exists = true; break; }
-                if (exists) continue;
+
+                if (exists)
+                    continue;
 
                 FileInfo fi = new(file);
+                string title = fi.Name;
 
                 // We might have same Subs/ folder for more than one episode/season then filename requires to have season/episode
-                var mp = Utils.GetMediaParts(fi.Name);
+                var mp = Utils.GetMediaParts(title, true);
                 if (mp.Episode != Selected.Episode || (mp.Season != Selected.Season && Selected.Season > 0 && mp.Season > 0))
                     continue;
 
-                string title = null;
-
-                // Until we analyze the actual text to identify the language we just use the filename
                 bool converted = false;
-                var lang = Language.Unknown;
+                Language lang = Language.Unknown;
 
-                if (Utils.ExtensionsSubtitlesBitmap.Contains(fi.Extension.TrimStart('.').ToLower()))
-                {
-                    title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
+                if (Utils.ExtensionsSubtitlesBitmap.Contains(mp.Extension))
                     converted = true;
-                }
-                if (fi.Name.IndexOf(".utf8", StringComparison.OrdinalIgnoreCase) != -1)
+
+                else if (title.Contains(".utf8"))
                 {
                     converted = true;
 
-                    int pos = -1;
-                    if ((pos = fi.Name.IndexOf($".{Language.Unknown.IdSubLanguage}.utf8", StringComparison.OrdinalIgnoreCase)) != -1)
-                        title = fi.Name[..pos];
-                    else
+                    if (!title.Contains($".{Language.Unknown.IdSubLanguage}.utf8"))
                         foreach (var lang2 in Config.Subtitles.Languages)
-                            if ((pos = fi.Name.IndexOf($".{lang2.IdSubLanguage}.utf8", StringComparison.OrdinalIgnoreCase)) != -1)
-                                { lang = lang2; title = fi.Name[..pos]; break; }
-
-                    if (title == null)
-                        title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
-                }
-                else
-                {
-                    title = fi.Extension == null ? fi.Name : fi.Name[..^fi.Extension.Length];
-
-                    bool utf8Exists = false;
-
-                    foreach(string file2 in filesCur)
-                    {
-                        FileInfo fi2 = new(file2);
-                        if (fi2.Name.IndexOf(".utf8", StringComparison.OrdinalIgnoreCase) != -1 && fi2.Name.IndexOf(title, StringComparison.OrdinalIgnoreCase) != -1)
-                            { utf8Exists = true; break; }
-                    }
-
-                    if (utf8Exists)
-                        continue;
+                            if (title.Contains($".{lang2.IdSubLanguage}.utf8", StringComparison.OrdinalIgnoreCase))
+                                { lang = lang2; break; }
                 }
 
                 Log.Debug($"Adding [{lang}] {file}");

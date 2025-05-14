@@ -4,8 +4,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Media;
-using System.Xml.Serialization;
-
 using MaterialDesignThemes.Wpf;
 
 namespace FlyleafLib.Controls.WPF

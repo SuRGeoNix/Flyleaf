@@ -487,18 +487,33 @@ public unsafe class Demuxer : RunThreadBase
             // Find Streams Info
             if (Config.AllowFindStreamInfo)
             {
-                // TBR: Tested and even if it requires more analyze duration it does not actually use it
-                bool requiresMoreAnalyse = false;
-                for (int i = 0; i < fmtCtx->nb_streams; i++)
-                    if (fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.HdmvPgsSubtitle ||
-                        fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.DvdSubtitle
-                        )
-                        { requiresMoreAnalyse = true; break; }
+                /* For some reason HdmvPgsSubtitle requires more analysis (even when it has already all the information)
+                 * 
+                 * Increases delay & memory and it will not free it after analysis (fmtctx internal buffer)
+                 *  - avformat_flush will release it but messes with the initial seek position (possible seek to start to force it releasing it but still we have the delay)
+                 *  
+                 * Consider
+                 *  - DVD/Blu-ray/mpegts only? (possible HLS -> mpegts?*)
+                 *  - Re-open in case of "Consider increasing the value for the 'analyzeduration'" (catch from ffmpeg log)
+                 *  
+                 *  https://github.com/SuRGeoNix/Flyleaf/issues/502
+                 */
 
-                if (requiresMoreAnalyse)
+                if (Utils.BytePtrToStringUTF8(fmtCtx->iformat->name) == "mpegts")
                 {
-                    fmtCtx->probesize = Math.Max(fmtCtx->probesize, 5000 * (long)1024 * 1024); // Bytes
-                    fmtCtx->max_analyze_duration = Math.Max(fmtCtx->max_analyze_duration, 1000 * (long)1000 * 1000); // Mcs
+                    bool requiresMoreAnalyse = false;
+
+                    for (int i = 0; i < fmtCtx->nb_streams; i++)
+                        if (fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.HdmvPgsSubtitle ||
+                            fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.DvdSubtitle
+                            )
+                            { requiresMoreAnalyse = true; break; }
+
+                    if (requiresMoreAnalyse)
+                    {
+                        fmtCtx->probesize = Math.Max(fmtCtx->probesize, 5000 * (long)1024 * 1024); // Bytes
+                        fmtCtx->max_analyze_duration = Math.Max(fmtCtx->max_analyze_duration, 1000 * (long)1000 * 1000); // Mcs
+                    }
                 }
 
                 ret = avformat_find_stream_info(fmtCtx, null);
