@@ -10,7 +10,7 @@ namespace FlyleafPlayer
     public partial class App : Application
     {
         public static string CmdUrl { get; set; } = null;
-        public static string EnginePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.Engine.json");
+        public static readonly string EnginePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.Engine.json");
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -38,27 +38,23 @@ namespace FlyleafPlayer
             Engine.StartAsync(engineConfig);
         }
 
-        private EngineConfig DefaultEngineConfig()
-        {
-            EngineConfig engineConfig = new EngineConfig();
+        static EngineConfig DefaultEngineConfig()
+            =>  new()
+            {
+                PluginsPath         = ":Plugins",
+                FFmpegPath          = ":FFmpeg",
+                FFmpegHLSLiveSeek   = true,
+                UIRefresh           = true,
+                FFmpegLoadProfile   = Flyleaf.FFmpeg.LoadProfile.All,
 
-            engineConfig.PluginsPath    = ":Plugins";
-            engineConfig.FFmpegPath     = ":FFmpeg";
-            engineConfig.FFmpegHLSLiveSeek
-                                        = true;
-            engineConfig.UIRefresh      = true;
-            engineConfig.FFmpegDevices  = true;
-
-            #if RELEASE
-            engineConfig.LogOutput      = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.FirstRun.log");
-            engineConfig.LogLevel       = LogLevel.Debug;
-            #else
-            engineConfig.LogOutput      = ":debug";
-            engineConfig.LogLevel       = LogLevel.Debug;
-            engineConfig.FFmpegLogLevel = Flyleaf.FFmpeg.LogLevel.Warn;
-            #endif
-
-            return engineConfig;
-        }
+                #if RELEASE
+                LogOutput           = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.FirstRun.log"),
+                LogLevel            = LogLevel.Debug,
+                #else
+                LogOutput           = ":debug",
+                LogLevel            = LogLevel.Debug,
+                FFmpegLogLevel      = Flyleaf.FFmpeg.LogLevel.Warn,
+                #endif
+            };
     }
 }

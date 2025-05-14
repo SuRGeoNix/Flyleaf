@@ -17,7 +17,7 @@ namespace FlyleafLib.Plugins
         public int      SearchTimeoutMs     { get; set; } = 15000;
         public int      DownloadTimeoutMs   { get; set; } = 30000;
 
-        static Dictionary<string, List<OpenSubtitlesOrgJson>> cache = new Dictionary<string, List<OpenSubtitlesOrgJson>>();
+        static Dictionary<string, List<OpenSubtitlesOrgJson>> cache = [];
         static readonly string restUrl = "https://rest.opensubtitles.org/search";
         static readonly string userAgent = "Flyleaf v2.0";
 
@@ -69,7 +69,7 @@ namespace FlyleafLib.Plugins
 
         public void SearchOnlineSubtitles()
         {
-            List<string> langs = new List<string>();
+            List<string> langs = [];
 
             foreach(var lang in Config.Subtitles.Languages)
             {
@@ -95,7 +95,7 @@ namespace FlyleafLib.Plugins
                 else
                     hash = Utils.ToHexadecimal(ComputeMovieHash(Selected.Url));
 
-            Search(Selected.Title, hash, Selected.FileSize, langs);
+            Search(hash, Selected.FileSize, langs);
         }
 
         // https://trac.OpenSubtitlesJson.org/projects/OpenSubtitlesJson/wiki/HashSourceCodes
@@ -137,147 +137,150 @@ namespace FlyleafLib.Plugins
 
         public List<OpenSubtitlesOrgJson> SearchByHash(string hash, long length)
         {
-            List<OpenSubtitlesOrgJson> subsCopy = new List<OpenSubtitlesOrgJson>();
+            List<OpenSubtitlesOrgJson> subsCopy = [];
 
             if (string.IsNullOrEmpty(hash)) return subsCopy;
 
             if (cache.ContainsKey(hash + "|" + length))
             {
-                foreach (OpenSubtitlesOrgJson sub in cache[hash + "|" + length]) subsCopy.Add(sub);
+                foreach (OpenSubtitlesOrgJson sub in cache[hash + "|" + length])
+                    subsCopy.Add(sub);
 
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) })
+            using HttpClient client = new() { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) };
+
+            string resp = "";
+            List<OpenSubtitlesOrgJson> subs = [];
+
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
+
+            try
             {
-                string resp = "";
-                List<OpenSubtitlesOrgJson> subs = new List<OpenSubtitlesOrgJson>();
-
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
-
-                try
-                {
-                    Log.Debug($"Searching for /moviebytesize-{length}/moviehash-{hash}");
-                    resp = client.PostAsync($"{restUrl}/moviebytesize-{length}/moviehash-{hash}", null).Result.Content.ReadAsStringAsync().Result;
-                    subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
-                    Log.Debug($"Search Results {subs.Count}");
-                    cache.Add(hash + "|" + length, subs);
-                    foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
-                }
-                catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
-
-                return subsCopy;
+                Log.Debug($"Searching for /moviebytesize-{length}/moviehash-{hash}");
+                resp = client.PostAsync($"{restUrl}/moviebytesize-{length}/moviehash-{hash}", null).Result.Content.ReadAsStringAsync().Result;
+                subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
+                Log.Debug($"Search Results {subs.Count}");
+                cache.Add(hash + "|" + length, subs);
+                foreach (OpenSubtitlesOrgJson sub in subs)
+                    subsCopy.Add(sub);
             }
+            catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+
+            return subsCopy;
         }
         public List<OpenSubtitlesOrgJson> SearchByIMDB(string imdbid, string lang, int season = 0, int episode = 0)
         {
-            List<OpenSubtitlesOrgJson> subsCopy = new List<OpenSubtitlesOrgJson>();
+            List<OpenSubtitlesOrgJson> subsCopy = [];
 
             if (cache.ContainsKey(imdbid + "|" + season + "|" + episode + lang))
             {
-                foreach (OpenSubtitlesOrgJson sub in cache[imdbid + "|" + season + "|" + episode + lang]) subsCopy.Add(sub);
+                foreach (OpenSubtitlesOrgJson sub in cache[imdbid + "|" + season + "|" + episode + lang])
+                    subsCopy.Add(sub);
 
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) })
+            using HttpClient client = new() { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) };
+            
+            string resp = "";
+            List<OpenSubtitlesOrgJson> subs = [];
+
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
+
+            try
             {
-                string resp = "";
-                List<OpenSubtitlesOrgJson> subs = new List<OpenSubtitlesOrgJson>();
+                string qSeason = season != 0 ? $"/season-{season}" : "";
+                string qEpisode = episode != 0 ? $"/episode-{episode}" : "";
+                string query = $"{qEpisode}/imdbid-{imdbid}{qSeason}/sublanguageid-{lang}";
 
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
+                Log.Debug($"Searching for {query}");
+                resp = client.PostAsync($"{restUrl}{query}", null).Result.Content.ReadAsStringAsync().Result;
+                subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
+                Log.Debug($"Search Results {subs.Count}");
 
-                try
-                {
-                    string qSeason = season != 0 ? $"/season-{season}" : "";
-                    string qEpisode = episode != 0 ? $"/episode-{episode}" : "";
-                    string query = $"{qEpisode}/imdbid-{imdbid}{qSeason}/sublanguageid-{lang}";
-
-                    Log.Debug($"Searching for {query}");
-                    resp = client.PostAsync($"{restUrl}{query}", null).Result.Content.ReadAsStringAsync().Result;
-                    subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
-                    Log.Debug($"Search Results {subs.Count}");
-
-                    cache.Add(imdbid + "|" + season + "|" + episode + lang, subs);
-                    foreach (OpenSubtitlesOrgJson sub in subs) subsCopy.Add(sub);
-                }
-                catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
-
-                return subsCopy;
+                cache.Add(imdbid + "|" + season + "|" + episode + lang, subs);
+                foreach (OpenSubtitlesOrgJson sub in subs)
+                    subsCopy.Add(sub);
             }
+            catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+
+            return subsCopy;
         }
         public List<OpenSubtitlesOrgJson> SearchByName(string name, string lang)
         {
-            List<OpenSubtitlesOrgJson> subsCopy = new List<OpenSubtitlesOrgJson>();
+            List<OpenSubtitlesOrgJson> subsCopy = [];
 
-            name = name.ToLower();
             if (cache.ContainsKey(name + "|" + lang))
             {
-                foreach (OpenSubtitlesOrgJson sub in cache[name + "|" + lang]) subsCopy.Add(sub);
+                foreach (OpenSubtitlesOrgJson sub in cache[name + "|" + lang])
+                    subsCopy.Add(sub);
 
                 return subsCopy;
             }
 
-            using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) })
+            using HttpClient client = new() { Timeout = TimeSpan.FromMilliseconds(SearchTimeoutMs) };
+            
+            string resp = "";
+            List<OpenSubtitlesOrgJson> subs = [];
+
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
+
+            try
             {
-                string resp = "";
-                List<OpenSubtitlesOrgJson> subs = new List<OpenSubtitlesOrgJson>();
+                var qr = $"/query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}";
+                Log.Debug($"Searching for {qr}");
+                resp = client.PostAsync($"{restUrl}{qr}", null).Result.Content.ReadAsStringAsync().Result;
+                subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
+                Log.Debug($"Search Results {subs.Count}");
 
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Add("X-User-Agent", userAgent);
-
-                try
-                {
-                    var qr = $"/query-{Uri.EscapeDataString(name.Replace('.', ' '))}/sublanguageid-{lang}";
-                    Log.Debug($"Searching for {qr}");
-                    resp = client.PostAsync($"{restUrl}{qr}", null).Result.Content.ReadAsStringAsync().Result;
-                    subs = JsonSerializer.Deserialize<List<OpenSubtitlesOrgJson>>(resp);
-                    Log.Debug($"Search Results {subs.Count}");
-
-                    cache.Add(name + "|" + lang, subs);
-                    foreach (OpenSubtitlesOrgJson sub in subs)
-                        subsCopy.Add(sub);
-                }
-                catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
-
-                return subsCopy;
+                cache.Add(name + "|" + lang, subs);
+                foreach (OpenSubtitlesOrgJson sub in subs)
+                    subsCopy.Add(sub);
             }
+            catch (Exception e) { Log.Debug($"Error fetching subtitles {e.Message} - {e.StackTrace}"); }
+
+            return subsCopy;
         }
-        public void Search(string filename, string hash, long length, List<string> Languages)
+        public void Search(string hash, long length, List<string> Languages)
         {
             // Search by Hash (Any Lang)
             List<OpenSubtitlesOrgJson> subs = SearchByHash(hash, length);
 
             // Search by Name / Lang
-            foreach (string lang in Languages)
-                subs.AddRange(SearchByName(filename, lang));
-
+            Selected.FillMediaParts();
+            var title = Selected.MediaTitle.ToLower();
+            if (title != "")
+                foreach (string lang in Languages)
+                    subs.AddRange(SearchByName(title, lang));
+            
             CleanSubs(subs);
 
             // Search by IMDB Id / Lang
-            for (int i = 0; i < subs.Count; i++)
-                if (subs[i].IDMovieImdb != null && subs[i].IDMovieImdb.Trim() != "")
-                {
-                    string title = subs[i].MovieName == null || subs[i].MovieName.Trim() == "" ? null : subs[i].MovieName;
-
-                    if ((title != null &&
-                        Selected.Title.ToLower().Contains(title.ToLower())) ||
-                        Selected.Title.ToLower().Contains(Utils.GetMediaParts(subs[i].SubFileName).Title.ToLower()))
+            if (title != "")
+                for (int i = 0; i < subs.Count; i++)
+                    if (subs[i].IDMovieImdb != null && subs[i].IDMovieImdb.Trim() != "" &&
+                        (subs[i].MovieName          != null && title == subs[i].MovieName       .ToLower()) ||
+                        (subs[i].MovieNameEng       != null && title == subs[i].MovieNameEng    .ToLower()) ||
+                        (subs[i].MovieReleaseName   != null && title == subs[i].MovieReleaseName.ToLower()) ||
+                        (subs[i].SubFileName        != null && title == Utils.GetMediaParts(subs[i].SubFileName).Title.ToLower())
+                        )
                     {
-                        List<OpenSubtitlesOrgJson> subs2 = new List<OpenSubtitlesOrgJson>();
+                        List<OpenSubtitlesOrgJson> subs2 = [];
                         foreach (string lang in Languages)
-                            subs2.AddRange(SearchByIMDB(subs[i].IDMovieImdb, lang, Selected.Season, Selected.Episode));
+                            subs2.AddRange(SearchByIMDB(subs[i].IDMovieImdb.PadLeft(7, '0'), lang, Selected.Season, Selected.Episode)); // imdbid requireds 7 digits
 
                         CleanSubs(subs2);
                         subs.AddRange(subs2);
                         break;
                     }
-                }
 
             // Unique by SubHashes (if any)
-            List<int> removeIds = new List<int>();
+            List<int> removeIds = [];
             for (int i = 0; i < subs.Count - 1; i++)
             {
                 if (removeIds.Contains(i)) continue;
@@ -296,7 +299,7 @@ namespace FlyleafLib.Plugins
                 }
             }
 
-            List<OpenSubtitlesOrgJson> uniqueList = new List<OpenSubtitlesOrgJson>();
+            List<OpenSubtitlesOrgJson> uniqueList = [];
             for (int i = 0; i < subs.Count; i++)
                 if (!removeIds.Contains(i))
                     uniqueList.Add(subs[i]);
@@ -331,7 +334,6 @@ namespace FlyleafLib.Plugins
                     Language= Language.Get(sub.SubLanguageID)
                 }, sub);
             }
-
         }
 
         void CleanSubs(List<OpenSubtitlesOrgJson> subs)
@@ -387,8 +389,8 @@ namespace FlyleafLib.Plugins
         }
 
         // https://www.opensubtitles.org/addons/export_languages.php (UploadEnabled && WebEnabled)
-        public static readonly HashSet<string> ISOX_Online = new HashSet<string>
-        {
+        public static readonly HashSet<string> ISOX_Online =
+        [
             "alb",
             "ara",
             //"arg", no culture?
@@ -444,6 +446,6 @@ namespace FlyleafLib.Plugins
             "ukr",
             "vie",
             "zht",
-        };
+        ];
     }
 }

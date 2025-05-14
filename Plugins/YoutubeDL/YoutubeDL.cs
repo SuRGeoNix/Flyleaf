@@ -420,13 +420,13 @@ namespace FlyleafLib.Plugins
                 if (Playlist.IOStream != null)
                     return false;
 
-                Uri uri = new Uri(Playlist.Url);
+                Uri uri = new(Playlist.Url);
                 string scheme = uri.Scheme.ToLower();
 
                 if (scheme != "http" && scheme != "https")
                     return false;
 
-                string ext = Utils.GetUrlExtention(uri.AbsolutePath);
+                string ext = GetUrlExtention(uri.AbsolutePath);
 
                 if (ext == "m3u8" || ext == "mp3" || ext == "m3u" || ext == "pls")
                     return false;
@@ -555,9 +555,9 @@ namespace FlyleafLib.Plugins
                     return Open();
                 }
             }
-            catch (Exception e) { Log.Error($"Open ({e.Message})"); return new OpenResults(e.Message); }
+            catch (Exception e) { Log.Error($"Open ({e.Message})"); return new(e.Message); }
 
-            return new OpenResults();
+            return new();
         }
 
         public OpenResults OpenItem()
@@ -565,25 +565,31 @@ namespace FlyleafLib.Plugins
 
         public ExternalAudioStream SuggestExternalAudio()
         {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name)
+                return null;
 
             var fmt = GetAudioOnly((YoutubeDLJson)GetTag(Selected));
-            if (fmt == null) return null;
+            if (fmt == null)
+                return null;
 
             foreach (var extStream in Selected.ExternalAudioStreams)
-                if (fmt.url == extStream.Url) return extStream;
+                if (fmt.url == extStream.Url)
+                    return extStream;
 
             return null;
         }
         public ExternalVideoStream SuggestExternalVideo()
         {
-            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name) return null;
+            if (Handler.OpenedPlugin == null || Handler.OpenedPlugin.Name != Name)
+                return null;
 
             Format fmt = GetBestMatch((YoutubeDLJson)GetTag(Selected));
-            if (fmt == null) return null;
+            if (fmt == null)
+                return null;
 
             foreach (var extStream in Selected.ExternalVideoStreams)
-                if (fmt.url == extStream.Url) return extStream;
+                if (fmt.url == extStream.Url)
+                    return extStream;
 
             return null;
         }

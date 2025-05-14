@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json.Serialization;
-using System.Xml.Serialization;
-
 namespace FlyleafLib;
 
 public class Language : IEquatable<Language>
