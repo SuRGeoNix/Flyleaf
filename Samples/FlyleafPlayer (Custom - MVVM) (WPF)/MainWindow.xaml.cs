@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Security.Policy;
 using System.Windows;
 using System.Windows.Input;
 using FlyleafLib;
@@ -16,7 +17,7 @@ namespace FlyleafPlayer__Custom___MVVM_
         public Player Player        { get; set; }
         public Config Config        { get; set; }
 
-        public string SampleVideo   { get; set; } = Utils.FindFileBelow("Sample.mp4");
+        public string SampleVideo   { get; set; } = Utils.FindFileBelow("qie.webm");
         public string LastError     { get => _LastError; set { if (_LastError == value) return; _LastError = value;  PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastError))); } }
         string _LastError;
 
@@ -58,9 +59,25 @@ namespace FlyleafPlayer__Custom___MVVM_
 
             DataContext = this;
 
+            Player.Opening += Player_Opening;
             // Keep track of error messages
             Player.OpenCompleted += (o, e) => { LastError = e.Error; };
             Player.BufferingCompleted += (o, e) => { LastError = e.Error; };
+        }
+
+        private void Player_Opening(object sender, OpeningArgs e)
+        {
+            var url = e.Url;
+            if (url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) && !url.Contains("8k", StringComparison.OrdinalIgnoreCase))
+            {
+                //the default codec is [vp8/vp9],it is not support alpha beacuse of the pixel format is [yuv420p] even then actually is [yuva420p].
+                //change to [libvpx/libvpx-vp9],the pixel format will be [yuva420p] and it is support alpha.
+                Player.Config.Video.Codec = url.Contains("vp8", StringComparison.OrdinalIgnoreCase) ? "libvpx" : "libvpx-vp9";
+            }
+            else
+            {
+                Player.Config.Video.Codec = null;
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

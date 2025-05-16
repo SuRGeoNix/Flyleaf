@@ -875,9 +875,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     {
         // Required to handle mouse events as the window's background will be transparent
         // This does not set the background color we do that with the renderer (which causes some issues eg. when returning from fullscreen to normalscreen)
+        // For support alpha channel,set background to #01000000
         Surface.Content = new Border()
         {
-            Background          = Brushes.Black, // TBR: for alpha channel -> Background == Brushes.Transparent || Background ==null ? new SolidColorBrush(Color.FromArgb(1,0,0,0)) : Background
+            Background          = (this.Background==Brushes.Transparent||this.Background==null)?new SolidColorBrush(Color.FromArgb(0x01,0,0,0)):this.Background,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment   = VerticalAlignment.Stretch,
             CornerRadius        = CornerRadius,
@@ -2181,7 +2182,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
         else
         {
-            if (IsStandAlone)
+            if (IsStandAlone)//when standalone, we need to set window state to normal first, otherwise it will be get error location at open fullscreen for the second time
                 Surface.WindowState = WindowState.Normal;
 
             if (IsAttached)
