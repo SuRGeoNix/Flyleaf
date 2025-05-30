@@ -863,7 +863,7 @@ public class Config : NotifyPropertyChanged
         /// Allowed input types to be searched locally for subtitles (empty list allows all types)
         /// </summary>
         public List<InputType>  SearchLocalOnInputType
-                                                    { get; set; } = new List<InputType>() { InputType.File, InputType.UNC, InputType.Torrent };
+                                                    { get; set; } = [ InputType.File, InputType.UNC, InputType.Torrent ];
 
         /// <summary>
         /// Whether to use online search plugins (see also <see cref="SearchOnlineOnInputType"/>)
@@ -875,7 +875,7 @@ public class Config : NotifyPropertyChanged
         /// Allowed input types to be searched online for subtitles (empty list allows all types)
         /// </summary>
         public List<InputType>  SearchOnlineOnInputType
-                                                    { get; set; } = new List<InputType>() { InputType.File, InputType.Torrent };
+                                                    { get; set; } = [ InputType.File, InputType.UNC, InputType.Torrent ];
 
         /// <summary>
         /// Subtitles parser (can be used for custom parsing)

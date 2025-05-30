@@ -38,18 +38,15 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
             }
 
             // Proper Url Format
-            string scheme;
             bool   isWeb    = false;
-            string uriType  = "";
             string ext      = Utils.GetUrlExtention(Playlist.Url);
+            Uri uri         = null;
             string localPath= null;
 
             try
             {
-                Uri uri     = new(Playlist.Url);
-                scheme      = uri.Scheme.ToLower();
-                isWeb       = scheme.StartsWith("http");
-                uriType     = uri.IsFile ? "file" : (uri.IsUnc ? "unc" : "");
+                uri         = new(Playlist.Url);
+                isWeb       = uri.Scheme.StartsWith("http");
                 localPath   = uri.LocalPath;
             } catch { }
 
@@ -101,51 +98,47 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
                 return new();
             }
 
-            FileInfo fi = null;
             // Single Playlist Item
-            if (uriType == "file")
-            {
-                Playlist.InputType = InputType.File;
-                if (File.Exists(Playlist.Url))
-                {
-                    fi = new(Playlist.Url);
-                    Playlist.FolderBase = fi.DirectoryName;
-                }
-            }
-            else if (isWeb)
-            {
-                Playlist.InputType = InputType.Web;
-                Playlist.FolderBase = Path.GetTempPath();
-            }
-            else if (uriType == "unc")
-            {
-                Playlist.InputType = InputType.UNC;
-                Playlist.FolderBase = Path.GetTempPath();
-            }
-            else
-            {
-                //Playlist.InputType = InputType.Unknown;
-                Playlist.FolderBase = Path.GetTempPath();
-            }
-
-            PlaylistItem item = new()
+            FileInfo fi         = null;
+            PlaylistItem item   = new()
             {
                 Url         = Playlist.Url,
                 DirectUrl   = Playlist.Url
             };
 
-            if (fi == null && File.Exists(Playlist.Url))
+            if (isWeb)
             {
-                fi              = new(Playlist.Url);
+                Playlist.InputType = InputType.Web;
+                Playlist.FolderBase = Path.GetTempPath();
+            }
+            else if (uri != null && uri.IsFile)
+            {
+                try
+                {
+                    fi = new(Playlist.Url);
+                    Playlist.FolderBase = fi.DirectoryName;
+                }
+                catch
+                {
+                    Playlist.FolderBase = Path.GetTempPath();
+                }
+
+                // TBR: UNC && !uri.IsLoopback (not clear yet why we separate file/unc*) | Rename UNC to RemoteUNC?
+                Playlist.InputType = uri.IsUnc ? InputType.UNC : InputType.File; 
+            }
+            else // InputType.Unknown
+                Playlist.FolderBase = Path.GetTempPath();
+
+            if (fi != null)
+            {
                 item.Title      = fi.Name;
-                item.FileSize   = fi.Length;
+                item.FileSize   = fi.Length; // TBR: we could still get file size from AVIO (mainly for search online subs/hash)
             }
             else
             {
-                if (localPath != null)
-                    item.Title = Path.GetFileName(localPath);
+                item.Title = Path.GetFileName(localPath);
 
-                if (item.Title == null || item.Title.Trim().Length == 0)
+                if (string.IsNullOrEmpty(item.Title))
                     item.Title = Playlist.Url;
             }
 
@@ -153,7 +146,9 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
             Handler.OnPlaylistCompleted();
 
             return new();
-        } catch (Exception e)
+
+        }
+        catch (Exception e)
         {
             return new(e.Message);
         }
