@@ -38,43 +38,42 @@
 
 using System.IO;
 
-namespace UniversalDetector
+namespace UniversalDetector;
+
+public class CharsetDetector : Core.UniversalDetector, ICharsetDetector
 {
-    public class CharsetDetector : Core.UniversalDetector, ICharsetDetector
+    public string Charset => charset;
+    public float Confidence => confidence;
+
+    private string charset;
+    private float confidence;
+
+    public CharsetDetector() : base(FILTER_ALL) { }
+
+    public void Feed(Stream stream)
+    { 
+        byte[] buff = new byte[1024];
+        int read;
+
+        while ((read = stream.Read(buff, 0, buff.Length)) > 0 && !done)
+            Feed(buff, 0, read);
+    }
+    
+    public bool IsDone() 
     {
-        public string Charset => charset;
-        public float Confidence => confidence;
+        return done;
+    }
+    
+    public override void Reset()
+    {
+        charset = null;
+        confidence = 0.0f;
+        base.Reset();
+    }
 
-        private string charset;
-        private float confidence;
-
-        public CharsetDetector() : base(FILTER_ALL) { }
-
-        public void Feed(Stream stream)
-        { 
-            byte[] buff = new byte[1024];
-            int read;
-
-            while ((read = stream.Read(buff, 0, buff.Length)) > 0 && !done)
-                Feed(buff, 0, read);
-        }
-        
-        public bool IsDone() 
-        {
-            return done;
-        }
-        
-        public override void Reset()
-        {
-            charset = null;
-            confidence = 0.0f;
-            base.Reset();
-        }
-
-        protected override void Report(string charset, float confidence)
-        {
-            this.charset = charset;
-            this.confidence = confidence;
-        }
+    protected override void Report(string charset, float confidence)
+    {
+        this.charset = charset;
+        this.confidence = confidence;
     }
 }
