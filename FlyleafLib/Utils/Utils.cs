@@ -103,7 +103,7 @@ public static partial class Utils
     /// <param name="action"></param>
     public static void UIInvokeIfRequired(Action action)
     {
-        if (Thread.CurrentThread.ManagedThreadId == Application.Current.Dispatcher.Thread.ManagedThreadId)
+        if (Environment.CurrentManagedThreadId == Application.Current.Dispatcher.Thread.ManagedThreadId)
             action();
         else
             Application.Current.Dispatcher.Invoke(action);
@@ -641,7 +641,7 @@ public static partial class Utils
     }
     public static int GCD(int a, int b) => b == 0 ? a : GCD(b, a % b);
     public static string TicksToTime(long ticks) => new TimeSpan(ticks).ToString();
-    public static void Log(string msg) { try { Debug.WriteLine($"[{DateTime.Now:hh.mm.ss.fff}] {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } }
+    public static void Log(string msg) { try { Debug.WriteLine($"{DateTime.Now:HH.mm.ss.fff} | {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } }
 
     [GeneratedRegex("[^a-z0-9]extended", RegexOptions.IgnoreCase)]
     private static partial Regex RxExtended();

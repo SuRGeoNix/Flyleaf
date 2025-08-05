@@ -1,8 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Windows.Data;
 
 using Vortice.DXGI;
+using Vortice.MediaFoundation;
 
 using FlyleafLib.MediaFramework.MediaDevice;
 
@@ -14,9 +15,8 @@ public class VideoEngine
     /// List of Video Capture Devices
     /// </summary>
     public ObservableCollection<VideoDevice>
-                            CapDevices          { get; set; } = new();
-    public void             RefreshCapDevices() => VideoDevice.RefreshDevices();
-
+                            CapDevices          { get; set; } = [];
+    
     /// <summary>
     /// List of GPU Adpaters <see cref="Config.VideoConfig.GPUAdapter"/>
     /// </summary>
@@ -26,16 +26,31 @@ public class VideoEngine
     /// <summary>
     /// List of GPU Outputs from default GPU Adapter (Note: will no be updated on screen connect/disconnect)
     /// </summary>
-    public List<GPUOutput>  Screens             { get; private set; } = new List<GPUOutput>();
+    public List<GPUOutput>  Screens             { get; private set; } = [];
 
     internal IDXGIFactory2  Factory;
+
+    private readonly object lockCapDevices = new();
 
     internal VideoEngine()
     {
         if (DXGI.CreateDXGIFactory1(out Factory).Failure)
             throw new InvalidOperationException("Cannot create IDXGIFactory1");
 
+        BindingOperations.EnableCollectionSynchronization(CapDevices, lockCapDevices);
         GPUAdapters = GetAdapters();
+    }
+
+    public void RefreshCapDevices()
+    {
+        lock (lockCapDevices)
+        {
+            Engine.Video.CapDevices.Clear();
+
+            var devices = MediaFactory.MFEnumVideoDeviceSources();
+                foreach (var device in devices)
+                try { Engine.Video.CapDevices.Add(new VideoDevice(device.FriendlyName, device.SymbolicLink)); } catch(Exception) { }
+        }
     }
 
     private Dictionary<long, GPUAdapter> GetAdapters()

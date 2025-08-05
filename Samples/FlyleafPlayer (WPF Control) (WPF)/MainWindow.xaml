@@ -15,7 +15,7 @@
         TextElement.Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
         TextElement.FontWeight="Medium"
         TextElement.FontSize="14"
-
+        
         Title="Flyleaf" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent"
 
         MinWidth="150" MinHeight="80"
@@ -117,9 +117,8 @@
 
                         <StackPanel Orientation="Horizontal">
                             <Image Source="Flyleaf.ico" Stretch="UniformToFill" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="{Binding Tag.FlyleafLibVer}"/>
-                            <TextBlock Background="#AA000000" Margin="10 0 0 0" Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}"/>
                         </StackPanel>
-                        <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontWeight="Bold" FontStyle="Italic" FontFamily="Mistral" FontSize="34" Foreground="{DynamicResource MaterialDesign.Brush.Primary}"/>
+                        <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontStyle="Italic" FontSize="30" Foreground="{DynamicResource MaterialDesign.Brush.Primary}"/>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
                             <ToggleButton Style="{StaticResource MaterialDesignActionToggleButton}" Focusable="False" ToolTip="Always on Top" Background="Transparent" Foreground="{DynamicResource MaterialDesign.Brush.Primary}"
@@ -242,101 +241,151 @@
                     <!--Slide View-->
                     <materialDesign:DialogHost Grid.Row="0" Grid.RowSpan="2" DialogOpened="DialogHost_DialogOpened" DialogClosed="DialogHost_DialogClosed">
                         <Grid>
-                            <Grid.Style>
-                                <Style TargetType="{x:Type Grid}">
-                                    <Setter Property="Visibility" Value="Collapsed" d:Value="Visible"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Tag.MediaViewer}" Value="Slide">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
-                                            <DataTrigger.EnterActions>
-                                                <RemoveStoryboard BeginStoryboardName="fadeInM" />
-                                                <BeginStoryboard x:Name="fadeOutM" Storyboard="{StaticResource fadeOut}" />
-                                            </DataTrigger.EnterActions>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Active">
-                                            <DataTrigger.EnterActions>
-                                                <RemoveStoryboard BeginStoryboardName="fadeInM" />
-                                                <BeginStoryboard x:Name="fadeOutM2" Storyboard="{StaticResource fadeOut}" />
-                                            </DataTrigger.EnterActions>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Player.Activity.Mode, FallbackValue=FullActive, TargetNullValue=FullActive}" Value="FullActive">
-                                            <DataTrigger.EnterActions>
-                                                <RemoveStoryboard BeginStoryboardName="fadeOutM" />
-                                                <RemoveStoryboard BeginStoryboardName="fadeOutM2" />
-                                                <BeginStoryboard x:Name="fadeInM" Storyboard="{StaticResource fadeIn}" />
-                                            </DataTrigger.EnterActions>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Grid.Style>
+                            <Grid>
+                                <Grid.Style>
+                                    <Style TargetType="{x:Type Grid}">
+                                        <Setter Property="Visibility" Value="Collapsed" d:Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Tag.MediaViewer}" Value="Slide">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
+                                                <DataTrigger.EnterActions>
+                                                    <RemoveStoryboard BeginStoryboardName="fadeInM1" />
+                                                    <BeginStoryboard x:Name="fadeOutM1" Storyboard="{StaticResource fadeOut}" />
+                                                </DataTrigger.EnterActions>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Active">
+                                                <DataTrigger.EnterActions>
+                                                    <RemoveStoryboard BeginStoryboardName="fadeInM1" />
+                                                    <RemoveStoryboard BeginStoryboardName="fadeOutM1" />
+                                                    <BeginStoryboard x:Name="fadeOutM2" Storyboard="{StaticResource fadeOut}" />
+                                                </DataTrigger.EnterActions>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Player.Activity.Mode, FallbackValue=FullActive, TargetNullValue=FullActive}" Value="FullActive">
+                                                <DataTrigger.EnterActions>
+                                                    <RemoveStoryboard BeginStoryboardName="fadeOutM1" />
+                                                    <RemoveStoryboard BeginStoryboardName="fadeOutM2" />
+                                                    <BeginStoryboard x:Name="fadeInM1" Storyboard="{StaticResource fadeIn}" />
+                                                </DataTrigger.EnterActions>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
 
-                            <!--SlideShow ToolBar (Play|Pause, Restart, Settings)-->
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0 60 0 0">
-                                <StackPanel.Background>
-                                    <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.35"/>
-                                </StackPanel.Background>
-                                <Button Command="{Binding Tag.SlideShowToggle}" IsEnabled="{Binding Tag.CanNextImage}" Focusable="False" Foreground="White">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                            <Setter Property="Content" Value="{materialDesign:PackIcon Kind=Play,Size=34}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Tag.SlideShow}" Value="True">
-                                                    <Setter Property="Content" Value="{materialDesign:PackIcon Kind=Pause,Size=34}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button Style="{StaticResource MaterialDesignIconButton}" Content="{materialDesign:PackIcon Kind=Restart,Size=34}" Command="{Binding Tag.SlideShowRestart}" IsEnabled="{Binding Tag.CanPrevImage}" Focusable="False" Foreground="White">
-                                    <Button.Background>
+                                <!--SlideShow ToolBar (Play|Pause, Restart, Settings)-->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0 60 0 0">
+                                    <StackPanel.Background>
                                         <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.35"/>
-                                    </Button.Background>
-                                </Button>
-                                <Button Style="{StaticResource MaterialDesignIconButton}" Content="{materialDesign:PackIcon Kind=GearOutline,Size=34}" Command="{x:Static materialDesign:DialogHost.OpenDialogCommand}" Focusable="False" Foreground="White">
-                                    <Button.CommandParameter>
-                                        <Border BorderThickness="1" BorderBrush="{DynamicResource MaterialDesign.Brush.Primary}">
-                                            <StackPanel Margin="20 10 20 8">
-                                                <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
-                                                    <TextBlock Width="140" Text="Timer (ms): " VerticalAlignment="Center" Margin="0 0 4 0"/>
-                                                    <TextBox Text="{Binding Tag.SlideShowTimer}" TextAlignment="Left"/>
+                                    </StackPanel.Background>
+                                    <Button Command="{Binding Tag.SlideShowToggle}" IsEnabled="{Binding Tag.CanNextImage}" Focusable="False" Foreground="White">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Setter Property="Content" Value="{materialDesign:PackIcon Kind=Play,Size=34}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Tag.SlideShow}" Value="True">
+                                                        <Setter Property="Content" Value="{materialDesign:PackIcon Kind=Pause,Size=34}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Style="{StaticResource MaterialDesignIconButton}" Content="{materialDesign:PackIcon Kind=Restart,Size=34}" Command="{Binding Tag.SlideShowRestart}" IsEnabled="{Binding Tag.CanPrevImage}" Focusable="False" Foreground="White">
+                                        <Button.Background>
+                                            <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.35"/>
+                                        </Button.Background>
+                                    </Button>
+                                    <Button Style="{StaticResource MaterialDesignIconButton}" Content="{materialDesign:PackIcon Kind=GearOutline,Size=34}" Command="{x:Static materialDesign:DialogHost.OpenDialogCommand}" Focusable="False" Foreground="White">
+                                        <Button.CommandParameter>
+                                            <Border BorderThickness="2" BorderBrush="{DynamicResource MaterialDesign.Brush.Primary}">
+                                                <StackPanel Margin="24 12">
+                                                    <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                                                        <TextBlock Width="140" Text="Timer (ms): " VerticalAlignment="Center" Margin="0 0 4 0"/>
+                                                        <TextBox Text="{Binding Tag.SlideShowConfig.SlideShowTimer}" TextAlignment="Left"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                                                        <TextBlock Width="140" Text="Page Step: " VerticalAlignment="Center" Margin="0 0 4 0"/>
+                                                        <TextBox Text="{Binding Tag.SlideShowConfig.PageStep}" TextAlignment="Left"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                                                        <TextBlock Width="140" Text="Max Images: " VerticalAlignment="Center" Margin="0 0 4 0"/>
+                                                        <TextBox Text="{Binding Tag.SlideShowConfig.MaxFiles}" TextAlignment="Left"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0 0 0 16">
+                                                        <TextBlock Width="140" Text="Delete Confirmation: " VerticalAlignment="Center" Margin="0 0 4 0"/>
+                                                        <ToggleButton IsChecked="{Binding Tag.SlideShowConfig.DeleteConfirmation}"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Button Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" Margin="0 0 10 0" CommandParameter="Save" Content="Save" IsCancel="True"/>
+                                                        <Button Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="Apply" Content="Apply" IsCancel="True"/>
+                                                    </StackPanel>
                                                 </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
-                                                    <TextBlock Width="140" Text="Page Step: " VerticalAlignment="Center" Margin="0 0 4 0"/>
-                                                    <TextBox Text="{Binding Tag.PageStep}" TextAlignment="Left"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
-                                                    <TextBlock Width="140" Text="Max Images: " VerticalAlignment="Center" Margin="0 0 4 0"/>
-                                                    <TextBox Text="{Binding Tag.MaxFiles}" TextAlignment="Left"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0 0 0 16">
-                                                    <TextBlock Width="140" Text="Delete Confirmation: " VerticalAlignment="Center" Margin="0 0 4 0"/>
-                                                    <ToggleButton IsChecked="{Binding Tag.DeleteConfirmation}"/>
-                                                </StackPanel>
-                                                <Button HorizontalAlignment="Center" Command="{x:Static materialDesign:DialogHost.CloseDialogCommand}" CommandParameter="Sample2Cancel" Content="Save" IsCancel="True"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </Button.CommandParameter>
-                                </Button>
-                            </StackPanel>
+                                            </Border>
+                                        </Button.CommandParameter>
+                                    </Button>
+                                </StackPanel>
 
-                            <!--Show Prev Arrow Button-->
-                            <Button Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding Tag.ShowPrevImage}" IsEnabled="{Binding Tag.CanPrevImage}" Focusable="False" Content="{materialDesign:PackIcon Kind=ArrowLeft,Size=30}"  Background="#AA000000" Padding="0" Margin="0" VerticalContentAlignment="Center" Width="40" Height="100" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                <!--Show Prev Arrow Button-->
+                                <Button Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding Tag.ShowPrevImage}" IsEnabled="{Binding Tag.CanPrevImage}" Focusable="False" Content="{materialDesign:PackIcon Kind=ArrowLeft,Size=30}"  Background="#AA000000" Padding="0" Margin="0" VerticalContentAlignment="Center" Width="40" Height="100" VerticalAlignment="Center" HorizontalAlignment="Left"/>
 
-                            <!--Show Prev Next Button-->
-                            <Button Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding Tag.ShowNextImage}" IsEnabled="{Binding Tag.CanNextImage}" Focusable="False" Content="{materialDesign:PackIcon Kind=ArrowRight,Size=30}" Background="#AA000000" Padding="0" Margin="0" VerticalContentAlignment="Center" Width="40" Height="100" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                <!--Show Prev Next Button-->
+                                <Button Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding Tag.ShowNextImage}" IsEnabled="{Binding Tag.CanNextImage}" Focusable="False" Content="{materialDesign:PackIcon Kind=ArrowRight,Size=30}" Background="#AA000000" Padding="0" Margin="0" VerticalContentAlignment="Center" Width="40" Height="100" VerticalAlignment="Center" HorizontalAlignment="Right"/>
 
-                            <!--Index / Total-->
-                            <TextBlock VerticalAlignment="Bottom" Background="#AA000000" HorizontalAlignment="Center" d:Text="526 / 1000" FontWeight="Bold" FontSize="14" Padding="4" Margin="0 0 0 20" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
-                                <TextBlock.Text>
-                                    <MultiBinding StringFormat="{}{0} / {1}">
-                                        <Binding Path="Tag.UIImageIndex" />
-                                        <Binding Path="Tag.TotalFiles" />
-                                    </MultiBinding>
-                                </TextBlock.Text>
-                            </TextBlock>
+
+                            </Grid>
+                            <Grid>
+                                <Grid.Style>
+                                    <Style TargetType="{x:Type Grid}">
+                                        <Setter Property="Visibility" Value="Collapsed" d:Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Tag.MediaViewer}" Value="Slide">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Tag.MediaViewer}" Value="Image">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Idle">
+                                                <DataTrigger.EnterActions>
+                                                    <RemoveStoryboard BeginStoryboardName="fadeInMA1" />
+                                                    <RemoveStoryboard BeginStoryboardName="fadeInMA2" />
+                                                    <BeginStoryboard x:Name="fadeOutMA1" Storyboard="{StaticResource fadeOut}" />
+                                                </DataTrigger.EnterActions>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Player.Activity.Mode}" Value="Active">
+                                                <DataTrigger.EnterActions>
+                                                    <RemoveStoryboard BeginStoryboardName="fadeOutMA1" />
+                                                    <BeginStoryboard x:Name="fadeInMA1" Storyboard="{StaticResource fadeIn}" />
+                                                </DataTrigger.EnterActions>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Player.Activity.Mode, FallbackValue=FullActive, TargetNullValue=FullActive}" Value="FullActive">
+                                                <DataTrigger.EnterActions>
+                                                    <RemoveStoryboard BeginStoryboardName="fadeOutMA1" />
+                                                    <RemoveStoryboard BeginStoryboardName="fadeInMA2" />
+                                                    <BeginStoryboard x:Name="fadeInMA2" Storyboard="{StaticResource fadeIn}" />
+                                                </DataTrigger.EnterActions>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+
+                                <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Padding="4" Margin="10 -40 0 0" Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
+                                    <TextBlock.Background>
+                                        <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                                    </TextBlock.Background>
+                                </TextBlock>
+                                <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Background="#AA000000"  Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" FontWeight="Bold" FontSize="14" Padding="4" Margin="44 14 0 0" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}"/>
+
+                                <!--Index / Total-->
+                                <TextBlock VerticalAlignment="Bottom" Background="#AA000000" HorizontalAlignment="Center" d:Text="526 / 1000" FontWeight="Bold" FontSize="14" Padding="4" Margin="0 0 0 20" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
+                                    <TextBlock.Text>
+                                        <MultiBinding StringFormat="{}{0} / {1}">
+                                            <Binding Path="Tag.UIImageIndex" />
+                                            <Binding Path="Tag.TotalFiles" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </Grid>
                         </Grid>
                     </materialDesign:DialogHost>
 

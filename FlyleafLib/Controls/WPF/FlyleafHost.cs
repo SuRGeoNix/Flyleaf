@@ -1,5 +1,4 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows;
 using System.Windows.Media;
@@ -777,7 +776,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (host.Disposed)
             return;
 
-        host.Surface.WindowState = host.IsMinimized ? WindowState.Minimized : (host.IsFullScreen ? WindowState.Maximized : WindowState.Normal);
+        if (host.Surface != null)
+            host.Surface.WindowState = host.IsMinimized ? WindowState.Minimized : (host.IsFullScreen ? WindowState.Maximized : WindowState.Normal);
     }
     private static void OnIsAttachedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -922,7 +922,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Detach();
 
             Owner           = owner;
-            OwnerHandle     = ownerHandle;
+            OwnerHandle     = ownerHandle;  
             Surface.Title   = Owner.Title;
             Surface.Icon    = Owner.Icon;
 
@@ -1894,6 +1894,16 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         SetSurface(true);
 
+        // We can't set parent/child properly if it is minimized
+        bool wasMinimized = false;
+        var prevBounds = Overlay.RestoreBounds;
+        if (IsStandAlone && Overlay.WindowState == WindowState.Minimized)
+        {
+            wasMinimized = true;
+            Overlay.WindowState = WindowState.Normal;
+            Overlay.Left        = Overlay.Top = -2000;
+        }
+
         if (IsAttached) Loaded -= Host_Loaded;
         OverlayHandle = new WindowInteropHelper(Overlay).EnsureHandle();
         if (IsAttached) Loaded += Host_Loaded;
@@ -1963,6 +1973,28 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Host_Loaded(null, null);
 
         OverlayCreated?.Invoke(this, new());
+
+        // Restore size and minimize
+        if (wasMinimized)
+        {
+            Surface.Show();
+            IsMinimized     = true;
+
+            Surface.Width   = prevBounds.Width;
+            Surface.Height  = prevBounds.Height;
+
+            if (Overlay.WindowStartupLocation == WindowStartupLocation.CenterScreen)
+            {
+                var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point(0, 0)).Bounds;
+                Surface.Left    = screen.Left + (screen.Width  / 2) - (Surface.Width  / 2);
+                Surface.Top     = screen.Top  + (screen.Height / 2) - (Surface.Height / 2);
+            }
+            else
+            {
+                Surface.Left    = prevBounds.Left;
+                Surface.Top     = prevBounds.Top;
+            }
+        }
     }
     private void SetMouseSurface()
     {
