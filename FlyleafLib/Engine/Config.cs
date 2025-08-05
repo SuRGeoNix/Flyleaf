@@ -20,7 +20,7 @@ namespace FlyleafLib;
 /// </summary>
 public class Config : NotifyPropertyChanged
 {
-    static JsonSerializerOptions jsonOpts = new() { WriteIndented = true };
+    public static JsonSerializerOptions jsonOpts = new() { WriteIndented = true };
 
     public Config()
     {
@@ -1039,6 +1039,6 @@ public class EngineConfig
             path = LoadedPath;
         }
 
-        File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions() { WriteIndented = true, }));
+        File.WriteAllText(path, JsonSerializer.Serialize(this, Config.jsonOpts));
     }
 }

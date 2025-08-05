@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Windows;
 
-using FlyleafLib.MediaFramework.MediaDevice;
 using FlyleafLib.MediaPlayer;
 
 namespace FlyleafLib;
@@ -140,12 +139,8 @@ public static class Engine
         };
 
         Logger.SetOutput();
-
-        Log = new LogHandler("[FlyleafEngine] ");
-
-        Audio = new AudioEngine();
-        if (Config.FFmpegLoadProfile == LoadProfile.All)
-            AudioDevice.RefreshDevices();
+        Log     = new LogHandler("[FlyleafEngine] ");
+        Audio   = new AudioEngine();
     }
 
     private static void StartInternalNonUI()
@@ -155,12 +150,17 @@ public static class Engine
 
         FFmpeg  = new FFmpegEngine();
         Video   = new VideoEngine();
-        if (Config.FFmpegLoadProfile == LoadProfile.All)
-            VideoDevice.RefreshDevices();
         Plugins = new PluginsEngine();
-        Players = new List<Player>();
+        Players = [];
 
-        IsLoaded = true;
+        IsLoaded= true;
+
+        if (Config.FFmpegLoadProfile == LoadProfile.All) // Cap Devices (TBR: if UI required)
+        {
+            Audio.RefreshCapDevices();
+            Video.RefreshCapDevices();
+        }
+
         Loaded?.Invoke(null, null);
 
         if (Config.UIRefresh)
@@ -275,7 +275,7 @@ public static class Engine
                 if (curLoop == secondLoops)
                     curLoop = 0;
 
-                Action action = () =>
+                void UIAction()
                 {
                     try
                     {
@@ -320,10 +320,11 @@ public static class Engine
                                 }
                             }
                         }
-                    } catch { }
-                };
+                    }
+                    catch { }
+                }
 
-                Utils.UI(action);
+                Utils.UI(UIAction);
                 Thread.Sleep(Config.UIRefreshInterval);
 
             } catch { curLoop = 0; }

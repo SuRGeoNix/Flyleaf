@@ -2,360 +2,452 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
+using static FlyleafLib.Utils;
+using static FlyleafPlayer.AppConfig;
+
 using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
 
-namespace FlyleafPlayer
+namespace FlyleafPlayer;
+
+// TODO: Popup Menu Playlist will not resize the size?
+//       Add Play Next/Prev for Playlists (Page Up/Down?) this goes down to Player
+
+/// <summary>
+/// <para>FlyleafPlayer Sample</para>
+/// <para>A stand-alone Overlay which uses a customization of FlyleafME control</para>
+/// </summary>
+public partial class MainWindow : Window, INotifyPropertyChanged
 {
-    // TODO: Popup Menu Playlist will not resize the size?
-    //       Add Play Next/Prev for Playlists (Page Up/Down?) this goes down to Player
+    public event PropertyChangedEventHandler PropertyChanged;
+    public void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new(propertyName));
+    public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
 
     /// <summary>
-    /// <para>FlyleafPlayer Sample</para>
-    /// <para>A stand-alone Overlay which uses a customization of FlyleafME control</para>
+    /// Flyleaf Player binded to FlyleafME (This can be swapped and will nto belong to this window)
     /// </summary>
-    public partial class MainWindow : Window, INotifyPropertyChanged
+    public Player           Player              { get; set; }
+
+    /// <summary>
+    /// FlyleafME Media Element Control
+    /// </summary>
+    public FlyleafME        FlyleafME           { get; set; }
+
+    public ICommand         OpenWindow          { get; set; }
+    public ICommand         CloseWindow         { get; set; }
+
+    public SlideShowConfig  SlideShowConfig     { get; set; } = App.AppConfig.SlideShow;
+    public GeneralConfig    GeneralConfig       { get; set; } = App.AppConfig.General;
+
+    static bool     runOnce;
+    Config          playerConfig;
+    bool            ReversePlaybackChecked;
+    static int      openedWindows;
+    bool            closed = false;
+    static object   lockTray = new();
+
+    public MainWindow()
     {
-        public event PropertyChangedEventHandler PropertyChanged;
-        public void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new(propertyName));
-        public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
+        lock (lockTray) openedWindows++;
 
-        /// <summary>
-        /// Flyleaf Player binded to FlyleafME (This can be swapped and will nto belong to this window)
-        /// </summary>
-        public Player       Player      { get; set; }
-
-        /// <summary>
-        /// FlyleafME Media Element Control
-        /// </summary>
-        public FlyleafME    FlyleafME   { get; set; }
-
-        public ICommand     OpenWindow  { get; set; }
-        public ICommand     CloseWindow { get; set; }
-
-        static bool runOnce;
-        Config playerConfig;
-        bool ReversePlaybackChecked;
-
-        public MainWindow()
+        OpenWindow      = new RelayCommandSimple(() => new MainWindow() { Width = Width, Height = Height }.Show());
+        CloseWindow     = new RelayCommandSimple(Close);
+        ShowPrevImage   = new RelayCommandSimple(() => SlideShowGoTo(ImageIndex - 1));
+        ShowNextImage   = new RelayCommandSimple(() => SlideShowGoTo(ImageIndex + 1));
+        SlideShowToggle = new RelayCommandSimple(SlideShowToggleAction);
+        SlideShowRestart= new RelayCommandSimple(() => { SlideShowStart(false, false); SlideShowGoTo(0); }); // Note: When we start SlideShow with non-current ImageIndex use Start(notask) and GoTo to start the task
+            
+        FlyleafME = new(this)
         {
-            OpenWindow      = new RelayCommandSimple(() => new MainWindow() { Width = Width, Height = Height }.Show());
-            CloseWindow     = new RelayCommandSimple(Close);
-            ShowPrevImage   = new RelayCommandSimple(() => SlideShowGoTo(ImageIndex - 1));
-            ShowNextImage   = new RelayCommandSimple(() => SlideShowGoTo(ImageIndex + 1));
-            SlideShowToggle = new RelayCommandSimple(SlideShowToggleAction);
-            SlideShowRestart= new RelayCommandSimple(() => { SlideShowStart(false, false); SlideShowGoTo(0); }); // Note: When we start SlideShow with non-current ImageIndex use Start(notask) and GoTo to start the task
+            Tag = this,
+            ActivityTimeout     = MSG_TIMEOUT,
+            KeyBindings         = AvailableWindows.Both,
+            DetachedResize      = AvailableWindows.Overlay,
+            DetachedDragMove    = AvailableWindows.Both,
+            ToggleFullScreenOnDoubleClick
+                                = AvailableWindows.Both,
+            KeepRatioOnResize   = true,
+            OpenOnDrop          = AvailableWindows.Both,
 
-            FlyleafME = new FlyleafME(this)
-            {
-                Tag = this,
-                ActivityTimeout     = MSG_TIMEOUT,
-                KeyBindings         = AvailableWindows.Both,
-                DetachedResize      = AvailableWindows.Overlay,
-                DetachedDragMove    = AvailableWindows.Both,
-                ToggleFullScreenOnDoubleClick
-                                    = AvailableWindows.Both,
-                KeepRatioOnResize   = true,
-                OpenOnDrop          = AvailableWindows.Both,
-
-                PreferredLandscapeWidth = 800,
-                PreferredPortraitHeight = 600
-            };
+            PreferredLandscapeWidth = 800,
+            PreferredPortraitHeight = 600,
 
             // Allow Flyleaf WPF Control to Load UIConfig and Save both Config & UIConfig (Save button will be available in settings)
-            FlyleafME.ConfigPath    = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.Config.json");
-            FlyleafME.EnginePath    = App.EnginePath;
-            FlyleafME.UIConfigPath  = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.UIConfig.json");
+            EnginePath    = App.EnginePath,
+            ConfigPath    = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.Config.json"),
+            UIConfigPath  = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.UIConfig.json")
+        };
 
-            InitializeComponent();
+        InitializeComponent();
+        DataContext = FlyleafME; // Allowing FlyleafHost to access our Player
 
-            // Allowing FlyleafHost to access our Player
-            DataContext = FlyleafME;
-        }
+        if (GeneralConfig.SingleInstance)
+            Closing += X_Closing;
+    }
+    void X_Closing(object sender, CancelEventArgs e)
+    {
+        if (closed || !GeneralConfig.SingleInstance)
+            return;
 
-        private Config DefaultConfig()
+        lock (lockTray)
         {
-            Config config = new Config();
-            config.Demuxer.FormatOptToUnderlying= true;     // Mainly for HLS to pass the original query which might includes session keys
-            config.Audio.FiltersEnabled         = true;     // To allow embedded atempo filter for speed
-            config.Video.GPUAdapter             = "";       // Set it empty so it will include it when we save it
-            config.Subtitles.SearchLocal        = true;
-            return config;
-        }
-
-        private void LoadPlayer()
-        {
-            // NOTE: Loads/Saves configs only in RELEASE mode
-
-            // Player's Config (Cannot be initialized before Engine's initialization)
-            #if RELEASE
-            // Load Player's Config
-            if (File.Exists(FlyleafME.ConfigPath))
-                try { playerConfig = Config.Load(FlyleafME.ConfigPath); } catch { playerConfig = DefaultConfig(); }
-            else
-                playerConfig = DefaultConfig();
-            #else
-                playerConfig = DefaultConfig();
-            #endif
-
-            #if DEBUG
-            // Testing audio filters
-            //playerConfig.Audio.Filters = new()
-            //{
-              ////new() { Name = "loudnorm", Args = "I=-24:LRA=7:TP=-2", Id = "loudnorm1" },
-              ////new() { Name = "dynaudnorm", Args = "f=4150", Id = "dynaudnorm1" },
-              ////new() { Name ="afftfilt", Args = "real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75" }, // robot
-              ////new() { Name ="tremolo", Args="f=5:d=0.5" },
-              ////new() { Name ="vibrato", Args="f=10:d=0.5" },
-              ////new() { Name ="rubberband", Args="pitch=1.5" }
-            //};
-            #endif
-
-            // Initializes the Player
-            Player = new Player(playerConfig);
-
-            // Dispose Player on Window Close (the possible swapped player from FlyleafMe that actually belongs to us)
-            Closing += (o, e) => FlyleafME.Player?.Dispose();
-
-            Player.Opening      += Player_Opening;
-            Player.OpenCompleted+= Player_OpenCompleted;
-
-            // If the user requests reverse playback allocate more frames once
-            Player.PropertyChanged += (o, e) =>
+            if (openedWindows == 1)
             {
-                if (e.PropertyName == "ReversePlayback" && !GetWindowFromPlayer(Player).ReversePlaybackChecked)
-                {
-                    if (playerConfig.Decoder.MaxVideoFrames < 80)
-                        playerConfig.Decoder.MaxVideoFrames = 80;
+                e.Cancel = true;
 
-                    GetWindowFromPlayer(Player).ReversePlaybackChecked = true;
+                Player.Stop();
+                if (mediaViewer != MediaViewer.Video)
+                    MediaViewer = MediaViewer.Video;
+
+                FlyleafME.Surface.ShowInTaskbar = false;
+                FlyleafME.Surface.Hide();
+            }
+            else
+            {
+                closed = true;
+                openedWindows--;
+            }
+        }
+    }
+
+    void BtnMinimize_Click(object sender, RoutedEventArgs e) => FlyleafME.IsMinimized = true;
+    void BtnClose_Click(object sender, RoutedEventArgs e)
+    {
+        if (!GeneralConfig.SingleInstance)
+        {
+            Close();
+            return;
+        }
+
+        lock (lockTray)
+        {
+            if (openedWindows > 1)
+            {
+                if (!closed)
+                {
+                    closed = true;
+                    openedWindows--;
                 }
-                else if (e.PropertyName == nameof(Player.Rotation))
-                    GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Rotation}°";
-                else if (e.PropertyName == nameof(Player.Speed))
-                    GetWindowFromPlayer(Player).Msg = $"Speed x{Player.Speed}";
-                else if (e.PropertyName == nameof(Player.Zoom))
-                    GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Zoom}%";
-                else if (e.PropertyName == nameof(Player.Status) && Player.Activity.Mode == ActivityMode.Idle)
-                    Player.Activity.ForceActive();
-            };
-
-            Player.Audio.PropertyChanged += (o, e) =>
-            {
-                if (e.PropertyName == nameof(Player.Audio.Volume))
-                    GetWindowFromPlayer(Player).Msg = $"Volume {Player.Audio.Volume}%";
-                else if (e.PropertyName == nameof(Player.Audio.Mute))
-                    GetWindowFromPlayer(Player).Msg = Player.Audio.Mute ? "Muted" : "Unmuted";
-            };
-
-            Player.Config.Audio.PropertyChanged += (o, e) =>
-            {
-                if (e.PropertyName == nameof(Player.Config.Audio.Delay))
-                    GetWindowFromPlayer(Player).Msg = $"Audio Delay {Player.Config.Audio.Delay / 10000}ms";
-            };
-
-            Player.Config.Subtitles.PropertyChanged += (o, e) =>
-            {
-                if (e.PropertyName == nameof(Player.Config.Subtitles.Delay))
-                    GetWindowFromPlayer(Player).Msg = $"Subs Delay {Player.Config.Subtitles.Delay / 10000}ms";
-            };
-
-            // Ctrl+ N / Ctrl + W (Open New/Close Window)
-            var keys = playerConfig.Player.KeyBindings;
-            keys.AddCustom(Key.N, true, () => CreateNewWindow(Player), "New Window", false, true, false);
-            keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).Close(), "Close Window", false, true, false);
-
-            // We might saved the tmp keys (restore them)
-            if (Player.Config.Loaded && keys.Exists("tmp01"))
-            {
-                SlideKeysRemove();
-                VideoKeysRestore();
-            }
-        }
-
-        private static MainWindow GetWindowFromPlayer(Player player)
-        {
-            FlyleafHost flhost = null;
-            MainWindow mw = null;
-
-            Utils.UIInvokeIfRequired(() =>
-            {
-                flhost  = (FlyleafHost) player.Host;
-                mw      = (MainWindow) flhost.Overlay;
-            });
-
-            return mw;
-        }
-        private static void CreateNewWindow(Player player)
-        {
-            var mw = GetWindowFromPlayer(player);
-
-            MainWindow mwNew = new()
-            {
-                Width   = mw.Width,
-                Height  = mw.Height,
-            };
-
-            mwNew.Show();
-        }
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            if (Engine.IsLoaded)
-            {
-                LoadPlayer();
-                FlyleafME.Player = Player;
-            }
-            else
-            {
-                Engine.Loaded += (o, e) =>
-                {
-                    LoadPlayer();
-                    Utils.UIInvokeIfRequired(() => FlyleafME.Player = Player);
-                };
-            }
-
-            if (runOnce)
+                    
+                Close();
                 return;
-
-            runOnce = true;
-
-            if (App.CmdUrl != null)
-                Player.OpenAsync(App.CmdUrl);
-
-            #if RELEASE
-            // Save Player's Config (First Run)
-            // Ensures that the Control's handle has been created and the renderer has been fully initialized (so we can save also the filters parsed by the library)
-            if (!playerConfig.Loaded)
-            {
-                try
-                {
-                    Utils.AddFirewallRule();
-                    playerConfig.Save(FlyleafME.ConfigPath);
-                } catch { }
             }
-
-            // Stops Logging (First Run)
-            if (!Engine.Config.Loaded)
-            {
-                Engine.Config.LogOutput      = null;
-                Engine.Config.LogLevel       = LogLevel.Quiet;
-                //Engine.Config.FFmpegDevices  = false;
-
-                try { Engine.Config.Save(App.EnginePath); } catch { }
-            }
-            #endif
         }
 
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => FlyleafME.IsMinimized = true;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+        Player.Stop();
+        if (mediaViewer != MediaViewer.Video)
+            MediaViewer = MediaViewer.Video;
 
-        #region Photo Viewer / Slide Show
-        /* TODO
-         * Sorting (+based on explorer folder settings / numerical*)
-         * Shuffle
-         * Include / Exclude  (SubFolder/Image/Animation/Video *Regex)
-         * Prepare next? (for faster/better transition)
-         * Preview Film/Slider/Gallery?
-         * Config / Keys** Save?
-         */
+        FlyleafME.Surface.ShowInTaskbar = false;
+        FlyleafME.Surface.Hide();
+    }
 
-        #region Slide Show Config
-        public int          SlideShowTimer      { get => slideShowTimer;        set { if (slideShowTimer == value) return;      slideShowTimer = value;     OnPropertyChanged(nameof(SlideShowTimer)); } }
-        int slideShowTimer = 3000;
-        public int          PageStep            { get => pageStep;              set { if (pageStep == value) return;            pageStep = value;           OnPropertyChanged(nameof(PageStep)); } }
-        int pageStep = 10;
-        public int          MaxFiles            { get => maxFiles;              set { if (maxFiles == value) return;            maxFiles = value;           OnPropertyChanged(nameof(MaxFiles)); } }
-        int maxFiles = 5000;
-        public bool         DeleteConfirmation  { get => deleteConfirmation;    set { if (deleteConfirmation == value) return;  deleteConfirmation = value; OnPropertyChanged(nameof(DeleteConfirmation)); } }
-        bool deleteConfirmation = true;
-        #endregion
+    public static MainWindow GetWindowFromPlayer(Player player)
+    {
+        FlyleafHost flhost = null;
+        MainWindow mw = null;
 
-        public ICommand     ShowNextImage   { get; set; }
-        public ICommand     ShowPrevImage   { get; set; }
-        public ICommand     SlideShowToggle { get; set; }
-        public ICommand     SlideShowRestart{ get; set; }
-
-        public bool         CanNextImage    { get => canNextImage;  set { if (canNextImage == value) return;    canNextImage = value;   Utils.UI(() => OnPropertyChanged(nameof(CanNextImage))); } }
-        bool canNextImage;
-
-        public bool         CanPrevImage    { get => canPrevImage;  set { if (canPrevImage == value) return;    canPrevImage = value;   Utils.UI(() => OnPropertyChanged(nameof(CanPrevImage))); } }
-        bool canPrevImage;
-
-        public MediaViewer  MediaViewer     { get => mediaViewer;   set { if (mediaViewer == value) return;     prevMediaViewer = mediaViewer; mediaViewer = value; SwitchMediaViewer(); Utils.UI(() => OnPropertyChanged(nameof(MediaViewer))); } }
-        MediaViewer mediaViewer = MediaViewer.Video; MediaViewer prevMediaViewer;
-
-        public string       ImageTitle      { get => imageTitle;    set { if (imageTitle == value) return;      imageTitle = value;     Utils.UI(() => OnPropertyChanged(nameof(ImageTitle))); } }
-        string imageTitle;
-
-        public FileInfo     ImageInfo       { get => imageInfo;     set { if (imageInfo == value) return;       imageInfo = value; ImageTitle = value?.Name; } }
-        FileInfo imageInfo;
-
-        public List<string> ImageFiles      { get; set; } = [];
-        public int          ImageIndex      { get => imageIndex;    set { if (imageIndex == value) return;      imageIndex = value; UIImageIndex = imageIndex + 1; Utils.UI(() => OnPropertyChanged(nameof(UIImageIndex))); } }
-        int imageIndex = -1;
-        public int          UIImageIndex    { get; set; }
-
-        public string       ImageFolder     { get => imageFolder;   set { prevImageFolder = imageFolder;        imageFolder = value; } }
-        string imageFolder, prevImageFolder;
-
-        public bool         SlideShow       { get => slideShow;     set { if (slideShow == value) return;       slideShow = value;      Utils.UI(() => OnPropertyChanged(nameof(SlideShow))); } }
-        bool slideShow;
-
-        public int          TotalFiles      { get => totalFiles;    set { if (totalFiles == value) return;      totalFiles = value;     Utils.UI(() => OnPropertyChanged(nameof(TotalFiles))); } }
-        int totalFiles;
-
-        CancellationTokenSource
-                            slideShowCancel = new();
-        object              slideShowLock   = new();
-        int                 slideShowElapsedMs;         // For Pause/Play to keep the remaining ms
-        long                slideShowStartedAt;         // For Pause/Play to keep the remaining ms
-        FileSystemWatcher   slideShowWatcher;           // Monitor ImageFolder for changes
-        bool                imageFilesChanged;
-        bool                userKeepRatioOnResize;
-
-        [GeneratedRegex("\\.(apng|avif|bmp|jpg|jpeg|gif|ico|png|svg|tiff|webp|jfif)$", RegexOptions.IgnoreCase, "en-US")]
-        private static partial Regex RegexImages();
-
-        void Player_Opening(object sender, OpeningArgs e)
+        UIInvokeIfRequired(() =>
         {
-            if (e.IsSubtitles || e.Url == null)
-                return;
+            flhost  = (FlyleafHost) player.Host;
+            mw      = (MainWindow) flhost.Overlay;
+        });
 
-            var url = e.Url;
+        return mw;
+    }
+    static void CreateNewWindow(Player player)
+    {
+        var mw = GetWindowFromPlayer(player);
 
-            if (!RegexImages().IsMatch(url))
+        MainWindow mwNew = new()
+        {
+            Width   = mw.Width,
+            Height  = mw.Height,
+        };
+
+        mwNew.Show();
+    }
+
+    void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (Engine.IsLoaded)
+            WindowAndEngineLoaded();
+        else
+            Engine.Loaded += (o, e) => WindowAndEngineLoaded();
+    }
+
+    void WindowAndEngineLoaded()
+    {
+        LoadPlayer();
+
+        UIInvokeIfRequired(() =>
+        {
+            FlyleafME.Player = Player;
+
+            if (GeneralConfig.SingleInstance)
+            {
+                FlyleafME.Overlay.Closing += X_Closing;
+                FlyleafME.Surface.Closing += X_Closing;
+            }
+        });
+
+        if (runOnce)
+            return;
+
+        runOnce = true;
+
+        if (App.CmdUrl != null)
+            Player.OpenAsync(App.CmdUrl);
+
+        #if RELEASE
+        // Save Player's Config (First Run)
+        // Ensures that the Control's handle has been created and the renderer has been fully initialized (so we can save also the filters parsed by the library)
+        if (!playerConfig.Loaded)
+        {
+            try
+            {
+                AddFirewallRule();
+                playerConfig.Save(FlyleafME.ConfigPath);
+            } catch { }
+        }
+
+        // Stops Logging (First Run)
+        if (!Engine.Config.Loaded)
+        {
+            Engine.Config.LogOutput      = null;
+            Engine.Config.LogLevel       = LogLevel.Quiet;
+            //Engine.Config.FFmpegDevices  = false;
+
+            try { Engine.Config.Save(App.EnginePath); } catch { }
+        }
+        #endif
+    }
+
+    void LoadPlayer()
+    {
+        // NOTE: Loads/Saves configs only in RELEASE mode
+
+        // Player's Config (Cannot be initialized before Engine's initialization)
+        #if RELEASE
+        // Load Player's Config
+        if (File.Exists(FlyleafME.ConfigPath))
+            try { playerConfig = Config.Load(FlyleafME.ConfigPath); } catch { playerConfig = DefaultConfig(); }
+        else
+            playerConfig = DefaultConfig();
+        #else
+            playerConfig = DefaultConfig();
+        #endif
+
+        userClearScreen = playerConfig.Video.ClearScreen; // slide show disable this
+
+        #if DEBUG
+        // Testing audio filters
+        //playerConfig.Audio.Filters = new()
+        //{
+            ////new() { Name = "loudnorm", Args = "I=-24:LRA=7:TP=-2", Id = "loudnorm1" },
+            ////new() { Name = "dynaudnorm", Args = "f=4150", Id = "dynaudnorm1" },
+            ////new() { Name ="afftfilt", Args = "real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75" }, // robot
+            ////new() { Name ="tremolo", Args="f=5:d=0.5" },
+            ////new() { Name ="vibrato", Args="f=10:d=0.5" },
+            ////new() { Name ="rubberband", Args="pitch=1.5" }
+        //};
+        #endif
+
+        // Initializes the Player
+        Player = new Player(playerConfig);
+
+        // Dispose Player on Window Close (the possible swapped player from FlyleafMe that actually belongs to us)
+        Closing += (o, e) => FlyleafME.Player?.Dispose();
+
+        Player.Opening          += Player_Opening;
+        Player.OpenCompleted    += Player_OpenCompleted;
+
+        // If the user requests reverse playback allocate more frames once
+        Player.PropertyChanged += (o, e) =>
+        {
+            if (e.PropertyName == "ReversePlayback" && !GetWindowFromPlayer(Player).ReversePlaybackChecked)
+            {
+                if (playerConfig.Decoder.MaxVideoFrames < 80)
+                    playerConfig.Decoder.MaxVideoFrames = 80;
+
+                GetWindowFromPlayer(Player).ReversePlaybackChecked = true;
+            }
+            else if (e.PropertyName == nameof(Player.Rotation))
+                GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Rotation}°";
+            else if (e.PropertyName == nameof(Player.Speed))
+                GetWindowFromPlayer(Player).Msg = $"Speed x{Player.Speed}";
+            else if (e.PropertyName == nameof(Player.Zoom))
+                GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Zoom}%";
+            else if (e.PropertyName == nameof(Player.Status) && Player.Activity.Mode == ActivityMode.Idle)
+                Player.Activity.ForceActive();
+        };
+
+        Player.Audio.PropertyChanged += (o, e) =>
+        {
+            if (e.PropertyName == nameof(Player.Audio.Volume))
+                GetWindowFromPlayer(Player).Msg = $"Volume {Player.Audio.Volume}%";
+            else if (e.PropertyName == nameof(Player.Audio.Mute))
+                GetWindowFromPlayer(Player).Msg = Player.Audio.Mute ? "Muted" : "Unmuted";
+        };
+
+        Player.Config.Audio.PropertyChanged += (o, e) =>
+        {
+            if (e.PropertyName == nameof(Player.Config.Audio.Delay))
+                GetWindowFromPlayer(Player).Msg = $"Audio Delay {Player.Config.Audio.Delay / 10000}ms";
+        };
+
+        Player.Config.Subtitles.PropertyChanged += (o, e) =>
+        {
+            if (e.PropertyName == nameof(Player.Config.Subtitles.Delay))
+                GetWindowFromPlayer(Player).Msg = $"Subs Delay {Player.Config.Subtitles.Delay / 10000}ms";
+        };
+
+        // Ctrl+ N / Ctrl + W (Open New/Close Window)
+        var keys = playerConfig.Player.KeyBindings;
+        keys.AddCustom(Key.N, true, () => CreateNewWindow(Player), "New Window", false, true, false);
+        keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).Close(), "Close Window", false, true, false);
+
+        // We might saved the tmp keys (restore them)
+        if (Player.Config.Loaded && keys.Exists("tmp01"))
+        {
+            SlideKeysRemove();
+            VideoKeysAdd();
+        }
+    }
+
+    static Config DefaultConfig()
+    {
+        Config config = new();
+        config.Demuxer.FormatOptToUnderlying= true;     // Mainly for HLS to pass the original query which might includes session keys
+        config.Audio.FiltersEnabled         = true;     // To allow embedded atempo filter for speed
+        config.Video.GPUAdapter             = "";       // Set it empty so it will include it when we save it
+        config.Subtitles.SearchLocal        = true;
+        return config;
+    }
+
+    #region Photo Viewer / Slide Show
+    /* TODO
+        * Sorting (+based on explorer folder settings / numerical*)
+        * Shuffle
+        * Include / Exclude  (SubFolder/Image/Animation/Video *Regex)
+        * Prepare next? (for faster/better transition)
+        * Preview Film/Slider/Gallery?
+        * Config / Keys** Save?
+        */
+
+    public ICommand     ShowNextImage   { get; set; }
+    public ICommand     ShowPrevImage   { get; set; }
+    public ICommand     SlideShowToggle { get; set; }
+    public ICommand     SlideShowRestart{ get; set; }
+
+    public bool         CanNextImage    { get => canNextImage;  set { if (canNextImage == value) return;    canNextImage = value;   OnPropertyChanged(nameof(CanNextImage)); } }
+    bool canNextImage;
+
+    public bool         CanPrevImage    { get => canPrevImage;  set { if (canPrevImage == value) return;    canPrevImage = value;   OnPropertyChanged(nameof(CanPrevImage)); } }
+    bool canPrevImage;
+
+    public MediaViewer  MediaViewer     { get => mediaViewer;   set { if (mediaViewer == value) return;     prevMediaViewer = mediaViewer; mediaViewer = value; SwitchMediaViewer(); OnPropertyChanged(nameof(MediaViewer)); } }
+    MediaViewer mediaViewer = MediaViewer.Video; MediaViewer prevMediaViewer;
+
+    public string       ImageTitle      { get => imageTitle;    set { if (imageTitle == value) return;      imageTitle = value;     OnPropertyChanged(nameof(ImageTitle)); } }
+    string imageTitle;
+
+    public List<string> ImageFiles      { get; set; } = [];
+    public int          ImageIndex      { get => imageIndex;    set { if (imageIndex == value) return;      imageIndex = value; UIImageIndex = imageIndex + 1; OnPropertyChanged(nameof(UIImageIndex)); } }
+    int imageIndex = -1;
+    public int          UIImageIndex    { get; set; }
+
+    public bool         SlideShow       { get => slideShow;     set { if (slideShow == value) return;       slideShow = value;      OnPropertyChanged(nameof(SlideShow)); } }
+    bool slideShow;
+
+    public int          TotalFiles      { get => totalFiles;    set { if (totalFiles == value) return;      totalFiles = value;     OnPropertyChanged(nameof(TotalFiles)); } }
+    int totalFiles;
+
+    CancellationTokenSource
+                        slideShowCancel = new();
+    object              slideShowLock   = new();
+    bool                slideShowOpening;           // avoid rechecks
+    int                 slideShowElapsedMs;         // For Pause/Play to keep the remaining ms
+    long                slideShowStartedAt;         // For Pause/Play to keep the remaining ms
+    FileSystemWatcher   slideShowWatcher;           // Monitor ImageFolder for changes
+    bool                userKeepRatioOnResize;
+    string              imageFolder;
+    int                 folderId;
+
+    [GeneratedRegex("\\.(apng|avif|bmp|jpg|jpeg|gif|ico|png|svg|tiff|webp|jfif)$", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex RegexImages();
+
+    void Player_Opening(object sender, OpeningArgs e)
+    {
+        if (slideShowOpening)
+            ImageTitle = ImageFiles[ImageIndex];
+        else if (!RegexImages().IsMatch(e.Url))
+        {
+            if (mediaViewer != MediaViewer.Video)
                 MediaViewer = MediaViewer.Video;
-            else
+        }
+        else
+        {
+            try
             {
-                try
-                {
-                    ImageInfo = new(url);
-                    ImageFolder = ImageInfo.Exists ? Path.GetDirectoryName(ImageInfo.FullName) : null;
-                    SlideShowCheck();
-                }
-                catch (Exception)
-                {
-                    if (ImageInfo == null)
-                        ImageTitle = url;
+                var url = e.Url.AsSpan();
+                string curFolder = null;
+                bool folderFound = false;
 
-                    ImageFolder = null;
+                for (int i = url.Length - 1; i >= 0; i--)
+                    if (url[i] == '/' || url[i] == '\\')
+                    {
+                        ImageTitle  = url[(i + 1)..].ToString();
+                        curFolder   = url[..i].ToString();
+                        folderFound = true;
+                        break;
+                    }
+
+                if (!folderFound)
                     MediaViewer = MediaViewer.Image;
+                else if (curFolder.Equals(imageFolder, StringComparison.OrdinalIgnoreCase) && mediaViewer == MediaViewer.Slide) // Mainly manually opening from the same folder
+                {
+                    lock (slideShowLock)
+                    {
+                        int imageIndex = -1;
+                        for (int i = 0; i < ImageFiles.Count; i++)
+                            if (ImageFiles[i].Equals(ImageTitle, StringComparison.OrdinalIgnoreCase))
+                            { imageIndex = i; break; }
+
+                        // if (imageIndex == -1) // should never happen*?
+
+                        ImageIndex  = imageIndex;
+                        CanPrevImage= imageIndex > 0;
+                        CanNextImage= imageIndex < ImageFiles.Count - 1;
+                    }
+                }
+                else
+                {
+                    imageFolder = curFolder;
+                    RefreshFolder(true);
                 }
             }
+            catch
+            {
+                MediaViewer = MediaViewer.Image;
+            }
         }
-        void Player_OpenCompleted(object sender, OpenCompletedArgs e)
-        {
-            if (e.IsSubtitles)
-                return;
-
+    }
+    void Player_OpenCompleted(object sender, OpenCompletedArgs e)
+    {
+        if (mediaViewer == MediaViewer.Video || e.IsSubtitles)
+            return;
+        else if (mediaViewer == MediaViewer.Image && imageTitle == null)
+            ImageTitle = Player.Playlist.Selected.Title;
+        else
             lock (slideShowLock)
                 if (SlideShow)
                 {
@@ -365,390 +457,383 @@ namespace FlyleafPlayer
                     slideShowElapsedMs = 0;
                     Task.Run(SlideShowTask, slideShowCancel.Token);
                 }
+    }
+
+    bool userClearScreen;
+    void SwitchMediaViewer()
+    {
+        var keys = playerConfig.Player.KeyBindings;
+
+        switch (prevMediaViewer)
+        {
+            case MediaViewer.Video:
+                userKeepRatioOnResize = FlyleafME.KeepRatioOnResize;
+                break;
+
+            case MediaViewer.Image:
+                ImageKeysRemove();
+                break;
+
+            case MediaViewer.Slide:
+                SlideShowDeInit();
+                SlideKeysRemove();
+
+                break;
         }
 
-        void SwitchMediaViewer()
+        switch (MediaViewer)
         {
-            var keys = playerConfig.Player.KeyBindings;
+            case MediaViewer.Video:
+                imageFolder = null;
+                Player.Config.Video.ClearScreen = userClearScreen;
 
-            switch (prevMediaViewer)
-            {
-                case MediaViewer.Video:
-                    userKeepRatioOnResize = FlyleafME.KeepRatioOnResize;
-                    break;
+                FlyleafME.ToggleFullScreenOnDoubleClick = AvailableWindows.Both;
+                FlyleafME.KeyBindings = AvailableWindows.Both;
+                FlyleafME.KeepRatioOnResize = userKeepRatioOnResize;
 
-                case MediaViewer.Image:
-                    break;
+                VideoKeysAdd();
 
-                case MediaViewer.Slide:
-                    SlideShowDeInit();
-                    SlideKeysRemove();
+                break;
 
-                    break;
-            }
+            case MediaViewer.Image:
+                Player.Config.Video.ClearScreen = userClearScreen;
 
-            switch (MediaViewer)
-            {
-                case MediaViewer.Video:
-                    ImageInfo = null;
-                    ImageFolder = null;
+                FlyleafME.ToggleFullScreenOnDoubleClick = AvailableWindows.Surface;
+                FlyleafME.KeyBindings = AvailableWindows.Surface;
+                FlyleafME.KeepRatioOnResize = userKeepRatioOnResize;
 
-                    FlyleafME.ToggleFullScreenOnDoubleClick = AvailableWindows.Both;
-                    FlyleafME.KeyBindings = AvailableWindows.Both;
-                    FlyleafME.KeepRatioOnResize = userKeepRatioOnResize;
+                ImageKeysAdd();
+                break;
 
-                    VideoKeysRestore();
+            case MediaViewer.Slide:
+                userClearScreen = Player.Config.Video.ClearScreen;
+                Player.Config.Video.ClearScreen = false;
+                FlyleafME.ToggleFullScreenOnDoubleClick = AvailableWindows.Surface;
+                FlyleafME.KeyBindings = AvailableWindows.Both;
+                FlyleafME.KeepRatioOnResize = false;
 
-                    break;
-
-                case MediaViewer.Image:
-                    FlyleafME.ToggleFullScreenOnDoubleClick = AvailableWindows.Surface;
-                    FlyleafME.KeyBindings = AvailableWindows.Surface;
-                    FlyleafME.KeepRatioOnResize = userKeepRatioOnResize;
-
-                    break;
-
-                case MediaViewer.Slide:
-                    FlyleafME.ToggleFullScreenOnDoubleClick = AvailableWindows.Surface;
-                    FlyleafME.KeyBindings = AvailableWindows.Both;
-                    FlyleafME.KeepRatioOnResize = false;
-
-                    SlideKeysAdd();
-                    break;
-            }
+                SlideKeysAdd();
+                break;
         }
+    }
 
-        private void DialogHost_DialogOpened(object sender, MaterialDesignThemes.Wpf.DialogOpenedEventArgs eventArgs)
-            { if (MediaViewer == MediaViewer.Slide) FlyleafME.KeyBindings = AvailableWindows.Surface; }
-        private void DialogHost_DialogClosed(object sender, MaterialDesignThemes.Wpf.DialogClosedEventArgs eventArgs)
-            { if (MediaViewer == MediaViewer.Slide) FlyleafME.KeyBindings = AvailableWindows.Both; }
-
-        void SlideShowCheck()
+    private void DialogHost_DialogOpened(object sender, MaterialDesignThemes.Wpf.DialogOpenedEventArgs e)
+        { if (MediaViewer == MediaViewer.Slide) FlyleafME.KeyBindings = AvailableWindows.Surface; }
+    private void DialogHost_DialogClosed(object sender, MaterialDesignThemes.Wpf.DialogClosedEventArgs e)
+    {
+        if (MediaViewer == MediaViewer.Slide)
         {
-            if (prevImageFolder == imageFolder)
+            FlyleafME.KeyBindings = AvailableWindows.Both;
+            if ((string)e.Parameter == "Save")
+                App.AppConfig.Save();
+        }
+    }
+
+    [DllImport("shlwapi.dll", EntryPoint = "StrCmpLogicalW", ExactSpelling = true, CharSet = CharSet.Unicode)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    public static extern int StrCmpLogical(string psz1, string psz2);
+
+    void RefreshFolder(bool init)
+    {
+        Task.Run(() =>
+        {
+            int curId = Interlocked.Increment(ref folderId);
+
+            var files = Directory.EnumerateFiles(imageFolder);
+            List<string> imageFiles = [];
+            foreach (var file in files)
             {
-                if (imageFolder == null)
-                    MediaViewer = MediaViewer.Image;
-                else if (MediaViewer != MediaViewer.Slide)
+                if (curId != folderId)
                     return;
-                else if (ImageFiles[ImageIndex] != ImageInfo.FullName)
+
+                if (!RegexImages().IsMatch(file))
+                    continue;
+
+                imageFiles.Add(Path.GetFileName(file));
+                if (imageFiles.Count > SlideShowConfig.MaxFiles)
+                    break;
+            }
+
+            imageFiles.Sort(StrCmpLogical);
+
+            UIInvokeIfRequired(() =>
+            {
+                lock (slideShowLock)
                 {
-                    int foundIndex = -1;
+                    if (curId != folderId)
+                        return;
 
-                    for (int i = 0; i < ImageFiles.Count; i++)
-                        if (ImageFiles[i] == ImageInfo.FullName)
-                            { foundIndex = i; break; }
-
-                    if (foundIndex == -1)
-                        MediaViewer = MediaViewer.Image; // Maybe recalculate files?
+                    if (imageFiles.Count == 0)
+                        MediaViewer = MediaViewer.Video;
+                    else if (imageFiles.Count == 1)
+                    {
+                        Player.OpenAsync(imageFolder + "\\" + imageFiles[0]); // probably from our delete
+                        MediaViewer = MediaViewer.Image;
+                    }
                     else
                     {
-                        if (SlideShow)
-                        {
-                            slideShowCancel.Cancel();
-                            slideShowCancel = new();
-                        }
+                        if (init)
+                            MediaViewer = MediaViewer.Slide; // resets
+                            
+                        int imageIndex = -1;
 
-                        ImageIndex = foundIndex;
-                        CanPrevImage = ImageIndex > 0;
-                        CanNextImage = ImageIndex < ImageFiles.Count - 1;
+                        for (int i = 0; i < imageFiles.Count; i++)
+                            if (imageFiles[i].Equals(ImageTitle, StringComparison.OrdinalIgnoreCase))
+                                { imageIndex = i; break; }
+
+                        ImageFiles  = imageFiles;
+                        TotalFiles  = imageFiles.Count;
+                        CanPrevImage= imageIndex > 0;
+                        CanNextImage= imageIndex < ImageFiles.Count - 1;
 
                         if (SlideShow && !CanNextImage)
                             SlideShow = false;
-                    }
-                }
-            }
-            else if (imageFolder == null)
-                MediaViewer = MediaViewer.Image;
-            else
-            {
-                var files = Directory.GetFiles(imageFolder, $"*.*");
-                if (files.Length < 2)
-                    MediaViewer = MediaViewer.Image;
-                else
-                {
-                    List<string> imagefiles = [];
-                    int imageIndex = -1;
-                    for (int i = 0; i < files.Length; i++)
-                    {
-                        var file = files[i];
-                        if (!RegexImages().IsMatch(file))
-                            continue;
 
-                        if (file.Equals(imageInfo.FullName, StringComparison.OrdinalIgnoreCase))
-                            imageIndex = imagefiles.Count;
-
-                        imagefiles.Add(file);
-                        if (imagefiles.Count > maxFiles)
-                            break;
-                    }
-
-                    if (imagefiles.Count < 2)
-                        MediaViewer = MediaViewer.Image;
-                    else
-                    {
-                        lock (slideShowLock)
+                        if (init)
                         {
-                            slideShowWatcher = new(imageFolder);
-                            slideShowWatcher.EnableRaisingEvents = true;
-                            slideShowWatcher.NotifyFilter = NotifyFilters.FileName;
+                            slideShowWatcher = new(imageFolder)
+                            {
+                                EnableRaisingEvents = true,
+                                NotifyFilter = NotifyFilters.FileName
+                            };
 
                             slideShowWatcher.Renamed += (o, e) =>
                             {
-                                if (!imageFilesChanged && RegexImages().IsMatch(e.Name))
-                                    imageFilesChanged = true;
+                                if (RegexImages().IsMatch(e.Name))
+                                    RefreshFolder(false);
                             };
 
                             slideShowWatcher.Deleted += (o, e) =>
                             {
-                                if (!imageFilesChanged && RegexImages().IsMatch(e.Name))
-                                    imageFilesChanged = true;
+                                if (RegexImages().IsMatch(e.Name))
+                                    RefreshFolder(false);
                             };
 
                             slideShowWatcher.Created += (o, e) =>
                             {
-                                if (!imageFilesChanged && RegexImages().IsMatch(e.Name))
-                                    imageFilesChanged = true;
+                                if (RegexImages().IsMatch(e.Name))
+                                    RefreshFolder(false);
                             };
-
-                            slideShowCancel.Cancel();
-                            slideShowCancel = new();
-
-                            ImageFiles  = imagefiles;
-                            TotalFiles  = imagefiles.Count;
-                            ImageIndex  = imageIndex == -1 ? 0 : imageIndex;
-                            CanPrevImage= ImageIndex > 0;
-                            CanNextImage= ImageIndex < ImageFiles.Count - 1;
-                            MediaViewer = MediaViewer.Slide;
                         }
+
+                        if (imageIndex == -1) // Mainly from our Delete
+                            SlideShowGoTo(ImageIndex);
+                        else
+                            ImageIndex = imageIndex;
                     }
                 }
-            }
-        }
-        void SlideShowReCheck(ref int index)
-        {
-            if (!imageFilesChanged)
-                return;
+            });
+        });
+    }
 
-            imageFilesChanged = false;
-
-            var files = Directory.GetFiles(imageFolder, $"*.*");
-            if (files.Length < 2)
-                MediaViewer = MediaViewer.Image;
-            else
-            {
-                List<string> imagefiles = [];
-                int imageIndex = -1;
-                for (int i = 0; i < files.Length; i++)
-                {
-                    var file = files[i];
-                    if (!RegexImages().IsMatch(file))
-                        continue;
-
-                    if (file.Equals(imageInfo.FullName, StringComparison.OrdinalIgnoreCase))
-                        imageIndex = imagefiles.Count;
-
-                    imagefiles.Add(file);
-                    if (imagefiles.Count > maxFiles)
-                        break;
-                }
-
-                if (imagefiles.Count < 2)
-                    MediaViewer = MediaViewer.Image;
-                else
-                {
-                    if (index == 0)
-                        index = 0;
-                    else if (index == ImageFiles.Count - 1)
-                        index = imagefiles.Count - 1;
-                    else if (imageIndex != -1)
-                    {
-                        if (index - ImageIndex == 1)
-                            index = imageIndex + 1;
-                        else if (ImageIndex - index == 1)
-                            index = imageIndex - 1;
-                    }
-                    else if (index > imagefiles.Count - 1)
-                        index = imagefiles.Count - 1;
-
-                    ImageFiles = imagefiles;
-                    TotalFiles = imagefiles.Count;
-                }
-            }
-        }
-        void SlideShowDeInit()
-        {
+    void SlideShowDeInit()
+    {
+        //UIInvokeIfRequired(() =>
+        //{
             lock (slideShowLock)
             {
                 slideShowCancel.Cancel();
-                slideShowCancel = new();
+                slideShowCancel     = new();
+                imageFolder         = null;
                 ImageFiles.Clear();
-                ImageIndex = -1;
-                TotalFiles = 0;
-                slideShowElapsedMs = 0;
-                SlideShow = CanPrevImage = CanNextImage = false;
+                ImageIndex          = -1;
+                TotalFiles          = 0;
+                slideShowElapsedMs  = 0;
+                SlideShow           = CanPrevImage = CanNextImage = false;
                 slideShowWatcher.Dispose();
             }
-        }
-        void SlideShowGoTo(int index, bool fromSlideShow = false, bool restart = false)
-        {
-            lock (slideShowLock)
-            {
-                SlideShowReCheck(ref index);
-
-                if (MediaViewer != MediaViewer.Slide || index < 0 || index > ImageFiles.Count - 1)
-                    return;
-
-                if (SlideShow && !fromSlideShow)
-                {
-                    slideShowCancel.Cancel();
-                    slideShowCancel = new();
-                }
-
-                ImageIndex = index;
-                CanPrevImage = ImageIndex > 0;
-                CanNextImage = ImageIndex < ImageFiles.Count - 1;
-
-                if (SlideShow && !CanNextImage)
-                    SlideShow = false;
-
-                slideShowElapsedMs = 0;
-                Player.OpenAsync(ImageFiles[ImageIndex]);
-            }
-        }
-        void SlideShowStop()
-        {
-            lock (slideShowLock)
-            {
-                slideShowCancel.Cancel();
-                slideShowCancel = new();
-                SlideShow = false;
-                slideShowElapsedMs += (int) (DateTime.UtcNow.Ticks - slideShowStartedAt) / 10000;
-            }
-        }
-        void SlideShowStart(bool inFullScreen = false, bool andTask = true)
-        {
-            lock (slideShowLock)
-            {
-                slideShowCancel.Cancel();
-                slideShowCancel = new();
-                SlideShow = true;
-                if (inFullScreen)
-                    Player.FullScreen();
-
-                Player.Activity.ForceIdle();
-                if (andTask)
-                {
-                    slideShowStartedAt = DateTime.UtcNow.Ticks;
-                    Task.Run(SlideShowTask, slideShowCancel.Token);
-                }
-            }
-        }
-        void SlideShowToggleAction()
-        {
-            if (SlideShow)
-                SlideShowStop();
-            else if (canNextImage)
-                SlideShowStart();
-        }
-
-        async Task SlideShowTask()
-        {
-            if (Player.CanPlay && slideShowElapsedMs < slideShowTimer)
-                await Task.Delay(SlideShowTimer - slideShowElapsedMs, slideShowCancel.Token);
-
-            while (Player.IsPlaying)
-                await Task.Delay(100, slideShowCancel.Token);
-
-            if (slideShowCancel.IsCancellationRequested || !SlideShow)
-                return;
-
-            SlideShowGoTo(ImageIndex + 1, true);
-        }
-
-        void SlideKeysRemove()
-        {
-            var keys = playerConfig.Player.KeyBindings;
-
-            keys.Remove(Key.Left);
-            keys.Remove(Key.Right);
-            keys.Remove(Key.Home);
-            keys.Remove(Key.End);
-            keys.Remove(Key.Space);
-            keys.Remove(Key.F5);
-            keys.Remove(Key.Delete);
-            keys.Remove(Key.C, false, true);
-            keys.Remove(Key.X, false, true);
-            keys.Remove(Key.PageDown);
-            keys.Remove(Key.PageUp);
-        }
-        void SlideKeysAdd()
-        {
-            var keys = playerConfig.Player.KeyBindings;
-            keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(ImageIndex - 1), "tmp01");
-            keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(ImageIndex + 1), "tmp02");
-            keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(0), "tmp03");
-            keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(ImageFiles.Count -1), "tmp04");
-            keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "tmp05");
-            keys.AddCustom(Key.F5,      true,   () => SlideShowStart(true), "tmp06");
-            keys.AddCustom(Key.Delete,  true,   ImageDelete, "tmp07");
-            keys.AddCustom(Key.C,       true,   () => ImageCutCopy(), "tmp08", false, true, false);
-            keys.AddCustom(Key.X,       true,   () => ImageCutCopy(false), "tmp09", false, true, false);
-            keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(Math.Min(ImageFiles.Count - 1, ImageIndex + PageStep)), "tmp10");
-            keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(Math.Max(0, ImageIndex - PageStep)), "tmp11");
-        }
-        void VideoKeysRestore()
-        {
-            var keys = playerConfig.Player.KeyBindings;
-            keys.Add(Key.Left,  KeyBindingAction.SeekBackward);
-            keys.Add(Key.Right, KeyBindingAction.SeekForward);
-            keys.Add(Key.Space, KeyBindingAction.TogglePlayPause);
-            keys.Add(Key.C,     KeyBindingAction.CopyToClipboard, false, true);
-        }
-        void ImageDelete()
-        {
-            if (deleteConfirmation && MessageBox.Show("Are you sure to delete this image?", "Delete Confirmation", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
-                return;
-
-            Player.Stop();
-            try { File.Delete(ImageInfo.FullName); imageFilesChanged = true; } catch(Exception) { return; }
-            SlideShowGoTo(ImageIndex); //canNextImage ? ImageIndex + 1 : (canPrevImage ? ImageIndex - 1 : 0));
-        }
-        void ImageCutCopy(bool copy = true)
-        {
-            try
-            {
-                var droplist = new System.Collections.Specialized.StringCollection { imageInfo.FullName };
-                var data = new DataObject();
-                data.SetFileDropList(droplist);
-                data.SetData("Preferred DropEffect", new MemoryStream(copy ? DragDropEffectsCopyBytes : DragDropEffectsMoveBytes));
-                Clipboard.SetDataObject(data);
-
-                if (!copy) // This way we close the image so it can be paste (not great for the viewer)* similar to deleting a file when is already opened (ideally we close the input and we keep only the frame)
-                    SlideShowGoTo(canNextImage ? ImageIndex + 1 : (canPrevImage ? ImageIndex - 1 : 0));
-            } catch (Exception) {}
-        }
-        static byte[] DragDropEffectsCopyBytes = BitConverter.GetBytes((int)DragDropEffects.Copy);
-        static byte[] DragDropEffectsMoveBytes = BitConverter.GetBytes((int)DragDropEffects.Move);
-        #endregion
-
-        #region OSD Msg
-        const int MSG_TIMEOUT = 3500;
-        CancellationTokenSource cancelMsgToken = new();
-        public string Msg { get => msg; set { cancelMsgToken.Cancel(); msg = value; OnPropertyChanged(nameof(Msg)); cancelMsgToken = new(); Task.Run(FadeOutMsg, cancelMsgToken.Token); } }
-        string msg;
-        private async Task FadeOutMsg()
-        {
-            await Task.Delay(MSG_TIMEOUT, cancelMsgToken.Token);
-            Utils.UIInvoke(() => { msg = ""; PropertyChanged?.Invoke(this, new(nameof(Msg))); });
-        }
-        #endregion
+        //});
     }
-
-    public enum MediaViewer
+    void SlideShowGoTo(int index, bool fromSlideShow = false)
     {
-        Image,
-        Video,
-        Slide
+        lock (slideShowLock)
+        {
+            if (MediaViewer != MediaViewer.Slide)
+                return;
+
+            if (index < 0)
+                index = 0;
+            else if (index > ImageFiles.Count - 1)
+                index = ImageFiles.Count - 1;
+
+            if (SlideShow && !fromSlideShow)
+            {
+                slideShowCancel.Cancel();
+                slideShowCancel = new();
+            }
+
+            ImageIndex  = index;
+            CanPrevImage= ImageIndex > 0;
+            CanNextImage= ImageIndex < ImageFiles.Count - 1;
+
+            if (SlideShow && !CanNextImage)
+                SlideShow = false;
+
+            slideShowElapsedMs = 0;
+            slideShowOpening = true;
+            Player.OpenAsync(imageFolder + "\\" + ImageFiles[ImageIndex]);
+            slideShowOpening = false;
+        }
     }
+    void SlideShowStop()
+    {
+        lock (slideShowLock)
+        {
+            slideShowCancel.Cancel();
+            slideShowCancel = new();
+            SlideShow = false;
+            slideShowElapsedMs += (int) (DateTime.UtcNow.Ticks - slideShowStartedAt) / 10000;
+        }
+    }
+    void SlideShowStart(bool inFullScreen = false, bool andTask = true)
+    {
+        lock (slideShowLock)
+        {
+            slideShowCancel.Cancel();
+            slideShowCancel = new();
+            SlideShow = true;
+            if (inFullScreen)
+                Player.FullScreen();
+
+            Player.Activity.ForceIdle();
+            if (andTask)
+            {
+                slideShowStartedAt = DateTime.UtcNow.Ticks;
+                Task.Run(SlideShowTask, slideShowCancel.Token);
+            }
+        }
+    }
+    void SlideShowToggleAction()
+    {
+        if (SlideShow)
+            SlideShowStop();
+        else if (canNextImage)
+            SlideShowStart();
+    }
+
+    async Task SlideShowTask()
+    {
+        if (Player.CanPlay && slideShowElapsedMs < SlideShowConfig.SlideShowTimer)
+            await Task.Delay(SlideShowConfig.SlideShowTimer - slideShowElapsedMs, slideShowCancel.Token);
+
+        while (Player.IsPlaying)
+            await Task.Delay(100, slideShowCancel.Token);
+
+        if (slideShowCancel.IsCancellationRequested || !SlideShow)
+            return;
+
+        UI(() => SlideShowGoTo(ImageIndex + 1, true));
+    }
+
+    void ImageKeysRemove()
+    {
+        var keys = playerConfig.Player.KeyBindings;
+        keys.Remove(Key.Delete);
+        keys.Remove(Key.C, false, true);
+        keys.Remove(Key.X, false, true);
+        keys.Remove(Key.Q);
+    }
+
+    void SlideKeysRemove()
+    {
+        var keys = playerConfig.Player.KeyBindings;
+
+        keys.Remove(Key.Left);
+        keys.Remove(Key.Right);
+        keys.Remove(Key.Home);
+        keys.Remove(Key.End);
+        keys.Remove(Key.Space);
+        keys.Remove(Key.F5);
+        keys.Remove(Key.PageDown);
+        keys.Remove(Key.PageUp);
+
+        ImageKeysRemove();
+    }
+
+    void ImageKeysAdd()
+    {
+        var keys = playerConfig.Player.KeyBindings;
+        keys.AddCustom(Key.Delete,  true,   ImageDelete, "tmp07");
+        keys.AddCustom(Key.C,       true,   () => ImageCutCopy(), "tmp08", false, true, false);
+        keys.AddCustom(Key.X,       true,   () => ImageCutCopy(false), "tmp09", false, true, false);
+        keys.AddCustom(Key.Q,       true,   () => { Player.Stop(); MediaViewer = MediaViewer.Video; }, "tmp12", false, true, false);
+    }
+
+    void SlideKeysAdd()
+    {
+        var keys = playerConfig.Player.KeyBindings;
+        keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(ImageIndex - 1), "tmp01");
+        keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(ImageIndex + 1), "tmp02");
+        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(0), "tmp03");
+        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(ImageFiles.Count -1), "tmp04");
+        keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "tmp05");
+        keys.AddCustom(Key.F5,      true,   () => SlideShowStart(true), "tmp06");
+        keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(Math.Min(ImageFiles.Count - 1, ImageIndex + SlideShowConfig.PageStep)), "tmp10");
+        keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(Math.Max(0, ImageIndex - SlideShowConfig.PageStep)), "tmp11");
+
+        ImageKeysAdd();
+    }
+    void VideoKeysAdd()
+    {
+        var keys = playerConfig.Player.KeyBindings;
+        keys.Add(Key.Left,  KeyBindingAction.SeekBackward);
+        keys.Add(Key.Right, KeyBindingAction.SeekForward);
+        keys.Add(Key.Space, KeyBindingAction.TogglePlayPause);
+        keys.Add(Key.C,     KeyBindingAction.CopyToClipboard, false, true);
+        keys.Add(Key.Q,     KeyBindingAction.Stop, false, true);
+    }
+    void ImageDelete()
+    {
+        if (SlideShowConfig.DeleteConfirmation && MessageBox.Show("Are you sure to delete this image?", "Delete Confirmation", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+            return;
+
+        Player.Stop();
+        try { File.Delete(imageFolder + "\\" + ImageFiles[ImageIndex]); } catch(Exception) { return; }
+    }
+    void ImageCutCopy(bool copy = true)
+    {
+        try
+        {
+            var droplist = new System.Collections.Specialized.StringCollection { imageFolder + "\\" + ImageFiles[ImageIndex] };
+            var data = new DataObject();
+            data.SetFileDropList(droplist);
+            data.SetData("Preferred DropEffect", new MemoryStream(copy ? DragDropEffectsCopyBytes : DragDropEffectsMoveBytes));
+            Clipboard.SetDataObject(data);
+
+            // This way we close the image so it can be pasted (not great for the viewer)* similar to deleting a file when is already opened (ideally we close the input and we keep only the frame)
+            if (!copy)
+            {
+                if (ImageFiles.Count == 1 || MediaViewer == MediaViewer.Image)
+                {
+                    Player.Stop();
+                    MediaViewer = MediaViewer.Video;
+                }
+                else
+                    SlideShowGoTo(canNextImage ? ImageIndex + 1 : (canPrevImage ? ImageIndex - 1 : 0));
+            }
+                    
+        } catch (Exception) {}
+    }
+    static byte[] DragDropEffectsCopyBytes = BitConverter.GetBytes((int)DragDropEffects.Copy);
+    static byte[] DragDropEffectsMoveBytes = BitConverter.GetBytes((int)DragDropEffects.Move);
+    #endregion
+
+    #region OSD Msg
+    const int MSG_TIMEOUT = 3500;
+    CancellationTokenSource cancelMsgToken = new();
+    public string Msg { get => msg; set { cancelMsgToken.Cancel(); msg = value; OnPropertyChanged(nameof(Msg)); cancelMsgToken = new(); Task.Run(FadeOutMsg, cancelMsgToken.Token); } }
+    string msg;
+    async Task FadeOutMsg()
+    {
+        await Task.Delay(MSG_TIMEOUT, cancelMsgToken.Token);
+        UIInvoke(() => { msg = ""; PropertyChanged?.Invoke(this, new(nameof(Msg))); });
+    }
+    #endregion
+}
+
+public enum MediaViewer
+{
+    Image,
+    Video,
+    Slide
 }

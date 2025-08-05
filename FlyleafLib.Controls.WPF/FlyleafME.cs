@@ -262,8 +262,12 @@ namespace FlyleafLib.Controls.WPF
         {
             // TODO: Allow template without pop-ups
 
-            // Ensure that the engine has been started
-            Engine.Config.UIRefresh = true; // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
+            // Allow UI Refresh for Activity Mode, Buffered Duration on Pause & Stats
+            if (Engine.IsLoaded)
+                Engine.Config.UIRefresh = true;
+            else
+                Engine.Loaded += (o, e) => Engine.Config.UIRefresh = true;
+
             Overlay.Resources.MergedDictionaries.Add(new ResourceDictionary() {
                 Source = new Uri("pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml") });
 

@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.4</Version>
+	<Version>3.8.5</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,21 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- AudioDecoder: Fixes an issue with ReloadFilters()
-		- VideoDecoder: Fixes an issue with PixelFormat (while software decoding and codec wrongly sets sw_pix_fmt, use pix_fmt instead)
-		- Demuxer: Fixes an issue with BitmapSubtitles auto-increase of analyseduration/probesize
-		- Engine.Config: Replaces FFmpegDevices with FFmpegLoadProfile (which by default requires/loads all FFmpeg libs)
-		- Config.FormatOpts: Disables by default the new FFmpeg format option extension_picky which causes issues with the allowed extentions
-		- PlaylistItem: Introduces MediaTitle for Movies/TVShows
-		- Plugins.OpenDefault: Sets PlaylistItem's OrignalTitle/Title to filename (without removing any parts) in case of non-Movie/TVShow
-		- Plugins.OpenSubtitles: Sets ExternalSubtitlesStream's Title to filename (without removing any parts)
-		- Plugins.OpenSubtitles: Fixes an issue during open of an already converted (utf8) and language specified
-		- Plugins.OpenSubtitlesOrg: Improves Movie/TVShow name search
-		- Plugins.OpenSubtitlesOrg: Fixes an issue with SearchByIMDB which requires imdbid to be at least 7 digits
-
-		[Breaking Changes]
-		- Engine.Config: Deprecates FFmpegDevices
-		- Engine.FFmpeg: Deprecates DevicesLoaded/FiltersLoaded
+		- Demuxer.Interrupter: Reset timeout state on Read
+		- Config: Restore default settings for plugins properly
+		- Config.Subs: Includes UNC for SearchOnlineOnInputType
+		- Plugins.OpenDefault: Fixes an issue with FileSize not properly set in some cases (it would prevent searching subtitles online)
+		- Plugins.OpenDefault: Fixes an issue with InputType not properly set to UNC
 	</PackageReleaseNotes>
   </PropertyGroup>
 
