@@ -72,18 +72,19 @@ public partial class App : Application
         }
 
         MainWindow main = null;
-        foreach(var win in Current.Windows)
+        foreach (var win in Current.Windows)
             if (win is MainWindow main2 && main2.Player.Status != FlyleafLib.MediaPlayer.Status.Playing)
-                { main = main2; break; }
+            { main = main2; break; }
 
         if (main == null)
-            foreach(var win in Current.Windows)
+            foreach (var win in Current.Windows)
                 if (win is MainWindow main2)
-                    { main = main2; break; }
+                { main = main2; break; }
 
         if (main == null)
         {
             main = new();
+            main.Show();
             main.Player.OpenAsync(args[0]);
         }
         else
@@ -91,7 +92,7 @@ public partial class App : Application
             main.Player.OpenAsync(args[0]);
             main = FlyleafPlayer.MainWindow.GetWindowFromPlayer(main.Player);
         }
-        
+
         if (main.FlyleafME.IsMinimized)
             main.FlyleafME.IsMinimized = false;
 
