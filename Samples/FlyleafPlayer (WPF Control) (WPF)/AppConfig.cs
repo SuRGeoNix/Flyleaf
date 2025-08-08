@@ -33,20 +33,21 @@ public class AppConfig
 
     public static AppConfig Load()
     {
-        #if DEBUG
-            return new();
-        #endif
-
         AppConfig config;
 
-        if (!File.Exists(PATH))
-        {
+        #if DEBUG
             config = new();
-            config.Save();
-        }
-        else
-            config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(PATH));
-        
+            config.General.SingleInstance = false;
+        #else
+            if (!File.Exists(PATH))
+            {
+                config = new();
+                config.Save();
+            }
+            else
+                config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(PATH));
+        #endif
+
         return config;
     }
 

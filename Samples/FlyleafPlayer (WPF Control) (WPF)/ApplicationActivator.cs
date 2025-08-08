@@ -1,11 +1,11 @@
 ﻿// https://github.com/novotnyllc/SingleInstanceHelper/tree/master
 
 ﻿using System;
-using System.Collections.Generic;
 using System.IO.Pipes;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Threading;
+using System.Windows.Input;
 
 namespace FlyleafPlayer;
 
@@ -16,12 +16,12 @@ public static class ApplicationActivator
     static bool                     _firstApplicationInstance;
     static NamedPipeServerStream    _namedPipeServerStream;
     static SynchronizationContext   _syncContext;
-    static Action<string[]>         _otherInstanceCallback;
+    static Action<Payload>         _otherInstanceCallback;
 
     static string mName = $"M_{Environment.UserDomainName}_{Environment.UserName}";
     static string pName = $"P_{Environment.UserDomainName}_{Environment.UserName}";
 
-    public static bool LaunchOrReturn(Action<string[]> otherInstanceCallback, string[] args)
+    public static bool LaunchOrReturn(Action<Payload> otherInstanceCallback, string[] args)
     {
         _otherInstanceCallback = otherInstanceCallback ?? throw new ArgumentNullException(nameof(otherInstanceCallback));
 
@@ -33,7 +33,7 @@ public static class ApplicationActivator
         }
         else
         {
-            NamedPipeClientSendOptions(new() { CommandLineArguments = [.. args] });
+            NamedPipeClientSendOptions(new() { CommandLineArguments = args, OpenInNewWindow = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl) });
             return false;
         }
     }
@@ -83,9 +83,9 @@ public static class ApplicationActivator
             var payload = (Payload)ser.ReadObject(_namedPipeServerStream);
 
             if (_syncContext != null)
-                _syncContext.Post(_ => _otherInstanceCallback(payload.CommandLineArguments.ToArray()), null);
+                _syncContext.Post(_ => _otherInstanceCallback(payload), null);
             else
-                _otherInstanceCallback(payload.CommandLineArguments.ToArray());
+                _otherInstanceCallback(payload);
         }
         catch (ObjectDisposedException) { return; }
         catch (Exception) { }
@@ -96,8 +96,11 @@ public static class ApplicationActivator
 }
 
 [DataContract]
-internal class Payload
+public class Payload
 {
     [DataMember]
-    public List<string> CommandLineArguments { get; set; } = [];
+    public string[]     CommandLineArguments    { get; set; }
+
+    [DataMember]
+    public bool         OpenInNewWindow         { get; set; }
 }
