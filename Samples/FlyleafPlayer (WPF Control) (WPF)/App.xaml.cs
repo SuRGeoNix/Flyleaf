@@ -63,33 +63,37 @@ public partial class App : Application
             new MainWindow().Show();
     }
 
-    public void SingleInstanceExecute(string[] args)
+    public void SingleInstanceExecute(Payload payload)
     {
-        if (args.Length == 0)
+        if (payload.CommandLineArguments.Length == 0)
         {
             TrayIcon_DoubleClick(null, EventArgs.Empty);
             return;
         }
 
         MainWindow main = null;
-        foreach (var win in Current.Windows)
-            if (win is MainWindow main2 && main2.Player.Status != FlyleafLib.MediaPlayer.Status.Playing)
-            { main = main2; break; }
 
-        if (main == null)
+        if (!payload.OpenInNewWindow)
+        {
             foreach (var win in Current.Windows)
-                if (win is MainWindow main2)
+                if (win is MainWindow main2 && main2.Player.Status != FlyleafLib.MediaPlayer.Status.Playing)
                 { main = main2; break; }
 
+            if (main == null)
+                foreach (var win in Current.Windows)
+                    if (win is MainWindow main2)
+                    { main = main2; break; }
+        }
+        
         if (main == null)
         {
             main = new();
             main.Show();
-            main.Player.OpenAsync(args[0]);
+            main.Player.OpenAsync(payload.CommandLineArguments[0]);
         }
         else
         {
-            main.Player.OpenAsync(args[0]);
+            main.Player.OpenAsync(payload.CommandLineArguments[0]);
             main = FlyleafPlayer.MainWindow.GetWindowFromPlayer(main.Player);
         }
 
