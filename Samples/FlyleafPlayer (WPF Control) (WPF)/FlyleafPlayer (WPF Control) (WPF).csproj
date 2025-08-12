@@ -8,8 +8,9 @@
     <AssemblyName>FlyleafPlayer</AssemblyName>
     <ApplicationIcon>Flyleaf.ico</ApplicationIcon>
     <Platforms>AnyCPU;x86;x64</Platforms>
-    <Copyright>SuRGeoNix © 2024</Copyright>
+    <Copyright>SuRGeoNix © 2025</Copyright>
     <Authors>SuRGeoNix</Authors>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
