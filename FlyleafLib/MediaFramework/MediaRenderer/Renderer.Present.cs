@@ -1,14 +1,13 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 
-using Vortice.DXGI;
 using Vortice.Direct3D11;
+using Vortice.DXGI;
+
+using static FlyleafLib.Logger;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
-
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -128,6 +127,9 @@ public unsafe partial class Renderer
             context.PSSetShaderResources(0, frame.srvs);
             context.Draw(6, 0);
 
+            if (use2d)
+                Config.Video.OnD2DDraw(this, context2d);
+
             if (overlayTexture != null)
             {
                 // Don't stretch the overlay (reduce height based on ratiox) | Sub's stream size might be different from video size (fix y based on percentage)
@@ -162,6 +164,7 @@ public unsafe partial class Renderer
         overlayTextureSrv   = null;
     }
 
+    SubresourceData subDataOverlay;
     internal void CreateOverlayTexture(SubtitlesFrame frame, int streamWidth, int streamHeight)
     {
         var rect    = frame.sub.rects[0];
@@ -195,15 +198,12 @@ public unsafe partial class Renderer
                     *xout++ = colors[*xin++];
             }
 
-            SubresourceData subData = new()
-            {
-                DataPointer = (nint)ptr,
-                RowPitch    = (uint)stride
-            };
+            subDataOverlay.DataPointer = (nint)ptr;
+            subDataOverlay.RowPitch    = (uint)stride;
 
             overlayTexture?.Dispose();
             overlayTextureSrv?.Dispose();
-            overlayTexture          = Device.CreateTexture2D(overlayTextureDesc, new SubresourceData[] { subData });
+            overlayTexture          = Device.CreateTexture2D(overlayTextureDesc, [subDataOverlay]);
             overlayTextureSrv       = Device.CreateShaderResourceView(overlayTexture);
             overlayTextureSRVs[0]   = overlayTextureSrv;
         }

@@ -756,6 +756,24 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public bool             SwapForceR8G8B8A8           { get; set; }
 
+        /// <summary>
+        /// Enables custom Direct2D drawing over playback frames
+        /// </summary>
+        public bool             Use2DGraphics               { get; set; }
+
+        public event EventHandler<Vortice.Direct2D1.ID2D1DeviceContext> D2DInitialized;
+        public event EventHandler<Vortice.Direct2D1.ID2D1DeviceContext> D2DDisposing;
+        public event EventHandler<Vortice.Direct2D1.ID2D1DeviceContext> D2DDraw;
+
+        internal void OnD2DInitialized(Renderer renderer, Vortice.Direct2D1.ID2D1DeviceContext context)
+            => D2DInitialized?.Invoke(renderer, context);
+
+        internal void OnD2DDisposing(Renderer renderer, Vortice.Direct2D1.ID2D1DeviceContext context)
+            => D2DDisposing?.Invoke(renderer, context);
+
+        internal void OnD2DDraw(Renderer renderer, Vortice.Direct2D1.ID2D1DeviceContext context)
+            => D2DDraw?.Invoke(renderer, context);
+
         public Dictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
 
         public static Dictionary<VideoFilters, VideoFilter> DefaultFilters()

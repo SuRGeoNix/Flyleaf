@@ -132,11 +132,11 @@ unsafe public partial class Renderer
 
                     inputColorSpace = new()
                     {
-                        Usage           = 0,
-                        RGB_Range       = VideoStream.AVStream->codecpar->color_range == AVColorRange.Jpeg ? (uint) 0 : 1,
-                        YCbCr_Matrix    = VideoStream.ColorSpace != ColorSpace.BT601 ? (uint) 1 : 0,
-                        YCbCr_xvYCC     = 0,
-                        Nominal_Range   = VideoStream.AVStream->codecpar->color_range == AVColorRange.Jpeg ? (uint) 2 : 1
+                        Usage           = 0u,
+                        RGB_Range       = VideoStream.AVStream->codecpar->color_range == AVColorRange.Jpeg ? 0u : 1u,
+                        YCbCr_Matrix    = VideoStream.ColorSpace != ColorSpace.BT601 ? 1u : 0u,
+                        YCbCr_xvYCC     = 0u,
+                        Nominal_Range   = VideoStream.AVStream->codecpar->color_range == AVColorRange.Jpeg ? 2u : 1u
                     };
 
                     vpov?.Dispose();
@@ -167,7 +167,7 @@ unsafe public partial class Renderer
                 }
                 else if (!Config.Video.SwsForce || VideoDecoder.VideoAccelerated) // FlyleafVP
                 {
-                    List<string> defines = new();
+                    List<string> defines = [];
 
                     if (oldVP != videoProcessor)
                     {
