@@ -6,11 +6,11 @@
                     >
 
     <fl:StringToRationalConverter x:Key="StringToRational"/>
-    <fl:TicksToTimeConverter x:Key="TicksToTime"/>
     <fl:TicksToSecondsConverter x:Key="TicksToSeconds" />
     <fl:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
     <fl:BooleanToVisibilityConverter x:Key="BooleanToVisibility"/>
 
+    <flwpf:TicksToTimeConverter x:Key="TicksToTime"/>
     <flwpf:VolumeToLevelsConverter x:Key="VolumeToLevels"/>
     <flwpf:QualityToLevelsConverter x:Key="QualityToLevels"/>
     <flwpf:CheckNullConverter x:Key="CheckNull"/>
