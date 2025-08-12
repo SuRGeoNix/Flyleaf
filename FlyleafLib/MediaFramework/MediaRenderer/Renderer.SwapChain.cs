@@ -394,6 +394,13 @@ public partial class Renderer
             if (SCDisposed)
                 return;
 
+            if (use2d)
+            {
+                context2d.Target = null;
+                bitmap2d?.Dispose();
+                bitmap2d = null;
+            }
+            
             ControlWidth = width;
             ControlHeight = height;
 
@@ -408,6 +415,13 @@ public partial class Renderer
                 vd1.CreateVideoProcessorOutputView(backBuffer, vpe, vpovd, out vpov);
 
             SetViewport();
+
+            if (use2d)
+            {
+                using var surface = backBuffer.QueryInterface<IDXGISurface>();
+                bitmap2d = context2d.CreateBitmapFromDxgiSurface(surface, bitmapProps2d);
+                context2d.Target = bitmap2d;
+            }
         }
     }
 

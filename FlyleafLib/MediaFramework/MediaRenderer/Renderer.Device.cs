@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 using Vortice;
@@ -7,13 +8,11 @@ using Vortice.Direct3D11;
 using Vortice.DXGI;
 using Vortice.DXGI.Debug;
 
-using FlyleafLib.MediaFramework.MediaDecoder;
-
 using static FlyleafLib.Logger;
-using System.Runtime.InteropServices;
-
 using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
 using ID3D11DeviceContext = Vortice.Direct3D11.ID3D11DeviceContext;
+
+using FlyleafLib.MediaFramework.MediaDecoder;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -30,8 +29,8 @@ public unsafe partial class Renderer
         BindFlags = BindFlags.VertexBuffer
     };
 
-    static float[] vertexBufferData = new[]
-    {
+    static float[] vertexBufferData =
+    [
         -1.0f,  -1.0f,  0,      0.0f, 1.0f,
         -1.0f,   1.0f,  0,      0.0f, 0.0f,
          1.0f,  -1.0f,  0,      1.0f, 1.0f,
@@ -39,10 +38,10 @@ public unsafe partial class Renderer
          1.0f,  -1.0f,  0,      1.0f, 1.0f,
         -1.0f,   1.0f,  0,      0.0f, 0.0f,
          1.0f,   1.0f,  0,      1.0f, 0.0f
-    };
+    ];
 
-    static FeatureLevel[] featureLevelsAll = new[]
-    {
+    static FeatureLevel[] featureLevelsAll =
+    [
         FeatureLevel.Level_12_1,
         FeatureLevel.Level_12_0,
         FeatureLevel.Level_11_1,
@@ -52,17 +51,17 @@ public unsafe partial class Renderer
         FeatureLevel.Level_9_3,
         FeatureLevel.Level_9_2,
         FeatureLevel.Level_9_1
-    };
+    ];
 
-    static FeatureLevel[] featureLevels = new[]
-    {
+    static FeatureLevel[] featureLevels =
+    [
         FeatureLevel.Level_11_0,
         FeatureLevel.Level_10_1,
         FeatureLevel.Level_10_0,
         FeatureLevel.Level_9_3,
         FeatureLevel.Level_9_2,
         FeatureLevel.Level_9_1
-    };
+    ];
 
     static BlendDescription blendDesc = new();
 
@@ -78,6 +77,14 @@ public unsafe partial class Renderer
         blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
     }
 
+    Vortice.Direct2D1.ID2D1Device           device2d;
+    Vortice.Direct2D1.ID2D1DeviceContext    context2d;
+    Vortice.Direct2D1.ID2D1Bitmap1          bitmap2d;
+    Vortice.Direct2D1.BitmapProperties1     bitmapProps2d = new()
+    {
+        BitmapOptions   = Vortice.Direct2D1.BitmapOptions.Target | Vortice.Direct2D1.BitmapOptions.CannotDraw,
+        PixelFormat     = Vortice.DCommon.PixelFormat.Premultiplied
+    };
 
     ID3D11DeviceContext context;
 
@@ -165,7 +172,7 @@ public unsafe partial class Renderer
 
                 Device = tempDevice.QueryInterface<ID3D11Device1>();
                 context= Device.ImmediateContext;
-
+                
                 // Gets the default adapter from the D3D11 Device
                 if (adapter == null)
                 {
@@ -199,8 +206,18 @@ public unsafe partial class Renderer
                 adapter.Dispose();
 
                 using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
-                using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = Config.Video.MaxFrameLatency;
+                using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())
+                {
+                    dxgidevice.MaximumFrameLatency = Config.Video.MaxFrameLatency;
 
+                    if (use2d)
+                    {
+                        device2d  = Vortice.Direct2D1.D2D1.D2D1CreateDevice(dxgidevice);
+                        context2d = device2d.CreateDeviceContext();
+                        Config.Video.OnD2DInitialized(this, context2d);
+                    }
+                }
+                
                 // Input Layout
                 inputLayout = Device.CreateInputLayout(inputElements, ShaderCompiler.VSBlob);
                 context.IASetInputLayout(inputLayout);
@@ -321,6 +338,14 @@ public unsafe partial class Renderer
                 DisposeChild();
 
             Disposed = true;
+
+            if (use2d)
+            {
+                Config.Video.OnD2DDisposing(this, context2d);
+                bitmap2d?.Dispose();
+                context2d?.Dispose();
+                device2d?.Dispose();
+            }
 
             if (CanDebug) Log.Debug("Disposing");
 
