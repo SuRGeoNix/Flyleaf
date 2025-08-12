@@ -1,13 +1,31 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 
 namespace FlyleafLib.Controls.WPF
 {
+    public class TicksToTimeConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var ts = TimeSpan.FromTicks((long)value);
+
+            if (ts.TotalHours > 9)
+                return ((int)ts.TotalHours) + ts.ToString(@"\:mm\:ss");
+            else
+                return ts.ToString(@"hh\:mm\:ss");
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
     public class QualityToLevelsConverter : IValueConverter
     {
         public enum Qualities
@@ -32,7 +50,8 @@ namespace FlyleafLib.Controls.WPF
             else
                 return Qualities.Low;
         }
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
 	}
 
     public class VolumeToLevelsConverter : IValueConverter
@@ -58,20 +77,27 @@ namespace FlyleafLib.Controls.WPF
             else
                 return Volumes.Low;
         }
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
 	}
 
     public class CheckNullConverter : IMultiValueConverter
     {
 		public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value == null) return true;
-            if (value[0] == null || value[0] == System.Windows.DependencyProperty.UnsetValue) return true;
-            if (value[1] == null || value[1] == System.Windows.DependencyProperty.UnsetValue) return true;
+            if (value == null)
+                return true;
+
+            if (value[0] == null || value[0] == DependencyProperty.UnsetValue)
+                return true;
+
+            if (value[1] == null || value[1] == DependencyProperty.UnsetValue)
+                return true;
 
             return !((IDictionary)value[0]).Contains(value[1]);
         }
-		public object[] ConvertBack(object value, Type[] targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
+		public object[] ConvertBack(object value, Type[] targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
 	}
 
     public class BooleanAllConverter : IMultiValueConverter
@@ -98,14 +124,11 @@ namespace FlyleafLib.Controls.WPF
             => value is bool boolValue && boolValue ? TrueValue : FalseValue;
 
         public virtual object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-            => value is T tValue && System.Collections.Generic.EqualityComparer<T>.Default.Equals(tValue, TrueValue);
+            => value is T tValue && EqualityComparer<T>.Default.Equals(tValue, TrueValue);
     }
     public class InvertBooleanConverter : BooleanConverter<bool>
     {
-        public InvertBooleanConverter()
-            : base(false, true)
-        {
-        }
+        public InvertBooleanConverter() : base(false, true) {}
     }
 
     [ValueConversion(typeof(double), typeof(double), ParameterType = typeof(Orientation))]
@@ -118,17 +141,12 @@ namespace FlyleafLib.Controls.WPF
                 const double halfGripWidth = 9.0;
                 const double margin = 4.0;
 
-                switch (orientation)
+                return orientation switch
                 {
-                    case Orientation.Horizontal:
-                        return (-width * 0.5) + halfGripWidth;
-
-                    case Orientation.Vertical:
-                        return -width - margin;
-
-                   default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                    Orientation.Horizontal => (-width * 0.5) + halfGripWidth,
+                    Orientation.Vertical => (object)(-width - margin),
+                    _ => throw new ArgumentOutOfRangeException(),
+                };
             }
 
             return 0.0;
@@ -148,7 +166,9 @@ namespace FlyleafLib.Controls.WPF
 
             foreach (object value in values)
             {
-                if (value == System.Windows.DependencyProperty.UnsetValue) continue;
+                if (value == DependencyProperty.UnsetValue)
+                    continue;
+
                 sum += (double)value;
             }
 
@@ -162,9 +182,7 @@ namespace FlyleafLib.Controls.WPF
     public class PlaylistItemsConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
-        {
-            return $"Playlist ({values[0]}/{values[1]})";
-        }
+            => $"Playlist ({values[0]}/{values[1]})";
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
@@ -174,27 +192,29 @@ namespace FlyleafLib.Controls.WPF
     {
 		public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value == null) return null;
-            if (value[0] == null || value[0] == System.Windows.DependencyProperty.UnsetValue) return null;
-            if (value[1] == null || value[1] == System.Windows.DependencyProperty.UnsetValue) return null;
+            if (value == null)
+                return null;
+
+            if (value[0] == null || value[0] == DependencyProperty.UnsetValue)
+                return null;
+
+            if (value[1] == null || value[1] == DependencyProperty.UnsetValue)
+                return null;
 
             return ((IDictionary)value[0])[value[1]];
         }
-		public object[] ConvertBack(object value, Type[] targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
+		public object[] ConvertBack(object value, Type[] targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
 	}
 
     public class MarginConverter : IValueConverter
     {
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            return new System.Windows.Thickness(0, System.Convert.ToDouble(value), 0, 0);
-        }
+            => new Thickness(0, System.Convert.ToDouble(value), 0, 0);
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            return null;
-        }
+            => null;
     }
 
     [ValueConversion(typeof(Color), typeof(Brush))]
@@ -203,18 +223,16 @@ namespace FlyleafLib.Controls.WPF
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is Color color)
-            {
                 return new SolidColorBrush(color);
-            }
+
             return Binding.DoNothing;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is SolidColorBrush brush)
-            {
                 return brush.Color;
-            }
+
             return default(Color);
         }
     }
@@ -223,12 +241,15 @@ namespace FlyleafLib.Controls.WPF
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is null) return null;
+            if (value is null)
+                return null;
+
             string lowerHexString(int i) => i.ToString("X2").ToLower();
             var brush = (SolidColorBrush)value;
             var hex = lowerHexString(brush.Color.R) +
                       lowerHexString(brush.Color.G) +
                       lowerHexString(brush.Color.B);
+
             return "#" + hex;
         }
 
@@ -240,22 +261,21 @@ namespace FlyleafLib.Controls.WPF
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is null) return null;
+            if (value is null)
+                return null;
 
             string lowerHexString(int i) => i.ToString("X2").ToLower();
             Color color = (Color)value;
             var hex = lowerHexString(color.R) +
                       lowerHexString(color.G) +
                       lowerHexString(color.B);
+
             return hex;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            try
-            {
-                return ColorConverter.ConvertFromString("#" + value.ToString());
-            } catch(Exception) { }
+            try { return ColorConverter.ConvertFromString("#" + value.ToString()); } catch(Exception) { }
 
             return Binding.DoNothing;
         }
