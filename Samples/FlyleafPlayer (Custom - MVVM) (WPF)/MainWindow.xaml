@@ -10,8 +10,8 @@
         mc:Ignorable="d"
         Title="Flyleaf Player (Custom - MVVM)" Height="650" Width="800" Background="Black">
 
-    <Grid>
-        <fl:FlyleafHost Player="{Binding Player}" KeyBindings="Surface">
+    <Grid Background="Green">
+        <fl:FlyleafHost Player="{Binding Player}" KeyBindings="Surface" CornerRadius="10">
             <Grid Margin="50" DataContext="{Binding HostDataContext}">
 
                 <!-- NOTE: Window resources will not be within the videoview as it will be on different window -->
