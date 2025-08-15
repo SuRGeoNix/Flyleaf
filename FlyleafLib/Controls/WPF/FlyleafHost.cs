@@ -975,7 +975,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     private void Owner_DpiChanged(object sender, DpiChangedEventArgs e)
     {
-        if (IsAttached)
+        if (e.OriginalSource == Owner && IsAttached)
         {
             DpiX = e.NewDpi.DpiScaleX;
             DpiY = e.NewDpi.DpiScaleY;

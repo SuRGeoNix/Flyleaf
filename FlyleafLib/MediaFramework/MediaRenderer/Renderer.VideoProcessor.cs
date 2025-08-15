@@ -107,10 +107,6 @@ unsafe public partial class Renderer
     VideoProcessorColorSpace            inputColorSpace;
     VideoProcessorColorSpace            outputColorSpace;
 
-    AVDynamicHDRPlus*                   hdrPlusData = null;
-    AVContentLightMetadata              lightData   = new();
-    AVMasteringDisplayMetadata          displayData = new();
-
     uint actualRotation;
     bool actualHFlip, actualVFlip;
     bool configLoadedChecked;
@@ -314,6 +310,12 @@ unsafe public partial class Renderer
         if (!Filters.ContainsKey(VideoFilters.Contrast))
             Filters.Add(VideoFilters.Contrast, new VideoFilter(VideoFilters.Contrast));
 
+        if (!Filters.ContainsKey(VideoFilters.Hue))
+            Filters.Add(VideoFilters.Hue, new VideoFilter(VideoFilters.Hue));
+
+        if (!Filters.ContainsKey(VideoFilters.Saturation))
+            Filters.Add(VideoFilters.Saturation, new VideoFilter(VideoFilters.Saturation));
+
         foreach(var filter in Filters.Values)
         {
             if (!Config.Video.Filters.ContainsKey(filter.Filter))
@@ -400,17 +402,22 @@ unsafe public partial class Renderer
                 int scaledValue = (int) Scale(filter.Value, filter.Minimum, filter.Maximum, 0, 100);
                 psBufferData.brightness = scaledValue / 100.0f;
                 context.UpdateSubresource(psBufferData, psBuffer);
-
                 break;
 
             case VideoFilters.Contrast:
                 scaledValue = (int) Scale(filter.Value, filter.Minimum, filter.Maximum, 0, 100);
                 psBufferData.contrast = scaledValue / 100.0f;
                 context.UpdateSubresource(psBufferData, psBuffer);
-
                 break;
 
-            default:
+            case VideoFilters.Hue:
+                psBufferData.hue = Scale(filter.Value, filter.Minimum, filter.Maximum, -3.14f, 3.14f);
+                context.UpdateSubresource(psBufferData, psBuffer);
+                break;
+
+            case VideoFilters.Saturation:
+                psBufferData.saturation = Scale(filter.Value, filter.Minimum, filter.Maximum, 0, 2);
+                context.UpdateSubresource(psBufferData, psBuffer);
                 break;
         }
 
@@ -421,73 +428,14 @@ unsafe public partial class Renderer
         if(parent != null)
             return;
 
-        float lum1 = 400;
+        psBufferData.tonemap = Config.Video.HDRtoSDRMethod;
 
-        if (hdrPlusData != null)
-        {
-            lum1 = (float) (av_q2d(hdrPlusData->@params[0].average_maxrgb) * 100000.0);
-
-            // this is not accurate more research required
-            if (lum1 < 100)
-                lum1 *= 10;
-            lum1 = Math.Max(lum1, 400);
-        }
-        else if (Config.Video.HDRtoSDRMethod != HDRtoSDRMethod.Reinhard)
-        {
-            float lum2 = lum1;
-            float lum3 = lum1;
-
-            double lum = displayData.has_luminance != 0 ? av_q2d(displayData.max_luminance) : 400;
-
-            if (lightData.MaxCLL > 0)
-            {
-                if (lightData.MaxCLL >= lum)
-                {
-                    lum1 = (float)lum;
-                    lum2 = lightData.MaxCLL;
-                }
-                else
-                {
-                    lum1 = lightData.MaxCLL;
-                    lum2 = (float)lum;
-                }
-                lum3 = lightData.MaxFALL;
-                lum1 = (lum1 * 0.5f) + (lum2 * 0.2f) + (lum3 * 0.3f);
-            }
-            else
-            {
-                lum1 = (float)lum;
-            }
-        }
-        else
-        {
-            if (lightData.MaxCLL > 0)
-                lum1 = lightData.MaxCLL;
-            else if (displayData.has_luminance != 0)
-                lum1 = (float)av_q2d(displayData.max_luminance);
-        }
-
-        psBufferData.hdrmethod = Config.Video.HDRtoSDRMethod;
-
-        if (psBufferData.hdrmethod == HDRtoSDRMethod.Hable)
-        {
-            psBufferData.g_luminance = lum1 > 1 ? lum1 : 400.0f;
-            psBufferData.g_toneP1 = 10000.0f / psBufferData.g_luminance * (2.0f / Config.Video.HDRtoSDRTone);
-            psBufferData.g_toneP2 = psBufferData.g_luminance / (100.0f * Config.Video.HDRtoSDRTone);
-        }
-        else if (psBufferData.hdrmethod == HDRtoSDRMethod.Reinhard)
-        {
-            psBufferData.g_toneP1 = lum1 > 0 ? (float)(Math.Log10(100) / Math.Log10(lum1)) : 0.72f;
-            if (psBufferData.g_toneP1 < 0.1f || psBufferData.g_toneP1 > 5.0f)
-                psBufferData.g_toneP1 = 0.72f;
-
-            psBufferData.g_toneP1 *= Config.Video.HDRtoSDRTone;
-        }
-        else if (psBufferData.hdrmethod == HDRtoSDRMethod.Aces)
-        {
-            psBufferData.g_luminance = lum1 > 1 ? lum1 : 400.0f;
-            psBufferData.g_toneP1 = Config.Video.HDRtoSDRTone;
-        }
+        if (psBufferData.tonemap == HDRtoSDRMethod.Hable)
+            psBufferData.hdrtone = 10_000f / Config.Video.SDRDisplayNits;
+        else if (psBufferData.tonemap == HDRtoSDRMethod.Reinhard)
+            psBufferData.hdrtone = (10_000f / Config.Video.SDRDisplayNits) / 2f;
+        else if (psBufferData.tonemap == HDRtoSDRMethod.Aces)
+            psBufferData.hdrtone = (10_000f / Config.Video.SDRDisplayNits) / 7f;
 
         if (updateResource)
         {

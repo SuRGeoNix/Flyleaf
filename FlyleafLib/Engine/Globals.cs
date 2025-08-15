@@ -63,6 +63,15 @@ public enum ColorRange : int
     Full        = 1,
     Limited     = 2
 }
+public enum HDRFormat : int
+{
+    None        = 0,
+    DolbyVision = 1,
+    HDR         = 2,
+    HDRPlus     = 3,
+    HLG         = 4,
+    
+}
 
 
 public class GPUOutput

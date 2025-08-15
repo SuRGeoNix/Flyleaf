@@ -62,9 +62,6 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     CornerRadius cornerRadius = new(0);
     CornerRadius zeroCornerRadius = new(0);
 
-    public bool             IsHDR           { get => isHDR;         private set { SetUI(ref _IsHDR, value); isHDR = value; } }
-    bool _IsHDR, isHDR;
-
     public int              SideXPixels     { get; private set; }
     public int              SideYPixels     { get; private set; }
 
