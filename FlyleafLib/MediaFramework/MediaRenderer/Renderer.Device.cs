@@ -252,8 +252,7 @@ public unsafe partial class Renderer
                     ByteWidth       = (uint)(sizeof(PSBufferType) + (16 - (sizeof(PSBufferType) % 16)))
                 });
                 context.PSSetConstantBuffer(0, psBuffer);
-                psBufferData.hdrmethod = HDRtoSDRMethod.None;
-                context.UpdateSubresource(psBufferData, psBuffer);
+                UpdateHDRtoSDR(false); // TODO: Passing Config -> psBuffer (currently mixed with Initialize filters)
 
                 // subs
                 ShaderBGRA = ShaderCompiler.CompilePS(Device, "bgra", @"color = float4(Texture1.Sample(Sampler, input.Texture).rgba);", null);
@@ -476,16 +475,13 @@ public unsafe partial class Renderer
     struct PSBufferType
     {
         public int coefsIndex;
-        public HDRtoSDRMethod hdrmethod;
-
         public float brightness;
         public float contrast;
-
-        public float g_luminance;
-        public float g_toneP1;
-        public float g_toneP2;
-
+        public float hue;
+        public float saturation;
         public float texWidth;
+        public HDRtoSDRMethod tonemap;
+        public float hdrtone;
     }
 
     [StructLayout(LayoutKind.Sequential)]

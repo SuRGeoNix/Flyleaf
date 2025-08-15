@@ -456,8 +456,8 @@ namespace FlyleafLib.Controls.WPF
 
             if (result.ToString() == "cancel")
             {
-                Config.Video.HDRtoSDRMethod  = prevConfig.HDRtoSDRMethod;
-                Config.Video.HDRtoSDRTone    = prevConfig.HDRtoSDRTone;
+                Config.Video.HDRtoSDRMethod = prevConfig.HDRtoSDRMethod;
+                Config.Video.SDRDisplayNits = prevConfig.SDRDisplayNits;
 
                 foreach(var filter in saveFilterValues)
                     Config.Video.Filters[filter.Key].Value = filter.Value;

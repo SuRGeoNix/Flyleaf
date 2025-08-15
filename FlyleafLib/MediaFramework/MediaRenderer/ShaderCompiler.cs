@@ -53,6 +53,9 @@ internal static class ShaderCompiler
             cache.Add(uniqueId, bw);
         }
 
+        if (Engine.Config.LogLevel >= LogLevel.Trace)
+            Engine.Log.Trace($"[ShaderCompiler] Compiling {uniqueId} ...\r\n{PS_HEADER}{hlslSample}{PS_FOOTER}");
+
         var blob = Compile(PS_HEADER + hlslSample + PS_FOOTER, true, defines);
         bw.blob = blob;
         var ps = device.CreatePixelShader(bw.blob);
@@ -78,7 +81,13 @@ internal static class ShaderCompiler
     internal static unsafe Blob Compile(byte[] bytes, bool isPS = true, ShaderMacro[] defines = null)
     {
         string psOrvs = isPS ? "ps" : "vs";
-        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}_4_0_level_9_3", ShaderFlags.OptimizationLevel3, out var shaderBlob, out var psError);
+
+        // Optimization could actually cause issues (mainly with literal values)
+        #if DEBUG
+        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}_5_0", ShaderFlags.SkipOptimization, out var shaderBlob, out var psError);
+        #else
+        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}_5_0", ShaderFlags.OptimizationLevel3, out var shaderBlob, out var psError);
+        #endif
 
         if (psError != null && psError.BufferPointer != IntPtr.Zero)
         {
@@ -169,20 +178,23 @@ Texture2D		Texture2		: register(t1);
 Texture2D		Texture3		: register(t2);
 Texture2D		Texture4		: register(t3);
 
-cbuffer         Config          : register(b0)
+struct ConfigData
 {
     int coefsIndex;
-    int hdrmethod;
-
     float brightness;
     float contrast;
-
-    float g_luminance;
-    float g_toneP1;
-    float g_toneP2;
-
+    float hue;
+    float saturation;
     float texWidth;
+    int tonemap;
+    float hdrtone;
 };
+
+cbuffer         Config          : register(b0)
+{
+    ConfigData Config;
+};
+
 
 SamplerState Sampler : IMMUTABLE
 {
@@ -194,96 +206,144 @@ SamplerState Sampler : IMMUTABLE
     MinLOD = 0;
 };
 
-#if defined(YUV)
-// YUV to RGB matrix coefficients
-static const float4x4 coefs[] =
+inline float3 Gamut2020To709(float3 c)
 {
-    // Limited -> Full
+    static const float3x3 mat = 
     {
-        // BT2020 (srcBits = 10)
-        { 1.16438353, 1.16438353, 1.16438353, 0 },
-        { 0, -0.187326103, 2.14177227, 0 },
-        { 1.67867422, -0.650424361, 0, 0 },
-        { -0.915688038, 0.347458541, -1.14814520, 1 }
-    },
+         1.6605, -0.5876, -0.0728,
+        -0.1246,  1.1329, -0.0083,
+        -0.0182, -0.1006,  1.1187
+    };
+    return mul(mat, c);
+}
 
-        // BT709
+#if defined(dYUVLimited)
+static const float3x3 coefs[3] =
+{
+    // 0: BT.2020 (Limited)
     {
-        { 1.16438341, 1.16438341, 1.16438341, 0 },
-        { 0, -0.213248596, 2.11240149, 0 },
-        { 1.79274082, -0.532909214, 0, 0 },
-        { -0.972944975, 0.301482648, -1.13340211, 1 }
+        1.16438356,  0.00000000,  1.67867410,
+        1.16438356, -0.18732601, -0.65042418,
+        1.16438356,  2.14177196,  0.00000000
     },
-        // BT601
+    // 1: BT.709 (Limited)
     {
-        { 1.16438341, 1.16438341, 1.16438341, 0 },
-        { 0, -0.391762286, 2.01723194, 0 },
-        { 1.59602666, -0.812967658, 0, 0 },
-        { -0.874202192, 0.531667829, -1.08563077, 1 },
+        1.16438356,  0.00000000,  1.79274107,
+        1.16438356, -0.21324861, -0.53290933,
+        1.16438356,  2.11240179,  0.00000000
+    },
+    // 2: BT.601 (Limited)
+    {
+        1.16438356,  0.00000000,  1.59602678,
+        1.16438356, -0.39176160, -0.81296823,
+        1.16438356,  2.01723214,  0.00000000
     }
 };
-#endif
 
-#if defined(HDR)
-// hdrmethod enum
-static const int Aces       = 1;
-static const int Hable      = 2;
-static const int Reinhard   = 3;
-
-// HDR to SDR color convert (Thanks to KODI community https://github.com/thexai/xbmc)
-static const float ST2084_m1 = 2610.0f / (4096.0f * 4.0f);
-static const float ST2084_m2 = (2523.0f / 4096.0f) * 128.0f;
-static const float ST2084_c1 = 3424.0f / 4096.0f;
-static const float ST2084_c2 = (2413.0f / 4096.0f) * 32.0f;
-static const float ST2084_c3 = (2392.0f / 4096.0f) * 32.0f;
-
-static const float4x4 bt2020tobt709color =
+inline float3 YUVToRGBLimited(float3 yuv)
 {
-    { 1.6604f, -0.1245f, -0.0181f, 0 },
-    { -0.5876f, 1.1329f, -0.10057f, 0 },
-    { -0.07284f, -0.0083f, 1.1187f, 0 },
-    { 0, 0, 0, 0 }
+    yuv.x   -= 0.0625;
+    yuv.yz  -= 0.5;
+    return mul(coefs[Config.coefsIndex], yuv);
+}
+#elif defined(dYUVFull)
+static const float3x3 coefs[3] =
+{
+    // 0: BT.2020 (Full)
+    {
+        1.00000000,  0.00000000,  1.47460000,
+        1.00000000, -0.16455313, -0.57135313,
+        1.00000000,  1.88140000,  0.00000000
+    },
+    // 1: BT.709 (Full)
+    {
+        1.00000000,  0.00000000,  1.57480000,
+        1.00000000, -0.18732600, -0.46812400,
+        1.00000000,  1.85560000,  0.00000000
+    },
+    // 2: BT.601 (Full)
+    {
+        1.00000000,  0.00000000,  1.40200000,
+        1.00000000, -0.34413600, -0.71413600,
+        1.00000000,  1.77200000,  0.00000000
+    }
 };
 
-float3 inversePQ(float3 x)
+inline float3 YUVToRGBFull(float3 yuv)
 {
-    x = pow(max(x, 0.0f), 1.0f / ST2084_m2);
-    x = max(x - ST2084_c1, 0.0f) / (ST2084_c2 - ST2084_c3 * x);
-    x = pow(x, 1.0f / ST2084_m1);
-    return x;
+    yuv.x   = (yuv.x - 0.0625) * 1.16438356;
+    yuv.yz -= 0.5;
+    return mul(coefs[Config.coefsIndex], yuv);
 }
-
-#if defined(HLG)
-float3 inverseHLG(float3 x)
-{
-    const float B67_a = 0.17883277f;
-    const float B67_b = 0.28466892f;
-    const float B67_c = 0.55991073f;
-    const float B67_inv_r2 = 4.0f;
-    x = (x <= 0.5f) ? x * x * B67_inv_r2 : exp((x - B67_c) / B67_a) + B67_b;
-    return x;
-}
-
-float3 tranferPQ(float3 x)
-{
-    x = pow(x / 1000.0f, ST2084_m1);
-    x = (ST2084_c1 + ST2084_c2 * x) / (1.0f + ST2084_c3 * x);
-    x = pow(x, ST2084_m2);
-    return x;
-}
-
 #endif
-float3 aces(float3 x)
+
+#if defined(dPQToLinear) || defined(dHLGToLinear)
+static const float ST2084_m1 = 0.1593017578125;
+static const float ST2084_m2 = 78.84375;
+static const float ST2084_c1 = 0.8359375;
+static const float ST2084_c2 = 18.8515625;
+static const float ST2084_c3 = 18.6875;
+
+inline float3 PQToLinear(float3 rgb, float factor)
 {
-    const float A = 2.51f;
-    const float B = 0.03f;
-    const float C = 2.43f;
-    const float D = 0.59f;
-    const float E = 0.14f;
-    return (x * (A * x + B)) / (x * (C * x + D) + E);
+    rgb = pow(rgb, 1.0 / ST2084_m2);
+    rgb = max(rgb - ST2084_c1, 0.0) / (ST2084_c2 - ST2084_c3 * rgb);
+    rgb = pow(rgb, 1.0 / ST2084_m1);
+    rgb *= factor;
+    return rgb;
 }
 
-float3 hable(float3 x)
+inline float3 LinearToPQ(float3 rgb, float divider)
+{
+    rgb /= divider;
+    rgb = pow(rgb, ST2084_m1);
+    rgb = (ST2084_c1 + ST2084_c2 * rgb) / (1.0f + ST2084_c3 * rgb);
+    rgb = pow(rgb, ST2084_m2);
+    return rgb;
+}
+#endif
+
+#if defined(dHLGToLinear)
+inline float3 HLGInverse(float3 rgb)
+{
+    const float a = 0.17883277;
+    const float b = 0.28466892;
+    const float c = 0.55991073;
+
+    rgb = (rgb <= 0.5)
+        ? rgb * rgb * 4.0
+        : (exp((rgb - c) / a) + b);
+
+    // This will require different factor-nits for HLG (*19.5)
+    //rgb = (rgb <= 0.5)
+    //    ? (rgb * rgb) / 3.0
+    //    : (exp((rgb - c) / a) + b) / 12.0;
+    return rgb;
+}
+
+inline float3 HLGToLinear(float3 rgb)
+{
+    static const float3 ootf_2020 = float3(0.2627, 0.6780, 0.0593);
+
+    rgb = HLGInverse(rgb);
+    float ootf_ys = 2000.0f * dot(ootf_2020, rgb);
+    rgb *= pow(ootf_ys, 0.2f);
+    return rgb;
+}
+#endif
+
+#if defined(dTone)
+inline float3 ToneAces(float3 x)
+{
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+inline float3 ToneHable(float3 x)
 {
     const float A = 0.15f;
     const float B = 0.5f;
@@ -291,15 +351,55 @@ float3 hable(float3 x)
     const float D = 0.2f;
     const float E = 0.02f;
     const float F = 0.3f;
+
+    // some use those
+    //const float A = 0.22f;
+    //const float B = 0.3f;
+    //const float C = 0.1f;
+    //const float D = 0.2f;
+    //const float E = 0.01f;
+    //const float F = 0.3f;
+
     return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
 }
+static const float3 HABLE48 = ToneHable(4.8);
 
-static const float3 bt709coefs = { 0.2126f, 1.0f - 0.2126f - 0.0722f, 0.0722f };
-float reinhard(float x)
+inline float3 ToneReinhard(float3 x) //, float whitepoint=2.2) // or gamma?*
 {
-    return x * (1.0f + x / (g_toneP1 * g_toneP1)) / (1.0f + x);
+    return x * (1.0 + x / 4.84) / (x + 1.0); 
 }
 #endif
+
+inline float3 Hue(float3 rgb, float angle)
+{
+    if (angle == 0)
+        return rgb;
+
+    float c = cos(angle);
+    float s = -sin(angle);
+    
+    return mul(float3x3(
+        0.299 + 0.701 * c + 0.168 * s,  0.587 - 0.587 * c + 0.330 * s,  0.114 - 0.114 * c - 0.497 * s,
+        0.299 - 0.299 * c - 0.328 * s,  0.587 + 0.413 * c + 0.035 * s,  0.114 - 0.114 * c + 0.292 * s,
+        0.299 - 0.300 * c + 1.250 * s,  0.587 - 0.588 * c - 1.050 * s,  0.114 + 0.886 * c - 0.203 * s
+    ), rgb);
+}
+
+inline float3 Saturation(float3 rgb, float saturation)
+{
+    if (saturation == 1.0)
+        return rgb;
+
+    static const float3 kBT709 = float3(0.2126, 0.7152, 0.0722);
+
+    float luminance = dot(rgb, kBT709);
+    return lerp(luminance.rrr, rgb, saturation);
+}
+
+// hdrmethod enum
+static const int Aces       = 1;
+static const int Hable      = 2;
+static const int Reinhard   = 3;
 
 struct PSInput
 {
@@ -312,59 +412,70 @@ float4 main(PSInput input) : SV_TARGET
     float4 color;
 
     // Dynamic Sampling
-
 ";
 
     const string PS_FOOTER = @"
 
-    // YUV to RGB
-#if defined(YUV)
-    color = mul(color, coefs[coefsIndex]);
+    float3 c = color.rgb;
+
+#if defined(dYUVLimited)
+	c = YUVToRGBLimited(c);
+#elif defined(dYUVFull)
+	c = YUVToRGBFull(c);
 #endif
 
+#if defined(dBT2020)
+	c = pow(c, 2.2); // TODO: transferfunc gamma*
+	c = Gamut2020To709(c);
+	c = saturate(c);
+	c = pow(c, 1.0 / 2.2);
+#else
 
-    // HDR
-#if defined(HDR)
-    // BT2020 -> BT709
-    color.rgb = pow(max(0.0, color.rgb), 2.4f);
-    color.rgb = max(0.0, mul(color, bt2020tobt709color).rgb);
-    color.rgb = pow(color.rgb, 1.0f / 2.2f);
-
-    if (hdrmethod == Aces)
-    {
-        color.rgb = inversePQ(color.rgb);
-        color.rgb *= (10000.0f / g_luminance) * (2.0f / g_toneP1);
-        color.rgb = aces(color.rgb);
-        color.rgb *= (1.24f / g_toneP1);
-        color.rgb = pow(color.rgb, 0.27f);
-    }
-    else if (hdrmethod == Hable)
-    {
-        color.rgb = inversePQ(color.rgb);
-        color.rgb *= g_toneP1;
-        color.rgb = hable(color.rgb * g_toneP2) / hable(g_toneP2);
-        color.rgb = pow(color.rgb, 1.0f / 2.2f);
-    }
-    else if (hdrmethod == Reinhard)
-    {
-        float luma = dot(color.rgb, bt709coefs);
-        color.rgb *= reinhard(luma) / luma;
-    }
-    #if defined(HLG)
-    // HLG
-    color.rgb = inverseHLG(color.rgb);
-    float3 ootf_2020 = float3(0.2627f, 0.6780f, 0.0593f);
-    float ootf_ys = 2000.0f * dot(ootf_2020, color.rgb);
-    color.rgb *= pow(ootf_ys, 0.2f);
-    color.rgb = tranferPQ(color.rgb);
-    #endif
+#if defined(dPQToLinear)
+	c = PQToLinear(c, Config.hdrtone);
+#elif defined(dHLGToLinear)
+	c = HLGToLinear(c);
+	c = LinearToPQ(c, 1000.0);
+	c = PQToLinear(c, Config.hdrtone);
 #endif
 
-    // Contrast / Brightness / Saturate / Hue
-    color *= contrast * 2.0f;
-    color += brightness - 0.5f;
+#if defined(dTone)
+	if (Config.tonemap == Hable)
+	{
+		c = ToneHable(c) / HABLE48;
+		c = Gamut2020To709(c);
+		c = saturate(c);
+		c = pow(c, 1.0 / 2.2);
+	}
+	else if (Config.tonemap == Reinhard)
+	{
+		c = ToneReinhard(c);
+		c = Gamut2020To709(c);
+		c = saturate(c);
+		c = pow(c, 1.0 / 2.2);
+	}
+	else if (Config.tonemap == Aces)
+	{
+		c = ToneAces(c);
+		c = Gamut2020To709(c);
+		c = saturate(c);
+		c = pow(c, 0.27);
+	}
+    else
+    {
+        c = pow(c, 1.0 / 2.2);
+    }
+#endif
 
-    return color;
+#endif
+
+    // Contrast / Brightness / Hue / Saturation
+    c *= Config.contrast * 2.0f;
+    c += Config.brightness - 0.5f;
+    c = Hue(c, Config.hue);
+    c = Saturation(c, Config.saturation);
+
+    return saturate(float4(c, color.a));
 }
 ";
 

@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-using FlyleafLib.MediaFramework.MediaDemuxer;
+﻿using FlyleafLib.MediaFramework.MediaDemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaStream;
 
@@ -16,6 +14,8 @@ public unsafe class VideoStream : StreamBase
     public long                         FrameDuration       { get ;set; }
     public uint                         Height              { get; set; }
     public bool                         IsRGB               { get; set; }
+    public HDRFormat                    HDRFormat           { get; set; }
+
     public AVComponentDescriptor[]      PixelComps          { get; set; }
     public int                          PixelComp0Depth     { get; set; }
     public AVPixelFormat                PixelFormat         { get; set; }
@@ -48,9 +48,7 @@ public unsafe class VideoStream : StreamBase
         Width           = (uint)AVStream->codecpar->width;
         Height          = (uint)AVStream->codecpar->height;
 
-        // TBR: Maybe required also for input formats with AVFMT_NOTIMESTAMPS (and audio/subs)
-        // Possible FFmpeg.Autogen bug with Demuxer.FormatContext->iformat->flags (should be uint?) does not contain AVFMT_NOTIMESTAMPS (256 instead of 384)
-        if (Demuxer.Name == "h264" || Demuxer.Name == "hevc")
+        if (Demuxer.FormatContext->iformat->flags.HasFlag(FmtFlags.Notimestamps))
         {
             FixTimestamps = true;
 
@@ -68,7 +66,7 @@ public unsafe class VideoStream : StreamBase
             FPS  = av_q2d(av_guess_frame_rate(Demuxer.FormatContext, AVStream, frame));
         }
 
-        FrameDuration   = FPS > 0 ? (long) (10000000 / FPS) : 0;
+        FrameDuration   = FPS > 0 ? (long) (10_000_000 / FPS) : 0;
         TotalFrames     = AVStream->duration > 0 && FrameDuration > 0 ? (int) (AVStream->duration * Timebase / FrameDuration) : (FrameDuration > 0 ? (int) (Demuxer.Duration / FrameDuration) : 0);
 
         int x, y;
@@ -79,64 +77,139 @@ public unsafe class VideoStream : StreamBase
         av_reduce(&x, &y, Width  * sar.Num, Height * sar.Den, 1024 * 1024);
         AspectRatio = new AspectRatio(x, y);
 
-        if (PixelFormat != AVPixelFormat.None)
+        AVPacketSideData* pktSideData;
+        if ((pktSideData = av_packet_side_data_get(AVStream->codecpar->coded_side_data, AVStream->codecpar->nb_coded_side_data, AVPacketSideDataType.Displaymatrix)) != null && pktSideData->data != null)
         {
-            ColorRange = AVStream->codecpar->color_range == AVColorRange.Jpeg ? ColorRange.Full : ColorRange.Limited;
-
-            if (AVStream->codecpar->color_space == AVColorSpace.Bt470bg)
-                ColorSpace = ColorSpace.BT601;
-            else if (AVStream->codecpar->color_space == AVColorSpace.Bt709)
-                ColorSpace = ColorSpace.BT709;
-            else ColorSpace = AVStream->codecpar->color_space == AVColorSpace.Bt2020Cl || AVStream->codecpar->color_space == AVColorSpace.Bt2020Ncl
-                ? ColorSpace.BT2020
-                : Height > 576 ? ColorSpace.BT709 : ColorSpace.BT601;
-
-            // This causes issues
-            //if (AVStream->codecpar->color_space == AVColorSpace.AVCOL_SPC_UNSPECIFIED && AVStream->codecpar->color_trc == AVColorTransferCharacteristic.AVCOL_TRC_UNSPECIFIED && Height > 1080)
-            //{   // TBR: Handle Dolphy Vision?
-            //    ColorSpace = ColorSpace.BT2020;
-            //    ColorTransfer = AVColorTransferCharacteristic.AVCOL_TRC_SMPTE2084;
-            //}
-            //else
-            ColorTransfer = AVStream->codecpar->color_trc;
-
-            // We get rotation from frame side data only from 1st frame in case of exif orientation (mainly for jpeg) - TBR if required to check for each frame
-            AVFrameSideData* frameSideData;
-            AVPacketSideData* pktSideData;
-            double rotation = 0;
-            if (frame != null && (frameSideData = av_frame_get_side_data(frame, AVFrameSideDataType.Displaymatrix)) != null && frameSideData->data != null)
-                rotation = -Math.Round(av_display_rotation_get((int*)frameSideData->data)); //int_array9 displayMatrix = Marshal.PtrToStructure<int_array9>((nint)frameSideData->data); TBR: NaN why?
-            else if ((pktSideData = av_packet_side_data_get(AVStream->codecpar->coded_side_data, AVStream->codecpar->nb_coded_side_data, AVPacketSideDataType.Displaymatrix)) != null && pktSideData->data != null)
-                rotation = -Math.Round(av_display_rotation_get((int*)pktSideData->data));
-
+            double rotation = -Math.Round(av_display_rotation_get((int*)pktSideData->data));
             Rotation = rotation - (360*Math.Floor(rotation/360 + 0.9/360));
+        }
 
-            PixelFormatDesc = av_pix_fmt_desc_get(PixelFormat);
-            var comps       = PixelFormatDesc->comp.ToArray();
-            PixelComps      = new AVComponentDescriptor[PixelFormatDesc->nb_components];
-            for (int i=0; i<PixelComps.Length; i++)
-                PixelComps[i] = comps[i];
+        ColorRange = AVStream->codecpar->color_range == AVColorRange.Jpeg ? ColorRange.Full : ColorRange.Limited;
 
-            PixelInterleaved= PixelFormatDesc->log2_chroma_w != PixelFormatDesc->log2_chroma_h;
-            IsRGB           = (PixelFormatDesc->flags & PixFmtFlags.Rgb) != 0;
+        var colorSpace = AVStream->codecpar->color_space;
+        if (colorSpace == AVColorSpace.Bt709)
+            ColorSpace = ColorSpace.BT709;
+        else if (colorSpace == AVColorSpace.Bt470bg)
+            ColorSpace = ColorSpace.BT601;
+        else if (colorSpace == AVColorSpace.Bt2020Ncl || colorSpace == AVColorSpace.Bt2020Cl)
+            ColorSpace = ColorSpace.BT2020;
+            
+        ColorTransfer = AVStream->codecpar->color_trc;
 
-            PixelSameDepth  = true;
-            PixelPlanes     = 0;
-            if (PixelComps.Length > 0)
+        // Avoid early check for HDR
+        //if (ColorTransfer == AVColorTransferCharacteristic.AribStdB67)
+        //    HDRFormat = HDRFormat.HLG;
+        //else if (ColorTransfer == AVColorTransferCharacteristic.Smpte2084)
+        //{
+        //    for (int i = 0; i < AVStream->codecpar->nb_coded_side_data; i++)
+        //    {
+        //        var csdata = AVStream->codecpar->coded_side_data[i];
+        //        switch (csdata.type)
+        //        {
+        //            case AVPacketSideDataType.DoviConf:
+        //                HDRFormat = HDRFormat.DolbyVision;
+        //                break;
+        //            case AVPacketSideDataType.DynamicHdr10Plus:
+        //                HDRFormat = HDRFormat.HDRPlus;
+        //                break;
+        //            case AVPacketSideDataType.ContentLightLevel:
+        //                //AVContentLightMetadata t2 = *((AVContentLightMetadata*)csdata.data);
+        //                break;
+        //            case AVPacketSideDataType.MasteringDisplayMetadata:
+        //                //AVMasteringDisplayMetadata t1 = *((AVMasteringDisplayMetadata*)csdata.data);
+        //                HDRFormat = HDRFormat.HDR;
+        //                break;
+        //        }
+        //    }
+        //}
+
+        if (frame != null)
+        {
+            AVFrameSideData* frameSideData;
+            if ((frameSideData = av_frame_get_side_data(frame, AVFrameSideDataType.Displaymatrix)) != null && frameSideData->data != null)
             {
-                PixelComp0Depth = PixelComps[0].depth;
-                int prevBit     = PixelComp0Depth;
-                for (int i=0; i<PixelComps.Length; i++)
-                {
-                    if (PixelComps[i].plane > PixelPlanes)
-                        PixelPlanes = PixelComps[i].plane;
-
-                    if (prevBit != PixelComps[i].depth)
-                        PixelSameDepth = false;
-                }
-
-                PixelPlanes++;
+                var rotation = -Math.Round(av_display_rotation_get((int*)frameSideData->data));
+                Rotation = rotation - (360*Math.Floor(rotation/360 + 0.9/360));
             }
+
+            ColorRange = frame->color_range == AVColorRange.Jpeg ? ColorRange.Full : ColorRange.Limited;
+
+            if (frame->color_trc != AVColorTransferCharacteristic.Unspecified)
+                ColorTransfer = frame->color_trc;
+
+            if (frame->colorspace == AVColorSpace.Bt709)
+                ColorSpace = ColorSpace.BT709;
+            else if (frame->colorspace == AVColorSpace.Bt470bg)
+                ColorSpace = ColorSpace.BT601;
+            else if (frame->colorspace == AVColorSpace.Bt2020Ncl || frame->colorspace == AVColorSpace.Bt2020Cl)
+                ColorSpace = ColorSpace.BT2020;
+
+            if (ColorTransfer == AVColorTransferCharacteristic.AribStdB67)
+                HDRFormat = HDRFormat.HLG;
+            else if (ColorTransfer == AVColorTransferCharacteristic.Smpte2084)
+            {
+                var dolbyData = av_frame_get_side_data(frame, AVFrameSideDataType.DoviMetadata);
+                if (dolbyData != null)
+                    HDRFormat = HDRFormat.DolbyVision;
+                else
+                {
+                    var hdrPlusData = av_frame_get_side_data(frame, AVFrameSideDataType.DynamicHdrPlus);
+                    if (hdrPlusData != null)
+                    {
+                        //AVDynamicHDRPlus* x1 = (AVDynamicHDRPlus*)hdrPlusData->data;
+                        HDRFormat = HDRFormat.HDRPlus;
+                    }
+                    else
+                    {
+                        //AVMasteringDisplayMetadata t1;
+                        //AVContentLightMetadata t2;
+
+                        //var masterData = av_frame_get_side_data(frame, AVFrameSideDataType.MasteringDisplayMetadata);
+                        //if (masterData != null)
+                        //    t1 = *((AVMasteringDisplayMetadata*)masterData->data);
+                        //var lightData   = av_frame_get_side_data(frame, AVFrameSideDataType.ContentLightLevel);
+                        //if (lightData != null)
+                        //    t2 = *((AVContentLightMetadata*) lightData->data);
+
+                        HDRFormat = HDRFormat.HDR;
+                    }
+                }
+            }
+
+            if (HDRFormat != HDRFormat.None) // Forcing BT.2020 with PQ/HLG transfer?
+                ColorSpace = ColorSpace.BT2020;
+            else if (ColorSpace == ColorSpace.None)
+                ColorSpace = Height > 576 ? ColorSpace.BT709 : ColorSpace.BT601;
+        }
+
+        if (PixelFormat == AVPixelFormat.None || PixelPlanes > 0) // Should re-analyze? (possible to get different pixel format on 2nd... call?)
+            return;
+
+        PixelFormatDesc = av_pix_fmt_desc_get(PixelFormat);
+        var comps       = PixelFormatDesc->comp.ToArray();
+        PixelComps      = new AVComponentDescriptor[PixelFormatDesc->nb_components];
+        for (int i=0; i<PixelComps.Length; i++)
+            PixelComps[i] = comps[i];
+
+        PixelInterleaved= PixelFormatDesc->log2_chroma_w != PixelFormatDesc->log2_chroma_h;
+        IsRGB           = (PixelFormatDesc->flags & PixFmtFlags.Rgb) != 0;
+
+        PixelSameDepth  = true;
+        PixelPlanes     = 0;
+        if (PixelComps.Length > 0)
+        {
+            PixelComp0Depth = PixelComps[0].depth;
+            int prevBit     = PixelComp0Depth;
+            for (int i=0; i<PixelComps.Length; i++)
+            {
+                if (PixelComps[i].plane > PixelPlanes)
+                    PixelPlanes = PixelComps[i].plane;
+
+                if (prevBit != PixelComps[i].depth)
+                    PixelSameDepth = false;
+            }
+
+            PixelPlanes++;
         }
     }
 }
