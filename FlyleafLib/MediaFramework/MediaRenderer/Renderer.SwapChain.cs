@@ -357,7 +357,7 @@ public partial class Renderer
         }
 
         GetViewport = new(x - xZoomPixels * (float)zoomCenter.X, y - yZoomPixels * (float)zoomCenter.Y, newWidth, newHeight);
-        ViewportChanged?.Invoke(this, new());
+        ViewportChanged?.Invoke(this, EventArgs.Empty);
 
         if (videoProcessor == VideoProcessors.D3D11)
         {
