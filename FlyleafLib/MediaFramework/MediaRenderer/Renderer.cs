@@ -195,6 +195,10 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         panXOffset = panYOffset = 0;
         zoom = 1;
         zoomCenter = ZoomCenterPoint;
+
+        if (Disposed)
+            return;
+
         SetViewport();
     }
 
