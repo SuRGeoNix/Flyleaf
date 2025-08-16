@@ -172,7 +172,7 @@ internal static class ShaderCompiler
     //}
 
     const string PS_HEADER = @"
-#pragma warning( disable: 3571 )
+//#pragma warning( disable: 3571 )
 Texture2D		Texture1		: register(t0);
 Texture2D		Texture2		: register(t1);
 Texture2D		Texture3		: register(t2);
@@ -370,23 +370,40 @@ inline float3 ToneReinhard(float3 x) //, float whitepoint=2.2) // or gamma?*
 }
 #endif
 
+#pragma warning( disable: 4000 )
 inline float3 Hue(float3 rgb, float angle)
 {
+    [branch]
     if (angle == 0)
         return rgb;
 
+    static const float3x3 hueBase = float3x3(
+        0.299,  0.587,  0.114,
+        0.299,  0.587,  0.114,
+        0.299,  0.587,  0.114
+    );
+
+    static const float3x3 hueCos = float3x3(
+         0.701, -0.587, -0.114,
+        -0.299,  0.413, -0.114,
+        -0.300, -0.588,  0.886
+    );
+    
+    static const float3x3 hueSin = float3x3(
+         0.168,  0.330, -0.497,
+        -0.328,  0.035,  0.292,
+         1.250, -1.050, -0.203
+    );
+
     float c = cos(angle);
     float s = -sin(angle);
-    
-    return mul(float3x3(
-        0.299 + 0.701 * c + 0.168 * s,  0.587 - 0.587 * c + 0.330 * s,  0.114 - 0.114 * c - 0.497 * s,
-        0.299 - 0.299 * c - 0.328 * s,  0.587 + 0.413 * c + 0.035 * s,  0.114 - 0.114 * c + 0.292 * s,
-        0.299 - 0.300 * c + 1.250 * s,  0.587 - 0.588 * c - 1.050 * s,  0.114 + 0.886 * c - 0.203 * s
-    ), rgb);
+
+    return mul(hueBase + c * hueCos + s * hueSin, rgb);
 }
 
 inline float3 Saturation(float3 rgb, float saturation)
 {
+    [branch]
     if (saturation == 1.0)
         return rgb;
 
@@ -395,6 +412,7 @@ inline float3 Saturation(float3 rgb, float saturation)
     float luminance = dot(rgb, kBT709);
     return lerp(luminance.rrr, rgb, saturation);
 }
+#pragma warning( enable: 4000 )
 
 // hdrmethod enum
 static const int Aces       = 1;

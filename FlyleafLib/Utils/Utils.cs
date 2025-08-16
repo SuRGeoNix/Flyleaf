@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -22,8 +20,8 @@ public static partial class Utils
     // VLC : https://github.com/videolan/vlc/blob/master/modules/gui/qt/dialogs/preferences/simple_preferences.cpp
     // Kodi: https://github.com/xbmc/xbmc/blob/master/xbmc/settings/AdvancedSettings.cpp
 
-    public static List<string> ExtensionsAudio = new()
-    {
+    public static readonly List<string> ExtensionsAudio =
+    [
         // VLC
           "3ga" , "669" , "a52" , "aac" , "ac3"
         , "adt" , "adts", "aif" , "aifc", "aiff"
@@ -35,27 +33,27 @@ public static partial class Utils
         , "rmi" , "snd" , "s3m" , "spx" , "tta"
         , "voc" , "vqf" , "w64" , "wav" , "wma"
         , "wv"  , "xa"  , "xm"
-    };
+    ];
 
-    public static List<string> ExtensionsPictures = new()
-    {
+    public static readonly List<string> ExtensionsPictures =
+    [
         "apng", "bmp", "gif", "jpg", "jpeg", "png", "ico", "tif", "tiff", "tga","jfif"
-    };
+    ];
 
-    public static List<string> ExtensionsSubtitlesText = new()
-    {
+    public static readonly List<string> ExtensionsSubtitlesText =
+    [
         "ass", "ssa", "srt", "txt", "text", "vtt"
-    };
+    ];
 
-    public static List<string> ExtensionsSubtitlesBitmap = new()
-    {
+    public static readonly List<string> ExtensionsSubtitlesBitmap =
+    [
         "sub", "sup"
-    };
+    ];
 
-    public static List<string> ExtensionsSubtitles = [..ExtensionsSubtitlesText, ..ExtensionsSubtitlesBitmap];
+    public static readonly List<string> ExtensionsSubtitles = [..ExtensionsSubtitlesText, ..ExtensionsSubtitlesBitmap];
 
-    public static List<string> ExtensionsVideo = new()
-    {
+    public static readonly List<string> ExtensionsVideo =
+    [
         // VLC
           "3g2" , "3gp" , "3gp2", "3gpp", "amrec"
         , "amv" , "asf" , "avi" , "bik" , "divx"
@@ -72,7 +70,7 @@ public static partial class Utils
 
         // Additional
         , "dav"
-    };
+    ];
 
     private static int uniqueId;
     public static int GetUniqueId() { Interlocked.Increment(ref uniqueId); return uniqueId; }
@@ -453,7 +451,7 @@ public static partial class Utils
             if (url == null || url.Length < 5)
                 return url;
 
-            if (url[..5].ToLower() == "file:")
+            if (url[..5].Equals("file:", StringComparison.OrdinalIgnoreCase))
                 return new Uri(url).LocalPath;
         }
         catch { }
@@ -477,9 +475,7 @@ public static partial class Utils
             string targetPath = shortcut.TargetPath;
 
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("TargetPath is empty.");
-            }
 
             return targetPath;
         }
@@ -527,9 +523,8 @@ public static partial class Utils
             readable = i;
         }
         else
-        {
             return i.ToString("0 B"); // Byte
-        }
+
         // Divide by 1024 to get fractional value
         readable /= 1024;
         // Return formatted number with suffix
@@ -627,16 +622,15 @@ public static partial class Utils
     public static System.Windows.Media.Color VorticeToWPFColor(Vortice.Mathematics.Color sColor)
         => System.Windows.Media.Color.FromArgb(sColor.A, sColor.R, sColor.G, sColor.B);
     public static Vortice.Mathematics.Color WPFToVorticeColor(System.Windows.Media.Color wColor)
-        => new Vortice.Mathematics.Color(wColor.R, wColor.G, wColor.B, wColor.A);
+        => new(wColor.R, wColor.G, wColor.B, wColor.A);
 
-    public static double SWFREQ_TO_TICKS =  10000000.0 / Stopwatch.Frequency;
+    public static readonly double SWFREQ_TO_TICKS = 10000000.0 / Stopwatch.Frequency;
     public static string ToHexadecimal(byte[] bytes)
     {
         StringBuilder hexBuilder = new();
         for (int i = 0; i < bytes.Length; i++)
-        {
             hexBuilder.Append(bytes[i].ToString("x2"));
-        }
+
         return hexBuilder.ToString();
     }
     public static int GCD(int a, int b) => b == 0 ? a : GCD(b, a % b);
