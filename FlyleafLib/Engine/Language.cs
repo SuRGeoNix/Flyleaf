@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json.Serialization;
+
 namespace FlyleafLib;
 
 public class Language : IEquatable<Language>
@@ -186,6 +187,6 @@ public class Language : IEquatable<Language>
         { "wel","cym" },
     };
 
-    public static Language English = Get("eng");
-    public static Language Unknown = Get("und");
+    public static readonly Language English = Get("eng");
+    public static readonly Language Unknown = Get("und");
 }

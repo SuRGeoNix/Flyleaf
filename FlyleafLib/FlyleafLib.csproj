@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.5</Version>
+	<Version>3.8.6</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,20 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer.Interrupter: Reset timeout state on Read
-		- Config: Restore default settings for plugins properly
-		- Config.Subs: Includes UNC for SearchOnlineOnInputType
-		- Plugins.OpenDefault: Fixes an issue with FileSize not properly set in some cases (it would prevent searching subtitles online)
-		- Plugins.OpenDefault: Fixes an issue with InputType not properly set to UNC
+		- FlyleafHost: Fixes dynamic changes issue with DPI awareness
+		- Player.Open: Fixes a null reference issue
+		- Renderer: Adds support for custom Direct2D (with Vortice) overlay drawing
+		- Renderer: Better handling of common HDR to SDR (HDR10/HLG)
+		- Renderer: Tonemaps (Hable/Reinhard/Aces) Improvements
+		- Renderer: Adds Config.Video.SDRDisplayNits which improves HDR to SDR based on monitor's peak brightness
+		- Renderer: Adds support for BT.2020 SDR
+		- Renderer: Improves support for YUV full color range sources
+		- Renderer: Adds Hue/Saturation Filters
+		- Renderer: Overall Performance Improvements
+		
+		[Breaking Changes]
+		- FlyleafHost.Old: Deprecated
+		- Config.Video.HDRtoSDRTone replaces by SDRDisplayNits
 	</PackageReleaseNotes>
   </PropertyGroup>
 
