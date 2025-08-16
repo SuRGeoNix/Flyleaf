@@ -84,7 +84,7 @@ public class PluginHandler
     }
     private void LoadPlugins()
     {
-        Plugins = new Dictionary<string, PluginBase>();
+        Plugins = [];
 
         foreach (var type in Engine.Plugins.Types.Values)
         {
@@ -96,25 +96,25 @@ public class PluginHandler
             } catch (Exception e) { Log.Error($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
             }
 
-        PluginsOpen                     = new Dictionary<string, IOpen>();
-        PluginsOpenSubtitles            = new Dictionary<string, IOpenSubtitles>();
-        PluginsScrapeItem               = new Dictionary<string, IScrapeItem>();
+        PluginsOpen                     = [];
+        PluginsOpenSubtitles            = [];
+        PluginsScrapeItem               = [];
 
-        PluginsSuggestItem              = new Dictionary<string, ISuggestPlaylistItem>();
+        PluginsSuggestItem              = [];
 
-        PluginsSuggestAudioStream       = new Dictionary<string, ISuggestAudioStream>();
-        PluginsSuggestVideoStream       = new Dictionary<string, ISuggestVideoStream>();
-        PluginsSuggestSubtitlesStream   = new Dictionary<string, ISuggestSubtitlesStream>();
-        PluginsSuggestSubtitles         = new Dictionary<string, ISuggestSubtitles>();
+        PluginsSuggestAudioStream       = [];
+        PluginsSuggestVideoStream       = [];
+        PluginsSuggestSubtitlesStream   = [];
+        PluginsSuggestSubtitles         = [];
 
-        PluginsSuggestExternalAudio     = new Dictionary<string, ISuggestExternalAudio>();
-        PluginsSuggestExternalVideo     = new Dictionary<string, ISuggestExternalVideo>();
+        PluginsSuggestExternalAudio     = [];
+        PluginsSuggestExternalVideo     = [];
         PluginsSuggestBestExternalSubtitles
-                                        = new Dictionary<string, ISuggestBestExternalSubtitles>();
+                                        = [];
 
-        PluginsSearchLocalSubtitles     = new Dictionary<string, ISearchLocalSubtitles>();
-        PluginsSearchOnlineSubtitles    = new Dictionary<string, ISearchOnlineSubtitles>();
-        PluginsDownloadSubtitles        = new Dictionary<string, IDownloadSubtitles>();
+        PluginsSearchLocalSubtitles     = [];
+        PluginsSearchOnlineSubtitles    = [];
+        PluginsDownloadSubtitles        = [];
 
         foreach (var plugin in Plugins.Values)
             LoadPluginInterfaces(plugin);
