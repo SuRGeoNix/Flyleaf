@@ -1,10 +1,8 @@
-﻿using System;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Runtime.InteropServices;
 
 namespace FlyleafLib;
 
-#pragma warning disable CA1401 // P/Invokes should not be visible
 public static partial class Utils
 {
     public static class NativeMethods
@@ -253,6 +251,25 @@ public static partial class Utils
         public static int SignedLOWORD(IntPtr n) => SignedLOWORD(unchecked((int)(long)n));
         public static int SignedHIWORD(int n) => (short)((n >> 16) & 0xffff);
         public static int SignedLOWORD(int n) => (short)(n & 0xFFFF);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromPoint(Point pt, uint dwFlags);
+    
+        [DllImport("shcore.dll")]
+        public static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
+    
+        private const int MONITOR_DEFAULTTONEAREST = 2;
+        private const int MDT_EFFECTIVE_DPI = 0;
+        public static (double dpiX, double dpiY) GetDpiAtPoint(Point point)
+        {
+            IntPtr monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
+        
+            if (monitor != IntPtr.Zero && GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, out uint dpiX, out uint dpiY) == 0)
+                return (dpiX / 96.0, dpiY / 96.0);
+
+            // Fallback to primary monitor DPI
+            using var g = Graphics.FromHwnd(IntPtr.Zero);
+            return (g.DpiX / 96.0, g.DpiY / 96.0);
+        }
     }
 }
-#pragma warning restore CA1401 // P/Invokes should not be visible
