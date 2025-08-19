@@ -97,19 +97,23 @@ unsafe public partial class Renderer
             UpdateRotation(_RotationAngle, false);
 
             var oldVP = videoProcessor;
-
-            // Defaults to D3D11VP
-            //VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (Config.Video.VideoProcessor == VideoProcessors.Auto && isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
-
-            // Defaults to FlyleafVP
+            var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
             VideoProcessor = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.Deinterlace || Config.Video.VideoProcessor == VideoProcessors.D3D11) ?
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != DeInterlace.Progressive && Config.Video.VideoProcessor != VideoProcessors.Flyleaf)) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
 
-            textDesc[0].BindFlags &= ~BindFlags.RenderTarget; // Only D3D11VP without ZeroCopy requires it
-            curPSCase = PSCase.None;
-            prevPSUniqueId = curPSUniqueId;
-            curPSUniqueId = "";
+            if (fieldType != FieldType)
+            {
+                FieldType = fieldType;
+                vc?.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType == DeInterlace.Progressive ? VideoFrameFormat.Progressive : (FieldType == DeInterlace.BottomField ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
+                psBufferData.fieldType = FieldType;
+            }
+
+            textDesc[0].BindFlags
+                            &= ~BindFlags.RenderTarget; // Only D3D11VP without ZeroCopy requires it
+            curPSCase       = PSCase.None;
+            prevPSUniqueId  = curPSUniqueId;
+            curPSUniqueId   = "";
 
             Log.Debug($"Preparing planes for {VideoStream.PixelFormatStr} with {videoProcessor}");
             if ((VideoStream.PixelFormatDesc->flags & PixFmtFlags.Be) == 0) // We currently force SwsScale for BE (RGBA64/BGRA64 BE noted that could work as is?*)
@@ -181,7 +185,6 @@ unsafe public partial class Renderer
                             curPSUniqueId += "p";
                             defines.Add(dPQToLinear);
                         }
-                            
 
                         defines.Add(dTone);
                     }
@@ -190,6 +193,8 @@ unsafe public partial class Renderer
                         defines.Add(dBT2020);
                         curPSUniqueId += "b";
                     }
+
+                    psBufferData.yoffset = 1.0f / VideoStream.Height;
 
                     for (int i = 0; i < srvDesc.Length; i++)
                         srvDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2D;
@@ -398,7 +403,7 @@ unsafe public partial class Renderer
                             curPSCase = PSCase.YUVPacked;
                             curPSUniqueId += ((int)curPSCase).ToString();
 
-                            psBufferData.texWidth = 1.0f / (VideoStream.Width >> 1);
+                            psBufferData.uvOffset = 1.0f / (VideoStream.Width >> 1);
                             textDesc[0].Width   = VideoStream.Width;
                             textDesc[0].Height  = VideoStream.Height;
 
@@ -416,10 +421,10 @@ unsafe public partial class Renderer
                             }
 
                             string header = @"
-        float  posx = input.Texture.x - (texWidth * 0.25);
-        float  fx = frac(posx / texWidth);
-        float  pos1 = posx + ((0.5 - fx) * texWidth);
-        float  pos2 = posx + ((1.5 - fx) * texWidth);
+        float  posx = input.Texture.x - (Config.uvOffset * 0.25);
+        float  fx = frac(posx / Config.uvOffset);
+        float  pos1 = posx + ((0.5 - fx) * Config.uvOffset);
+        float  pos2 = posx + ((1.5 - fx) * Config.uvOffset);
 
         float4 c1 = Texture1.Sample(Sampler, float2(pos1, input.Texture.y));
         float4 c2 = Texture1.Sample(Sampler, float2(pos2, input.Texture.y));

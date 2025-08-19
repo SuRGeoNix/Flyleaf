@@ -38,6 +38,14 @@ public enum HDRtoSDRMethod : int
     Hable       = 2,
     Reinhard    = 3
 }
+
+public enum DeInterlace : int
+{
+    Auto        = -2,
+    Progressive = -1,
+    TopField    =  0,
+    BottomField =  1
+}
 public enum VideoProcessors
 {
     Auto,
@@ -73,21 +81,21 @@ public enum HDRFormat : int
     
 }
 
-
 public class GPUOutput
 {
-    public static int GPUOutputIdGenerator;
+    internal static int GPUOutputIdGenerator;
 
-    public int      Id          { get; set; }
-    public string   DeviceName  { get; internal set; }
-    public int      Left        { get; internal set; }
-    public int      Top         { get; internal set; }
-    public int      Right       { get; internal set; }
-    public int      Bottom      { get; internal set; }
-    public int      Width       => Right- Left;
-    public int      Height      => Bottom- Top;
-    public bool     IsAttached  { get; internal set; }
-    public int      Rotation    { get; internal set; }
+    public int      Id              { get; internal set; }
+    public string   DeviceName      { get; internal set; }
+    public int      Left            { get; internal set; }
+    public int      Top             { get; internal set; }
+    public int      Right           { get; internal set; }
+    public int      Bottom          { get; internal set; }
+    public int      Width           => Right- Left;
+    public int      Height          => Bottom- Top;
+    public bool     IsAttached      { get; internal set; }
+    public int      Rotation        { get; internal set; }
+    public float    MaxLuminance    { get; internal set; }
 
     public override string ToString()
     {

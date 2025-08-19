@@ -20,7 +20,7 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 public unsafe class VideoDecoder : DecoderBase
 {
     public ConcurrentQueue<VideoFrame>
-                            Frames              { get; protected set; } = new ConcurrentQueue<VideoFrame>();
+                            Frames              { get; protected set; } = [];
     public Renderer         Renderer            { get; private set; }
     public bool             VideoAccelerated    { get; internal set; }
     public bool             ZeroCopy            { get; internal set; }
@@ -35,7 +35,7 @@ public unsafe class VideoDecoder : DecoderBase
     const SwsFlags          SCALING_LQ          = SwsFlags.Bicublin;
 
     internal SwsContext*    swsCtx;
-    IntPtr                  swsBufferPtr;
+    nint                    swsBufferPtr;
     internal byte_ptrArray4 swsData;
     internal int_array4     swsLineSize;
 
@@ -46,15 +46,19 @@ public unsafe class VideoDecoder : DecoderBase
     bool                    checkExtraFrames; // DecodeFrameNext
 
     // Reverse Playback
-    ConcurrentStack<List<IntPtr>>
-                            curReverseVideoStack    = new();
-    List<IntPtr>            curReverseVideoPackets  = new();
-    List<VideoFrame>        curReverseVideoFrames   = new();
+    ConcurrentStack<List<nint>>
+                            curReverseVideoStack    = [];
+    List<nint>              curReverseVideoPackets  = [];
+    List<VideoFrame>        curReverseVideoFrames   = [];
     int                     curReversePacketPos     = 0;
 
     // Drop frames if FPS is higher than allowed
     int                     curSpeedFrame           = 9999; // don't skip first frame (on start/after seek-flush)
     double                  skipSpeedFrames         = 0;
+
+    // Fixes Seek Backwards failure on broken formats
+    long                    curFixSeekDelta         = 0;
+    const long              FIX_SEEK_DELTA_MCS      = 2_100_000;
 
     public VideoDecoder(Config config, int uniqueId = -1) : base(config, uniqueId)
         => getHWformat = new AVCodecContext_get_format(get_format);
@@ -75,12 +79,12 @@ public unsafe class VideoDecoder : DecoderBase
     public void CreateRenderer() // TBR: It should be in the constructor but DecoderContext will not work with null VideoDecoder for AudioOnly
     {
         if (Renderer == null)
-            Renderer = new Renderer(this, IntPtr.Zero, UniqueId);
+            Renderer = new Renderer(this, 0, UniqueId);
         else if (Renderer.Disposed)
             Renderer.Initialize();
     }
     public void DestroyRenderer() => Renderer?.Dispose();
-    public void CreateSwapChain(IntPtr handle)
+    public void CreateSwapChain(nint handle)
     {
         CreateRenderer();
         Renderer.InitializeSwapChain(handle);
@@ -265,7 +269,7 @@ public unsafe class VideoDecoder : DecoderBase
         {
             lock (Renderer.lockDevice)
             {
-                textureFFmpeg   = new ID3D11Texture2D((IntPtr) va_frames_ctx->texture);
+                textureFFmpeg   = new ID3D11Texture2D((nint) va_frames_ctx->texture);
                 ZeroCopy = Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Enabled || (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto && codecCtx->width == textureFFmpeg.Description.Width && codecCtx->height == textureFFmpeg.Description.Height);
                 filledFromCodec = false;
             }
@@ -622,6 +626,7 @@ public unsafe class VideoDecoder : DecoderBase
             int ret = 0;
 
             filledFromCodec = true;
+            curFixSeekDelta = 0;
 
             avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
             VideoStream.AVStream->time_base = codecCtx->pkt_timebase;
@@ -633,6 +638,19 @@ public unsafe class VideoDecoder : DecoderBase
                 VideoStream.FrameDuration   = VideoStream.FPS > 0 ? (long) (10000000 / VideoStream.FPS) : 0;
                 if (VideoStream.FrameDuration > 0)
                     VideoStream.Demuxer.VideoPackets.frameDuration = VideoStream.FrameDuration;
+            }
+
+            if (VideoStream.FieldOrder != DeInterlace.Progressive)
+            {
+                VideoStream.FPS2 = VideoStream.FPS;
+                VideoStream.FrameDuration2 = VideoStream.FrameDuration;
+                VideoStream.FPS /= 2;
+                VideoStream.FrameDuration *= 2;
+            }
+            else
+            {
+                VideoStream.FPS2 = VideoStream.FPS * 2;
+                VideoStream.FrameDuration2 = VideoStream.FrameDuration / 2;
             }
 
             skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
@@ -788,14 +806,14 @@ public unsafe class VideoDecoder : DecoderBase
                         {
                             packet = (AVPacket*)curReverseVideoPackets[i];
                             av_packet_free(&packet);
-                            curReverseVideoPackets[curReversePacketPos - 1] = IntPtr.Zero;
+                            curReverseVideoPackets[curReversePacketPos - 1] = 0;
                             curReverseVideoPackets.RemoveAt(i);
                         }
 
                         avcodec_flush_buffers(codecCtx);
                         curReversePacketPos = 0;
 
-                        for (int i=curReverseVideoFrames.Count -1; i>=0; i--)
+                        for (int i = curReverseVideoFrames.Count - 1; i >= 0; i--)
                             Frames.Enqueue(curReverseVideoFrames[i]);
 
                         curReverseVideoFrames.Clear();
@@ -818,7 +836,7 @@ public unsafe class VideoDecoder : DecoderBase
                         if (shouldProcess)
                         {
                             av_packet_free(&packet);
-                            curReverseVideoPackets[curReversePacketPos - 1] = IntPtr.Zero;
+                            curReverseVideoPackets[curReversePacketPos - 1] = 0;
                             var mFrame = Renderer.FillPlanes(frame);
                             if (mFrame != null) curReverseVideoFrames.Add(mFrame);
                         }
@@ -873,68 +891,82 @@ public unsafe class VideoDecoder : DecoderBase
         }
     }
 
+    /// <summary>
+    /// Gets the frame number of a VideoFrame timestamp
+    /// </summary>
+    /// <param name="timestamp"></param>
+    /// <returns></returns>
     public int GetFrameNumber(long timestamp)
-    {
-        // Incoming timestamps are zero-base from demuxer start time (not from video stream start time)
-        timestamp -= VideoStream.StartTime - demuxer.StartTime;
+        => Math.Max(0, (int)((timestamp + 2_0000 - VideoStream.StartTime + demuxer.StartTime) / VideoStream.FrameDuration));
 
-        if (timestamp < 1)
-            return 0;
+    /// <summary>
+    /// Gets the frame number of an AVFrame timestamp
+    /// </summary>
+    /// <param name="timestamp"></param>
+    /// <returns></returns>
+    public int GetFrameNumber2(long timestamp)
+        => Math.Max(0, (int)((timestamp + 2_0000 - VideoStream.StartTime) / VideoStream.FrameDuration));
 
-        // offset 2ms
-        return (int) ((timestamp + 20000) / VideoStream.FrameDuration);
-    }
+    /// <summary>
+    /// Gets the VideoFrame timestamp from the frame number
+    /// </summary>
+    /// <param name="frameNumber"></param>
+    /// <returns></returns>
+    public long GetFrameTimestamp(int frameNumber)
+        => VideoStream.StartTime + (frameNumber * VideoStream.FrameDuration);
 
     /// <summary>
     /// Performs accurate seeking to the requested VideoFrame and returns it
     /// </summary>
-    /// <param name="index">Zero based frame index</param>
+    /// <param name="frameNumber">Zero based frame index</param>
     /// <returns>The requested VideoFrame or null on failure</returns>
-    public VideoFrame GetFrame(int index)
+    public VideoFrame GetFrame(int frameNumber)
     {
-        int ret;
+        long requiredTimestamp = GetFrameTimestamp(frameNumber);
+        long curSeekMcs = requiredTimestamp / 10;
+        int curFrameNumber;
 
-        // Calculation of FrameX timestamp (based on fps/avgFrameDuration) | offset 2ms
-        long frameTimestamp = VideoStream.StartTime + (index * VideoStream.FrameDuration) - 20000;
-        //Log.Debug($"Searching for {Utils.TicksToTime(frameTimestamp)}");
-
-        demuxer.Pause();
-        Pause();
-
-        // TBR
-        //if (demuxer.FormatContext->pb != null)
-        //    avio_flush(demuxer.FormatContext->pb);
-        //avformat_flush(demuxer.FormatContext);
-
-        // Seeking at frameTimestamp or previous I/Key frame and flushing codec | Temp fix (max I/distance 3sec) for ffmpeg bug that fails to seek on keyframe with HEVC
-        // More issues with mpegts seeking backwards (those should be used also in the reverse playback in the demuxer)
-        demuxer.Interrupter.SeekRequest();
-        ret = codecCtx->codec_id == AVCodecID.Hevc|| (demuxer.FormatContext->iformat != null) // TBR: this is on FFInputFormat now -> && demuxer.FormatContext->iformat-> read_seek.Pointer == IntPtr.Zero)
-            ? av_seek_frame(demuxer.FormatContext, -1, Math.Max(0, frameTimestamp - (3 * (long)1000 * 10000)) / 10, SeekFlags.Any)
-            : av_seek_frame(demuxer.FormatContext, -1, frameTimestamp / 10, SeekFlags.Frame | SeekFlags.Backward);
-
-        demuxer.DisposePackets();
-
-        if (demuxer.Status == Status.Ended) demuxer.Status = Status.Stopped;
-        if (ret < 0) return null; // handle seek error
-        Flush();
-        checkExtraFrames = false;
-
-        while (DecodeFrameNext() == 0)
+        do
         {
-            // Skip frames before our actual requested frame
-            if ((long)(frame->pts * VideoStream.Timebase) < frameTimestamp)
+            demuxer.Pause();
+            Pause();
+            demuxer.Interrupter.SeekRequest();
+            int ret = av_seek_frame(demuxer.FormatContext, -1, curSeekMcs - curFixSeekDelta, SeekFlags.Frame | SeekFlags.Backward);
+
+            demuxer.DisposePackets();
+
+            if (demuxer.Status == Status.Ended)
+                demuxer.Status = Status.Stopped;
+
+            if (ret < 0)
+                return null;
+
+            Flush();
+            checkExtraFrames = false;
+
+            if (DecodeFrameNext() != 0)
+                return null;
+
+            long seekedTimestamp = (long)(frame->pts * VideoStream.Timebase);
+            
+            if (GetFrameNumber2(seekedTimestamp) > frameNumber)
             {
-                //Log.Debug($"[Skip] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | [fltime: {Utils.TicksToTime(((long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime))}]");
-                av_frame_unref(frame);
+                curFixSeekDelta += FIX_SEEK_DELTA_MCS;
                 continue;
             }
 
-            //Log.Debug($"[Found] [pts: {frame->pts}] [time: {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase))}] | {Utils.TicksToTime(VideoStream.StartTime + (index * VideoStream.FrameDuration))} | [fltime: {Utils.TicksToTime(((long)(frame->pts * VideoStream.Timebase) - demuxer.StartTime))}]");
-            return Renderer.FillPlanes(frame);
-        }
+            do
+            {
+                curFrameNumber = GetFrameNumber2((long)(frame->pts * VideoStream.Timebase));
+                if (curFrameNumber >= frameNumber)
+                    return Renderer.FillPlanes(frame);
 
-        return null;
+                av_frame_unref(frame);
+
+            } while (DecodeFrameNext() == 0);
+
+            return null;
+        } while (true);
     }
 
     /// <summary>
@@ -1082,7 +1114,7 @@ public unsafe class VideoDecoder : DecoderBase
             curReverseVideoStack.TryPop(out var t2);
             for (int i = 0; i<t2.Count; i++)
             {
-                if (t2[i] == IntPtr.Zero) continue;
+                if (t2[i] == 0) continue;
                 AVPacket* packet = (AVPacket*)t2[i];
                 av_packet_free(&packet);
             }
@@ -1090,7 +1122,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         for (int i = 0; i<curReverseVideoPackets.Count; i++)
         {
-            if (curReverseVideoPackets[i] == IntPtr.Zero) continue;
+            if (curReverseVideoPackets[i] == 0) continue;
             AVPacket* packet = (AVPacket*)curReverseVideoPackets[i];
             av_packet_free(&packet);
         }

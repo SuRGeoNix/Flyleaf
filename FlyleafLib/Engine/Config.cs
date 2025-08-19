@@ -715,15 +715,8 @@ public class Config : NotifyPropertyChanged
         public Vortice.DXGI.PresentFlags
                                 PresentFlags                { get; set; } = Vortice.DXGI.PresentFlags.DoNotWait;
 
-        /// <summary>
-        /// Enables the video processor to perform post process deinterlacing
-        /// (D3D11 video processor should be enabled and support bob deinterlace method)
-        /// </summary>
-        public bool             Deinterlace                 { get=> _Deinterlace;   set { if (Set(ref _Deinterlace, value)) player?.renderer?.UpdateDeinterlace(); } }
-        bool _Deinterlace;
-
-        public bool             DeinterlaceBottomFirst      { get=> _DeinterlaceBottomFirst; set { if (Set(ref _DeinterlaceBottomFirst, value)) player?.renderer?.UpdateDeinterlace(); } }
-        bool _DeinterlaceBottomFirst;
+        public DeInterlace      DeInterlace                 { get => _DeInterlace;  set { if (Set(ref _DeInterlace, value)) player?.renderer?.UpdateDeinterlace(); } }
+        DeInterlace _DeInterlace = DeInterlace.Auto;
 
         /// <summary>
         /// The HDR to SDR method that will be used by the pixel shader
@@ -736,7 +729,7 @@ public class Config : NotifyPropertyChanged
         /// SDR Display Peak Luminance (will be used for HDR to SDR conversion)
         /// </summary>
         public unsafe float     SDRDisplayNits              { get => _SDRDisplayNits; set { if (Set(ref _SDRDisplayNits, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); } }
-        float _SDRDisplayNits = 200f; // TODO: Retrieve this through Vortice (output6) but currently not supported
+        float _SDRDisplayNits = Engine.Video.RecommendedLuminance;
 
         /// <summary>
         /// Whether the renderer will use 10-bit swap chaing or 8-bit output

@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-
 using Vortice;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
@@ -252,6 +251,7 @@ public unsafe partial class Renderer
                     ByteWidth       = (uint)(sizeof(PSBufferType) + (16 - (sizeof(PSBufferType) % 16)))
                 });
                 context.PSSetConstantBuffer(0, psBuffer);
+                psBufferData.fieldType = FieldType;
                 UpdateHDRtoSDR(false); // TODO: Passing Config -> psBuffer (currently mixed with Initialize filters)
 
                 // subs
@@ -479,9 +479,14 @@ public unsafe partial class Renderer
         public float contrast;
         public float hue;
         public float saturation;
-        public float texWidth;
+        public float uvOffset;
+        public float yoffset;
         public HDRtoSDRMethod tonemap;
         public float hdrtone;
+        public DeInterlace fieldType;
+
+        private float _pad1;
+        private float _pad2;
     }
 
     [StructLayout(LayoutKind.Sequential)]

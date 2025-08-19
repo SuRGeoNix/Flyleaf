@@ -91,9 +91,12 @@ partial class Player
             }
             finally
             {
-                VideoDecoder.DisposeFrame(vFrame);
+                if (vFrame != renderer.LastFrame)
+                    VideoDecoder.DisposeFrame(vFrame);
                 vFrame = null;
                 sFrame = null;
+
+                renderer.CurFieldType = renderer.FieldType;
 
                 if (Status == Status.Stopped)
                     decoder?.Initialize();

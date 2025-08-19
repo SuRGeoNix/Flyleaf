@@ -27,6 +27,7 @@ public class VideoEngine
     /// List of GPU Outputs from default GPU Adapter (Note: will no be updated on screen connect/disconnect)
     /// </summary>
     public List<GPUOutput>  Screens             { get; private set; } = [];
+    public float            RecommendedLuminance{ get; set; }
 
     internal IDXGIFactory2  Factory;
 
@@ -55,7 +56,7 @@ public class VideoEngine
 
     private Dictionary<long, GPUAdapter> GetAdapters()
     {
-        Dictionary<long, GPUAdapter> adapters = new();
+        Dictionary<long, GPUAdapter> adapters = [];
 
         string dump = "";
 
@@ -63,22 +64,52 @@ public class VideoEngine
         {
             bool hasOutput = false;
 
-            List<GPUOutput> outputs = new();
+            List<GPUOutput> outputs = [];
 
             int maxHeight = 0;
-            for (uint o=0; adapter.EnumOutputs(o, out var output).Success; o++)
+            for (uint o = 0; adapter.EnumOutputs(o, out var output).Success; o++)
             {
-                GPUOutput gpout = new()
+                IDXGIOutput6 output6 = null;
+                GPUOutput gpout;
+
+                if (Environment.OSVersion.Version.Major >= 10)
+                    try { output6 = output.QueryInterface<IDXGIOutput6>(); } catch { }
+
+                if (output6 != null)
                 {
-                    Id        = GPUOutput.GPUOutputIdGenerator++,
-                    DeviceName= output.Description.DeviceName,
-                    Left      = output.Description.DesktopCoordinates.Left,
-                    Top       = output.Description.DesktopCoordinates.Top,
-                    Right     = output.Description.DesktopCoordinates.Right,
-                    Bottom    = output.Description.DesktopCoordinates.Bottom,
-                    IsAttached= output.Description.AttachedToDesktop,
-                    Rotation  = (int)output.Description.Rotation
-                };
+                    var outdesc = output6.Description1;
+                
+                    gpout = new()
+                    {
+                        Id          = GPUOutput.GPUOutputIdGenerator++,
+                        DeviceName  = outdesc.DeviceName,
+                        Left        = outdesc.DesktopCoordinates.Left,
+                        Top         = outdesc.DesktopCoordinates.Top,
+                        Right       = outdesc.DesktopCoordinates.Right,
+                        Bottom      = outdesc.DesktopCoordinates.Bottom,
+                        IsAttached  = outdesc.AttachedToDesktop,
+                        Rotation    = (int)outdesc.Rotation,
+                        MaxLuminance= outdesc.MaxLuminance
+                    };
+
+                    output6.Dispose();
+                }
+                else
+                {
+                    var outdesc = output.Description;
+                
+                    gpout = new()
+                    {
+                        Id          = GPUOutput.GPUOutputIdGenerator++,
+                        DeviceName  = outdesc.DeviceName,
+                        Left        = outdesc.DesktopCoordinates.Left,
+                        Top         = outdesc.DesktopCoordinates.Top,
+                        Right       = outdesc.DesktopCoordinates.Right,
+                        Bottom      = outdesc.DesktopCoordinates.Bottom,
+                        IsAttached  = outdesc.AttachedToDesktop,
+                        Rotation    = (int)outdesc.Rotation
+                    };
+                }
 
                 if (maxHeight < gpout.Height)
                     maxHeight = gpout.Height;
@@ -86,29 +117,37 @@ public class VideoEngine
                 outputs.Add(gpout);
 
                 if (gpout.IsAttached)
+                {
                     hasOutput = true;
+                    if (gpout.MaxLuminance > 0 && (RecommendedLuminance == 0 || gpout.MaxLuminance < RecommendedLuminance))
+                        RecommendedLuminance = gpout.MaxLuminance;
+                }
 
                 output.Dispose();
             }
 
+            if (RecommendedLuminance == 0)
+                RecommendedLuminance = 200;
+
             if (Screens.Count == 0 && outputs.Count > 0)
                 Screens = outputs;
 
-            adapters[adapter.Description1.Luid] = new GPUAdapter()
+            var adapterdesc = adapter.Description1;
+            adapters[adapterdesc.Luid] = new GPUAdapter()
             {
-                SystemMemory    = adapter.Description1.DedicatedSystemMemory.Value,
-                VideoMemory     = adapter.Description1.DedicatedVideoMemory.Value,
-                SharedMemory    = adapter.Description1.SharedSystemMemory.Value,
-                Vendor          = VendorIdStr(adapter.Description1.VendorId),
-                Description     = adapter.Description1.Description,
-                Id              = adapter.Description1.DeviceId,
-                Luid            = adapter.Description1.Luid,
+                SystemMemory    = adapterdesc.DedicatedSystemMemory.Value,
+                VideoMemory     = adapterdesc.DedicatedVideoMemory.Value,
+                SharedMemory    = adapterdesc.SharedSystemMemory.Value,
+                Vendor          = VendorIdStr(adapterdesc.VendorId),
+                Description     = adapterdesc.Description,
+                Id              = adapterdesc.DeviceId,
+                Luid            = adapterdesc.Luid,
                 MaxHeight       = maxHeight,
                 HasOutput       = hasOutput,
                 Outputs         = outputs
             };
 
-            dump += $"[#{i+1}] {adapters[adapter.Description1.Luid]}\r\n";
+            dump += $"[#{i+1}] {adapters[adapterdesc.Luid]}\r\n";
 
             adapter.Dispose();
         }

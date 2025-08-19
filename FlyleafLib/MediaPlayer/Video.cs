@@ -67,11 +67,17 @@ public class Video : NotifyPropertyChanged
     internal int    _Height, height;
 
     public bool         VideoAcceleration
-                                                { get => videoAcceleration; internal set => Set(ref _VideoAcceleration, value); }
+                                        { get => videoAcceleration; internal set => Set(ref _VideoAcceleration, value); }
     internal bool   _VideoAcceleration, videoAcceleration;
 
     public bool         ZeroCopy        { get => zeroCopy;          internal set => Set(ref _ZeroCopy, value); }
     internal bool   _ZeroCopy, zeroCopy;
+
+    public HDRFormat    HDRFormat       { get => hdrFormat;         internal set => Set(ref _HDRFormat, value); }
+    internal HDRFormat _HDRFormat, hdrFormat;
+
+    public string       ColorFormat     { get => colorFormat;       internal set => Set(ref _ColorFormat, value); }
+    string          _ColorFormat, colorFormat;
 
     public Player Player => player;
 
@@ -96,6 +102,8 @@ public class Video : NotifyPropertyChanged
             Height              = Height;
             VideoAcceleration   = VideoAcceleration;
             ZeroCopy            = ZeroCopy;
+            HDRFormat           = HDRFormat;
+            ColorFormat         = ColorFormat;
 
             FramesDisplayed     = FramesDisplayed;
             FramesDropped       = FramesDropped;
@@ -115,6 +123,8 @@ public class Video : NotifyPropertyChanged
         videoAcceleration  = false;
         zeroCopy           = false;
         isOpened           = false;
+        hdrFormat          = HDRFormat.None;
+        colorFormat         = "";
 
         player.UIAdd(uiAction);
     }
@@ -132,6 +142,8 @@ public class Video : NotifyPropertyChanged
         videoAcceleration
                     = decoder.VideoDecoder.VideoAccelerated;
         zeroCopy    = decoder.VideoDecoder.ZeroCopy;
+        hdrFormat   = decoder.VideoStream.HDRFormat;
+        colorFormat = $"{decoder.VideoStream.ColorSpace}\r\n{decoder.VideoStream.ColorTransfer}\r\n{decoder.VideoStream.ColorRange}";
         isOpened    =!decoder.VideoDecoder.Disposed;
 
         framesDisplayed = 0;
