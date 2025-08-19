@@ -64,10 +64,13 @@ public partial class Renderer
                 vpivd.Texture2D.ArraySlice = 0;
                 vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
             }
+            if (vpiv != null)
+            {
+                vpsa[0].InputSurface = vpiv;
+                vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
+                vpiv.Dispose();
+            }
 
-            vpsa[0].InputSurface = vpiv;
-            vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
-            vpiv.Dispose();
             vpov.Dispose();
             tmpResource.Dispose();
         }

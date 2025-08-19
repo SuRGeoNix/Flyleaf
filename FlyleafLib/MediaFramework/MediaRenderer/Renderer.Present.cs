@@ -1,6 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
+using SharpGen.Runtime;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 
@@ -25,33 +26,49 @@ public unsafe partial class Renderer
             try
             {
                 PresentInternal(frame, forceWait);
-                VideoDecoder.DisposeFrame(LastFrame);
-                LastFrame = frame;
-
-                if (child != null)
-                    child.LastFrame = frame;
+                if (frame != LastFrame) // De-interlace (Same AVFrame - Different FieldType)
+                {
+                    VideoDecoder.DisposeFrame(LastFrame);
+                    LastFrame = frame;
+                    if (child != null)
+                        child.LastFrame = frame;
+                }
 
                 return true;
 
             }
+            catch (SharpGenException e)
+            {
+                try { VideoDecoder.DisposeFrame(frame); vpiv?.Dispose(); } catch { };
+                
+                if (e.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || e.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
+                {
+                    Log.Error($"Device Lost ({e.ResultCode} | {Device.DeviceRemovedReason} | {e.Message})");
+                    Thread.Sleep(100);
+                    
+                    Flush();
+                }
+                else
+                {
+                    Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
+                    throw; // Force Playback Stop
+                }
+            }
             catch (Exception e)
             {
-                if (CanWarn) Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
-                VideoDecoder.DisposeFrame(frame);
-
-                vpiv?.Dispose();
-
-                return false;
-
+                try { VideoDecoder.DisposeFrame(frame); vpiv?.Dispose(); } catch { };
+                Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
             }
             finally
             {
                 Monitor.Exit(lockDevice);
             }
         }
-
-        if (CanDebug) Log.Debug("Dropped Frame - Lock timeout " + (frame != null ? Utils.TicksToTime(frame.timestamp) : ""));
-        VideoDecoder.DisposeFrame(frame);
+        else
+        {
+            try { VideoDecoder.DisposeFrame(frame); vpiv?.Dispose(); } catch { };
+            Log.Debug("Dropped Frame - Lock timeout");
+        }
 
         return false;
     }
@@ -98,7 +115,7 @@ public unsafe partial class Renderer
     {
         if (SCDisposed)
             return;
-
+        
         // TBR: Replica performance issue with D3D11 (more zoom more gpu overload)
         if (frame.srvs == null) // videoProcessor can be FlyleafVP but the player can send us a cached frame from prev videoProcessor D3D11VP (check frame.srv instead of videoProcessor)
         {
@@ -113,11 +130,14 @@ public unsafe partial class Renderer
                 vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
             }
 
-            vpsa[0].InputSurface = vpiv;
-            vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
-            swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
+            if (vpiv != null)
+            {
+                vpsa[0].InputSurface = vpiv;
+                vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
+                swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
 
-            vpiv.Dispose();
+                vpiv.Dispose();
+            }
         }
         else
         {
@@ -129,7 +149,7 @@ public unsafe partial class Renderer
 
             if (use2d)
                 Config.Video.OnD2DDraw(this, context2d);
-
+             
             if (overlayTexture != null)
             {
                 // Don't stretch the overlay (reduce height based on ratiox) | Sub's stream size might be different from video size (fix y based on percentage)

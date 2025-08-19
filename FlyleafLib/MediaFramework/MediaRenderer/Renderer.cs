@@ -40,7 +40,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public Config           Config          { get; private set;}
     public int              ControlWidth    { get; private set; }
     public int              ControlHeight   { get; private set; }
-    internal IntPtr         ControlHandle;
+    internal nint           ControlHandle;
 
     internal Action<IDXGISwapChain2>
                             SwapChainWinUIClbk;
@@ -58,14 +58,14 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public Viewport         GetViewport     { get; private set; }
     public event EventHandler ViewportChanged;
 
-    public CornerRadius     CornerRadius    { get => cornerRadius;  set { if (cornerRadius == value) return; cornerRadius = value; UpdateCornerRadius(); } }
+    public CornerRadius     CornerRadius    { get => cornerRadius;              set { if (cornerRadius == value) return; cornerRadius = value; UpdateCornerRadius(); } }
     CornerRadius cornerRadius = new(0);
     CornerRadius zeroCornerRadius = new(0);
 
     public int              SideXPixels     { get; private set; }
     public int              SideYPixels     { get; private set; }
 
-    public int              PanXOffset      { get => panXOffset;    set => SetPanX(value); }
+    public int              PanXOffset      { get => panXOffset;                set => SetPanX(value); }
     int panXOffset;
     public void SetPanX(int panX, bool refresh = true)
     {
@@ -80,7 +80,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         }
     }
 
-    public int              PanYOffset      { get => panYOffset;    set => SetPanY(value); }
+    public int              PanYOffset      { get => panYOffset;                set => SetPanY(value); }
     int panYOffset;
     public void SetPanY(int panY, bool refresh = true)
     {
@@ -95,24 +95,28 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         }
     }
 
-    public uint             Rotation        { get => _RotationAngle;set { lock (lockDevice) UpdateRotation(value); } }
+    public uint             Rotation        { get => _RotationAngle;            set { lock (lockDevice) UpdateRotation(value); } }
     uint _RotationAngle;
     VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
     bool rotationLinesize; // if negative should be vertically flipped
 
-    public bool             HFlip           { get => _HFlip;set { _HFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
+    public bool             HFlip           { get => _HFlip;                    set { _HFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
     bool _HFlip;
 
-    public bool             VFlip           { get => _VFlip;set { _VFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
+    public bool             VFlip           { get => _VFlip;                    set { _VFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
     bool _VFlip;
 
-    public VideoProcessors  VideoProcessor      { get => videoProcessor;    private set => SetUI(ref videoProcessor, value); }
+    public DeInterlace      FieldType       { get => _DeInterlace;              private  set => SetUI(ref _DeInterlace, value); }
+    DeInterlace _DeInterlace = DeInterlace.Progressive;
+    public DeInterlace      CurFieldType    { get => psBufferData.fieldType;    internal set { if (value != psBufferData.fieldType) SetFieldType(value); } }
+
+    public VideoProcessors  VideoProcessor  { get => videoProcessor;            private  set => SetUI(ref videoProcessor, value); }
     VideoProcessors videoProcessor = VideoProcessors.Flyleaf;
 
     /// <summary>
     /// Zoom percentage (100% equals to 1.0)
     /// </summary>
-    public double              Zoom            { get => zoom;          set => SetZoom(value); }
+    public double              Zoom         { get => zoom;                      set => SetZoom(value); }
     double zoom = 1;
     public void SetZoom(double zoom, bool refresh = true)
     {
@@ -127,7 +131,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         }
     }
 
-    public Point            ZoomCenter      { get => zoomCenter;    set => SetZoomCenter(value); }
+    public Point            ZoomCenter      { get => zoomCenter;                set => SetZoomCenter(value); }
     Point zoomCenter = ZoomCenterPoint;
     public static Point ZoomCenterPoint = new(0.5, 0.5);
     public void SetZoomCenter(Point p, bool refresh = true)
@@ -185,7 +189,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     LogHandler Log;
     bool use2d;
 
-    public Renderer(VideoDecoder videoDecoder, IntPtr handle = new IntPtr(), int uniqueId = -1)
+    public Renderer(VideoDecoder videoDecoder, nint handle = 0, int uniqueId = -1)
     {
         UniqueId    = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
         VideoDecoder= videoDecoder;
@@ -238,7 +242,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     #region Replica Renderer (Expiremental)
     public Renderer child; // allow access to child renderer (not safe)
     Renderer parent;
-    public Renderer(Renderer renderer, IntPtr handle, int uniqueId = -1)
+    public Renderer(Renderer renderer, nint handle, int uniqueId = -1)
     {
         UniqueId            = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
         Log                 = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer  Repl] ");
@@ -251,14 +255,14 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         ControlHandle       = handle;
     }
 
-    public void SetChildHandle(IntPtr handle)
+    public void SetChildHandle(nint handle)
     {
         lock (lockDevice)
         {
             if (child != null)
                 DisposeChild();
 
-            if (handle == IntPtr.Zero)
+            if (handle == 0)
                 return;
 
             child = new(this, handle, UniqueId);

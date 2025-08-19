@@ -1,15 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.VisualBasic.FileIO;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json.Serialization;
-using Vortice.DXGI;
 using Vortice.Direct3D11;
-
-using ID3D11VideoContext = Vortice.Direct3D11.ID3D11VideoContext;
-
-using FlyleafLib.MediaPlayer;
-
+using Vortice.DXGI;
 using static FlyleafLib.Logger;
 using static FlyleafLib.Utils;
+using ID3D11VideoContext = Vortice.Direct3D11.ID3D11VideoContext;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -20,57 +17,37 @@ unsafe public partial class Renderer
      * 2) Filter default values will change when the device/adapter is changed
      */
 
-    public static Dictionary<string, VideoProcessorCapsCache> VideoProcessorsCapsCache = new();
+    static Dictionary<string, VideoProcessorCapsCache> VideoProcessorsCapsCache = [];
 
     internal static VideoProcessorFilter ConvertFromVideoProcessorFilterCaps(VideoProcessorFilterCaps filter)
     {
-        switch (filter)
+        return filter switch
         {
-            case VideoProcessorFilterCaps.Brightness:
-                return VideoProcessorFilter.Brightness;
-            case VideoProcessorFilterCaps.Contrast:
-                return VideoProcessorFilter.Contrast;
-            case VideoProcessorFilterCaps.Hue:
-                return VideoProcessorFilter.Hue;
-            case VideoProcessorFilterCaps.Saturation:
-                return VideoProcessorFilter.Saturation;
-            case VideoProcessorFilterCaps.EdgeEnhancement:
-                return VideoProcessorFilter.EdgeEnhancement;
-            case VideoProcessorFilterCaps.NoiseReduction:
-                return VideoProcessorFilter.NoiseReduction;
-            case VideoProcessorFilterCaps.AnamorphicScaling:
-                return VideoProcessorFilter.AnamorphicScaling;
-            case VideoProcessorFilterCaps.StereoAdjustment:
-                return VideoProcessorFilter.StereoAdjustment;
-
-            default:
-                return VideoProcessorFilter.StereoAdjustment;
-        }
+            VideoProcessorFilterCaps.Brightness         => VideoProcessorFilter.Brightness,
+            VideoProcessorFilterCaps.Contrast           => VideoProcessorFilter.Contrast,
+            VideoProcessorFilterCaps.Hue                => VideoProcessorFilter.Hue,
+            VideoProcessorFilterCaps.Saturation         => VideoProcessorFilter.Saturation,
+            VideoProcessorFilterCaps.EdgeEnhancement    => VideoProcessorFilter.EdgeEnhancement,
+            VideoProcessorFilterCaps.NoiseReduction     => VideoProcessorFilter.NoiseReduction,
+            VideoProcessorFilterCaps.AnamorphicScaling  => VideoProcessorFilter.AnamorphicScaling,
+            VideoProcessorFilterCaps.StereoAdjustment   => VideoProcessorFilter.StereoAdjustment,
+            _ => VideoProcessorFilter.StereoAdjustment,
+        };
     }
     internal static VideoProcessorFilterCaps ConvertFromVideoProcessorFilter(VideoProcessorFilter filter)
     {
-        switch (filter)
+        return filter switch
         {
-            case VideoProcessorFilter.Brightness:
-                return VideoProcessorFilterCaps.Brightness;
-            case VideoProcessorFilter.Contrast:
-                return VideoProcessorFilterCaps.Contrast;
-            case VideoProcessorFilter.Hue:
-                return VideoProcessorFilterCaps.Hue;
-            case VideoProcessorFilter.Saturation:
-                return VideoProcessorFilterCaps.Saturation;
-            case VideoProcessorFilter.EdgeEnhancement:
-                return VideoProcessorFilterCaps.EdgeEnhancement;
-            case VideoProcessorFilter.NoiseReduction:
-                return VideoProcessorFilterCaps.NoiseReduction;
-            case VideoProcessorFilter.AnamorphicScaling:
-                return VideoProcessorFilterCaps.AnamorphicScaling;
-            case VideoProcessorFilter.StereoAdjustment:
-                return VideoProcessorFilterCaps.StereoAdjustment;
-
-            default:
-                return VideoProcessorFilterCaps.StereoAdjustment;
-        }
+            VideoProcessorFilter.Brightness             => VideoProcessorFilterCaps.Brightness,
+            VideoProcessorFilter.Contrast               => VideoProcessorFilterCaps.Contrast,
+            VideoProcessorFilter.Hue                    => VideoProcessorFilterCaps.Hue,
+            VideoProcessorFilter.Saturation             => VideoProcessorFilterCaps.Saturation,
+            VideoProcessorFilter.EdgeEnhancement        => VideoProcessorFilterCaps.EdgeEnhancement,
+            VideoProcessorFilter.NoiseReduction         => VideoProcessorFilterCaps.NoiseReduction,
+            VideoProcessorFilter.AnamorphicScaling      => VideoProcessorFilterCaps.AnamorphicScaling,
+            VideoProcessorFilter.StereoAdjustment       => VideoProcessorFilterCaps.StereoAdjustment,
+            _ => VideoProcessorFilterCaps.StereoAdjustment,
+        };
     }
     internal static VideoFilter ConvertFromVideoProcessorFilterRange(VideoProcessorFilterRange filter) => new()
     {
@@ -88,21 +65,21 @@ unsafe public partial class Renderer
     ID3D11VideoProcessorInputView       vpiv;
     ID3D11VideoProcessorOutputView      vpov;
 
-    VideoProcessorStream[]              vpsa    = new VideoProcessorStream[] { new VideoProcessorStream() { Enable = true } };
+    VideoProcessorStream[]              vpsa    = [new() { Enable = true }];
     VideoProcessorContentDescription    vpcd    = new()
         {
-            Usage = VideoUsage.PlaybackNormal,
-            InputFrameFormat = VideoFrameFormat.InterlacedTopFieldFirst,
+            Usage           = VideoUsage.PlaybackNormal,
+            InputFrameFormat= VideoFrameFormat.Progressive,
 
-            InputFrameRate  = new Rational(1, 1),
-            OutputFrameRate = new Rational(1, 1),
+            InputFrameRate  = new(1, 1),
+            OutputFrameRate = new(1, 1),
         };
     VideoProcessorOutputViewDescription vpovd   = new() { ViewDimension = VideoProcessorOutputViewDimension.Texture2D };
     VideoProcessorInputViewDescription  vpivd   = new()
         {
             FourCC          = 0,
             ViewDimension   = VideoProcessorInputViewDimension.Texture2D,
-            Texture2D       = new Texture2DVideoProcessorInputView() { MipSlice = 0, ArraySlice = 0 }
+            Texture2D       = new() { MipSlice = 0, ArraySlice = 0 }
         };
     VideoProcessorColorSpace            inputColorSpace;
     VideoProcessorColorSpace            outputColorSpace;
@@ -130,9 +107,9 @@ unsafe public partial class Renderer
                     Nominal_Range   = 2
                 };
 
-                if (VideoProcessorsCapsCache.ContainsKey(Device.Tag.ToString()))
+                if (VideoProcessorsCapsCache.TryGetValue(Device.Tag.ToString(), out var cache))
                 {
-                    if (VideoProcessorsCapsCache[Device.Tag.ToString()].Failed)
+                    if (cache.Failed)
                     {
                         InitializeFilters();
                         return;
@@ -149,14 +126,14 @@ unsafe public partial class Renderer
                         return;
                     }
 
-                    // if (!VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex != -1)
-                    vd1.CreateVideoProcessor(vpe, (uint)VideoProcessorsCapsCache[Device.Tag.ToString()].TypeIndex, out vp);
+                    // if (!vpcc.TypeIndex != -1)
+                    vd1.CreateVideoProcessor(vpe, (uint)cache.TypeIndex, out vp);
                     InitializeFilters();
 
                     return;
                 }
 
-                VideoProcessorCapsCache cache = new();
+                cache = new();
                 VideoProcessorsCapsCache.Add(Device.Tag.ToString(), cache);
 
                 vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
@@ -170,11 +147,11 @@ unsafe public partial class Renderer
                     return;
                 }
 
-                var vpe1 = vpe.QueryInterface<ID3D11VideoProcessorEnumerator1>();
-                bool supportHLG = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbFullG22NoneP709);
-                bool supportHDR10Limited = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioG2084TopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbStudioG2084NoneP2020);
+                var vpe1    = vpe.QueryInterface<ID3D11VideoProcessorEnumerator1>();
+                cache.HLG   = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020,  Format.B8G8R8A8_UNorm, ColorSpaceType.RgbFullG22NoneP709);
+                cache.HDR10 = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioG2084TopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbStudioG2084NoneP2020);
 
-                var vpCaps = vpe.VideoProcessorCaps;
+                var vpCaps  = vpe.VideoProcessorCaps;
                 string dump = "";
 
                 if (CanDebug)
@@ -182,8 +159,8 @@ unsafe public partial class Renderer
                     dump += $"=====================================================\r\n";
                     dump += $"MaxInputStreams           {vpCaps.MaxInputStreams}\r\n";
                     dump += $"MaxStreamStates           {vpCaps.MaxStreamStates}\r\n";
-                    dump += $"HDR10 Limited             {(supportHDR10Limited ? "yes" : "no")}\r\n";
-                    dump += $"HLG                       {(supportHLG ? "yes" : "no")}\r\n";
+                    dump += $"HDR10 Limited             {(cache.HLG     ? "yes" : "no")}\r\n";
+                    dump += $"HLG                       {(cache.HDR10   ? "yes" : "no")}\r\n";
 
                     dump += $"\n[Video Processor Device Caps]\r\n";
                     foreach (VideoProcessorDeviceCaps cap in Enum.GetValues(typeof(VideoProcessorDeviceCaps)))
@@ -254,13 +231,11 @@ unsafe public partial class Renderer
                 if (CanDebug) Log.Debug($"D3D11 Video Processor\r\n{dump}");
 
                 cache.TypeIndex = (int)typeIndex;
-                cache.HLG = supportHLG;
-                cache.HDR10Limited = supportHDR10Limited;
                 cache.VideoProcessorCaps = vpCaps;
                 cache.VideoProcessorRateConversionCaps = rcCap;
 
                 //if (typeIndex != -1)
-                vd1.CreateVideoProcessor(vpe, (uint)typeIndex, out vp);
+                vd1.CreateVideoProcessor(vpe, typeIndex, out vp);
                 if (vp == null)
                 {
                     VPFailed();
@@ -278,12 +253,15 @@ unsafe public partial class Renderer
     {
         Log.Error($"D3D11 Video Processor Initialization Failed");
 
-        if (!VideoProcessorsCapsCache.ContainsKey(Device.Tag.ToString()))
-            VideoProcessorsCapsCache.Add(Device.Tag.ToString(), new VideoProcessorCapsCache());
-        VideoProcessorsCapsCache[Device.Tag.ToString()].Failed = true;
+        if (!VideoProcessorsCapsCache.TryGetValue(Device.Tag.ToString(), out var vpcc))
+        {
+            vpcc = new();
+            VideoProcessorsCapsCache.Add(Device.Tag.ToString(), vpcc);
+        }
 
-        VideoProcessorsCapsCache[Device.Tag.ToString()].Filters.Add(VideoFilters.Brightness, new VideoFilter()  {  Filter = VideoFilters.Brightness });
-        VideoProcessorsCapsCache[Device.Tag.ToString()].Filters.Add(VideoFilters.Contrast, new VideoFilter()    {  Filter = VideoFilters.Contrast });
+        vpcc.Failed = true;
+        vpcc.Filters.Add(VideoFilters.Brightness, new() { Filter = VideoFilters.Brightness });
+        vpcc.Filters.Add(VideoFilters.Contrast,   new() { Filter = VideoFilters.Contrast });
 
         DisposeVideoProcessor();
         InitializeFilters();
@@ -305,16 +283,16 @@ unsafe public partial class Renderer
 
         // Add FLVP filters if D3D11VP does not support them
         if (!Filters.ContainsKey(VideoFilters.Brightness))
-            Filters.Add(VideoFilters.Brightness, new VideoFilter(VideoFilters.Brightness));
+            Filters.Add(VideoFilters.Brightness,new(VideoFilters.Brightness));
 
         if (!Filters.ContainsKey(VideoFilters.Contrast))
-            Filters.Add(VideoFilters.Contrast, new VideoFilter(VideoFilters.Contrast));
+            Filters.Add(VideoFilters.Contrast,  new(VideoFilters.Contrast));
 
         if (!Filters.ContainsKey(VideoFilters.Hue))
-            Filters.Add(VideoFilters.Hue, new VideoFilter(VideoFilters.Hue));
+            Filters.Add(VideoFilters.Hue,       new(VideoFilters.Hue));
 
         if (!Filters.ContainsKey(VideoFilters.Saturation))
-            Filters.Add(VideoFilters.Saturation, new VideoFilter(VideoFilters.Saturation));
+            Filters.Add(VideoFilters.Saturation,new(VideoFilters.Saturation));
 
         foreach(var filter in Filters.Values)
         {
@@ -323,7 +301,7 @@ unsafe public partial class Renderer
 
             var cfgFilter = Config.Video.Filters[filter.Filter];
             cfgFilter.Available = true;
-            cfgFilter.renderer = this;
+            cfgFilter.renderer  = this;
 
             if (!configLoadedChecked && !Config.Loaded)
             {
@@ -340,17 +318,13 @@ unsafe public partial class Renderer
         configLoadedChecked = true;
         UpdateBackgroundColor();
 
-        if (vc != null)
-        {
-            vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
-            vc.VideoProcessorSetStreamFrameFormat(vp, 0, !Config.Video.Deinterlace ? VideoFrameFormat.Progressive : (Config.Video.DeinterlaceBottomFirst ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
-        }
+        vc?.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
 
         // Reset FLVP filters to defaults (can be different from D3D11VP filters scaling)
         if (videoProcessor == VideoProcessors.Flyleaf)
         {
             Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + ((Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2);
-            Config.Video.Filters[VideoFilters.Contrast].Value   = Config.Video.Filters[VideoFilters.Contrast].Minimum + ((Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2);
+            Config.Video.Filters[VideoFilters.Contrast].Value   = Config.Video.Filters[VideoFilters.Contrast].  Minimum + ((Config.Video.Filters[VideoFilters.Contrast].  Maximum - Config.Video.Filters[VideoFilters.Contrast].  Minimum) / 2);
         }
     }
 
@@ -368,27 +342,45 @@ unsafe public partial class Renderer
     {
         lock (lockDevice)
         {
+            if (Disposed || parent != null)
+                return;
+
+            FieldType = Config.Video.DeInterlace == DeInterlace.Auto ? (VideoStream != null ? VideoStream.FieldOrder : DeInterlace.Progressive) : Config.Video.DeInterlace;
+            vc?.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType == DeInterlace.Progressive ? VideoFrameFormat.Progressive : (FieldType == DeInterlace.BottomField ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
+            psBufferData.fieldType = FieldType;
+            
+            var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
+            var newVp = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != DeInterlace.Progressive && Config.Video.VideoProcessor != VideoProcessors.Flyleaf)) ?
+                VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
+
+            if (newVp != VideoProcessor)
+                ConfigPlanes();
+            else
+                context.UpdateSubresource(psBufferData, psBuffer);
+
+            Present();
+        }
+    }
+    internal void SetFieldType(DeInterlace fieldType)
+    {
+        lock (lockDevice)
+        {
             if (Disposed)
                 return;
 
-            vc?.VideoProcessorSetStreamFrameFormat(vp, 0, !Config.Video.Deinterlace ? VideoFrameFormat.Progressive : (Config.Video.DeinterlaceBottomFirst ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
-
-            if (Config.Video.VideoProcessor != VideoProcessors.Auto)
-                return;
-
-            if (parent != null)
-                return;
-
-            ConfigPlanes();
-            Present();
+            //vpsa[0].InputFrameOrField = fieldType == DeInterlace.BottomField ? 1u : 0u; // TBR
+            vc?.VideoProcessorSetStreamFrameFormat(vp, 0, fieldType == DeInterlace.Progressive ? VideoFrameFormat. Progressive : (fieldType == DeInterlace.BottomField ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
+            psBufferData.fieldType = fieldType;
+            context.UpdateSubresource(psBufferData, psBuffer);
         }
     }
     internal void UpdateFilterValue(VideoFilter filter)
     {
         // D3D11VP
-        if (Filters.ContainsKey(filter.Filter) && vc != null)
+        if (Filters.TryGetValue(filter.Filter, out var filterFilter) && vc != null)
         {
-            int scaledValue = (int) Scale(filter.Value, filter.Minimum, filter.Maximum, Filters[filter.Filter].Minimum, Filters[filter.Filter].Maximum);
+            int scaledValue = (int) Scale(filter.Value, filter.Minimum, filter.Maximum, filterFilter.Minimum, filterFilter.Maximum);
             vc.VideoProcessorSetStreamFilter(vp, 0, ConvertFromVideoProcessorFilterCaps((VideoProcessorFilterCaps)filter.Filter), true, scaledValue);
         }
 
@@ -440,8 +432,7 @@ unsafe public partial class Renderer
         if (updateResource)
         {
             context.UpdateSubresource(psBufferData, psBuffer);
-            if (!VideoDecoder.IsRunning)
-                Present();
+            Present();
         }
     }
     void UpdateRotation(uint angle, bool refresh = true)
@@ -476,7 +467,7 @@ unsafe public partial class Renderer
         else if (actualRotation < 360)
             _d3d11vpRotation = VideoProcessorRotation.Rotation270;
 
-        vsBufferData.mat  = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * actualRotation));
+        vsBufferData.mat = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * actualRotation));
 
         if (_HFlip || _VFlip)
         {
@@ -556,18 +547,18 @@ public class VideoFilter : NotifyPropertyChanged
     internal void SetValue(int value) => SetUI(ref _Value, value, true, nameof(Value));
 
     public VideoFilter() { }
-    public VideoFilter(VideoFilters filter, Player player = null)
+    public VideoFilter(VideoFilters filter)
         => Filter = filter;
 }
 
 public class VideoProcessorCapsCache
 {
-    public bool Failed = true;
-    public int  TypeIndex = -1;
+    public bool Failed      = true;
+    public int  TypeIndex   = -1;
     public bool HLG;
-    public bool HDR10Limited;
+    public bool HDR10;
     public VideoProcessorCaps               VideoProcessorCaps;
     public VideoProcessorRateConversionCaps VideoProcessorRateConversionCaps;
 
-    public Dictionary<VideoFilters, VideoFilter> Filters { get; set; } = new();
+    public Dictionary<VideoFilters, VideoFilter> Filters { get; set; } = [];
 }

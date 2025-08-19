@@ -64,7 +64,7 @@ public partial class Renderer
         }
     }
 
-    internal void InitializeSwapChain(IntPtr handle)
+    internal void InitializeSwapChain(nint handle)
     {
         lock (lockDevice)
         {
@@ -115,7 +115,7 @@ public partial class Renderer
                 }
                 else
                 {
-                    ControlHandle = IntPtr.Zero;
+                    ControlHandle = 0;
                     Log.Error($"[SwapChain] Initialization failed ({e.Message})");
                 }
 
@@ -198,11 +198,12 @@ public partial class Renderer
             Log.Info($"Destroying swap chain [Handle: {ControlHandle}]");
 
             // Unassign renderer's WndProc if still there and re-assign the old one
-            if (ControlHandle != IntPtr.Zero)
+            if (ControlHandle != 0)
             {
                 if (!isFlushing) // SetWindowSubclass requires UI thread so avoid calling it on flush (Player.Stop)
                     RemoveWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero);
-                ControlHandle = IntPtr.Zero;
+
+                ControlHandle = 0;
             }
 
             if (SwapChainWinUIClbk != null)

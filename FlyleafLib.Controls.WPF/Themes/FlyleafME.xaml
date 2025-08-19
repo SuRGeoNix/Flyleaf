@@ -55,7 +55,18 @@
                                 <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
 
                                 <!--Debug Info-->
-                                <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}"/>
+                                <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}">
+                                    <fl:PlayerDebug.Style>
+                                        <Style TargetType="fl:PlayerDebug">
+                                            <Setter Property="Player" Value="{x:Null}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Visibility}" Value="Visible">
+                                                    <Setter Property="Player" Value="{Binding Player}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </fl:PlayerDebug.Style>
+                                </fl:PlayerDebug>
 
                                 <!--Subtitles-->
                                 <flwpf:OutlinedTextBlock Stroke="{Binding Player.Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}"

@@ -185,9 +185,13 @@ struct ConfigData
     float contrast;
     float hue;
     float saturation;
-    float texWidth;
+    float uvOffset;
+    float yoffset;
     int tonemap;
     float hdrtone;
+    int fieldType;
+
+    float2 padding;
 };
 
 cbuffer         Config          : register(b0)
@@ -435,6 +439,16 @@ float4 main(PSInput input) : SV_TARGET
     const string PS_FOOTER = @"
 
     float3 c = color.rgb;
+
+#if defined(dYUVLimited) || defined(dYUVFull)
+    [branch]
+    if (Config.fieldType != -1 && int(input.Position.y) % 2 != Config.fieldType)
+    {
+        float yAbove = Texture1.Sample(Sampler, float2(input.Texture.x, input.Texture.y - Config.yoffset)).r;
+        float yBelow = Texture1.Sample(Sampler, float2(input.Texture.x, input.Texture.y + Config.yoffset)).r;
+        c.r = (yAbove + yBelow) * 0.5f;
+    }
+#endif
 
 #if defined(dYUVLimited)
 	c = YUVToRGBLimited(c);

@@ -9,9 +9,12 @@ public unsafe class VideoStream : StreamBase
     public ColorSpace                   ColorSpace          { get; set; }
     public AVColorTransferCharacteristic
                                         ColorTransfer       { get; set; }
+    public DeInterlace                  FieldOrder          { get; set; }
     public double                       Rotation            { get; set; }
     public double                       FPS                 { get; set; }
     public long                         FrameDuration       { get ;set; }
+    public double                       FPS2                { get; set; } // interlace
+    public long                         FrameDuration2      { get ;set; } // interlace
     public uint                         Height              { get; set; }
     public bool                         IsRGB               { get; set; }
     public HDRFormat                    HDRFormat           { get; set; }
@@ -42,7 +45,7 @@ public unsafe class VideoStream : StreamBase
     public void Refresh(AVPixelFormat format = AVPixelFormat.None, AVFrame* frame = null)
     {
         base.Refresh();
-
+        FieldOrder      = AVStream->codecpar->field_order == AVFieldOrder.Tt ? DeInterlace.TopField : (AVStream->codecpar->field_order == AVFieldOrder.Bb ? DeInterlace.BottomField : DeInterlace.Progressive);
         PixelFormat     = format == AVPixelFormat.None ? (AVPixelFormat)AVStream->codecpar->format : format;
         PixelFormatStr  = PixelFormat.ToString().Replace("AV_PIX_FMT_","").ToLower();
         Width           = (uint)AVStream->codecpar->width;
@@ -131,6 +134,9 @@ public unsafe class VideoStream : StreamBase
                 var rotation = -Math.Round(av_display_rotation_get((int*)frameSideData->data));
                 Rotation = rotation - (360*Math.Floor(rotation/360 + 0.9/360));
             }
+
+            if (frame->flags.HasFlag(FrameFlags.Interlaced))
+                FieldOrder = frame->flags.HasFlag(FrameFlags.TopFieldFirst) ? DeInterlace.TopField : DeInterlace.BottomField;
 
             ColorRange = frame->color_range == AVColorRange.Jpeg ? ColorRange.Full : ColorRange.Limited;
 

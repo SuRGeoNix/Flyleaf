@@ -106,6 +106,12 @@
                 <EventSetter Event="PreviewTextInput" Handler="ValidationNumeric"/>
             </Style>
 
+            <ObjectDataProvider x:Key="DeInterlaceEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="fl:DeInterlace"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+            
             <ObjectDataProvider x:Key="HDRtoSDRMethodEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
                 <ObjectDataProvider.MethodParameters>
                     <x:Type TypeName="fl:HDRtoSDRMethod"/>
@@ -421,7 +427,8 @@
                                 </TextBox>
 
                                 <TextBlock Grid.Row="2" Text="Deinterlace" VerticalAlignment="Center"/>
-                                <ToggleButton Grid.Row="2" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.Deinterlace, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                                <ComboBox Grid.Row="2" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource DeInterlaceEnum}}" SelectedItem="{Binding Config.Video.DeInterlace}"/>
+                                <!--<ToggleButton Grid.Row="2" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.Deinterlace, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>-->
 
                                 <TextBlock Grid.Row="3" Text="Profile Mismatch" VerticalAlignment="Center"/>
                                 <ToggleButton Grid.Row="3" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Decoder.AllowProfileMismatch, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
