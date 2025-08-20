@@ -46,7 +46,7 @@ public unsafe partial class Renderer
                     Log.Error($"Device Lost ({e.ResultCode} | {Device.DeviceRemovedReason} | {e.Message})");
                     Thread.Sleep(100);
                     
-                    Flush();
+                    HandleDeviceReset();
                 }
                 else
                 {

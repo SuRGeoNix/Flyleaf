@@ -130,14 +130,14 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (Renderer.Device == null || hw_device_ctx != null) return -1;
 
-        hw_device_ctx  = av_hwdevice_ctx_alloc(HW_DEVICE);
+        hw_device_ctx       = av_hwdevice_ctx_alloc(HW_DEVICE);
 
         device_ctx          = (AVHWDeviceContext*) hw_device_ctx->data;
         d3d11va_device_ctx  = (AVD3D11VADeviceContext*) device_ctx->hwctx;
         d3d11va_device_ctx->device
                             = (Flyleaf.FFmpeg.ID3D11Device*) Renderer.Device.NativePointer;
 
-        ret = av_hwdevice_ctx_init(hw_device_ctx);
+        ret                 = av_hwdevice_ctx_init(hw_device_ctx);
         if (ret != 0)
         {
             Log.Error($"VA Failed - {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
@@ -601,7 +601,13 @@ public unsafe class VideoDecoder : DecoderBase
                     }
 
                     var mFrame = Renderer.FillPlanes(frame);
-                    if (mFrame != null) Frames.Enqueue(mFrame); // TBR: Does not respect Config.Decoder.MaxVideoFrames
+                    if (mFrame != null)
+                        Frames.Enqueue(mFrame); // TBR: Does not respect Config.Decoder.MaxVideoFrames
+                    else if (handleDeviceReset)
+                    {
+                        HandleDeviceReset();
+                        break;
+                    }
 
                     if (!Config.Video.PresentFlags.HasFlag(PresentFlags.DoNotWait) && Frames.Count > 2)
                         Thread.Sleep(10);
@@ -664,6 +670,26 @@ public unsafe class VideoDecoder : DecoderBase
 
             return ret;
         }
+    }
+
+    internal bool handleDeviceReset; // Let Renderer decide when we reset (within RunInternal)
+    internal void HandleDeviceReset()
+    {
+        if (!handleDeviceReset)
+            return;
+
+        handleDeviceReset = false;
+        DisposeInternal();
+        if (codecCtx != null)
+        {
+            fixed (AVCodecContext** ptr = &codecCtx)
+                avcodec_free_context(ptr);
+
+            codecCtx = null;
+        }
+        Renderer.Flush();
+        Open2(Stream, null, false);
+        keyPacketRequired = true;
     }
 
     internal string SWFallback()
@@ -838,7 +864,13 @@ public unsafe class VideoDecoder : DecoderBase
                             av_packet_free(&packet);
                             curReverseVideoPackets[curReversePacketPos - 1] = 0;
                             var mFrame = Renderer.FillPlanes(frame);
-                            if (mFrame != null) curReverseVideoFrames.Add(mFrame);
+                            if (mFrame != null)
+                                curReverseVideoFrames.Add(mFrame);
+                            else if (handleDeviceReset)
+                            {
+                                HandleDeviceReset();
+                                continue;
+                            }
                         }
                         else
                             av_frame_unref(frame);
@@ -959,7 +991,16 @@ public unsafe class VideoDecoder : DecoderBase
             {
                 curFrameNumber = GetFrameNumber2((long)(frame->pts * VideoStream.Timebase));
                 if (curFrameNumber >= frameNumber)
-                    return Renderer.FillPlanes(frame);
+                {
+                    var mFrame = Renderer.FillPlanes(frame);
+                    if (mFrame != null)
+                        return mFrame;
+                    else if (handleDeviceReset)
+                    {
+                        HandleDeviceReset();
+                        continue;
+                    }
+                }
 
                 av_frame_unref(frame);
 
@@ -974,7 +1015,18 @@ public unsafe class VideoDecoder : DecoderBase
     /// </summary>
     /// <returns>The next VideoFrame</returns>
     public VideoFrame GetFrameNext()
-        => DecodeFrameNext() == 0 ? Renderer.FillPlanes(frame) : null;
+    {
+        if (DecodeFrameNext() == 0)
+        {
+            var mFrame = Renderer.FillPlanes(frame);
+            if (mFrame != null)
+                return mFrame;
+            else if (handleDeviceReset)
+                HandleDeviceReset();
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Pushes the decoder to the next available VideoFrame (Decoder/Demuxer must not be running)
