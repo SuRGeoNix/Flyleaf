@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Threading;
 
+using SharpGen.Runtime;
+using Vortice;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 using Vortice.Mathematics;
-using Vortice;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -732,12 +733,29 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             }
 
             av_frame_unref(frame);
+
             return mFrame;
+        }
+        catch (SharpGenException e)
+        {
+            av_frame_unref(frame);
+
+            if (e.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || e.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
+            {
+                Log.Error($"Device Lost ({e.ResultCode} | {Device.DeviceRemovedReason} | {e.Message})");
+                Thread.Sleep(100);
+                VideoDecoder.handleDeviceReset = true; // We can't stop from RunInternal
+            }
+            else
+                Log.Error($"Failed to process frame ({e.Message})");
+
+            return null;
         }
         catch (Exception e)
         {
             av_frame_unref(frame);
             Log.Error($"Failed to process frame ({e.Message})");
+
             return null;
         }
     }

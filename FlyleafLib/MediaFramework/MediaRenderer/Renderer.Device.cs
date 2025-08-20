@@ -457,6 +457,23 @@ public unsafe partial class Renderer
         }
     }
 
+    void HandleDeviceReset()
+    {
+        if (VideoDecoder != null && VideoStream != null)
+        {
+            var running = VideoDecoder.IsRunning;
+            var stream = VideoStream;
+            VideoDecoder.Dispose();
+            Flush();
+            VideoDecoder.Open(stream); // Should Re-ConfigPlanes()
+            VideoDecoder.keyPacketRequired = true;
+            if (running)
+                VideoDecoder.Start();
+        }
+        else
+            Flush();
+    }
+
     #if DEBUG
     public static void ReportLiveObjects()
     {

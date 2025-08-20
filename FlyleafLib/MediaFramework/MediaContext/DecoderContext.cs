@@ -636,14 +636,23 @@ public unsafe partial class DecoderContext : PluginHandler
                         VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
 
                         var mFrame = VideoDecoder.Renderer.FillPlanes(frame);
-                        if (mFrame != null) VideoDecoder.Frames.Enqueue(mFrame);
+                        if (mFrame != null)
+                            VideoDecoder.Frames.Enqueue(mFrame);
+                        else if (VideoDecoder.handleDeviceReset)
+                        {
+                            VideoDecoder.HandleDeviceReset();
+                            continue;
+                        }
 
                         do
                         {
                             ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                             if (ret != 0) break;
                             mFrame = VideoDecoder.Renderer.FillPlanes(frame);
-                            if (mFrame != null) VideoDecoder.Frames.Enqueue(mFrame);
+                            if (mFrame != null)
+                                VideoDecoder.Frames.Enqueue(mFrame);
+                            else if (VideoDecoder.handleDeviceReset)
+                                VideoDecoder.HandleDeviceReset();
                         } while (!VideoDemuxer.Disposed && !Interrupt);
 
                         av_frame_free(&frame);
