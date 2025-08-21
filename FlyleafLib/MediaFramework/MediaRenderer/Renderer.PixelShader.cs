@@ -90,8 +90,6 @@ unsafe public partial class Renderer
             if (Disposed || VideoStream == null)
                 return false;
 
-            VideoDecoder.DisposeFrame(LastFrame);
-
             curRatio    = VideoStream.AspectRatio.Value;
             VideoRect   = new RawRect(0, 0, (int)VideoStream.Width, (int)VideoStream.Height);
             rotationLinesize
@@ -103,6 +101,12 @@ unsafe public partial class Renderer
             VideoProcessor = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
                 (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != DeInterlace.Progressive && Config.Video.VideoProcessor != VideoProcessors.Flyleaf)) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
+
+            if (oldVP != videoProcessor)
+            {
+                VideoDecoder.DisposeFrame(LastFrame);
+                VideoDecoder.DisposeFrames();
+            }
 
             if (fieldType != FieldType)
             {
@@ -122,9 +126,6 @@ unsafe public partial class Renderer
             {
                 if (videoProcessor == VideoProcessors.D3D11)
                 {
-                    if (oldVP != videoProcessor)
-                        VideoDecoder.DisposeFrames();
-
                     inputColorSpace = new()
                     {
                         Usage           = 0u,
@@ -163,9 +164,6 @@ unsafe public partial class Renderer
                 else if (!Config.Video.SwsForce || VideoDecoder.VideoAccelerated) // FlyleafVP
                 {
                     List<string> defines = [];
-
-                    if (oldVP != videoProcessor)
-                        VideoDecoder.DisposeFrames();
 
                     if (HasFLFilters)
                     {

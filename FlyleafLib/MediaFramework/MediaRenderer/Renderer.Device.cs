@@ -98,7 +98,7 @@ public unsafe partial class Renderer
     ID3D11PixelShader   ShaderBGRA;
 
     ID3D11Buffer        psBuffer;
-    PSBufferType        psBufferData;
+    PSBufferType        psBufferData = new();
 
     ID3D11Buffer        vsBuffer;
     VSBufferType        vsBufferData;
@@ -133,7 +133,7 @@ public unsafe partial class Renderer
                 #endif
 
                 // Finding User Definied adapter
-                if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() != "WARP")
+                if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && !Config.Video.GPUAdapter.Equals("WARP", StringComparison.CurrentCultureIgnoreCase))
                 {
                     for (uint i=0; Engine.Video.Factory.EnumAdapters1(i, out adapter).Success; i++)
                     {
@@ -154,7 +154,7 @@ public unsafe partial class Renderer
                 }
 
                 // Creating WARP (force by user or us after late failure)
-                if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP")
+                if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.Equals("WARP", StringComparison.CurrentCultureIgnoreCase))
                     D3D11.D3D11CreateDevice(null, DriverType.Warp, creationFlagsWarp, featureLevels, out tempDevice).CheckError();
 
                 // Creating User Defined or Default
@@ -252,7 +252,6 @@ public unsafe partial class Renderer
                 });
                 context.PSSetConstantBuffer(0, psBuffer);
                 psBufferData.fieldType = FieldType;
-                UpdateHDRtoSDR(false); // TODO: Passing Config -> psBuffer (currently mixed with Initialize filters)
 
                 // subs
                 ShaderBGRA = ShaderCompiler.CompilePS(Device, "bgra", @"color = float4(Texture1.Sample(Sampler, input.Texture).rgba);", null);
@@ -270,7 +269,7 @@ public unsafe partial class Renderer
 
             } catch (Exception e)
             {
-                if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
+                if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || !Config.Video.GPUAdapter.Equals("WARP", StringComparison.OrdinalIgnoreCase))
                 {
                     try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
 
