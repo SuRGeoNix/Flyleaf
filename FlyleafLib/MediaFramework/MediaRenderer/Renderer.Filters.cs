@@ -16,7 +16,7 @@ unsafe public partial class Renderer
         var cfgFLFilters = Config.Video.Filters;
         var cfgD3Filters = Config.Video.D3Filters;
 
-        if (alreadySetup) // Possible different values for D3D11 Filters?*
+        if (alreadySetup) // NOTE: Possible different values for D3D11 Filters?*
         {
             if (HasFLFilters)
                 foreach(var cfgFLFilter in cfgFLFilters.Values)
@@ -29,7 +29,7 @@ unsafe public partial class Renderer
         }
 
         alreadySetup = true;
-        HasFLFilters = false;
+        UpdateHDRtoSDR(false); // TODO: Separate the only first time setup (generic)
 
         var d3Filters = curVPCC.Filters;
 
@@ -41,20 +41,24 @@ unsafe public partial class Renderer
                 {
                     cfgFLFilter.SetFilter(this, flFilter);
                     HasFLFilters = cfgFLFilter.Value != cfgFLFilter.Default;
-                    UpdateFLFilterValue(cfgFLFilter, false);
+                    if (cfgFLFilter.Value != cfgFLFilter.Default)
+                        UpdateFLFilterValue(cfgFLFilter, false);   
                 }
                 else
                 {
                     cfgFLFilter = new(this, flFilter);
                     cfgFLFilters.Add(filter, cfgFLFilter);
-                    UpdateFLFilterValue(cfgFLFilter, false);
                 }
             }
 
             if (d3Filters.TryGetValue(filter, out var d3Filter))
             {
                 if (cfgD3Filters.TryGetValue(filter, out var cfgD3Filter))
+                {
                     cfgD3Filter.SetFilter(this, d3Filter);
+                    if (cfgD3Filter.Value != cfgD3Filter.Default)
+                        UpdateD3FilterValue(cfgD3Filter, false);
+                }
                 else
                 {
                     cfgD3Filter = new(this, d3Filter);
@@ -71,7 +75,7 @@ unsafe public partial class Renderer
             if (Disposed || parent != null)
                 return;
 
-            float value = Scale(cfgFilter.Value, cfgFilter.Minimum, cfgFilter.Maximum, cfgFilter.filter.Minimum2, cfgFilter.filter.Maximum2);
+            float value = Scale(cfgFilter.Value, cfgFilter.Minimum, cfgFilter.Maximum, cfgFilter.filter.MinimumPS, cfgFilter.filter.MaximumPS);
 
             switch (cfgFilter.Filter)
             {
@@ -142,8 +146,8 @@ unsafe public partial class Renderer
             Default = 0,
             Step    = 1,
 
-            Minimum2 = -0.5f,
-            Maximum2 =  0.5f
+            MinimumPS = -0.5f,
+            MaximumPS =  0.5f
         },
         [VideoFilters.Contrast]     = new()
         {
@@ -153,8 +157,8 @@ unsafe public partial class Renderer
             Default = 0,
             Step    = 1,
 
-            Minimum2 = 0,
-            Maximum2 = 2
+            MinimumPS = 0,
+            MaximumPS = 2
         },
         [VideoFilters.Hue]          = new()
         {
@@ -164,8 +168,8 @@ unsafe public partial class Renderer
             Default = 0,
             Step    = 1,
 
-            Minimum2 = -3.14f,
-            Maximum2 =  3.14f
+            MinimumPS = -3.14f,
+            MaximumPS =  3.14f
         },
         [VideoFilters.Saturation]   = new()
         {
@@ -175,8 +179,8 @@ unsafe public partial class Renderer
             Default = 0,
             Step    = 1,
 
-            Minimum2 = 0,
-            Maximum2 = 2
+            MinimumPS = 0,
+            MaximumPS = 2
         },
     };
 }
@@ -190,8 +194,8 @@ class VideoFilterLocal
     public float        Step        { get; set; }
 
     // Actual for pixel shader
-    public float        Minimum2    { get; set; }
-    public float        Maximum2    { get; set; }
+    public float        MinimumPS    { get; set; }
+    public float        MaximumPS    { get; set; }
 }
 
 public class FLVideoFilter : VideoFilter
@@ -264,7 +268,7 @@ public abstract class VideoFilter : NotifyPropertyChanged
     public int          Default     { get => _Default;      internal set => SetUI(ref _Default, value); }
     internal int _Default = 50;
 
-    public int          Value       { get => _Value;        set  { if (Set(ref _Value, value) && renderer != null) UpdateValue(); }} //{ var prev = _Value; if (Set(ref _Value, value)) renderer?.UpdateFilterValue(this, prev); } }
+    public int          Value       { get => _Value;        set  { if (Set(ref _Value, value) && renderer != null) UpdateValue(); }}
     protected int _Value = 50;
 
     public abstract void UpdateValue();
@@ -277,10 +281,10 @@ public abstract class VideoFilter : NotifyPropertyChanged
         this.filter     = filter;
         _Filter         = filter.Filter;
 
-        Minimum = filter.Minimum;
-        Maximum = filter.Maximum;
-        Default = filter.Default;
-        Step    = filter.Step;
-        _Value  = filter.Default;
+        _Minimum        = filter.Minimum;
+        _Maximum        = filter.Maximum;
+        _Default        = filter.Default;
+        _Step           = filter.Step;
+        _Value          = filter.Default;
     }
 }

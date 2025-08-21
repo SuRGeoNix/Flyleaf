@@ -30,7 +30,7 @@ public partial class Renderer
     // Support Windows 8+
     private SwapChainDescription1 GetSwapChainDesc(int width, int height, bool isComp = false, bool alpha = false)
     {
-        if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP"))
+        if (Device.FeatureLevel < FeatureLevel.Level_10_0 || (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.Equals("WARP", StringComparison.CurrentCultureIgnoreCase)))
         {
             return new()
             {
@@ -105,7 +105,7 @@ public partial class Renderer
             }
             catch (Exception e)
             {
-                if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
+                if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || !Config.Video.GPUAdapter.Equals("WARP", StringComparison.CurrentCultureIgnoreCase))
                 {
                     try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
 
@@ -298,8 +298,8 @@ public partial class Renderer
 
         if (ratio < ControlWidth / (float) ControlHeight)
         {
-            newHeight = (int)(ControlHeight * zoom);
-            newWidth = (int)(newHeight * ratio);
+            newHeight   = (int)(ControlHeight * zoom);
+            newWidth    = (int)(newHeight * ratio);
 
             SideXPixels = newWidth > ControlWidth && false ? 0 : (int) (ControlWidth - (ControlHeight * ratio)); // TBR
             SideYPixels = 0;
@@ -312,8 +312,8 @@ public partial class Renderer
         }
         else
         {
-            newWidth = (int)(ControlWidth * zoom);
-            newHeight = (int)(newWidth / ratio);
+            newWidth    = (int)(ControlWidth * zoom);
+            newHeight   = (int)(newWidth / ratio);
 
             SideYPixels = newHeight > ControlHeight && false ? 0 : (int) (ControlHeight - (ControlWidth / ratio));
             SideXPixels = 0;
@@ -344,7 +344,11 @@ public partial class Renderer
                 int cropTop     = GetViewport.Y < 0 ? (int) GetViewport.Y * -1 : 0;
                 int cropBottom  = GetViewport.Y + GetViewport.Height > ControlHeight ? (int) (GetViewport.Y + GetViewport.Height - ControlHeight) : 0;
 
-                dst = new RawRect(Math.Max((int)GetViewport.X, 0), Math.Max((int)GetViewport.Y, 0), Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth), Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));
+                dst = new RawRect(
+                    Math.Max((int)GetViewport.X, 0),
+                    Math.Max((int)GetViewport.Y, 0),
+                    Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth),
+                    Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));
 
                 if (_RotationAngle == 90)
                 {
@@ -436,14 +440,14 @@ public partial class Renderer
         clip.SetRight(ControlWidth);
         clip.SetTop(0);
         clip.SetBottom(ControlHeight);
-        clip.SetTopLeftRadiusX((float)cornerRadius.TopLeft);
-        clip.SetTopLeftRadiusY((float)cornerRadius.TopLeft);
-        clip.SetTopRightRadiusX((float)cornerRadius.TopRight);
-        clip.SetTopRightRadiusY((float)cornerRadius.TopRight);
-        clip.SetBottomLeftRadiusX((float)cornerRadius.BottomLeft);
-        clip.SetBottomLeftRadiusY((float)cornerRadius.BottomLeft);
-        clip.SetBottomRightRadiusX((float)cornerRadius.BottomRight);
-        clip.SetBottomRightRadiusY((float)cornerRadius.BottomRight);
+        clip.SetTopLeftRadiusX      ((float)cornerRadius.TopLeft);
+        clip.SetTopLeftRadiusY      ((float)cornerRadius.TopLeft);
+        clip.SetTopRightRadiusX     ((float)cornerRadius.TopRight);
+        clip.SetTopRightRadiusY     ((float)cornerRadius.TopRight);
+        clip.SetBottomLeftRadiusX   ((float)cornerRadius.BottomLeft);
+        clip.SetBottomLeftRadiusY   ((float)cornerRadius.BottomLeft);
+        clip.SetBottomRightRadiusX  ((float)cornerRadius.BottomRight);
+        clip.SetBottomRightRadiusY  ((float)cornerRadius.BottomRight);
         dCompVisual.SetClip(clip).CheckError();
         clip.Dispose();
         dCompDevice.Commit().CheckError();

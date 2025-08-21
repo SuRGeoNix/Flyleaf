@@ -662,6 +662,7 @@ public unsafe class VideoDecoder : DecoderBase
             skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
             CodecChanged?.Invoke(this);
 
+            DisposeFrame(Renderer.LastFrame);
             if (VideoStream.PixelFormat == AVPixelFormat.None || !Renderer.ConfigPlanes())
             {
                 Log.Error("[Pixel Format] Unknown");
