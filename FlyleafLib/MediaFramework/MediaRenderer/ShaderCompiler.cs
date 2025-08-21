@@ -20,7 +20,8 @@ internal class BlobWrapper
 
 internal static class ShaderCompiler
 {
-    internal static Blob VSBlob = Compile(VS, false); // TODO Embedded?
+    static readonly string SHADERVER = Environment.OSVersion.Version.Major >= 10 ? "_5_0" : "_4_0_level_9_3";
+    internal static Blob VSBlob = Compile(VS, false);
 
     const int MAXSIZE = 64;
     static Dictionary<string, BlobWrapper> cache = new();
@@ -82,11 +83,11 @@ internal static class ShaderCompiler
     {
         string psOrvs = isPS ? "ps" : "vs";
 
-        // Optimization could actually cause issues (mainly with literal values)
+        // NOTE: Optimization could actually cause issues (mainly with literal values)
         #if DEBUG
-        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}_5_0", ShaderFlags.SkipOptimization, out var shaderBlob, out var psError);
+        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}{SHADERVER}", ShaderFlags.SkipOptimization, out var shaderBlob, out var psError);
         #else
-        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}_5_0", ShaderFlags.OptimizationLevel3, out var shaderBlob, out var psError);
+        Compiler.Compile(bytes, defines, null, "main", null, $"{psOrvs}{SHADERVER}", ShaderFlags.OptimizationLevel3, out var shaderBlob, out var psError);
         #endif
 
         if (psError != null && psError.BufferPointer != IntPtr.Zero)
