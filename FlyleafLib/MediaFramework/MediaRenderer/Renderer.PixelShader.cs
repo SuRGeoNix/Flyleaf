@@ -27,6 +27,7 @@ unsafe public partial class Renderer
     const string dPQToLinear    = "dPQToLinear";
     const string dHLGToLinear   = "dHLGToLinear";
     const string dTone          = "dTone";
+    const string dFilters       = "dFilters";
 
     enum PSCase : int
     {
@@ -122,11 +123,7 @@ unsafe public partial class Renderer
                 if (videoProcessor == VideoProcessors.D3D11)
                 {
                     if (oldVP != videoProcessor)
-                    {
                         VideoDecoder.DisposeFrames();
-                        Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].DefaultValue;
-                        Config.Video.Filters[VideoFilters.Contrast].Value   = Config.Video.Filters[VideoFilters.Contrast].DefaultValue;
-                    }
 
                     inputColorSpace = new()
                     {
@@ -168,10 +165,12 @@ unsafe public partial class Renderer
                     List<string> defines = [];
 
                     if (oldVP != videoProcessor)
-                    {
                         VideoDecoder.DisposeFrames();
-                        Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + ((Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2);
-                        Config.Video.Filters[VideoFilters.Contrast].Value   = Config.Video.Filters[VideoFilters.Contrast].Minimum + ((Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2);
+
+                    if (HasFLFilters)
+                    {
+                        curPSUniqueId += "-";
+                        defines.Add(dFilters);
                     }
 
                     if (VideoStream.HDRFormat != HDRFormat.None)

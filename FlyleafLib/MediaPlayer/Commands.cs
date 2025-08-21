@@ -162,7 +162,12 @@ public class Commands
         => player.Rotation = uint.Parse(obj.ToString());
 
     private void ResetFilterAction(object filter)
-        => player.Config.Video.Filters[(VideoFilters)filter].Value = player.Config.Video.Filters[(VideoFilters)filter].DefaultValue;
+    {
+        if (player.renderer.VideoProcessor == VideoProcessors.Flyleaf && player.Config.Video.Filters.TryGetValue((VideoFilters)filter, out var flFilter))
+            flFilter.Value = flFilter.Default;
+        else if (player.renderer.VideoProcessor == VideoProcessors.D3D11 && player.Config.Video.D3Filters.TryGetValue((VideoFilters)filter, out var d3Filter))
+            d3Filter.Value = d3Filter.Default;
+    }
 
     public void SpeedSetAction(object speed)
     {

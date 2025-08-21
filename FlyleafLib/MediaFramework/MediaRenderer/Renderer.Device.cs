@@ -492,10 +492,13 @@ public unsafe partial class Renderer
     struct PSBufferType
     {
         public int coefsIndex;
-        public float brightness;
-        public float contrast;
-        public float hue;
-        public float saturation;
+
+        // Filters
+        public float brightness;    // -0.5  to 0.5     (0.0 default)
+        public float contrast;      //  0.0  to 2.0     (1.0 default)
+        public float hue;           // -3.14 to 3.14    (0.0 default)
+        public float saturation;    //  0.0  to 2.0     (1.0 default)
+
         public float uvOffset;
         public float yoffset;
         public HDRtoSDRMethod tonemap;
@@ -504,6 +507,17 @@ public unsafe partial class Renderer
 
         private float _pad1;
         private float _pad2;
+
+        public PSBufferType()
+        {
+            brightness  = 0;
+            contrast    = 1;
+            hue         = 0;
+            saturation  = 1;
+
+            tonemap     = HDRtoSDRMethod.Hable;
+            fieldType   = DeInterlace.Progressive;
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]
