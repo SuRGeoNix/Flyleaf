@@ -133,7 +133,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
 
     public Point            ZoomCenter      { get => zoomCenter;                set => SetZoomCenter(value); }
     Point zoomCenter = ZoomCenterPoint;
-    public static Point ZoomCenterPoint = new(0.5, 0.5);
+    internal static Point ZoomCenterPoint = new(0.5, 0.5);
     public void SetZoomCenter(Point p, bool refresh = true)
     {
         lock(lockDevice)
@@ -180,9 +180,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     }
 
     public int              UniqueId        { get; private set; }
-
-    public Dictionary<VideoFilters, VideoFilter>
-                            Filters         { get; set; }
+    public bool             HasFLFilters    { get; private set; }
     public VideoFrame       LastFrame       { get; set; }
     public RawRect          VideoRect       { get; set; }
 

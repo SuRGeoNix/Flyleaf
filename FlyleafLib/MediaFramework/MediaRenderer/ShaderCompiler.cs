@@ -377,9 +377,10 @@ inline float3 ToneReinhard(float3 x) //, float whitepoint=2.2) // or gamma?*
 #pragma warning( disable: 4000 )
 inline float3 Hue(float3 rgb, float angle)
 {
-    [branch]
-    if (angle == 0)
-        return rgb;
+    // Compiler optimization will ignore it
+    //[branch]
+    //if (angle == 0)
+    //    return rgb;
 
     static const float3x3 hueBase = float3x3(
         0.299,  0.587,  0.114,
@@ -407,9 +408,10 @@ inline float3 Hue(float3 rgb, float angle)
 
 inline float3 Saturation(float3 rgb, float saturation)
 {
-    [branch]
-    if (saturation == 1.0)
-        return rgb;
+    // Compiler optimization will ignore it
+    //[branch]
+    //if (saturation == 1.0)
+    //    return rgb;
 
     static const float3 kBT709 = float3(0.2126, 0.7152, 0.0722);
 
@@ -501,13 +503,15 @@ float4 main(PSInput input) : SV_TARGET
 
 #endif
 
+#if defined(dFilters)
     // Contrast / Brightness / Hue / Saturation
-    c *= Config.contrast * 2.0f;
-    c += Config.brightness - 0.5f;
+    c *= Config.contrast;
+    c += Config.brightness;
     c = Hue(c, Config.hue);
     c = Saturation(c, Config.saturation);
+#endif
 
-    return saturate(float4(c, color.a));
+    return saturate(float4(c, 1.0));
 }
 ";
 
