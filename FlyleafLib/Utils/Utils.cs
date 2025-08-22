@@ -42,7 +42,7 @@ public static partial class Utils
 
     public static readonly List<string> ExtensionsSubtitlesText =
     [
-        "ass", "ssa", "srt", "txt", "text", "vtt"
+        "ass", "ssa", "srt", "text", "vtt"
     ];
 
     public static readonly List<string> ExtensionsSubtitlesBitmap =
