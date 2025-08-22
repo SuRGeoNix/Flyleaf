@@ -622,6 +622,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             Monitor.Exit(VideoDecoder.lockCodecCtx);
         }
     }
+
     internal VideoFrame FillPlanes(AVFrame* frame)
     {
         try
@@ -757,7 +758,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
         }
     }
 
-    void SetPS(string uniqueId, string sampleHLSL, List<string> defines = null)
+    void SetPS(string uniqueId, ReadOnlySpan<char> sampleHLSL, List<string> defines = null)
     {
         if (curPSUniqueId == prevPSUniqueId)
             return;
