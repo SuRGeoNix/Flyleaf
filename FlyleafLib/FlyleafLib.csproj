@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.6</Version>
+	<Version>3.8.7</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,20 +17,23 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- FlyleafHost: Fixes dynamic changes issue with DPI awareness
-		- Player.Open: Fixes a null reference issue
-		- Renderer: Adds support for custom Direct2D (with Vortice) overlay drawing
-		- Renderer: Better handling of common HDR to SDR (HDR10/HLG)
-		- Renderer: Tonemaps (Hable/Reinhard/Aces) Improvements
-		- Renderer: Adds Config.Video.SDRDisplayNits which improves HDR to SDR based on monitor's peak brightness
-		- Renderer: Adds support for BT.2020 SDR
-		- Renderer: Improves support for YUV full color range sources
-		- Renderer: Adds Hue/Saturation Filters
-		- Renderer: Overall Performance Improvements
-		
+		- Config: Introduces Config.Video.SyncVPFilters to allow D3D11VP/FlyleafVP filters syncing
+		- Config: Introduces Config.Video.DeInterlace for [Auto/Progressive/Top/Bottom]
+		- Engine.Video: Introduces MaxLuminance/RecommendedLuminance (for SDRDisplayNits)
+		- Player: Improves and Fixes issues with Frame Stepping (mainly backwards)
+		- PlayerDebug: Updates Video Box
+		- Renderer: Video Filters Improvements (Separates D3D11VP/FlyleafVP filters)
+		- Renderer: Pixel Shader Improvements
+		- Renderer: DeInterlace: Adds Bob support for FlyleafVP (still defaults to D3D11VP)
+		- Renderer: DeInterlace: Can identify interlaced source and automatically enable it
+		- Renderer: DeInterlace: Playback-Rendering for both Top/Bottom fields
+		- Renderer: Handles Device Removed/Reset
+		- Renderer: Fixes an issue with Yuyv422/Yvyu422/Uyvy422 formats cause from v3.8.6
+		- Renderer: Fixes a backwards compatibility issue caused from v3.8.6
+
 		[Breaking Changes]
-		- FlyleafHost.Old: Deprecated
-		- Config.Video.HDRtoSDRTone replaces by SDRDisplayNits
+		- Deprecates Config.Video.Deinterlace/DeinterlaceBottomFirst
+		- Config.Video.Filters are now only for FlyleafVP. For D3D11VP use Config.Video.D3Filters
 	</PackageReleaseNotes>
   </PropertyGroup>
 
