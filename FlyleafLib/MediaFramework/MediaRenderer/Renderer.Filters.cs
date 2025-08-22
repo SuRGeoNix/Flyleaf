@@ -40,7 +40,8 @@ unsafe public partial class Renderer
                 if (cfgFLFilters.TryGetValue(filter, out var cfgFLFilter))
                 {
                     cfgFLFilter.SetFilter(this, flFilter);
-                    HasFLFilters = cfgFLFilter.Value != cfgFLFilter.Default;
+                    if (cfgFLFilter.Value != cfgFLFilter.Default)
+                        HasFLFilters = true;
                     if (cfgFLFilter.Value != cfgFLFilter.Default)
                         UpdateFLFilterValue(cfgFLFilter, false);   
                 }
