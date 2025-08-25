@@ -91,10 +91,11 @@
             </Style>
 
             <Style x:Key="FLTextbox" TargetType="{x:Type TextBox}" BasedOn="{StaticResource MaterialDesignTextBox}">
-                <Setter Property="Width" Value="70"/>
+                <Setter Property="Width" Value="100"/>
                 <Setter Property="Tag" Value="_save"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="TextAlignment" Value="Right"/>
+                <Setter Property="HorizontalAlignment" Value="Left"/>
             </Style>
 
             <Style x:Key="FLTextboxNP" TargetType="{x:Type TextBox}" BasedOn="{StaticResource FLTextbox}">
@@ -104,6 +105,12 @@
             <Style x:Key="FLTextboxN" TargetType="{x:Type TextBox}" BasedOn="{StaticResource FLTextbox}">
                 <EventSetter Event="PreviewTextInput" Handler="ValidationNumeric"/>
             </Style>
+
+            <ObjectDataProvider x:Key="DeInterlaceEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="fl:DeInterlace"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
 
             <ObjectDataProvider x:Key="HDRtoSDRMethodEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
                 <ObjectDataProvider.MethodParameters>
@@ -157,7 +164,7 @@
                             </TextBox.Text>
                         </TextBox>
                         <TextBlock Margin="20 0 10 0" Text="Common: " VerticalAlignment="Center"/>
-                        <ComboBox x:Name="NamedColors" Margin="0 0 0 0" ItemsSource="{Binding NamedColors}" SelectionChanged="NamedColors_SelectionChanged">
+                        <ComboBox x:Name="NamedColors" Margin="0 0 0 0" ItemsSource="{x:Static local:Settings.AllNamedColors}" SelectionChanged="NamedColors_SelectionChanged">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
@@ -195,57 +202,57 @@
                     <Grid>
                         <ScrollViewer Height="270" Margin="20 20 20 0" VerticalAlignment="Top">
                             <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="200"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="30"/>
-                            </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
+                                </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="Idle Timeout (ms)" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding ActivityTimeout, UpdateSourceTrigger=Explicit}"/>
+                                <TextBlock Grid.Row="0" Text="Idle Timeout (ms)" VerticalAlignment="Center"/>
+                                <TextBox   Grid.Row="0" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding ActivityTimeout, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="1" Text="Read Timeout (ms)" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.ReadTimeout, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                                <TextBlock Grid.Row="1" Text="Read Timeout (ms)" VerticalAlignment="Center"/>
+                                <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.ReadTimeout, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                            <TextBlock Grid.Row="2" Text="Buffer Duration Min. (ms)" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Player.MinBufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                                <TextBlock Grid.Row="2" Text="Buffer Duration Min. (ms)" VerticalAlignment="Center"/>
+                                <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Player.MinBufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                            <TextBlock Grid.Row="3" Text="Buffer Duration Max. (ms)" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.BufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                                <TextBlock Grid.Row="3" Text="Buffer Duration Max. (ms)" VerticalAlignment="Center"/>
+                                <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.BufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                            <TextBlock Grid.Row="4" Text="Audio Frames Max." VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxAudioFrames, UpdateSourceTrigger=Explicit}"/>
+                                <TextBlock Grid.Row="4" Text="Audio Frames Max." VerticalAlignment="Center"/>
+                                <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxAudioFrames, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="5" Text="Video Frames Max." VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
+                                <TextBlock Grid.Row="5" Text="Video Frames Max." VerticalAlignment="Center"/>
+                                <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="6" Text="Vertical Resolution Max." VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Video.MaxVerticalResolutionCustom, UpdateSourceTrigger=Explicit}" ToolTip="0 for Auto"/>
+                                <TextBlock Grid.Row="6" Text="Vertical Resolution Max." VerticalAlignment="Center"/>
+                                <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Video.MaxVerticalResolutionCustom, UpdateSourceTrigger=Explicit}" ToolTip="0 for Auto"/>
 
-                            <Separator Grid.Row="7" Grid.ColumnSpan="3"/>
+                                <Separator Grid.Row="7" Grid.ColumnSpan="3"/>
 
-                            <TextBlock Grid.Row="8" Text="Log File" VerticalAlignment="Center"/>
-                            <TextBox   Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Width="260" TextAlignment="Left" Style="{StaticResource FLTextbox}" Text="{Binding ConfigEngine.LogOutput, UpdateSourceTrigger=Explicit}"/>
+                                <TextBlock Grid.Row="8" Text="Log File" VerticalAlignment="Center"/>
+                                <TextBox   Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Width="220" TextAlignment="Left" Style="{StaticResource FLTextbox}" Text="{Binding ConfigEngine.LogOutput, UpdateSourceTrigger=Explicit}"/>
 
-                            <TextBlock Grid.Row="9" Text="Log Level" VerticalAlignment="Center"/>
-                            <ComboBox  Grid.Row="9" Grid.Column="1" ItemsSource="{Binding Source={StaticResource LogLevelEnum}}" SelectedItem="{Binding ConfigEngine.LogLevel}"/>
+                                <TextBlock Grid.Row="9" Text="Log Level" VerticalAlignment="Center"/>
+                                <ComboBox  Grid.Row="9" Grid.Column="1" ItemsSource="{Binding Source={StaticResource LogLevelEnum}}" SelectedItem="{Binding ConfigEngine.LogLevel}"/>
 
-                            <TextBlock Grid.Row="10" Text="Log Level (FFmpeg)" VerticalAlignment="Center"/>
-                            <ComboBox  Grid.Row="10" Grid.Column="1" ItemsSource="{Binding Source={StaticResource FFmpegLogLevelEnum}}" SelectedItem="{Binding ConfigEngine.FFmpegLogLevel}"/>
-                        </Grid>
+                                <TextBlock Grid.Row="10" Text="Log Level (FFmpeg)" VerticalAlignment="Center"/>
+                                <ComboBox  Grid.Row="10" Grid.Column="1" ItemsSource="{Binding Source={StaticResource FFmpegLogLevelEnum}}" SelectedItem="{Binding ConfigEngine.FFmpegLogLevel}"/>
+                            </Grid>
                         </ScrollViewer>
                         <StackPanel Margin="0, 0, 0, 10" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
                             <Button Style="{StaticResource SaveButton}"/>
@@ -364,11 +371,11 @@
                         </StackPanel>
                     </TabItem.Header>
                     <Grid>
-                        <ScrollViewer Height="300">
-                            <Grid Margin="20 0 20 35">
+                        <ScrollViewer Height="270" Margin="20 20 20 0" VerticalAlignment="Top">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="150"/>
-                                    <ColumnDefinition Width="auto"/>
+                                    <ColumnDefinition Width="150"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
@@ -385,26 +392,14 @@
                                     <RowDefinition Height="30"/>
                                     <RowDefinition Height="30"/>
                                     <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Text="Aspect Ratio" VerticalAlignment="Center"/>
-                                <ComboBox x:Name="cmbAspectRatio" Tag="_save" Grid.Column="1" ItemsSource="{x:Static fl:AspectRatio.AspectRatios}" SelectedItem="{Binding Config.Video.AspectRatio, UpdateSourceTrigger=Explicit}"/>
+                                <ComboBox x:Name="cmbAspectRatio" Tag="_save" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{x:Static fl:AspectRatio.AspectRatios}" SelectedItem="{Binding Config.Video.AspectRatio, UpdateSourceTrigger=Explicit}"/>
 
-                                <TextBlock Margin="0 8 0 8" Grid.Row="1" Text="Custom Ratio" VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style>
-                                            <Setter Property="TextBlock.Visibility" Value="Collapsed"></Setter>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding ElementName=cmbAspectRatio, Path=Text}" Value="Custom">
-                                                    <Setter Property="TextBlock.Visibility" Value="Visible"></Setter>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-
-                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Config.Video.CustomAspectRatio, UpdateSourceTrigger=Explicit, Converter={StaticResource StringToRational}}">
+                                <TextBox Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Width="80" Text="{Binding Config.Video.CustomAspectRatio, UpdateSourceTrigger=Explicit, Converter={StaticResource StringToRational}}">
                                     <TextBox.Resources>
                                         <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource FLTextbox}">
                                             <Setter Property="TextBox.Visibility" Value="Collapsed"></Setter>
@@ -419,7 +414,7 @@
                                 </TextBox>
 
                                 <TextBlock Grid.Row="2" Text="Deinterlace" VerticalAlignment="Center"/>
-                                <ToggleButton Grid.Row="2" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.Deinterlace, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                                <ComboBox Grid.Row="2" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource DeInterlaceEnum}}" SelectedItem="{Binding Config.Video.DeInterlace}"/>
 
                                 <TextBlock Grid.Row="3" Text="Profile Mismatch" VerticalAlignment="Center"/>
                                 <ToggleButton Grid.Row="3" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Decoder.AllowProfileMismatch, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
@@ -431,33 +426,82 @@
                                 <ToggleButton Grid.Row="5" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.VideoAcceleration, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                                 <TextBlock Grid.Row="6" Text="Video Processor" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding Source={StaticResource VideoProcessorEnum}}" SelectedItem="{Binding Config.Video.VideoProcessor}"/>
+                                <ComboBox Grid.Row="6" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource VideoProcessorEnum}}" SelectedItem="{Binding Config.Video.VideoProcessor}"/>
 
                                 <TextBlock Grid.Row="7" Text="Zero Copy" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="7" Grid.Column="1" ItemsSource="{Binding Source={StaticResource ZeroCopyEnum}}" SelectedItem="{Binding Config.Decoder.ZeroCopy}"/>
+                                <ComboBox Grid.Row="7" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource ZeroCopyEnum}}" SelectedItem="{Binding Config.Decoder.ZeroCopy}"/>
 
                                 <TextBlock Grid.Row="8" Text="Decoder Threads" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="8" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
+                                <TextBox Grid.Row="8" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
 
                                 <TextBlock Grid.Row="9" Text="Max Latency (ms)" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="9" Grid.Column="1" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Player.MaxLatency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                                <TextBox Grid.Row="9" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Player.MaxLatency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                                <TextBlock Grid.Row="10" Text="HDR to SDR Method" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="10" Grid.Column="1" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
+                                <TextBlock Grid.Row="10" Text="Zoom Offset" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="10" Grid.Column="1" Width="80" Style="{StaticResource FLTextbox}" Text="{Binding Config.Player.ZoomOffset, UpdateSourceTrigger=LostFocus}"/>
 
-                                <TextBlock Grid.Row="11" Text="HDR to SDR Tone" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="11" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.HDRtoSDRTone, UpdateSourceTrigger=LostFocus}"/>
+                                <Separator Grid.Row="11" Grid.ColumnSpan="3"/>
 
-                                <TextBlock Grid.Row="12" Text="Zoom Offset" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="12" Grid.Column="1" Style="{StaticResource FLTextbox}" Text="{Binding Config.Player.ZoomOffset, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Grid.Row="12" Text="HDR to SDR Method" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="12" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
 
-                                <StackPanel Orientation="Vertical" Grid.Row="13" Grid.ColumnSpan="3" Margin="0 10 0 0">
-                                    <ItemsControl ItemsSource="{Binding Config.Video.Filters.Values}">
+                                <Button Grid.Row="12" Grid.Column="2" Content="Reset" Width="66" MaxHeight="24" HorizontalAlignment="Right" Margin="0 0 10 0" FontWeight="Normal" FontSize="12" Command="{Binding ResetFilters}"/>
+
+                                <TextBlock Grid.Row="13" Text="SDR Display Nits" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="13" Grid.Column="1" Text="25" Margin="-8,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
+                                <Slider Grid.Row="13" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.SDRDisplayNits, Mode=TwoWay}" Minimum="25" Maximum="400"/>
+                                <TextBlock Grid.Row="13" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="400" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="13" Grid.Column="2" Margin="100 0 0 0" FontSize="12" VerticalAlignment="Center">
+                                    <Run Text="("/>
+                                    <Run Text="{Binding Config.Video.SDRDisplayNits, Mode=OneWay}"/>
+                                    <Run Text=")"/>
+                                </TextBlock>
+
+                                <StackPanel Orientation="Vertical" Grid.Row="14" Grid.ColumnSpan="3" Margin="0 0 0 0">
+                                    <ItemsControl>
+                                        <ItemsControl.Style>
+                                            <Style TargetType="ItemsControl">
+                                                <Setter Property="ItemsSource" Value="{x:Null}"/>
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.Auto}"/>
+                                                            <Condition Binding="{Binding Player.renderer.VideoProcessor}" Value="{x:Static fl:VideoProcessors.Flyleaf}"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <MultiDataTrigger.Setters>
+                                                            <Setter Property="ItemsSource" Value="{Binding Config.Video.Filters.Values}"/>
+                                                        </MultiDataTrigger.Setters>
+                                                    </MultiDataTrigger>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.Auto}"/>
+                                                            <Condition Binding="{Binding Player.renderer.VideoProcessor}" Value="{x:Static fl:VideoProcessors.D3D11}"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <MultiDataTrigger.Setters>
+                                                            <Setter Property="ItemsSource" Value="{Binding Config.Video.D3Filters.Values}"/>
+                                                        </MultiDataTrigger.Setters>
+                                                    </MultiDataTrigger>
+                                                    <DataTrigger Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.Flyleaf}">
+                                                        <Setter Property="ItemsSource" Value="{Binding Config.Video.Filters.Values}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.D3D11}">
+                                                        <Setter Property="ItemsSource" Value="{Binding Config.Video.D3Filters.Values}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ItemsControl.Style>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" Visibility="{Binding Available, Converter={StaticResource BooleanToVisibility}}">
-                                                    <TextBlock Text="{Binding Filter}" Margin="0,10,0,0"  VerticalAlignment="Center" Width="150"/>
-                                                    <Slider Margin="0 0 0 0" Width="200" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Value, Mode=TwoWay}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}"/>
+                                                    <TextBlock Text="{Binding Filter}" Margin="0 6"  VerticalAlignment="Center" Width="150"/>
+                                                    <TextBlock Text="{Binding Minimum}" Margin="-14,0,0,0"  VerticalAlignment="Center" Width="24" FontSize="12" TextAlignment="Center"/>
+                                                    <Slider Width="200" Margin="8 0" VerticalAlignment="Center" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Value, Mode=TwoWay}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}"/>
+                                                    <TextBlock Margin="0 0 0 0" Text="{Binding Maximum}" VerticalAlignment="Center" Width="24" FontSize="12"/>
+                                                    <TextBlock Margin="0,0,0,0" FontSize="12" VerticalAlignment="Center">
+                                                        <Run Text="("/>
+                                                        <Run Text="{Binding Value, Mode=OneWay}"/>
+                                                        <Run Text=")"/>
+                                                    </TextBlock>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

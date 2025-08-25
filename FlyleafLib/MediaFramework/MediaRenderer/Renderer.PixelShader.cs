@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Threading;
 
+using SharpGen.Runtime;
+using Vortice;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 using Vortice.Mathematics;
-using Vortice;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -18,8 +19,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 unsafe public partial class Renderer
 {
-    static string[] pixelOffsets = new[] { "r", "g", "b", "a" };
-    enum PSDefines { HDR, HLG, YUV }
+    static string[] pixelOffsets = ["r", "g", "b", "a"];
+
+    const string dYUVLimited    = "dYUVLimited";
+    const string dYUVFull       = "dYUVFull";
+    const string dBT2020        = "dBT2020";
+    const string dPQToLinear    = "dPQToLinear";
+    const string dHLGToLinear   = "dHLGToLinear";
+    const string dTone          = "dTone";
+    const string dFilters       = "dFilters";
+
     enum PSCase : int
     {
         None,
@@ -38,7 +47,6 @@ unsafe public partial class Renderer
         SwsScale
     }
 
-    bool    checkHDR;
     PSCase  curPSCase;
     string  curPSUniqueId;
     float   curRatio = 1.0f;
@@ -68,7 +76,7 @@ unsafe public partial class Renderer
         }
     }
 
-    internal bool ConfigPlanes() //bool isNewInput = true) // currently not used
+    internal bool ConfigPlanes()
     {
         bool error = false;
 
@@ -82,61 +90,49 @@ unsafe public partial class Renderer
             if (Disposed || VideoStream == null)
                 return false;
 
-            VideoDecoder.DisposeFrame(LastFrame);
-
             curRatio    = VideoStream.AspectRatio.Value;
-            IsHDR       = VideoStream.ColorSpace == ColorSpace.BT2020 && ( // TBR: Should transfer IsHDR to VideoStream? | Unspecified (Space/Transfer)
-                          VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smpte2084 ||  // PQ
-                          VideoStream.ColorTransfer == AVColorTransferCharacteristic.AribStdB67);// HLG
             VideoRect   = new RawRect(0, 0, (int)VideoStream.Width, (int)VideoStream.Height);
             rotationLinesize
                         = false;
             UpdateRotation(_RotationAngle, false);
 
-            if (IsHDR)
-            {
-                hdrPlusData = null;
-                displayData = new();
-                lightData   = new();
-                checkHDR    = true;
-            }
-            else
-                checkHDR = false;
-
             var oldVP = videoProcessor;
-
-            // Defaults to D3D11VP
-            //VideoProcessor = !VideoDecoder.VideoAccelerated || D3D11VPFailed || Config.Video.VideoProcessor == VideoProcessors.Flyleaf || (Config.Video.VideoProcessor == VideoProcessors.Auto && isHDR && !Config.Video.Deinterlace) ? VideoProcessors.Flyleaf : VideoProcessors.D3D11;
-
-            // Defaults to FlyleafVP
+            var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
             VideoProcessor = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.Deinterlace || Config.Video.VideoProcessor == VideoProcessors.D3D11) ?
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != DeInterlace.Progressive && Config.Video.VideoProcessor != VideoProcessors.Flyleaf)) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
 
-            textDesc[0].BindFlags &= ~BindFlags.RenderTarget; // Only D3D11VP without ZeroCopy requires it
-            curPSCase = PSCase.None;
-            prevPSUniqueId = curPSUniqueId;
-            curPSUniqueId = "";
+            if (oldVP != videoProcessor)
+            {
+                VideoDecoder.DisposeFrame(LastFrame);
+                VideoDecoder.DisposeFrames();
+            }
+
+            if (fieldType != FieldType)
+            {
+                FieldType = fieldType;
+                vc?.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType == DeInterlace.Progressive ? VideoFrameFormat.Progressive : (FieldType == DeInterlace.BottomField ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
+                psBufferData.fieldType = FieldType;
+            }
+
+            textDesc[0].BindFlags
+                            &= ~BindFlags.RenderTarget; // Only D3D11VP without ZeroCopy requires it
+            curPSCase       = PSCase.None;
+            prevPSUniqueId  = curPSUniqueId;
+            curPSUniqueId   = "";
 
             Log.Debug($"Preparing planes for {VideoStream.PixelFormatStr} with {videoProcessor}");
             if ((VideoStream.PixelFormatDesc->flags & PixFmtFlags.Be) == 0) // We currently force SwsScale for BE (RGBA64/BGRA64 BE noted that could work as is?*)
             {
                 if (videoProcessor == VideoProcessors.D3D11)
                 {
-                    if (oldVP != videoProcessor)
-                    {
-                        VideoDecoder.DisposeFrames();
-                        Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].DefaultValue;
-                        Config.Video.Filters[VideoFilters.Contrast].Value = Config.Video.Filters[VideoFilters.Contrast].DefaultValue;
-                    }
-
                     inputColorSpace = new()
                     {
                         Usage           = 0u,
-                        RGB_Range       = VideoStream.AVStream->codecpar->color_range == AVColorRange.Jpeg ? 0u : 1u,
+                        RGB_Range       = VideoStream.ColorRange == ColorRange.Full  ? 0u : 1u,
                         YCbCr_Matrix    = VideoStream.ColorSpace != ColorSpace.BT601 ? 1u : 0u,
                         YCbCr_xvYCC     = 0u,
-                        Nominal_Range   = VideoStream.AVStream->codecpar->color_range == AVColorRange.Jpeg ? 2u : 1u
+                        Nominal_Range   = VideoStream.ColorRange == ColorRange.Full  ? 2u : 1u
                     };
 
                     vpov?.Dispose();
@@ -169,37 +165,55 @@ unsafe public partial class Renderer
                 {
                     List<string> defines = [];
 
-                    if (oldVP != videoProcessor)
+                    if (HasFLFilters)
                     {
-                        VideoDecoder.DisposeFrames();
-                        Config.Video.Filters[VideoFilters.Brightness].Value = Config.Video.Filters[VideoFilters.Brightness].Minimum + ((Config.Video.Filters[VideoFilters.Brightness].Maximum - Config.Video.Filters[VideoFilters.Brightness].Minimum) / 2);
-                        Config.Video.Filters[VideoFilters.Contrast].Value   = Config.Video.Filters[VideoFilters.Contrast].Minimum + ((Config.Video.Filters[VideoFilters.Contrast].Maximum - Config.Video.Filters[VideoFilters.Contrast].Minimum) / 2);
+                        curPSUniqueId += "-";
+                        defines.Add(dFilters);
                     }
 
-                    if (IsHDR)
+                    if (VideoStream.HDRFormat != HDRFormat.None)
                     {
-                        // TBR: It currently works better without it
-                        //if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.AVCOL_TRC_ARIB_STD_B67)
-                        //{
-                        //    defines.Add(PSDefines.HLG.ToString());
-                        //    curPSUniqueId += "g";
-                        //}
+                        if (VideoStream.HDRFormat == HDRFormat.HLG)
+                        {
+                            curPSUniqueId += "g";
+                            defines.Add(dHLGToLinear);
+                        }
+                        else
+                        {
+                            curPSUniqueId += "p";
+                            defines.Add(dPQToLinear);
+                        }
 
-                        curPSUniqueId += "h";
-                        defines.Add(PSDefines.HDR.ToString());
-                        psBufferData.coefsIndex = 0;
-                        UpdateHDRtoSDR(false);
+                        defines.Add(dTone);
                     }
-                    else
-                        psBufferData.coefsIndex = VideoStream.ColorSpace == ColorSpace.BT709 ? 1 : 2;
+                    else if (VideoStream.ColorSpace == ColorSpace.BT2020)
+                    {
+                        defines.Add(dBT2020);
+                        curPSUniqueId += "b";
+                    }
 
-                    for (int i=0; i<srvDesc.Length; i++)
+                    psBufferData.yoffset = 1.0f / VideoStream.Height;
+
+                    for (int i = 0; i < srvDesc.Length; i++)
                         srvDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2D;
 
                     // 1. HW Decoding
                     if (VideoDecoder.VideoAccelerated)
                     {
-                        defines.Add(PSDefines.YUV.ToString());
+                        if (VideoStream.ColorRange == ColorRange.Limited)
+                            defines.Add(dYUVLimited);
+                        else
+                        {
+                            curPSUniqueId += "f";
+                            defines.Add(dYUVFull);
+                        }
+
+                        if (VideoStream.ColorSpace == ColorSpace.BT709)
+                            psBufferData.coefsIndex = 1;
+                        else if (VideoStream.ColorSpace == ColorSpace.BT2020)
+                            psBufferData.coefsIndex = 0;
+                        else
+                            psBufferData.coefsIndex = 2;
 
                         if (VideoDecoder.VideoStream.PixelComp0Depth > 8)
                         {
@@ -363,7 +377,20 @@ unsafe public partial class Renderer
 
                     else // YUV
                     {
-                        defines.Add(PSDefines.YUV.ToString());
+                        if (VideoStream.ColorRange == ColorRange.Limited)
+                            defines.Add(dYUVLimited);
+                        else
+                        {
+                            curPSUniqueId += "f";
+                            defines.Add(dYUVFull);
+                        }
+
+                        if (VideoStream.ColorSpace == ColorSpace.BT709)
+                            psBufferData.coefsIndex = 1;
+                        else if (VideoStream.ColorSpace == ColorSpace.BT2020)
+                            psBufferData.coefsIndex = 0;
+                        else
+                            psBufferData.coefsIndex = 2;
 
                         if (VideoStream.PixelPlanes == 1 && (
                             VideoStream.PixelFormat == AVPixelFormat.Y210le  || // Not tested
@@ -374,7 +401,7 @@ unsafe public partial class Renderer
                             curPSCase = PSCase.YUVPacked;
                             curPSUniqueId += ((int)curPSCase).ToString();
 
-                            psBufferData.texWidth = 1.0f / (VideoStream.Width >> 1);
+                            psBufferData.uvOffset = 1.0f / (VideoStream.Width >> 1);
                             textDesc[0].Width   = VideoStream.Width;
                             textDesc[0].Height  = VideoStream.Height;
 
@@ -392,10 +419,10 @@ unsafe public partial class Renderer
                             }
 
                             string header = @"
-        float  posx = input.Texture.x - (texWidth * 0.25);
-        float  fx = frac(posx / texWidth);
-        float  pos1 = posx + ((0.5 - fx) * texWidth);
-        float  pos2 = posx + ((1.5 - fx) * texWidth);
+        float  posx = input.Texture.x - (Config.uvOffset * 0.25);
+        float  fx = frac(posx / Config.uvOffset);
+        float  pos1 = posx + ((0.5 - fx) * Config.uvOffset);
+        float  pos2 = posx + ((1.5 - fx) * Config.uvOffset);
 
         float4 c1 = Texture1.Sample(Sampler, float2(pos1, input.Texture.y));
         float4 c2 = Texture1.Sample(Sampler, float2(pos2, input.Texture.y));
@@ -595,6 +622,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             Monitor.Exit(VideoDecoder.lockCodecCtx);
         }
     }
+
     internal VideoFrame FillPlanes(AVFrame* frame)
     {
         try
@@ -602,39 +630,6 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             VideoFrame mFrame = new();
             mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoDecoder.Demuxer.StartTime;
             if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
-
-            if (checkHDR)
-            {
-                // TODO Dolpy Vision / Vivid
-                //var hdrSideDolpyDynamic = av_frame_get_side_data(frame, AVFrameSideDataType.AV_FRAME_DATA_DOVI_METADATA);
-
-                var hdrSideDynamic = av_frame_get_side_data(frame, AVFrameSideDataType.DynamicHdrPlus);
-
-                if (hdrSideDynamic != null && hdrSideDynamic->data != null)
-                {
-                    hdrPlusData = (AVDynamicHDRPlus*) hdrSideDynamic->data;
-                    UpdateHDRtoSDR();
-                }
-                else
-                {
-                    var lightSide   = av_frame_get_side_data(frame, AVFrameSideDataType.ContentLightLevel);
-                    var displaySide = av_frame_get_side_data(frame, AVFrameSideDataType.MasteringDisplayMetadata);
-
-                    if (lightSide != null && lightSide->data != null && ((AVContentLightMetadata*)lightSide->data)->MaxCLL != 0)
-                    {
-                        lightData = *((AVContentLightMetadata*) lightSide->data);
-                        checkHDR = false;
-                        UpdateHDRtoSDR();
-                    }
-
-                    if (displaySide != null && displaySide->data != null && ((AVMasteringDisplayMetadata*)displaySide->data)->has_luminance != 0)
-                    {
-                        displayData = *((AVMasteringDisplayMetadata*) displaySide->data);
-                        checkHDR = false;
-                        UpdateHDRtoSDR();
-                    }
-                }
-            }
 
             if (curPSCase == PSCase.HWZeroCopy)
             {
@@ -736,17 +731,34 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
             }
 
             av_frame_unref(frame);
+
             return mFrame;
+        }
+        catch (SharpGenException e)
+        {
+            av_frame_unref(frame);
+
+            if (e.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || e.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
+            {
+                Log.Error($"Device Lost ({e.ResultCode} | {Device.DeviceRemovedReason} | {e.Message})");
+                Thread.Sleep(100);
+                VideoDecoder.handleDeviceReset = true; // We can't stop from RunInternal
+            }
+            else
+                Log.Error($"Failed to process frame ({e.Message})");
+
+            return null;
         }
         catch (Exception e)
         {
             av_frame_unref(frame);
             Log.Error($"Failed to process frame ({e.Message})");
+
             return null;
         }
     }
 
-    void SetPS(string uniqueId, string sampleHLSL, List<string> defines = null)
+    void SetPS(string uniqueId, ReadOnlySpan<char> sampleHLSL, List<string> defines = null)
     {
         if (curPSUniqueId == prevPSUniqueId)
             return;

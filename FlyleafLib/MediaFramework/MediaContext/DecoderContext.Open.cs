@@ -276,16 +276,14 @@ public partial class DecoderContext
         {
             Initialize();
 
-            if (input is Stream)
-            {
-                Playlist.IOStream = (Stream)input;
-            }
+            if (input is Stream iostream)
+                Playlist.IOStream = iostream;
             else
                 Playlist.Url = input.ToString(); // TBR: check UI update
 
-            args.Url = Playlist.Url;
-            args.IOStream = Playlist.IOStream;
-            args.Error = Open().Error;
+            args.Url        = Playlist.Url;
+            args.IOStream   = Playlist.IOStream;
+            args.Error      = Open().Error;
 
             if (Playlist.Items.Count == 0 && args.Success)
                 args.Error = "No playlist items were found";
@@ -462,7 +460,7 @@ public partial class DecoderContext
                 args.Error = OpenSuggestedVideo(defaultAudio);
             else if (defaultAudio && Config.Audio.Enabled)
                 args.Error = OpenSuggestedAudio();
-
+            
             if ((defaultVideo || defaultAudio) && AudioStream == null && VideoStream == null)
             {
                 args.Error ??= "No audio/video found";
@@ -479,9 +477,9 @@ public partial class DecoderContext
             }
 
             if (Config.Data.Enabled)
-            {
                 OpenSuggestedData();
-            }
+
+            MainDemuxer ??= VideoDemuxer;
 
             return args;
         } catch (Exception e)

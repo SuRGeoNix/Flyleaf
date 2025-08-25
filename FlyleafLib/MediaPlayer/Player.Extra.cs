@@ -215,24 +215,9 @@ unsafe partial class Player
                 renderer.ClearOverlayTexture();
 
             if (VideoDecoder.Frames.IsEmpty)
-            {
-                // Temp fix for previous timestamps until we seperate GetFrame for Extractor and the Player
-                reversePlaybackResync = true;
-                int askedFrame = VideoDecoder.GetFrameNumber(CurTime) - 1;
-                //Log.Debug($"CurTime1: {TicksToTime(CurTime)}, Asked: {askedFrame}");
-                vFrame = VideoDecoder.GetFrame(askedFrame);
-                if (vFrame == null) return;
-
-                int recvFrame = VideoDecoder.GetFrameNumber(vFrame.timestamp);
-                //Log.Debug($"CurTime2: {TicksToTime(vFrame.timestamp)}, Got: {recvFrame}");
-                if (askedFrame != recvFrame)
-                {
-                    VideoDecoder.DisposeFrame(vFrame);
-                    vFrame = null;
-                    vFrame = askedFrame > recvFrame
-                        ? VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime))
-                        : VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 2);
-                }
+            {                
+                reversePlaybackResync = true; // Temp fix for previous timestamps until we seperate GetFrame for Extractor and the Player
+                vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 1);
             }
             else
                 VideoDecoder.Frames.TryDequeue(out vFrame);

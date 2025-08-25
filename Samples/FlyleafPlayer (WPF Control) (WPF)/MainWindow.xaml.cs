@@ -567,7 +567,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         MediaViewer = MediaViewer.Video;
                     else if (imageFiles.Count == 1)
                     {
-                        Player.OpenAsync(imageFolder + "\\" + imageFiles[0]); // probably from our delete
+                        if (!init)
+                            Player.OpenAsync(imageFolder + "\\" + imageFiles[0]); // probably from our delete
                         MediaViewer = MediaViewer.Image;
                     }
                     else

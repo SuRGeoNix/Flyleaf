@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Data;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -33,7 +34,7 @@ public class Config : NotifyPropertyChanged
 
             if (defaultOptions == null || defaultOptions.Count == 0) continue;
 
-            Plugins.Add(plugin.Name, new ObservableDictionary<string, string>());
+            Plugins.Add(plugin.Name, []);
             foreach (var opt in defaultOptions)
                 Plugins[plugin.Name].Add(opt.Key, opt.Value);
         }
@@ -83,12 +84,8 @@ public class Config : NotifyPropertyChanged
 
             // plugin option deleted
             foreach (var opt in plugin.Value)
-            {
                 if (!config.defaultPlugins[plugin.Key].ContainsKey(opt.Key))
-                {
                     config.Plugins[plugin.Key].Remove(opt.Key);
-                }
-            }
         }
 
         // Restore added plugin options
@@ -103,12 +100,8 @@ public class Config : NotifyPropertyChanged
 
             // plugin option added
             foreach (var opt in plugin.Value)
-            {
                 if (!config.Plugins[plugin.Key].ContainsKey(opt.Key))
-                {
                     config.Plugins[plugin.Key][opt.Key] = opt.Value;
-                }
-            }
         }
 
         return config;
@@ -158,7 +151,7 @@ public class Config : NotifyPropertyChanged
     public DataConfig       Data        { get; set; } = new();
 
     public Dictionary<string, ObservableDictionary<string, string>>
-                            Plugins     { get; set; } = new();
+                            Plugins     { get; set; } = [];
     private
            Dictionary<string, ObservableDictionary<string, string>>
                             defaultPlugins;
@@ -317,7 +310,7 @@ public class Config : NotifyPropertyChanged
         public long     SeekOffset3                 { get; set; } = 30 * (long)1000 * 10000;
         public double   SpeedOffset                 { get; set; } = 0.10;
         public double   SpeedOffset2                { get; set; } = 0.25;
-        public int      ZoomOffset                  { get => _ZoomOffset; set { if (Set(ref _ZoomOffset, value)) player?.ResetAll(); } }
+        public int      ZoomOffset                  { get => _ZoomOffset; set { if (SetUI(ref _ZoomOffset, value)) player?.ResetAll(); } }
         int _ZoomOffset = 10;
 
         public int      VolumeOffset                { get; set; } = 5;
@@ -328,9 +321,9 @@ public class Config : NotifyPropertyChanged
         {
             DemuxerConfig demuxer = (DemuxerConfig) MemberwiseClone();
 
-            demuxer.FormatOpt       = new Dictionary<string, string>();
-            demuxer.AudioFormatOpt  = new Dictionary<string, string>();
-            demuxer.SubtitlesFormatOpt = new Dictionary<string, string>();
+            demuxer.FormatOpt           = [];
+            demuxer.AudioFormatOpt      = [];
+            demuxer.SubtitlesFormatOpt  = [];
 
             foreach (var kv in FormatOpt) demuxer.FormatOpt.Add(kv.Key, kv.Value);
             foreach (var kv in AudioFormatOpt) demuxer.AudioFormatOpt.Add(kv.Key, kv.Value);
@@ -368,7 +361,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// List of FFmpeg formats to be excluded from interrupts
         /// </summary>
-        public List<string>     ExcludeInterruptFmts{ get; set; } = new List<string>() { "rtsp" };
+        public List<string>     ExcludeInterruptFmts{ get; set; } = ["rtsp"];
 
         /// <summary>
         /// Maximum allowed duration ticks for buffering
@@ -473,7 +466,7 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public Dictionary<string, string>
                                 ExtraHTTPQueryParamsToUnderlying
-                                                { get; set; } = new();
+                                                { get; set; } = [];
 
         /// <summary>
         /// FFmpeg's format options for demuxer
@@ -591,17 +584,23 @@ public class Config : NotifyPropertyChanged
         bool _LowDelay;
 
         public Dictionary<string, string>
-                                AudioCodecOpt       { get; set; } = new();
+                                AudioCodecOpt       { get; set; } = [];
         public Dictionary<string, string>
-                                VideoCodecOpt       { get; set; } = new();
+                                VideoCodecOpt       { get; set; } = [];
         public Dictionary<string, string>
-                                SubtitlesCodecOpt   { get; set; } = new();
+                                SubtitlesCodecOpt   { get; set; } = [];
 
         public Dictionary<string, string> GetCodecOptPtr(MediaType type)
             => type == MediaType.Video ? VideoCodecOpt : type == MediaType.Audio ? AudioCodecOpt : SubtitlesCodecOpt;
     }
     public class VideoConfig : NotifyPropertyChanged
     {
+        public VideoConfig()
+        {
+            BindingOperations.EnableCollectionSynchronization(Filters, lockFilters);
+            BindingOperations.EnableCollectionSynchronization(D3Filters, lockD3Filters);
+        }
+
         public VideoConfig Clone()
         {
             VideoConfig video = (VideoConfig) MemberwiseClone();
@@ -715,15 +714,8 @@ public class Config : NotifyPropertyChanged
         public Vortice.DXGI.PresentFlags
                                 PresentFlags                { get; set; } = Vortice.DXGI.PresentFlags.DoNotWait;
 
-        /// <summary>
-        /// Enables the video processor to perform post process deinterlacing
-        /// (D3D11 video processor should be enabled and support bob deinterlace method)
-        /// </summary>
-        public bool             Deinterlace                 { get=> _Deinterlace;   set { if (Set(ref _Deinterlace, value)) player?.renderer?.UpdateDeinterlace(); } }
-        bool _Deinterlace;
-
-        public bool             DeinterlaceBottomFirst      { get=> _DeinterlaceBottomFirst; set { if (Set(ref _DeinterlaceBottomFirst, value)) player?.renderer?.UpdateDeinterlace(); } }
-        bool _DeinterlaceBottomFirst;
+        public DeInterlace      DeInterlace                 { get => _DeInterlace;  set { if (Set(ref _DeInterlace, value)) player?.renderer?.UpdateDeinterlace(); } }
+        DeInterlace _DeInterlace = DeInterlace.Auto;
 
         /// <summary>
         /// The HDR to SDR method that will be used by the pixel shader
@@ -733,10 +725,10 @@ public class Config : NotifyPropertyChanged
         HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
 
         /// <summary>
-        /// The HDR to SDR Tone float correnction (not used by Reinhard)
+        /// SDR Display Peak Luminance (will be used for HDR to SDR conversion)
         /// </summary>
-        public unsafe float     HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); } }
-        float _HDRtoSDRTone = 1.4f;
+        public unsafe float     SDRDisplayNits              { get => _SDRDisplayNits; set { if (Set(ref _SDRDisplayNits, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); } }
+        float _SDRDisplayNits = Engine.Video.RecommendedLuminance;
 
         /// <summary>
         /// Whether the renderer will use 10-bit swap chaing or 8-bit output
@@ -774,19 +766,16 @@ public class Config : NotifyPropertyChanged
         internal void OnD2DDraw(Renderer renderer, Vortice.Direct2D1.ID2D1DeviceContext context)
             => D2DDraw?.Invoke(renderer, context);
 
-        public Dictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
-
-        public static Dictionary<VideoFilters, VideoFilter> DefaultFilters()
-        {
-            Dictionary<VideoFilters, VideoFilter> filters = new();
-
-            var available = Enum.GetValues(typeof(VideoFilters));
-
-            foreach(object filter in available)
-                filters.Add((VideoFilters)filter, new VideoFilter((VideoFilters)filter));
-
-            return filters;
-        }
+        /// <summary>
+        /// When you change a filter value from one VP will update also the other if exists (however might not exact same picture output)
+        /// </summary>
+        public bool             SyncVPFilters               { get; set; } = true;
+        public ObservableDictionary<VideoFilters, FLVideoFilter> Filters
+                                                            { get ; set; } = [];
+        public ObservableDictionary<VideoFilters, D3VideoFilter> D3Filters
+                                                            { get ; set; } = [];
+        internal readonly object lockFilters    = new();
+        internal readonly object lockD3Filters  = new();
     }
     public class AudioConfig : NotifyPropertyChanged
     {
@@ -838,10 +827,9 @@ public class Config : NotifyPropertyChanged
     {
         public SubtitlesConfig Clone()
         {
-            SubtitlesConfig subs = new();
-            subs = (SubtitlesConfig) MemberwiseClone();
+            SubtitlesConfig subs = (SubtitlesConfig) MemberwiseClone();
 
-            subs.Languages = new List<Language>();
+            subs.Languages = [];
             if (Languages != null) foreach(var lang in Languages) subs.Languages.Add(lang);
 
             subs.player = null;
@@ -906,8 +894,7 @@ public class Config : NotifyPropertyChanged
     {
         public DataConfig Clone()
         {
-            DataConfig data = new();
-            data = (DataConfig)MemberwiseClone();
+            DataConfig data = (DataConfig)MemberwiseClone();
 
             data.player = null;
 

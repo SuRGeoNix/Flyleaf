@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.5</Version>
+	<Version>3.8.8</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer.Interrupter: Reset timeout state on Read
-		- Config: Restore default settings for plugins properly
-		- Config.Subs: Includes UNC for SearchOnlineOnInputType
-		- Plugins.OpenDefault: Fixes an issue with FileSize not properly set in some cases (it would prevent searching subtitles online)
-		- Plugins.OpenDefault: Fixes an issue with InputType not properly set to UNC
+		- Config: Fixes a critical issue with Load/Save (Serialization)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
