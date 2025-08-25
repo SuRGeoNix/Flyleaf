@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading;
-
-using SharpGen.Runtime;
+﻿using SharpGen.Runtime;
 using Vortice;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
@@ -10,8 +7,6 @@ using Vortice.Mathematics;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
-
-using static FlyleafLib.Logger;
 
 using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
@@ -37,6 +32,7 @@ unsafe public partial class Renderer
         HW,
         HWZeroCopy,
 
+        Gray,
         RGBPacked,
         RGBPacked2,
         RGBPlanar,
@@ -76,7 +72,7 @@ unsafe public partial class Renderer
         }
     }
 
-    internal bool ConfigPlanes()
+    internal bool ConfigPlanes(bool fromCodec = false)
     {
         bool error = false;
 
@@ -90,15 +86,19 @@ unsafe public partial class Renderer
             if (Disposed || VideoStream == null)
                 return false;
 
-            curRatio    = VideoStream.AspectRatio.Value;
-            VideoRect   = new RawRect(0, 0, (int)VideoStream.Width, (int)VideoStream.Height);
-            rotationLinesize
-                        = false;
-            UpdateRotation(_RotationAngle, false);
+            if (fromCodec)
+            {
+                curRatio    = VideoStream.AspectRatio.Value;
+                VideoRect   = new RawRect(0, 0, (int)VideoStream.Width, (int)VideoStream.Height);
+                rotationLinesize
+                            = false;
+                UpdateRotation(_RotationAngle, false);
+                UpdateHDRtoSDR(false); // TODO: Separate the only first time setup (generic)
+            }
 
-            var oldVP = videoProcessor;
-            var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
-            VideoProcessor = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
+            var oldVP       = videoProcessor;
+            var fieldType   = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
+            VideoProcessor  = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
                 (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != DeInterlace.Progressive && Config.Video.VideoProcessor != VideoProcessors.Flyleaf)) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
 
@@ -121,8 +121,11 @@ unsafe public partial class Renderer
             prevPSUniqueId  = curPSUniqueId;
             curPSUniqueId   = "";
 
-            Log.Debug($"Preparing planes for {VideoStream.PixelFormatStr} with {videoProcessor}");
-            if ((VideoStream.PixelFormatDesc->flags & PixFmtFlags.Be) == 0) // We currently force SwsScale for BE (RGBA64/BGRA64 BE noted that could work as is?*)
+            if (CanTrace)
+                Log.Trace($"Preparing planes for {VideoStream.PixelFormatStr} with {videoProcessor}");
+
+            bool supported = VideoDecoder.VideoAccelerated || (!VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Pal) && (!VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Be) || VideoStream.PixelComp0Depth <= 8));
+            if (supported) // We currently force SwsScale for BE (RGBA64/BGRA64 BE noted that could work as is?*)
             {
                 if (videoProcessor == VideoProcessors.D3D11)
                 {
@@ -130,7 +133,7 @@ unsafe public partial class Renderer
                     {
                         Usage           = 0u,
                         RGB_Range       = VideoStream.ColorRange == ColorRange.Full  ? 0u : 1u,
-                        YCbCr_Matrix    = VideoStream.ColorSpace != ColorSpace.BT601 ? 1u : 0u,
+                        YCbCr_Matrix    = VideoStream.ColorSpace != ColorSpace.Bt601 ? 1u : 0u,
                         YCbCr_xvYCC     = 0u,
                         Nominal_Range   = VideoStream.ColorRange == ColorRange.Full  ? 2u : 1u
                     };
@@ -186,7 +189,7 @@ unsafe public partial class Renderer
 
                         defines.Add(dTone);
                     }
-                    else if (VideoStream.ColorSpace == ColorSpace.BT2020)
+                    else if (VideoStream.ColorSpace == ColorSpace.Bt2020)
                     {
                         defines.Add(dBT2020);
                         curPSUniqueId += "b";
@@ -208,9 +211,9 @@ unsafe public partial class Renderer
                             defines.Add(dYUVFull);
                         }
 
-                        if (VideoStream.ColorSpace == ColorSpace.BT709)
+                        if (VideoStream.ColorSpace == ColorSpace.Bt709)
                             psBufferData.coefsIndex = 1;
-                        else if (VideoStream.ColorSpace == ColorSpace.BT2020)
+                        else if (VideoStream.ColorSpace == ColorSpace.Bt2020)
                             psBufferData.coefsIndex = 0;
                         else
                             psBufferData.coefsIndex = 2;
@@ -229,7 +232,6 @@ unsafe public partial class Renderer
                         if (VideoDecoder.ZeroCopy)
                         {
                             curPSCase = PSCase.HWZeroCopy;
-                            curPSUniqueId += ((int)curPSCase).ToString();
 
                             for (int i=0; i<srvDesc.Length; i++)
                                 srvDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2DArray;
@@ -237,7 +239,6 @@ unsafe public partial class Renderer
                         else
                         {
                             curPSCase = PSCase.HW;
-                            curPSUniqueId += ((int)curPSCase).ToString();
 
                             cropBox.Right       = (int)VideoStream.Width;
                             textDesc[0].Width   = VideoStream.Width;
@@ -246,136 +247,18 @@ unsafe public partial class Renderer
                             textDesc[0].Format  = VideoDecoder.textureFFmpeg.Description.Format;
                         }
 
+                        // HW || HWZeroCopy | TODO: Fix calculation of uniqueId (those are actually same sampling - without different defines)
+                        curPSUniqueId += "3";
+
                         SetPS(curPSUniqueId, @"
     color = float4(
         Texture1.Sample(Sampler, input.Texture).r,
         Texture2.Sample(Sampler, input.Texture).rg,
-        1.0);
-    ", defines);
+        1.0f);
+", defines);
                     }
 
-                    else if (VideoStream.IsRGB)
-                    {
-                        // [RGB0]32 | [RGBA]32 | [RGBA]64
-                        if (VideoStream.PixelPlanes == 1 && (
-                            VideoStream.PixelFormat == AVPixelFormat._0RGB  ||
-                            VideoStream.PixelFormat == AVPixelFormat.Rgb0   ||
-                            VideoStream.PixelFormat == AVPixelFormat._0BGR  ||
-                            VideoStream.PixelFormat == AVPixelFormat.Bgr0   ||
-
-                            VideoStream.PixelFormat == AVPixelFormat.Argb   ||
-                            VideoStream.PixelFormat == AVPixelFormat.Rgba   ||
-                            VideoStream.PixelFormat == AVPixelFormat.Abgr   ||
-                            VideoStream.PixelFormat == AVPixelFormat.Bgra   ||
-
-                            VideoStream.PixelFormat == AVPixelFormat.Rgba64le||
-                            VideoStream.PixelFormat == AVPixelFormat.Bgra64le))
-                        {
-                            curPSCase = PSCase.RGBPacked;
-                            curPSUniqueId += ((int)curPSCase).ToString();
-
-                            textDesc[0].Width   = VideoStream.Width;
-                            textDesc[0].Height  = VideoStream.Height;
-
-                            if (VideoStream.PixelComp0Depth > 8)
-                            {
-                                curPSUniqueId += "x";
-                                textDesc[0].Format  = srvDesc[0].Format = Format.R16G16B16A16_UNorm;
-                            }
-                            else if (VideoStream.PixelComp0Depth > 4)
-                                textDesc[0].Format  = srvDesc[0].Format = Format.R8G8B8A8_UNorm; // B8G8R8X8_UNorm for 0[rgb]?
-
-                            string offsets = "";
-                            for (int i = 0; i < VideoStream.PixelComps.Length; i++)
-                                offsets += pixelOffsets[(int) (VideoStream.PixelComps[i].offset / Math.Ceiling(VideoStream.PixelComp0Depth / 8.0))];
-
-                            curPSUniqueId += offsets;
-
-                            if (VideoStream.PixelComps.Length > 3)
-                                SetPS(curPSUniqueId, $"color = Texture1.Sample(Sampler, input.Texture).{offsets};");
-                            else
-                                SetPS(curPSUniqueId, $"color = float4(Texture1.Sample(Sampler, input.Texture).{offsets}, 1.0);");
-                        }
-
-                        // [BGR/RGB]16
-                        else if (VideoStream.PixelPlanes == 1 && (
-                            VideoStream.PixelFormat == AVPixelFormat.Rgb444le||
-                            VideoStream.PixelFormat == AVPixelFormat.Bgr444le))
-                        {
-                            curPSCase = PSCase.RGBPacked2;
-                            curPSUniqueId += ((int)curPSCase).ToString();
-
-                            textDesc[0].Width   = VideoStream.Width;
-                            textDesc[0].Height  = VideoStream.Height;
-
-                            textDesc[0].Format  = srvDesc[0].Format = Format.B4G4R4A4_UNorm;
-
-                            if (VideoStream.PixelFormat == AVPixelFormat.Rgb444le)
-                            {
-                                curPSUniqueId += "a";
-                                SetPS(curPSUniqueId, $"color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);");
-                            }
-                            else
-                            {
-                                curPSUniqueId += "b";
-                                SetPS(curPSUniqueId, $"color = float4(Texture1.Sample(Sampler, input.Texture).bgr, 1.0);");
-                            }
-                        }
-
-                        // GBR(A) <=16
-                        else if (VideoStream.PixelPlanes > 2 && VideoStream.PixelComp0Depth <= 16)
-                        {
-                            curPSCase = PSCase.RGBPlanar;
-                            curPSUniqueId += ((int)curPSCase).ToString();
-
-                            for (int i=0; i<VideoStream.PixelPlanes; i++)
-                            {
-                                textDesc[i].Width   = VideoStream.Width;
-                                textDesc[i].Height  = VideoStream.Height;
-                            }
-
-                            string shader = @"
-        color.g = Texture1.Sample(Sampler, input.Texture).r;
-        color.b = Texture2.Sample(Sampler, input.Texture).r;
-        color.r = Texture3.Sample(Sampler, input.Texture).r;
-    ";
-
-                            if (VideoStream.PixelPlanes == 4)
-                            {
-                                curPSUniqueId += "x";
-
-                                shader += @"
-        color.a = Texture4.Sample(Sampler, input.Texture).r;
-    ";
-                            }
-
-                            if (VideoStream.PixelComp0Depth > 8)
-                            {
-                                curPSUniqueId += VideoStream.PixelComp0Depth;
-
-                                for (int i=0; i<VideoStream.PixelPlanes; i++)
-                                    textDesc[i].Format = srvDesc[i].Format = Format.R16_UNorm;
-
-                                shader += @"
-        color = color * pow(2, " + (16 - VideoStream.PixelComp0Depth) + @");
-    ";
-                            }
-                            else
-                            {
-                                curPSUniqueId += "b";
-
-                                for (int i=0; i<VideoStream.PixelPlanes; i++)
-                                    textDesc[i].Format = srvDesc[i].Format = Format.R8_UNorm;
-                            }
-
-                            // if (VideoStream.PixelPlanes != 4) // TBR: seems causing issues
-                            SetPS(curPSUniqueId, shader + @"
-        color.a = 1;
-    ", defines);
-                        }
-                    }
-
-                    else // YUV
+                    else if (VideoStream.ColorType == ColorType.YUV)
                     {
                         if (VideoStream.ColorRange == ColorRange.Limited)
                             defines.Add(dYUVLimited);
@@ -385,14 +268,14 @@ unsafe public partial class Renderer
                             defines.Add(dYUVFull);
                         }
 
-                        if (VideoStream.ColorSpace == ColorSpace.BT709)
+                        if (VideoStream.ColorSpace == ColorSpace.Bt709)
                             psBufferData.coefsIndex = 1;
-                        else if (VideoStream.ColorSpace == ColorSpace.BT2020)
+                        else if (VideoStream.ColorSpace == ColorSpace.Bt2020)
                             psBufferData.coefsIndex = 0;
                         else
                             psBufferData.coefsIndex = 2;
 
-                        if (VideoStream.PixelPlanes == 1 && (
+                        if (VideoStream.PixelPlanes == 1 && ( // No Alpha
                             VideoStream.PixelFormat == AVPixelFormat.Y210le  || // Not tested
                             VideoStream.PixelFormat == AVPixelFormat.Yuyv422 ||
                             VideoStream.PixelFormat == AVPixelFormat.Yvyu422 ||
@@ -438,7 +321,7 @@ unsafe public partial class Renderer
         float  rightY   = lerp(c1.b, c2.r, fx * 2 - 1);
         float2 outUV    = lerp(c1.ga, c2.ga, fx);
         float  outY     = lerp(leftY, rightY, step(0.5, fx));
-        color = float4(outY, outUV, 1.0);
+        color = float4(outY, outUV, 1.0f);
     ", defines);
                             } else if (VideoStream.PixelFormat == AVPixelFormat.Yvyu422)
                             {
@@ -449,7 +332,7 @@ unsafe public partial class Renderer
         float  rightY   = lerp(c1.b, c2.r, fx * 2 - 1);
         float2 outUV    = lerp(c1.ag, c2.ag, fx);
         float  outY     = lerp(leftY, rightY, step(0.5, fx));
-        color = float4(outY, outUV, 1.0);
+        color = float4(outY, outUV, 1.0f);
     ", defines);
                             } else if (VideoStream.PixelFormat == AVPixelFormat.Uyvy422)
                             {
@@ -460,14 +343,14 @@ unsafe public partial class Renderer
         float  rightY   = lerp(c1.a, c2.g, fx * 2 - 1);
         float2 outUV    = lerp(c1.rb, c2.rb, fx);
         float  outY     = lerp(leftY, rightY, step(0.5, fx));
-        color = float4(outY, outUV, 1.0);
+        color = float4(outY, outUV, 1.0f);
     ", defines);
                             }
                         }
 
                         // Y_UV | nv12,nv21,nv24,nv42,p010le,p016le,p410le,p416le | (log2_chroma_w != log2_chroma_h / Interleaved) (? nv16,nv20le,p210le,p216le)
                         // This covers all planes == 2 YUV (Semi-Planar)
-                        else if (VideoStream.PixelPlanes == 2) // && VideoStream.PixelSameDepth) && !VideoStream.PixelInterleaved)
+                        else if (VideoStream.PixelPlanes == 2) // No Alpha
                         {
                             curPSCase = PSCase.YUVSemiPlanar;
                             curPSUniqueId += ((int)curPSCase).ToString();
@@ -478,6 +361,7 @@ unsafe public partial class Renderer
                             textDesc[1].Height  = VideoStream.PixelFormatDesc->log2_chroma_h > 0 ? (VideoStream.Height + 1) >> VideoStream.PixelFormatDesc->log2_chroma_h : VideoStream.Height >> VideoStream.PixelFormatDesc->log2_chroma_h;
 
                             string offsets = VideoStream.PixelComps[1].offset > VideoStream.PixelComps[2].offset ? "gr" : "rg";
+                            curPSUniqueId += offsets;
 
                             if (VideoStream.PixelComp0Depth > 8)
                             {
@@ -500,7 +384,7 @@ unsafe public partial class Renderer
                         }
 
                         // Y_U_V
-                        else if (VideoStream.PixelPlanes > 2)
+                        else if (VideoStream.PixelPlanes > 2) // Possible Alpha
                         {
                             curPSCase = PSCase.YUVPlanar;
                             curPSUniqueId += ((int)curPSCase).ToString();
@@ -511,43 +395,311 @@ unsafe public partial class Renderer
                             textDesc[1].Height  = textDesc[2].Height= VideoStream.PixelFormatDesc->log2_chroma_h > 0 ? (VideoStream.Height + 1) >> VideoStream.PixelFormatDesc->log2_chroma_h : VideoStream.Height >> VideoStream.PixelFormatDesc->log2_chroma_h;
 
                             string shader = @"
-        color.r = Texture1.Sample(Sampler, input.Texture).r;
-        color.g = Texture2.Sample(Sampler, input.Texture).r;
-        color.b = Texture3.Sample(Sampler, input.Texture).r;
-    ";
+    color.r = Texture1.Sample(Sampler, input.Texture).r;
+    color.g = Texture2.Sample(Sampler, input.Texture).r;
+    color.b = Texture3.Sample(Sampler, input.Texture).r;
+";
+                            // TODO: eg. Gamma28 => color.r = pow(color.r, 2.8); and then it needs back after yuv->rgb with c = pow(c, 1.0 / 2.8);
 
                             if (VideoStream.PixelPlanes == 4)
                             {
                                 curPSUniqueId += "x";
 
                                 shader += @"
-        color.a = Texture4.Sample(Sampler, input.Texture).r;
-    ";
+    color.a = Texture4.Sample(Sampler, input.Texture).r;
+";
                             }
+                            else
+                                shader += @"
+    color.a = 1.0f;
+";
+                            Format  curFormat = Format.R8_UNorm;
+                            int     maxBits   = 8;
+                            if (VideoStream.PixelComp0Depth > 8)
+                            {
+                                curPSUniqueId += "a";
+                                curFormat = Format.R16_UNorm;
+                                maxBits = 16;
+                            }
+
+                            for (int i = 0; i < VideoStream.PixelPlanes; i++)
+                                textDesc[i].Format = srvDesc[i].Format = curFormat;
+
+                            // TBR: This is an estimation from N-bits to eg 16-bits
+                            if (maxBits - VideoStream.PixelComp0Depth != 0)
+                            {
+                                curPSUniqueId += VideoStream.PixelComp0Depth;
+                                shader += @"
+    color.rgb *= pow(2, " + (maxBits - VideoStream.PixelComp0Depth) + @");
+";
+                            }
+
+                            SetPS(curPSUniqueId, shader, defines);
+                        }
+                    }
+
+                    else if (VideoStream.ColorType == ColorType.RGB)
+                    {
+                        // [RGB0]32 | [RGBA]32 | [RGBA]64
+                        if (VideoStream.PixelPlanes == 1 && (
+                            VideoStream.PixelFormat == AVPixelFormat._0RGB  ||
+                            VideoStream.PixelFormat == AVPixelFormat.Rgb0   ||
+                            VideoStream.PixelFormat == AVPixelFormat._0BGR  ||
+                            VideoStream.PixelFormat == AVPixelFormat.Bgr0   ||
+
+                            VideoStream.PixelFormat == AVPixelFormat.Argb   ||
+                            VideoStream.PixelFormat == AVPixelFormat.Rgba   ||
+                            VideoStream.PixelFormat == AVPixelFormat.Abgr   ||
+                            VideoStream.PixelFormat == AVPixelFormat.Bgra   ||
+
+                            VideoStream.PixelFormat == AVPixelFormat.Rgba64le||
+                            VideoStream.PixelFormat == AVPixelFormat.Bgra64le))
+                        {
+                            curPSCase = PSCase.RGBPacked;
+                            curPSUniqueId += ((int)curPSCase).ToString();
+
+                            textDesc[0].Width   = VideoStream.Width;
+                            textDesc[0].Height  = VideoStream.Height;
 
                             if (VideoStream.PixelComp0Depth > 8)
                             {
-                                curPSUniqueId += VideoStream.PixelComp0Depth;
-
-                                for (int i=0; i<VideoStream.PixelPlanes; i++)
-                                    textDesc[i].Format = srvDesc[i].Format = Format.R16_UNorm;
-
-                                shader += @"
-        color = color * pow(2, " + (16 - VideoStream.PixelComp0Depth) + @");
-    ";
+                                curPSUniqueId += "1";
+                                textDesc[0].Format  = srvDesc[0].Format = Format.R16G16B16A16_UNorm;
                             }
                             else
-                            {
-                                curPSUniqueId += "b";
+                                textDesc[0].Format  = srvDesc[0].Format = Format.R8G8B8A8_UNorm; // B8G8R8X8_UNorm for 0[rgb]?
 
-                                for (int i=0; i<VideoStream.PixelPlanes; i++)
-                                    textDesc[i].Format = srvDesc[i].Format = Format.R8_UNorm;
+                            string offsets = "";
+                            for (int i = 0; i < VideoStream.PixelComps.Length; i++)
+                                offsets += pixelOffsets[(int) (VideoStream.PixelComps[i].offset / Math.Ceiling(VideoStream.PixelComp0Depth / 8.0))];
+
+                            curPSUniqueId += offsets;
+
+                            string shader;
+                            if (VideoStream.PixelComps.Length > 3)
+                                shader = @$"
+    color = Texture1.Sample(Sampler, input.Texture).{offsets};
+";
+                            else
+                                shader = @$"
+    color = float4(Texture1.Sample(Sampler, input.Texture).{offsets}, 1.0f);
+";
+                            // TODO: Should transfer it to pixel shader
+                            if (VideoStream.ColorRange == ColorRange.Limited)
+                            {   // RGBLimitedToFull
+                                curPSUniqueId += "k";
+                                shader += @"
+    color.rgb = (color.rgb - rgbOffset) * rgbScale;
+";
+                            }
+                            // TBR: We consider high range (HDR), Should transfer it to pixel shader, Check if already HDR?*
+                            if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Linear)
+                            {
+                                curPSUniqueId += "l";
+                                defines.Add(dTone);
+                            }
+                            else if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smptest428_1)
+                            {   // Diffuse White
+                                curPSUniqueId += "m";
+                                shader += @"
+    color.rgb /= 0.918f;
+";
+                                defines.Add(dTone);
                             }
 
-                            SetPS(curPSUniqueId, shader + @"
-        color.a = 1;
-    ", defines);
+                            SetPS(curPSUniqueId, shader, defines);
                         }
+
+                        // [BGR/RGB]16
+                        else if (VideoStream.PixelPlanes == 1 && (
+                            VideoStream.PixelFormat == AVPixelFormat.Rgb444le||
+                            VideoStream.PixelFormat == AVPixelFormat.Bgr444le))
+                        {
+                            curPSCase = PSCase.RGBPacked2;
+                            curPSUniqueId += ((int)curPSCase).ToString();
+
+                            textDesc[0].Width   = VideoStream.Width;
+                            textDesc[0].Height  = VideoStream.Height;
+
+                            textDesc[0].Format  = srvDesc[0].Format = Format.B4G4R4A4_UNorm;
+
+                            string shader;
+                            if (VideoStream.PixelFormat == AVPixelFormat.Rgb444le)
+                            {
+                                curPSUniqueId += "a";
+                                shader = @"
+    color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0f);
+";
+                            }
+                            else
+                                shader = @"
+    color = float4(Texture1.Sample(Sampler, input.Texture).bgr, 1.0f);
+";
+                            // TODO: Should transfer it to pixel shader
+                            if (VideoStream.ColorRange == ColorRange.Limited)
+                            {   // RGBLimitedToFull
+                                curPSUniqueId += "k";
+                                shader += @"
+    color.rgb = (color.rgb - rgbOffset) * rgbScale;
+";
+                            }
+                            // TBR: We consider high range (HDR), Should transfer it to pixel shader, Check if already HDR?*
+                            if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Linear)
+                            {
+                                curPSUniqueId += "l";
+                                defines.Add(dTone);
+                            }
+                            else if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smptest428_1)
+                            {   // Diffuse White
+                                curPSUniqueId += "m";
+                                shader += @"
+    color.rgb /= 0.918f;
+";
+                                defines.Add(dTone);
+                            }
+
+                            SetPS(curPSUniqueId, shader, defines);
+                        }
+
+                        // GBR(A)
+                        else if (VideoStream.PixelPlanes > 2) // TBR: Usually transfer func 'Linear' for > 8-bit which requires pow (*?)
+                        {
+                            curPSCase = PSCase.RGBPlanar;
+                            curPSUniqueId += ((int)curPSCase).ToString();
+
+                            for (int i = 0; i < VideoStream.PixelPlanes; i++)
+                            {
+                                textDesc[i].Width   = VideoStream.Width;
+                                textDesc[i].Height  = VideoStream.Height;
+                            }
+
+                            string shader = @"
+    color.g = Texture1.Sample(Sampler, input.Texture).r;
+    color.b = Texture2.Sample(Sampler, input.Texture).r;
+    color.r = Texture3.Sample(Sampler, input.Texture).r;
+";
+                            if (VideoStream.PixelPlanes == 4)
+                            {
+                                curPSUniqueId += "x";
+
+                                shader += @"
+    color.a = Texture4.Sample(Sampler, input.Texture).r;
+";
+                            }
+                            else
+                                shader += @"
+    color.a = 1.0f;
+";
+                            /* TODO:
+                             * Using pow for scale/normalize is not accurate (when maxBits != VideoStream.PixelComp0Depth)
+                             * Mainly affects gbrp10 (should prefer Texture2D<float> for more accurate and better performance)
+                             */
+
+                            Format  curFormat = Format.R8_UNorm;
+                            int     maxBits   = 8;
+                            if (VideoStream.PixelComp0Depth > 16)
+                            {
+                                curPSUniqueId += "a";
+                                curFormat   = Format.R32_Float;
+                                maxBits     = 32;
+                            }
+                            else if (VideoStream.PixelComp0Depth > 8)
+                            {
+                                curPSUniqueId += "b";
+                                curFormat   = Format.R16_UNorm;
+                                maxBits     = 16;
+                            }
+
+                            for (int i = 0; i < VideoStream.PixelPlanes; i++)
+                                textDesc[i].Format = srvDesc[i].Format = curFormat;
+
+                            if (maxBits - VideoStream.PixelComp0Depth != 0)
+                            {
+                                curPSUniqueId += VideoStream.PixelComp0Depth;
+                                shader += @"
+    color.rgb *= pow(2, " + (maxBits - VideoStream.PixelComp0Depth) + @");
+";
+                            }
+
+                            // TODO: Should transfer it to pixel shader
+                            if (VideoStream.ColorRange == ColorRange.Limited)
+                            {   // RGBLimitedToFull
+                                curPSUniqueId += "k";
+                                shader += @"
+    color.rgb = (color.rgb - rgbOffset) * rgbScale;
+";
+                            }
+                            // TBR: We consider high range (HDR), Should transfer it to pixel shader, Check if already HDR?*
+                            if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Linear)
+                            {
+                                curPSUniqueId += "l";
+                                defines.Add(dTone);
+                            }
+                            else if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smptest428_1)
+                            {   // Diffuse White
+                                curPSUniqueId += "m";
+                                shader += @"
+    color.rgb /= 0.918f;
+";
+                                defines.Add(dTone);
+                            }
+
+                            SetPS(curPSUniqueId, shader, defines);
+                        }
+                    }
+                    else // Gray (Single Plane)
+                    {
+                        curPSCase = PSCase.Gray;
+                        curPSUniqueId += ((int)curPSCase).ToString();
+
+                        textDesc[0].Width   = VideoStream.Width;
+                        textDesc[0].Height  = VideoStream.Height;
+
+                        string shader = @"
+    color = float4(Texture1.Sample(Sampler, input.Texture).r, Texture1.Sample(Sampler, input.Texture).r, Texture1.Sample(Sampler, input.Texture).r, 1.0f);
+";
+                        int maxBits = 8;
+                        if (VideoStream.PixelComp0Depth > 8)
+                        {
+                            curPSUniqueId += "x";
+                            maxBits = 16;
+                            textDesc[0].Format  = srvDesc[0].Format = Format.R16_UNorm;
+                        }
+                        else
+                            textDesc[0].Format  = srvDesc[0].Format = Format.R8_UNorm;
+
+                        if (maxBits - VideoStream.PixelComp0Depth != 0)
+                        {
+                            curPSUniqueId += VideoStream.PixelComp0Depth;
+                            shader += @"
+    color.rgb *= pow(2, " + (maxBits - VideoStream.PixelComp0Depth) + @");
+";
+                        }
+
+                        // TODO: Should transfer it to pixel shader
+                        if (VideoStream.ColorRange == ColorRange.Limited)
+                        {   // RGBLimitedToFull
+                            curPSUniqueId += "k";
+                            shader += @"
+    color.rgb = (color.rgb - rgbOffset) * rgbScale;
+";
+                        }
+                        // TBR: We consider high range (HDR), Should transfer it to pixel shader, Check if already HDR?*
+                        if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Linear)
+                        {
+                            curPSUniqueId += "l";
+                            defines.Add(dTone);
+                        }
+                        else if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smptest428_1)
+                        {   // Diffuse White
+                            curPSUniqueId += "m";
+                            shader += @"
+    color.rgb /= 0.918f;
+";
+                            defines.Add(dTone);
+                        }
+
+                        SetPS(curPSUniqueId, shader, defines);
                     }
                 }
             }
@@ -576,9 +728,8 @@ unsafe public partial class Renderer
                 textDesc[0].Format  = srvDesc[0].Format = Format.R8G8B8A8_UNorm;
                 srvDesc[0].ViewDimension = ShaderResourceViewDimension.Texture2D;
 
-                // TODO: should add HDR?
                 SetPS(curPSUniqueId, @"
-color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
+    color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
 ");
             }
 
@@ -629,7 +780,7 @@ color = float4(Texture1.Sample(Sampler, input.Texture).rgb, 1.0);
         {
             VideoFrame mFrame = new();
             mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoDecoder.Demuxer.StartTime;
-            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
+            if (CanTrace) Log.Trace($"Processes {TicksToTime(mFrame.timestamp)}");
 
             if (curPSCase == PSCase.HWZeroCopy)
             {

@@ -1,11 +1,6 @@
-﻿using System.Collections.Concurrent;
-using System.Threading;
-
-using FlyleafLib.MediaFramework.MediaStream;
+﻿using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRemuxer;
-
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
@@ -130,9 +125,9 @@ public unsafe partial class AudioDecoder : DecoderBase
 
     protected override void RunInternal()
     {
-        int ret = 0;
-        int allowedErrors = Config.Decoder.MaxErrors;
-        int sleepMs = Config.Decoder.MaxAudioFrames > 5 && Config.Player.MaxLatency == 0 ? 10 : 4;
+        int allowedErrors   = Config.Decoder.MaxErrors;
+        int sleepMs         = Config.Decoder.MaxAudioFrames > 5 && Config.Player.MaxLatency == 0 ? 10 : 4;
+        int ret;
         AVPacket *packet;
 
         do
@@ -296,7 +291,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                     if (frame->duration <= 0)
                         frame->duration = av_rescale_q((long)(frame->nb_samples * sampleRateTimebase), Engine.FFmpeg.AV_TIMEBASE_Q, Stream.AVStream->time_base);
 
-                    bool codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
+                    codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
 
                     if (!filledFromCodec || codecChanged)
                     {
@@ -305,20 +300,18 @@ public unsafe partial class AudioDecoder : DecoderBase
                             byte[] buf = new byte[50];
                             fixed (byte* bufPtr = buf)
                             {
-                                av_channel_layout_describe(&codecCtx->ch_layout, bufPtr, (nuint)buf.Length);
-                                Log.Warn($"Codec changed {AudioStream.CodecIDOrig} {AudioStream.SampleFormat} {AudioStream.SampleRate} {AudioStream.ChannelLayoutStr} => {codecCtx->codec_id} {codecCtx->sample_fmt} {codecCtx->sample_rate} {Utils.BytePtrToStringUTF8(bufPtr)}");
+                                _ = av_channel_layout_describe(&codecCtx->ch_layout, bufPtr, (nuint)buf.Length);
+                                Log.Warn($"Codec changed {AudioStream.CodecIDOrig} {AudioStream.SampleFormat} {AudioStream.SampleRate} {AudioStream.ChannelLayoutStr} => {codecCtx->codec_id} {codecCtx->sample_fmt} {codecCtx->sample_rate} {BytePtrToStringUTF8(bufPtr)}");
                             }
                         }
 
                         DisposeInternal();
-                        filledFromCodec = true;
-
-                        avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
-                        AudioStream.AVStream->time_base = codecCtx->pkt_timebase;
-                        AudioStream.Refresh();
+                        filledFromCodec         = true;
+                        AudioStream.Refresh(this, frame);
+                        codecChanged            = false;
                         resyncWithVideoRequired = !VideoDecoder.Disposed;
-                        sampleRateTimebase = 1000 * 1000.0 / codecCtx->sample_rate;
-                        nextPts = AudioStream.StartTimePts;
+                        sampleRateTimebase      = 1000 * 1000.0 / codecCtx->sample_rate;
+                        nextPts                 = AudioStream.StartTimePts;
 
                         if (frame->pts == AV_NOPTS_VALUE)
                             frame->pts = nextPts;
@@ -351,7 +344,7 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                         if (ts < VideoDecoder.StartTime)
                         {
-                            if (CanTrace) Log.Trace($"Drops {Utils.TicksToTime(ts)} (< V: {Utils.TicksToTime(VideoDecoder.StartTime)})");
+                            if (CanTrace) Log.Trace($"Drops {TicksToTime(ts)} (< V: {TicksToTime(VideoDecoder.StartTime)})");
                             av_frame_unref(frame);
                             continue;
                         }
@@ -386,14 +379,14 @@ public unsafe partial class AudioDecoder : DecoderBase
             nextPts = frame->pts + frame->duration;
 
             var dataLen     = frame->nb_samples * ASampleBytes;
-            var speedDataLen= Utils.Align((int)(dataLen / speed), ASampleBytes);
+            var speedDataLen= Align((int)(dataLen / speed), ASampleBytes);
 
             AudioFrame mFrame = new()
             {
                 timestamp   = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay,
                 dataLen     = speedDataLen
             };
-            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
+            if (CanTrace) Log.Trace($"Processes {TicksToTime(mFrame.timestamp)}");
 
             if (frame->nb_samples > cBufSamples)
                 AllocateCircularBuffer(frame->nb_samples);

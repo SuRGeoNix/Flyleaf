@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
+﻿using System.Linq;
 
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -62,10 +60,10 @@ public class PluginHandler
     LogHandler Log;
     public PluginHandler(Config config, int uniqueId = -1)
     {
-        Config = config;
-        UniqueId= uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
-        Playlist = new Playlist(UniqueId);
-        Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [PluginHandler ] ");
+        Config      = config;
+        UniqueId    = uniqueId == -1 ? GetUniqueId() : uniqueId;
+        Playlist    = new(UniqueId);
+        Log         = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [PluginHandler ] ");
         LoadPlugins();
     }
 
@@ -91,9 +89,9 @@ public class PluginHandler
             try
             {
                 var plugin = CreatePluginInstance(type, this);
-                plugin.Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{plugin.Name,-14}] ");
+                plugin.Log = new(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{plugin.Name,-14}] ");
                 Plugins.Add(plugin.Name, plugin);
-            } catch (Exception e) { Log.Error($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {Utils.GetRecInnerException(e)}"); }
+            } catch (Exception e) { Log.Error($"[Plugins] [Error] Failed to load plugin ... ({e.Message} {GetRecInnerException(e)}"); }
             }
 
         PluginsOpen                     = [];

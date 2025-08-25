@@ -1,6 +1,5 @@
 ﻿using System.Drawing.Imaging;
 using System.Drawing;
-using System.Threading;
 using System.Windows.Media.Imaging;
 
 using SharpGen.Runtime;
@@ -20,27 +19,27 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 public partial class Renderer
 {
     // subs
-    Texture2DDescription                    overlayTextureDesc;
-    ID3D11Texture2D                         overlayTexture;
-    ID3D11ShaderResourceView                overlayTextureSrv;
-    int                                     overlayTextureOriginalWidth;
-    int                                     overlayTextureOriginalHeight;
-    int                                     overlayTextureOriginalPosX;
-    int                                     overlayTextureOriginalPosY;
+    Texture2DDescription        overlayTextureDesc;
+    ID3D11Texture2D             overlayTexture;
+    ID3D11ShaderResourceView    overlayTextureSrv;
+    int                         overlayTextureOriginalWidth;
+    int                         overlayTextureOriginalHeight;
+    int                         overlayTextureOriginalPosX;
+    int                         overlayTextureOriginalPosY;
 
-    ID3D11ShaderResourceView[]              overlayTextureSRVs = new ID3D11ShaderResourceView[1];
+    ID3D11ShaderResourceView[]  overlayTextureSRVs = new ID3D11ShaderResourceView[1];
 
     // Used for off screen rendering
-    Texture2DDescription                    singleStageDesc, singleGpuDesc;
-    ID3D11Texture2D                         singleStage;
-    ID3D11Texture2D                         singleGpu;
-    ID3D11RenderTargetView                  singleGpuRtv;
-    Viewport                                singleViewport;
+    Texture2DDescription        singleStageDesc, singleGpuDesc;
+    ID3D11Texture2D             singleStage;
+    ID3D11Texture2D             singleGpu;
+    ID3D11RenderTargetView      singleGpuRtv;
+    Viewport                    singleViewport;
 
     // Used for parallel off screen rendering
-    ID3D11RenderTargetView[]                rtv2;
-    ID3D11Texture2D[]                       backBuffer2;
-    bool[]                                  backBuffer2busy;
+    ID3D11RenderTargetView[]    rtv2;
+    ID3D11Texture2D[]           backBuffer2;
+    bool[]                      backBuffer2busy;
 
     unsafe internal void PresentOffline(VideoFrame frame, ID3D11RenderTargetView rtv, Viewport viewport)
     {

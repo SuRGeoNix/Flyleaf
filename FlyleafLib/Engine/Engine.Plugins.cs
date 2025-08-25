@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
+﻿using System.Reflection;
 
 using FlyleafLib.Plugins;
 
@@ -17,7 +15,7 @@ public class PluginsEngine
 
     internal PluginsEngine()
     {
-        Folder = string.IsNullOrEmpty(Engine.Config.PluginsPath) ? null : Utils.GetFolderPath(Engine.Config.PluginsPath);
+        Folder = string.IsNullOrEmpty(Engine.Config.PluginsPath) ? null : GetFolderPath(Engine.Config.PluginsPath);
 
         LoadAssemblies();
     }
@@ -69,6 +67,6 @@ public class PluginsEngine
                 }
             }
         }
-        catch (Exception e) { Engine.Log.Error($"[PluginHandler] [Error] Failed to load assembly ({e.Message} {Utils.GetRecInnerException(e)})"); }
+        catch (Exception e) { Engine.Log.Error($"[PluginHandler] [Error] Failed to load assembly ({e.Message} {GetRecInnerException(e)})"); }
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-using FlyleafLib.MediaFramework.MediaDemuxer;
+﻿using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 
 namespace FlyleafLib.MediaFramework.MediaStream;

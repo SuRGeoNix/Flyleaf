@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-
-using FlyleafLib.MediaFramework.MediaPlaylist;
+﻿using FlyleafLib.MediaFramework.MediaPlaylist;
 
 namespace FlyleafLib.Plugins;
 
@@ -39,7 +36,7 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
 
             // Proper Url Format
             bool   isWeb    = false;
-            string ext      = Utils.GetUrlExtention(Playlist.Url);
+            string ext      = GetUrlExtention(Playlist.Url);
             Uri uri         = null;
             string localPath= null;
 
@@ -84,7 +81,7 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
 
                 foreach(var mitem in items)
                 {
-                    AddPlaylistItem(new PlaylistItem()
+                    AddPlaylistItem(new()
                     {
                         Title       = mitem.Title,
                         Url         = mitem.Url,

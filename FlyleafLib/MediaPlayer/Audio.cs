@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.ObjectModel;
-
-using Vortice.Multimedia;
+﻿using Vortice.Multimedia;
 using Vortice.XAudio2;
 
 using static Vortice.XAudio2.XAudio2;
@@ -9,8 +6,6 @@ using static Vortice.XAudio2.XAudio2;
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
-
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer;
 
@@ -260,7 +255,7 @@ public class Audio : NotifyPropertyChanged
             try
             {
                 if (CanTrace)
-                    player.Log.Trace($"[A] Presenting {Utils.TicksToTime(player.aFrame.timestamp)}");
+                    player.Log.Trace($"[A] Presenting {TicksToTime(player.aFrame.timestamp)}");
 
                 framesDisplayed++;
 

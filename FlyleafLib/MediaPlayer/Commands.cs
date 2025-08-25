@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaFramework.MediaPlaylist;

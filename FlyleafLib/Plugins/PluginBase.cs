@@ -1,12 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-
-using FlyleafLib.MediaFramework.MediaContext;
+﻿using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
-
-using static FlyleafLib.Utils;
 
 namespace FlyleafLib.Plugins;
 

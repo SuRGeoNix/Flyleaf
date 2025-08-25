@@ -1,6 +1,4 @@
-﻿using System.Threading;
-using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -11,14 +9,14 @@ public unsafe class DataDecoder : DecoderBase
     public DataStream DataStream => (DataStream)Stream;
 
     public ConcurrentQueue<DataFrame>
-                            Frames              { get; protected set; } = new ConcurrentQueue<DataFrame>();
+                            Frames              { get; protected set; } = [];
 
     public DataDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
 
 
     protected override unsafe int Setup(AVCodec* codec) => 0;
     protected override void DisposeInternal()
-        => Frames = new ConcurrentQueue<DataFrame>();
+        => Frames = [];
 
     public void Flush()
     {
@@ -142,7 +140,7 @@ public unsafe class DataDecoder : DecoderBase
 
     private DataFrame ProcessDataFrame(AVPacket* packet)
     {
-        IntPtr ptr = new IntPtr(packet->data);
+        IntPtr ptr = new(packet->data);
         byte[] dataFrame = new byte[packet->size];
         Marshal.Copy(ptr, dataFrame, 0, packet->size); // for performance/in case of large data we could just keep the avpacket data directly (DataFrame instead of byte[] Data just use AVPacket* and move ref?)
 
@@ -150,12 +148,12 @@ public unsafe class DataDecoder : DecoderBase
         {
             timestamp   = (long)(packet->pts * DataStream.Timebase) - demuxer.StartTime,
             DataCodecId = DataStream.CodecID,
-            Data = dataFrame
+            Data        = dataFrame
         };
 
         return mFrame;
     }
 
     public void DisposeFrames()
-        => Frames = new ConcurrentQueue<DataFrame>();
+        => Frames = [];
 }

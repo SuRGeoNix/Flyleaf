@@ -107,10 +107,13 @@ static const float3x3 coefs[3] =
 
 inline float3 YUVToRGBFull(float3 yuv)
 {
-    yuv.x   = (yuv.x - 0.0625) * 1.16438356;
     yuv.yz -= 0.5;
     return mul(coefs[Config.coefsIndex], yuv);
 }
+#else
+// TODO: RGBLimitedToFull + Linears (transfer from .cs)
+static const float rgbOffset = 16.0 / 255.0;
+static const float rgbScale = 255.0 / 219.0;
 #endif
 
 #if defined(dPQToLinear) || defined(dHLGToLinear)
@@ -343,8 +346,8 @@ float4 main(PSInput input) : SV_TARGET
     c  = Hue(c, Config.hue);
     c  = Saturation(c, Config.saturation);
 #endif
-
-    return saturate(float4(c, 1.0));
+    
+    return saturate(float4(c, color.a));
 }
 "u8;
 }

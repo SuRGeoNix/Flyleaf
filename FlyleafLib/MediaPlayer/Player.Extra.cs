@@ -1,15 +1,10 @@
-﻿using System;
-using System.Drawing.Imaging;
-using System.IO;
+﻿using System.Drawing.Imaging;
 using System.Windows;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
-
-using static FlyleafLib.Utils;
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer;
 
@@ -52,6 +47,9 @@ unsafe partial class Player
         else
             Seek((int)(seekTs / 10000), true);
     }
+
+    public void SeekToStart()   => Seek(0);
+    public void SeekToEnd()     => Seek((int)((Duration / 10_000) - TimeSpan.FromSeconds(5).TotalMilliseconds));
 
     public void SeekToChapter(Demuxer.Chapter chapter) =>
         /* TODO

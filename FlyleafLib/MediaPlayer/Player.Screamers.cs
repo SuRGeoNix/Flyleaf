@@ -1,11 +1,7 @@
 ﻿using System.Diagnostics;
-using System.Threading;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
-
-using static FlyleafLib.Utils;
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer;
 

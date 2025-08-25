@@ -30,7 +30,7 @@ public class Activity : NotifyPropertyChanged
             else
                 swMouse.Restart();
 
-            Utils.UI(SetMode);
+            UI(SetMode);
             }
         }
     internal ActivityMode _Mode = ActivityMode.FullActive, mode = ActivityMode.FullActive;
@@ -94,7 +94,7 @@ public class Activity : NotifyPropertyChanged
             lock (cursorLocker)
             {
                 // Windows 11 Bug: When pressing winkey (ShowCursor return negative but still visible, SetCursor(null) fails too)
-                while (Utils.NativeMethods.ShowCursor(false) >= 0);
+                while (NativeMethods.ShowCursor(false) >= 0);
                 isCursorHidden = true;
             }
 
@@ -103,7 +103,7 @@ public class Activity : NotifyPropertyChanged
         {
             lock (cursorLocker)
             {
-                while (Utils.NativeMethods.ShowCursor(true) < 0);
+                while (NativeMethods.ShowCursor(true) < 0);
                 isCursorHidden = false;
             }
         }
@@ -161,7 +161,7 @@ public class Activity : NotifyPropertyChanged
                 {
                     lock (cursorLocker)
                     {
-                        while (Utils.NativeMethods.ShowCursor(true) < 0);
+                        while (NativeMethods.ShowCursor(true) < 0);
                         isCursorHidden = false;
                         foreach(var player in Engine.Players)
                             player.Activity.RefreshFullActive();

@@ -1,9 +1,8 @@
 ﻿using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaStream;
-using System;
-using System.Collections.ObjectModel;
 
 namespace FlyleafLib.MediaPlayer;
+
 public class Data : NotifyPropertyChanged
 {
     /// <summary>

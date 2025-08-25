@@ -76,6 +76,20 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
+                    <!--Debug Info-->
+                    <fl:PlayerDebug Grid.Row="0" Grid.RowSpan="2" VerticalAlignment="Center" HorizontalAlignment="Center" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}">
+                        <fl:PlayerDebug.Style>
+                            <Style TargetType="fl:PlayerDebug">
+                                <Setter Property="Player" Value="{x:Null}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Visibility}" Value="Visible">
+                                        <Setter Property="Player" Value="{Binding Player}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </fl:PlayerDebug.Style>
+                    </fl:PlayerDebug>
+
                     <!--Title Bar-->
                     <Grid Grid.Row="0" x:Name="HeaderGrid" Margin="-2 0 -2 0">
                         <Grid.Background>
@@ -237,7 +251,7 @@
                         <!--Flyleaf Bar-->
                         <flwpf:FlyleafBar x:Name="FLBar" Player="{Binding Player}" Margin="-2 0 -2 0"/>
                     </Grid>
-
+                    
                     <!--Slide View-->
                     <materialDesign:DialogHost Grid.Row="0" Grid.RowSpan="2" DialogOpened="DialogHost_DialogOpened" DialogClosed="DialogHost_DialogClosed">
                         <Grid>
@@ -390,20 +404,6 @@
                     </materialDesign:DialogHost>
 
                     <!-- (All Views) -->
-
-                    <!--Debug Info-->
-                    <fl:PlayerDebug Grid.Row="0" Grid.RowSpan="2" VerticalAlignment="Center" HorizontalAlignment="Center" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding ShowDebug, Converter={StaticResource BooleanToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}">
-                        <fl:PlayerDebug.Style>
-                            <Style TargetType="fl:PlayerDebug">
-                                <Setter Property="Player" Value="{x:Null}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Visibility}" Value="Visible">
-                                        <Setter Property="Player" Value="{Binding Player}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </fl:PlayerDebug.Style>
-                    </fl:PlayerDebug>
 
                     <!--Error Message-->
                     <TextBox Grid.Row="0" Grid.RowSpan="2" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="10" d:Text="Error Message" FontSize="16" IsReadOnly="True" BorderThickness="0" Text="{Binding Player.LastError}" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" TextWrapping="Wrap">

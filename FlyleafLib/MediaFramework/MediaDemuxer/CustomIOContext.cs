@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace FlyleafLib.MediaFramework.MediaDemuxer;
+﻿namespace FlyleafLib.MediaFramework.MediaDemuxer;
 
 public unsafe class CustomIOContext
 {
@@ -32,7 +30,7 @@ public unsafe class CustomIOContext
             av_free(avioCtx->buffer);
             fixed (AVIOContext** ptr = &avioCtx) avio_context_free(ptr);
         }
-        avioCtx = null;
+        avioCtx= null;
         stream = null;
         ioread = null;
         ioseek = null;

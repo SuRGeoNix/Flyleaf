@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-
-using FlyleafLib.MediaFramework.MediaDemuxer;
+﻿using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.MediaFramework.MediaPlaylist;
@@ -88,7 +85,7 @@ public class PlaylistItem : DemuxerInput
             return;
 
         filled      = true;
-        var mp      = Utils.GetMediaParts(OriginalTitle);
+        var mp      = GetMediaParts(OriginalTitle);
         Year        = mp.Year;
         Season      = mp.Season;
         Episode     = mp.Episode;

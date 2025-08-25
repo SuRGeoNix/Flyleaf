@@ -1,9 +1,6 @@
-﻿using System.Collections.ObjectModel;
-using System.IO;
+﻿using System.Windows.Data;
 
 using FlyleafLib.MediaFramework.MediaContext;
-
-using static FlyleafLib.Utils;
 
 namespace FlyleafLib.MediaFramework.MediaPlaylist;
 
@@ -76,7 +73,7 @@ public class Playlist : NotifyPropertyChanged
     // TODO: MediaType (Music/MusicClip/Movie/TVShow/etc.) probably should go per Playlist Item
 
     public ObservableCollection<PlaylistItem>
-                        Items           { get; set; } = new ObservableCollection<PlaylistItem>();
+                        Items           { get; set; } = [];
     object lockItems = new();
 
     long openCounter;
@@ -86,8 +83,8 @@ public class Playlist : NotifyPropertyChanged
 
     public Playlist(int uniqueId)
     {
-        Log = new LogHandler(("[#" + uniqueId + "]").PadRight(8, ' ') + " [Playlist] ");
-        UIInvokeIfRequired(() => System.Windows.Data.BindingOperations.EnableCollectionSynchronization(Items, lockItems));
+        Log = new(("[#" + uniqueId + "]").PadRight(8, ' ') + " [Playlist] ");
+        UIInvokeIfRequired(() => BindingOperations.EnableCollectionSynchronization(Items, lockItems));
     }
 
     public void Reset()
@@ -143,9 +140,9 @@ public class Playlist : NotifyPropertyChanged
 
         UIInvokeIfRequired(() =>
         {
-            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(item.ExternalAudioStreams, item.lockExternalStreams);
-            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(item.ExternalVideoStreams, item.lockExternalStreams);
-            System.Windows.Data.BindingOperations.EnableCollectionSynchronization(item.ExternalSubtitlesStreams, item.lockExternalStreams);
+            BindingOperations.EnableCollectionSynchronization(item.ExternalAudioStreams, item.lockExternalStreams);
+            BindingOperations.EnableCollectionSynchronization(item.ExternalVideoStreams, item.lockExternalStreams);
+            BindingOperations.EnableCollectionSynchronization(item.ExternalSubtitlesStreams, item.lockExternalStreams);
         });
     }
 }
