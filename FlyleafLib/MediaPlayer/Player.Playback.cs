@@ -1,11 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-using FlyleafLib.MediaFramework.MediaDecoder;
-
-using static FlyleafLib.Utils;
-using static FlyleafLib.Logger;
+﻿using FlyleafLib.MediaFramework.MediaDecoder;
 
 namespace FlyleafLib.MediaPlayer;
 

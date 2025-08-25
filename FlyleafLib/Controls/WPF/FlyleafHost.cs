@@ -7,7 +7,6 @@ using System.Windows.Media;
 
 using Brushes = System.Windows.Media.Brushes;
 
-using static FlyleafLib.Utils;
 using static FlyleafLib.Utils.NativeMethods;
 
 using FlyleafLib.MediaPlayer;
@@ -1079,7 +1078,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         catch (Exception ex)
         {
             // It has been noticed with NavigationService (The visual tree changes, visual root IsVisible is false but FlyleafHost is still visible)
-            if (Logger.CanDebug) Log.Debug($"Host_LayoutUpdated: {ex.Message}");
+            if (CanDebug) Log.Debug($"Host_LayoutUpdated: {ex.Message}");
 
             // TBR: (Currently handle on each time Visible=true) It's possible that the owner/parent has been changed (for some reason Host_Loaded will not be called) *probably when the Owner stays the same but the actual Handle changes
             //if (ex.Message == "The specified Visual is not an ancestor of this Visual.")
@@ -1738,16 +1737,16 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         MarginTarget= this;
-        Log         = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
+        Log         = new(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
         Loaded     += Host_Loaded;
     }
     public FlyleafHost(Window standAloneOverlay)
     {
-        UniqueId = idGenerator++;
-        Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
+        UniqueId    = idGenerator++;
+        Log         = new(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
 
-        IsStandAlone = true;
-        IsAttached = false;
+        IsStandAlone= true;
+        IsAttached  = false;
 
         this.standAloneOverlay = standAloneOverlay;
         standAloneOverlay.Loaded += OverlayStandAlone_Loaded;

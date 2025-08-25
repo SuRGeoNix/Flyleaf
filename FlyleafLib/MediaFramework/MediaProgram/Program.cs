@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -52,7 +51,7 @@ public class Program
         {
             b = av_dict_get(program->metadata, "", b, DictReadFlags.IgnoreSuffix);
             if (b == null) break;
-            metadata.Add(Utils.BytePtrToStringUTF8(b->key), Utils.BytePtrToStringUTF8(b->value));
+            metadata.Add(BytePtrToStringUTF8(b->key), BytePtrToStringUTF8(b->value));
         }
         Metadata = metadata;
     }

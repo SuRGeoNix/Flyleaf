@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 
 using Vortice;
@@ -189,10 +188,10 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
 
     public Renderer(VideoDecoder videoDecoder, nint handle = 0, int uniqueId = -1)
     {
-        UniqueId    = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+        UniqueId    = uniqueId == -1 ? GetUniqueId() : uniqueId;
         VideoDecoder= videoDecoder;
         Config      = videoDecoder.Config;
-        Log         = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
+        Log         = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
         use2d       = Config.Video.Use2DGraphics;
 
         overlayTextureDesc = new()
@@ -204,10 +203,10 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
             ArraySize   = 1,
             MipLevels   = 1,
             BindFlags   = BindFlags.ShaderResource,
-            SampleDescription = new SampleDescription(1, 0)
+            SampleDescription = new(1, 0)
         };
 
-        singleStageDesc = new Texture2DDescription()
+        singleStageDesc = new()
         {
             Usage       = ResourceUsage.Staging,
             Format      = Format.B8G8R8A8_UNorm,
@@ -215,20 +214,20 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
             MipLevels   = 1,
             BindFlags   = BindFlags.None,
             CPUAccessFlags      = CpuAccessFlags.Read,
-            SampleDescription   = new SampleDescription(1, 0),
+            SampleDescription   = new(1, 0),
 
             Width       = 0,
             Height      = 0
         };
 
-        singleGpuDesc = new Texture2DDescription()
+        singleGpuDesc = new()
         {
             Usage       = ResourceUsage.Default,
             Format      = Format.B8G8R8A8_UNorm,
             ArraySize   = 1,
             MipLevels   = 1,
             BindFlags   = BindFlags.RenderTarget | BindFlags.ShaderResource,
-            SampleDescription   = new SampleDescription(1, 0)
+            SampleDescription   = new(1, 0)
         };
 
         wndProcDelegate = new(WndProc);
@@ -242,8 +241,8 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     Renderer parent;
     public Renderer(Renderer renderer, nint handle, int uniqueId = -1)
     {
-        UniqueId            = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
-        Log                 = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer  Repl] ");
+        UniqueId            = uniqueId == -1 ? GetUniqueId() : uniqueId;
+        Log                 = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer  Repl] ");
 
         renderer.child      = this;
         parent              = renderer;

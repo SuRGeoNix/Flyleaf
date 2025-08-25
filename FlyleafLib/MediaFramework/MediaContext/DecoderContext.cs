@@ -5,9 +5,6 @@ using FlyleafLib.MediaFramework.MediaRemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.Plugins;
 
-using static FlyleafLib.Logger;
-using static FlyleafLib.Utils;
-
 namespace FlyleafLib.MediaFramework.MediaContext;
 
 public unsafe partial class DecoderContext : PluginHandler
@@ -94,22 +91,22 @@ public unsafe partial class DecoderContext : PluginHandler
     bool shouldDispose;
     public DecoderContext(Config config = null, int uniqueId = -1, bool enableDecoding = true) : base(config, uniqueId)
     {
-        Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + " [DecoderContext] ");
+        Log = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [DecoderContext] ");
         Playlist.decoder    = this;
 
         EnableDecoding      = enableDecoding;
 
-        AudioDemuxer        = new Demuxer(Config.Demuxer, MediaType.Audio, UniqueId, EnableDecoding);
-        VideoDemuxer        = new Demuxer(Config.Demuxer, MediaType.Video, UniqueId, EnableDecoding);
-        SubtitlesDemuxer    = new Demuxer(Config.Demuxer, MediaType.Subs,  UniqueId, EnableDecoding);
-        DataDemuxer         = new Demuxer(Config.Demuxer, MediaType.Data, UniqueId, EnableDecoding);
+        AudioDemuxer        = new(Config.Demuxer, MediaType.Audio, UniqueId, EnableDecoding);
+        VideoDemuxer        = new(Config.Demuxer, MediaType.Video, UniqueId, EnableDecoding);
+        SubtitlesDemuxer    = new(Config.Demuxer, MediaType.Subs,  UniqueId, EnableDecoding);
+        DataDemuxer         = new(Config.Demuxer, MediaType.Data, UniqueId, EnableDecoding);
 
-        Recorder            = new Remuxer(UniqueId);
+        Recorder            = new(UniqueId);
 
-        VideoDecoder        = new VideoDecoder(Config, UniqueId);
-        AudioDecoder        = new AudioDecoder(Config, UniqueId, VideoDecoder);
-        SubtitlesDecoder    = new SubtitlesDecoder(Config, UniqueId);
-        DataDecoder         = new DataDecoder(Config, UniqueId);
+        VideoDecoder        = new(Config, UniqueId);
+        AudioDecoder        = new(Config, UniqueId, VideoDecoder);
+        SubtitlesDecoder    = new(Config, UniqueId);
+        DataDecoder         = new(Config, UniqueId);
 
         if (EnableDecoding && config.Player.Usage != MediaPlayer.Usage.Audio)
             VideoDecoder.CreateRenderer();
@@ -315,7 +312,7 @@ public unsafe partial class DecoderContext : PluginHandler
             ticks = startTime;
             forward = true;
         }
-        else if (ticks > startTime + (!VideoDemuxer.Disposed ? VideoDemuxer.Duration : AudioDemuxer.Duration) - (50 * 10000))
+        else if (ticks > startTime + (!VideoDemuxer.Disposed ? VideoDemuxer.Duration : AudioDemuxer.Duration) - (50 * 10000) && demuxer.Duration > 0) // demuxer.Duration > 0 (allow blindly when duration 0)
         {
             ticks = Math.Max(startTime, startTime + demuxer.Duration - (50 * 10000));
             forward = false;
@@ -499,7 +496,7 @@ public unsafe partial class DecoderContext : PluginHandler
         int ret;
         int allowedErrors = Config.Decoder.MaxErrors;
         AVPacket* packet;
-
+        
         lock (VideoDemuxer.lockFmtCtx)
         lock (VideoDecoder.lockCodecCtx)
         while (VideoDemuxer.VideoStream != null && !Interrupt)
@@ -532,7 +529,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
             if (codecType == AVMediaType.Video && VideoDecoder.keyPacketRequired)
             {
-                if (packet->flags.HasFlag(PktFlags.Key))
+                if (packet->flags.HasFlag(PktFlags.Key) || packet->pts == VideoDecoder.startPts)
                     VideoDecoder.keyPacketRequired = false;
                 else
                 {
@@ -632,7 +629,7 @@ public unsafe partial class DecoderContext : PluginHandler
                             continue;
                         }
 
-                        //if (CanInfo) Info($"Asked for {Utils.TicksToTime(timestamp)} and got {Utils.TicksToTime((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime)} | Diff {Utils.TicksToTime(timestamp - ((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime))}");
+                        //if (CanInfo) Info($"Asked for {TicksToTime(timestamp)} and got {TicksToTime((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime)} | Diff {TicksToTime(timestamp - ((long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime))}");
                         VideoDecoder.StartTime = (long)(frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime;
 
                         var mFrame = VideoDecoder.Renderer.FillPlanes(frame);

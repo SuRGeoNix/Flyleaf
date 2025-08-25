@@ -1,8 +1,4 @@
-﻿using System.Threading;
-
-using static FlyleafLib.Logger;
-
-namespace FlyleafLib.MediaFramework;
+﻿namespace FlyleafLib.MediaFramework;
 
 public abstract class RunThreadBase : NotifyPropertyChanged
 {
@@ -13,8 +9,8 @@ public abstract class RunThreadBase : NotifyPropertyChanged
         {
             lock (lockStatus)
             {
-                if (CanDebug && _Status != Status.QueueFull && value != Status.QueueFull && _Status != Status.QueueEmpty && value != Status.QueueEmpty)
-                    Log.Debug($"{_Status} -> {value}");
+                if (CanTrace && _Status != Status.QueueFull && value != Status.QueueFull && _Status != Status.QueueEmpty && value != Status.QueueEmpty)
+                    Log.Trace($"{_Status} -> {value}");
 
                 _Status = value;
             }
@@ -41,7 +37,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
         set
         {
             _threadName = value;
-            Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{threadName}] ");
+            Log = new(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{threadName}] ");
         }
     }
     string _threadName;
@@ -51,7 +47,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
     internal object             lockStatus      = new();
 
     public RunThreadBase(int uniqueId = -1)
-        => UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+        => UniqueId = uniqueId == -1 ? GetUniqueId() : uniqueId;
 
     public void Pause()
     {

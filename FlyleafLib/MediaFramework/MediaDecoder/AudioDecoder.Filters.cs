@@ -1,10 +1,7 @@
 ﻿using System.Runtime.InteropServices;
-using System.Threading;
 
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
-
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
@@ -171,7 +168,7 @@ public unsafe partial class AudioDecoder
     internal void FixSample(AudioFrame frame, double oldSpeed, double speed)
     {
         var oldDataLen = frame.dataLen;
-        frame.dataLen = Utils.Align((int) (oldDataLen * oldSpeed / speed), ASampleBytes);
+        frame.dataLen = Align((int) (oldDataLen * oldSpeed / speed), ASampleBytes);
         fixed (byte* cBufStartPosPtr = &cBuf[0])
         {
             var curOffset = (long)frame.dataPtr - (long)cBufStartPosPtr;
@@ -256,7 +253,7 @@ public unsafe partial class AudioDecoder
         else if (Math.Abs(frame->pts - nextPts) > 10 * 10000) // 10ms distance should resync filters (TBR: it should be 0ms however we might get 0 pkt_duration for unknown?)
         {
             DrainFilters();
-            Log.Warn($"Resync filters! ({Utils.TicksToTime((long)((frame->pts - nextPts) * AudioStream.Timebase))} distance)");
+            Log.Warn($"Resync filters! ({TicksToTime((long)((frame->pts - nextPts) * AudioStream.Timebase))} distance)");
             //resyncWithVideoRequired = !VideoDecoder.Disposed;
             DisposeFrames();
             avcodec_flush_buffers(codecCtx);
@@ -361,12 +358,12 @@ public unsafe partial class AudioDecoder
             timestamp       = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay)
         };
 
-        if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
+        if (CanTrace) Log.Trace($"Processes {TicksToTime(mFrame.timestamp)}");
 
         fixed (byte* circularBufferPosPtr = &cBuf[cBufPos])
             mFrame.dataPtr = (IntPtr)circularBufferPosPtr;
 
-        Marshal.Copy((IntPtr) filtframe->data[0], cBuf, cBufPos, mFrame.dataLen);
+        Marshal.Copy(filtframe->data[0], cBuf, cBufPos, mFrame.dataLen);
         cBufPos += curLen;
 
         Frames.Enqueue(mFrame);

@@ -1,12 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Numerics;
-using System.Threading;
+﻿using System.Numerics;
 
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 
-using static FlyleafLib.Logger;
-using static FlyleafLib.Utils;
 using ID3D11VideoContext = Vortice.Direct3D11.ID3D11VideoContext;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;

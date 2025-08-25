@@ -142,8 +142,8 @@
 
                 </StackPanel>
 
-                <!-- Audio -->
-                <StackPanel Style="{StaticResource FlowTable}">
+                <!-- Audio (Manual Height-->
+                <StackPanel Style="{StaticResource FlowTable}" Height="306">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Audio"/>
 
                     <StackPanel Orientation="Horizontal">

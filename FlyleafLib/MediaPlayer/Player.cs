@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Threading;
-
-using FlyleafLib.Controls;
+﻿using FlyleafLib.Controls;
 using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
@@ -12,7 +6,6 @@ using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
-using static FlyleafLib.Utils;
 using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer;
@@ -438,23 +431,23 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         if (config != null)
         {
             if (config.Player.player != null)
-                throw new Exception("Player's configuration is already assigned to another player");
+                throw new("Player's configuration is already assigned to another player");
 
             Config = config;
         }
         else
             Config = new Config();
 
-        PlayerId = GetUniqueId();
-        Log = new LogHandler(("[#" + PlayerId + "]").PadRight(8, ' ') + " [Player        ] ");
+        PlayerId    = GetUniqueId();
+        Log         = new(("[#" + PlayerId + "]").PadRight(8, ' ') + " [Player        ] ");
         Log.Debug($"Creating Player (Usage = {Config.Player.Usage})");
 
-        Activity    = new Activity(this);
-        Audio       = new Audio(this);
-        Video       = new Video(this);
-        Subtitles   = new Subtitles(this);
-        Data        = new Data(this);
-        Commands    = new Commands(this);
+        Activity    = new(this);
+        Audio       = new(this);
+        Video       = new(this);
+        Subtitles   = new(this);
+        Data        = new(this);
+        Commands    = new(this);
 
         Config.SetPlayer(this);
 
@@ -464,7 +457,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             Config.Subtitles.Enabled = false;
         }
 
-        decoder = new DecoderContext(Config, PlayerId) { Tag = this };
+        decoder = new(Config, PlayerId) { Tag = this };
         Engine.AddPlayer(this);
 
         if (decoder.VideoDecoder.Renderer != null)

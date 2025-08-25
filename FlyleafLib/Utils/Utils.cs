@@ -1,14 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 
 using Microsoft.Win32;
@@ -458,6 +453,14 @@ public static partial class Utils
 
         return url;
     }
+    public static string LowerCaseFirstChar(string input)
+    {   // check null manually
+        Span<char> buffer = stackalloc char[input.Length];
+        input.AsSpan().CopyTo(buffer);
+        buffer[0] = char.ToLowerInvariant(buffer[0]);
+    
+        return new string(buffer);
+    }
 
     /// <summary>
     /// Convert Windows lnk file path to target path
@@ -662,4 +665,111 @@ public static partial class Utils
     private static partial Regex RxSpaces();
     [GeneratedRegex(@"[^a-z0-9]$", RegexOptions.IgnoreCase)]
     private static partial Regex RxNonAlphaNumeric();
+
+    #region Temp Transfer (v4)
+    static string metaSpaces = new(' ',"[Metadata] ".Length);
+    public static string GetDumpMetadata(Dictionary<string, string>? metadata, string? exclude = null)
+    {
+        if (metadata == null || metadata.Count == 0)
+            return "";
+
+        int maxLen = 0;
+        foreach(var item in metadata)
+            if (item.Key.Length > maxLen && item.Key != exclude)
+                maxLen = item.Key.Length;
+
+        string dump = "";
+        int i = 1;
+        foreach(var item in metadata)
+        {
+            if (item.Key == exclude)
+            {
+                i++;
+                continue;
+            }
+
+            if (i == metadata.Count)
+                dump += $"{item.Key.PadRight(maxLen)}: {item.Value}";
+            else
+                dump += $"{item.Key.PadRight(maxLen)}: {item.Value}\r\n\t{metaSpaces}";
+
+            i++;
+        }
+
+        if (dump == "")
+            return "";
+        
+        return $"\t[Metadata] {dump}";
+    }
+    public static string TicksToTime2(long ticks)
+    {
+        if (ticks == NoTs)
+            return "-";
+
+        if (ticks == 0)
+            return "00:00:00.000";
+
+        return TsToTime(TimeSpan.FromTicks(ticks)); // TimeSpan.FromTicks(ticks).ToString("g");
+    }
+    public static string McsToTime(long micro)
+    {
+        if (micro == NoTs)
+            return "-";
+
+        if (micro == 0)
+            return "00:00:00.000";
+
+        return TsToTime(TimeSpan.FromMicroseconds(micro));
+    }
+    public static string TsToTime(TimeSpan ts)
+    {
+        if (ts.Ticks > 0)
+        {
+            if (ts.TotalDays < 1)
+                return ts.ToString(@"hh\:mm\:ss\.fff");
+            else
+                return ts.ToString(@"d\-hh\:mm\:ss\.fff");
+        }
+
+        if (ts.TotalDays > -1)
+            return ts.ToString(@"\-hh\:mm\:ss\.fff");
+        else
+            return ts.ToString(@"\-d\-hh\:mm\:ss\.fff");
+    }
+    public static string DoubleToTimeMini(double d) => d.ToString("#.000", CultureInfo.InvariantCulture);
+    public static List<T> GetFlagsAsList<T>(T value) where T : Enum
+    {
+        List<T> values = [];
+
+        var enumValues = Enum.GetValuesAsUnderlyingType(typeof(T));
+        //var enumValues = Enum.GetValues(typeof(T)); // breaks AOT?
+
+        foreach(T flag in enumValues)
+            if (value.HasFlag(flag) && flag.ToString() != "None")
+                values.Add(flag);
+
+        return values;
+    }
+    public static string? GetFlagsAsString<T>(T value, string separator = " | ") where T : Enum
+    {
+        string? ret = null;
+        List<T> values = GetFlagsAsList(value);
+
+        if (values.Count == 0)
+            return ret;
+
+        for (int i = 0; i < values.Count - 1; i++)
+            ret += values[i] + separator; 
+
+        return ret + values[^1];
+    }
+    public unsafe static string GetFourCCString(uint fourcc)
+    {
+        byte* t1 = (byte*)av_mallocz(AV_FOURCC_MAX_STRING_SIZE);
+        av_fourcc_make_string(t1, fourcc);
+        string ret = BytePtrToStringUTF8(t1)!;
+        av_free(t1);
+        return ret;
+    }
+    #endregion
 }

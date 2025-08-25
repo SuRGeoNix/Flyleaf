@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Threading;
-using System.Windows;
+﻿using System.Windows;
 
 using FlyleafLib.MediaPlayer;
 
@@ -82,7 +79,7 @@ public static class Engine
             if (timePeriod == 1)
             {
                 Log.Trace("timeBeginPeriod(1)");
-                Utils.NativeMethods.TimeBeginPeriod(1);
+                NativeMethods.TimeBeginPeriod(1);
             }
         }
     }
@@ -99,7 +96,7 @@ public static class Engine
             if (timePeriod == 0)
             {
                 Log.Trace("timeEndPeriod(1)");
-                Utils.NativeMethods.TimeEndPeriod(1);
+                NativeMethods.TimeEndPeriod(1);
             }
         }
     }
@@ -116,7 +113,7 @@ public static class Engine
             Config = config ?? new EngineConfig();
 
             if (Application.Current == null)
-                new Application();
+                _ = new Application();
 
             StartInternalUI();
 
@@ -138,9 +135,9 @@ public static class Engine
                 Players[0].Dispose();
         };
 
-        Logger.SetOutput();
-        Log     = new LogHandler("[FlyleafEngine] ");
-        Audio   = new AudioEngine();
+        SetOutput();
+        Log     = new("[FlyleafEngine] ");
+        Audio   = new();
     }
 
     private static void StartInternalNonUI()
@@ -148,9 +145,9 @@ public static class Engine
         var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         Log.Info($"FlyleafLib {version.Major }.{version.Minor}.{version.Build}");
 
-        FFmpeg  = new FFmpegEngine();
-        Video   = new VideoEngine();
-        Plugins = new PluginsEngine();
+        FFmpeg  = new();
+        Video   = new();
+        Plugins = new();
         Players = [];
 
         IsLoaded= true;
@@ -324,7 +321,7 @@ public static class Engine
                     catch { }
                 }
 
-                Utils.UI(UIAction);
+                UI(UIAction);
                 Thread.Sleep(Config.UIRefreshInterval);
 
             } catch { curLoop = 0; }

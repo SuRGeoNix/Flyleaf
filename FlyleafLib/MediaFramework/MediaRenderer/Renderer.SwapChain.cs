@@ -7,18 +7,19 @@ using Vortice.DirectComposition;
 using Vortice.DXGI;
 
 using static FlyleafLib.Utils.NativeMethods;
+
 using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public partial class Renderer
 {
-    ID3D11Texture2D                         backBuffer;
-    ID3D11RenderTargetView                  backBufferRtv;
-    IDXGISwapChain1                         swapChain;
-    IDCompositionDevice                     dCompDevice;
-    IDCompositionVisual                     dCompVisual;
-    IDCompositionTarget                     dCompTarget;
+    ID3D11Texture2D         backBuffer;
+    ID3D11RenderTargetView  backBufferRtv;
+    IDXGISwapChain1         swapChain;
+    IDCompositionDevice     dCompDevice;
+    IDCompositionVisual     dCompVisual;
+    IDCompositionTarget     dCompTarget;
 
     const Int32         WM_NCDESTROY= 0x0082;
     const Int32         WM_SIZE     = 0x0005;
@@ -129,10 +130,10 @@ public partial class Renderer
             if (!isFlushing) // avoid calling UI thread during Player.Stop
             {
                 // SetWindowSubclass seems to require UI thread when RemoveWindowSubclass does not (docs are not mentioning this?)
-                if (System.Threading.Thread.CurrentThread.ManagedThreadId == System.Windows.Application.Current.Dispatcher.Thread.ManagedThreadId)
+                if (Thread.CurrentThread.ManagedThreadId == Application.Current.Dispatcher.Thread.ManagedThreadId)
                     SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero);
                 else
-                    Utils.UI(() => SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero));
+                    UI(() => SetWindowSubclass(ControlHandle, wndProcDelegatePtr, UIntPtr.Zero, UIntPtr.Zero));
             }
 
             Engine.Video.Factory.MakeWindowAssociation(ControlHandle, WindowAssociationFlags.IgnoreAll);

@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-using FlyleafLib.MediaFramework.MediaStream;
+﻿using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 
 namespace FlyleafLib.Plugins;
@@ -35,7 +33,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                         if (title.Contains($".{lang2.IdSubLanguage}.utf8", StringComparison.OrdinalIgnoreCase))
                             { lang = lang2; break; }
             }
-            else if (Utils.ExtensionsSubtitlesBitmap.Contains(Utils.GetUrlExtention(title)))
+            else if (ExtensionsSubtitlesBitmap.Contains(GetUrlExtention(title)))
                 converted = true;
         }
         else
@@ -44,7 +42,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
             {
                 Uri uri = new(url);
                 title = Path.GetFileName(uri.LocalPath);
-                if (Utils.ExtensionsSubtitlesBitmap.Contains(Utils.GetUrlExtention(title)))
+                if (ExtensionsSubtitlesBitmap.Contains(GetUrlExtention(title)))
                     converted = true;
 
                 if (title == null || title.Trim().Length == 0)
@@ -52,7 +50,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
 
             } catch
             {
-                if (Utils.ExtensionsSubtitlesBitmap.Contains(Utils.GetUrlExtention(url)))
+                if (ExtensionsSubtitlesBitmap.Contains(GetUrlExtention(url)))
                     converted = true;
 
                 title = url;
@@ -111,14 +109,14 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
                 string title = fi.Name;
 
                 // We might have same Subs/ folder for more than one episode/season then filename requires to have season/episode
-                var mp = Utils.GetMediaParts(title, true);
+                var mp = GetMediaParts(title, true);
                 if (mp.Episode != Selected.Episode || (mp.Season != Selected.Season && Selected.Season > 0 && mp.Season > 0))
                     continue;
 
                 bool converted = false;
                 Language lang = Language.Unknown;
 
-                if (Utils.ExtensionsSubtitlesBitmap.Contains(mp.Extension))
+                if (ExtensionsSubtitlesBitmap.Contains(mp.Extension))
                     converted = true;
 
                 else if (title.Contains(".utf8"))

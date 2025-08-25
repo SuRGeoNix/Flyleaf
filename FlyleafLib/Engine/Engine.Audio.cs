@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 using System.Windows.Data;
 
 using SharpGen.Runtime;
@@ -96,7 +93,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
             CurrentDevice.Id    = defaultDevice.Id;
             CurrentDevice.Name  = defaultDevice.FriendlyName;
 
-            if (Logger.CanInfo)
+            if (CanInfo)
             {
                 string dump = "";
                 foreach (var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
@@ -117,7 +114,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
     }
     private void RefreshDevices()
     {
-        Utils.UIInvokeIfRequired(() => // UI Required?
+        UIInvokeIfRequired(() => // UI Required?
         {
             lock (locker)
             {

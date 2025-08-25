@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
 
 using Vortice.MediaFoundation;
@@ -46,7 +45,7 @@ public class VideoDeviceStream : DeviceStreamBase
         {
             case "MJPG":
                 var descriptorPtr = avcodec_descriptor_get(AVCodecID.Mjpeg);
-                return $"vcodec={Utils.BytePtrToStringUTF8(descriptorPtr->name)}";
+                return $"vcodec={BytePtrToStringUTF8(descriptorPtr->name)}";
             case "YUY2":
                 return $"pixel_format={av_get_pix_fmt_name(AVPixelFormat.Yuyv422)}";
             case "NV12":

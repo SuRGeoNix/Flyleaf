@@ -1,8 +1,18 @@
 ﻿global using System;
-global using Flyleaf.FFmpeg;
-global using static Flyleaf.FFmpeg.Raw;
+global using System.Collections.Concurrent;
+global using System.Collections.Generic;
+global using System.Collections.ObjectModel;
+global using System.IO;
+global using System.Text;
+global using System.Threading;
+global using System.Threading.Tasks;
 
-using System.Collections.Generic;
+global using Flyleaf.FFmpeg;
+
+global using static Flyleaf.FFmpeg.Raw;
+global using static FlyleafLib.Logger;
+global using static FlyleafLib.Utils;
+
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -61,15 +71,21 @@ public enum ZeroCopy : int
 public enum ColorSpace : int
 {
     None        = 0,
-    BT601       = 1,
-    BT709       = 2,
-    BT2020      = 3
+    Bt601       = 1,
+    Bt709       = 2,
+    Bt2020      = 3
 }
 public enum ColorRange : int
 {
     None        = 0,
     Full        = 1,
     Limited     = 2
+}
+public enum ColorType
+{
+    YUV,
+    RGB,
+    Gray
 }
 public enum HDRFormat : int
 {
@@ -99,7 +115,7 @@ public class GPUOutput
 
     public override string ToString()
     {
-        int gcd = Utils.GCD(Width, Height);
+        int gcd = GCD(Width, Height);
         return $"{DeviceName,-20} [Id: {Id,-4}\t, Top: {Top,-4}, Left: {Left,-4}, Width: {Width,-4}, Height: {Height,-4}, Ratio: [" + (gcd > 0 ? $"{Width/gcd}:{Height/gcd}]" : "]");
     }
 }
@@ -121,7 +137,7 @@ public class GPUAdapter
                     Outputs         { get; internal set; }
 
     public override string ToString()
-        => (Vendor + " " + Description).PadRight(40) + $"[ID: {Id,-6}, LUID: {Luid,-6}, DVM: {Utils.GetBytesReadable(VideoMemory),-8}, DSM: {Utils.GetBytesReadable(SystemMemory),-8}, SSM: {Utils.GetBytesReadable(SharedMemory)}]";
+        => (Vendor + " " + Description).PadRight(40) + $"[ID: {Id,-6}, LUID: {Luid,-6}, DVM: {GetBytesReadable(VideoMemory),-8}, DSM: {GetBytesReadable(SystemMemory),-8}, SSM: {GetBytesReadable(SharedMemory)}]";
 }
 public enum VideoFilters
 {
@@ -232,7 +248,7 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
 
     protected bool Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
     {
-        //Utils.Log($"[===| {propertyName} |===] | Set | {IsUI()}");
+        //Log($"[===| {propertyName} |===] | Set | {IsUI()}");
 
         if (!check || !EqualityComparer<T>.Default.Equals(field, value))
         {
@@ -249,14 +265,14 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
 
     protected bool SetUI<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
     {
-        //Utils.Log($"[===| {propertyName} |===] | SetUI | {IsUI()}");
+        //Log($"[===| {propertyName} |===] | SetUI | {IsUI()}");
 
         if (!check || !EqualityComparer<T>.Default.Equals(field, value))
         {
             field = value;
 
             //if (!DisableNotifications)
-            Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+            UI(() => PropertyChanged?.Invoke(this, new(propertyName)));
 
             return true;
         }
@@ -265,18 +281,18 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
     }
     protected void Raise([CallerMemberName] string propertyName = "")
     {
-        //Utils.Log($"[===| {propertyName} |===] | Raise | {IsUI()}");
+        //Log($"[===| {propertyName} |===] | Raise | {IsUI()}");
 
         //if (!DisableNotifications)
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        PropertyChanged?.Invoke(this, new(propertyName));
     }
 
 
     protected void RaiseUI([CallerMemberName] string propertyName = "")
     {
-        //Utils.Log($"[===| {propertyName} |===] | RaiseUI | {IsUI()}");
+        //Log($"[===| {propertyName} |===] | RaiseUI | {IsUI()}");
 
         //if (!DisableNotifications)
-        Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+        UI(() => PropertyChanged?.Invoke(this, new(propertyName)));
     }
 }

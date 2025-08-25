@@ -1,11 +1,6 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-
-using SharpGen.Runtime;
+﻿using SharpGen.Runtime;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
-
-using static FlyleafLib.Logger;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;

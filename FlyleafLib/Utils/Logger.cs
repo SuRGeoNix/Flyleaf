@@ -1,10 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Collections.Concurrent;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace FlyleafLib;
+﻿namespace FlyleafLib;
 
 public static class Logger
 {
@@ -22,12 +16,12 @@ public static class Logger
     static string       lastOutput = "";
 
     static ConcurrentQueue<byte[]>
-                        fileData = new();
+                        fileData = [];
     static bool         fileTaskRunning;
     static FileStream   fileStream;
     static object       lockFileStream = new();
     static Dictionary<LogLevel, string>
-                        logLevels = new();
+                        logLevels = [];
 
     static Logger()
     {
@@ -166,11 +160,11 @@ public class LogHandler
     public LogHandler(string prefix = "")
         => Prefix = prefix;
 
-    public void Error(string msg)   => Logger.Log($"{Prefix}{msg}", LogLevel.Error);
-    public void Info(string msg)    => Logger.Log($"{Prefix}{msg}", LogLevel.Info);
-    public void Warn(string msg)    => Logger.Log($"{Prefix}{msg}", LogLevel.Warn);
-    public void Debug(string msg)   => Logger.Log($"{Prefix}{msg}", LogLevel.Debug);
-    public void Trace(string msg)   => Logger.Log($"{Prefix}{msg}", LogLevel.Trace);
+    public void Error(string msg)   => Log($"{Prefix}{msg}", LogLevel.Error);
+    public void Info(string msg)    => Log($"{Prefix}{msg}", LogLevel.Info);
+    public void Warn(string msg)    => Log($"{Prefix}{msg}", LogLevel.Warn);
+    public void Debug(string msg)   => Log($"{Prefix}{msg}", LogLevel.Debug);
+    public void Trace(string msg)   => Log($"{Prefix}{msg}", LogLevel.Trace);
 }
 
 public enum LogLevel

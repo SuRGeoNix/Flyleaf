@@ -1,14 +1,11 @@
 ﻿using System.Buffers;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
+using System.Diagnostics;
 
 using Vortice.D3DCompiler;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 
 using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
-using static FlyleafLib.Utils;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -16,7 +13,7 @@ internal static partial class ShaderCompiler
 {
     const int               MAX_CACHE_SIZE  = 64;
     const string            MAIN            = "main";
-    const string            LOG_PREFIX      = "[ShaderCompiler] ";
+    const string            LOG_PREFIX      = "[Shader] ";
     static readonly string  SHADERVER       = Environment.OSVersion.Version.Major >= 10 ? "_5_0" : "_4_0_level_9_3";
     static readonly string  PSVER           = $"ps{SHADERVER}";
     static readonly string  VSVER           = $"vs{SHADERVER}";
@@ -41,7 +38,7 @@ internal static partial class ShaderCompiler
             }
             else if (cache.TryGetValue(uniqueId, out var bw2))
             {
-                if (Engine.Config.LogLevel >= LogLevel.Debug)
+                if (CanDebug)
                     LogDebug($"Using from Cache '{uniqueId}'");
 
                 lock (bw2)
@@ -53,12 +50,12 @@ internal static partial class ShaderCompiler
             cache.Add(uniqueId, bw);
         }
 
-        if (Engine.Config.LogLevel >= LogLevel.Debug)
+        if (CanDebug)
             LogDebug($"Compiling '{uniqueId}'");
 
         // PS_HEADER + hlslSample + PS_FOOTER (Max 10KB)
-        System.Diagnostics.Debug.Assert(PS_HEADER.Length + PS_FOOTER.Length + Encoding.UTF8.GetMaxByteCount(hlslSample.Length) < 10_000);
-        byte[] bufferPool   = ArrayPool<byte>.Shared.Rent(10 * 1024);
+        Debug.Assert(PS_HEADER.Length + PS_FOOTER.Length + Encoding.UTF8.GetMaxByteCount(hlslSample.Length) < 12_000);
+        byte[] bufferPool   = ArrayPool<byte>.Shared.Rent(12 * 1024);
         Span<byte> buffer   = bufferPool;
         PS_HEADER.CopyTo(buffer);
         int offset          = PS_HEADER.Length;

@@ -1,9 +1,5 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Data;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
@@ -11,8 +7,6 @@ using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins;
-
-using static FlyleafLib.Utils;
 
 namespace FlyleafLib;
 
@@ -699,7 +693,7 @@ public class Config : NotifyPropertyChanged
         /// * D3D11 possible performs better with color conversion and filters, FLVP supports only brightness/contrast filters<br/>
         /// * D3D11 supports deinterlace (bob)
         /// </summary>
-        public VideoProcessors  VideoProcessor              { get => _VideoProcessor; set { if (Set(ref _VideoProcessor, value)) player?.renderer?.UpdateVideoProcessor(); } }
+        public VideoProcessors  VideoProcessor              { get => _VideoProcessor;   set { if (Set(ref _VideoProcessor, value))  player?.renderer?.UpdateVideoProcessor(); } }
         VideoProcessors _VideoProcessor = VideoProcessors.Auto;
 
         /// <summary>
@@ -714,20 +708,20 @@ public class Config : NotifyPropertyChanged
         public Vortice.DXGI.PresentFlags
                                 PresentFlags                { get; set; } = Vortice.DXGI.PresentFlags.DoNotWait;
 
-        public DeInterlace      DeInterlace                 { get => _DeInterlace;  set { if (Set(ref _DeInterlace, value)) player?.renderer?.UpdateDeinterlace(); } }
+        public DeInterlace      DeInterlace                 { get => _DeInterlace;      set { if (Set(ref _DeInterlace, value))     player?.renderer?.UpdateDeinterlace(); } }
         DeInterlace _DeInterlace = DeInterlace.Auto;
 
         /// <summary>
         /// The HDR to SDR method that will be used by the pixel shader
         /// </summary>
         public unsafe HDRtoSDRMethod
-                                HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); }}
+                                HDRtoSDRMethod              { get => _HDRtoSDRMethod;   set { if (Set(ref _HDRtoSDRMethod, value))  player?.renderer?.UpdateHDRtoSDR(); }}
         HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
 
         /// <summary>
         /// SDR Display Peak Luminance (will be used for HDR to SDR conversion)
         /// </summary>
-        public unsafe float     SDRDisplayNits              { get => _SDRDisplayNits; set { if (Set(ref _SDRDisplayNits, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); } }
+        public unsafe float     SDRDisplayNits              { get => _SDRDisplayNits;   set { if (Set(ref _SDRDisplayNits, value))  player?.renderer?.UpdateHDRtoSDR(); } }
         float _SDRDisplayNits = Engine.Video.RecommendedLuminance;
 
         /// <summary>
@@ -968,7 +962,7 @@ public class EngineConfig
     /// <para>:console -> System.Console</para>
     /// <para>&lt;path&gt; -> Absolute or relative file path</para>
     /// </summary>
-    public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.IsLoaded) Logger.SetOutput(); } }
+    public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.IsLoaded) SetOutput(); } }
     string _LogOutput = "";
 
     /// <summary>

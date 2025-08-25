@@ -32,7 +32,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
 
     /// <summary>
-    /// Flyleaf Player binded to FlyleafME (This can be swapped and will nto belong to this window)
+    /// Flyleaf Player binded to FlyleafME (This can be swapped and will not belong to this window)
     /// </summary>
     public Player           Player              { get; set; }
 
@@ -142,7 +142,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
         }
 
-        Player.Stop();
+        FlyleafME.Player?.Stop();
         if (mediaViewer != MediaViewer.Video)
             MediaViewer = MediaViewer.Video;
 
@@ -259,11 +259,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ////new() { Name ="vibrato", Args="f=10:d=0.5" },
             ////new() { Name ="rubberband", Args="pitch=1.5" }
         //};
+
+        // Testing misc
+        //playerConfig.Demuxer.AllowFindStreamInfo = false;
         #endif
 
         // Initializes the Player
         Player = new Player(playerConfig);
-
+        
         // Dispose Player on Window Close (the possible swapped player from FlyleafMe that actually belongs to us)
         Closing += (o, e) => FlyleafME.Player?.Dispose();
 
@@ -795,7 +798,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         try
         {
-            var droplist = new System.Collections.Specialized.StringCollection { imageFolder + "\\" + ImageFiles[ImageIndex] };
+            var filePath = ImageFiles.Count > 0 ? imageFolder + "\\" + ImageFiles[ImageIndex] : Player.Playlist.Selected.Url;
+            var droplist = new System.Collections.Specialized.StringCollection { filePath };
             var data = new DataObject();
             data.SetFileDropList(droplist);
             data.SetData("Preferred DropEffect", new MemoryStream(copy ? DragDropEffectsCopyBytes : DragDropEffectsMoveBytes));

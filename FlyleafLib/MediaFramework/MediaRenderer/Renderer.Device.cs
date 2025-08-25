@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+
 using Vortice;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
@@ -465,7 +466,7 @@ public unsafe partial class Renderer
             VideoDecoder.Dispose();
             Flush();
             VideoDecoder.Open(stream); // Should Re-ConfigPlanes()
-            VideoDecoder.keyPacketRequired = true;
+            VideoDecoder.keyPacketRequired = !VideoDecoder.isIntraOnly;
             if (running)
                 VideoDecoder.Start();
         }

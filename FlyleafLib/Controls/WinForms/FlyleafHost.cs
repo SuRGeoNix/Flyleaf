@@ -1,5 +1,4 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms;
@@ -102,7 +101,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         if (designMode)
             return;
 
-        Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
+        Log = new(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
 
         KeyUp       += Host_KeyUp;
         KeyDown     += Host_KeyDown;
@@ -235,7 +234,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         Player.Host = this;
         Player.VideoDecoder.CreateSwapChain(Handle);
 
-        BackColor = Utils.WPFToWinFormsColor(Player.Config.Video.BackgroundColor);
+        BackColor = WPFToWinFormsColor(Player.Config.Video.BackgroundColor);
     }
 
     public void FullScreen()
@@ -299,11 +298,11 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         if (!check || (field == null && value != null) || (field != null && !field.Equals(value)))
         {
             field = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            PropertyChanged?.Invoke(this, new(propertyName));
             return true;
         }
 
         return false;
     }
-    protected void Raise([CallerMemberName] string propertyName = "") => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    protected void Raise([CallerMemberName] string propertyName = "") => PropertyChanged?.Invoke(this, new(propertyName));
 }
