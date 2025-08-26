@@ -31,7 +31,6 @@ cbuffer         Config          : register(b0)
     ConfigData Config;
 };
 
-
 SamplerState Sampler : IMMUTABLE
 {
     Filter          = MIN_MAG_MIP_LINEAR;
@@ -41,6 +40,18 @@ SamplerState Sampler : IMMUTABLE
     ComparisonFunc  = NEVER;
     MinLOD          = 0;
 };
+
+inline float3 LinearToSRGB(float3 c)
+{
+    // simplified version (slightly better performance but not accurate enough) | possible expose to config
+    //c = pow(c, 1.0 / 2.2);
+
+    float3 srgbLo = c * 12.92;
+    float3 srgbHi = 1.055 * pow(c, 1.0 / 2.4) - 0.055;
+    float3 threshold = step(0.0031308, c);
+
+    return lerp(srgbLo, srgbHi, threshold);
+}
 
 inline float3 Gamut2020To709(float3 c)
 {
@@ -179,7 +190,7 @@ inline float3 ToneAces(float3 x)
     const float c = 2.43;
     const float d = 0.59;
     const float e = 0.14;
-    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+    return (x * (a * x + b)) / (x * (c * x + d) + e);
 }
 
 inline float3 ToneHable(float3 x)
@@ -201,11 +212,11 @@ inline float3 ToneHable(float3 x)
 
     return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
 }
-static const float3 HABLE48 = ToneHable(4.8);
+static const float3 HABLE_DEFAULT = ToneHable(11.2); // whitepoint (TBR: if should be 4.8 and possible expose to config)
 
-inline float3 ToneReinhard(float3 x) //, float whitepoint=2.2) // or gamma?*
+inline float3 ToneReinhard(float3 x)
 {
-    return x * (1.0 + x / 4.84) / (x + 1.0); 
+    return x * (1.0 + x / 4.84) / (x + 1.0);
 }
 #endif
 
@@ -312,28 +323,31 @@ float4 main(PSInput input) : SV_TARGET
     [branch]
 	if (Config.tonemap == Hable)
 	{
-		c = ToneHable(c) / HABLE48;
+		c = ToneHable(c) / HABLE_DEFAULT;
+        c = saturate(c);
 		c = Gamut2020To709(c);
-		c = saturate(c);
-		c = pow(c, 1.0 / 2.2);
+        c = saturate(c);
+		c = LinearToSRGB(c);
 	}
 	else if (Config.tonemap == Reinhard)
 	{
 		c = ToneReinhard(c);
+        c = saturate(c);
 		c = Gamut2020To709(c);
-		c = saturate(c);
-		c = pow(c, 1.0 / 2.2);
+        c = saturate(c);
+		c = LinearToSRGB(c);
 	}
 	else if (Config.tonemap == Aces)
 	{
 		c = ToneAces(c);
+        c = saturate(c);
 		c = Gamut2020To709(c);
-		c = saturate(c);
+        c = saturate(c);
 		c = pow(c, 0.27);
 	}
     else
     {
-        c = pow(c, 1.0 / 2.2);
+        c = LinearToSRGB(c);
     }
 #endif
 
