@@ -492,20 +492,6 @@ unsafe public partial class Renderer
     color.rgb = (color.rgb - rgbOffset) * rgbScale;
 ";
                             }
-                            // TBR: We consider high range (HDR), Should transfer it to pixel shader, Check if already HDR?*
-                            if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Linear)
-                            {
-                                curPSUniqueId += "l";
-                                defines.Add(dTone);
-                            }
-                            else if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smptest428_1)
-                            {   // Diffuse White
-                                curPSUniqueId += "m";
-                                shader += @"
-    color.rgb /= 0.918f;
-";
-                                defines.Add(dTone);
-                            }
 
                             SetPS(curPSUniqueId, shader, defines);
                         }
@@ -542,20 +528,6 @@ unsafe public partial class Renderer
                                 shader += @"
     color.rgb = (color.rgb - rgbOffset) * rgbScale;
 ";
-                            }
-                            // TBR: We consider high range (HDR), Should transfer it to pixel shader, Check if already HDR?*
-                            if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Linear)
-                            {
-                                curPSUniqueId += "l";
-                                defines.Add(dTone);
-                            }
-                            else if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smptest428_1)
-                            {   // Diffuse White
-                                curPSUniqueId += "m";
-                                shader += @"
-    color.rgb /= 0.918f;
-";
-                                defines.Add(dTone);
                             }
 
                             SetPS(curPSUniqueId, shader, defines);
@@ -629,20 +601,6 @@ unsafe public partial class Renderer
     color.rgb = (color.rgb - rgbOffset) * rgbScale;
 ";
                             }
-                            // TBR: We consider high range (HDR), Should transfer it to pixel shader, Check if already HDR?*
-                            if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Linear)
-                            {
-                                curPSUniqueId += "l";
-                                defines.Add(dTone);
-                            }
-                            else if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smptest428_1)
-                            {   // Diffuse White
-                                curPSUniqueId += "m";
-                                shader += @"
-    color.rgb /= 0.918f;
-";
-                                defines.Add(dTone);
-                            }
 
                             SetPS(curPSUniqueId, shader, defines);
                         }
@@ -683,20 +641,6 @@ unsafe public partial class Renderer
                             shader += @"
     color.rgb = (color.rgb - rgbOffset) * rgbScale;
 ";
-                        }
-                        // TBR: We consider high range (HDR), Should transfer it to pixel shader, Check if already HDR?*
-                        if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Linear)
-                        {
-                            curPSUniqueId += "l";
-                            defines.Add(dTone);
-                        }
-                        else if (VideoStream.ColorTransfer == AVColorTransferCharacteristic.Smptest428_1)
-                        {   // Diffuse White
-                            curPSUniqueId += "m";
-                            shader += @"
-    color.rgb /= 0.918f;
-";
-                            defines.Add(dTone);
                         }
 
                         SetPS(curPSUniqueId, shader, defines);
