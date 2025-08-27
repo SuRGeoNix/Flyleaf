@@ -49,6 +49,7 @@
     </UserControl.Resources>
     <StackPanel>
         <TextBlock HorizontalAlignment="Left" Background="{Binding BoxColor, ElementName=DebugControl}" Style="{StaticResource TextValue}" Padding="10" Width="690" TextWrapping="Wrap" Text="{Binding Player.Playlist.Url}"/>
+        <TextBlock HorizontalAlignment="Left" Background="{Binding BoxColor, ElementName=DebugControl}" Style="{StaticResource TextValue}" Padding="10" Width="690" TextWrapping="Wrap" Text="{Binding Player.Playlist.Selected.Title}"/>
         <Grid x:Name="rootGrid">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
@@ -61,14 +62,9 @@
 
             <StackPanel>
                 <!-- Player -->
-                <StackPanel Style="{StaticResource FlowTable}">
+                <StackPanel Style="{StaticResource FlowTable}" Height="320">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Player"/>
-
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="Title"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Playlist.Selected.Title}" Margin="-100 0 0 0" Width="235"/>
-                    </StackPanel>
-
+                    
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="CurTime"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.CurTime, Converter={StaticResource TicksToTimeSpan}, StringFormat={}{0:hh\\:mm\\:ss\\.fff}}"/>
@@ -143,7 +139,7 @@
                 </StackPanel>
 
                 <!-- Audio (Manual Height-->
-                <StackPanel Style="{StaticResource FlowTable}" Height="306">
+                <StackPanel Style="{StaticResource FlowTable}" Height="320">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Audio"/>
 
                     <StackPanel Orientation="Horizontal">
@@ -210,7 +206,7 @@
 
             <StackPanel Grid.Column="1">
                 <!-- Video -->
-                <StackPanel Style="{StaticResource FlowTable}">
+                <StackPanel Style="{StaticResource FlowTable}" Height="320">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Video"/>
 
                     <StackPanel Orientation="Horizontal">
@@ -314,7 +310,7 @@
                 </StackPanel>
 
                 <!-- Stats -->
-                <StackPanel Style="{StaticResource FlowTable}">
+                <StackPanel Style="{StaticResource FlowTable}" Height="172">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Stats"/>
 
                     <StackPanel Orientation="Horizontal">
