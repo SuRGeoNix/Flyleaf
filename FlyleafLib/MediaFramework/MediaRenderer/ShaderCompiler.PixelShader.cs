@@ -1,4 +1,20 @@
-﻿namespace FlyleafLib.MediaFramework.MediaRenderer;
+﻿/*
+LinearToSRGB | SRGBToLinear:
+    Simplified version (slightly better performance and on dark colors, but not accurate enough) | possible expose to config
+    c = pow(c, 1.0 / 2.2); | c = pow(c, 2.2);
+
+HABLE_DEFAULT
+    TBR: whitepoint, if should be 4.8 and possible expose to config
+
+Chroma Location / Sampling
+    Small improvement but not performance penalty
+
+Up/Down Scaling
+    High performance penalty and difficult implementation for good quality
+    Use D3D11VA proprietary and add shader support
+*/
+
+namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 internal static partial class ShaderCompiler
 {
@@ -43,14 +59,20 @@ SamplerState Sampler : IMMUTABLE
 
 inline float3 LinearToSRGB(float3 c)
 {
-    // simplified version (slightly better performance but not accurate enough) | possible expose to config
-    //c = pow(c, 1.0 / 2.2);
-
     float3 srgbLo = c * 12.92;
     float3 srgbHi = 1.055 * pow(c, 1.0 / 2.4) - 0.055;
     float3 threshold = step(0.0031308, c);
 
     return lerp(srgbLo, srgbHi, threshold);
+}
+
+inline float3 SRGBToLinear(float3 c)
+{
+    float3 linearLo = c / 12.92;
+    float3 linearHi = pow((c + 0.055) / 1.055, 2.4);
+    float3 threshold = step(0.04045, c);
+    
+    return lerp(linearLo, linearHi, threshold);
 }
 
 inline float3 Gamut2020To709(float3 c)
@@ -286,18 +308,6 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 c = color.rgb;
 
-#if defined(dYUVLimited) || defined(dYUVFull)
-    #pragma warning( disable: 3556 )
-    [branch]
-    if (Config.fieldType != -1 && int(input.Position.y) % 2 != Config.fieldType)
-    {
-        float yAbove = Texture1.Sample(Sampler, float2(input.Texture.x, input.Texture.y - Config.yoffset)).r;
-        float yBelow = Texture1.Sample(Sampler, float2(input.Texture.x, input.Texture.y + Config.yoffset)).r;
-        c.r = (yAbove + yBelow) * 0.5f;
-    }
-    #pragma warning( enable: 3556 )
-#endif
-
 #if defined(dYUVLimited)
 	c = YUVToRGBLimited(c);
 #elif defined(dYUVFull)
@@ -305,10 +315,10 @@ float4 main(PSInput input) : SV_TARGET
 #endif
 
 #if defined(dBT2020)
-	c = pow(c, 2.2); // TODO: transferfunc gamma*
+    c = SRGBToLinear(c);    // TODO: transferfunc gamma*
 	c = Gamut2020To709(c);
 	c = saturate(c);
-	c = pow(c, 1.0 / 2.2);
+	c = LinearToSRGB(c);
 #else
 
 #if defined(dPQToLinear)
