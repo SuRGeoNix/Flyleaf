@@ -916,6 +916,9 @@ public unsafe class VideoDecoder : DecoderBase
         }
     }
 
+    // TBR (GetFrameNumberX): Still issues mainly with Prev, e.g. jumps from 279 to 281 frame | VFR / Timebase / FrameDuration / FPS inaccuracy
+    // Should use just GetFramePrev/Next and work with pts (but we currenlty work with Player.CurTime)
+
     /// <summary>
     /// Gets the frame number of a VideoFrame timestamp
     /// </summary>
@@ -945,8 +948,9 @@ public unsafe class VideoDecoder : DecoderBase
     /// </summary>
     /// <param name="frameNumber">Zero based frame index</param>
     /// <returns>The requested VideoFrame or null on failure</returns>
-    public VideoFrame GetFrame(int frameNumber)
+    public VideoFrame GetFrame(int frameNumber, bool backwards = false)
     {
+        frameNumber = Math.Max(0, frameNumber);
         long requiredTimestamp = GetFrameTimestamp(frameNumber);
         long curSeekMcs = requiredTimestamp / 10;
         int curFrameNumber;
@@ -958,6 +962,9 @@ public unsafe class VideoDecoder : DecoderBase
             demuxer.Interrupter.SeekRequest();
             int ret = av_seek_frame(demuxer.FormatContext, -1, curSeekMcs - curFixSeekDelta, SeekFlags.Frame | SeekFlags.Backward);
 
+            if (ret < 0)
+                ret = av_seek_frame(demuxer.FormatContext, -1, Math.Max((curSeekMcs - (long)TimeSpan.FromSeconds(1).TotalMicroseconds) - curFixSeekDelta, demuxer.StartTime / 10), SeekFlags.Frame);
+            
             demuxer.DisposePackets();
 
             if (demuxer.Status == Status.Ended)
@@ -972,9 +979,9 @@ public unsafe class VideoDecoder : DecoderBase
             if (DecodeFrameNext() != 0)
                 return null;
 
-            long seekedTimestamp = (long)(frame->pts * VideoStream.Timebase);
+            curFrameNumber = GetFrameNumber2((long)(frame->pts * VideoStream.Timebase));
             
-            if (GetFrameNumber2(seekedTimestamp) > frameNumber)
+            if (curFrameNumber > frameNumber)
             {
                 curFixSeekDelta += FIX_SEEK_DELTA_MCS;
                 continue;
@@ -982,9 +989,13 @@ public unsafe class VideoDecoder : DecoderBase
 
             do
             {
-                curFrameNumber = GetFrameNumber2((long)(frame->pts * VideoStream.Timebase));
-                if (curFrameNumber >= frameNumber)
+                if (curFrameNumber >= frameNumber ||
+                    (backwards && curFrameNumber + 2 >= frameNumber && GetFrameNumber2((long)(frame->pts * VideoStream.Timebase) + VideoStream.FrameDuration + (VideoStream.FrameDuration / 2)) - curFrameNumber > 1))
+                    // At least return a previous frame in case of Tb inaccuracy and don't stuck at the same frame
                 {
+                    if (backwards && curFrameNumber + 2 >= frameNumber && GetFrameNumber2((long)(frame->pts * VideoStream.Timebase) + VideoStream.FrameDuration + (VideoStream.FrameDuration / 2)) - curFrameNumber > 1)
+                        Log.Debug("");
+
                     var mFrame = Renderer.FillPlanes(frame);
                     if (mFrame != null)
                         return mFrame;
@@ -996,8 +1007,12 @@ public unsafe class VideoDecoder : DecoderBase
                 }
 
                 av_frame_unref(frame);
+                if (DecodeFrameNext() != 0)
+                    break;
 
-            } while (DecodeFrameNext() == 0);
+                curFrameNumber = GetFrameNumber2((long)(frame->pts * VideoStream.Timebase));
+
+            } while (true);
 
             return null;
         } while (true);

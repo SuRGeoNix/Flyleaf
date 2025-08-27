@@ -215,7 +215,7 @@ unsafe partial class Player
             if (VideoDecoder.Frames.IsEmpty)
             {                
                 reversePlaybackResync = true; // Temp fix for previous timestamps until we seperate GetFrame for Extractor and the Player
-                vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 1);
+                vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 1, true);
             }
             else
                 VideoDecoder.Frames.TryDequeue(out vFrame);
