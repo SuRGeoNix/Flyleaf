@@ -122,10 +122,13 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     {
         lock(lockDevice)
         {
-            if (zoom < 1)
+            if (Config.Player.ResetPanOnZoomedOut)
             {
-                ResetPanAndZoom();
-                return;
+                if (zoom < 1)
+                {
+                    ResetPanAndZoom(refresh);
+                    return;
+                }
             }
 
             this.zoom = zoom;
@@ -157,10 +160,13 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     {
         lock(lockDevice)
         {
-            if (zoom < 1)
+            if (Config.Player.ResetPanOnZoomedOut)
             {
-                ResetPanAndZoom();
-                return;
+                if (zoom < 1)
+                {
+                    ResetPanAndZoom(refresh);
+                    return;
+                }
             }
 
             this.zoom = zoom;
@@ -191,7 +197,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         }
     }
 
-    private void ResetPanAndZoom()
+    private void ResetPanAndZoom(bool refresh = true)
     {
         panXOffset = panYOffset = 0;
         zoom = 1;
@@ -200,7 +206,8 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         if (Disposed)
             return;
 
-        SetViewport();
+        if (refresh)
+            SetViewport();
     }
 
     public int              UniqueId        { get; private set; }
