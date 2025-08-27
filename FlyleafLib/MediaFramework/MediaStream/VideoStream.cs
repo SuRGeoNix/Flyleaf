@@ -46,7 +46,7 @@ public unsafe class VideoStream : StreamBase
     * 
     * Some fields might know only during Refresh, should make sure we fill them (especially if we didn't analyse the input)
     * Don't default (eg Color Range) during Initialize, wait for Refresh
-    * Priorities: AVFrame => AVCodecContext => AVStream (AVCodecParameters)
+    * Priorities: AVFrame => AVCodecContext => AVStream (AVCodecParameters) *Try to keep Color config from stream instead
     */
 
     // First time fill from AVStream's Codec Parameters | Info to help choosing stream quality mainly (not in use yet)
@@ -151,22 +151,28 @@ public unsafe class VideoStream : StreamBase
         else
             FieldOrder = codecCtx->field_order == AVFieldOrder.Tt ? DeInterlace.TopField : (codecCtx->field_order == AVFieldOrder.Bb ? DeInterlace.BottomField : DeInterlace.Progressive);
 
-        if (frame->color_trc != AVColorTransferCharacteristic.Unspecified)
-            ColorTransfer = frame->color_trc;
-        else if (codecCtx->color_trc != AVColorTransferCharacteristic.Unspecified)
-            ColorTransfer = codecCtx->color_trc;
+        if (ColorTransfer == AVColorTransferCharacteristic.Unspecified) // TBR: AVStream has AribStdB67 and Frame/CodecCtx has Bt2020_10 (priority to stream?)*
+        {
+            if (frame->color_trc != AVColorTransferCharacteristic.Unspecified)
+                ColorTransfer = frame->color_trc;
+            else if (codecCtx->color_trc != AVColorTransferCharacteristic.Unspecified)
+                ColorTransfer = codecCtx->color_trc;
+        }
 
-        if (frame->color_range == AVColorRange.Mpeg)
-            ColorRange = ColorRange.Limited;
-        else if (frame->color_range == AVColorRange.Jpeg)
-            ColorRange = ColorRange.Full;
-        else if (codecCtx->color_range == AVColorRange.Mpeg)
-            ColorRange = ColorRange.Limited;
-        else if (codecCtx->color_range == AVColorRange.Jpeg)
-            ColorRange = ColorRange.Full;
-        else if (ColorRange == ColorRange.None)
-            ColorRange = ColorType == ColorType.YUV && !PixelFormatStr.Contains('j') ? ColorRange.Limited : ColorRange.Full; // yuvj family defaults to full
-
+        if (ColorRange == ColorRange.None)
+        {
+            if (frame->color_range == AVColorRange.Mpeg)
+                ColorRange = ColorRange.Limited;
+            else if (frame->color_range == AVColorRange.Jpeg)
+                ColorRange = ColorRange.Full;
+            else if (codecCtx->color_range == AVColorRange.Mpeg)
+                ColorRange = ColorRange.Limited;
+            else if (codecCtx->color_range == AVColorRange.Jpeg)
+                ColorRange = ColorRange.Full;
+            else if (ColorRange == ColorRange.None)
+                ColorRange = ColorType == ColorType.YUV && !PixelFormatStr.Contains('j') ? ColorRange.Limited : ColorRange.Full; // yuvj family defaults to full
+        }
+        
         if (ColorTransfer == AVColorTransferCharacteristic.AribStdB67)
             HDRFormat = HDRFormat.HLG;
         else if (ColorTransfer == AVColorTransferCharacteristic.Smpte2084)
@@ -181,21 +187,25 @@ public unsafe class VideoStream : StreamBase
 
         if (HDRFormat != HDRFormat.None) // Forcing BT.2020 with PQ/HLG transfer?
             ColorSpace = ColorSpace.Bt2020;
-        else if (frame->colorspace == AVColorSpace.Bt709)
-            ColorSpace = ColorSpace.Bt709;
-        else if (frame->colorspace == AVColorSpace.Bt470bg)
-            ColorSpace = ColorSpace.Bt601;
-        else if (frame->colorspace == AVColorSpace.Bt2020Ncl || frame->colorspace == AVColorSpace.Bt2020Cl)
-            ColorSpace = ColorSpace.Bt2020;
-        else if (codecCtx->colorspace == AVColorSpace.Bt709)
-            ColorSpace = ColorSpace.Bt709;
-        else if (codecCtx->colorspace == AVColorSpace.Bt470bg)
-            ColorSpace = ColorSpace.Bt601;
-        else if (codecCtx->colorspace == AVColorSpace.Bt2020Ncl || codecCtx->colorspace == AVColorSpace.Bt2020Cl)
-            ColorSpace = ColorSpace.Bt2020;
-        else if (ColorSpace == ColorSpace.None)
-            ColorSpace = Height > 576 ? ColorSpace.Bt709 : ColorSpace.Bt601;
 
+        if (ColorSpace == ColorSpace.None)
+        {
+            if (frame->colorspace == AVColorSpace.Bt709)
+                ColorSpace = ColorSpace.Bt709;
+            else if (frame->colorspace == AVColorSpace.Bt470bg)
+                ColorSpace = ColorSpace.Bt601;
+            else if (frame->colorspace == AVColorSpace.Bt2020Ncl || frame->colorspace == AVColorSpace.Bt2020Cl)
+                ColorSpace = ColorSpace.Bt2020;
+            else if (codecCtx->colorspace == AVColorSpace.Bt709)
+                ColorSpace = ColorSpace.Bt709;
+            else if (codecCtx->colorspace == AVColorSpace.Bt470bg)
+                ColorSpace = ColorSpace.Bt601;
+            else if (codecCtx->colorspace == AVColorSpace.Bt2020Ncl || codecCtx->colorspace == AVColorSpace.Bt2020Cl)
+                ColorSpace = ColorSpace.Bt2020;
+            else if (ColorSpace == ColorSpace.None)
+                ColorSpace = Height > 576 ? ColorSpace.Bt709 : ColorSpace.Bt601;
+        }
+        
         // We consider that FPS can't change (only if it was missing we fill it)
         if (FPS == 0.0)
         {

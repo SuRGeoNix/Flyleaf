@@ -60,7 +60,7 @@ unsafe public partial class Renderer
         {
             textDesc[i].Usage               = ResourceUsage.Default;
             textDesc[i].BindFlags           = BindFlags.ShaderResource;// | BindFlags.RenderTarget;
-            textDesc[i].SampleDescription   = new SampleDescription(1, 0);
+            textDesc[i].SampleDescription   = new(1, 0);
             textDesc[i].ArraySize           = 1;
             textDesc[i].MipLevels           = 1;
         }
@@ -68,7 +68,7 @@ unsafe public partial class Renderer
         for (int i=0; i<textDesc.Length; i++)
         {
             srvDesc[i].Texture2D        = new() { MipLevels = 1, MostDetailedMip = 0 };
-            srvDesc[i].Texture2DArray   = new Texture2DArrayShaderResourceView() { ArraySize = 1, MipLevels = 1 };
+            srvDesc[i].Texture2DArray   = new() { ArraySize = 1, MipLevels = 1 };
         }
     }
 
@@ -99,7 +99,7 @@ unsafe public partial class Renderer
             var oldVP       = videoProcessor;
             var fieldType   = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
             VideoProcessor  = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != DeInterlace.Progressive && Config.Video.VideoProcessor != VideoProcessors.Flyleaf)) ?
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || fieldType != DeInterlace.Progressive) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
 
             if (oldVP != videoProcessor)

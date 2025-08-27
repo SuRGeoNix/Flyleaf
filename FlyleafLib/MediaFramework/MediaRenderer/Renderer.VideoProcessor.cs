@@ -285,19 +285,14 @@ unsafe public partial class Renderer
 
             FieldType = Config.Video.DeInterlace == DeInterlace.Auto ? (VideoStream != null ? VideoStream.FieldOrder : DeInterlace.Progressive) : Config.Video.DeInterlace;
             vc?.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType == DeInterlace.Progressive ? VideoFrameFormat.Progressive : (FieldType == DeInterlace.BottomField ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
-            psBufferData.fieldType = FieldType;
             
             var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
             var newVp = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != DeInterlace.Progressive && Config.Video.VideoProcessor != VideoProcessors.Flyleaf)) ?
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || fieldType != DeInterlace.Progressive) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
 
             if (newVp != VideoProcessor)
                 ConfigPlanes();
-            else
-                context.UpdateSubresource(psBufferData, psBuffer);
-
-            Present();
         }
     }
     internal void SetFieldType(DeInterlace fieldType)
