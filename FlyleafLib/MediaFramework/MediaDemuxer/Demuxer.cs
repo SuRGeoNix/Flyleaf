@@ -1,14 +1,7 @@
-﻿using System.Collections.Concurrent;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Runtime.InteropServices;
 using System.Windows.Data;
 
 using static FlyleafLib.Config;
-using static FlyleafLib.Logger;
 
 using FlyleafLib.MediaFramework.MediaProgram;
 using FlyleafLib.MediaFramework.MediaStream;

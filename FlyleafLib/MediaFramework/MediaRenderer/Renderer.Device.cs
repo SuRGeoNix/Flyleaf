@@ -252,7 +252,6 @@ public unsafe partial class Renderer
                     ByteWidth       = (uint)(sizeof(PSBufferType) + (16 - (sizeof(PSBufferType) % 16)))
                 });
                 context.PSSetConstantBuffer(0, psBuffer);
-                psBufferData.fieldType = FieldType;
 
                 // subs
                 ShaderBGRA = ShaderCompiler.CompilePS(Device, "bgra", @"color = float4(Texture1.Sample(Sampler, input.Texture).rgba);", null);
@@ -500,13 +499,8 @@ public unsafe partial class Renderer
         public float saturation;    //  0.0  to 2.0     (1.0 default)
 
         public float uvOffset;
-        public float yoffset;
         public HDRtoSDRMethod tonemap;
         public float hdrtone;
-        public DeInterlace fieldType;
-
-        private float _pad1;
-        private float _pad2;
 
         public PSBufferType()
         {
@@ -514,9 +508,7 @@ public unsafe partial class Renderer
             contrast    = 1;
             hue         = 0;
             saturation  = 1;
-
             tonemap     = HDRtoSDRMethod.Hable;
-            fieldType   = DeInterlace.Progressive;
         }
     }
 

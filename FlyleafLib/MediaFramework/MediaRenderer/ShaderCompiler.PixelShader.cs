@@ -29,17 +29,15 @@ Texture2D		Texture4		: register(t3);
 struct ConfigData
 {
     int coefsIndex;
+
     float brightness;
     float contrast;
     float hue;
     float saturation;
+
     float uvOffset;
-    float yoffset;
     int tonemap;
     float hdrtone;
-    int fieldType;
-
-    float2 padding;
 };
 
 cbuffer         Config          : register(b0)
@@ -234,7 +232,7 @@ inline float3 ToneHable(float3 x)
 
     return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
 }
-static const float3 HABLE_DEFAULT = ToneHable(11.2); // whitepoint (TBR: if should be 4.8 and possible expose to config)
+static const float3 HABLE_DEFAULT = ToneHable(11.2);
 
 inline float3 ToneReinhard(float3 x)
 {

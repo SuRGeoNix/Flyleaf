@@ -49,12 +49,12 @@ public enum HDRtoSDRMethod : int
     Reinhard    = 3
 }
 
-public enum DeInterlace : int
+public enum DeInterlace // Must match with VideoFrameFormat
 {
-    Auto        = -2,
-    Progressive = -1,
-    TopField    =  0,
-    BottomField =  1
+    Progressive,
+    TopField,
+    BottomField,
+    Auto
 }
 public enum VideoProcessors
 {
