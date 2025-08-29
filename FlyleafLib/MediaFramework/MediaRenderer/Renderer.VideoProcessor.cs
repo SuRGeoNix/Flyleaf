@@ -246,6 +246,7 @@ unsafe public partial class Renderer
             {
                 UpdateBackgroundColor();
                 vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
+                vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
             }
 
             lock (Config.Video.lockFilters)
@@ -283,30 +284,36 @@ unsafe public partial class Renderer
             if (Disposed || parent != null)
                 return;
 
-            FieldType = Config.Video.DeInterlace == DeInterlace.Auto ? (VideoStream != null ? VideoStream.FieldOrder : DeInterlace.Progressive) : Config.Video.DeInterlace;
-            vc?.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType == DeInterlace.Progressive ? VideoFrameFormat.Progressive : (FieldType == DeInterlace.BottomField ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
-            
-            var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
+            var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? (VideoStream != null ? VideoStream.FieldOrder : VideoFrameFormat.Progressive) : (VideoFrameFormat)Config.Video.DeInterlace;
             var newVp = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || fieldType != DeInterlace.Progressive) ?
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || fieldType != VideoFrameFormat.Progressive) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
+
+            if (videoProcessor == VideoProcessors.Flyleaf)
+                FieldType = VideoFrameFormat.Progressive;
+            else
+            {
+                FieldType = fieldType;
+                vc.VideoProcessorSetStreamFrameFormat(vp, 0, fieldType);
+            }
 
             if (newVp != VideoProcessor)
                 ConfigPlanes();
         }
     }
-    internal void SetFieldType(DeInterlace fieldType)
+    internal VideoFrameFormat GetFieldType()
     {
         lock (lockDevice)
-        {
-            if (Disposed)
-                return;
+            return !Disposed ? vc.VideoProcessorGetStreamFrameFormat(vp, 0) : VideoFrameFormat.Progressive;
+    }
+        
 
-            //vpsa[0].InputFrameOrField = fieldType == DeInterlace.BottomField ? 1u : 0u; // TBR
-            vc?.VideoProcessorSetStreamFrameFormat(vp, 0, fieldType == DeInterlace.Progressive ? VideoFrameFormat. Progressive : (fieldType == DeInterlace.BottomField ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
-            psBufferData.fieldType = fieldType;
-            context.UpdateSubresource(psBufferData, psBuffer);
-        }
+    internal void SetFieldType(VideoFrameFormat fieldType)
+    {
+        lock (lockDevice)
+            if (!Disposed)
+                vc.VideoProcessorSetStreamFrameFormat(vp, 0, fieldType);
+                //TBR: vpsa[0].InputFrameOrField = fieldType == DeInterlace.BottomField ? 1u : 0u; // TBR
     }
     internal void UpdateHDRtoSDR(bool updateResource = true)
     {

@@ -68,7 +68,7 @@ unsafe public partial class Renderer
         for (int i=0; i<textDesc.Length; i++)
         {
             srvDesc[i].Texture2D        = new() { MipLevels = 1, MostDetailedMip = 0 };
-            srvDesc[i].Texture2DArray   = new() { ArraySize = 1, MipLevels = 1 };
+            srvDesc[i].Texture2DArray   = new() { MipLevels = 1, ArraySize = 1 };
         }
     }
 
@@ -93,26 +93,21 @@ unsafe public partial class Renderer
                 rotationLinesize
                             = false;
                 UpdateRotation(_RotationAngle, false);
-                UpdateHDRtoSDR(false); // TODO: Separate the only first time setup (generic)
+                UpdateHDRtoSDR(false);
             }
 
             var oldVP       = videoProcessor;
-            var fieldType   = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : Config.Video.DeInterlace;
+            var fieldType   = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : (VideoFrameFormat)Config.Video.DeInterlace;
             VideoProcessor  = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || fieldType != DeInterlace.Progressive) ?
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || fieldType != VideoFrameFormat.Progressive) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
+
+            FieldType = fieldType != VideoFrameFormat.Progressive && videoProcessor == VideoProcessors.Flyleaf ? VideoFrameFormat.Progressive : fieldType;
 
             if (oldVP != videoProcessor)
             {
                 VideoDecoder.DisposeFrame(LastFrame);
                 VideoDecoder.DisposeFrames();
-            }
-
-            if (fieldType != FieldType)
-            {
-                FieldType = fieldType;
-                vc?.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType == DeInterlace.Progressive ? VideoFrameFormat.Progressive : (FieldType == DeInterlace.BottomField ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst));
-                psBufferData.fieldType = FieldType;
             }
 
             textDesc[0].BindFlags
@@ -125,7 +120,7 @@ unsafe public partial class Renderer
                 Log.Trace($"Preparing planes for {VideoStream.PixelFormatStr} with {videoProcessor}");
 
             bool supported = VideoDecoder.VideoAccelerated || (!VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Pal) && (!VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Be) || VideoStream.PixelComp0Depth <= 8));
-            if (supported) // We currently force SwsScale for BE (RGBA64/BGRA64 BE noted that could work as is?*)
+            if (supported)
             {
                 if (videoProcessor == VideoProcessors.D3D11)
                 {
@@ -142,6 +137,7 @@ unsafe public partial class Renderer
                     vd1.CreateVideoProcessorOutputView(backBuffer, vpe, vpovd, out vpov);
                     vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
                     vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
+                    vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
 
                     if (child != null)
                     {
@@ -194,8 +190,6 @@ unsafe public partial class Renderer
                         defines.Add(dBT2020);
                         curPSUniqueId += "b";
                     }
-
-                    psBufferData.yoffset = 1.0f / VideoStream.Height;
 
                     for (int i = 0; i < srvDesc.Length; i++)
                         srvDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2D;

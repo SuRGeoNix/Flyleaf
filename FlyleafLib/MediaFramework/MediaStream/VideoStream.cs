@@ -1,4 +1,6 @@
-﻿using FlyleafLib.MediaFramework.MediaDecoder;
+﻿using Vortice.Direct3D11;
+
+using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaStream;
@@ -17,7 +19,7 @@ public unsafe class VideoStream : StreamBase
     public ColorType                    ColorType           { get; set; }
     public AVColorTransferCharacteristic
                                         ColorTransfer       { get; set; }
-    public DeInterlace                  FieldOrder          { get; set; }
+    public VideoFrameFormat             FieldOrder          { get; set; }
     public double                       Rotation            { get; set; }
     public double                       FPS                 { get; set; }
     public long                         FrameDuration       { get ;set; }
@@ -84,7 +86,7 @@ public unsafe class VideoStream : StreamBase
             TotalFrames     = (int)(Duration / FrameDuration);
         }
 
-        FieldOrder      = cp->field_order == AVFieldOrder.Tt ? DeInterlace.TopField : (cp->field_order == AVFieldOrder.Bb ? DeInterlace.BottomField : DeInterlace.Progressive);
+        FieldOrder      = cp->field_order == AVFieldOrder.Tt ? VideoFrameFormat.InterlacedTopFieldFirst : (cp->field_order == AVFieldOrder.Bb ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.Progressive);
         ColorTransfer   = cp->color_trc;
 
         if (cp->color_range == AVColorRange.Mpeg)
@@ -147,9 +149,9 @@ public unsafe class VideoStream : StreamBase
         }
 
         if (frame->flags.HasFlag(FrameFlags.Interlaced))
-            FieldOrder = frame->flags.HasFlag(FrameFlags.TopFieldFirst) ? DeInterlace.TopField : DeInterlace.BottomField;
+            FieldOrder = frame->flags.HasFlag(FrameFlags.TopFieldFirst) ? VideoFrameFormat.InterlacedTopFieldFirst : VideoFrameFormat.InterlacedBottomFieldFirst;
         else
-            FieldOrder = codecCtx->field_order == AVFieldOrder.Tt ? DeInterlace.TopField : (codecCtx->field_order == AVFieldOrder.Bb ? DeInterlace.BottomField : DeInterlace.Progressive);
+            FieldOrder = codecCtx->field_order == AVFieldOrder.Tt ? VideoFrameFormat.InterlacedTopFieldFirst : (codecCtx->field_order == AVFieldOrder.Bb ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.Progressive);
 
         if (ColorTransfer == AVColorTransferCharacteristic.Unspecified) // TBR: AVStream has AribStdB67 and Frame/CodecCtx has Bt2020_10 (priority to stream?)*
         {
@@ -217,7 +219,7 @@ public unsafe class VideoStream : StreamBase
         }
 
         // FPS2 / FrameDuration2 (DeInterlace)
-        if (FieldOrder != DeInterlace.Progressive)
+        if (FieldOrder != VideoFrameFormat.Progressive)
         {
             FPS2 = FPS;
             FrameDuration2 = FrameDuration;

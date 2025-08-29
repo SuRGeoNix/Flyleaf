@@ -105,9 +105,8 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public bool             VFlip           { get => _VFlip;                    set { _VFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
     bool _VFlip;
 
-    public DeInterlace      FieldType       { get => _DeInterlace;              private  set => SetUI(ref _DeInterlace, value); }
-    DeInterlace _DeInterlace = DeInterlace.Progressive;
-    public DeInterlace      CurFieldType    { get => psBufferData.fieldType;    internal set { if (value != psBufferData.fieldType) SetFieldType(value); } }
+    public VideoFrameFormat FieldType       { get => _FieldType;                private  set => SetUI(ref _FieldType, value); }
+    VideoFrameFormat _FieldType = VideoFrameFormat.Progressive;
 
     public VideoProcessors  VideoProcessor  { get => videoProcessor;            private  set => SetUI(ref videoProcessor, value); }
     VideoProcessors videoProcessor = VideoProcessors.Flyleaf;

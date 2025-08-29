@@ -11,6 +11,8 @@
         <ResourceDictionary>
             <local:TicksToTimeSpanConverter x:Key="TicksToTimeSpan"/>
             <local:TicksToMilliSecondsConverter x:Key="TicksToMilliSeconds"/>
+            <local:DeInterlaceConverter x:Key="DeInterlaceConverter"/>
+            <local:EqualityConverter x:Key="EqualityConverter"/>
 
             <Style x:Key="FlowTable" TargetType="StackPanel">
                 <Setter Property="Background" Value="{Binding BoxColor, ElementName=DebugControl}"/>
@@ -48,8 +50,28 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel>
-        <TextBlock HorizontalAlignment="Left" Background="{Binding BoxColor, ElementName=DebugControl}" Style="{StaticResource TextValue}" Padding="10" Width="690" TextWrapping="Wrap" Text="{Binding Player.Playlist.Url}"/>
-        <TextBlock HorizontalAlignment="Left" Background="{Binding BoxColor, ElementName=DebugControl}" Style="{StaticResource TextValue}" Padding="10" Width="690" TextWrapping="Wrap" Text="{Binding Player.Playlist.Selected.Title}"/>
+        
+        <TextBlock x:Name="SelectedTitle" HorizontalAlignment="Left" Background="{Binding BoxColor, ElementName=DebugControl}" Padding="10" Width="690" TextWrapping="Wrap" Text="{Binding Player.Playlist.Selected.Title}">
+            <TextBlock.Style>
+                <Style BasedOn="{StaticResource TextValue}" TargetType="TextBlock">
+                    <Setter Property="Visibility" Value="Visible"/>
+                    <Style.Triggers>
+                        <DataTrigger Value="True">
+                            <DataTrigger.Binding>
+                                <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                    <Binding Path="Player.Playlist.Url"/>
+                                    <Binding Path="Text" ElementName="SelectedTitle"/>
+                                </MultiBinding>
+                            </DataTrigger.Binding>
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+
+        <TextBlock HorizontalAlignment="Left" Background="{Binding BoxColor, ElementName=DebugControl}" Style="{StaticResource TextValue}" Padding="10" Width="690" TextWrapping="Wrap" FontSize="12" Text="{Binding Player.Playlist.Url}"/>
+        
         <Grid x:Name="rootGrid">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
@@ -62,7 +84,7 @@
 
             <StackPanel>
                 <!-- Player -->
-                <StackPanel Style="{StaticResource FlowTable}" Height="320">
+                <StackPanel Style="{StaticResource FlowTable}" Height="316">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Player"/>
                     
                     <StackPanel Orientation="Horizontal">
@@ -111,6 +133,11 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource TextInfo}" Text="DeInterlace"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Config.Video.DeInterlace}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="Speed"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Speed, StringFormat=x{0}}"/>
                     </StackPanel>
@@ -139,7 +166,7 @@
                 </StackPanel>
 
                 <!-- Audio (Manual Height-->
-                <StackPanel Style="{StaticResource FlowTable}" Height="320">
+                <StackPanel Style="{StaticResource FlowTable}" Height="316">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Audio"/>
 
                     <StackPanel Orientation="Horizontal">
@@ -206,7 +233,7 @@
 
             <StackPanel Grid.Column="1">
                 <!-- Video -->
-                <StackPanel Style="{StaticResource FlowTable}" Height="320">
+                <StackPanel Style="{StaticResource FlowTable}" Height="316">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Video"/>
 
                     <StackPanel Orientation="Horizontal">
@@ -260,10 +287,10 @@
 
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="DeInterlace"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.renderer.FieldType}"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.renderer.FieldType, Converter={StaticResource DeInterlaceConverter}}"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
+                    <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="ZeroCopy"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.ZeroCopy}"/>
                     </StackPanel>
@@ -310,7 +337,7 @@
                 </StackPanel>
 
                 <!-- Stats -->
-                <StackPanel Style="{StaticResource FlowTable}" Height="172">
+                <StackPanel Style="{StaticResource FlowTable}" Height="168">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Stats"/>
 
                     <StackPanel Orientation="Horizontal">

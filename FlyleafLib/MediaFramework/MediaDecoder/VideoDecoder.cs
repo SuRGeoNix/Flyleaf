@@ -993,9 +993,6 @@ public unsafe class VideoDecoder : DecoderBase
                     (backwards && curFrameNumber + 2 >= frameNumber && GetFrameNumber2((long)(frame->pts * VideoStream.Timebase) + VideoStream.FrameDuration + (VideoStream.FrameDuration / 2)) - curFrameNumber > 1))
                     // At least return a previous frame in case of Tb inaccuracy and don't stuck at the same frame
                 {
-                    if (backwards && curFrameNumber + 2 >= frameNumber && GetFrameNumber2((long)(frame->pts * VideoStream.Timebase) + VideoStream.FrameDuration + (VideoStream.FrameDuration / 2)) - curFrameNumber > 1)
-                        Log.Debug("");
-
                     var mFrame = Renderer.FillPlanes(frame);
                     if (mFrame != null)
                         return mFrame;
