@@ -916,6 +916,7 @@ public unsafe class VideoDecoder : DecoderBase
     /// Performs accurate seeking to the requested VideoFrame and returns it
     /// </summary>
     /// <param name="frameNumber">Zero based frame index</param>
+    /// <param name="backwards">Workaround for VFR for backwards frame stepping</param>
     /// <returns>The requested VideoFrame or null on failure</returns>
     public VideoFrame GetFrame(int frameNumber, bool backwards = false)
     {

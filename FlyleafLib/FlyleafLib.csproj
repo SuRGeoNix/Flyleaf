@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.9</Version>
+	<Version>3.8.10</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,23 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Adds Duration Estimation support for non-analyzed inputs
-		- Demuxer: Fixes a possible null issue when having broken/image streams
-		- Demuxer: Improves Logging for Format/Stream Info
-		- Renderer.FlyleafVP: Shader Compiler and Pixel Shader Improvements
-		- Renderer.FlyleafVP: Adds RGB Full to Limited support
-		- Renderer.FlyleafVP: Adds support for Mono/Gray pixel format types and GBR(A)32
-		- Renderer.FlyleafVP: Removes Bob DeInterlace as is not accurate enough
-		- Renderer.FlyleafVP: Fixes alpha channel
-		- Renderer.FlyleafVP: Fixes an issue with YUV full range
-		- Renderer.Filters: Fixes an issue from a loaded config (it wouldn't enable filters)
-		- MediaStream: Improves handling of AVFrame/AVCodecContext/AVCodecParameters metadata
-		- MediaStream: Improves fallbacks when dealing with unspecified metadata
-		- Player: Improves and Fixes issues with Frame Stepping (mainly backwards and VFR)
-		- Player: Don't treat .txt as subtitle
-		- Player.Keys: Adds Home/End for Seek to Start/End and Page Up/Down for Seek with 3rd offset from config
-		- PlayerDebug: Minor updates
-		- Logger: Few changes from Debug to Trace
+		- Demuxer: Fixes an issue with HLS Live Seek (caused by 3.8.9)
+		- Player: Adds StreamIndex property in Audio/Video/Subtitles
+		- Renderer: Adds Cropping Support (Always ZeroCopy)
+		- Renderer: Adds User Cropping Support (Config.Video.Crop)
+
+		[Breaking Changes]
+		- Config.Decoder.ZeroCopy removed
+		- Player.Video.ZeroCopy removed
 	</PackageReleaseNotes>
   </PropertyGroup>
 

@@ -628,6 +628,10 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public bool             ClearScreen                 { get; set; } = true;
 
+        /// <summary>
+        /// Cropping rectagle to crop the output frame (based on frame size)
+        /// </summary>
+        [JsonIgnore]
         public CropRect         Crop                        { get => _Crop;             set { _Crop = value; HasUserCrop = _Crop != CropRect.Empty; player?.renderer?.UpdateCropping(); } }
         internal CropRect _Crop = CropRect.Empty;
         internal bool HasUserCrop = false;
