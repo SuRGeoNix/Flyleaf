@@ -362,8 +362,8 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
                 if (aspectRatio == AspectRatio.Keep) popUpKeepAspectRatio = (MenuItem)popUpAspectRatio.Items[popUpAspectRatio.Items.Count - 1];
             }
 
-            popUpCustomAspectRatio = new MenuItem() { IsCheckable = true };
-            popUpCustomAspectRatioSet = new MenuItem() { Header = "Set Custom..." };
+            popUpCustomAspectRatio      = new() { IsCheckable = true };
+            popUpCustomAspectRatioSet   = new() { Header = "Set Custom..." };
             popUpCustomAspectRatioSet.Click += (n1, n2) => { DialogAspectRatio(); };
 
             popUpAspectRatio.Items.Add(popUpCustomAspectRatio);

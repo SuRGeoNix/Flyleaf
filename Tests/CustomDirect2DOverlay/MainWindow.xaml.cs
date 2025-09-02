@@ -46,7 +46,7 @@ public partial class MainWindow : Window
     ID2D1SolidColorBrush  brush2d;
 
     // D2Draw per frame
-    private void Video_D2DDraw(object? sender, ID2D1DeviceContext context)
+    private void Video_D2DDraw(object sender, ID2D1DeviceContext context)
     {
         Viewport vp = ((Renderer)sender).GetViewport;
 
@@ -65,13 +65,13 @@ public partial class MainWindow : Window
     }
 
     // D2D Resource Disposal
-    private void Video_D2DDisposing(object? sender, ID2D1DeviceContext context)
+    private void Video_D2DDisposing(object sender, ID2D1DeviceContext context)
     {
         brush2d.Dispose();
     }
 
     // D2D Resource Initialization
-    private void Video_D2DInitialized(object? sender, ID2D1DeviceContext context)
+    private void Video_D2DInitialized(object sender, ID2D1DeviceContext context)
     {
         brush2d = context.CreateSolidColorBrush(new Color4(1.0f, 0.0f, 0.0f, 1f));
     }
