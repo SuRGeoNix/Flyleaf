@@ -1,12 +1,11 @@
 ﻿using SharpGen.Runtime;
-using Vortice;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
-using Vortice.Mathematics;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
+using FlyleafLib.MediaFramework.MediaStream;
 
 using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
@@ -27,11 +26,9 @@ unsafe public partial class Renderer
     enum PSCase : int
     {
         None,
-        HWD3D11VP,
-        HWD3D11VPZeroCopy,
         HW,
-        HWZeroCopy,
-
+        HWD3D11VP,
+        
         Gray,
         RGBPacked,
         RGBPacked2,
@@ -45,14 +42,12 @@ unsafe public partial class Renderer
 
     PSCase  curPSCase;
     string  curPSUniqueId;
-    float   curRatio = 1.0f;
     string  prevPSUniqueId;
     internal bool forceNotExtractor; // TBR: workaround until we separate the Extractor?
 
     Texture2DDescription[]          textDesc= new Texture2DDescription[4];
     ShaderResourceViewDescription[] srvDesc = new ShaderResourceViewDescription[4];
     SubresourceData[]               subData = new SubresourceData[1];
-    Box                             cropBox = new(0, 0, 0, 0, 0, 1);
 
     void InitPS()
     {
@@ -72,7 +67,7 @@ unsafe public partial class Renderer
         }
     }
 
-    internal bool ConfigPlanes(bool fromCodec = false)
+    internal bool ConfigPlanes(AVFrame* frame = null)
     {
         bool error = false;
 
@@ -86,20 +81,38 @@ unsafe public partial class Renderer
             if (Disposed || VideoStream == null)
                 return false;
 
-            if (fromCodec)
+            if (frame != null) // Called from Stream / Codec (requires full reset)
             {
-                curRatio    = VideoStream.AspectRatio.Value;
-                VideoRect   = new RawRect(0, 0, (int)VideoStream.Width, (int)VideoStream.Height);
-                rotationLinesize
-                            = false;
+                if (VideoDecoder.VideoAccelerated)
+                {
+                    var desc    = VideoDecoder.textureFFmpeg.Description;
+                    textWidth   = desc.Width;
+                    textHeight  = desc.Height;
+                }
+                else
+                {
+                    /* TODO
+                     * 1) Use Texture Array for SW Frames
+                     * 2) Use Padded Width / Height & Crop after | Width: linesize[0] / D3D11TextureByteSize, Height: Coded_Height (=frame->height padded)
+                     * 3) The we can render odd visible width properly
+                     */
+
+                    textWidth   = (uint)frame->width;   // (uint)(frame->width  & ~1);   //((frame->width  + 1) & ~1);
+                    textHeight  = (uint)frame->height;  // (uint)(frame->height & ~1);  //((frame->height + 1) & ~1);
+                }
+
+                VideoRect       = new(0, 0, (int)textWidth, (int)textHeight);
+                rotationLinesize= false;
+
                 UpdateRotation(_RotationAngle, false);
                 UpdateHDRtoSDR(false);
+                UpdateCropping(false);
             }
 
             var oldVP       = videoProcessor;
             var fieldType   = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : (VideoFrameFormat)Config.Video.DeInterlace;
             VideoProcessor  = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || fieldType != VideoFrameFormat.Progressive) ?
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
 
             FieldType = fieldType != VideoFrameFormat.Progressive && videoProcessor == VideoProcessors.Flyleaf ? VideoFrameFormat.Progressive : fieldType;
@@ -124,6 +137,8 @@ unsafe public partial class Renderer
             {
                 if (videoProcessor == VideoProcessors.D3D11)
                 {
+                    curPSCase = PSCase.HWD3D11VP;
+
                     inputColorSpace = new()
                     {
                         Usage           = 0u,
@@ -143,21 +158,6 @@ unsafe public partial class Renderer
                     {
                         child.vpov?.Dispose();
                         vd1.CreateVideoProcessorOutputView(child.backBuffer, vpe, vpovd, out child.vpov);
-                    }
-
-                    if (VideoDecoder.ZeroCopy)
-                        curPSCase = PSCase.HWD3D11VPZeroCopy;
-                    else
-                    {
-                        curPSCase = PSCase.HWD3D11VP;
-
-                        textDesc[0].BindFlags |= BindFlags.RenderTarget;
-
-                        cropBox.Right       = (int)VideoStream.Width;
-                        textDesc[0].Width   = VideoStream.Width;
-                        cropBox.Bottom      = (int)VideoStream.Height;
-                        textDesc[0].Height  = VideoStream.Height;
-                        textDesc[0].Format  = VideoDecoder.textureFFmpeg.Description.Format;
                     }
                 }
                 else if (!Config.Video.SwsForce || VideoDecoder.VideoAccelerated) // FlyleafVP
@@ -223,23 +223,9 @@ unsafe public partial class Renderer
                             srvDesc[1].Format = Format.R8G8_UNorm;
                         }
 
-                        if (VideoDecoder.ZeroCopy)
-                        {
-                            curPSCase = PSCase.HWZeroCopy;
-
-                            for (int i=0; i<srvDesc.Length; i++)
-                                srvDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2DArray;
-                        }
-                        else
-                        {
-                            curPSCase = PSCase.HW;
-
-                            cropBox.Right       = (int)VideoStream.Width;
-                            textDesc[0].Width   = VideoStream.Width;
-                            cropBox.Bottom      = (int)VideoStream.Height;
-                            textDesc[0].Height  = VideoStream.Height;
-                            textDesc[0].Format  = VideoDecoder.textureFFmpeg.Description.Format;
-                        }
+                        curPSCase = PSCase.HW;
+                        srvDesc[0].ViewDimension = ShaderResourceViewDimension.Texture2DArray;
+                        srvDesc[1].ViewDimension = ShaderResourceViewDimension.Texture2DArray;
 
                         // HW || HWZeroCopy | TODO: Fix calculation of uniqueId (those are actually same sampling - without different defines)
                         curPSUniqueId += "3";
@@ -278,19 +264,18 @@ unsafe public partial class Renderer
                             curPSCase = PSCase.YUVPacked;
                             curPSUniqueId += ((int)curPSCase).ToString();
 
-                            psBufferData.uvOffset = 1.0f / (VideoStream.Width >> 1);
-                            textDesc[0].Width   = VideoStream.Width;
-                            textDesc[0].Height  = VideoStream.Height;
+                            psBufferData.uvOffset = 1.0f / (textWidth >> 1);
+                            textDesc[0].Width   = textWidth;
+                            textDesc[0].Height  = textHeight;
 
                             if (VideoStream.PixelComp0Depth > 8)
                             {
-                                curPSUniqueId += $"{VideoStream.Width}_";
+                                curPSUniqueId += "x";
                                 textDesc[0].Format  = Format.Y210;
                                 srvDesc[0].Format   = Format.R16G16B16A16_UNorm;
                             }
                             else
                             {
-                                curPSUniqueId += $"{VideoStream.Width}";
                                 textDesc[0].Format  = Format.YUY2;
                                 srvDesc[0].Format   = Format.R8G8B8A8_UNorm;
                             }
@@ -308,7 +293,7 @@ unsafe public partial class Renderer
                             if (VideoStream.PixelFormat == AVPixelFormat.Yuyv422 ||
                                 VideoStream.PixelFormat == AVPixelFormat.Y210le)
                             {
-                                curPSUniqueId += $"a";
+                                curPSUniqueId += "a";
 
                                 SetPS(curPSUniqueId, header + @"
         float  leftY    = lerp(c1.r, c1.b, fx * 2);
@@ -317,9 +302,10 @@ unsafe public partial class Renderer
         float  outY     = lerp(leftY, rightY, step(0.5, fx));
         color = float4(outY, outUV, 1.0f);
     ", defines);
-                            } else if (VideoStream.PixelFormat == AVPixelFormat.Yvyu422)
+                            }
+                            else if (VideoStream.PixelFormat == AVPixelFormat.Yvyu422)
                             {
-                                curPSUniqueId += $"b";
+                                curPSUniqueId += "b";
 
                                 SetPS(curPSUniqueId, header + @"
         float  leftY    = lerp(c1.r, c1.b, fx * 2);
@@ -328,9 +314,10 @@ unsafe public partial class Renderer
         float  outY     = lerp(leftY, rightY, step(0.5, fx));
         color = float4(outY, outUV, 1.0f);
     ", defines);
-                            } else if (VideoStream.PixelFormat == AVPixelFormat.Uyvy422)
+                            }
+                            else if (VideoStream.PixelFormat == AVPixelFormat.Uyvy422)
                             {
-                                curPSUniqueId += $"c";
+                                curPSUniqueId += "c";
 
                                 SetPS(curPSUniqueId, header + @"
         float  leftY    = lerp(c1.g, c1.a, fx * 2);
@@ -349,10 +336,10 @@ unsafe public partial class Renderer
                             curPSCase = PSCase.YUVSemiPlanar;
                             curPSUniqueId += ((int)curPSCase).ToString();
 
-                            textDesc[0].Width   = VideoStream.Width;
-                            textDesc[0].Height  = VideoStream.Height;
-                            textDesc[1].Width   = VideoStream.PixelFormatDesc->log2_chroma_w > 0 ? (VideoStream.Width  + 1) >> VideoStream.PixelFormatDesc->log2_chroma_w : VideoStream.Width  >> VideoStream.PixelFormatDesc->log2_chroma_w;
-                            textDesc[1].Height  = VideoStream.PixelFormatDesc->log2_chroma_h > 0 ? (VideoStream.Height + 1) >> VideoStream.PixelFormatDesc->log2_chroma_h : VideoStream.Height >> VideoStream.PixelFormatDesc->log2_chroma_h;
+                            textDesc[0].Width   = textWidth;
+                            textDesc[0].Height  = textHeight;
+                            textDesc[1].Width   = textWidth  >> VideoStream.PixelFormatDesc->log2_chroma_w;
+                            textDesc[1].Height  = textHeight >> VideoStream.PixelFormatDesc->log2_chroma_h;
 
                             string offsets = VideoStream.PixelComps[1].offset > VideoStream.PixelComps[2].offset ? "gr" : "rg";
                             curPSUniqueId += offsets;
@@ -383,10 +370,10 @@ unsafe public partial class Renderer
                             curPSCase = PSCase.YUVPlanar;
                             curPSUniqueId += ((int)curPSCase).ToString();
 
-                            textDesc[0].Width   = textDesc[3].Width = VideoStream.Width;
-                            textDesc[0].Height  = textDesc[3].Height= VideoStream.Height;
-                            textDesc[1].Width   = textDesc[2].Width = VideoStream.PixelFormatDesc->log2_chroma_w > 0 ? (VideoStream.Width  + 1) >> VideoStream.PixelFormatDesc->log2_chroma_w : VideoStream.Width  >> VideoStream.PixelFormatDesc->log2_chroma_w;
-                            textDesc[1].Height  = textDesc[2].Height= VideoStream.PixelFormatDesc->log2_chroma_h > 0 ? (VideoStream.Height + 1) >> VideoStream.PixelFormatDesc->log2_chroma_h : VideoStream.Height >> VideoStream.PixelFormatDesc->log2_chroma_h;
+                            textDesc[0].Width   = textDesc[3].Width = textWidth;
+                            textDesc[0].Height  = textDesc[3].Height= textHeight;
+                            textDesc[1].Width   = textDesc[2].Width = textWidth  >> VideoStream.PixelFormatDesc->log2_chroma_w;
+                            textDesc[1].Height  = textDesc[2].Height= textHeight >> VideoStream.PixelFormatDesc->log2_chroma_h;
 
                             string shader = @"
     color.r = Texture1.Sample(Sampler, input.Texture).r;
@@ -452,8 +439,8 @@ unsafe public partial class Renderer
                             curPSCase = PSCase.RGBPacked;
                             curPSUniqueId += ((int)curPSCase).ToString();
 
-                            textDesc[0].Width   = VideoStream.Width;
-                            textDesc[0].Height  = VideoStream.Height;
+                            textDesc[0].Width   = textWidth;
+                            textDesc[0].Height  = textHeight;
 
                             if (VideoStream.PixelComp0Depth > 8)
                             {
@@ -498,9 +485,8 @@ unsafe public partial class Renderer
                             curPSCase = PSCase.RGBPacked2;
                             curPSUniqueId += ((int)curPSCase).ToString();
 
-                            textDesc[0].Width   = VideoStream.Width;
-                            textDesc[0].Height  = VideoStream.Height;
-
+                            textDesc[0].Width   = textWidth;
+                            textDesc[0].Height  = textHeight;
                             textDesc[0].Format  = srvDesc[0].Format = Format.B4G4R4A4_UNorm;
 
                             string shader;
@@ -535,8 +521,8 @@ unsafe public partial class Renderer
 
                             for (int i = 0; i < VideoStream.PixelPlanes; i++)
                             {
-                                textDesc[i].Width   = VideoStream.Width;
-                                textDesc[i].Height  = VideoStream.Height;
+                                textDesc[i].Width   = textWidth;
+                                textDesc[i].Height  = textHeight;
                             }
 
                             string shader = @"
@@ -604,8 +590,8 @@ unsafe public partial class Renderer
                         curPSCase = PSCase.Gray;
                         curPSUniqueId += ((int)curPSCase).ToString();
 
-                        textDesc[0].Width   = VideoStream.Width;
-                        textDesc[0].Height  = VideoStream.Height;
+                        textDesc[0].Width   = textWidth;
+                        textDesc[0].Height  = textHeight;
 
                         string shader = @"
     color = float4(Texture1.Sample(Sampler, input.Texture).r, Texture1.Sample(Sampler, input.Texture).r, Texture1.Sample(Sampler, input.Texture).r, 1.0f);
@@ -650,7 +636,8 @@ unsafe public partial class Renderer
 
             if (curPSCase == PSCase.None)
             {
-                Log.Warn($"{VideoStream.PixelFormatStr} not supported. Falling back to SwsScale");
+                if (!Config.Video.SwsForce)
+                    Log.Warn($"{VideoStream.PixelFormatStr} not supported. Falling back to SwsScale");
 
                 if (!VideoDecoder.SetupSws())
                 {
@@ -658,11 +645,11 @@ unsafe public partial class Renderer
                     return false;
                 }
 
-                curPSCase = PSCase.SwsScale;
-                curPSUniqueId = ((int)curPSCase).ToString();
+                curPSCase           = PSCase.SwsScale;
+                curPSUniqueId       = ((int)curPSCase).ToString();
 
-                textDesc[0].Width   = VideoStream.Width;
-                textDesc[0].Height  = VideoStream.Height;
+                textDesc[0].Width   = (uint)VideoDecoder.CodecCtx->width; // Visible dimensions!
+                textDesc[0].Height  = (uint)VideoDecoder.CodecCtx->height;
                 textDesc[0].Format  = srvDesc[0].Format = Format.R8G8B8A8_UNorm;
                 srvDesc[0].ViewDimension = ShaderResourceViewDimension.Texture2D;
 
@@ -720,36 +707,14 @@ unsafe public partial class Renderer
             mFrame.timestamp = (long)(frame->pts * VideoStream.Timebase) - VideoDecoder.Demuxer.StartTime;
             if (CanTrace) Log.Trace($"Processes {TicksToTime(mFrame.timestamp)}");
 
-            if (curPSCase == PSCase.HWZeroCopy)
+            if (curPSCase == PSCase.HW)
             {
-                mFrame.srvs         = new ID3D11ShaderResourceView[2];
+                mFrame.srvs     = new ID3D11ShaderResourceView[2];
                 srvDesc[0].Texture2DArray.FirstArraySlice = srvDesc[1].Texture2DArray.FirstArraySlice = (uint) frame->data[1];
 
-                mFrame.srvs[0]      = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDesc[0]);
-                mFrame.srvs[1]      = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDesc[1]);
+                mFrame.srvs[0]  = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDesc[0]);
+                mFrame.srvs[1]  = Device.CreateShaderResourceView(VideoDecoder.textureFFmpeg, srvDesc[1]);
 
-                mFrame.avFrame = av_frame_alloc();
-                av_frame_move_ref(mFrame.avFrame, frame);
-                return mFrame;
-            }
-
-            else if (curPSCase == PSCase.HW)
-            {
-                mFrame.textures     = new ID3D11Texture2D[1];
-                mFrame.srvs         = new ID3D11ShaderResourceView[2];
-
-                mFrame.textures[0]  = Device.CreateTexture2D(textDesc[0]);
-                context.CopySubresourceRegion(
-                    mFrame.textures[0], 0, 0, 0, 0, // dst
-                    VideoDecoder.textureFFmpeg, (uint) frame->data[1],  // src
-                    cropBox); // crop decoder's padding
-
-                mFrame.srvs[0]      = Device.CreateShaderResourceView(mFrame.textures[0], srvDesc[0]);
-                mFrame.srvs[1]      = Device.CreateShaderResourceView(mFrame.textures[0], srvDesc[1]);
-            }
-
-            else if (curPSCase == PSCase.HWD3D11VPZeroCopy)
-            {
                 mFrame.avFrame = av_frame_alloc();
                 av_frame_move_ref(mFrame.avFrame, frame);
                 return mFrame;
@@ -757,12 +722,9 @@ unsafe public partial class Renderer
 
             else if (curPSCase == PSCase.HWD3D11VP)
             {
-                mFrame.textures     = new ID3D11Texture2D[1];
-                mFrame.textures[0]  = Device.CreateTexture2D(textDesc[0]);
-                context.CopySubresourceRegion(
-                    mFrame.textures[0], 0, 0, 0, 0, // dst
-                    VideoDecoder.textureFFmpeg, (uint) frame->data[1],  // src
-                    cropBox); // crop decoder's padding
+                mFrame.avFrame = av_frame_alloc();
+                av_frame_move_ref(mFrame.avFrame, frame);
+                return mFrame;
             }
 
             else if (curPSCase == PSCase.SwsScale)
@@ -770,7 +732,7 @@ unsafe public partial class Renderer
                 mFrame.textures         = new ID3D11Texture2D[1];
                 mFrame.srvs             = new ID3D11ShaderResourceView[1];
 
-                sws_scale(VideoDecoder.swsCtx, frame->data.ToRawArray(), frame->linesize.ToArray(), 0, frame->height, VideoDecoder.swsData.ToRawArray(), VideoDecoder.swsLineSize.ToArray());
+                _ = sws_scale(VideoDecoder.swsCtx, frame->data.ToRawArray(), frame->linesize.ToArray(), 0, frame->height, VideoDecoder.swsData.ToRawArray(), VideoDecoder.swsLineSize.ToArray());
 
                 subData[0].DataPointer  = VideoDecoder.swsData[0];
                 subData[0].RowPitch     = (uint)VideoDecoder.swsLineSize[0];
@@ -787,13 +749,12 @@ unsafe public partial class Renderer
                 bool newRotationLinesize = false;
                 for (int i = 0; i < VideoStream.PixelPlanes; i++)
                 {
-                    if (frame->linesize[i] < 0)
+                    if (frame->linesize[i] < 0) // Negative linesize for vertical flipping
                     {
-                        // Negative linesize for vertical flipping [TBR: might required for HW as well? (SwsScale does that)] http://ffmpeg.org/doxygen/trunk/structAVFrame.html#aa52bfc6605f6a3059a0c3226cc0f6567
                         newRotationLinesize     = true;
                         subData[0].RowPitch     = (uint)(-1 * frame->linesize[i]);
                         subData[0].DataPointer  = frame->data[i];
-                        subData[0].DataPointer -= (nint)((subData[0].RowPitch * (VideoStream.Height - 1)));
+                        subData[0].DataPointer -= (nint)((subData[0].RowPitch * (VideoStream.Height - 1))); // TBR: Heigh is wrong here (needs texture's height?)
                     }
                     else
                     {

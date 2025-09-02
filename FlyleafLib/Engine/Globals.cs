@@ -68,6 +68,14 @@ public enum ZeroCopy : int
     Enabled     = 1,
     Disabled    = 2
 }
+[Flags]
+public enum Cropping
+{
+    None,
+    Stream,
+    Codec,
+    Texture
+}
 public enum ColorSpace : int
 {
     None        = 0,
@@ -155,37 +163,37 @@ public enum VideoFilters
 
 public struct AspectRatio : IEquatable<AspectRatio>
 {
-    public static readonly AspectRatio Keep     = new(-1, 1);
-    public static readonly AspectRatio Fill     = new(-2, 1);
-    public static readonly AspectRatio Custom   = new(-3, 1);
+    public static readonly AspectRatio Keep     = new(-1,   1);
+    public static readonly AspectRatio Fill     = new(-2,   1);
+    public static readonly AspectRatio Custom   = new(-3,   1);
     public static readonly AspectRatio Invalid  = new(-999, 1);
 
-    public static readonly List<AspectRatio> AspectRatios = new()
-    {
+    public static readonly List<AspectRatio> AspectRatios =
+    [
         Keep,
         Fill,
         Custom,
-        new AspectRatio(1, 1),
-        new AspectRatio(4, 3),
-        new AspectRatio(16, 9),
-        new AspectRatio(16, 10),
-        new AspectRatio(2.35f, 1),
-    };
+        new(1,      1),
+        new(4,      3),
+        new(16,     9),
+        new(16,     10),
+        new(2.35f,  1),
+    ];
 
-    public static implicit operator AspectRatio(string value) => new AspectRatio(value);
+    public static implicit operator AspectRatio(string value) => new(value);
 
     public float Num { get; set; }
     public float Den { get; set; }
 
     public float Value
     {
-        get => Num / Den;
-        set  { Num = value; Den = 1; }
+        readonly get => Num / Den;
+        set { Num = value; Den = 1; }
     }
 
     public string ValueStr
     {
-        get => ToString();
+        readonly get => ToString();
         set => FromString(value);
     }
 
@@ -193,9 +201,9 @@ public struct AspectRatio : IEquatable<AspectRatio>
     public AspectRatio(float num, float den) { Num = num; Den = den; }
     public AspectRatio(string value) { Num = Invalid.Num; Den = Invalid.Den; FromString(value); }
 
-    public bool Equals(AspectRatio other) => Num == other.Num && Den == other.Den;
-    public override bool Equals(object obj) => obj is AspectRatio o && Equals(o);
-    public override int GetHashCode() => HashCode.Combine(Num, Den);
+    public readonly bool Equals(AspectRatio other) => Num == other.Num && Den == other.Den;
+    public override readonly bool Equals(object obj) => obj is AspectRatio o && Equals(o);
+    public override readonly int GetHashCode() => HashCode.Combine(Num, Den);
     public static bool operator ==(AspectRatio a, AspectRatio b) => a.Equals(b);
     public static bool operator !=(AspectRatio a, AspectRatio b) => !(a == b);
 
@@ -228,7 +236,34 @@ public struct AspectRatio : IEquatable<AspectRatio>
         else
             { Num = Invalid.Num; Den = Invalid.Den; }
     }
-    public override string ToString() => this == Keep ? "Keep" : (this == Fill ? "Fill" : (this == Custom ? "Custom" : (this == Invalid ? "Invalid" : $"{Num}:{Den}")));
+    public override readonly string ToString() => this == Keep ? "Keep" : (this == Fill ? "Fill" : (this == Custom ? "Custom" : (this == Invalid ? "Invalid" : $"{Num}:{Den}")));
+}
+
+public struct CropRect(uint top = 0, uint left= 0, uint bottom= 0, uint right= 0) : IEquatable<CropRect>
+{
+    public static readonly CropRect Empty;
+
+    public uint             Top     = top;
+    public uint             Left    = left;
+    public uint             Bottom  = bottom;
+    public uint             Right   = right;
+
+    public readonly uint    Width   => Right - Left;
+    public readonly uint    Height  => Bottom - Top;
+    public readonly bool    IsEmpty => Top == 0 && Left == 0 && Bottom == 0 && Right == 0;
+
+    public static bool operator ==(CropRect a, CropRect b)
+        => a.Top == b.Top && a.Bottom == b.Bottom && a.Left == b.Left && a.Right == b.Right;
+    public static bool operator !=(CropRect left, CropRect right)
+        => !(left == right);
+    public readonly bool Equals(CropRect other)
+        => this == other;
+    public override readonly bool Equals(object obj)
+        => obj is CropRect other && this == other;
+    public override readonly int GetHashCode()
+        => HashCode.Combine(Top, Bottom, Left, Right);
+    public override readonly string ToString()
+        => $"[Top: {Top}, Left: {Left}, Bottom: {Bottom}, Right: {Right}]";
 }
 
 class PlayerStats
@@ -238,6 +273,7 @@ class PlayerStats
     public long AudioBytes      { get; set; }
     public long FramesDisplayed { get; set; }
 }
+
 public class NotifyPropertyChanged : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler PropertyChanged;

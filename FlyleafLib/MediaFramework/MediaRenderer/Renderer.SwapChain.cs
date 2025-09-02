@@ -5,6 +5,7 @@ using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DirectComposition;
 using Vortice.DXGI;
+using Vortice.Mathematics;
 
 using static FlyleafLib.Utils.NativeMethods;
 
@@ -77,7 +78,7 @@ public partial class Renderer
 
             ControlHandle   = handle;
             RECT rect       = new();
-            GetWindowRect(ControlHandle,ref rect);
+            GetWindowRect(ControlHandle, ref rect);
             ControlWidth    = rect.Right  - rect.Left;
             ControlHeight   = rect.Bottom - rect.Top;
 
@@ -236,9 +237,7 @@ public partial class Renderer
         p.X -= (SideXPixels / 2 + PanXOffset);
         p.Y -= (SideYPixels / 2 + PanYOffset);
     }
-    public bool IsPointWithInViewPort(Point p)
-        => p.X >= GetViewport.X && p.X < GetViewport.X + GetViewport.Width && p.Y >= GetViewport.Y && p.Y < GetViewport.Y + GetViewport.Height;
-
+    
     public static double GetCenterPoint(double zoom, double offset)
         => zoom == 1 ? offset : offset / (zoom - 1); // possible bug when zoom = 1 (noticed in out of bounds zoom out)
 
@@ -262,47 +261,36 @@ public partial class Renderer
          * CP = VP / (ZP - 1) (when UP = ZP)
          */
 
-        if (!IsPointWithInViewPort(p))
+        Viewport view = GetViewport;
+
+        if (!(p.X >= view.X && p.X < view.X + view.Width && p.Y >= view.Y && p.Y < view.Y + view.Height)) // Point out of view
         {
             SetZoom(zoom);
             return;
         }
 
-        Point viewport = new(GetViewport.X, GetViewport.Y);
+        Point viewport = new(view.X, view.Y);
         RemoveViewportOffsets(ref viewport);
         RemoveViewportOffsets(ref p);
 
         // Finds the required center point so that p will have the same pixel after zoom
         Point zoomCenter = new(
-            GetCenterPoint(zoom, ((p.X - viewport.X) / (this.zoom / zoom)) - p.X) / (GetViewport.Width / this.zoom),
-            GetCenterPoint(zoom, ((p.Y - viewport.Y) / (this.zoom / zoom)) - p.Y) / (GetViewport.Height / this.zoom));
+            GetCenterPoint(zoom, ((p.X - viewport.X) / (this.zoom / zoom)) - p.X) / (view.Width / this.zoom),
+            GetCenterPoint(zoom, ((p.Y - viewport.Y) / (this.zoom / zoom)) - p.Y) / (view.Height / this.zoom));
 
         SetZoomAndCenter(zoom, zoomCenter);
     }
 
     public void SetViewport(bool refresh = true)
     {
-        float ratio;
         int x, y, newWidth, newHeight, xZoomPixels, yZoomPixels;
 
-        if (Config.Video.AspectRatio == AspectRatio.Keep)
-            ratio = curRatio;
-        else ratio = Config.Video.AspectRatio == AspectRatio.Fill
-            ? ControlWidth / (float)ControlHeight
-            : Config.Video.AspectRatio == AspectRatio.Custom ? Config.Video.CustomAspectRatio.Value : Config.Video.AspectRatio.Value;
-
-        if (ratio <= 0)
-            ratio = 1;
-
-        if (actualRotation == 90 || actualRotation == 270)
-            ratio = 1 / ratio;
-
-        if (ratio < ControlWidth / (float) ControlHeight)
+        if (curRatio < fillRatio)
         {
             newHeight   = (int)(ControlHeight * zoom);
-            newWidth    = (int)(newHeight * ratio);
+            newWidth    = (int)(newHeight * curRatio);
 
-            SideXPixels = newWidth > ControlWidth && false ? 0 : (int) (ControlWidth - (ControlHeight * ratio)); // TBR
+            SideXPixels = (int) (ControlWidth - (ControlHeight * curRatio));
             SideYPixels = 0;
 
             y = PanYOffset;
@@ -314,9 +302,9 @@ public partial class Renderer
         else
         {
             newWidth    = (int)(ControlWidth * zoom);
-            newHeight   = (int)(newWidth / ratio);
+            newHeight   = (int)(newWidth / curRatio);
 
-            SideYPixels = newHeight > ControlHeight && false ? 0 : (int) (ControlHeight - (ControlWidth / ratio));
+            SideYPixels = (int) (ControlHeight - (ControlWidth / curRatio));
             SideXPixels = 0;
 
             x = PanXOffset;
@@ -331,63 +319,93 @@ public partial class Renderer
 
         if (videoProcessor == VideoProcessors.D3D11)
         {
-            RawRect src, dst;
+            Viewport view = GetViewport;
 
-            if (GetViewport.Width < 1 || GetViewport.X + GetViewport.Width <= 0 || GetViewport.X >= ControlWidth || GetViewport.Y + GetViewport.Height <= 0 || GetViewport.Y >= ControlHeight)
-            { // Out of screen
-                src = new RawRect();
-                dst = new RawRect();
+            int right   = (int)(view.X + view.Width);
+            int bottom  = (int)(view.Y + view.Height);
+
+            if (view.Width < 1 || view.Y >= ControlHeight || view.X >= ControlWidth || bottom <= 0 || right <= 0)
+                return;
+
+            RawRect dst = new(
+                    Math.Max((int)view.X, 0),
+                    Math.Max((int)view.Y, 0),
+                    Math.Min(right, ControlWidth),
+                    Math.Min(bottom, ControlHeight));
+            
+            double croppedWidth     = VideoRect.Right   - (cropRect.Right  + cropRect.Left);
+            double croppedHeight    = VideoRect.Bottom  - (cropRect.Bottom + cropRect.Top);
+            int dstWidth    = dst.Right  - dst.Left;
+            int dstHeight   = dst.Bottom - dst.Top;
+
+            int     cropLeft,   cropTop,    cropRight,  cropBottom;
+            int     srcLeft,    srcTop,     srcRight,   srcBottom;
+            double  scaleX,     scaleY,     scaleXRot,  scaleYRot;
+
+            if (_RotationAngle == 0)
+            {
+                cropLeft    = view.X < 0 ? (int)(-view.X) : 0;
+                cropTop     = view.Y < 0 ? (int)(-view.Y) : 0;
+
+                scaleX      = croppedWidth  / view.Width;
+                scaleY      = croppedHeight / view.Height;
+
+                srcLeft     = (int)(cropRect.Left + cropLeft * scaleX);
+                srcTop      = (int)(cropRect.Top  + cropTop  * scaleY);
+                srcRight    = srcLeft + (int)(dstWidth  * scaleX);
+                srcBottom   = srcTop  + (int)(dstHeight * scaleY);
+            }
+            else if (_RotationAngle == 180)
+            {
+                cropRight   = right  > ControlWidth  ? right  - ControlWidth  : 0;
+                cropBottom  = bottom > ControlHeight ? bottom - ControlHeight : 0;
+
+                scaleX      = croppedWidth  / view.Width;
+                scaleY      = croppedHeight / view.Height;
+                
+                srcLeft     = (int)(cropRect.Left + cropRight  * scaleX);
+                srcTop      = (int)(cropRect.Top  + cropBottom * scaleY);
+                srcRight    = srcLeft + (int)(dstWidth  * scaleX);
+                srcBottom   = srcTop  + (int)(dstHeight * scaleY);
+            }
+            else if (_RotationAngle == 90)
+            {
+                cropTop     = view.Y < 0 ? (int)(-view.Y) : 0;
+                cropRight   = right > ControlWidth ? right - ControlWidth : 0;
+
+                scaleXRot   = croppedWidth  / view.Height;
+                scaleYRot   = croppedHeight / view.Width;
+                
+                srcLeft     = (int)(cropRect.Left + cropTop    * scaleXRot);
+                srcTop      = (int)(cropRect.Top  + cropRight  * scaleYRot);
+                srcRight    = srcLeft + (int)(dstHeight * scaleXRot);
+                srcBottom   = srcTop  + (int)(dstWidth  * scaleYRot);
+            }
+            else if (_RotationAngle == 270)
+            {
+                cropLeft    = view.X < 0 ? (int)(-view.X) : 0;
+                cropBottom  = bottom > ControlHeight ? bottom - ControlHeight : 0;
+
+                scaleXRot   = croppedWidth  / view.Height;
+                scaleYRot   = croppedHeight / view.Width;
+                
+                srcLeft     = (int)(cropRect.Left + cropBottom * scaleXRot);
+                srcTop      = (int)(cropRect.Top  + cropLeft   * scaleYRot);
+                srcRight    = srcLeft + (int)(dstHeight * scaleXRot);
+                srcBottom   = srcTop  + (int)(dstWidth  * scaleYRot);
             }
             else
-            {
-                int cropLeft    = GetViewport.X < 0 ? (int) GetViewport.X * -1 : 0;
-                int cropRight   = GetViewport.X + GetViewport.Width > ControlWidth ? (int) (GetViewport.X + GetViewport.Width - ControlWidth) : 0;
-                int cropTop     = GetViewport.Y < 0 ? (int) GetViewport.Y * -1 : 0;
-                int cropBottom  = GetViewport.Y + GetViewport.Height > ControlHeight ? (int) (GetViewport.Y + GetViewport.Height - ControlHeight) : 0;
-
-                dst = new RawRect(
-                    Math.Max((int)GetViewport.X, 0),
-                    Math.Max((int)GetViewport.Y, 0),
-                    Math.Min((int)GetViewport.Width + (int)GetViewport.X, ControlWidth),
-                    Math.Min((int)GetViewport.Height + (int)GetViewport.Y, ControlHeight));
-
-                if (_RotationAngle == 90)
-                {
-                    src = new RawRect(
-                        (int) (cropTop * (VideoRect.Right / GetViewport.Height)),
-                        (int) (cropRight * (VideoRect.Bottom / GetViewport.Width)),
-                        VideoRect.Right - (int) (cropBottom * VideoRect.Right / GetViewport.Height),
-                        VideoRect.Bottom - (int) (cropLeft * VideoRect.Bottom / GetViewport.Width));
-                }
-                else if (_RotationAngle == 270)
-                {
-                    src = new RawRect(
-                        (int) (cropBottom * VideoRect.Right / GetViewport.Height),
-                        (int) (cropLeft * VideoRect.Bottom / GetViewport.Width),
-                        VideoRect.Right - (int) (cropTop * VideoRect.Right / GetViewport.Height),
-                        VideoRect.Bottom - (int) (cropRight * VideoRect.Bottom / GetViewport.Width));
-                }
-                else if (_RotationAngle == 180)
-                {
-                    src = new RawRect(
-                        (int) (cropRight * VideoRect.Right / GetViewport.Width),
-                        (int) (cropBottom * VideoRect.Bottom /GetViewport.Height),
-                        VideoRect.Right - (int) (cropLeft * VideoRect.Right / GetViewport.Width),
-                        VideoRect.Bottom - (int) (cropTop * VideoRect.Bottom / GetViewport.Height));
-                }
-                else
-                {
-                    src = new RawRect(
-                        (int) (cropLeft * VideoRect.Right / GetViewport.Width),
-                        (int) (cropTop * VideoRect.Bottom / GetViewport.Height),
-                        VideoRect.Right - (int) (cropRight * VideoRect.Right / GetViewport.Width),
-                        VideoRect.Bottom - (int) (cropBottom * VideoRect.Bottom / GetViewport.Height));
-                }
-            }
-
+                srcLeft = srcTop = srcRight = srcBottom = 0;
+            
+            RawRect src = new(
+                Math.Max(srcLeft, 0),
+                Math.Max(srcTop , 0),
+                Math.Min(srcRight , VideoRect.Right),
+                Math.Min(srcBottom, VideoRect.Bottom));
+            
             vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
             vc.VideoProcessorSetStreamDestRect  (vp, 0, true, dst);
-            vc.VideoProcessorSetOutputTargetRect(vp, true, new RawRect(0, 0, ControlWidth, ControlHeight));
+            vc.VideoProcessorSetOutputTargetRect(vp, true, new(0, 0, ControlWidth, ControlHeight));
         }
 
         if (refresh)
@@ -407,8 +425,11 @@ public partial class Renderer
                 bitmap2d = null;
             }
             
-            ControlWidth = width;
-            ControlHeight = height;
+            ControlWidth    = width;
+            ControlHeight   = height;
+            fillRatio = ControlWidth / (double)ControlHeight;
+            if (Config.Video.AspectRatio == AspectRatio.Fill)
+                curRatio = fillRatio;
 
             backBufferRtv.Dispose();
             vpov?.Dispose();

@@ -41,6 +41,7 @@ public unsafe class VideoDecoder : DecoderBase
     internal long           lastFixedPts;
 
     bool                    checkExtraFrames; // DecodeFrameNext
+    int                     curFrameWidth, curFrameHeight; // To catch 'codec changed'
 
     // Reverse Playback
     ConcurrentStack<List<nint>>
@@ -194,6 +195,7 @@ public unsafe class VideoDecoder : DecoderBase
         lock (lockCodecCtx)
         {
             if (!foundHWformat || !VideoAccelerated || AllocateHWFrames() != 0)
+                // CRIT: Do we keep ref of texture array? do we dispose it on all refs? otherwise make sure we inform to dispose frames before re-alloc
             {
                 if (CanWarn)
                     Log.Warn("HW format not found. Fallback to sw format");
@@ -205,13 +207,11 @@ public unsafe class VideoDecoder : DecoderBase
             if (CanDebug)
                 Log.Debug("HW frame allocation completed");
 
-            // TBR: Catch codec changed on live streams (check codec/profiles and check even on sw frames)
-            if (ret == 2)
+            if (ret == 2) // NOTE: It seems that codecCtx changes but upcoming frame still has previous configuration (this will fire FillFromCodec twice, could cause issues?)
             {
-                // NOTE: It seems that codecCtx changes but upcoming frame still has previous configuration (this will fire FillFromCodec twice, could cause issues?)
                 filledFromCodec = false;
                 codecChanged    = true;
-                Log.Warn($"Codec changed {VideoStream.CodecID} {VideoStream.Width}x{VideoStream.Height} => {codecCtx->codec_id} {codecCtx->width}x{codecCtx->height}");
+                Log.Warn($"Codec changed {VideoStream.CodecID} {curFrameWidth}x{curFrameHeight} => {codecCtx->codec_id} {frame->width}x{frame->height}");
             }
 
             return PIX_FMT_HWACCEL;
@@ -229,14 +229,6 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (codecCtx->coded_height != t2->height)
             return 2;
-
-        // TBR: Codec changed (seems ffmpeg changes codecCtx by itself
-        //if (codecCtx->codec_id != VideoStream.CodecID)
-        //    return 2;
-
-        //var fmt = codecCtx->sw_pix_fmt == (AVPixelFormat)AV_PIX_FMT_YUV420P10LE ? (AVPixelFormat)AV_PIX_FMT_P010LE : (codecCtx->sw_pix_fmt == (AVPixelFormat)AV_PIX_FMT_P010BE ? (AVPixelFormat)AV_PIX_FMT_P010BE : AVPixelFormat.AV_PIX_FMT_NV12);
-        //if (fmt != t2->sw_format)
-        //    return 2;
 
         return 0;
     }
@@ -268,34 +260,12 @@ public unsafe class VideoDecoder : DecoderBase
         {
             lock (Renderer.lockDevice)
             {
-                textureFFmpeg   = new ID3D11Texture2D((nint) va_frames_ctx->texture);
-                ZeroCopy =
-                    Config.Decoder.ZeroCopy  == FlyleafLib.ZeroCopy.Enabled ||
-                    (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto &&
-                    codecCtx->width  == textureFFmpeg.Description.Width &&
-                    codecCtx->height == textureFFmpeg.Description.Height);
+                textureFFmpeg = new((nint) va_frames_ctx->texture);
                 filledFromCodec = false;
             }
         }
 
         return ret;
-    }
-    internal void RecalculateZeroCopy()
-    {
-        lock (Renderer.lockDevice)
-        {
-            bool save = ZeroCopy;
-            ZeroCopy = VideoAccelerated &&
-                (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Enabled ||
-                (Config.Decoder.ZeroCopy == FlyleafLib.ZeroCopy.Auto &&
-                codecCtx->width  == textureFFmpeg.Description.Width &&
-                codecCtx->height == textureFFmpeg.Description.Height));
-            if (save != ZeroCopy)
-            {
-                Renderer?.ConfigPlanes();
-                CodecChanged?.Invoke(this);
-            }
-        }
     }
     #endregion
 
@@ -306,7 +276,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         VideoAccelerated = false;
 
-        if (!swFallback && Config.Video.VideoAcceleration && Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0)
+        if (!swFallback && !Config.Video.SwsForce && Config.Video.VideoAcceleration && Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0)
         {
             if (CheckCodecSupport(codec))
             {
@@ -351,6 +321,7 @@ public unsafe class VideoDecoder : DecoderBase
             isIntraOnly = codecCtx->codec_descriptor->props.HasFlag(CodecPropFlags.IntraOnly);
 
         startPts = VideoStream.StartTimePts;
+        CodecCtx->apply_cropping = 0;
 
         return 0;
     }
@@ -561,15 +532,11 @@ public unsafe class VideoDecoder : DecoderBase
 
                     // GetFormat checks already for this but only for hardware accelerated (should also check for codec/fps* and possible reset sws if required)
                     // Might use AVERROR_INPUT_CHANGED to let ffmpeg check for those (requires a flag to be set*)
-                    if ((frame->height != VideoStream.Height || frame->width != VideoStream.Width) && !codecChanged) // could be already changed on getformat
+                    if ((frame->height != curFrameHeight || frame->width != curFrameWidth) && filledFromCodec) // could be already changed on getformat
                     {
-                        // THIS IS Wrong and can cause filledFromCodec all the time. comparing frame<->videostream dimensions but we update the videostream from codecparam dimensions (which we pass from codecCtx w/h)
-                        // Related with display dimensions / coded dimensions / frame-crop dimensions (and apply_cropping) - it could happen when frame->crop... are not 0
-
-                        // TBR: codecCtx w/h changes earlier than frame w/h (still receiving previous config frames?)* can cause issues?
                         codecChanged    = true;
                         filledFromCodec = false;
-                        Log.Warn($"Codec changed {VideoStream.CodecID} {VideoStream.Width}x{VideoStream.Height} => {codecCtx->codec_id} {frame->width}x{frame->height}");
+                        Log.Warn($"Codec changed {VideoStream.CodecID} {curFrameWidth}x{curFrameHeight} => {codecCtx->codec_id} {frame->width}x{frame->height}");
                     }
 
                     if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
@@ -602,7 +569,7 @@ public unsafe class VideoDecoder : DecoderBase
                             break;
                         }
                     }
-
+                    
                     if (skipSpeedFrames > 1)
                     {
                         curSpeedFrame++;
@@ -647,6 +614,8 @@ public unsafe class VideoDecoder : DecoderBase
 
             filledFromCodec = true;
             curFixSeekDelta = 0;
+            curFrameWidth   = frame->width;
+            curFrameHeight  = frame->height;
 
             VideoStream.Refresh(this, frame);
             codecChanged    = false;
@@ -655,7 +624,7 @@ public unsafe class VideoDecoder : DecoderBase
             CodecChanged?.Invoke(this);
 
             DisposeFrame(Renderer.LastFrame);
-            if (VideoStream.PixelFormat == AVPixelFormat.None || !Renderer.ConfigPlanes(true))
+            if (VideoStream.PixelFormat == AVPixelFormat.None || !Renderer.ConfigPlanes(frame))
             {
                 Log.Error("[Pixel Format] Unknown");
                 return -1234;

@@ -289,12 +289,7 @@
                         <TextBlock Style="{StaticResource TextInfo}" Text="DeInterlace"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.renderer.FieldType, Converter={StaticResource DeInterlaceConverter}}"/>
                     </StackPanel>
-
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="ZeroCopy"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.ZeroCopy}"/>
-                    </StackPanel>
-
+                    
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="VideoAcceleration"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.VideoAcceleration}"/>

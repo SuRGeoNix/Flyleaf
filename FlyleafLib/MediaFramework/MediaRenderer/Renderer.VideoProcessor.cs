@@ -286,7 +286,7 @@ unsafe public partial class Renderer
 
             var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? (VideoStream != null ? VideoStream.FieldOrder : VideoFrameFormat.Progressive) : (VideoFrameFormat)Config.Video.DeInterlace;
             var newVp = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || fieldType != VideoFrameFormat.Progressive) ?
+                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)) ?
                 VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
 
             if (videoProcessor == VideoProcessors.Flyleaf)
@@ -306,8 +306,6 @@ unsafe public partial class Renderer
         lock (lockDevice)
             return !Disposed ? vc.VideoProcessorGetStreamFrameFormat(vp, 0) : VideoFrameFormat.Progressive;
     }
-        
-
     internal void SetFieldType(VideoFrameFormat fieldType)
     {
         lock (lockDevice)
@@ -397,13 +395,82 @@ unsafe public partial class Renderer
             child._d3d11vpRotation  = _d3d11vpRotation;
             child._RotationAngle    = _RotationAngle;
             child.rotationLinesize  = rotationLinesize;
-            child.SetViewport();
         }
 
         vc?.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
 
-        if (refresh)
-            SetViewport();
+        UpdateAspectRatio(refresh);
+    }
+    internal void UpdateAspectRatio(bool refresh = true)
+    {
+        lock (lockDevice) // TBR: Fix AspectRatio generally* Separate Enum + CustomValue (respect SAR, clarify Fit/Fill/Keep/Stretch/Original/Custom ...)
+        {
+            if (Config.Video.AspectRatio == AspectRatio.Keep)
+                curRatio = keepRatio;
+            else if (Config.Video.AspectRatio == AspectRatio.Fill)
+                curRatio = fillRatio;
+            else if (Config.Video.AspectRatio == AspectRatio.Custom)
+                curRatio = Config.Video.CustomAspectRatio.Value;
+            else
+                curRatio = Config.Video.AspectRatio.Value;
+
+            if (actualRotation == 90 || actualRotation == 270)
+                curRatio = 1 / curRatio;
+
+            if (refresh)
+                SetViewport();
+
+            child?.UpdateAspectRatio(refresh);
+        }
+    }
+    internal void UpdateCropping(bool refresh = true)
+    {
+        /* TODO (SW)
+         * 
+         * 1) Visible vs Padded
+         *  When we fix texture arrays and texture width/height to use padded properly,
+         *  we will need to ensure cropping pixels are in the same logic with vertex shader
+         * 
+         * 2) Chroma Location + Crop Calculation/Adjustments
+         *  PSInput additional uv coords (both vertex/pixel shaders) and use new coords for sampling
+         *      float2 Texture  : TEXCOORD;
+         *  
+         *  e.g. UV Chroma (Semi-Planar) Crop +- (0.5f / (W|H / 2f))?
+         */
+
+        lock (lockDevice)
+        {
+            cropRect = VideoStream.cropRect;
+            
+            if (Config.Video.HasUserCrop)
+            {
+                cropRect.Top    += Config.Video._Crop.Top;
+                cropRect.Left   += Config.Video._Crop.Left;
+                cropRect.Right  += Config.Video._Crop.Right;
+                cropRect.Bottom += Config.Video._Crop.Bottom;
+            }
+
+            vsBufferData.cropRegion = new()
+            {
+                X = cropRect.Left / (float)textWidth,
+                Y = cropRect.Top  / (float)textHeight,
+                Z = (textWidth  - cropRect.Right)  / (float)textWidth, //1.0f - (right  / (float)textWidth),
+                W = (textHeight - cropRect.Bottom) / (float)textHeight //1.0f - (bottom / (float)textHeight)
+            };
+
+            if (parent == null)
+                context.UpdateSubresource(vsBufferData, vsBuffer);
+
+            VisibleWidth    = textWidth  - (cropRect.Left + cropRect.Right);
+            VisibleHeight   = textHeight - (cropRect.Top  + cropRect.Bottom);
+            keepRatio       = (double)(VisibleWidth * VideoStream.SAR.Num) / (VisibleHeight * VideoStream.SAR.Den);
+            
+            if (Config.Video.AspectRatio == AspectRatio.Keep)
+                curRatio = actualRotation == 90 || actualRotation == 270 ? 1 / keepRatio : keepRatio;
+
+            if (refresh)
+                SetViewport();
+        }
     }
     internal void UpdateVideoProcessor()
     {

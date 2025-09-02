@@ -155,7 +155,7 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
         if (this is AudioStream audio)
             dump += $"\r\n\t[Format  ] {audio.SampleRate} Hz, {audio.ChannelLayoutStr}, {audio.SampleFormatStr}";
         else if (this is VideoStream video)
-            dump += $"\r\n\t[Format  ] {video.PixelFormat} ({cp->color_primaries}, {video.ColorSpace}, {video.ColorTransfer}, {cp->chroma_location}, {video.ColorRange}, {video.FieldOrder}), {video.Width}x{video.Height} @ {DoubleToTimeMini(video.FPS)} fps [SAR1: {video.SAR} DAR: {video.AspectRatio}]";
+            dump += $"\r\n\t[Format  ] {video.PixelFormat} ({cp->color_primaries}, {video.ColorSpace}, {video.ColorTransfer}, {cp->chroma_location}, {video.ColorRange}, {video.FieldOrder}), {video.Width}x{video.Height} @ {DoubleToTimeMini(video.FPS)} fps [SAR: {video.SAR} DAR: {video.GetDAR()} Crop: {video.Cropping}]";
 
         if (Metadata.Count > 0)
             dump += $"\r\n{GetDumpMetadata(Metadata, "language")}";

@@ -123,13 +123,7 @@
                     <x:Type TypeName="fl:VideoProcessors"/>
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
-
-            <ObjectDataProvider x:Key="ZeroCopyEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
-                <ObjectDataProvider.MethodParameters>
-                    <x:Type TypeName="fl:ZeroCopy"/>
-                </ObjectDataProvider.MethodParameters>
-            </ObjectDataProvider>
-
+            
             <ObjectDataProvider x:Key="LogLevelEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
                 <ObjectDataProvider.MethodParameters>
                     <x:Type TypeName="fl:LogLevel"/>
@@ -392,7 +386,6 @@
                                     <RowDefinition Height="30"/>
                                     <RowDefinition Height="30"/>
                                     <RowDefinition Height="30"/>
-                                    <RowDefinition Height="30"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -428,36 +421,33 @@
                                 <TextBlock Grid.Row="6" Text="Video Processor" VerticalAlignment="Center"/>
                                 <ComboBox Grid.Row="6" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource VideoProcessorEnum}}" SelectedItem="{Binding Config.Video.VideoProcessor}"/>
 
-                                <TextBlock Grid.Row="7" Text="Zero Copy" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="7" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource ZeroCopyEnum}}" SelectedItem="{Binding Config.Decoder.ZeroCopy}"/>
+                                <TextBlock Grid.Row="7" Text="Decoder Threads" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="7" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
 
-                                <TextBlock Grid.Row="8" Text="Decoder Threads" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="8" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
+                                <TextBlock Grid.Row="8" Text="Max Latency (ms)" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="8" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Player.MaxLatency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
-                                <TextBlock Grid.Row="9" Text="Max Latency (ms)" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="9" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Player.MaxLatency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                                <TextBlock Grid.Row="9" Text="Zoom Offset" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="9" Grid.Column="1" Width="80" Style="{StaticResource FLTextbox}" Text="{Binding Config.Player.ZoomOffset, UpdateSourceTrigger=LostFocus}"/>
 
-                                <TextBlock Grid.Row="10" Text="Zoom Offset" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="10" Grid.Column="1" Width="80" Style="{StaticResource FLTextbox}" Text="{Binding Config.Player.ZoomOffset, UpdateSourceTrigger=LostFocus}"/>
+                                <Separator Grid.Row="10" Grid.ColumnSpan="3"/>
 
-                                <Separator Grid.Row="11" Grid.ColumnSpan="3"/>
+                                <TextBlock Grid.Row="11" Text="HDR to SDR Method" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="11" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
 
-                                <TextBlock Grid.Row="12" Text="HDR to SDR Method" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="12" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
+                                <Button Grid.Row="11" Grid.Column="2" Content="Reset" Width="66" MaxHeight="24" HorizontalAlignment="Right" Margin="0 0 10 0" FontWeight="Normal" FontSize="12" Command="{Binding ResetFilters}"/>
 
-                                <Button Grid.Row="12" Grid.Column="2" Content="Reset" Width="66" MaxHeight="24" HorizontalAlignment="Right" Margin="0 0 10 0" FontWeight="Normal" FontSize="12" Command="{Binding ResetFilters}"/>
-
-                                <TextBlock Grid.Row="13" Text="SDR Display Nits" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Row="13" Grid.Column="1" Text="25" Margin="-8,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
-                                <Slider Grid.Row="13" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.SDRDisplayNits, Mode=TwoWay}" Minimum="25" Maximum="400"/>
-                                <TextBlock Grid.Row="13" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="400" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Row="13" Grid.Column="2" Margin="100 0 0 0" FontSize="12" VerticalAlignment="Center">
+                                <TextBlock Grid.Row="12" Text="SDR Display Nits" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="12" Grid.Column="1" Text="25" Margin="-8,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
+                                <Slider Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.SDRDisplayNits, Mode=TwoWay}" Minimum="25" Maximum="400"/>
+                                <TextBlock Grid.Row="12" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="400" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="12" Grid.Column="2" Margin="100 0 0 0" FontSize="12" VerticalAlignment="Center">
                                     <Run Text="("/>
                                     <Run Text="{Binding Config.Video.SDRDisplayNits, Mode=OneWay}"/>
                                     <Run Text=")"/>
                                 </TextBlock>
 
-                                <StackPanel Orientation="Vertical" Grid.Row="14" Grid.ColumnSpan="3" Margin="0 0 0 0">
+                                <StackPanel Orientation="Vertical" Grid.Row="13" Grid.ColumnSpan="3" Margin="0 0 0 0">
                                     <ItemsControl>
                                         <ItemsControl.Style>
                                             <Style TargetType="ItemsControl">

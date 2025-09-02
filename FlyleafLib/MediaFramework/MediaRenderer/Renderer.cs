@@ -57,6 +57,13 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public Viewport         GetViewport     { get; private set; }
     public event EventHandler ViewportChanged;
 
+    public uint             VisibleWidth    { get; private set; }
+    public uint             VisibleHeight   { get; private set; }
+    public AspectRatio      DAR             { get; set; }
+    double curRatio, keepRatio, fillRatio;
+    CropRect cropRect; // + User's Cropping
+    uint textWidth, textHeight; // Padded (Codec/Texture)
+
     public CornerRadius     CornerRadius    { get => cornerRadius;              set { if (cornerRadius == value) return; cornerRadius = value; UpdateCornerRadius(); } }
     CornerRadius cornerRadius = new(0);
     CornerRadius zeroCornerRadius = new(0);
@@ -94,15 +101,15 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
         }
     }
 
-    public uint             Rotation        { get => _RotationAngle;            set { lock (lockDevice) UpdateRotation(value); } }
+    public uint             Rotation        { get => _RotationAngle;            set => UpdateRotation(value); }
     uint _RotationAngle;
     VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
     bool rotationLinesize; // if negative should be vertically flipped
 
-    public bool             HFlip           { get => _HFlip;                    set { _HFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
+    public bool             HFlip           { get => _HFlip;                    set { _HFlip = value; UpdateRotation(_RotationAngle); } }
     bool _HFlip;
 
-    public bool             VFlip           { get => _VFlip;                    set { _VFlip = value; lock (lockDevice) UpdateRotation(_RotationAngle); } }
+    public bool             VFlip           { get => _VFlip;                    set { _VFlip = value; UpdateRotation(_RotationAngle); } }
     bool _VFlip;
 
     public VideoFrameFormat FieldType       { get => _FieldType;                private  set => SetUI(ref _FieldType, value); }

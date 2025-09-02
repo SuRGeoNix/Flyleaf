@@ -11,6 +11,9 @@ public class Video : NotifyPropertyChanged
     public ObservableCollection<VideoStream>
                         Streams         => decoder?.VideoDemuxer.VideoStreams;
 
+    public int      StreamIndex     { get => streamIndex;       internal set => Set(ref _StreamIndex, value); }
+    int _StreamIndex, streamIndex = -1;
+
     /// <summary>
     /// Whether the input has video and it is configured
     /// </summary>
@@ -67,9 +70,6 @@ public class Video : NotifyPropertyChanged
                                         { get => videoAcceleration; internal set => Set(ref _VideoAcceleration, value); }
     internal bool   _VideoAcceleration, videoAcceleration;
 
-    public bool         ZeroCopy        { get => zeroCopy;          internal set => Set(ref _ZeroCopy, value); }
-    internal bool   _ZeroCopy, zeroCopy;
-
     public HDRFormat    HDRFormat       { get => hdrFormat;         internal set => Set(ref _HDRFormat, value); }
     internal HDRFormat _HDRFormat, hdrFormat;
 
@@ -89,6 +89,7 @@ public class Video : NotifyPropertyChanged
 
         uiAction = () =>
         {
+            StreamIndex         = streamIndex;
             IsOpened            = IsOpened;
             Codec               = Codec;
             AspectRatio         = AspectRatio;
@@ -98,7 +99,6 @@ public class Video : NotifyPropertyChanged
             Width               = Width;
             Height              = Height;
             VideoAcceleration   = VideoAcceleration;
-            ZeroCopy            = ZeroCopy;
             HDRFormat           = HDRFormat;
             ColorFormat         = ColorFormat;
 
@@ -109,18 +109,18 @@ public class Video : NotifyPropertyChanged
 
     internal void Reset()
     {
-        codec              = null;
-        aspectRatio        = new AspectRatio(0, 0);
-        bitRate            = 0;
-        fps                = 0;
-        pixelFormat        = null;
-        width              = 0;
-        height             = 0;
-        framesTotal        = 0;
-        videoAcceleration  = false;
-        zeroCopy           = false;
-        isOpened           = false;
-        hdrFormat          = HDRFormat.None;
+        streamIndex         = -1;
+        codec               = null;
+        aspectRatio         = new AspectRatio(0, 0);
+        bitRate             = 0;
+        fps                 = 0;
+        pixelFormat         = null;
+        width               = 0;
+        height              = 0;
+        framesTotal         = 0;
+        videoAcceleration   = false;
+        isOpened            = false;
+        hdrFormat           = HDRFormat.None;
         colorFormat         = "";
 
         player.UIAdd(uiAction);
@@ -129,8 +129,9 @@ public class Video : NotifyPropertyChanged
     {
         if (decoder.VideoStream == null) { Reset(); return; }
 
+        streamIndex = decoder.VideoStream.StreamIndex;
         codec       = decoder.VideoStream.Codec;
-        aspectRatio = decoder.VideoStream.AspectRatio;
+        aspectRatio = decoder.VideoStream.GetDAR();
         fps         = decoder.VideoStream.FPS;
         pixelFormat = decoder.VideoStream.PixelFormatStr;
         width       = (int)decoder.VideoStream.Width;
@@ -138,7 +139,6 @@ public class Video : NotifyPropertyChanged
         framesTotal = decoder.VideoStream.TotalFrames;
         videoAcceleration
                     = decoder.VideoDecoder.VideoAccelerated;
-        zeroCopy    = decoder.VideoDecoder.ZeroCopy;
         hdrFormat   = decoder.VideoStream.HDRFormat;
         colorFormat = $"{decoder.VideoStream.ColorSpace}\r\n{decoder.VideoStream.ColorTransfer}\r\n{decoder.VideoStream.ColorRange}";
         isOpened    =!decoder.VideoDecoder.Disposed;
