@@ -552,13 +552,6 @@ public class Config : NotifyPropertyChanged
         public int              MaxErrors       { get; set; } = 200;
 
         /// <summary>
-        /// Whether or not to use decoder's textures directly as shader resources
-        /// (TBR: Better performance but might need to be disabled while video input has padding or not supported by older Direct3D versions)
-        /// </summary>
-        public ZeroCopy         ZeroCopy        { get => _ZeroCopy; set { if (SetUI(ref _ZeroCopy, value) && player != null && player.Video.isOpened) player.VideoDecoder?.RecalculateZeroCopy(); } }
-        ZeroCopy _ZeroCopy = ZeroCopy.Auto;
-
-        /// <summary>
         /// Allows video accceleration even in codec's profile mismatch
         /// </summary>
         public bool             AllowProfileMismatch
@@ -614,13 +607,13 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Video aspect ratio
         /// </summary>
-        public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value) && player != null && player.renderer != null && !player.renderer.SCDisposed) lock(player.renderer.lockDevice) {  player.renderer.SetViewport(); if (player.renderer.child != null) player.renderer.child.SetViewport(); } } }
+        public AspectRatio      AspectRatio                 { get => _AspectRatio;          set { if (Set(ref _AspectRatio, value))     player?.renderer?.UpdateAspectRatio(); } }
         AspectRatio    _AspectRatio = AspectRatio.Keep;
 
         /// <summary>
         /// Custom aspect ratio (AspectRatio must be set to Custom to have an effect)
         /// </summary>
-        public AspectRatio      CustomAspectRatio           { get => _CustomAspectRatio;  set { if (Set(ref _CustomAspectRatio, value) && AspectRatio == AspectRatio.Custom) { _AspectRatio = AspectRatio.Fill; AspectRatio = AspectRatio.Custom; } } }
+        public AspectRatio      CustomAspectRatio           { get => _CustomAspectRatio;    set { if (Set(ref _CustomAspectRatio, value) && AspectRatio == AspectRatio.Custom) { _AspectRatio = AspectRatio.Fill; AspectRatio = AspectRatio.Custom; } } }
         AspectRatio    _CustomAspectRatio = new(16, 9);
 
         /// <summary>
@@ -634,6 +627,10 @@ public class Config : NotifyPropertyChanged
         /// Clears the screen on stop/close/open
         /// </summary>
         public bool             ClearScreen                 { get; set; } = true;
+
+        public CropRect         Crop                        { get => _Crop;             set { _Crop = value; HasUserCrop = _Crop != CropRect.Empty; player?.renderer?.UpdateCropping(); } }
+        internal CropRect _Crop = CropRect.Empty;
+        internal bool HasUserCrop = false;
 
         /// <summary>
         /// Whether video should be allowed

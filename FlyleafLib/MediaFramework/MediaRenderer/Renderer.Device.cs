@@ -8,7 +8,6 @@ using Vortice.Direct3D11;
 using Vortice.DXGI;
 using Vortice.DXGI.Debug;
 
-using static FlyleafLib.Logger;
 using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
 using ID3D11DeviceContext = Vortice.Direct3D11.ID3D11DeviceContext;
 
@@ -99,12 +98,12 @@ public unsafe partial class Renderer
     ID3D11PixelShader   ShaderBGRA;
 
     ID3D11Buffer        psBuffer;
-    PSBufferType        psBufferData = new();
+    PSBufferType        psBufferData    = new();
 
     ID3D11Buffer        vsBuffer;
-    VSBufferType        vsBufferData;
+    VSBufferType        vsBufferData    = new();
 
-    internal object     lockDevice = new();
+    internal object     lockDevice      = new();
     bool                isFlushing;
 
     public void Initialize(bool swapChain = true)
@@ -515,6 +514,10 @@ public unsafe partial class Renderer
     [StructLayout(LayoutKind.Sequential)]
     struct VSBufferType
     {
-        public Matrix4x4 mat;
+        public Matrix4x4    mat;
+        public Vector4      cropRegion;
+        
+        public VSBufferType()
+            => cropRegion = new(0, 0, 1, 1);
     }
 }

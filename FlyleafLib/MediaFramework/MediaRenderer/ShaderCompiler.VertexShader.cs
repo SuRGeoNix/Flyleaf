@@ -6,6 +6,7 @@ internal static partial class ShaderCompiler
 cbuffer cBuf : register(b0)
 {
     matrix mat;
+    float4 cropRegion;
 }
 
 struct VSInput
@@ -24,8 +25,8 @@ PSInput main(VSInput vsi)
 {
     PSInput psi;
 
-    psi.Position = mul(vsi.Position, mat);
-    psi.Texture  = vsi.Texture;
+    psi.Position    = mul(vsi.Position, mat);
+    psi.Texture     = lerp(cropRegion.xy, cropRegion.zw, vsi.Texture);
 
     return psi;
 }

@@ -20,6 +20,9 @@ public class Audio : NotifyPropertyChanged
     public ObservableCollection<AudioStream>
                     Streams         => decoder?.VideoDemuxer.AudioStreams; // TBR: We miss AudioDemuxer embedded streams
 
+    public int      StreamIndex     { get => streamIndex;       internal set => Set(ref _StreamIndex, value); }
+    int _StreamIndex, streamIndex = -1;
+
     /// <summary>
     /// Whether the input has audio and it is configured
     /// </summary>
@@ -168,6 +171,7 @@ public class Audio : NotifyPropertyChanged
 
         uiAction = () =>
         {
+            StreamIndex     = streamIndex;
             IsOpened        = IsOpened;
             Codec           = Codec;
             BitRate         = BitRate;
@@ -293,6 +297,7 @@ public class Audio : NotifyPropertyChanged
 
     internal void Reset()
     {
+        streamIndex     = -1;
         codec           = null;
         bitRate         = 0;
         bits            = 0;
@@ -308,6 +313,7 @@ public class Audio : NotifyPropertyChanged
     {
         if (decoder.AudioStream == null) { Reset(); return; }
 
+        streamIndex     = decoder.AudioStream.StreamIndex;
         codec           = decoder.AudioStream.Codec;
         bits            = decoder.AudioStream.Bits;
         channels        = decoder.AudioStream.Channels;
