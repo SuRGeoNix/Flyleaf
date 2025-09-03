@@ -314,8 +314,43 @@ public partial class Renderer
             yZoomPixels = newHeight - (ControlHeight - SideYPixels);
         }
 
+        if (Config.Player.RestrictPanning)
+        {
+            // Don't let the user pan or zoom outside of half the video's height
+            int newY = (int)(y - yZoomPixels * (float)zoomCenter.Y);
+            int bottom = newHeight + newY;
+            if (newY > ControlHeight / 2d)
+            {
+                y = (int)((ControlHeight / 2d) + yZoomPixels * (float)zoomCenter.Y);
+                panYOffset = y - SideYPixels / 2;
+            }
+            else if (bottom < ControlHeight / 2d)
+            {
+                int newBottom = (int)(ControlHeight / 2d);
+                int newNewY = newBottom - newHeight;
+                y = (int)(newNewY + yZoomPixels * (float)zoomCenter.Y);
+                panYOffset = y - SideYPixels / 2;
+            }
+
+            // Don't let the user pan or zoom outside of half the video's width
+            int newX = (int)(x - xZoomPixels * (float)zoomCenter.X);
+            int right = newWidth + newX;
+            if (newX > ControlWidth / 2d)
+            {
+                x = (int)((ControlWidth / 2d) + xZoomPixels * (float)zoomCenter.X);
+                panXOffset = x - SideXPixels / 2;
+            }
+            else if (right < ControlWidth / 2d)
+            {
+                int newRight = (int)(ControlWidth / 2d);
+                int newNewX = newRight - newWidth;
+                x = (int)(newNewX + xZoomPixels * (float)zoomCenter.X);
+                panXOffset = x - SideXPixels / 2;
+            }
+        }
+
         GetViewport = new(x - xZoomPixels * (float)zoomCenter.X, y - yZoomPixels * (float)zoomCenter.Y, newWidth, newHeight);
-        ViewportChanged?.Invoke(this, new());
+        ViewportChanged?.Invoke(this, EventArgs.Empty);
 
         if (videoProcessor == VideoProcessors.D3D11)
         {
