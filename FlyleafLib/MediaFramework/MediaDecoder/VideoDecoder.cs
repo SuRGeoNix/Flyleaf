@@ -18,7 +18,6 @@ public unsafe class VideoDecoder : DecoderBase
                             Frames              { get; protected set; } = [];
     public Renderer         Renderer            { get; private set; }
     public bool             VideoAccelerated    { get; internal set; }
-    public bool             ZeroCopy            { get; internal set; }
 
     public VideoStream      VideoStream         => (VideoStream) Stream;
 
@@ -293,16 +292,12 @@ public unsafe class VideoDecoder : DecoderBase
         else
             Log.Debug("VA Disabled");
 
-        // Can't get data from here?
-        //var t1 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_MASTERING_DISPLAY_METADATA, null);
-        //var t2 = av_stream_get_side_data(VideoStream.AVStream, AVPacketSideDataType.AV_PKT_DATA_CONTENT_LIGHT_LEVEL, null);
-
-        // TBR: during swFallback (keyFrameRequiredPacket should not reset, currenlty saved in SWFallback)
         keyPacketRequired   = false; // allow no key packet after open (lot of videos missing this)
-        ZeroCopy            = false;
         filledFromCodec     = false;
-
-        lastFixedPts    = 0; // TBR: might need to set this to first known pts/dts
+        lastFixedPts        = 0; // TBR: might need to set this to first known pts/dts
+        startPts            = VideoStream.StartTimePts;
+        codecCtx->apply_cropping
+                            = 0;
 
         if (VideoAccelerated)
         {
@@ -310,18 +305,16 @@ public unsafe class VideoDecoder : DecoderBase
             codecCtx->hwaccel_flags    |= HWAccelFlags.IgnoreLevel;
             if (Config.Decoder.AllowProfileMismatch)
                 codecCtx->hwaccel_flags|= HWAccelFlags.AllowProfileMismatch;
-
             codecCtx->get_format        = getHWformat;
-            codecCtx->extra_hw_frames   = Config.Decoder.MaxVideoFrames;
+
+            // D3D11/AV1 Issue: https://trac.ffmpeg.org/ticket/10608 "Static surface pool size exceeded" | Workaround: we use +X margin for the initial_pool_size (not for us/extra frames)
+            codecCtx->extra_hw_frames   = codecCtx->codec_id == AVCodecID.Av1 ? Config.Decoder.MaxVideoFrames + 3 : Config.Decoder.MaxVideoFrames;
         }
         else
             codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AVCodecID.Hevc ? 32 : 16);
 
         if (codecCtx->codec_descriptor != null)
             isIntraOnly = codecCtx->codec_descriptor->props.HasFlag(CodecPropFlags.IntraOnly);
-
-        startPts = VideoStream.StartTimePts;
-        CodecCtx->apply_cropping = 0;
 
         return 0;
     }

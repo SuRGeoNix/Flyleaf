@@ -42,7 +42,7 @@ public static class Engine
     /// <summary>
     /// List of active Players
     /// </summary>
-    public static List<Player>      Players         { get; private set; }
+    public static List<Player>      Players         { get; private set; } = [];
 
     public static event EventHandler
                     Loaded;
@@ -138,6 +138,7 @@ public static class Engine
         SetOutput();
         Log     = new("[FlyleafEngine] ");
         Audio   = new();
+        Video   = new();
     }
 
     private static void StartInternalNonUI()
@@ -146,13 +147,10 @@ public static class Engine
         Log.Info($"FlyleafLib {version.Major }.{version.Minor}.{version.Build}");
 
         FFmpeg  = new();
-        Video   = new();
         Plugins = new();
-        Players = [];
-
         IsLoaded= true;
 
-        if (Config.FFmpegLoadProfile == LoadProfile.All) // Cap Devices (TBR: if UI required)
+        if (Config.FFmpegLoadProfile == LoadProfile.All)
         {
             Audio.RefreshCapDevices();
             Video.RefreshCapDevices();
