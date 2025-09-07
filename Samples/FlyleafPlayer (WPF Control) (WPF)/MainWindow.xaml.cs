@@ -263,7 +263,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         // Testing misc
         //playerConfig.Demuxer.AllowFindStreamInfo = false;
         #endif
-
+        
         // Initializes the Player
         Player = new Player(playerConfig);
         
@@ -316,7 +316,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         // Ctrl+ N / Ctrl + W (Open New/Close Window)
         var keys = playerConfig.Player.KeyBindings;
         keys.AddCustom(Key.N, true, () => CreateNewWindow(Player), "New Window", false, true, false);
-        keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).Close(), "Close Window", false, true, false);
+        keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).BtnClose_Click(null, null), "Close Window", false, true, false);
 
         // We might saved the tmp keys (restore them)
         if (Player.Config.Loaded && keys.Exists("tmp01"))
