@@ -182,10 +182,10 @@ public struct AspectRatio : IEquatable<AspectRatio>
 
     public static implicit operator AspectRatio(string value) => new(value);
 
-    public float Num { get; set; }
-    public float Den { get; set; }
+    public double Num { get; set; }
+    public double Den { get; set; }
 
-    public float Value
+    public double Value
     {
         readonly get => Num / Den;
         set { Num = value; Den = 1; }
@@ -197,8 +197,8 @@ public struct AspectRatio : IEquatable<AspectRatio>
         set => FromString(value);
     }
 
-    public AspectRatio(float value) : this(value, 1) { }
-    public AspectRatio(float num, float den) { Num = num; Den = den; }
+    public AspectRatio(double value) : this(value, 1) { }
+    public AspectRatio(double num, double den) { Num = num; Den = den; }
     public AspectRatio(string value) { Num = Invalid.Num; Den = Invalid.Den; FromString(value); }
 
     public readonly bool Equals(AspectRatio other) => Num == other.Num && Den == other.Den;
@@ -226,11 +226,11 @@ public struct AspectRatio : IEquatable<AspectRatio>
             if (values.Length < 2)
                         values = newvalue.ToString().Split('/');
 
-            Num = float.Parse(values[0], NumberStyles.Any, CultureInfo.InvariantCulture);
-            Den = float.Parse(values[1], NumberStyles.Any, CultureInfo.InvariantCulture);
+            Num = double.Parse(values[0], NumberStyles.Any, CultureInfo.InvariantCulture);
+            Den = double.Parse(values[1], NumberStyles.Any, CultureInfo.InvariantCulture);
         }
 
-        else if (float.TryParse(newvalue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out float result))
+        else if (double.TryParse(newvalue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double result))
             { Num = result; Den = 1; }
 
         else

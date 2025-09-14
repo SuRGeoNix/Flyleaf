@@ -60,10 +60,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         OpenWindow      = new RelayCommandSimple(() => new MainWindow() { Width = Width, Height = Height }.Show());
         CloseWindow     = new RelayCommandSimple(Close);
-        ShowPrevImage   = new RelayCommandSimple(() => SlideShowGoTo(ImageIndex - 1));
-        ShowNextImage   = new RelayCommandSimple(() => SlideShowGoTo(ImageIndex + 1));
+        ShowPrevImage   = new RelayCommandSimple(() => SlideShowGoTo(SlidePosition.Prev));
+        ShowNextImage   = new RelayCommandSimple(() => SlideShowGoTo(SlidePosition.Next));
         SlideShowToggle = new RelayCommandSimple(SlideShowToggleAction);
-        SlideShowRestart= new RelayCommandSimple(() => { SlideShowStart(false, false); SlideShowGoTo(0); }); // Note: When we start SlideShow with non-current ImageIndex use Start(notask) and GoTo to start the task
+        SlideShowRestart= new RelayCommandSimple(() => { SlideShowStart(false, false); SlideShowGoTo(SlidePosition.Start); }); // Note: When we start SlideShow with non-current ImageIndex use Start(notask) and GoTo to start the task
             
         FlyleafME = new(this)
         {
@@ -621,7 +621,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         }
 
                         if (imageIndex == -1) // Mainly from our Delete
-                            SlideShowGoTo(ImageIndex);
+                            SlideShowGoTo(SlidePosition.Refresh);
                         else
                             ImageIndex = imageIndex;
                     }
@@ -648,17 +648,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
         //});
     }
-    void SlideShowGoTo(int index, bool fromSlideShow = false)
+    enum SlidePosition
+    {
+        Start,
+        Prev,
+        Next,
+        Refresh, // Same Index
+        PrevPage,
+        NextPage,
+        End
+    }
+    void SlideShowGoTo(SlidePosition pos, bool fromSlideShow = false)
     {
         lock (slideShowLock)
         {
             if (MediaViewer != MediaViewer.Slide)
                 return;
-
-            if (index < 0)
-                index = 0;
-            else if (index > ImageFiles.Count - 1)
-                index = ImageFiles.Count - 1;
 
             if (SlideShow && !fromSlideShow)
             {
@@ -666,17 +671,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 slideShowCancel = new();
             }
 
-            ImageIndex  = index;
-            CanPrevImage= ImageIndex > 0;
-            CanNextImage= ImageIndex < ImageFiles.Count - 1;
+            if ((ImageIndex < 1                     && (pos == SlidePosition.Prev || pos == SlidePosition.PrevPage)) ||
+                (ImageIndex >= ImageFiles.Count - 1 && (pos == SlidePosition.Next || pos == SlidePosition.NextPage)))
+                return; // out of bounds
+
+            if (pos == SlidePosition.Start || ImageFiles.Count < 2)
+                ImageIndex = 0;
+            else if (pos == SlidePosition.End)
+                ImageIndex = ImageFiles.Count - 1;
+            else if (pos == SlidePosition.Prev)
+                ImageIndex--;
+            else if (pos == SlidePosition.Next)
+                ImageIndex++;
+            else if (pos == SlidePosition.PrevPage)
+                ImageIndex = Math.Max(0, ImageIndex - SlideShowConfig.PageStep);
+            else if (pos == SlidePosition.NextPage)
+                ImageIndex = Math.Min(ImageFiles.Count - 1, ImageIndex + SlideShowConfig.PageStep);
+            
+            CanPrevImage = ImageIndex > 0;
+            CanNextImage = ImageIndex < ImageFiles.Count - 1;
 
             if (SlideShow && !CanNextImage)
                 SlideShow = false;
 
-            slideShowElapsedMs = 0;
-            slideShowOpening = true;
+            slideShowElapsedMs  = 0;
+            slideShowOpening    = true;
             Player.OpenAsync(imageFolder + "\\" + ImageFiles[ImageIndex]);
-            slideShowOpening = false;
+            slideShowOpening    = false;
         }
     }
     void SlideShowStop()
@@ -726,7 +747,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (slideShowCancel.IsCancellationRequested || !SlideShow)
             return;
 
-        UI(() => SlideShowGoTo(ImageIndex + 1, true));
+        UI(() => SlideShowGoTo(SlidePosition.Next, true));
     }
 
     void ImageKeysRemove()
@@ -766,14 +787,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     void SlideKeysAdd()
     {
         var keys = playerConfig.Player.KeyBindings;
-        keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(ImageIndex - 1), "tmp01");
-        keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(ImageIndex + 1), "tmp02");
-        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(0), "tmp03");
-        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(ImageFiles.Count -1), "tmp04");
+        keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(SlidePosition.Prev), "tmp01");
+        keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(SlidePosition.Next), "tmp02");
+        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(SlidePosition.Start), "tmp03");
+        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(SlidePosition.End), "tmp04");
         keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "tmp05");
         keys.AddCustom(Key.F5,      true,   () => SlideShowStart(true), "tmp06");
-        keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(Math.Min(ImageFiles.Count - 1, ImageIndex + SlideShowConfig.PageStep)), "tmp10");
-        keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(Math.Max(0, ImageIndex - SlideShowConfig.PageStep)), "tmp11");
+        keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(SlidePosition.NextPage), "tmp10");
+        keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(SlidePosition.PrevPage), "tmp11");
 
         ImageKeysAdd();
     }
@@ -814,7 +835,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     MediaViewer = MediaViewer.Video;
                 }
                 else
-                    SlideShowGoTo(canNextImage ? ImageIndex + 1 : (canPrevImage ? ImageIndex - 1 : 0));
+                    SlideShowGoTo(canNextImage ? SlidePosition.Next : (canPrevImage ? SlidePosition.Prev : SlidePosition.Start));
             }
                     
         } catch (Exception) {}

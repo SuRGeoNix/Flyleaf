@@ -59,17 +59,14 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
 
     public void RefreshCapDevices()
     {
-        UI(() =>
+        lock (lockCapDevices)
         {
-            lock (lockCapDevices)
-            {
-                Engine.Audio.CapDevices.Clear();
+            Engine.Audio.CapDevices.Clear();
 
-                var devices = MediaFactory.MFEnumAudioDeviceSources();
-                    foreach (var device in devices)
-                        try { Engine.Audio.CapDevices.Add(new(device.FriendlyName, device.SymbolicLink)); } catch(Exception) { }
-            }
-        });
+            var devices = MediaFactory.MFEnumAudioDeviceSources();
+                foreach (var device in devices)
+                    try { Engine.Audio.CapDevices.Add(new(device.FriendlyName, device.SymbolicLink)); } catch(Exception) { }
+        }
     }
 
     private void EnumerateDevices()

@@ -400,7 +400,8 @@ public unsafe partial class Renderer
             ReportLiveObjects();
             #endif
 
-            curRatio = 1.0f;
+            DAR         = new(0, 1);
+            curRatio    = 1.0f;
             if (CanInfo) Log.Info("Disposed");
         }
     }
