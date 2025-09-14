@@ -29,7 +29,7 @@ public class Video : NotifyPropertyChanged
     public double       BitRate         { get => bitRate;           internal set => Set(ref _BitRate, value); }
     internal double _BitRate, bitRate;
 
-    public AspectRatio  AspectRatio     { get => aspectRatio;       internal set => Set(ref _AspectRatio, value); }
+    public AspectRatio  AspectRatio     { get => aspectRatio;       internal set => Set(ref _AspectRatio, value, false); } // false: Updates FlyleafHost's ratio from renderer
     internal AspectRatio
                     _AspectRatio, aspectRatio;
 
@@ -127,15 +127,17 @@ public class Video : NotifyPropertyChanged
     }
     internal void Refresh()
     {
+        /* TBR
+         * We call this at least twice (OnOpen and OnCodecChanged)
+         * To avoid keeping this updated twice+ should fix media streams (maybe fill once after analysed)
+         * Should also clarify AVStream values vs Codec/Renderer's that we need to keep here
+         */
         if (decoder.VideoStream == null) { Reset(); return; }
 
         streamIndex = decoder.VideoStream.StreamIndex;
         codec       = decoder.VideoStream.Codec;
-        aspectRatio = decoder.VideoStream.GetDAR();
         fps         = decoder.VideoStream.FPS;
         pixelFormat = decoder.VideoStream.PixelFormatStr;
-        width       = (int)decoder.VideoStream.Width;
-        height      = (int)decoder.VideoStream.Height;
         framesTotal = decoder.VideoStream.TotalFrames;
         videoAcceleration
                     = decoder.VideoDecoder.VideoAccelerated;
@@ -145,6 +147,20 @@ public class Video : NotifyPropertyChanged
 
         framesDisplayed = 0;
         framesDropped   = 0;
+
+        var renderer = player.renderer;
+        if (renderer != null && renderer.DAR.Value > 0)
+        {
+            aspectRatio = renderer.DAR;
+            width       = (int)renderer.VisibleWidth;
+            height      = (int)renderer.VisibleHeight;
+        }
+        else
+        {
+            width       = (int)decoder.VideoStream.Width;
+            height      = (int)decoder.VideoStream.Height;
+            aspectRatio = decoder.VideoStream.GetDAR();
+        }
 
         player.UIAdd(uiAction);
     }

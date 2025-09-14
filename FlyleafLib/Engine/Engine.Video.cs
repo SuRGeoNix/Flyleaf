@@ -42,17 +42,14 @@ public class VideoEngine
 
     public void RefreshCapDevices()
     {
-        UI(() =>
+        lock (lockCapDevices)
         {
-            lock (lockCapDevices)
-            {
-                Engine.Video.CapDevices.Clear();
+            Engine.Video.CapDevices.Clear();
 
-                var devices = MediaFactory.MFEnumVideoDeviceSources();
-                    foreach (var device in devices)
-                    try { Engine.Video.CapDevices.Add(new(device.FriendlyName, device.SymbolicLink)); } catch(Exception) { }
-            }
-        });
+            var devices = MediaFactory.MFEnumVideoDeviceSources();
+                foreach (var device in devices)
+                try { Engine.Video.CapDevices.Add(new(device.FriendlyName, device.SymbolicLink)); } catch(Exception) { }
+        }
     }
 
     private Dictionary<long, GPUAdapter> GetAdapters()

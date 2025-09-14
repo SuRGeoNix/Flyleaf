@@ -143,7 +143,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                         stream.Demuxer.EnableStream(stream);
 
                     Status = Status.Stopped;
-                    CodecChanged?.Invoke(this);
+                    //CodecChanged?.Invoke(this); // We call this when we successfully decode one frame
                 }
 
                 return null;

@@ -103,25 +103,28 @@ public static class Engine
 
     private static void StartInternal(EngineConfig config = null, bool async = false)
     {
-        lock (lockEngine)
+        if (Application.Current == null)
+            _ = new Application();
+
+        UIInvokeIfRequired(() =>
         {
-            if (isLoading)
-                return;
+            lock (lockEngine)
+            {
+                if (isLoading)
+                    return;
 
-            isLoading = true;
+                isLoading = true;
 
-            Config = config ?? new EngineConfig();
+                Config = config ?? new EngineConfig();
 
-            if (Application.Current == null)
-                _ = new Application();
+                StartInternalUI();
 
-            StartInternalUI();
-
-            if (async)
-                Task.Run(() => StartInternalNonUI());
-            else
-                StartInternalNonUI();
-        }
+                if (async)
+                    Task.Run(() => StartInternalNonUI());
+                else
+                    StartInternalNonUI();
+            }
+        });
     }
 
     private static void StartInternalUI()

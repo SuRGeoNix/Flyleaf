@@ -109,8 +109,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     static int  idGenerator = 1;
     static nint NONE_STYLE = (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE); // WS_MINIMIZEBOX required for swapchain
 
-    float   curResizeRatio;
-    float   curResizeRatioIfEnabled;
+    double  curResizeRatio;
+    double  curResizeRatioIfEnabled;
     bool    surfaceClosed, surfaceClosing, overlayClosed;
     int     panPrevX, panPrevY;
     bool    isMouseBindingsSubscribedSurface;
@@ -576,17 +576,21 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     }
     private void UpdateCurRatio()
     {
+        /* TODO (Keep ratio on resize)
+         * 1) Should 'monitor' renderer's curRatio (includes rotation logic and user cropping)
+         * 2) Should resize based on Viewport's logic (rounding/ceiling) to avoid 1 pixel more or less for width/height
+         * 3) Consider default ratio (16:9) as config?
+         */
+
         if (!KeepRatioOnResize || IsFullScreen)
             return;
 
-        if (Player != null && Player.Video.AspectRatio.Value > 0)
-            curResizeRatio = Player.Video.AspectRatio.Value;
-        else if (ReplicaPlayer != null && ReplicaPlayer.Video.AspectRatio.Value > 0)
-            curResizeRatio = ReplicaPlayer.Video.AspectRatio.Value;
-        else
-            curResizeRatio = (float)(16.0/9.0);
+        var player = Player ?? ReplicaPlayer;
 
-        curResizeRatioIfEnabled = curResizeRatio;
+        if (player != null && player.renderer != null && player.renderer.DAR.Value > 0)
+            curResizeRatioIfEnabled = curResizeRatio = player.renderer.DAR.Value;
+        else
+            curResizeRatioIfEnabled = curResizeRatio = 16.0 / 9.0;
 
         Rect screen;
 
@@ -1087,7 +1091,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     }
     private void Player_Video_PropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (KeepRatioOnResize && e.PropertyName == nameof(Player.Video.AspectRatio) && Player.Video.AspectRatio.Value > 0)
+        if (KeepRatioOnResize && e.PropertyName == nameof(Player.Video.AspectRatio))
             UpdateCurRatio();
     }
     private void ReplicaPlayer_Video_PropertyChanged(object sender, PropertyChangedEventArgs e)

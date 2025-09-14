@@ -463,7 +463,11 @@ unsafe public partial class Renderer
 
             VisibleWidth    = textWidth  - (cropRect.Left + cropRect.Right);
             VisibleHeight   = textHeight - (cropRect.Top  + cropRect.Bottom);
-            keepRatio       = (double)(VisibleWidth * VideoStream.SAR.Num) / (VisibleHeight * VideoStream.SAR.Den);
+
+            int x, y;
+            _ = av_reduce(&x, &y, VisibleWidth * VideoStream.SAR.Num, VisibleHeight * VideoStream.SAR.Den, 1024 * 1024);
+            DAR = new(x, y);
+            keepRatio = DAR.Value;
             
             if (Config.Video.AspectRatio == AspectRatio.Keep)
                 curRatio = actualRotation == 90 || actualRotation == 270 ? 1 / keepRatio : keepRatio;

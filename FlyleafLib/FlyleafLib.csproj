@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.10</Version>
+	<Version>3.8.11</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,12 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Demuxer: Fixes an issue with HLS Live Seek (caused by 3.8.9)
-		- Player: Adds StreamIndex property in Audio/Video/Subtitles
-		- Renderer: Adds Cropping Support (Always ZeroCopy)
-		- Renderer: Adds User Cropping Support (Config.Video.Crop)
+		- Engine: Fixes possible issues with ObservableCollections and EnableCollectionSynchronization
+		- FlyleafHost.Wpf: Fixes an issue with KeepRatioOnResize (after crop DAR)
+		- VideoDecoder: Adds D3D11/AV1 FFmpeg bug workaround
 
 		[Breaking Changes]
-		- Config.Decoder.ZeroCopy removed
-		- Player.Video.ZeroCopy removed
+		- Globals.AspectRatio: Changes floats to doubles
 	</PackageReleaseNotes>
   </PropertyGroup>
 

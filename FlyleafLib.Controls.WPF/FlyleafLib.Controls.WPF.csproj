@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0-windows</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.4.10</Version>
+    <Version>1.4.11</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2025</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,8 +14,7 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		- Removes ZeroCopy from Video Settings
-		- Updates FlyleafLib
+		Updates FlyleafLib
 	</PackageReleaseNotes>
   </PropertyGroup>
 

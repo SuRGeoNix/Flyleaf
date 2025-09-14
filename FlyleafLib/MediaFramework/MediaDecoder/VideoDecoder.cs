@@ -614,15 +614,16 @@ public unsafe class VideoDecoder : DecoderBase
             codecChanged    = false;
             startPts        = VideoStream.StartTimePts;
             skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
-            CodecChanged?.Invoke(this);
-
+            
             DisposeFrame(Renderer.LastFrame);
             if (VideoStream.PixelFormat == AVPixelFormat.None || !Renderer.ConfigPlanes(frame))
             {
                 Log.Error("[Pixel Format] Unknown");
+                CodecChanged?.Invoke(this);
                 return -1234;
             }
 
+            CodecChanged?.Invoke(this);
             return ret;
         }
     }
