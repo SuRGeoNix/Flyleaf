@@ -58,8 +58,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         lock (lockTray) openedWindows++;
 
-        OpenWindow      = new RelayCommandSimple(() => new MainWindow() { Width = Width, Height = Height }.Show());
-        CloseWindow     = new RelayCommandSimple(Close);
+        OpenWindow      = new RelayCommandSimple(() => CreateNewWindow(this));
+        CloseWindow     = new RelayCommandSimple(() => BtnClose_Click(null, null));
         ShowPrevImage   = new RelayCommandSimple(() => SlideShowGoTo(SlidePosition.Prev));
         ShowNextImage   = new RelayCommandSimple(() => SlideShowGoTo(SlidePosition.Next));
         SlideShowToggle = new RelayCommandSimple(SlideShowToggleAction);
@@ -88,22 +88,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         InitializeComponent();
         DataContext = FlyleafME; // Allowing FlyleafHost to access our Player
-
-        if (GeneralConfig.SingleInstance)
-            Closing += X_Closing;
     }
     void X_Closing(object sender, CancelEventArgs e)
     {
-        if (closed || !GeneralConfig.SingleInstance)
+        // NOTE: FlyleafME.Player is our Player in case of Swap and not Player
+
+        if (!GeneralConfig.SingleInstance)
             return;
 
         lock (lockTray)
         {
+            if (closed)
+                return;
+
             if (openedWindows == 1)
             {
                 e.Cancel = true;
+                FlyleafME.CloseCanceled();
+                FlyleafME.Player.Stop();
 
-                Player.Stop();
                 if (mediaViewer != MediaViewer.Video)
                     MediaViewer = MediaViewer.Video;
 
@@ -112,6 +115,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
             else
             {
+                FlyleafME.Player.Dispose();
                 closed = true;
                 openedWindows--;
             }
@@ -119,36 +123,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     void BtnMinimize_Click(object sender, RoutedEventArgs e) => FlyleafME.IsMinimized = true;
-    void BtnClose_Click(object sender, RoutedEventArgs e)
-    {
-        if (!GeneralConfig.SingleInstance)
-        {
-            Close();
-            return;
-        }
-
-        lock (lockTray)
-        {
-            if (openedWindows > 1)
-            {
-                if (!closed)
-                {
-                    closed = true;
-                    openedWindows--;
-                }
-                    
-                Close();
-                return;
-            }
-        }
-
-        FlyleafME.Player?.Stop();
-        if (mediaViewer != MediaViewer.Video)
-            MediaViewer = MediaViewer.Video;
-
-        FlyleafME.Surface.ShowInTaskbar = false;
-        FlyleafME.Surface.Hide();
-    }
+    void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
     public static MainWindow GetWindowFromPlayer(Player player)
     {
@@ -163,10 +138,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         return mw;
     }
-    static void CreateNewWindow(Player player)
+    static void CreateNewWindow(MainWindow mw)
     {
-        var mw = GetWindowFromPlayer(player);
-
         MainWindow mwNew = new()
         {
             Width   = mw.Width,
@@ -266,9 +239,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         
         // Initializes the Player
         Player = new Player(playerConfig);
-        
-        // Dispose Player on Window Close (the possible swapped player from FlyleafMe that actually belongs to us)
-        Closing += (o, e) => FlyleafME.Player?.Dispose();
 
         Player.Opening          += Player_Opening;
         Player.OpenCompleted    += Player_OpenCompleted;
@@ -315,7 +285,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         // Ctrl+ N / Ctrl + W (Open New/Close Window)
         var keys = playerConfig.Player.KeyBindings;
-        keys.AddCustom(Key.N, true, () => CreateNewWindow(Player), "New Window", false, true, false);
+        keys.AddCustom(Key.N, true, () => CreateNewWindow(GetWindowFromPlayer(Player)), "New Window", false, true, false);
         keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).BtnClose_Click(null, null), "Close Window", false, true, false);
 
         // We might saved the tmp keys (restore them)
