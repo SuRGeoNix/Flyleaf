@@ -1534,6 +1534,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         surfaceClosed = true;
         Dispose();
     }
+    public void CloseCanceled() => surfaceClosing = false; // TBR: Better way of handling Closing/Canceled
     private void Surface_Closing(object sender, CancelEventArgs e) => surfaceClosing = true;
     private void Overlay_Closed(object sender, EventArgs e)
     {
