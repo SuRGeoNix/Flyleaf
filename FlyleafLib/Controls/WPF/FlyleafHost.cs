@@ -2217,8 +2217,16 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             if (CornerRadius != zeroCornerRadius)
                 ((Border)Surface.Content).CornerRadius = zeroCornerRadius;
 
-            Surface.WindowState = WindowState.Maximized;
+            if (Overlay != null)
+            {
+                Overlay.Hide();
+                Surface.WindowState = WindowState.Maximized;
+                Overlay.Show();
+            }
+            else
+                Surface.WindowState = WindowState.Maximized;
 
+            Player?.Activity.RefreshFullActive();
             // If it was above the borders and double click (mouse didn't move to refresh)
             Surface.Cursor = Cursors.Arrow;
             if (Overlay != null)
