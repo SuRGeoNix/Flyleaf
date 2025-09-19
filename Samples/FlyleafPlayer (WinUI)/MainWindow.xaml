@@ -61,13 +61,24 @@
                             <Button IsTabStop="False" Command="{Binding Player.Commands.Stop}" Margin="4 0">
                                 <SymbolIcon Symbol="Stop"/>
                             </Button>
+                            <Button x:Name="btnOpenFile" Click="btnOpenFile_Click">
+                                <SymbolIcon Symbol="OpenFile"/>
+                            </Button>
                         </StackPanel>
 
                         <TextBlock Grid.Column="1" Text="{Binding Player.Playlist.Selected.Title}" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="16"/>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
                             <Slider IsTabStop="False" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" Value="{Binding Player.Audio.Volume, Mode=TwoWay}" Width="100"/>
-                            <Button x:Name="btnFullScreen" IsTabStop="False" Margin="18 0 0 0" Command="{Binding Player.Commands.ToggleFullScreen}"/>
+                            <ComboBox Width="70" Margin="0" SelectionChanged="ComboBox_SelectionChanged" SelectedIndex="2" >
+                                <ComboBoxItem Content=".5x" Tag="0.5"/>
+                                <ComboBoxItem Content=".75x" Tag="0.75"/>
+                                <ComboBoxItem Content="1x" Tag="1.0"/>
+                                <ComboBoxItem Content="1.5x" Tag="1.5"/>
+                                <ComboBoxItem Content="2x" Tag="2.0"/>
+                            </ComboBox>
+
+                            <Button x:Name="btnFullScreen" IsTabStop="False" Margin="10 0 0 0" Command="{Binding Player.Commands.ToggleFullScreen}"/>
                         </StackPanel>
                     </Grid>
                 </Grid>
