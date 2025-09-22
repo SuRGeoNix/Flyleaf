@@ -110,12 +110,7 @@ unsafe public partial class Renderer
             }
 
             var oldVP       = videoProcessor;
-            var fieldType   = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : (VideoFrameFormat)Config.Video.DeInterlace;
-            VideoProcessor  = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)) ?
-                VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
-
-            FieldType = fieldType != VideoFrameFormat.Progressive && videoProcessor == VideoProcessors.Flyleaf ? VideoFrameFormat.Progressive : fieldType;
+            VideoProcessor  = GetVP();
 
             if (oldVP != videoProcessor)
             {
@@ -152,7 +147,6 @@ unsafe public partial class Renderer
                     vd1.CreateVideoProcessorOutputView(backBuffer, vpe, vpovd, out vpov);
                     vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
                     vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
-                    vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
 
                     if (child != null)
                     {

@@ -672,10 +672,16 @@ public class Config : NotifyPropertyChanged
         public int              MaxVerticalResolution       => MaxVerticalResolutionCustom == 0 ? (MaxVerticalResolutionAuto != 0 ? MaxVerticalResolutionAuto : 1080) : MaxVerticalResolutionCustom;
 
         /// <summary>
-        /// Sets NVidia Super Resolution (experimental)
+        /// Sets NVidia Super Resolution (D3D11VP only)
         /// </summary>
-        public bool             NVidiaSuperResolution       { get => _NVidiaSuperResolution;        set { Set(ref _NVidiaSuperResolution, value); player?.renderer?.UpdateNVidiaSuperRes(value); } }
-        internal bool _NVidiaSuperResolution;
+        public bool             SuperResolutionNVidia       { get => _SuperResolutionNVidia;        set { Set(ref _SuperResolutionNVidia, value); player?.renderer?.UpdateSuperResNVidia(value); } }
+        internal bool _SuperResolutionNVidia;
+
+        /// <summary>
+        /// Sets Intel Super Resolution (D3D11VP only)
+        /// </summary>
+        public bool             SuperResolutionIntel        { get => _SuperResolutionIntel;         set { Set(ref _SuperResolutionIntel, value); player?.renderer?.UpdateSuperResIntel(value); } }
+        internal bool _SuperResolutionIntel;
 
         /// <summary>
         /// In case of no hardware accelerated or post process accelerated pixel formats will use FFmpeg's SwsScale
@@ -694,11 +700,8 @@ public class Config : NotifyPropertyChanged
 
         /// <summary>
         /// Whether to use embedded video processor with custom pixel shaders or D3D11<br/>
-        /// (Currently D3D11 works only on video accelerated / hardware surfaces)<br/>
-        /// * FLVP supports HDR to SDR, D3D11 does not<br/>
-        /// * FLVP supports Pan Move/Zoom, D3D11 does not<br/>
-        /// * D3D11 possible performs better with color conversion and filters, FLVP supports only brightness/contrast filters<br/>
-        /// * D3D11 supports deinterlace (bob)
+        /// * FLVP supports HDR to SDR, hardware/software frames and more formats<br/>
+        /// * D3D11 uses less power, supports only hardware frames, deinterlace, super resolution and more accurate filters based on gpu
         /// </summary>
         public VideoProcessors  VideoProcessor              { get => _VideoProcessor;   set { if (Set(ref _VideoProcessor, value))  player?.renderer?.UpdateVideoProcessor(); } }
         VideoProcessors _VideoProcessor = VideoProcessors.Auto;
@@ -715,6 +718,9 @@ public class Config : NotifyPropertyChanged
         public Vortice.DXGI.PresentFlags
                                 PresentFlags                { get; set; } = Vortice.DXGI.PresentFlags.DoNotWait;
 
+        /// <summary>
+        /// Sets DeInterlace (D3D11VP only)
+        /// </summary>
         public DeInterlace      DeInterlace                 { get => _DeInterlace;      set { if (Set(ref _DeInterlace, value))     player?.renderer?.UpdateDeinterlace(); } }
         DeInterlace _DeInterlace = DeInterlace.Auto;
 
