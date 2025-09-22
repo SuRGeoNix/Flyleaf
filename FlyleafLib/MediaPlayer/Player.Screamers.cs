@@ -442,7 +442,7 @@ unsafe partial class Player
                 ? (int)((((dFrame.timestamp - startTicks) / speed) - elapsedTicks) / 10000)
                 : int.MaxValue;
 
-            sleepMs = Math.Min(vDistanceMs, aDistanceMs) - 1;
+            sleepMs = Math.Min(dDistanceMs, Math.Min(vDistanceMs, aDistanceMs)) - 1;
             if (sleepMs < 0 || sleepMs == int.MaxValue)
                 sleepMs = 0;
 
