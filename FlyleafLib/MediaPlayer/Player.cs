@@ -552,6 +552,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         Video.Reset();
         Audio.Reset();
         Subtitles.Reset();
+        Data.Reset();
         UIAll();
     }
     private void Initialize(Status status = Status.Stopped, bool andDecoder = true, bool isSwitch = false)
