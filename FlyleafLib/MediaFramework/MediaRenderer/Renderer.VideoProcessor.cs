@@ -57,15 +57,29 @@ unsafe public partial class Renderer
     };
 
     [StructLayout(LayoutKind.Sequential)]
-    struct NVidiaSuperRes(bool enable)
+    struct SuperResNVidia(bool enable)
     {
         uint version = 0x1;
         uint method  = 0x2;
         uint enabled = enable ? 1u : 0u;
     }
-    static NVidiaSuperRes   NVidiaSuperResEnabled   = new(true);
-    static NVidiaSuperRes   NVidiaSuperResDisabled  = new(false);
-    static Guid             GUID_NVIDIA_SUPERRES    = Guid.Parse("d43ce1b3-1f4b-48ac-baee-c3c25375e6f7");
+    static SuperResNVidia   SuperResEnabledNVidia   = new(true);
+    static SuperResNVidia   SuperResDisabledNVidia  = new(false);
+    static Guid             GUID_SUPERRES_NVIDIA    = Guid.Parse("d43ce1b3-1f4b-48ac-baee-c3c25375e6f7");
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct SuperResIntel
+    {
+        public IntelFunction    function;
+        public IntPtr           param;
+    }
+    enum IntelFunction : uint
+    {
+        kIntelVpeFnVersion  = 0x01,
+        kIntelVpeFnMode     = 0x20,
+		kIntelVpeFnScaling  = 0x37
+    }
+    static Guid             GUID_SUPERRES_INTEL     = Guid.Parse("edd1d4b9-8659-4cbc-a4d6-9831a2163ac3");
 
     VideoColor                          D3D11VPBackgroundColor;
     ID3D11VideoDevice1                  vd1;
@@ -198,7 +212,7 @@ unsafe public partial class Renderer
 
             if (CanDebug)
             {
-                dump += $"\n[Video Processor Input Format Caps]\r\n";
+                dump += $"\n[Video Processor Auto Stream Caps]\r\n";
                 foreach (VideoProcessorAutoStreamCaps cap in Enum.GetValues(typeof(VideoProcessorAutoStreamCaps)))
                     dump += $"{cap,-25} {((vpCaps.AutoStreamCaps & cap) != 0 ? "yes" : "no")}\r\n";
             }
@@ -260,8 +274,11 @@ unsafe public partial class Renderer
                 vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
                 vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
 
-                if (Config.Video.NVidiaSuperResolution)
-                    UpdateNVidiaSuperRes(true);
+                if (Config.Video.SuperResolutionNVidia)
+                    UpdateSuperResNVidia(true);
+
+                if (Config.Video.SuperResolutionIntel)
+                    UpdateSuperResIntel(true);
             }
 
             lock (Config.Video.lockFilters)
@@ -281,6 +298,25 @@ unsafe public partial class Renderer
 
         vc = null;
     }
+
+    VideoProcessors GetVP()
+    {
+        var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : (VideoFrameFormat)Config.Video.DeInterlace;
+
+        if (VideoDecoder.VideoAccelerated && VideoStream.ColorSpace != ColorSpace.Bt2020 && vc != null && (
+                Config.Video.VideoProcessor == VideoProcessors.D3D11 ||
+                Config.Video.SuperResolutionNVidia || Config.Video.SuperResolutionIntel ||
+                (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)))
+        {
+            FieldType = fieldType;
+            vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
+            return VideoProcessors.D3D11;
+        }
+
+        FieldType = VideoFrameFormat.Progressive;
+        return VideoProcessors.Flyleaf;
+    }
+
     internal void UpdateBackgroundColor()
     {
         D3D11VPBackgroundColor.Rgba.R = Scale(Config.Video.BackgroundColor.R, 0, 255, 0, 100) / 100.0f;
@@ -291,35 +327,19 @@ unsafe public partial class Renderer
 
         Present();
     }
+
     internal void UpdateDeinterlace()
     {
         lock (lockDevice)
         {
-            if (Disposed || parent != null)
+            if (Disposed || VideoStream == null || parent != null)
                 return;
 
-            var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? (VideoStream != null ? VideoStream.FieldOrder : VideoFrameFormat.Progressive) : (VideoFrameFormat)Config.Video.DeInterlace;
-            var newVp = !D3D11VPFailed && VideoDecoder.VideoAccelerated &&
-                (Config.Video.VideoProcessor == VideoProcessors.D3D11 || (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)) ?
-                VideoProcessors.D3D11 : VideoProcessors.Flyleaf;
-
-            if (videoProcessor == VideoProcessors.Flyleaf)
-                FieldType = VideoFrameFormat.Progressive;
-            else
-            {
-                FieldType = fieldType;
-                vc.VideoProcessorSetStreamFrameFormat(vp, 0, fieldType);
-            }
-
-            if (newVp != VideoProcessor)
+            if (GetVP() != VideoProcessor)
                 ConfigPlanes();
         }
     }
-    internal VideoFrameFormat GetFieldType()
-    {
-        lock (lockDevice)
-            return !Disposed ? vc.VideoProcessorGetStreamFrameFormat(vp, 0) : VideoFrameFormat.Progressive;
-    }
+
     internal void SetFieldType(VideoFrameFormat fieldType)
     {
         lock (lockDevice)
@@ -327,6 +347,7 @@ unsafe public partial class Renderer
                 vc.VideoProcessorSetStreamFrameFormat(vp, 0, fieldType);
                 //TBR: vpsa[0].InputFrameOrField = fieldType == DeInterlace.BottomField ? 1u : 0u; // TBR
     }
+
     internal void UpdateHDRtoSDR(bool updateResource = true)
     {
         if(parent != null)
@@ -347,6 +368,7 @@ unsafe public partial class Renderer
             Present();
         }
     }
+
     void UpdateRotation(uint angle, bool refresh = true)
     {
         _RotationAngle = angle;
@@ -415,6 +437,7 @@ unsafe public partial class Renderer
 
         UpdateAspectRatio(refresh);
     }
+
     internal void UpdateAspectRatio(bool refresh = true)
     {
         lock (lockDevice) // TBR: Fix AspectRatio generally* Separate Enum + CustomValue (respect SAR, clarify Fit/Fill/Keep/Stretch/Original/Custom ...)
@@ -437,6 +460,7 @@ unsafe public partial class Renderer
             child?.UpdateAspectRatio(refresh);
         }
     }
+
     internal void UpdateCropping(bool refresh = true)
     {
         /* TODO (SW)
@@ -490,6 +514,7 @@ unsafe public partial class Renderer
                 SetViewport();
         }
     }
+
     internal void UpdateVideoProcessor()
     {
         if(parent != null)
@@ -502,18 +527,48 @@ unsafe public partial class Renderer
         Present();
     }
 
-    internal void UpdateNVidiaSuperRes(bool enabled)
+    internal void UpdateSuperResNVidia(bool enabled)
     {
+        if (vc == null)
+            return;
+
         try
         {
             if (enabled)
-                fixed (NVidiaSuperRes* ptr = &NVidiaSuperResEnabled)
-                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_NVIDIA_SUPERRES, (uint)sizeof(NVidiaSuperRes), (nint)ptr);
+                fixed (SuperResNVidia* ptr = &SuperResEnabledNVidia)
+                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_SUPERRES_NVIDIA, (uint)sizeof(SuperResNVidia), (nint)ptr);
             else
-                fixed (NVidiaSuperRes* ptr = &NVidiaSuperResDisabled)
-                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_NVIDIA_SUPERRES, (uint)sizeof(NVidiaSuperRes), (nint)ptr);
-        }
-        catch (Exception e) { Log.Error($"SetNVidiaSuperRes() failed: {e.Message}"); } // Never fails?*
+                fixed (SuperResNVidia* ptr = &SuperResDisabledNVidia)
+                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_SUPERRES_NVIDIA, (uint)sizeof(SuperResNVidia), (nint)ptr);
+        } catch (Exception e) { Log.Error($"UpdateNVidiaSuperRes() failed: {e.Message}"); } // Never fails?*
+    }
+
+    internal unsafe void UpdateSuperResIntel(bool enabled)
+    {
+        if (vc == null)
+            return;
+
+        try
+        {
+            IntPtr          paramPtr    = Marshal.AllocHGlobal(sizeof(uint));
+            SuperResIntel   intel       = new() { param = paramPtr };
+            GCHandle        handle      = GCHandle.Alloc(intel, GCHandleType.Pinned);
+            
+            intel.function = IntelFunction.kIntelVpeFnVersion;
+            Marshal.WriteInt32(paramPtr, 3); // kIntelVpeVersion3
+            vc.VideoProcessorSetOutputExtension(vp,     GUID_SUPERRES_INTEL, (uint)sizeof(SuperResIntel), handle.AddrOfPinnedObject());
+
+            intel.function = IntelFunction.kIntelVpeFnMode;
+            Marshal.WriteInt32(paramPtr, enabled ? 1 : 0); // kIntelVpeModePreproc : kIntelVpeModeNone
+            vc.VideoProcessorSetOutputExtension(vp,     GUID_SUPERRES_INTEL, (uint)sizeof(SuperResIntel), handle.AddrOfPinnedObject());
+
+            intel.function = IntelFunction.kIntelVpeFnScaling;
+            Marshal.WriteInt32(paramPtr, enabled ? 2 : 0); // kIntelVpeScalingSuperResolution : kIntelVpeScalingDefault
+            vc.VideoProcessorSetStreamExtension(vp, 0,  GUID_SUPERRES_INTEL, (uint)sizeof(SuperResIntel), handle.AddrOfPinnedObject());
+
+            handle.Free();
+            Marshal.FreeHGlobal(paramPtr);
+        } catch (Exception e) { Log.Error($"UpdateIntelSuperRes() failed: {e.Message}"); } // Never fails?*
     }
 }
 
