@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.InteropServices;
 
 using Vortice.Direct3D11;
 using Vortice.DXGI;
@@ -54,6 +55,17 @@ unsafe public partial class Renderer
         Default     = filter.Default,
         Step        = filter.Multiplier
     };
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct NVidiaSuperRes(bool enable)
+    {
+        uint version = 0x1;
+        uint method  = 0x2;
+        uint enabled = enable ? 1u : 0u;
+    }
+    static NVidiaSuperRes   NVidiaSuperResEnabled   = new(true);
+    static NVidiaSuperRes   NVidiaSuperResDisabled  = new(false);
+    static Guid             GUID_NVIDIA_SUPERRES    = Guid.Parse("d43ce1b3-1f4b-48ac-baee-c3c25375e6f7");
 
     VideoColor                          D3D11VPBackgroundColor;
     ID3D11VideoDevice1                  vd1;
@@ -247,6 +259,9 @@ unsafe public partial class Renderer
                 UpdateBackgroundColor();
                 vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
                 vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
+
+                if (Config.Video.NVidiaSuperResolution)
+                    UpdateNVidiaSuperRes(true);
             }
 
             lock (Config.Video.lockFilters)
@@ -266,7 +281,6 @@ unsafe public partial class Renderer
 
         vc = null;
     }
-
     internal void UpdateBackgroundColor()
     {
         D3D11VPBackgroundColor.Rgba.R = Scale(Config.Video.BackgroundColor.R, 0, 255, 0, 100) / 100.0f;
@@ -486,6 +500,20 @@ unsafe public partial class Renderer
 
         ConfigPlanes();
         Present();
+    }
+
+    internal void UpdateNVidiaSuperRes(bool enabled)
+    {
+        try
+        {
+            if (enabled)
+                fixed (NVidiaSuperRes* ptr = &NVidiaSuperResEnabled)
+                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_NVIDIA_SUPERRES, (uint)sizeof(NVidiaSuperRes), (nint)ptr);
+            else
+                fixed (NVidiaSuperRes* ptr = &NVidiaSuperResDisabled)
+                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_NVIDIA_SUPERRES, (uint)sizeof(NVidiaSuperRes), (nint)ptr);
+        }
+        catch (Exception e) { Log.Error($"SetNVidiaSuperRes() failed: {e.Message}"); } // Never fails?*
     }
 }
 
