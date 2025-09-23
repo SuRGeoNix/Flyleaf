@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.11</Version>
+	<Version>3.8.12</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,12 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Engine: Fixes possible issues with ObservableCollections and EnableCollectionSynchronization
-		- FlyleafHost.Wpf: Fixes an issue with KeepRatioOnResize (after crop DAR)
-		- VideoDecoder: Adds D3D11/AV1 FFmpeg bug workaround
-
-		[Breaking Changes]
-		- Globals.AspectRatio: Changes floats to doubles
+		- Renderer.D3D11VP: Adds SuperResolution support (Nvidia/Intel)
+		- Renderer: Improves VideoProcessor selection based on input
+		- Config.Video: Introduces SuperResolutionNVidia and SuperResolutionIntel
+		- Player: Fixes a sync issue with Data streams
+		- FlyleafHost.Wpf: Improves transition from normal to fullscreen
+		- FlyleafHost.Wpf: Introduces CloseCanceled to properly cancel the process when required
+		- FlyleafHost.Wpf: Fixes an issue when hiding and showing back a window which was out of screen bounds (invalid pos/size for windows)
 	</PackageReleaseNotes>
   </PropertyGroup>
 

@@ -57,14 +57,14 @@ unsafe public partial class Renderer
     };
 
     [StructLayout(LayoutKind.Sequential)]
-    struct SuperResNVidia(bool enable)
+    struct SuperResNvidia(bool enable)
     {
         uint version = 0x1;
         uint method  = 0x2;
         uint enabled = enable ? 1u : 0u;
     }
-    static SuperResNVidia   SuperResEnabledNVidia   = new(true);
-    static SuperResNVidia   SuperResDisabledNVidia  = new(false);
+    static SuperResNvidia   SuperResEnabledNvidia   = new(true);
+    static SuperResNvidia   SuperResDisabledNvidia  = new(false);
     static Guid             GUID_SUPERRES_NVIDIA    = Guid.Parse("d43ce1b3-1f4b-48ac-baee-c3c25375e6f7");
 
     [StructLayout(LayoutKind.Sequential)]
@@ -274,8 +274,8 @@ unsafe public partial class Renderer
                 vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
                 vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
 
-                if (Config.Video.SuperResolutionNVidia)
-                    UpdateSuperResNVidia(true);
+                if (Config.Video.SuperResolutionNvidia)
+                    UpdateSuperResNvidia(true);
 
                 if (Config.Video.SuperResolutionIntel)
                     UpdateSuperResIntel(true);
@@ -305,7 +305,7 @@ unsafe public partial class Renderer
 
         if (VideoDecoder.VideoAccelerated && VideoStream.ColorSpace != ColorSpace.Bt2020 && vc != null && (
                 Config.Video.VideoProcessor == VideoProcessors.D3D11 ||
-                Config.Video.SuperResolutionNVidia || Config.Video.SuperResolutionIntel ||
+                Config.Video.SuperResolutionNvidia || Config.Video.SuperResolutionIntel ||
                 (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)))
         {
             FieldType = fieldType;
@@ -527,7 +527,7 @@ unsafe public partial class Renderer
         Present();
     }
 
-    internal void UpdateSuperResNVidia(bool enabled)
+    internal void UpdateSuperResNvidia(bool enabled)
     {
         if (vc == null)
             return;
@@ -535,12 +535,12 @@ unsafe public partial class Renderer
         try
         {
             if (enabled)
-                fixed (SuperResNVidia* ptr = &SuperResEnabledNVidia)
-                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_SUPERRES_NVIDIA, (uint)sizeof(SuperResNVidia), (nint)ptr);
+                fixed (SuperResNvidia* ptr = &SuperResEnabledNvidia)
+                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_SUPERRES_NVIDIA, (uint)sizeof(SuperResNvidia), (nint)ptr);
             else
-                fixed (SuperResNVidia* ptr = &SuperResDisabledNVidia)
-                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_SUPERRES_NVIDIA, (uint)sizeof(SuperResNVidia), (nint)ptr);
-        } catch (Exception e) { Log.Error($"UpdateNVidiaSuperRes() failed: {e.Message}"); } // Never fails?*
+                fixed (SuperResNvidia* ptr = &SuperResDisabledNvidia)
+                    vc.VideoProcessorSetStreamExtension(vp, 0, GUID_SUPERRES_NVIDIA, (uint)sizeof(SuperResNvidia), (nint)ptr);
+        } catch (Exception e) { Log.Error($"UpdateNvidiaSuperRes() failed: {e.Message}"); } // Never fails?*
     }
 
     internal unsafe void UpdateSuperResIntel(bool enabled)
