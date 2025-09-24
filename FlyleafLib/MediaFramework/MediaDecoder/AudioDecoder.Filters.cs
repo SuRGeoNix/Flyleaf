@@ -19,30 +19,39 @@ public unsafe partial class AudioDecoder
     AVRational              sinkTimebase;
     AVFrame*                filtframe;
 
+    static AVFilter* ATEMPO     = avfilter_get_by_name("atempo");
+    static AVFilter* ABUFFER    = avfilter_get_by_name("abuffer");
+    static AVFilter* ABUFFERSINK= avfilter_get_by_name("abuffersink");
+
     private AVFilterContext* CreateFilter(string name, string args, AVFilterContext* prevCtx = null, string id = null)
+        => CreateFilter(avfilter_get_by_name(name), args, prevCtx, id ?? name);
+
+    private AVFilterContext* CreateFilter(AVFilter* filter, string args, AVFilterContext* prevCtx = null, string id = null)
     {
         int ret;
         AVFilterContext*    filterCtx;
-        AVFilter*           filter;
 
-        id ??= name;
-
-        filter  = avfilter_get_by_name(name);
         if (filter == null)
-            throw new Exception($"[Filter {name}] not found");
-
-        ret     = avfilter_graph_create_filter(&filterCtx, filter, id, args, null, filterGraph);
+            throw new Exception($"[Filter {BytePtrToStringUTF8(filter->name)}] not found");
+        
+        ret = avfilter_graph_create_filter(&filterCtx, filter, id, args, null, filterGraph);
         if (ret < 0)
-            throw new Exception($"[Filter {name}] avfilter_graph_create_filter failed ({FFmpegEngine.ErrorCodeToMsg(ret)})");
+            throw new Exception($"[Filter {BytePtrToStringUTF8(filter->name)}] avfilter_graph_create_filter failed ({FFmpegEngine.ErrorCodeToMsg(ret)})");
 
         if (prevCtx == null)
             return filterCtx;
 
-        ret     = avfilter_link(prevCtx, 0, filterCtx, 0);
+        ret = avfilter_link(prevCtx, 0, filterCtx, 0);
 
         return ret != 0
-            ? throw new Exception($"[Filter {name}] avfilter_link failed ({FFmpegEngine.ErrorCodeToMsg(ret)})")
+            ? throw new Exception($"[Filter {BytePtrToStringUTF8(filter->name)}] avfilter_link failed ({FFmpegEngine.ErrorCodeToMsg(ret)})")
             : filterCtx;
+    }
+
+    private int Set<T>(AVFilterContext* fltCtx, string name, T[] value, AVOptionType type, OptSearchFlags searchFlags = OptSearchFlags.Children, uint startElement = 0) where T : unmanaged
+    {
+        fixed(T* ptr = value)
+            return av_opt_set_array(fltCtx, name, searchFlags, startElement, (uint)value.Length, type, ptr);
     }
     private int SetupFilters()
     {
@@ -61,7 +70,7 @@ public unsafe partial class AudioDecoder
             abufferDrained  = false;
 
             // IN (abuffersrc)
-            linkCtx = abufferCtx = CreateFilter("abuffer",
+            linkCtx = abufferCtx = CreateFilter(ABUFFER,
                 $"channel_layout={AudioStream.ChannelLayoutStr}:sample_fmt={AudioStream.SampleFormatStr}:sample_rate={codecCtx->sample_rate}:time_base={sinkTimebase.Num}/{sinkTimebase.Den}");
 
             // USER DEFINED
@@ -77,32 +86,43 @@ public unsafe partial class AudioDecoder
             if (speed != 1)
             {
                 if (speed >= 0.5 && speed <= 2)
-                    linkCtx = CreateFilter("atempo", $"tempo={speed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter(ATEMPO, $"tempo={speed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
                 else if ((speed > 2 & speed <= 4) || (speed >= 0.25 && speed < 0.5))
                 {
                     var singleAtempoSpeed = Math.Sqrt(speed);
-                    linkCtx = CreateFilter("atempo", $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
-                    linkCtx = CreateFilter("atempo", $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter(ATEMPO, $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter(ATEMPO, $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
                 }
                 else if (speed > 4 || speed >= 0.125 && speed < 0.25)
                 {
                     var singleAtempoSpeed = Math.Pow(speed, 1.0 / 3);
-                    linkCtx = CreateFilter("atempo", $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
-                    linkCtx = CreateFilter("atempo", $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
-                    linkCtx = CreateFilter("atempo", $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter(ATEMPO, $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter(ATEMPO, $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
+                    linkCtx = CreateFilter(ATEMPO, $"tempo={singleAtempoSpeed.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture)}", linkCtx);
                 }
             }
 
             // OUT (abuffersink)
-            abufferSinkCtx = CreateFilter("abuffersink", null, null);
+            if (Engine.FFmpeg.Ver8OrGreater)
+            {
+                abufferSinkCtx = avfilter_graph_alloc_filter(filterGraph, ABUFFERSINK, null);
+                Set(abufferSinkCtx, "sample_formats",  [AOutSampleFormat],         AVOptionType.SampleFmt);
+                Set(abufferSinkCtx, "samplerates",     [AudioStream.SampleRate],   AVOptionType.Int);
+                Set(abufferSinkCtx, "channel_layouts", [AV_CHANNEL_LAYOUT_STEREO], AVOptionType.Chlayout);
+                ret = avfilter_init_dict(abufferSinkCtx, null);
+            }
+            else
+            {
+                abufferSinkCtx = CreateFilter(ABUFFERSINK, null, null);
+                int tmpSampleRate = AudioStream.SampleRate;
+                fixed (AVSampleFormat* ptr = &AOutSampleFormat)
+                    ret = av_opt_set_bin(abufferSinkCtx , "sample_fmts"         , (byte*)ptr,            sizeof(AVSampleFormat) , OptSearchFlags.Children);
+                ret = av_opt_set_bin(abufferSinkCtx     , "sample_rates"        , (byte*)&tmpSampleRate, sizeof(int)            , OptSearchFlags.Children);
+                ret = av_opt_set_int(abufferSinkCtx     , "all_channel_counts"  , 0                                             , OptSearchFlags.Children);
+                ret = av_opt_set(abufferSinkCtx         , "ch_layouts"          , "stereo"                                      , OptSearchFlags.Children);
+            }
 
-            int tmpSampleRate = AudioStream.SampleRate;
-            fixed (AVSampleFormat* ptr = &AOutSampleFormat)
-                ret = av_opt_set_bin(abufferSinkCtx , "sample_fmts"         , (byte*)ptr,            sizeof(AVSampleFormat) , OptSearchFlags.Children);
-            ret = av_opt_set_bin(abufferSinkCtx     , "sample_rates"        , (byte*)&tmpSampleRate, sizeof(int)            , OptSearchFlags.Children);
-            ret = av_opt_set_int(abufferSinkCtx     , "all_channel_counts"  , 0                                             , OptSearchFlags.Children);
-            ret = av_opt_set(abufferSinkCtx         , "ch_layouts"          , "stereo"                                      , OptSearchFlags.Children);
-            avfilter_link(linkCtx, 0, abufferSinkCtx, 0);
+            _ = avfilter_link(linkCtx, 0, abufferSinkCtx, 0);
 
             // GRAPH CONFIG
             ret = avfilter_graph_config(filterGraph, null);
