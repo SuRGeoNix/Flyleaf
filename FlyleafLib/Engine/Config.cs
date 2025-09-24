@@ -684,11 +684,6 @@ public class Config : NotifyPropertyChanged
         internal bool _SuperResolutionIntel;
 
         /// <summary>
-        /// In case of no hardware accelerated or post process accelerated pixel formats will use FFmpeg's SwsScale
-        /// </summary>
-        public bool             SwsHighQuality              { get; set; } = false;
-
-        /// <summary>
         /// Forces SwsScale instead of FlyleafVP for non HW decoded frames
         /// </summary>
         public bool             SwsForce                    { get; set; } = false;
