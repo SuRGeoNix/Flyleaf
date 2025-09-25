@@ -281,4 +281,17 @@ public unsafe partial class Renderer
         VideoDecoder.DisposeFrame(LastFrame);
         Present();
     }
+    public void ClearScreenForce()
+    {
+        lock (lockDevice)
+        {
+            if (SCDisposed)
+                return;
+
+            ClearOverlayTexture();
+            VideoDecoder.DisposeFrame(LastFrame);
+            context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+            swapChain.Present(Config.Video.VSync, PresentFlags.None);
+        }
+    }
 }
