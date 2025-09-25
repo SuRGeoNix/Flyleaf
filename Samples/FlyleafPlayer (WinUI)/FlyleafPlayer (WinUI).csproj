@@ -26,6 +26,9 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Flyleaf.FFmpeg.Bindings" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\FlyleafLib.Controls.WinUI\FlyleafLib.Controls.WinUI.csproj" />
   </ItemGroup>
 

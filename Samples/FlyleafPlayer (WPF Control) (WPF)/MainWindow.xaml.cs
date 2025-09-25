@@ -421,6 +421,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else if (mediaViewer == MediaViewer.Image && imageTitle == null)
             ImageTitle = Player.Playlist.Selected.Title;
         else
+        {
+            if (!e.Success)
+                Player.renderer?.ClearScreenForce();
+
             lock (slideShowLock)
                 if (SlideShow)
                 {
@@ -430,6 +434,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     slideShowElapsedMs = 0;
                     Task.Run(SlideShowTask, slideShowCancel.Token);
                 }
+        }
     }
 
     bool userClearScreen;
