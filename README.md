@@ -30,74 +30,74 @@
 # [Features]
 
 ### **FFmpeg**
-- *HLS Live Seeking* <sub>Might the 1st FFmpeg player which does that</sub>
-- *Pached for [HLS](https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=1018) and [.NET](https://developercommunity.microsoft.com/t/Proper-handling-of-MS_VC_EXCEPTION-0x40/10961029) issues* <sub>Use recommended FFmpeg libraries which can be found on GitHub releases</sub>
-- *Capture Devices* <sub>Pass the format, input and options with a single Url eg. fmt://gdigrab?desktop&framerate=30</sub>
+- *HLS Live Seeking <sub>Might the 1st FFmpeg player which does that</sub>*
+- *Pached for [HLS](https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=1018) and [.NET](https://developercommunity.microsoft.com/t/Proper-handling-of-MS_VC_EXCEPTION-0x40/10961029) issues <sub>Use recommended FFmpeg libraries which can be found on GitHub releases</sub>*
+- *Capture Devices <sub>Pass the format, input and options with a single Url eg. fmt://gdigrab?desktop&framerate=30</sub>*
 - *Supports FFmpeg v7.1 and v8.0 <sub>(use Flyleaf.FFmpeg.Bindings v8.0 at your project)</sub>*
 
 ### **Playback**
 - *Open / Play / Pause / Stop*
 - *Speed / Reverse / Zero-Low Latency*
-- *Seek Backward / Forward (Short / Large Step)*
+- *Seek Backward / Forward <sub>(Short / Large Step)</sub>*
 - *Seek to Time / Seek to Frame / Seek to Chapter / Frame Stepping*
 
 ### **Video**
 - *Enable / Disable*
 - *Device Preference*
-- *Aspect Ratio (Keep / Fill / Custom)*
+- *Aspect Ratio <sub>(Keep / Fill / Custom)</sub>*
 - *Deinterlace <sub>(D3D11VP only)</sub>*
-- *HDR to SDR (Aces / Hable / Reinhard)* <sub>(FlyleafVP only)</sub>
+- *HDR to SDR <sub>(Aces / Hable / Reinhard - FlyleafVP only)</sub>*
 - *Pan Move / Zoom / Rotate / HFlip-VFlip / Cropping <sub>(Replica Renderer/Interactive Zoom)</sub>*
 - *Record / Snapshot*
-- *Super Resolution <sub>(Nvidia / Intel)</sub>*
+- *Super Resolution <sub>(Nvidia / Intel - D3D11VP only)</sub>*
 - *Video Acceleration*
-- *Video Filters (Brightness / Contrast / Hue / Saturation)*
-- *Video Processors (FlyleafVP / D3D11VP)*
+- *Video Filters <sub>(Brightness / Contrast / Hue / Saturation)</sub>*
+- *Video Processors <sub>(FlyleafVP / D3D11VP)</sub>*
 - *VSync*
 - *Zero-Copy <sub>(Crops with vertex shader)</sub>*
 
 ### **Audio**
 - *Enable / Disable*
 - *Device Preference*
-- *Add / Remove Delay (Short / Large Step)*
-- *Volume (Up / Down / Mute)*
-- *Languages support* <sub>System's default languages as priorities for audio streams</sub>
+- *Add / Remove Delay <sub>(Short / Large Step)</sub>*
+- *Volume <sub>(Up / Down / Mute)</sub>*
+- *Languages support <sub>System's default languages as priorities for audio streams</sub>*
 
 ### **Subtitles**
 - *Enable / Disable*
-- *Add / Remove Delay (Short / Large Step)*
+- *Add / Remove Delay <sub>(Short / Large Step)</sub>*
 - *Bitmap Subtitles support*
-- *Advanced Character Detection and Convert to UTF-8* <sub>SubtitlesConverter plugin</sub>
-- *Languages support* <sub>System's default languages as priorities for subtitles streams</sub>
+- *Advanced Character Detection and Convert to UTF-8 <sub>SubtitlesConverter plugin</sub>*
+- *Languages support <sub>System's default languages as priorities for subtitles streams</sub>*
 
-### **UI Control (FlyleafHost)**<sub>WPF / WinUI &amp; WinForms (Partially)</sub>
+### **UI Control (FlyleafHost)** <sub>*WPF / WinUI &amp; WinForms (Partially)*</sub>
 - *Attach / Detach*
 - *Activity / Idle Mode*
-- *Drag Move (Self / Owner)*
+- *Drag Move <sub>(Self / Owner)</sub>*
 - *Drag & Drop Swap*
 - *Drag & Drop Open*
 - *Full / Normal Screen*
 - *Resize / Resize & Keep Ratio*
 - *Z-Order*
 
-### **UI Control (FlyleafME)** <sub>WPF Only</sub>
+### **UI Control (FlyleafME)** <sub>*WPF Only*</sub>
 - *Flyleaf Bar Control / Slider*
 - *Flyleaf Popup Menu*
 - *Flyleaf Settings Dialog*
-- *Color Themes* <sub>Based on Material Design in XAML</sub>
+- *Color Themes <sub>Based on Material Design in XAML</sub>*
 - *Style / Control Template Customization*
 
 ### **Plugins**
-- *OpenSubtitlesOrg* <sub>Search & Download for online Subtitles</sub>
-- *SubtitlesConverter* <sub>Detect & Convert the input's charset to UTF-8</sub>
-- *TorrentBitSwarm* <sub>Play a media from torrent without the need to download it completely</sub>
-- *YoutubeDL* <sub>Play web media that are not accessible directly with HTTP(s)</sub>
+- *OpenSubtitlesOrg <sub>Search & Download for online Subtitles</sub>*
+- *SubtitlesConverter <sub>Detect & Convert the input's charset to UTF-8</sub>*
+- *TorrentBitSwarm <sub>Play a media from torrent without the need to download it completely</sub>*
+- *YoutubeDL <sub>Play web media that are not accessible directly with HTTP(s)</sub>*
 
 ### Misc.
-- *Mouse & Key Bindings* <sub>All the implementation supports customizable mouse & key bindings which can be assigned to an embedded or a custom actions (find defaults [here](https://github.com/SuRGeoNix/Flyleaf/wiki/Player-(Key-&-Mouse-Bindings)))</sub>
-- *Audio Player* <sub>Can be used as an audio player only without the need of UI Control</sub>
-- *Downloader / Remuxer* <sub>The library can be used also for downloading & remuxing</sub>
-- *Extractor* <sub>The library can be used also for extracting video frames (supports also by X frames Step)</sub>
+- *Mouse & Key Bindings <sub>All the implementation supports customizable mouse & key bindings which can be assigned to an embedded or a custom actions (find defaults [here](https://github.com/SuRGeoNix/Flyleaf/wiki/Player-(Key-&-Mouse-Bindings)))</sub>*
+- *Audio Player <sub>Can be used as an audio player only without the need of UI Control</sub>*
+- *Downloader / Remuxer <sub>The library can be used also for downloading & remuxing</sub>*
+- *Extractor <sub>The library can be used also for extracting video frames (supports also by X frames Step)</sub>*
 
 # [Thanks to]
 
@@ -106,7 +106,7 @@
 * *For the Core*
   * ***[FFmpeg](http://ffmpeg.org/)*** / ***[FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen/)*** / ***[Flyleaf.FFmpeg.Bindings](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.Generator)***
   * ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
-  * *Major open source media players* ***[VLC](https://github.com/videolan/vlc)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***
+  * *Major open source media players* ***[VLC](https://github.com/videolan/vlc)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[MPC-BE](https://github.com/Aleksoid1978/MPC-BE)***, ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***
 
 * *For the UI*
   * ***[Dragablz](https://github.com/ButchersBoy/Dragablz)***

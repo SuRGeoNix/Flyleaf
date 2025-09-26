@@ -301,7 +301,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         Config config = new();
         config.Demuxer.FormatOptToUnderlying= true;     // Mainly for HLS to pass the original query which might includes session keys
-        config.Audio.FiltersEnabled         = true;     // To allow embedded atempo filter for speed
         config.Video.GPUAdapter             = "";       // Set it empty so it will include it when we save it
         config.Subtitles.SearchLocal        = true;
         return config;

@@ -812,12 +812,10 @@ public class Config : NotifyPropertyChanged
         internal void SetEnabled(bool enabled)      => Set(ref _Enabled, enabled, true, nameof(Enabled));
 
         /// <summary>
-        /// Whether to process samples with Filters or SWR (experimental)<br/>
-        /// 1. Requires FFmpeg avfilter lib<br/>
-        /// 2. Currently SWR performs better if you dont need filters<br/>
+        /// Uses FFmpeg filters instead of Swr (better speed quality and support for extra filters, requires avfilter-X.dll)
         /// </summary>
         public bool             FiltersEnabled      { get => _FiltersEnabled; set { if (Set(ref _FiltersEnabled, value && Engine.Config.FFmpegLoadProfile != LoadProfile.Main)) player?.AudioDecoder.SetupFiltersOrSwr(); } }
-        bool _FiltersEnabled = false;
+        bool _FiltersEnabled = true;
 
         /// <summary>
         /// List of filters for post processing the audio samples (experimental)<br/>

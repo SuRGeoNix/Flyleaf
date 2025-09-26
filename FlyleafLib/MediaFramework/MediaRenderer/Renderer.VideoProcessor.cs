@@ -304,7 +304,7 @@ unsafe public partial class Renderer
         var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : (VideoFrameFormat)Config.Video.DeInterlace;
 
         if (VideoDecoder.VideoAccelerated && VideoStream.ColorSpace != ColorSpace.Bt2020 && vc != null && (
-                Config.Video.VideoProcessor == VideoProcessors.D3D11 ||
+                Config.Video.VideoProcessor != VideoProcessors.Flyleaf ||
                 Config.Video.SuperResolutionNvidia || Config.Video.SuperResolutionIntel ||
                 (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)))
         {
@@ -527,6 +527,10 @@ unsafe public partial class Renderer
         Present();
     }
 
+    /* TODO (Super Resolution)
+     * 1) Combine both in one (check vendor)
+     * 2) It will be enabled based on output window and based on viewport's size (enable/disable manually when actually needed)
+     */
     internal void UpdateSuperResNvidia(bool enabled)
     {
         if (vc == null)
