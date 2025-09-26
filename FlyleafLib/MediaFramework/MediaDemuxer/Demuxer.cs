@@ -800,7 +800,7 @@ public unsafe class Demuxer : RunThreadBase
                 AVStreamToStream[i].UpdateDuration();
         }
 
-        IsLive = Duration == 0 || hlsCtx != null;
+        IsLive = Duration == 0 || hlsCtx != null; // TODO: No true for single video stream / image (fix also total frames to 1 if not animated?*)
 
         string dumpChapters = "";
 

@@ -261,11 +261,8 @@ public static class Engine
                                 curStats.VideoBytes = curVideoBytes;
                                 curStats.AudioBytes = curAudioBytes;
 
-                                if (player.IsPlaying)
-                                {
-                                    player.Video.fpsCurrent = (player.Video.FramesDisplayed - curStats.FramesDisplayed) / curSecond;
-                                    curStats.FramesDisplayed = player.Video.FramesDisplayed;
-                                }
+                                player.Video.fpsCurrent = (player.Video.FramesDisplayed - curStats.FramesDisplayed) / curSecond;
+                                curStats.FramesDisplayed = player.Video.FramesDisplayed;
                             }
                         }
                     }
@@ -306,15 +303,12 @@ public static class Engine
                                     player.Video.BitRate = player.Video.BitRate;
                                     player.Audio.BitRate = player.Audio.BitRate;
 
-                                    if (player.IsPlaying)
-                                    {
-                                        player.Audio.FramesDisplayed= player.Audio.FramesDisplayed;
-                                        player.Audio.FramesDropped  = player.Audio.FramesDropped;
+                                    player.Audio.FramesDisplayed= player.Audio.FramesDisplayed;
+                                    player.Audio.FramesDropped  = player.Audio.FramesDropped;
 
-                                        player.Video.FramesDisplayed= player.Video.FramesDisplayed;
-                                        player.Video.FramesDropped  = player.Video.FramesDropped;
-                                        player.Video.FPSCurrent     = player.Video.FPSCurrent;
-                                    }
+                                    player.Video.FramesDisplayed= player.Video.FramesDisplayed;
+                                    player.Video.FramesDropped  = player.Video.FramesDropped;
+                                    player.Video.FPSCurrent     = player.Video.FPSCurrent;
                                 }
                             }
                         }

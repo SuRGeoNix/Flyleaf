@@ -42,8 +42,8 @@ public class Video : NotifyPropertyChanged
     /// <summary>
     /// Total Frames
     /// </summary>
-    public int          FramesTotal     { get => framesTotal;       internal set => Set(ref _FramesTotal, value); }
-    internal int    _FramesTotal, framesTotal;
+    public long         FramesTotal     { get => framesTotal;       internal set => Set(ref _FramesTotal, value); }
+    internal long   _FramesTotal, framesTotal;
 
     public int          FramesDisplayed { get => framesDisplayed;   internal set => Set(ref _FramesDisplayed, value); }
     internal int    _FramesDisplayed, framesDisplayed;

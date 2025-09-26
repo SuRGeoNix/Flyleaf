@@ -84,7 +84,7 @@
 
             <StackPanel>
                 <!-- Player -->
-                <StackPanel Style="{StaticResource FlowTable}" Height="316">
+                <StackPanel Style="{StaticResource FlowTable}" Height="300">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Player"/>
                     
                     <StackPanel Orientation="Horizontal">
@@ -98,7 +98,7 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="BufferedDuration"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Buffer"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.BufferedDuration, Converter={StaticResource TicksToTimeSpan}, StringFormat={}{0:hh\\:mm\\:ss\\.fff}}"/>
                     </StackPanel>
 
@@ -108,32 +108,27 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="CanPlay"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.CanPlay}"/>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="IsLive"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Live"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.IsLive}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="IsFullScreen"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="FullScreen"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Host.IsFullScreen}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="IsRecording"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Recording"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.IsRecording}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="ReversePlayback"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Reverse Playback"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.ReversePlayback}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="DeInterlace"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Deinterlace"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Config.Video.DeInterlace}"/>
                     </StackPanel>
 
@@ -166,7 +161,7 @@
                 </StackPanel>
 
                 <!-- Audio (Manual Height-->
-                <StackPanel Style="{StaticResource FlowTable}" Height="316">
+                <StackPanel Style="{StaticResource FlowTable}" Height="300">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Audio"/>
 
                     <StackPanel Orientation="Horizontal">
@@ -175,7 +170,7 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="IsOpened"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Opened"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Audio.IsOpened}"/>
                     </StackPanel>
 
@@ -188,12 +183,7 @@
                         <TextBlock Style="{StaticResource TextInfo}" Text="Volume"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Audio.Volume, StringFormat={}{0}%}"/>
                     </StackPanel>
-
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="Config|VolumeMax"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Config.Player.VolumeMax, StringFormat={}{0}%}"/>
-                    </StackPanel>
-
+                    
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="Mute"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Audio.Mute}"/>
@@ -215,17 +205,17 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="ChannelLayout"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Channel Layout"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Audio.ChannelLayout}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="SampleFormat"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Sample Format"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Audio.SampleFormat}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="SampleRate"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Sample Rate"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Audio.SampleRate, StringFormat={}{0:N0} Hz}"/>
                     </StackPanel>
                 </StackPanel>
@@ -233,7 +223,7 @@
 
             <StackPanel Grid.Column="1">
                 <!-- Video -->
-                <StackPanel Style="{StaticResource FlowTable}" Height="316">
+                <StackPanel Style="{StaticResource FlowTable}" Height="300">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Video"/>
 
                     <StackPanel Orientation="Horizontal">
@@ -242,18 +232,13 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="IsOpened"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Opened"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.IsOpened}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="Codec"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.Codec}"/>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="AspectRatio"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.AspectRatio}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
@@ -266,7 +251,12 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="PixelFormat"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Aspect Ratio"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.AspectRatio}"/>
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Pixel Format"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.PixelFormat}"/>
                     </StackPanel>
 
@@ -276,27 +266,27 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="FPS"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Fps"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FPS, StringFormat={}{0:F2}}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="FramesTotal"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Total Frames"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesTotal, StringFormat={}{0:N0}}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="DeInterlace"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Deinterlace"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.renderer.FieldType, Converter={StaticResource DeInterlaceConverter}}"/>
                     </StackPanel>
                     
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="VideoAcceleration"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Acceleration"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.VideoAcceleration}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="VideoProcessor"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Processor"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.renderer.VideoProcessor}"/>
                     </StackPanel>
                 </StackPanel>
@@ -311,7 +301,7 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="IsOpened"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Opened"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Subtitles.IsOpened}"/>
                     </StackPanel>
 
@@ -326,27 +316,27 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="SubsText"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Subs Text"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Subtitles.SubsText}" Margin="-90 0 0 0" Width="225"/>
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Stats -->
-                <StackPanel Style="{StaticResource FlowTable}" Height="168">
+                <StackPanel Style="{StaticResource FlowTable}" Height="152">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Stats"/>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="FramesDisplayed"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesDisplayed}"/>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="FPSCurrent"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Fps"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FPSCurrent, StringFormat={}{0:F2}}"/>
                     </StackPanel>
-
+                    
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="FramesDropped"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Frames Displayed"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesDisplayed}"/>
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Frames Dropped"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesDropped}"/>
                     </StackPanel>
 
@@ -356,12 +346,12 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="Video.BitRate"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="BitRate (Video)"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.BitRate, StringFormat={}{0:N0} Kbps}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
-                        <TextBlock Style="{StaticResource TextInfo}" Text="Audio.BitRate"/>
+                        <TextBlock Style="{StaticResource TextInfo}" Text="BitRate (Audio)"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Audio.BitRate, StringFormat={}{0:N0} Kbps}"/>
                     </StackPanel>
                 </StackPanel>
