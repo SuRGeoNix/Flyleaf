@@ -235,6 +235,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         // Testing misc
         //playerConfig.Demuxer.AllowFindStreamInfo = false;
+        //playerConfig.Player.ZeroLatency = true;
         #endif
         
         // Initializes the Player
