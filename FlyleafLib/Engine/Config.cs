@@ -197,7 +197,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Zero Latency forces playback at the very last frame received (Live Video Only)
         /// </summary>
-        public bool     ZeroLatency                 { get => _ZeroLatency; set { Set(ref _ZeroLatency, value); if (config != null) config.Decoder.LowDelay = value; } }
+        public bool     ZeroLatency                 { get => _ZeroLatency; set { Set(ref _ZeroLatency, value); if (config != null) config.Decoder.LowDelay = value; if (player != null && player.IsPlaying) { player.Pause(); player.Play(); } } }
         bool _ZeroLatency;
 
         /// <summary>
