@@ -195,6 +195,11 @@ public class Config : NotifyPropertyChanged
         public double   IdleFps                     { get; set; } = 60.0;
 
         /// <summary>
+        /// This will force always to last frame (does not respect Fps) - Video Only
+        /// </summary>
+        public bool     ZeroLatency                 { get; set; }
+
+        /// <summary>
         /// Max Latency (ticks) forces playback (with speed x1+) to stay at the end of the live network stream (default: 0 - disabled)
         /// </summary>
         public long     MaxLatency {

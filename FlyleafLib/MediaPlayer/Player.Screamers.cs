@@ -1,9 +1,8 @@
-﻿using System.Diagnostics;
-
-using Vortice.Direct3D11;
-
-using FlyleafLib.MediaFramework.MediaDecoder;
+﻿using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
+using System.Diagnostics;
+using System.Text;
+using Vortice.Direct3D11;
 
 namespace FlyleafLib.MediaPlayer;
 
@@ -952,6 +951,26 @@ unsafe partial class Player
             VideoDecoder.Frames.TryDequeue(out vFrame);
             if (vFrame != null)
                 vFrame.timestamp = (long) (vFrame.timestamp / Speed);
+        }
+    }
+
+    private void ScreamerZeroLatency()
+    {
+        VideoDemuxer.Pause();
+        VideoDecoder.Pause();
+        VideoDemuxer.DisposePackets();
+        VideoDecoder.Flush();
+
+        while (Status == Status.Playing)
+        {
+            vFrame = VideoDecoder.GetFrameNext();
+            if (vFrame == null)
+                break;
+
+            if (decoder.VideoDecoder.Renderer.Present(vFrame, false))
+                Video.framesDisplayed++;
+            else
+                Video.framesDropped++;
         }
     }
 }
