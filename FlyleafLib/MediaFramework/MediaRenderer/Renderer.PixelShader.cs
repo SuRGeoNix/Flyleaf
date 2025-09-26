@@ -416,7 +416,7 @@ unsafe public partial class Renderer
                     else if (VideoStream.ColorType == ColorType.RGB)
                     {
                         // [RGB0]32 | [RGBA]32 | [RGBA]64
-                        if (VideoStream.PixelPlanes == 1 && (
+                        if (VideoStream.PixelPlanes == 1 && ( // Possible Alpha
                             VideoStream.PixelFormat == AVPixelFormat._0RGB  ||
                             VideoStream.PixelFormat == AVPixelFormat.Rgb0   ||
                             VideoStream.PixelFormat == AVPixelFormat._0BGR  ||
@@ -508,7 +508,7 @@ unsafe public partial class Renderer
                         }
 
                         // GBR(A)
-                        else if (VideoStream.PixelPlanes > 2) // TBR: Usually transfer func 'Linear' for > 8-bit which requires pow (*?)
+                        else if (VideoStream.PixelPlanes > 2) // Possible Alpha | TBR: Usually transfer func 'Linear' for > 8-bit which requires pow (*?)
                         {
                             curPSCase = PSCase.RGBPlanar;
                             curPSUniqueId += ((int)curPSCase).ToString();
@@ -654,7 +654,7 @@ unsafe public partial class Renderer
 
             //AV_PIX_FMT_FLAG_ALPHA (currently used only for RGBA?)
             //context.OMSetBlendState(curPSCase == PSCase.RGBPacked || (curPSCase == PSCase.RGBPlanar && VideoStream.PixelPlanes == 4) ? blendStateAlpha : null);
-            context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
+            context.OMSetBlendState(VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Alpha) ? blendStateAlpha : null);
 
             Log.Debug($"Prepared planes for {VideoStream.PixelFormatStr} with {videoProcessor} [{curPSCase}]");
 
