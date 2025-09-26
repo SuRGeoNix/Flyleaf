@@ -195,9 +195,10 @@ public class Config : NotifyPropertyChanged
         public double   IdleFps                     { get; set; } = 60.0;
 
         /// <summary>
-        /// This will force always to last frame (does not respect Fps) - Video Only
+        /// Zero Latency forces playback at the very last frame received (Live Video Only)
         /// </summary>
-        public bool     ZeroLatency                 { get; set; }
+        public bool     ZeroLatency                 { get => _ZeroLatency; set { Set(ref _ZeroLatency, value); if (config != null) config.Decoder.LowDelay = value; } }
+        bool _ZeroLatency;
 
         /// <summary>
         /// Max Latency (ticks) forces playback (with speed x1+) to stay at the end of the live network stream (default: 0 - disabled)

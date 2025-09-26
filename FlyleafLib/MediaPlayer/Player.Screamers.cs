@@ -957,22 +957,33 @@ unsafe partial class Player
 
     private void ScreamerZeroLatency()
     {
+        // Video Only | IsLive | No Deinterlacing | No Frame Stepping / Curtime | No Bitrate Stats | No Buffered Duration | Frame rate = receiving packets rate
+
+        var vDecoder = VideoDecoder;
+        var renderer = vDecoder.Renderer;
+
         VideoDemuxer.Pause();
-        VideoDecoder.Pause();
+        vDecoder.Pause();
         VideoDemuxer.DisposePackets();
-        VideoDecoder.Flush();
+        vDecoder.Flush();
 
         while (Status == Status.Playing)
         {
-            vFrame = VideoDecoder.GetFrameNext();
+            vFrame = vDecoder.GetFrameNext();
             if (vFrame == null)
                 break;
 
-            if (decoder.VideoDecoder.Renderer.Present(vFrame, false))
+            // Required?
+            //curTime = vFrame.timestamp;
+            //UI(() => Set(ref _CurTime, curTime, true, nameof(CurTime)));
+
+            if (renderer.Present(vFrame, false))
                 Video.framesDisplayed++;
             else
                 Video.framesDropped++;
         }
+
+        if (CanInfo) Log.Info($"Finished -> {TicksToTime(CurTime)}");
     }
 }
 
