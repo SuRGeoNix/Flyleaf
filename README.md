@@ -31,9 +31,9 @@
 
 ### **FFmpeg**
 - *HLS Live Seeking* <sub>Might the 1st FFmpeg player which does that</sub>
-- *Pached for [HLS issue](https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=1018)* <sub>Use recommended FFmpeg libraries which can be found on GitHub releases</sub>
+- *Pached for [HLS](https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=1018) and [.NET](https://developercommunity.microsoft.com/t/Proper-handling-of-MS_VC_EXCEPTION-0x40/10961029) issues* <sub>Use recommended FFmpeg libraries which can be found on GitHub releases</sub>
 - *Capture Devices* <sub>Pass the format, input and options with a single Url eg. fmt://gdigrab?desktop&framerate=30</sub>
-- *Supports FFmpeg v7.1*
+- *Supports FFmpeg v7.1 and v8.0 <sub>(use Flyleaf.FFmpeg.Bindings v8.0 at your project)</sub>*
 
 ### **Playback**
 - *Open / Play / Pause / Stop*
@@ -45,15 +45,16 @@
 - *Enable / Disable*
 - *Device Preference*
 - *Aspect Ratio (Keep / Fill / Custom)*
-- *Deinterlace (Bob)*
-- *HDR to SDR (Aces / Hable / Reinhard)* <sub>[BT2020 / SMPTE 2084 to BT709]</sub>
-- *Pan Move / Zoom / Rotate / HFlip-VFlip (Replica Renderer/Interactive Zoom)*
+- *Deinterlace <sub>(D3D11VP only)</sub>*
+- *HDR to SDR (Aces / Hable / Reinhard)* <sub>(FlyleafVP only)</sub>
+- *Pan Move / Zoom / Rotate / HFlip-VFlip / Cropping <sub>(Replica Renderer/Interactive Zoom)</sub>*
 - *Record / Snapshot*
+- *Super Resolution <sub>(Nvidia / Intel)</sub>*
 - *Video Acceleration*
 - *Video Filters (Brightness / Contrast / Hue / Saturation)*
-- *Video Processors (Flyleaf / D3D11)*
+- *Video Processors (FlyleafVP / D3D11VP)*
 - *VSync*
-- *Zero-Copy*
+- *Zero-Copy <sub>(Crops with vertex shader)</sub>*
 
 ### **Audio**
 - *Enable / Disable*
@@ -65,6 +66,7 @@
 ### **Subtitles**
 - *Enable / Disable*
 - *Add / Remove Delay (Short / Large Step)*
+- *Bitmap Subtitles support*
 - *Advanced Character Detection and Convert to UTF-8* <sub>SubtitlesConverter plugin</sub>
 - *Languages support* <sub>System's default languages as priorities for subtitles streams</sub>
 
@@ -102,7 +104,7 @@
 *Flyleaf wouldn't exist without them!*
 
 * *For the Core*
-  * ***[FFmpeg](http://ffmpeg.org/)*** / ***[FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen/)***
+  * ***[FFmpeg](http://ffmpeg.org/)*** / ***[FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen/)*** / ***[Flyleaf.FFmpeg.Bindings](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.Generator)***
   * ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
   * *Major open source media players* ***[VLC](https://github.com/videolan/vlc)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***
 
