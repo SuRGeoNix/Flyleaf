@@ -1,19 +1,17 @@
-﻿using Microsoft.UI;
+﻿using FlyleafLib;
+using FlyleafLib.Controls.WinUI;
+using FlyleafLib.MediaPlayer;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Windowing;
-
 using System;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Runtime.InteropServices;
-
+using Windows.Storage.Pickers;
 using WinRT.Interop;
-
-using FlyleafLib;
-using FlyleafLib.Controls.WinUI;
-using FlyleafLib.MediaPlayer;
 
 namespace FlyleafPlayer__WinUI_;
 
@@ -35,18 +33,21 @@ public sealed partial class MainWindow : Window
         // Initializes Engine (Specifies FFmpeg libraries path which is required)
         Engine.Start(new EngineConfig()
         {
-            #if DEBUG
-            LogOutput       = ":debug",
-            LogLevel        = LogLevel.Debug,
-            FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
-            #endif
+#if DEBUG
+            LogOutput = ":debug",
+            LogLevel = LogLevel.Debug,
+            FFmpegLogLevel = Flyleaf.FFmpeg.LogLevel.Warn,
+#endif
 
-            UIRefresh       = false, // For Activity Mode usage
-            PluginsPath     = ":Plugins",
-            FFmpegPath      = ":FFmpeg",
+            UIRefresh = true, // For Activity Mode usage
+            PluginsPath = ":Plugins",
+            FFmpegPath = ":FFmpeg",
         });
 
-        Player = new Player();
+        Player = new Player(new Config
+        {
+            Audio = { FiltersEnabled = true }
+        });
 
         FullScreenContainer.CustomizeFullScreenWindow += FullScreenContainer_CustomizeFullScreenWindow;
 
@@ -83,7 +84,7 @@ public sealed partial class MainWindow : Window
             Task.Run(() => { Thread.Sleep(10); Utils.UIInvoke(() => flyleafHost.KFC.Focus(FocusState.Keyboard)); });
         };
 
-        #if DEBUG
+#if DEBUG
         FocusManager.GotFocus += (o, e) =>
         {
             if (e.NewFocusedElement is FrameworkElement fe)
@@ -91,7 +92,8 @@ public sealed partial class MainWindow : Window
             else
                 Log.Info($"Focus to null");
         };
-        #endif
+#endif
+
     }
 
     private void FullScreenContainer_CustomizeFullScreenWindow(object sender, EventArgs e)
@@ -136,6 +138,17 @@ public sealed partial class MainWindow : Window
         bMoving = false;
     }
 
+    private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox comboBox && comboBox.SelectedItem is ComboBoxItem item)
+        {
+            if (double.TryParse(item.Tag?.ToString(), out double speed))
+            {
+                Player.Speed = speed;
+            }
+        }
+    }
+
     private void Root_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         cur = null;
@@ -162,10 +175,29 @@ public sealed partial class MainWindow : Window
             GetCursorPos(out pt);
 
             if (bMoving)
-                _apw.Move(new Windows.Graphics.PointInt32(nXWindow + (pt.X- nX), nYWindow + (pt.Y - nY)));
+                _apw.Move(new Windows.Graphics.PointInt32(nXWindow + (pt.X - nX), nYWindow + (pt.Y - nY)));
 
             e.Handled = true;
         }
     }
+
+    private async void btnOpenFile_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new FileOpenPicker();
+        picker.FileTypeFilter.Add(".mp4");
+        picker.FileTypeFilter.Add(".mkv");
+        picker.FileTypeFilter.Add(".avi");
+        picker.FileTypeFilter.Add("*");
+
+        var hWnd = WindowNative.GetWindowHandle(this);
+        InitializeWithWindow.Initialize(picker, hWnd);
+
+        var file = await picker.PickSingleFileAsync();
+        if (file != null)
+        {
+            Player.OpenAsync(file.Path);
+        }
+    }
+
     #endregion
 }
