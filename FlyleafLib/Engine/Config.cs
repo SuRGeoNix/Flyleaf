@@ -300,6 +300,16 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public Usage    Usage                       { get; set; } = Usage.AVS;
 
+        /// <summary>
+        /// Restrict panning of the video outside of half the video width or height
+        /// </summary>
+        public bool RestrictPanning                 { get; set; } = false;
+
+        /// <summary>
+        /// Reset pan and zoom level when zooming out to less than 100%
+        /// </summary>
+        public bool ResetPanOnZoomedOut             { get; set; } = false;
+
         // Offsets
         public long     AudioDelayOffset            { get; set; } =  100 * 10000;
         public long     AudioDelayOffset2           { get; set; } = 1000 * 10000;
