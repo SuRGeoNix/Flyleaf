@@ -6,6 +6,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 /* TODO
  *
+ * Sample Rate Pre-Convert (Output)
+ * Change to fixed 48KHz and let ffmpeg filters do the convert if required (xaudio2 might cause latency while doing it)
+ *
  * Circular Buffer
  * - Safe re-allocation and check also actual frames in queue (as now during draining we can overwrite them)
  * - Locking with Audio.AddSamples during re-allocation and re-write old data to the new buffer and update the pointers in queue

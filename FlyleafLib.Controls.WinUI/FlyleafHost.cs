@@ -190,7 +190,8 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
     public bool Player_GetFullScreen() => FSC != null && FSC.IsFullScreen;
     public void Player_SetFullScreen(bool value) { if (FSC != null) FSC.IsFullScreen = value; }
     public void Player_Disposed() => Utils.UIInvokeIfRequired(() => Player = null);
-
+    public void Player_RatioChanged(double keepRatio) { }
+    public bool Player_HandlesRatioResize(int width, int height) { return false; }
 }
 
 public class KeyboardFocusControl : Control { }

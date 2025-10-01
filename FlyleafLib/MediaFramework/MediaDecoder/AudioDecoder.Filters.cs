@@ -128,7 +128,7 @@ public unsafe partial class AudioDecoder
             ret = avfilter_graph_config(filterGraph, null);
 
             // CRIT TBR:!!!
-            var tb = 1000 * 10000.0 / sinkTimebase.Den; // Ensures we have at least 20-70ms samples to avoid audio crackling and av sync issues
+            var tb = 1000 * 10000.0 / sinkTimebase.Den; // TBR: DONT CHANGE values will affect Screamer | Ensures we have at least 20-70ms samples to avoid audio crackling and av sync issues
             ((FilterLink*)abufferSinkCtx->inputs[0])->min_samples = (int) (20 * 10000 / tb);
             ((FilterLink*)abufferSinkCtx->inputs[0])->max_samples = (int) (70 * 10000 / tb);
 

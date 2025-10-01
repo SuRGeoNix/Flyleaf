@@ -84,7 +84,7 @@
 
             <StackPanel>
                 <!-- Player -->
-                <StackPanel Style="{StaticResource FlowTable}" Height="300">
+                <StackPanel Style="{StaticResource FlowTable}" Height="310">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Player"/>
                     
                     <StackPanel Orientation="Horizontal">
@@ -223,7 +223,7 @@
 
             <StackPanel Grid.Column="1">
                 <!-- Video -->
-                <StackPanel Style="{StaticResource FlowTable}" Height="300">
+                <StackPanel Style="{StaticResource FlowTable}" Height="310">
                     <TextBlock Style="{StaticResource TextHeader}" Text="Video"/>
 
                     <StackPanel Orientation="Horizontal">
@@ -279,7 +279,12 @@
                         <TextBlock Style="{StaticResource TextInfo}" Text="Deinterlace"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.renderer.FieldType, Converter={StaticResource DeInterlaceConverter}}"/>
                     </StackPanel>
-                    
+
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Super Resolution"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.renderer.SuperResolution}"/>
+                    </StackPanel>
+
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="Acceleration"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.VideoAcceleration}"/>

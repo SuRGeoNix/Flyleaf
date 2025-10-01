@@ -15,15 +15,7 @@ using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 /* TODO
- * 1) Attach on every frame video output configuration so we will not have to worry for video codec change etc.
- *      this will fix also dynamic video stream change
- *      we might have issue with bufRef / ffmpeg texture array on zero copy
- *
- * 2) Use different context/video processor for off rendering so we dont have to reset pixel shaders/viewports etc (review also rtvs for extractor)
- *
- * 3) Add Crop (Left/Right/Top/Bottom) -on Source- support per pixels (easy implemantation with D3D11VP, FlyleafVP requires more research)
- *
- * 4) Improve A/V Sync
+ * Improve A/V Sync
  *
  *  a. vsync / vblack
  *  b. Present can cause a delay (based on device load), consider using more buffers for high frame rates that could minimize the delay
@@ -36,11 +28,11 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public partial class Renderer : NotifyPropertyChanged, IDisposable
 {
-    public Config           Config          { get; private set;}
+    public Config           Config          { get; private set; }
     public int              ControlWidth    { get; private set; }
     public int              ControlHeight   { get; private set; }
     internal nint           ControlHandle;
-
+    
     internal Action<IDXGISwapChain2>
                             SwapChainWinUIClbk;
 
@@ -60,6 +52,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public uint             VisibleWidth    { get; private set; }
     public uint             VisibleHeight   { get; private set; }
     public AspectRatio      DAR             { get; set; }
+    public double           CurRatio        => curRatio;
     double curRatio, keepRatio, fillRatio;
     CropRect cropRect; // + User's Cropping
     uint textWidth, textHeight; // Padded (Codec/Texture)
@@ -104,7 +97,7 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public uint             Rotation        { get => _RotationAngle;            set => UpdateRotation(value); }
     uint _RotationAngle;
     VideoProcessorRotation _d3d11vpRotation  = VideoProcessorRotation.Identity;
-    bool rotationLinesize; // if negative should be vertically flipped
+    bool hasLinesizeVFlip; // if negative should be vertically flipped
 
     public bool             HFlip           { get => _HFlip;                    set { _HFlip = value; UpdateRotation(_RotationAngle); } }
     bool _HFlip;

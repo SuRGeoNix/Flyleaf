@@ -13,8 +13,11 @@ using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
-public partial class Renderer
+unsafe public partial class Renderer
 {
+    internal bool           forceViewToControl; // Makes sure that viewport will fill the exact same size with the control (mainly for keep ratio on resize)
+    bool                    canRenderPresent;   // Don't render / present during minimize (or invalid size)
+
     ID3D11Texture2D         backBuffer;
     ID3D11RenderTargetView  backBufferRtv;
     IDXGISwapChain1         swapChain;
@@ -22,12 +25,11 @@ public partial class Renderer
     IDCompositionVisual     dCompVisual;
     IDCompositionTarget     dCompTarget;
 
-    const Int32         WM_NCDESTROY= 0x0082;
-    const Int32         WM_SIZE     = 0x0005;
-    const Int32         WS_EX_NOREDIRECTIONBITMAP
-                                    = 0x00200000;
-    SubclassWndProc     wndProcDelegate;
-    IntPtr              wndProcDelegatePtr;
+    const uint              WM_NCDESTROY                = 0x0082;
+    const uint              WM_SIZE                     = 0x0005;
+    const int               WS_EX_NOREDIRECTIONBITMAP   = 0x00200000;
+    SubclassWndProc         wndProcDelegate;
+    IntPtr                  wndProcDelegatePtr;
 
     // Support Windows 8+
     private SwapChainDescription1 GetSwapChainDesc(int width, int height, bool isComp = false, bool alpha = false)
@@ -185,6 +187,7 @@ public partial class Renderer
                 return;
 
             SCDisposed = true;
+            canRenderPresent = false;
 
             // Clear Screan
             if (!Disposed && swapChain != null)
@@ -285,12 +288,14 @@ public partial class Renderer
     {
         int x, y, newWidth, newHeight, xZoomPixels, yZoomPixels;
 
+        var shouldFill = Config.Player.player?.Host?.Player_HandlesRatioResize(ControlWidth, ControlHeight);
+
         if (curRatio < fillRatio)
         {
             newHeight   = (int)(ControlHeight * zoom);
-            newWidth    = (int)(newHeight * curRatio);
+            newWidth    = (shouldFill.HasValue && shouldFill.Value) ? (int)(ControlWidth * zoom) : (int)(newHeight * curRatio);
 
-            SideXPixels = (int) (ControlWidth - (ControlHeight * curRatio));
+            SideXPixels = ((int) (ControlWidth - (ControlHeight * curRatio))) & ~1;
             SideYPixels = 0;
 
             y = PanYOffset;
@@ -302,9 +307,9 @@ public partial class Renderer
         else
         {
             newWidth    = (int)(ControlWidth * zoom);
-            newHeight   = (int)(newWidth / curRatio);
+            newHeight   = (shouldFill.HasValue && shouldFill.Value) || curRatio == fillRatio ? (int)(ControlHeight * zoom) : (int)(newWidth / curRatio);
 
-            SideYPixels = (int) (ControlHeight - (ControlWidth / curRatio));
+            SideYPixels = ((int) (ControlHeight - (ControlWidth / curRatio))) & ~1;
             SideXPixels = 0;
 
             x = PanXOffset;
@@ -314,18 +319,30 @@ public partial class Renderer
             yZoomPixels = newHeight - (ControlHeight - SideYPixels);
         }
 
-        GetViewport = new(x - xZoomPixels * (float)zoomCenter.X, y - yZoomPixels * (float)zoomCenter.Y, newWidth, newHeight);
-        ViewportChanged?.Invoke(this, new());
-
+        GetViewport = new((int)(x - xZoomPixels * (float)zoomCenter.X), (int)(y - yZoomPixels * (float)zoomCenter.Y), newWidth, newHeight);
+        
         if (videoProcessor == VideoProcessors.D3D11)
         {
             Viewport view = GetViewport;
+
+            if (!Config.Video.SuperResolution)
+                DisableSuperRes();
+            else
+            {
+                if (view.Width > VisibleWidth && view.Height > VisibleHeight)
+                    EnableSuperRes();
+                else
+                    DisableSuperRes();
+            }
 
             int right   = (int)(view.X + view.Width);
             int bottom  = (int)(view.Y + view.Height);
 
             if (view.Width < 1 || view.Y >= ControlHeight || view.X >= ControlWidth || bottom <= 0 || right <= 0)
+            {
+                canRenderPresent = false;
                 return;
+            }
 
             RawRect dst = new(
                     Math.Max((int)view.X, 0),
@@ -407,16 +424,26 @@ public partial class Renderer
             vc.VideoProcessorSetStreamDestRect  (vp, 0, true, dst);
             vc.VideoProcessorSetOutputTargetRect(vp, true, new(0, 0, ControlWidth, ControlHeight));
         }
+        else
+            context.RSSetViewport(GetViewport);
+
+        canRenderPresent = true;
 
         if (refresh)
             Present();
+
+        ViewportChanged?.Invoke(this, new());
     }
+    
     public void ResizeBuffers(int width, int height)
     {
         lock (lockDevice)
         {
-            if (SCDisposed)
+            if (SCDisposed || width <= 0 || height <= 0)
+            {
+                canRenderPresent = false;
                 return;
+            }
 
             if (use2d)
             {
@@ -427,21 +454,21 @@ public partial class Renderer
             
             ControlWidth    = width;
             ControlHeight   = height;
-            fillRatio = ControlWidth / (double)ControlHeight;
+            fillRatio       = ControlWidth / (double)ControlHeight;
             if (Config.Video.AspectRatio == AspectRatio.Fill)
                 curRatio = fillRatio;
 
             backBufferRtv.Dispose();
-            vpov?.Dispose();
-            backBuffer.Dispose();
+            vpov        ?.Dispose();
+            backBuffer   .Dispose();
+
             swapChain.ResizeBuffers(0, (uint)ControlWidth, (uint)ControlHeight, Format.Unknown, SwapChainFlags.None);
+
             UpdateCornerRadius();
-            backBuffer = swapChain.GetBuffer<ID3D11Texture2D>(0);
-            backBufferRtv = Device.CreateRenderTargetView(backBuffer);
+            backBuffer      = swapChain.GetBuffer<ID3D11Texture2D>(0);
+            backBufferRtv   = Device.CreateRenderTargetView(backBuffer);
             if (videoProcessor == VideoProcessors.D3D11)
                 vd1.CreateVideoProcessorOutputView(backBuffer, vpe, vpovd, out vpov);
-
-            SetViewport();
 
             if (use2d)
             {
@@ -449,6 +476,8 @@ public partial class Renderer
                 bitmap2d = context2d.CreateBitmapFromDxgiSurface(surface, bitmapProps2d);
                 context2d.Target = bitmap2d;
             }
+            
+            SetViewport(); // TBR: Presents async (for performance especial in resize)
         }
     }
 

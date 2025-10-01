@@ -57,6 +57,22 @@ public static partial class Utils
         [DllImport("user32.dll")]
         public static extern int ShowCursor(bool bShow);
 
+        [DllImport("user32.dll")]
+        public static extern int GetCursorPos(out POINT lpPoint);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT : IEquatable<POINT>
+        {
+            public int X;
+            public int Y;
+
+            public static bool operator ==(POINT left, POINT right) => left.X == right.X && left.Y == right.Y;
+            public static bool operator !=(POINT left, POINT right) => !(left == right);
+            public override bool Equals(object obj)                 => obj is POINT other && this == other;
+            public bool Equals(POINT other)                         => this == other;
+            public override int GetHashCode()                       => HashCode.Combine(X, Y);
+        }
+
         [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
         public static extern uint TimeBeginPeriod(uint uMilliseconds);
 
@@ -85,6 +101,9 @@ public static partial class Utils
 
         [DllImport("user32.dll")]
         public static extern bool GetWindowRect(IntPtr hwnd, ref RECT rectangle);
+
+        [DllImport("user32.dll")]
+        public static extern bool GetClientRect(IntPtr hwnd, ref RECT rectangle);
 
         [DllImport("user32.dll")]
         public static extern bool GetWindowInfo(IntPtr hwnd, ref WINDOWINFO pwi);
@@ -122,12 +141,13 @@ public static partial class Utils
                 => cbSize = (UInt32)Marshal.SizeOf(typeof(WINDOWINFO));
 
         }
+        [StructLayout(LayoutKind.Sequential)]
         public struct RECT
         {
-            public int Left     { get; set; }
-            public int Top      { get; set; }
-            public int Right    { get; set; }
-            public int Bottom   { get; set; }
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
         }
 
         [Flags]

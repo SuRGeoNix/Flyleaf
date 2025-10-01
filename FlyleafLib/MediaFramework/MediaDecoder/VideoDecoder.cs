@@ -33,6 +33,7 @@ public unsafe class VideoDecoder : DecoderBase
 
     internal bool           swFallback;
     internal bool           keyPacketRequired;
+    internal bool           keyFrameRequired;   // Broken formats even with key packet don't return key frame
     internal bool           isIntraOnly;
     internal long           startPts;
     internal long           lastFixedPts;
@@ -290,7 +291,7 @@ public unsafe class VideoDecoder : DecoderBase
         else
             Log.Debug("VA Disabled");
 
-        keyPacketRequired   = false; // allow no key packet after open (lot of videos missing this)
+        keyFrameRequired    = keyPacketRequired = false; // allow no key packet after open (lot of videos missing this)
         filledFromCodec     = false;
         lastFixedPts        = 0; // TBR: might need to set this to first known pts/dts
         startPts            = VideoStream.StartTimePts;
@@ -351,6 +352,7 @@ public unsafe class VideoDecoder : DecoderBase
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
 
+                keyFrameRequired    = false;
                 keyPacketRequired   = !isIntraOnly;
                 StartTime           = AV_NOPTS_VALUE;
                 curSpeedFrame       = 9999;
@@ -476,7 +478,10 @@ public unsafe class VideoDecoder : DecoderBase
                 if (keyPacketRequired)
                 {
                     if (packet->flags.HasFlag(PktFlags.Key) || packet->pts == startPts)
+                    {
+                        keyFrameRequired  = true;
                         keyPacketRequired = false;
+                    }
                     else
                     {
                         if (CanWarn) Log.Warn("Ignoring non-key packet");
@@ -520,6 +525,12 @@ public unsafe class VideoDecoder : DecoderBase
                 {
                     ret = avcodec_receive_frame(codecCtx, frame);
                     if (ret != 0) { av_frame_unref(frame); break; }
+
+                    if (keyFrameRequired)
+                    {
+                        if (!frame->flags.HasFlag(FrameFlags.Key)) { av_frame_unref(frame); continue; }
+                        keyFrameRequired = false;
+                    }
 
                     // GetFormat checks already for this but only for hardware accelerated (should also check for codec/fps* and possible reset sws if required)
                     // Might use AVERROR_INPUT_CHANGED to let ffmpeg check for those (requires a flag to be set*)
@@ -643,7 +654,8 @@ public unsafe class VideoDecoder : DecoderBase
         }
         Renderer.Flush();
         Open2(Stream, null, false);
-        keyPacketRequired = !isIntraOnly;
+        keyPacketRequired   = !isIntraOnly;
+        keyFrameRequired    = false;
     }
 
     internal string SWFallback()
@@ -657,15 +669,14 @@ public unsafe class VideoDecoder : DecoderBase
                 fixed (AVCodecContext** ptr = &codecCtx)
                     avcodec_free_context(ptr);
 
-            codecCtx        = null;
-            swFallback      = true;
-            bool oldKeyFrameRequiredPacket
-                            = keyPacketRequired;
+            codecCtx            = null;
+            swFallback          = true;
+            bool keyRequiredOld = keyPacketRequired;
             ret = Open2(Stream, null, false); // TBR:  Dispose() on failure could cause a deadlock
-            keyPacketRequired
-                            = oldKeyFrameRequiredPacket;
-            swFallback      = false;
-            filledFromCodec = false;
+            keyPacketRequired   = keyRequiredOld;
+            keyFrameRequired    = false;
+            swFallback          = false;
+            filledFromCodec     = false;
 
             return ret;
         }
@@ -782,7 +793,7 @@ public unsafe class VideoDecoder : DecoderBase
                         allowedErrors--;
                         if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
-                        for (int i=curReverseVideoPackets.Count-1; i>=curReversePacketPos-1; i--)
+                        for (int i = curReverseVideoPackets.Count - 1; i >= curReversePacketPos - 1; i--)
                         {
                             packet = (AVPacket*)curReverseVideoPackets[i];
                             av_packet_free(&packet);
@@ -836,7 +847,7 @@ public unsafe class VideoDecoder : DecoderBase
                         avcodec_flush_buffers(codecCtx);
                         curReversePacketPos = 0;
 
-                        for (int i=curReverseVideoFrames.Count -1; i>=0; i--)
+                        for (int i = curReverseVideoFrames.Count - 1; i >= 0; i--)
                             Frames.Enqueue(curReverseVideoFrames[i]);
 
                         curReverseVideoFrames.Clear();
@@ -1044,7 +1055,10 @@ public unsafe class VideoDecoder : DecoderBase
             if (keyPacketRequired)
             {
                 if (demuxer.packet->flags.HasFlag(PktFlags.Key) || demuxer.packet->pts == startPts)
+                {
                     keyPacketRequired = false;
+                    keyFrameRequired  = true;
+                }
                 else
                 {
                     if (CanWarn) Log.Warn("Ignoring non-key packet");
@@ -1085,6 +1099,12 @@ public unsafe class VideoDecoder : DecoderBase
     {
         int ret = avcodec_receive_frame(codecCtx, frame);
         if (ret != 0) { av_frame_unref(frame); return ret; }
+
+        if (keyFrameRequired)
+        {
+            if (!frame->flags.HasFlag(FrameFlags.Key)) { av_frame_unref(frame); DecodeFrameNextInternal(); }
+            keyFrameRequired = false;
+        }
 
         if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
             frame->pts = frame->best_effort_timestamp;

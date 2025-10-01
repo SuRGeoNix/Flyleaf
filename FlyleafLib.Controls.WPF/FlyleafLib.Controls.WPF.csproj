@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0-windows</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.4.13</Version>
+    <Version>1.4.14</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2025</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -15,7 +15,7 @@
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
 		- Updates FlyleafLib
-		- Updates Settings with Super Resolution and Zero Latency
+		- Settings.Video: Merges Nvidia/Intel Super Resolution
 	</PackageReleaseNotes>
   </PropertyGroup>
 

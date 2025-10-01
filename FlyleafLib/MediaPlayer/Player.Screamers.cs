@@ -473,8 +473,8 @@ unsafe partial class Player
                 {
                     Audio.AddSamples(aFrame);
 
-                    // Audio Desync - Large Buffer | ASampleBytes (S16 * 2 Channels = 4) * TimeBase * 2 -frames duration-
-                    if (Audio.GetBufferedDuration() > Math.Max(50 * 10000, (aFrame.dataLen / 4) * Audio.Timebase * 2))
+                    // Audio Desync - Large Buffer | ASampleBytes (S16 * 2 Channels = 4) * TimeBase * 2 -frames duration- (TBR: Related to min/max samples on AudioDecoder filters - 2frames * 70ms max)
+                    if (Audio.GetBufferedDuration() > 140 * 10000) //Math.Max(140 * 10000, (aFrame.dataLen / 4) * Audio.Timebase * 2))
                     {
                         if (CanDebug)
                             Log.Debug($"Audio desynced by {(int)(audioBufferedDuration / 10000)}ms, clearing buffers");

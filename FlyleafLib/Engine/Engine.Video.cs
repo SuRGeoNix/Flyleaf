@@ -136,7 +136,7 @@ public class VideoEngine
                 SystemMemory    = adapterdesc.DedicatedSystemMemory.Value,
                 VideoMemory     = adapterdesc.DedicatedVideoMemory.Value,
                 SharedMemory    = adapterdesc.SharedSystemMemory.Value,
-                Vendor          = VendorIdStr(adapterdesc.VendorId),
+                Vendor          = (GPUVendor)adapterdesc.VendorId,
                 Description     = adapterdesc.Description,
                 Id              = adapterdesc.DeviceId,
                 Luid            = adapterdesc.Luid,
@@ -165,26 +165,5 @@ public class VideoEngine
         }
 
         return null;
-    }
-
-    private static string VendorIdStr(uint vendorId)
-    {
-        switch (vendorId)
-        {
-            case 0x1002:
-                return "ATI";
-            case 0x10DE:
-                return "NVIDIA";
-            case 0x1106:
-                return "VIA";
-            case 0x8086:
-                return "Intel";
-            case 0x5333:
-                return "S3 Graphics";
-            case 0x4D4F4351:
-                return "Qualcomm";
-            default:
-                return "Unknown";
-        }
     }
 }

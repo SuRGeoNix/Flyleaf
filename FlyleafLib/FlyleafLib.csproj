@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.13</Version>
+	<Version>3.8.14</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,25 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Engine: Adds FFmpeg v8.0 support (use Flyleaf.FFmpeg.Bindings v8.0 at your project)
-		- Config.Player: Introduces ZeroLatency
-		- Player.Screamer: Adds ZeroLatency support (Video Only)
-		- Player.Open: Prevents resync on Live inputs (non-seekable)
-		- VideoStream: Fixes TotalFrames
-		- PlayerDebug.Wpf: Minor Improvements
-		- Players.Stats: Minor Improvements
+		- Renderer: Fixes an issue with alpha channel (wrongly was blending RGB(0), also tries to support more formats)
+		- Renderer: Fixes an issue with negative linesize (use VFlip instead of 180 rotation)
+		- Renderer: Fixes an issue with viewport that could cause a half pixel off
+		- Renderer: Disables rendering when window is minimized
+		- Renderer.D3D11VP: Fixes a critical issue when window is minimized
+		- Renderer.D3D11VP: Adds Bitmap Subtitles support
+		- Renderer.D3D11VP: Adds Custom 2D Graphics support
+		- Renderer.D3D11VP: Improves Super Resolution (enable only when actually required)
+		- Player.Audio: Fixes an issue with Audio that it could cause crackling
+		- VideoDecoder: Handles broken formats with no key frame after key packet
+		- FlyleafHost.Wpf: Performance and Stability Improvements (DPI/Resize/Ratio)
+		- PlayerDebug.Wpf: Adds Super Resolution
+
+		[Breaking Changes]
+		- Config.Audio: Defaults FiltersEnabled to true (stable enough now)
+		- Config.Video: SuperResolutionNvidia and SuperResolutionIntel renamed/merged to SuperResolution
+		- GPUAdapter: Changes Vendor from string to GPUVendor enum
+		- Renderer: Defaults VideoProcessor to D3D11 (less power consumption)
+		- FlyleafHost.Wpf: Changes Is* (readonlys and ResizeSensitivity) Dependency Properties to Simple Properties
 	</PackageReleaseNotes>
   </PropertyGroup>
 
