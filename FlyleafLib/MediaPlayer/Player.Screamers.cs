@@ -461,7 +461,7 @@ unsafe partial class Player
                     (MainDemuxer.IsHLSLive && Math.Abs(elapsedTicks - elapsedSec) > 10000000)))
                 {
                     elapsedSec  = elapsedTicks;
-                    UI(() => UpdateCurTime());
+                    UI(UpdateCurTime);
                 }
 
                 Thread.Sleep(sleepMs);
@@ -474,7 +474,7 @@ unsafe partial class Player
                     Audio.AddSamples(aFrame);
 
                     // Audio Desync - Large Buffer | ASampleBytes (S16 * 2 Channels = 4) * TimeBase * 2 -frames duration- (TBR: Related to min/max samples on AudioDecoder filters - 2frames * 70ms max)
-                    if (Audio.GetBufferedDuration() > 140 * 10000) //Math.Max(140 * 10000, (aFrame.dataLen / 4) * Audio.Timebase * 2))
+                    if (Audio.GetBufferedDuration() > Math.Max(140 * 10000, (aFrame.dataLen / 4) * Audio.Timebase * 2)) // NOTE: Simple Swr does not have limits 20/70
                     {
                         if (CanDebug)
                             Log.Debug($"Audio desynced by {(int)(audioBufferedDuration / 10000)}ms, clearing buffers");
@@ -540,7 +540,7 @@ unsafe partial class Player
             {
                 if (CanTrace) Log.Trace($"[V] Presenting {TicksToTime(vFrame.timestamp)}");
 
-                if (decoder.VideoDecoder.Renderer.Present(vFrame, false))
+                if (decoder.VideoDecoder.Renderer.Present(vFrame, renderer.FieldType == VideoFrameFormat.Progressive))
                     Video.framesDisplayed++;
                 else
                     Video.framesDropped++;
@@ -551,7 +551,7 @@ unsafe partial class Player
                         curTime = !MainDemuxer.IsHLSLive ? vFrame.timestamp : VideoDemuxer.CurTime;
 
                         if (Config.Player.UICurTimePerFrame)
-                            UI(() => UpdateCurTime());
+                            UI(UpdateCurTime);
                     }
 
                 if (renderer.FieldType == VideoFrameFormat.Progressive)

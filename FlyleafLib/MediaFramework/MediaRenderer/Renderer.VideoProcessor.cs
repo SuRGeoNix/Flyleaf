@@ -316,12 +316,7 @@ unsafe public partial class Renderer
     }
 
     internal void SetFieldType(VideoFrameFormat fieldType)
-    {
-        lock (lockDevice)
-            if (!Disposed)
-                vc.VideoProcessorSetStreamFrameFormat(vp, 0, fieldType);
-                //TBR: vpsa[0].InputFrameOrField = fieldType == DeInterlace.BottomField ? 1u : 0u; // TBR
-    }
+        => vpsa[0].InputFrameOrField = fieldType == VideoFrameFormat.InterlacedBottomFieldFirst ? 1u : 0u;
 
     internal void UpdateHDRtoSDR(bool updateResource = true)
     {

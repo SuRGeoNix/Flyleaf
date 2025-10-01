@@ -21,7 +21,7 @@ public unsafe partial class Renderer
         {
             try
             {
-                PresentInternal(frame, forceWait);
+                var ret = PresentInternal(frame, forceWait);
                 if (frame != LastFrame) // De-interlace (Same AVFrame - Different FieldType)
                 {
                     VideoDecoder.DisposeFrame(LastFrame);
@@ -30,7 +30,7 @@ public unsafe partial class Renderer
                         child.LastFrame = frame;
                 }
 
-                return true;
+                return ret;
 
             }
             catch (SharpGenException e)
@@ -63,7 +63,7 @@ public unsafe partial class Renderer
         else
         {
             try { VideoDecoder.DisposeFrame(frame); vpiv?.Dispose(); } catch { };
-            Log.Debug("Dropped Frame - Lock timeout");
+            Log.Info("Dropped Frame - Lock timeout");
         }
 
         return false;
@@ -106,10 +106,10 @@ public unsafe partial class Renderer
             isPresenting = false;
         });
     }
-    internal void PresentInternal(VideoFrame frame, bool forceWait = true)
+    internal bool PresentInternal(VideoFrame frame, bool forceWait = true)
     {
         if (!canRenderPresent)
-            return;
+            return false;
 
         if (frame.srvs == null) // videoProcessor can be FlyleafVP but the player can send us a cached frame from prev videoProcessor D3D11VP (check frame.srv instead of videoProcessor)
         {
@@ -125,7 +125,7 @@ public unsafe partial class Renderer
             }
 
             if (vpiv == null)
-                return;
+                return false;
 
             vpsa[0].InputSurface = vpiv;
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
@@ -165,8 +165,12 @@ public unsafe partial class Renderer
             context.RSSetViewport(GetViewport);
         }
 
-        swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
-        child?.PresentInternal(frame);
+        var ret = swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
+        if (ret.Failure) Log.Info($"Dropped Frame - {ret.Description}");
+
+        child?.PresentInternal(frame, forceWait);
+
+        return ret.Success;
     }
 
     public void ClearOverlayTexture()
