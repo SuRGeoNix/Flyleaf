@@ -133,6 +133,8 @@ public partial class Renderer
 
                 if (videoProcessor == VideoProcessors.D3D11)
                     SetViewport();
+                else
+                    context.RSSetViewport(GetViewport);
             }
 
             context.CopyResource(singleStage, singleGpu);
@@ -221,6 +223,8 @@ public partial class Renderer
 
                 if (videoProcessor == VideoProcessors.D3D11)
                     SetViewport();
+                else
+                    context.RSSetViewport(GetViewport);
             }
 
             context.CopyResource(singleStage, singleGpu);

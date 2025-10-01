@@ -73,8 +73,7 @@ public unsafe partial class Renderer
         if (SCDisposed)
             return;
 
-        // NOTE: We don't have TimeBeginPeriod, FpsForIdle will not be accurate
-        lock (lockPresentTask)
+        lock (lockPresentTask) // NOTE: We don't have TimeBeginPeriod, FpsForIdle will not be accurate
         {
             if ((Config.Player.player == null || !Config.Player.player.requiresBuffering) && VideoDecoder.IsRunning && (VideoStream == null || VideoStream.FPS > 10)) // With slow FPS we need to refresh as fast as possible
                 return;
@@ -109,10 +108,9 @@ public unsafe partial class Renderer
     }
     internal void PresentInternal(VideoFrame frame, bool forceWait = true)
     {
-        if (SCDisposed)
+        if (!canRenderPresent)
             return;
 
-        // TBR: Replica performance issue with D3D11 (more zoom more gpu overload)
         if (frame.srvs == null) // videoProcessor can be FlyleafVP but the player can send us a cached frame from prev videoProcessor D3D11VP (check frame.srv instead of videoProcessor)
         {
             if (frame.avFrame != null)
@@ -126,48 +124,48 @@ public unsafe partial class Renderer
                 vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
             }
 
-            if (vpiv != null)
-            {
-                vpsa[0].InputSurface = vpiv;
-                vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
-                swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
+            if (vpiv == null)
+                return;
 
-                vpiv.Dispose();
-            }
+            vpsa[0].InputSurface = vpiv;
+            vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
+            vpiv.Dispose();
         }
         else
         {
             context.OMSetRenderTargets(backBufferRtv);
             context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-            context.RSSetViewport(GetViewport);
             context.PSSetShaderResources(0, frame.srvs);
             context.Draw(6, 0);
-
-            if (use2d)
-                Config.Video.OnD2DDraw(this, context2d);
-             
-            if (overlayTexture != null)
-            {
-                Viewport view = GetViewport;
-
-                // Don't stretch the overlay (reduce height based on ratiox) | Sub's stream size might be different from video size (fix y based on percentage)
-                var ratiox = (double)view.Width / overlayTextureOriginalWidth;
-                var ratioy = (double)overlayTextureOriginalPosY / overlayTextureOriginalHeight;
-
-                context.OMSetBlendState(blendStateAlpha);
-                context.PSSetShaderResources(0, overlayTextureSRVs);
-                context.RSSetViewport((float) (view.X + (overlayTextureOriginalPosX * ratiox)), (float) (view.Y + (view.Height * ratioy)), (float) (overlayTexture.Description.Width * ratiox), (float) (overlayTexture.Description.Height * ratiox));
-                context.PSSetShader(ShaderBGRA);
-                context.Draw(6, 0);
-
-                // restore context
-                context.PSSetShader(ShaderPS);
-                context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
-            }
-
-            swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
         }
 
+        if (use2d)
+            Config.Video.OnD2DDraw(this, context2d);
+             
+        if (overlayTexture != null) // Bitmap Subs
+        {
+            Viewport view = GetViewport;
+
+            // TODO: Bad quality for scaling subs (consider using different shader/sampler) | Don't stretch the overlay (reduce height based on ratiox) | Sub's stream size might be different from video size (fix y based on percentage)
+            var ratiox = (double)view.Width / overlayTextureOriginalWidth;
+            var ratioy = (double)overlayTextureOriginalPosY / overlayTextureOriginalHeight;
+
+            if (videoProcessor == VideoProcessors.D3D11)
+                context.OMSetRenderTargets(backBufferRtv);
+
+            context.OMSetBlendState(blendStateAlpha);
+            context.PSSetShaderResources(0, overlayTextureSRVs);
+            context.RSSetViewport((float) (view.X + (overlayTextureOriginalPosX * ratiox)), (float) (view.Y + (view.Height * ratioy)), (float) (overlayTexture.Description.Width * ratiox), (float) (overlayTexture.Description.Height * ratiox));
+            context.PSSetShader(ShaderBGRA);
+            context.Draw(6, 0);
+
+            // restore context
+            context.PSSetShader(ShaderPS);
+            context.OMSetBlendState(VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Alpha) ? blendStateAlpha : null);
+            context.RSSetViewport(GetViewport);
+        }
+
+        swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
         child?.PresentInternal(frame);
     }
 
@@ -261,6 +259,7 @@ public unsafe partial class Renderer
                     PresentInternal(LastFrame);
                 else if (Config.Video.ClearScreen)
                 {
+                    context.OMSetRenderTargets(backBufferRtv);
                     context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
                     swapChain.Present(Config.Video.VSync, PresentFlags.None);
                 }
@@ -285,11 +284,12 @@ public unsafe partial class Renderer
     {
         lock (lockDevice)
         {
-            if (SCDisposed)
+            if (!canRenderPresent)
                 return;
 
             ClearOverlayTexture();
             VideoDecoder.DisposeFrame(LastFrame);
+            context.OMSetRenderTargets(backBufferRtv);
             context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
             swapChain.Present(Config.Video.VSync, PresentFlags.None);
         }

@@ -169,7 +169,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
             VideoDecoder.Flush();
             if (ms == 0)
-                VideoDecoder.keyPacketRequired = false; // TBR
+                VideoDecoder.keyFrameRequired = VideoDecoder.keyPacketRequired = false; // TBR
 
             if (AudioStream != null && AudioDecoder.OnVideoDemuxer)
             {
@@ -530,7 +530,10 @@ public unsafe partial class DecoderContext : PluginHandler
             if (codecType == AVMediaType.Video && VideoDecoder.keyPacketRequired)
             {
                 if (packet->flags.HasFlag(PktFlags.Key) || packet->pts == VideoDecoder.startPts)
+                {
                     VideoDecoder.keyPacketRequired = false;
+                    VideoDecoder.keyFrameRequired  = true;
+                }
                 else
                 {
                     if (CanWarn) Log.Warn("Ignoring non-key packet");
@@ -596,6 +599,12 @@ public unsafe partial class DecoderContext : PluginHandler
                     {
                         ret = avcodec_receive_frame(VideoDecoder.CodecCtx, frame);
                         if (ret != 0) { av_frame_unref(frame); break; }
+
+                        if (VideoDecoder.keyFrameRequired)
+                        {
+                            if (!frame->flags.HasFlag(FrameFlags.Key)) { av_frame_unref(frame); continue; }
+                            VideoDecoder.keyFrameRequired = false;
+                        }
 
                         if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
                             frame->pts = frame->best_effort_timestamp;

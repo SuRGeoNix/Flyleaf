@@ -411,13 +411,8 @@
                                 <ComboBox Grid.Row="1" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource DeInterlaceEnum}}" SelectedItem="{Binding Config.Video.DeInterlace}"/>
 
                                 <TextBlock Grid.Row="2" Text="Super Resolution" VerticalAlignment="Center"/>
-                                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Nvidia" VerticalAlignment="Center" Margin="0 0 6 0"/>
-                                    <ToggleButton Tag="_save" IsChecked="{Binding Config.Video.SuperResolutionNvidia,   UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
-                                    <TextBlock Text="Intel" VerticalAlignment="Center" Margin="2 0 6 0"/>
-                                    <ToggleButton Tag="_save" IsChecked="{Binding Config.Video.SuperResolutionIntel,    UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
-                                </StackPanel>
-                                
+                                <ToggleButton Grid.Row="2" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.SuperResolution, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+
                                 <TextBlock Grid.Row="3" Text="Profile Mismatch" VerticalAlignment="Center"/>
                                 <ToggleButton Grid.Row="3" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Decoder.AllowProfileMismatch, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 

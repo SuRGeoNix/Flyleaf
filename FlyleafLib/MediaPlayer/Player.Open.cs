@@ -169,17 +169,17 @@ unsafe partial class Player
 
             if (CanInfo) Log.Info($"Opening {url_iostream}");
 
-            Initialize(Status.Opening);
+            Initialize(Status.Opening, false); // TBR: (false) Avoid initializing the decoder twice (might cause issues)
             var args2 = decoder.Open(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
-            args.Url = args2.Url;
-            args.IOStream = args2.IOStream;
-            args.Error = args2.Error;
+            args.Url        = args2.Url;
+            args.IOStream   = args2.IOStream;
+            args.Error      = args2.Error;
 
             if (!args.Success)
             {
-                status = Status.Failed;
-                lastError = args.Error;
+                status      = Status.Failed;
+                lastError   = args.Error;
             }
             else if (CanPlay)
             {
@@ -578,6 +578,8 @@ unsafe partial class Player
     /// <returns></returns>
     public StreamOpenedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
     {
+        // TBR: There is no logic of Initiliaze (at least as a switch?*) or close of the current stream
+
         StreamOpenedArgs args = new();
 
         try

@@ -208,8 +208,8 @@ public class Commands
             player.OpenAsync((PlaylistItem)input);
         else if (input is ExternalStream)
             player.OpenAsync((ExternalStream)input);
-        else if (input is System.IO.Stream)
-            player.OpenAsync((System.IO.Stream)input);
+        else if (input is Stream)
+            player.OpenAsync((Stream)input);
         else
             player.OpenAsync(input.ToString());
     }

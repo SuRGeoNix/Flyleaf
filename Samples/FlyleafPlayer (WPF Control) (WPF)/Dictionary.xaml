@@ -187,9 +187,9 @@
         </MenuItem>
 
         <Separator />
-        <MenuItem Header="Always on Top" IsCheckable="True" IsChecked="{Binding DetachedTopMost}" Icon="{materialDesign:PackIcon Kind=Resize}"/>
-        <MenuItem Header="Ratio Resize" IsCheckable="True" IsChecked="{Binding KeepRatioOnResize}" Icon="{materialDesign:PackIcon Kind=Resize}"/>
-        <MenuItem Header="Show Debug" IsCheckable="True" IsChecked="{Binding ShowDebug}"/>
+        <MenuItem Header="Always on Top"    IsCheckable="True" IsChecked="{Binding DetachedTopMost}"/>
+        <MenuItem Header="Ratio Resize"     IsCheckable="True" IsChecked="{Binding KeepRatioOnResize}"/>
+        <MenuItem Header="Show Debug"       IsCheckable="True" IsChecked="{Binding ShowDebug}"/>
 
         <Separator />
         <MenuItem Header="Exit" Icon="{materialDesign:PackIcon ExitToApp}" Command="{Binding ExitApplication}"/>

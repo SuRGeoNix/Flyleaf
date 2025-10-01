@@ -5,13 +5,16 @@ namespace FlyleafLib.MediaPlayer;
 
 public class Video : NotifyPropertyChanged
 {
+    // TODO: Consider replacing with VideoStream and everyone (player/renderer) will update values there* (Update UI or event by groups -fill demux, fill codec/frame-)
+    // We consider this as read only? (we have also read/write Video properties on Player that point to renderer)
+
     /// <summary>
     /// Embedded Streams
     /// </summary>
     public ObservableCollection<VideoStream>
                         Streams         => decoder?.VideoDemuxer.VideoStreams;
 
-    public int      StreamIndex     { get => streamIndex;       internal set => Set(ref _StreamIndex, value); }
+    public int          StreamIndex     { get => streamIndex;       internal set => Set(ref _StreamIndex, value); }
     int _StreamIndex, streamIndex = -1;
 
     /// <summary>
@@ -23,19 +26,15 @@ public class Video : NotifyPropertyChanged
     public string       Codec           { get => codec;             internal set => Set(ref _Codec, value); }
     internal string _Codec, codec;
 
-    ///// <summary>
-    ///// Video bitrate (Kbps)
-    ///// </summary>
+    /// <summary>
+    /// Video bitrate (Kbps)
+    /// </summary>
     public double       BitRate         { get => bitRate;           internal set => Set(ref _BitRate, value); }
     internal double _BitRate, bitRate;
 
-    public AspectRatio  AspectRatio     { get => aspectRatio;       internal set => Set(ref _AspectRatio, value, false); } // false: Updates FlyleafHost's ratio from renderer
-    internal AspectRatio
-                    _AspectRatio, aspectRatio;
-
-    ///// <summary>
-    ///// Total Dropped Frames
-    ///// </summary>
+    /// <summary>
+    /// Total Dropped Frames
+    /// </summary>
     public int          FramesDropped   { get => framesDropped;     internal set => Set(ref _FramesDropped, value); }
     internal int    _FramesDropped, framesDropped;
 
@@ -60,12 +59,6 @@ public class Video : NotifyPropertyChanged
     public string       PixelFormat     { get => pixelFormat;       internal set => Set(ref _PixelFormat, value); }
     internal string _PixelFormat, pixelFormat;
 
-    public int          Width           { get => width;             internal set => Set(ref _Width, value); }
-    internal int    _Width, width;
-
-    public int          Height          { get => height;            internal set => Set(ref _Height, value); }
-    internal int    _Height, height;
-
     public bool         VideoAcceleration
                                         { get => videoAcceleration; internal set => Set(ref _VideoAcceleration, value); }
     internal bool   _VideoAcceleration, videoAcceleration;
@@ -75,6 +68,11 @@ public class Video : NotifyPropertyChanged
 
     public string       ColorFormat     { get => colorFormat;       internal set => Set(ref _ColorFormat, value); }
     string          _ColorFormat, colorFormat;
+
+    public int          Width           { get; internal set; }
+    public int          Height          { get; internal set; }
+    public AspectRatio  AspectRatio     { get; internal set; }
+    //public int          Rotation        { get; internal set; } 
 
     public Player Player => player;
 
@@ -92,12 +90,9 @@ public class Video : NotifyPropertyChanged
             StreamIndex         = streamIndex;
             IsOpened            = IsOpened;
             Codec               = Codec;
-            AspectRatio         = AspectRatio;
             FramesTotal         = FramesTotal;
             FPS                 = FPS;
             PixelFormat         = PixelFormat;
-            Width               = Width;
-            Height              = Height;
             VideoAcceleration   = VideoAcceleration;
             HDRFormat           = HDRFormat;
             ColorFormat         = ColorFormat;
@@ -111,12 +106,9 @@ public class Video : NotifyPropertyChanged
     {
         streamIndex         = -1;
         codec               = null;
-        aspectRatio         = new AspectRatio(0, 0);
         bitRate             = 0;
         fps                 = 0;
         pixelFormat         = null;
-        width               = 0;
-        height              = 0;
         framesTotal         = 0;
         videoAcceleration   = false;
         isOpened            = false;
@@ -124,6 +116,7 @@ public class Video : NotifyPropertyChanged
         colorFormat         = "";
 
         player.UIAdd(uiAction);
+        SetUISize(0, 0, new(0, 0));//, 0);
     }
     internal void Refresh()
     {
@@ -148,21 +141,37 @@ public class Video : NotifyPropertyChanged
         framesDisplayed = 0;
         framesDropped   = 0;
 
-        var renderer = player.renderer;
-        if (renderer != null && renderer.DAR.Value > 0)
-        {
-            aspectRatio = renderer.DAR;
-            width       = (int)renderer.VisibleWidth;
-            height      = (int)renderer.VisibleHeight;
-        }
-        else
-        {
-            width       = (int)decoder.VideoStream.Width;
-            height      = (int)decoder.VideoStream.Height;
-            aspectRatio = decoder.VideoStream.GetDAR();
-        }
-
         player.UIAdd(uiAction);
+    }
+
+    internal void SetUISize(int width, int height, AspectRatio aspectRatio)//, int rotation)
+    {
+        UI(() =>
+        {
+            if (Width != width)
+            {
+                Width = width;
+                Raise(nameof(Width));
+            }
+
+            if (Height != height)
+            {
+                Height = height;
+                Raise(nameof(Height));
+            }
+
+            //if (Rotation != rotation)
+            //{
+            //    Rotation = rotation;
+            //    Raise(nameof(Rotation));
+            //}
+
+            if (AspectRatio != aspectRatio)
+            {
+                AspectRatio = aspectRatio;
+                Raise(nameof(AspectRatio));
+            }
+        });
     }
 
     internal void Enable()

@@ -305,4 +305,6 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         return false;
     }
     protected void Raise([CallerMemberName] string propertyName = "") => PropertyChanged?.Invoke(this, new(propertyName));
+    public void Player_RatioChanged(double keepRatio) { }
+    public bool Player_HandlesRatioResize(int width, int height) { return false; }
 }

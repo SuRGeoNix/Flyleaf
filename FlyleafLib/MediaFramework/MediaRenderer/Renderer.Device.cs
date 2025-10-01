@@ -192,14 +192,17 @@ public unsafe partial class Renderer
                     {
                         string dump = $"GPU Adapter\r\n{GPUAdapter}\r\n";
 
-                        for (int i=0; i<GPUAdapter.Outputs.Count; i++)
+                        for (int i = 0; i < GPUAdapter.Outputs.Count; i++)
                             dump += $"[Output #{i+1}] {GPUAdapter.Outputs[i]}\r\n";
 
                         Log.Debug(dump);
                     }
                 }
                 else
+                {
+                    GPUAdapter = new();
                     Log.Debug($"GPU Adapter: Unknown (Possible WARP without Luid)");
+                }
 
                 tempDevice.Dispose();
                 adapter.Dispose();
@@ -466,6 +469,7 @@ public unsafe partial class Renderer
             Flush();
             VideoDecoder.Open(stream); // Should Re-ConfigPlanes()
             VideoDecoder.keyPacketRequired = !VideoDecoder.isIntraOnly;
+            VideoDecoder.keyFrameRequired  = false;
             if (running)
                 VideoDecoder.Start();
         }

@@ -678,16 +678,10 @@ public class Config : NotifyPropertyChanged
         public int              MaxVerticalResolution       => MaxVerticalResolutionCustom == 0 ? (MaxVerticalResolutionAuto != 0 ? MaxVerticalResolutionAuto : 1080) : MaxVerticalResolutionCustom;
 
         /// <summary>
-        /// Sets Nvidia Super Resolution (D3D11VP only)
+        /// Sets Super Resolution (Nvidia / Intel - D3D11VP only)
         /// </summary>
-        public bool             SuperResolutionNvidia       { get => _SuperResolutionNvidia;        set { Set(ref _SuperResolutionNvidia, value); player?.renderer?.UpdateSuperResNvidia(value); } }
-        internal bool _SuperResolutionNvidia;
-
-        /// <summary>
-        /// Sets Intel Super Resolution (D3D11VP only)
-        /// </summary>
-        public bool             SuperResolutionIntel        { get => _SuperResolutionIntel;         set { Set(ref _SuperResolutionIntel, value); player?.renderer?.UpdateSuperResIntel(value); } }
-        internal bool _SuperResolutionIntel;
+        public bool             SuperResolution             { get => _SuperResolution;  set { if (Set(ref _SuperResolution, value)) player?.renderer?.UpdateSuperRes(); } }
+        internal bool _SuperResolution;
 
         /// <summary>
         /// Forces SwsScale instead of FlyleafVP for non HW decoded frames

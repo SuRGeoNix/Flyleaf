@@ -102,7 +102,7 @@ unsafe public partial class Renderer
                 }
 
                 VideoRect       = new(0, 0, (int)textWidth, (int)textHeight);
-                rotationLinesize= false;
+                hasLinesizeVFlip= false;
 
                 UpdateRotation(_RotationAngle, false);
                 UpdateHDRtoSDR(false);
@@ -384,10 +384,7 @@ unsafe public partial class Renderer
     color.a = Texture4.Sample(Sampler, input.Texture).r;
 ";
                             }
-                            else
-                                shader += @"
-    color.a = 1.0f;
-";
+
                             Format  curFormat = Format.R8_UNorm;
                             int     maxBits   = 8;
                             if (VideoStream.PixelComp0Depth > 8)
@@ -400,15 +397,19 @@ unsafe public partial class Renderer
                             for (int i = 0; i < VideoStream.PixelPlanes; i++)
                                 textDesc[i].Format = srvDesc[i].Format = curFormat;
 
-                            // TBR: This is an estimation from N-bits to eg 16-bits
+                            // TBR: This is an estimation from N-bits to eg 16-bits (should include alpha!?)
                             if (maxBits - VideoStream.PixelComp0Depth != 0)
                             {
                                 curPSUniqueId += VideoStream.PixelComp0Depth;
                                 shader += @"
-    color.rgb *= pow(2, " + (maxBits - VideoStream.PixelComp0Depth) + @");
+    color *= pow(2, " + (maxBits - VideoStream.PixelComp0Depth) + @");
 ";
                             }
 
+                            if (VideoStream.PixelPlanes < 4)
+                                shader += @"
+    color.a = 1.0f;
+";
                             SetPS(curPSUniqueId, shader, defines);
                         }
                     }
@@ -532,10 +533,7 @@ unsafe public partial class Renderer
     color.a = Texture4.Sample(Sampler, input.Texture).r;
 ";
                             }
-                            else
-                                shader += @"
-    color.a = 1.0f;
-";
+
                             /* TODO:
                              * Using pow for scale/normalize is not accurate (when maxBits != VideoStream.PixelComp0Depth)
                              * Mainly affects gbrp10 (should prefer Texture2D<float> for more accurate and better performance)
@@ -563,7 +561,7 @@ unsafe public partial class Renderer
                             {
                                 curPSUniqueId += VideoStream.PixelComp0Depth;
                                 shader += @"
-    color.rgb *= pow(2, " + (maxBits - VideoStream.PixelComp0Depth) + @");
+    color *= pow(2, " + (maxBits - VideoStream.PixelComp0Depth) + @");
 ";
                             }
 
@@ -576,6 +574,10 @@ unsafe public partial class Renderer
 ";
                             }
 
+                            if (VideoStream.PixelPlanes < 4)
+                                shader += @"
+    color.a = 1.0f;
+";
                             SetPS(curPSUniqueId, shader, defines);
                         }
                     }
@@ -652,10 +654,7 @@ unsafe public partial class Renderer
 ");
             }
 
-            //AV_PIX_FMT_FLAG_ALPHA (currently used only for RGBA?)
-            //context.OMSetBlendState(curPSCase == PSCase.RGBPacked || (curPSCase == PSCase.RGBPlanar && VideoStream.PixelPlanes == 4) ? blendStateAlpha : null);
             context.OMSetBlendState(VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Alpha) ? blendStateAlpha : null);
-
             Log.Debug($"Prepared planes for {VideoStream.PixelFormatStr} with {videoProcessor} [{curPSCase}]");
 
             return true;
@@ -740,19 +739,19 @@ unsafe public partial class Renderer
                 mFrame.textures = new ID3D11Texture2D[VideoStream.PixelPlanes];
                 mFrame.srvs     = new ID3D11ShaderResourceView[VideoStream.PixelPlanes];
 
-                bool newRotationLinesize = false;
+                bool vflip = false;
                 for (int i = 0; i < VideoStream.PixelPlanes; i++)
                 {
                     if (frame->linesize[i] < 0) // Negative linesize for vertical flipping
                     {
-                        newRotationLinesize     = true;
+                        vflip = true;
                         subData[0].RowPitch     = (uint)(-1 * frame->linesize[i]);
                         subData[0].DataPointer  = frame->data[i];
                         subData[0].DataPointer -= (nint)((subData[0].RowPitch * (VideoStream.Height - 1))); // TBR: Heigh is wrong here (needs texture's height?)
                     }
                     else
                     {
-                        newRotationLinesize     = false;
+                        vflip = false;
                         subData[0].RowPitch     = (uint)frame->linesize[i];
                         subData[0].DataPointer  = frame->data[i];
                     }
@@ -767,9 +766,9 @@ unsafe public partial class Renderer
                     mFrame.srvs[i]      = Device.CreateShaderResourceView(mFrame.textures[i], srvDesc[i]);
                 }
 
-                if (newRotationLinesize != rotationLinesize)
+                if (vflip != hasLinesizeVFlip)
                 {
-                    rotationLinesize = newRotationLinesize;
+                    hasLinesizeVFlip = vflip;
                     UpdateRotation(_RotationAngle);
                 }
             }

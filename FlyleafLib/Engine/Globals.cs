@@ -130,23 +130,33 @@ public class GPUOutput
 
 public class GPUAdapter
 {
-    public int      MaxHeight       { get; internal set; }
-    public nuint    SystemMemory    { get; internal set; }
-    public nuint    VideoMemory     { get; internal set; }
-    public nuint    SharedMemory    { get; internal set; }
+    public int              MaxHeight       { get; internal set; }
+    public nuint            SystemMemory    { get; internal set; }
+    public nuint            VideoMemory     { get; internal set; }
+    public nuint            SharedMemory    { get; internal set; }
 
-
-    public uint     Id              { get; internal set; }
-    public string   Vendor          { get; internal set; }
-    public string   Description     { get; internal set; }
-    public long     Luid            { get; internal set; }
-    public bool     HasOutput       { get; internal set; }
-    public List<GPUOutput>
-                    Outputs         { get; internal set; }
+    public uint             Id              { get; internal set; }
+    public GPUVendor        Vendor          { get; internal set; }
+    public string           Description     { get; internal set; }
+    public long             Luid            { get; internal set; }
+    public bool             HasOutput       { get; internal set; }
+    public List<GPUOutput>  Outputs         { get; internal set; }
 
     public override string ToString()
         => (Vendor + " " + Description).PadRight(40) + $"[ID: {Id,-6}, LUID: {Luid,-6}, DVM: {GetBytesReadable(VideoMemory),-8}, DSM: {GetBytesReadable(SystemMemory),-8}, SSM: {GetBytesReadable(SharedMemory)}]";
 }
+
+public enum GPUVendor : uint
+{
+    Unknown,
+    ATI         = 0x1002,
+    Intel       = 0x8086,
+    Nvidia      = 0x10DE,
+    Qualcomm    = 0x4D4F4351,
+    S3Graphics  = 0x5333,
+    VIA         = 0x1106,
+}
+
 public enum VideoFilters
 {
     // Ensure we have the same values with Vortice.Direct3D11.VideoProcessorFilterCaps (d3d11.h) | we can extended if needed with other values
@@ -187,7 +197,7 @@ public struct AspectRatio : IEquatable<AspectRatio>
 
     public double Value
     {
-        readonly get => Num / Den;
+        readonly get => Den == 0 ? 0 : Num / Den;
         set { Num = value; Den = 1; }
     }
 
@@ -210,13 +220,13 @@ public struct AspectRatio : IEquatable<AspectRatio>
     public void FromString(string value)
     {
         if (value == "Keep")
-            { Num = Keep.Num; Den = Keep.Den; return; }
+            { Num = Keep.Num;       Den = Keep.Den;     return; }
         else if (value == "Fill")
-            { Num = Fill.Num; Den = Fill.Den; return; }
+            { Num = Fill.Num;       Den = Fill.Den;     return; }
         else if (value == "Custom")
-            { Num = Custom.Num; Den = Custom.Den; return; }
+            { Num = Custom.Num;     Den = Custom.Den;   return; }
         else if (value == "Invalid")
-            { Num = Invalid.Num; Den = Invalid.Den; return; }
+            { Num = Invalid.Num;    Den = Invalid.Den;  return; }
 
         string newvalue = value.ToString().Replace(',', '.');
 

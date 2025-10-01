@@ -94,8 +94,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         // NOTE: FlyleafME.Player is our Player in case of Swap and not Player
 
         if (!GeneralConfig.SingleInstance)
+        {
+            FlyleafME.Player?.Dispose();
             return;
-
+        }
+        
         lock (lockTray)
         {
             if (closed)
@@ -164,12 +167,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         UIInvokeIfRequired(() =>
         {
             FlyleafME.Player = Player;
-
-            if (GeneralConfig.SingleInstance)
-            {
-                FlyleafME.Overlay.Closing += X_Closing;
-                FlyleafME.Surface.Closing += X_Closing;
-            }
+            FlyleafME.Overlay.Closing += X_Closing;
+            FlyleafME.Surface.Closing += X_Closing;
         });
 
         if (runOnce)
