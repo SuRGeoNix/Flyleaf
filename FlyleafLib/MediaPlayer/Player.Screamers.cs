@@ -295,7 +295,7 @@ unsafe partial class Player
     private void Screamer()
     {
         long audioBufferedDuration = 0; // We force audio resync with = 0
-        VideoFrameFormat curFieldType = VideoFrameFormat.Progressive;
+        bool secondField = false;
 
         while (Status == Status.Playing)
         {
@@ -326,11 +326,7 @@ unsafe partial class Player
                 if (VideoDemuxer.Interrupter.Timedout)
                     break;
 
-                if (renderer.FieldType != VideoFrameFormat.Progressive)
-                {
-                    curFieldType = renderer.FieldType;
-                    renderer.SetFieldType(curFieldType);
-                }
+                secondField = false;
 
                 OnBufferingStarted();
                 MediaBuffer();
@@ -540,7 +536,7 @@ unsafe partial class Player
             {
                 if (CanTrace) Log.Trace($"[V] Presenting {TicksToTime(vFrame.timestamp)}");
 
-                if (decoder.VideoDecoder.Renderer.Present(vFrame, renderer.FieldType == VideoFrameFormat.Progressive))
+                if (decoder.VideoDecoder.Renderer.Present(vFrame, false, secondField))
                     Video.framesDisplayed++;
                 else
                     Video.framesDropped++;
@@ -554,22 +550,15 @@ unsafe partial class Player
                             UI(UpdateCurTime);
                     }
 
-                if (renderer.FieldType == VideoFrameFormat.Progressive)
-                    VideoDecoder.Frames.TryDequeue(out vFrame);
+                if (renderer.FieldType != VideoFrameFormat.Progressive && Config.Video.DoubleRate && !secondField)
+                {
+                    secondField = true;
+                    vFrame.timestamp += renderer.VideoStream.FrameDuration2;
+                }
                 else
                 {
-                    if (curFieldType != renderer.FieldType)
-                    {
-                        VideoDecoder.Frames.TryDequeue(out vFrame);
-                        curFieldType = renderer.FieldType;
-                        renderer.SetFieldType(curFieldType);
-                    }
-                    else
-                    {
-                        curFieldType = renderer.FieldType == VideoFrameFormat.InterlacedTopFieldFirst ? VideoFrameFormat.InterlacedBottomFieldFirst : VideoFrameFormat.InterlacedTopFieldFirst;
-                        renderer.SetFieldType(curFieldType);
-                        vFrame.timestamp += renderer.VideoStream.FrameDuration2;
-                    }
+                    VideoDecoder.Frames.TryDequeue(out vFrame);
+                    secondField = false;
                 }
 
                 if (vFrame != null && Config.Player.MaxLatency != 0)
@@ -592,11 +581,7 @@ unsafe partial class Player
                 Video.framesDropped++;
                 VideoDecoder.DisposeFrame(vFrame);
                 VideoDecoder.Frames.TryDequeue(out vFrame);
-                if (renderer.FieldType != VideoFrameFormat.Progressive)
-                {
-                    curFieldType = renderer.FieldType;
-                    renderer.SetFieldType(curFieldType);
-                }
+                secondField = false;
             }
 
             if (sFramePrev != null && ((sFramePrev.timestamp - startTicks + (sFramePrev.duration * (long)10000)) / speed) - (long) (sw.ElapsedTicks * SWFREQ_TO_TICKS) < 0)

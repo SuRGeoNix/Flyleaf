@@ -283,6 +283,7 @@ unsafe public partial class Renderer
                 Config.Video.SuperResolution ||
                 (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)))
         {
+            vpsa[0].OutputIndex = vpsa[0].InputFrameOrField = 0;
             FieldType = fieldType;
             vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
             return VideoProcessors.D3D11;
@@ -312,11 +313,10 @@ unsafe public partial class Renderer
 
             if (GetVP() != VideoProcessor)
                 ConfigPlanes();
+            else
+                Present();
         }
     }
-
-    internal void SetFieldType(VideoFrameFormat fieldType)
-        => vpsa[0].InputFrameOrField = fieldType == VideoFrameFormat.InterlacedBottomFieldFirst ? 1u : 0u;
 
     internal void UpdateHDRtoSDR(bool updateResource = true)
     {
