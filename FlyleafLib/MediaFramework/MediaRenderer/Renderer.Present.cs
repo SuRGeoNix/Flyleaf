@@ -15,13 +15,13 @@ public unsafe partial class Renderer
     long    lastPresentRequestAt= 0;
     object  lockPresentTask     = new();
 
-    public bool Present(VideoFrame frame, bool forceWait = true)
+    public bool Present(VideoFrame frame, bool forceWait = true, bool secondField = false)
     {
         if (Monitor.TryEnter(lockDevice, frame.timestamp == 0 ? 100 : 5)) // Allow more time for first frame
         {
             try
             {
-                var ret = PresentInternal(frame, forceWait);
+                var ret = PresentInternal(frame, forceWait, secondField);
                 if (frame != LastFrame) // De-interlace (Same AVFrame - Different FieldType)
                 {
                     VideoDecoder.DisposeFrame(LastFrame);
@@ -106,7 +106,7 @@ public unsafe partial class Renderer
             isPresenting = false;
         });
     }
-    internal bool PresentInternal(VideoFrame frame, bool forceWait = true)
+    internal bool PresentInternal(VideoFrame frame, bool forceWait = true, bool secondField = false)
     {
         if (!canRenderPresent)
             return false;
@@ -127,9 +127,11 @@ public unsafe partial class Renderer
             if (vpiv == null)
                 return false;
 
-            vpsa[0].InputSurface = vpiv;
+            vpsa[0].InputSurface= vpiv;
+            vpsa[0].OutputIndex = vpsa[0].InputFrameOrField = secondField ? 1u : 0u;
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
             vpiv.Dispose();
+            forceWait |= _FieldType != VideoFrameFormat.Progressive;
         }
         else
         {

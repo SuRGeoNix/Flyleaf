@@ -409,6 +409,11 @@
 
                                 <TextBlock Grid.Row="1" Text="Deinterlace" VerticalAlignment="Center"/>
                                 <ComboBox Grid.Row="1" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource DeInterlaceEnum}}" SelectedItem="{Binding Config.Video.DeInterlace}"/>
+                                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="-30 0 0 0">
+                                    <TextBlock Text="Double Rate" VerticalAlignment="Center" Margin="0 0 20 0"/>
+                                    <ToggleButton Tag="_save" IsChecked="{Binding Config.Video.DoubleRate, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                                </StackPanel>
+                                
 
                                 <TextBlock Grid.Row="2" Text="Super Resolution" VerticalAlignment="Center"/>
                                 <ToggleButton Grid.Row="2" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.SuperResolution, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>

@@ -562,7 +562,7 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public bool             AllowProfileMismatch
                                                 { get => _AllowProfileMismatch; set => SetUI(ref _AllowProfileMismatch, value); }
-        bool _AllowProfileMismatch;
+        bool _AllowProfileMismatch = true;
 
         /// <summary>
         /// Allows corrupted frames (Parses AV_CODEC_FLAG_OUTPUT_CORRUPT to AVCodecContext)
@@ -718,6 +718,12 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public DeInterlace      DeInterlace                 { get => _DeInterlace;      set { if (Set(ref _DeInterlace, value))     player?.renderer?.UpdateDeinterlace(); } }
         DeInterlace _DeInterlace = DeInterlace.Auto;
+
+        /// <summary>
+        /// Whether to use double rate (Bob) for DeInterlace instead normal (Weave/Blend)
+        /// </summary>
+        public bool             DoubleRate                  { get => _DoubleRate;       set => Set(ref _DoubleRate, value); }
+        bool _DoubleRate = true;
 
         /// <summary>
         /// The HDR to SDR method that will be used by the pixel shader
