@@ -109,7 +109,7 @@ public unsafe partial class Renderer
     internal bool PresentInternal(VideoFrame frame, bool forceWait = true, bool secondField = false)
     {
         if (!canRenderPresent)
-            return false;
+            return true; // TBR: to avoid increasing drop frames here (is just disabled)
 
         if (frame.srvs == null) // videoProcessor can be FlyleafVP but the player can send us a cached frame from prev videoProcessor D3D11VP (check frame.srv instead of videoProcessor)
         {
@@ -127,6 +127,11 @@ public unsafe partial class Renderer
             if (vpiv == null)
                 return false;
 
+            /* [Undocumented Deinterlace]
+             * Currently we don't use Past/Future frames so we consider only Bob/Weave methods (we also consider that are supported by D3D11VP)
+             * For Bob -double rate- we set the second field (InputFrameOrField/OutputIndex)
+             * Should review Present (Idle/RefreshLayout) to ignore changing those (to avoid jumping from second to first field)
+             */
             vpsa[0].InputSurface= vpiv;
             vpsa[0].OutputIndex = vpsa[0].InputFrameOrField = secondField ? 1u : 0u;
             vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
@@ -170,7 +175,7 @@ public unsafe partial class Renderer
         var ret = swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
         if (ret.Failure) Log.Info($"Dropped Frame - {ret.Description}");
 
-        child?.PresentInternal(frame, forceWait);
+        child?.PresentInternal(frame, forceWait, secondField);
 
         return ret.Success;
     }
