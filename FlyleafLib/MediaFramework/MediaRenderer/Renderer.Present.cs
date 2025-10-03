@@ -173,7 +173,17 @@ public unsafe partial class Renderer
         }
 
         var ret = swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
-        if (ret.Failure) Log.Info($"Dropped Frame - {ret.Description}");
+        if (ret.Failure) // 1 Retry (for DoNotWait) to avoid frame drop
+        {
+            if (!forceWait && Config.Video.PresentFlags.HasFlag(PresentFlags.DoNotWait))
+            {
+                Thread.Sleep(2);
+                ret = swapChain.Present(Config.Video.VSync, Config.Video.PresentFlags);
+                if (ret.Failure) Log.Info($"Dropped Frame - {ret.Description}");
+            }
+            else
+                Log.Info($"Dropped Frame - {ret.Description}");
+        }
 
         child?.PresentInternal(frame, forceWait, secondField);
 
