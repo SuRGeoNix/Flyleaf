@@ -15,7 +15,7 @@ unsafe public partial class Renderer
      * 2) Filter default values will change when the device/adapter is changed
      */
 
-    static Dictionary<string, VideoProcessorCapsCache> VideoProcessorsCapsCache = [];
+    static Dictionary<long, VideoProcessorCapsCache> VideoProcessorsCapsCache = [];
     VideoProcessorCapsCache curVPCC;
 
     internal static VideoProcessorFilter ConvertFromVideoProcessorFilterCaps(VideoProcessorFilterCaps filter)
@@ -106,7 +106,7 @@ unsafe public partial class Renderer
 
             lock (VideoProcessorsCapsCache)
             {
-                if (VideoProcessorsCapsCache.TryGetValue(Device.Tag.ToString(), out curVPCC))
+                if (VideoProcessorsCapsCache.TryGetValue(gpuAdapter.Luid, out curVPCC))
                 {
                     while (curVPCC.Wait)
                         Thread.Sleep(10);
@@ -114,7 +114,7 @@ unsafe public partial class Renderer
                     if (curVPCC.Failed)
                         return false;
 
-                    vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
+                    vd1 = Device. QueryInterface<ID3D11VideoDevice1>();
                     vc  = context.QueryInterface<ID3D11VideoContext1>();
 
                     vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
@@ -128,10 +128,10 @@ unsafe public partial class Renderer
                 }
 
                 curVPCC = new();
-                VideoProcessorsCapsCache.Add(Device.Tag.ToString(), curVPCC);
+                VideoProcessorsCapsCache.Add(gpuAdapter.Luid, curVPCC);
             }
 
-            vd1 = Device.QueryInterface<ID3D11VideoDevice1>();
+            vd1 = Device. QueryInterface<ID3D11VideoDevice1>();
             vc  = context.QueryInterface<ID3D11VideoContext>();
 
             vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
@@ -145,8 +145,8 @@ unsafe public partial class Renderer
 
             if (CanDebug)
             {
-                var hlg     = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020,  Format.B8G8R8A8_UNorm, ColorSpaceType.RgbFullG22NoneP709);
-                var hdr10   = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioG2084TopLeftP2020, Format.B8G8R8A8_UNorm, ColorSpaceType.RgbStudioG2084NoneP2020);
+                var hlg     = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioGhlgTopLeftP2020,  BGRA_OR_RGBA, ColorSpaceType.RgbFullG22NoneP709);
+                var hdr10   = vpe1.CheckVideoProcessorFormatConversion(Format.P010, ColorSpaceType.YcbcrStudioG2084TopLeftP2020, BGRA_OR_RGBA, ColorSpaceType.RgbStudioG2084NoneP2020);
 
                 dump += $"=====================================================\r\n";
                 dump += $"MaxInputStreams           {vpCaps.MaxInputStreams}\r\n";
@@ -301,45 +301,62 @@ unsafe public partial class Renderer
 
         vc?.VideoProcessorSetOutputBackgroundColor(vp, false, D3D11VPBackgroundColor);
 
-        Present();
+        RenderRequest();
     }
 
     internal void UpdateDeinterlace()
     {
         lock (lockDevice)
         {
-            if (Disposed || VideoStream == null || parent != null)
+            if (Disposed || VideoStream == null)
                 return;
 
             if (GetVP() != VideoProcessor)
                 ConfigPlanes();
             else
-                Present();
+                RenderRequest();
         }
     }
 
     internal void UpdateHDRtoSDR(bool updateResource = true)
     {
-        if(parent != null)
-            return;
-
+        lock (lockDevice)
+            if (!Disposed)
+                UpdateHDRtoSDRUnSafe(updateResource);
+    }
+    internal void UpdateHDRtoSDRUnSafe(bool updateResource = true)
+    {
         psBufferData.tonemap = Config.Video.HDRtoSDRMethod;
 
-        if (psBufferData.tonemap == HDRtoSDRMethod.Hable)
-            psBufferData.hdrtone = 10_000f / Config.Video.SDRDisplayNits;
-        else if (psBufferData.tonemap == HDRtoSDRMethod.Reinhard)
-            psBufferData.hdrtone = (10_000f / Config.Video.SDRDisplayNits) / 2f;
-        else if (psBufferData.tonemap == HDRtoSDRMethod.Aces)
-            psBufferData.hdrtone = (10_000f / Config.Video.SDRDisplayNits) / 7f;
+        switch (psBufferData.tonemap)
+        {
+            case HDRtoSDRMethod.Hable:
+                psBufferData.hdrtone = 10_000f / Config.Video.SDRDisplayNits;
+                break;
+
+            case HDRtoSDRMethod.Reinhard:
+                psBufferData.hdrtone = (10_000f / Config.Video.SDRDisplayNits) / 2f;
+                break;
+
+            case HDRtoSDRMethod.Aces:
+                psBufferData.hdrtone = (10_000f / Config.Video.SDRDisplayNits) / 7f;
+                break;
+        }
 
         if (updateResource)
         {
             context.UpdateSubresource(psBufferData, psBuffer);
-            Present();
+            RenderRequest();
         }
     }
 
     void UpdateRotation(uint angle, bool refresh = true)
+    {
+        lock (lockDevice)
+            if (!Disposed)
+                UpdateRotationUnSafe(angle, refresh);
+    }
+    void UpdateRotationUnSafe(uint angle, bool refresh = true)
     {
         _RotationAngle      = angle;
         uint newRotation    = _RotationAngle;
@@ -387,17 +404,7 @@ unsafe public partial class Renderer
             context.RSSetState(rasterizerState);
         }
 
-        if (parent == null)
-            context.UpdateSubresource(vsBufferData, vsBuffer);
-
-        if (child != null)
-        {
-            child.actualRotation    = actualRotation;
-            child._d3d11vpRotation  = _d3d11vpRotation;
-            child._RotationAngle    = _RotationAngle;
-            child.hasLinesizeVFlip  = hasLinesizeVFlip;
-        }
-
+        context.UpdateSubresource(vsBufferData, vsBuffer);
         vc?.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
 
         UpdateAspectRatio(refresh);
@@ -405,39 +412,42 @@ unsafe public partial class Renderer
 
     internal void UpdateAspectRatio(bool refresh = true)
     {
-        lock (lockDevice) // TBR: Fix AspectRatio generally* Separate Enum + CustomValue (respect SAR, clarify Fit/Fill/Keep/Stretch/Original/Custom ...)
+        lock (lockDevice)
+            if (!Disposed)
+                UpdateAspectRatioUnSafe(refresh);
+    }
+    internal void UpdateAspectRatioUnSafe(bool refresh = true)
+    {   // TBR: Fix AspectRatio generally* Separate Enum + CustomValue (respect SAR, clarify Fit/Fill/Keep/Stretch/Original/Custom ...)
+        if (Config.Video.AspectRatio == AspectRatio.Keep)
         {
-            if (Config.Video.AspectRatio == AspectRatio.Keep)
-            {
-                curRatio = keepRatio;
-                if (actualRotation == 90 || actualRotation == 270)
-                    curRatio = 1 / curRatio;
+            curRatio = keepRatio;
+            if (actualRotation == 90 || actualRotation == 270)
+                curRatio = 1 / curRatio;
 
-                Config.Player.player?.Host?.Player_RatioChanged(curRatio); // return handled and avoid SetViewport?*
-            }
-            else if (Config.Video.AspectRatio == AspectRatio.Fill)
-            {
-                curRatio = fillRatio;
-                if (actualRotation == 90 || actualRotation == 270)
-                    curRatio = 1 / curRatio;
-            }
-
-            // No SAR / Rotation respect for customs?
-            else if (Config.Video.AspectRatio == AspectRatio.Custom)
-                curRatio = Config.Video.CustomAspectRatio.Value;
-            else
-                curRatio = Config.Video.AspectRatio.Value;
-
-            Config.Player.player?.Host?.Player_RatioChanged(curRatio); // return handled and avoid SetViewport?*
-
-            if (refresh)
-                SetViewport();
-
-            child?.UpdateAspectRatio(refresh); // TBR: should just pass the curRatio to child?
+            player?.Host?.Player_RatioChanged(curRatio); // return handled and avoid SetViewport?*
         }
+        else if (Config.Video.AspectRatio == AspectRatio.Fill)
+        {
+            curRatio = fillRatio;
+            if (actualRotation == 90 || actualRotation == 270)
+                curRatio = 1 / curRatio;
+        }
+        else // No SAR / Rotation respect for customs?
+            curRatio = Config.Video.AspectRatio == AspectRatio.Custom ? Config.Video.CustomAspectRatio.Value : Config.Video.AspectRatio.Value;
+
+        player?.Host?.Player_RatioChanged(curRatio); // return handled and avoid SetViewport?*
+
+        if (refresh)
+            SetViewport();
     }
 
     internal void UpdateCropping(bool refresh = true)
+    {
+        lock (lockDevice)
+            if (!Disposed && VideoStream != null)
+                UpdateCroppingUnSafe(refresh);
+    }
+    internal void UpdateCroppingUnSafe(bool refresh = true)
     {
         /* TODO (SW)
          * 
@@ -452,61 +462,52 @@ unsafe public partial class Renderer
          *  e.g. UV Chroma (Semi-Planar) Crop +- (0.5f / (W|H / 2f))?
          */
 
-        lock (lockDevice)
-        {
-            cropRect = VideoStream.cropRect;
+        cropRect = VideoStream.cropRect;
             
-            if (Config.Video.HasUserCrop)
-            {
-                cropRect.Top    += Config.Video._Crop.Top;
-                cropRect.Left   += Config.Video._Crop.Left;
-                cropRect.Right  += Config.Video._Crop.Right;
-                cropRect.Bottom += Config.Video._Crop.Bottom;
-            }
-
-            vsBufferData.cropRegion = new()
-            {
-                X = cropRect.Left / (float)textWidth,
-                Y = cropRect.Top  / (float)textHeight,
-                Z = (textWidth  - cropRect.Right)  / (float)textWidth, //1.0f - (right  / (float)textWidth),
-                W = (textHeight - cropRect.Bottom) / (float)textHeight //1.0f - (bottom / (float)textHeight)
-            };
-
-            if (parent == null)
-                context.UpdateSubresource(vsBufferData, vsBuffer);
-
-            VisibleWidth    = textWidth  - (cropRect.Left + cropRect.Right);
-            VisibleHeight   = textHeight - (cropRect.Top  + cropRect.Bottom);
-
-            int x, y;
-            _ = av_reduce(&x, &y, VisibleWidth * VideoStream.SAR.Num, VisibleHeight * VideoStream.SAR.Den, 1024 * 1024);
-            DAR = new(x, y);
-            keepRatio = DAR.Value;
-
-            Config.Player.player?.Video.SetUISize((int)VisibleWidth, (int)VisibleHeight, DAR);
-
-            if (Config.Video.AspectRatio == AspectRatio.Keep)
-            {
-                curRatio = actualRotation == 90 || actualRotation == 270 ? 1 / keepRatio : keepRatio;
-                Config.Player.player?.Host?.Player_RatioChanged(curRatio);
-            }
-            else if (refresh)
-                SetViewport();
-
-            // TBR: child?
+        if (Config.Video.HasUserCrop)
+        {
+            cropRect.Top    += Config.Video._Crop.Top;
+            cropRect.Left   += Config.Video._Crop.Left;
+            cropRect.Right  += Config.Video._Crop.Right;
+            cropRect.Bottom += Config.Video._Crop.Bottom;
         }
+
+        vsBufferData.cropRegion = new()
+        {
+            X = cropRect.Left / (float)textWidth,
+            Y = cropRect.Top  / (float)textHeight,
+            Z = (textWidth  - cropRect.Right)  / (float)textWidth, //1.0f - (right  / (float)textWidth),
+            W = (textHeight - cropRect.Bottom) / (float)textHeight //1.0f - (bottom / (float)textHeight)
+        };
+
+        context.UpdateSubresource(vsBufferData, vsBuffer);
+
+        VisibleWidth    = textWidth  - (cropRect.Left + cropRect.Right);
+        VisibleHeight   = textHeight - (cropRect.Top  + cropRect.Bottom);
+
+        int x, y;
+        _ = av_reduce(&x, &y, VisibleWidth * VideoStream.SAR.Num, VisibleHeight * VideoStream.SAR.Den, 1024 * 1024);
+        DAR = new(x, y);
+        keepRatio = DAR.Value;
+
+        player?.Video.SetUISize((int)VisibleWidth, (int)VisibleHeight, DAR);
+
+        if (Config.Video.AspectRatio == AspectRatio.Keep)
+        {
+            curRatio = actualRotation == 90 || actualRotation == 270 ? 1 / keepRatio : keepRatio;
+            player?.Host?.Player_RatioChanged(curRatio);
+        }
+        else if (refresh)
+            SetViewport();
     }
 
     internal void UpdateVideoProcessor()
     {
-        if(parent != null)
-            return;
-
         if (Config.Video.VideoProcessor == videoProcessor || (Config.Video.VideoProcessor == VideoProcessors.D3D11 && D3D11VPFailed))
             return;
 
         ConfigPlanes();
-        Present();
+        RenderRequest();
     }
 
     #region Super Resolution
@@ -519,9 +520,9 @@ unsafe public partial class Renderer
         uint method  = 0x2;
         uint enabled = enable ? 1u : 0u;
     }
-    static SuperResNvidia   SuperResEnabledNvidia   = new(true);
-    static SuperResNvidia   SuperResDisabledNvidia  = new(false);
-    static Guid             GUID_SUPERRES_NVIDIA    = Guid.Parse("d43ce1b3-1f4b-48ac-baee-c3c25375e6f7");
+    static readonly SuperResNvidia  SuperResEnabledNvidia   = new(true);
+    static readonly SuperResNvidia  SuperResDisabledNvidia  = new(false);
+    static readonly Guid            GUID_SUPERRES_NVIDIA    = Guid.Parse("d43ce1b3-1f4b-48ac-baee-c3c25375e6f7");
 
     [StructLayout(LayoutKind.Sequential)]
     struct SuperResIntel
@@ -535,7 +536,7 @@ unsafe public partial class Renderer
         kIntelVpeFnMode     = 0x20,
 		kIntelVpeFnScaling  = 0x37
     }
-    static Guid             GUID_SUPERRES_INTEL     = Guid.Parse("edd1d4b9-8659-4cbc-a4d6-9831a2163ac3");
+    static readonly Guid            GUID_SUPERRES_INTEL     = Guid.Parse("edd1d4b9-8659-4cbc-a4d6-9831a2163ac3");
 
     internal void UpdateSuperRes()
     {
@@ -548,8 +549,9 @@ unsafe public partial class Renderer
                 DisableSuperRes();
             else
             {
-                var viewport = GetViewport;
-                if (viewport.Width > VisibleWidth && viewport.Height > VisibleHeight)
+                var view = GetViewport;
+                if (((_RotationAngle ==  0 || _RotationAngle == 180) && view.Width > VisibleWidth  && view.Height > VisibleHeight) ||
+                    ((_RotationAngle == 90 || _RotationAngle == 270) && view.Width > VisibleHeight && view.Height > VisibleWidth))
                     EnableSuperRes();
                 else
                     DisableSuperRes();
@@ -565,10 +567,10 @@ unsafe public partial class Renderer
         SuperResolution = true;
         RaiseUI(nameof(SuperResolution));
 
-        if (GPUAdapter.Vendor == GPUVendor.Nvidia)
+        if (gpuAdapter.Vendor == GPUVendor.Nvidia)
             fixed (SuperResNvidia* ptr = &SuperResEnabledNvidia)
                 vc.VideoProcessorSetStreamExtension(vp, 0, GUID_SUPERRES_NVIDIA, (uint)sizeof(SuperResNvidia), (nint)ptr);
-        else if (GPUAdapter.Vendor == GPUVendor.Intel)
+        else if (gpuAdapter.Vendor == GPUVendor.Intel)
             UpdateSuperResIntel(true);
     }
 
@@ -580,10 +582,10 @@ unsafe public partial class Renderer
         SuperResolution = false;
         RaiseUI(nameof(SuperResolution));
 
-        if (GPUAdapter.Vendor == GPUVendor.Nvidia)
+        if (gpuAdapter.Vendor == GPUVendor.Nvidia)
             fixed (SuperResNvidia* ptr = &SuperResDisabledNvidia)
                 vc.VideoProcessorSetStreamExtension(vp, 0, GUID_SUPERRES_NVIDIA, (uint)sizeof(SuperResNvidia), (nint)ptr);
-        else if (GPUAdapter.Vendor == GPUVendor.Intel)
+        else if (gpuAdapter.Vendor == GPUVendor.Intel)
             UpdateSuperResIntel(false);
     }
 

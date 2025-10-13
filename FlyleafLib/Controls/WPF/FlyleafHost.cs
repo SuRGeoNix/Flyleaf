@@ -476,14 +476,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     public static readonly DependencyProperty PlayerProperty =
         DependencyProperty.Register(nameof(Player), typeof(Player), _flType, new(null, OnPlayerChanged));
 
-    public Player ReplicaPlayer
-    {
-        get => (Player)GetValue(ReplicaPlayerProperty);
-        set => SetValue(ReplicaPlayerProperty, value);
-    }
-    public static readonly DependencyProperty ReplicaPlayerProperty =
-        DependencyProperty.Register(nameof(ReplicaPlayer), typeof(Player), _flType, new(null, OnReplicaPlayerChanged));
-
     public ControlTemplate OverlayTemplate
     {
         get => (ControlTemplate)GetValue(OverlayTemplateProperty);
@@ -603,17 +595,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         host.SetPlayer((Player)e.OldValue);
-    }
-    private static void OnReplicaPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        if (isDesignMode)
-            return;
-
-        FlyleafHost host = d as FlyleafHost;
-        if (host.Disposed)
-            return;
-
-        host.SetReplicaPlayer((Player)e.OldValue);
     }
     private static void OnIsFullScreenChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -1488,21 +1469,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     #endregion
 
     #region Methods
-    public virtual void SetReplicaPlayer(Player oldPlayer)
-    {
-        if (oldPlayer != null)
-        {
-            oldPlayer.renderer.SetChildHandle(IntPtr.Zero);
-        }
-
-        if (ReplicaPlayer == null)
-            return;
-
-        if (Surface != null)
-            ReplicaPlayer.renderer.SetChildHandle(SurfaceHandle);
-
-        Player_RatioChanged(ReplicaPlayer.renderer.CurRatio);
-    }
     public virtual void SetPlayer(Player oldPlayer)
     {
         // De-assign old Player's Handle/FlyleafHost
@@ -1590,9 +1556,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (Player != null)
             Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
-
-        if (ReplicaPlayer != null)
-            ReplicaPlayer.renderer.SetChildHandle(SurfaceHandle);
 
         Surface.IsVisibleChanged
                             += Surface_IsVisibleChanged;
@@ -2002,7 +1965,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             // Disposes SwapChain Only
             Player          = null;
-            ReplicaPlayer   = null;
             Disposed        = true;
 
             DataContextChanged  -= Host_DataContextChanged;

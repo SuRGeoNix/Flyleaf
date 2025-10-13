@@ -447,14 +447,14 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
 
         if (result.ToString() == "cancel")
         {
-            Config.Video.HDRtoSDRMethod = prevConfig.HDRtoSDRMethod;
-            Config.Video.SDRDisplayNits = prevConfig.SDRDisplayNits;
+            Config.Video.HDRtoSDRMethod         = prevConfig.HDRtoSDRMethod;
+            Config.Video.SDRDisplayNitsCustom   = prevConfig.SDRDisplayNitsCustom;
 
             foreach(var filter in saveFilterValues)
-                Config.Video.Filters[filter.Key].Value = filter.Value;
+                Config.Video.Filters[filter.Key].Value  = filter.Value;
 
             foreach(var filter in saveD3FilterValues)
-                Config.Video.D3Filters[filter.Key].Value = filter.Value;
+                Config.Video.D3Filters[filter.Key].Value= filter.Value;
         }
         else
         {
@@ -521,7 +521,8 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
             foreach (var kv in Config.Video.D3Filters)
                 kv.Value.Value = kv.Value.Default;
 
-            Config.Video.SDRDisplayNits = Engine.Video.RecommendedLuminance;
+            Config.Video.SDRDisplayNitsCustom   = 0;
+            Config.Video.HDRtoSDRMethod         = HDRtoSDRMethod.Hable;
     }
 
     public ICommand SetSubsPositionY    { get; set; }

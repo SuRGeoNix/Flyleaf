@@ -172,21 +172,21 @@ public class Audio : NotifyPropertyChanged
         uiAction = () =>
         {
             StreamIndex     = streamIndex;
-            IsOpened        = IsOpened;
-            Codec           = Codec;
-            BitRate         = BitRate;
-            Bits            = Bits;
-            Channels        = Channels;
-            ChannelLayout   = ChannelLayout;
-            SampleFormat    = SampleFormat;
-            SampleRate      = SampleRate;
+            IsOpened        = isOpened;
+            Codec           = codec;
+            BitRate         = bitRate;
+            Bits            = bits;
+            Channels        = channels;
+            ChannelLayout   = channelLayout;
+            SampleFormat    = sampleFormat;
+            SampleRate      = sampleRate;
 
-            FramesDisplayed = FramesDisplayed;
-            FramesDropped   = FramesDropped;
+            FramesDisplayed = framesDisplayed;
+            FramesDropped   = framesDropped;
         };
 
         Volume = Config.Player.VolumeMax / 2;
-        Initialize();
+        //Initialize(); TBR: required?
     }
 
     internal void Initialize()
@@ -199,8 +199,8 @@ public class Audio : NotifyPropertyChanged
                 return;
             }
 
-            sampleRate = decoder != null && decoder.AudioStream != null && decoder.AudioStream.SampleRate > 0 ? decoder.AudioStream.SampleRate : 48000;
-            player.Log.Info($"Initialiazing audio ({Device.Name} - {Device.Id} @ {SampleRate}Hz)");
+            sampleRate = decoder.AudioStream != null && decoder.AudioStream.SampleRate > 0 ? decoder.AudioStream.SampleRate : 48000;
+            player.Log.Info($"Initialiazing audio at {SampleRate}Hz ({Device.Id}:{Device.Name})");
 
             Dispose();
 
@@ -275,17 +275,17 @@ public class Audio : NotifyPropertyChanged
                 if (CanDebug)
                     player.Log.Debug($"[Audio] Submitting samples failed ({e.Message})");
 
-                ClearBuffer(); // TBR: Inform player to resync audio?
+                ClearBuffer();
             }
         }
     }
     internal long GetBufferedDuration() { lock (locker) { return (long) ((submittedSamples - sourceVoice.State.SamplesPlayed) * Timebase); } }
-    internal long GetDeviceDelay()      { lock (locker) { return (long) ((xaudio2.PerformanceData.CurrentLatencyInSamples * Timebase) - 80000); } } // TODO: VBlack delay (8ms correction for now)
+    internal long GetDeviceDelay()      { lock (locker) { return (long) ((xaudio2.PerformanceData.CurrentLatencyInSamples * Timebase) - 8_0000); } } // TODO: VBlack delay (8ms correction for now)
     internal void ClearBuffer()
     {
         lock (locker)
         {
-            if (sourceVoice == null)
+            if (submittedSamples == 0 || sourceVoice == null)
                 return;
 
             sourceVoice.Stop();
@@ -324,7 +324,7 @@ public class Audio : NotifyPropertyChanged
         framesDisplayed = 0;
         framesDropped   = 0;
 
-        if (SampleRate!= decoder.AudioStream.SampleRate)
+        if (sampleRate != decoder.AudioStream.SampleRate)
             Initialize();
 
         player.UIAdd(uiAction);
@@ -335,7 +335,7 @@ public class Audio : NotifyPropertyChanged
 
         decoder.OpenSuggestedAudio();
 
-        player.ReSync(decoder.AudioStream, (int) (player.CurTime / 10000), true);
+        player.ReSync(decoder.AudioStream, (int) (player.curTime / 10000), true);
 
         Refresh();
         player.UIAll();
@@ -349,9 +349,7 @@ public class Audio : NotifyPropertyChanged
             return;
 
         decoder.CloseAudio();
-
-        player.aFrame = null;
-
+        player.UpdateMainDemuxer(); // possible in Reset (consider close event)?
         if (!player.Video.IsOpened)
         {
             player.canPlay = false;

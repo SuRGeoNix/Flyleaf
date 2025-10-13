@@ -1,9 +1,8 @@
-﻿using System.Drawing.Imaging;
-using System.Drawing;
+﻿using System.Drawing;
+using System.Drawing.Imaging;
 using System.Windows.Media.Imaging;
 
 using SharpGen.Runtime;
-
 using Vortice;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
@@ -16,18 +15,26 @@ using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
-public partial class Renderer
+public unsafe partial class Renderer
 {
+    /* TODO (ancient code here)
+     * Must review PresentOffline (viewport/config/ps - try-catch/locks)
+     *      e.g. When rotated it will mess with ratio
+     *  
+     *  Remove PrepareForExtract / Extractor generally?*
+     *      At least use TextureArray?
+     */
+
     // subs
     Texture2DDescription        overlayTextureDesc;
     ID3D11Texture2D             overlayTexture;
     ID3D11ShaderResourceView    overlayTextureSrv;
+    ID3D11ShaderResourceView[]  overlayTextureSRVs = new ID3D11ShaderResourceView[1];
     int                         overlayTextureOriginalWidth;
     int                         overlayTextureOriginalHeight;
     int                         overlayTextureOriginalPosX;
     int                         overlayTextureOriginalPosY;
-
-    ID3D11ShaderResourceView[]  overlayTextureSRVs = new ID3D11ShaderResourceView[1];
+    SubresourceData             subDataOverlay;
 
     // Used for off screen rendering
     Texture2DDescription        singleStageDesc, singleGpuDesc;
@@ -95,52 +102,16 @@ public partial class Renderer
         try
         {
             lock (lockDevice)
-            {
-                frame ??= LastFrame;
-
-                if (Disposed || frame == null || (frame.textures == null && frame.avFrame == null))
-                    return null;
-
-                if (width == -1 && height == -1)
+                lock (LastFrame)
                 {
-                    width  = VideoRect.Right;
-                    height = VideoRect.Bottom;
+                    if (Disposed)
+                        return null;
+
+                    Todo(width, height, frame);
+                    return GetBitmap(singleStage);
                 }
-                else if (width != -1 && height == -1)
-                    height = (int)(width / curRatio);
-                else if (height != -1 && width == -1)
-                    width  = (int)(height * curRatio);
-
-                if (singleStageDesc.Width != width || singleStageDesc.Height != height)
-                {
-                    singleGpu?.Dispose();
-                    singleStage?.Dispose();
-                    singleGpuRtv?.Dispose();
-
-                    singleStageDesc.Width   = (uint)width;
-                    singleStageDesc.Height  = (uint)height;
-                    singleGpuDesc.Width     = (uint)width;
-                    singleGpuDesc.Height    = (uint)height;
-
-                    singleStage = Device.CreateTexture2D(singleStageDesc);
-                    singleGpu   = Device.CreateTexture2D(singleGpuDesc);
-                    singleGpuRtv= Device.CreateRenderTargetView(singleGpu);
-
-                    singleViewport = new Viewport(width, height);
-                }
-
-                PresentOffline(frame, singleGpuRtv, singleViewport);
-
-                if (videoProcessor == VideoProcessors.D3D11)
-                    SetViewport();
-                else
-                    context.RSSetViewport(GetViewport);
-            }
-
-            context.CopyResource(singleStage, singleGpu);
-            return GetBitmap(singleStage);
-
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             Log.Warn($"GetBitmap failed with: {e.Message}");
             return null;
@@ -186,48 +157,8 @@ public partial class Renderer
         {
             lock (lockDevice)
             {
-                frame ??= LastFrame;
-
-                if (Disposed || frame == null || (frame.textures == null && frame.avFrame == null))
-                    return null;
-
-                if (width == -1 && height == -1)
-                {
-                    width = VideoRect.Right;
-                    height = VideoRect.Bottom;
-                }
-                else if (width != -1 && height == -1)
-                    height = (int)(width / curRatio);
-                else if (height != -1 && width == -1)
-                    width = (int)(height * curRatio);
-
-                if (singleStageDesc.Width != width || singleStageDesc.Height != height)
-                {
-                    singleGpu?.Dispose();
-                    singleStage?.Dispose();
-                    singleGpuRtv?.Dispose();
-
-                    singleStageDesc.Width   = (uint)width;
-                    singleStageDesc.Height  = (uint)height;
-                    singleGpuDesc.Width     = (uint)width;
-                    singleGpuDesc.Height    = (uint)height;
-
-                    singleStage = Device.CreateTexture2D(singleStageDesc);
-                    singleGpu = Device.CreateTexture2D(singleGpuDesc);
-                    singleGpuRtv = Device.CreateRenderTargetView(singleGpu);
-
-                    singleViewport = new Viewport(width, height);
-                }
-
-                PresentOffline(frame, singleGpuRtv, singleViewport);
-
-                if (videoProcessor == VideoProcessors.D3D11)
-                    SetViewport();
-                else
-                    context.RSSetViewport(GetViewport);
+                Todo(width, height, frame);
             }
-
-            context.CopyResource(singleStage, singleGpu);
             return GetBitmapSource(singleStage);
 
         }
@@ -268,6 +199,48 @@ public partial class Renderer
         return bitmap;
     }
 
+    void Todo(int width = -1, int height = -1, VideoFrame frame = null)
+    {
+        frame ??= LastFrame;
+
+        if (width == -1 && height == -1)
+        {
+            width  = VideoRect.Right;
+            height = VideoRect.Bottom;
+        }
+        else if (width != -1 && height == -1)
+            height = (int)(width / curRatio);
+        else if (height != -1 && width == -1)
+            width  = (int)(height * curRatio);
+
+        if (singleStageDesc.Width != width || singleStageDesc.Height != height)
+        {
+            singleGpu?.Dispose();
+            singleStage?.Dispose();
+            singleGpuRtv?.Dispose();
+
+            singleStageDesc.Width   = (uint)width;
+            singleStageDesc.Height  = (uint)height;
+            singleGpuDesc.Width     = (uint)width;
+            singleGpuDesc.Height    = (uint)height;
+
+            singleStage = Device.CreateTexture2D(singleStageDesc);
+            singleGpu   = Device.CreateTexture2D(singleGpuDesc);
+            singleGpuRtv= Device.CreateRenderTargetView(singleGpu);
+
+            singleViewport = new Viewport(width, height);
+        }
+
+        PresentOffline(frame, singleGpuRtv, singleViewport);
+
+        if (videoProcessor == VideoProcessors.D3D11)
+            SetViewport();
+        else
+            context.RSSetViewport(GetViewport);
+
+        context.CopyResource(singleStage, singleGpu);
+    }
+
     /// <summary>
     /// Extracts a bitmap from a video frame
     /// (Currently cannot be used in parallel with the rendering)
@@ -283,9 +256,9 @@ public partial class Renderer
         Texture2DDescription stageDesc = new()
         {
             Usage       = ResourceUsage.Staging,
-            Width       = VideoDecoder.VideoStream.Width,
-            Height      = VideoDecoder.VideoStream.Height,
-            Format      = Format.B8G8R8A8_UNorm,
+            Width       = VideoStream.Width,
+            Height      = VideoStream.Height,
+            Format      = BGRA_OR_RGBA,
             ArraySize   = 1,
             MipLevels   = 1,
             BindFlags   = BindFlags.None,
@@ -340,7 +313,7 @@ public partial class Renderer
             {
                 Usage       = ResourceUsage.Default,
                 BindFlags   = BindFlags.RenderTarget,
-                Format      = Format.B8G8R8A8_UNorm,
+                Format      = BGRA_OR_RGBA,
                 Width       = VideoStream.Width,
                 Height      = VideoStream.Height,
 

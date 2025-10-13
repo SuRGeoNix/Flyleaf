@@ -69,7 +69,7 @@ unsafe public partial class Renderer
     {
         lock (lockDevice)
         {
-            if (Disposed || parent != null)
+            if (Disposed)
                 return;
 
             float value = Scale(cfgFilter.Value, cfgFilter.Minimum, cfgFilter.Maximum, cfgFilter.filter.MinimumPS, cfgFilter.filter.MaximumPS);
@@ -115,21 +115,21 @@ unsafe public partial class Renderer
             }
 
             if (present)
-                Present();
+                RenderRequest();
         }
     }
     internal void UpdateD3FilterValue(D3VideoFilter cfgFilter, bool present = true)
     {
         lock (lockDevice)
         {
-            if (Disposed || parent != null)
+            if (Disposed || D3D11VPFailed)
                 return;
 
             vc.VideoProcessorSetStreamFilter(vp, 0, ConvertFromVideoProcessorFilterCaps((VideoProcessorFilterCaps)cfgFilter.Filter), true,
                 (int)Scale(cfgFilter.Value, cfgFilter.Minimum, cfgFilter.Maximum, cfgFilter.filter.Minimum, cfgFilter.filter.Maximum));
 
             if (present)
-                Present();
+                RenderRequest();
         }
     }
 

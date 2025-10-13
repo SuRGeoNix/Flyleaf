@@ -12,6 +12,10 @@ using FlyleafLib.MediaFramework.MediaRemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
+/* TODO
+ * HWFrames should be handled by renderer (we keep ref on hwframes and on avframe) | We keep avframe ref (in LastFrame) but we unref the hwframes (might cause issues)
+ */
+
 public unsafe class VideoDecoder : DecoderBase
 {
     public ConcurrentQueue<VideoFrame>
@@ -87,6 +91,7 @@ public unsafe class VideoDecoder : DecoderBase
     }
     public void CreateSwapChain(Action<IDXGISwapChain2> swapChainWinUIClbk)
     {
+        CreateRenderer();
         Renderer.SwapChainWinUIClbk = swapChainWinUIClbk;
         if (Renderer.SwapChainWinUIClbk != null)
             Renderer.InitializeWinUISwapChain();
@@ -246,8 +251,7 @@ public unsafe class VideoDecoder : DecoderBase
             return -1;
 
         AVHWFramesContext* hw_frames_ctx = (AVHWFramesContext*)codecCtx->hw_frames_ctx->data;
-        //hw_frames_ctx->initial_pool_size += Config.Decoder.MaxVideoFrames; // TBR: Texture 2D Array seems to have up limit to 128 (total=17+MaxVideoFrames)? (should use extra hw frames instead**)
-
+        var requestedSize = hw_frames_ctx->initial_pool_size;
         AVD3D11VAFramesContext *va_frames_ctx = (AVD3D11VAFramesContext *)hw_frames_ctx->hwctx;
         va_frames_ctx->BindFlags  |= (uint)BindFlags.Decoder | (uint)BindFlags.ShaderResource;
 
@@ -256,6 +260,13 @@ public unsafe class VideoDecoder : DecoderBase
         int ret = av_hwframe_ctx_init(codecCtx->hw_frames_ctx);
         if (ret == 0)
         {
+            if (requestedSize != hw_frames_ctx->initial_pool_size)
+            {
+                codecCtx->extra_hw_frames = codecCtx->extra_hw_frames - Math.Abs(requestedSize - hw_frames_ctx->initial_pool_size); // should update this?*
+                Log.Warn($"Allocated HW surfaces changed from {Config.Decoder.MaxVideoFrames} to {codecCtx->extra_hw_frames - 1}");
+                Config.Decoder.SetMaxVideoFrames(codecCtx->extra_hw_frames - 1);
+            }
+
             lock (Renderer.lockDevice)
             {
                 textureFFmpeg = new((nint) va_frames_ctx->texture);
@@ -305,9 +316,7 @@ public unsafe class VideoDecoder : DecoderBase
             if (Config.Decoder.AllowProfileMismatch)
                 codecCtx->hwaccel_flags|= HWAccelFlags.AllowProfileMismatch;
             codecCtx->get_format        = getHWformat;
-
-            // D3D11/AV1 Issue: https://trac.ffmpeg.org/ticket/10608 "Static surface pool size exceeded" | Workaround: we use +X margin for the initial_pool_size (not for us/extra frames)
-            codecCtx->extra_hw_frames   = codecCtx->codec_id == AVCodecID.Av1 ? Config.Decoder.MaxVideoFrames + 3 : Config.Decoder.MaxVideoFrames;
+            codecCtx->extra_hw_frames   = Config.Decoder.MaxVideoFrames + 1; // 1 extra for Renderer's LastFrame
         }
         else
             codecCtx->thread_count = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AVCodecID.Hevc ? 32 : 16);
@@ -499,7 +508,7 @@ public unsafe class VideoDecoder : DecoderBase
                     ret = avcodec_send_packet(codecCtx, packet);
                 }
 
-                if (ret != 0 && ret != AVERROR(EAGAIN))
+                if (ret != 0 && ret != AVERROR_EAGAIN)
                 {
                     // TBR: Possible check for VA failed here (normally this will happen during get_format)
                     av_packet_free(&packet);
@@ -512,6 +521,8 @@ public unsafe class VideoDecoder : DecoderBase
                     }
                     else
                     {
+                        if (ret == AVERROR_ENOMEM) { Log.Error($"{FFmpegEngine.ErrorCodeToMsg(ret)}"); Status = Status.Stopping; break; }
+
                         allowedErrors--;
                         if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
@@ -524,7 +535,28 @@ public unsafe class VideoDecoder : DecoderBase
                 while (true)
                 {
                     ret = avcodec_receive_frame(codecCtx, frame);
-                    if (ret != 0) { av_frame_unref(frame); break; }
+                    if (ret != 0)
+                    {
+                        if (ret == AVERROR_EAGAIN)
+                            break;
+
+                        if (ret == AVERROR_EOF)
+                        {
+                            if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); break; } // TBR: Happens on HLS while switching video streams
+                            Status = Status.Ended;
+                            break;
+                        }
+
+                        if (ret == AVERROR_ENOMEM || ret == AVERROR_EINVAL)
+                            { Log.Error($"{FFmpegEngine.ErrorCodeToMsg(ret)}"); Status = Status.Stopping; break; }
+
+                        allowedErrors--;
+                        if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+
+                        if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; }
+
+                        break;
+                    }
 
                     if (keyFrameRequired)
                     {
@@ -591,9 +623,6 @@ public unsafe class VideoDecoder : DecoderBase
                         HandleDeviceReset();
                         break;
                     }
-
-                    if (!Config.Video.PresentFlags.HasFlag(PresentFlags.DoNotWait) && Frames.Count > 2)
-                        Thread.Sleep(10);
                 }
 
                 av_packet_free(&packet);
@@ -624,7 +653,6 @@ public unsafe class VideoDecoder : DecoderBase
             startPts        = VideoStream.StartTimePts;
             skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
             
-            DisposeFrame(Renderer.LastFrame);
             if (VideoStream.PixelFormat == AVPixelFormat.None || !Renderer.ConfigPlanes(frame))
             {
                 Log.Error("[Pixel Format] Unknown");
@@ -856,10 +884,6 @@ public unsafe class VideoDecoder : DecoderBase
                     }
 
                 } // Lock CodecCtx
-
-                // Import Sleep required to prevent delay during Renderer.Present for waitable swap chains
-                if (!Config.Video.PresentFlags.HasFlag(PresentFlags.DoNotWait) && Frames.Count > 2)
-                    Thread.Sleep(10);
 
             } // while curReverseVideoPackets.Count > 0
 

@@ -52,7 +52,6 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
             StartTimePts= av_rescale_q(StartTime/10, Engine.FFmpeg.AV_TIMEBASE_Q, AVStream->time_base);
         }
 
-        UpdateHLS();
         UpdateMetadata();
         Initialize();
     }
@@ -76,7 +75,10 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
 
     // Demuxer Callback
     internal virtual void UpdateDuration()
-        => Duration = AVStream->duration != NoTs ? (long)(AVStream->duration * Timebase) : Demuxer.Duration;
+    {
+        Duration = AVStream->duration != NoTs ? (long)(AVStream->duration * Timebase) : Demuxer.Duration;
+        UpdateHLS();
+    }
 
     protected void UpdateHLS()
     {
@@ -131,9 +133,9 @@ public abstract unsafe class StreamBase : NotifyPropertyChanged
         if (StartTime != NoTs || Duration != NoTs)
         {
             dump += "\r\n\t[Time	 ] ";
-            dump += StartTimePts != NoTs ? $"{TicksToTime2(StartTime)} ({StartTimePts})" : "-";
+            dump += StartTimePts != NoTs ? $"{TicksToTime(StartTime)} ({StartTimePts})" : "-";
             dump += " / ";
-            dump += AVStream->duration != NoTs ? $"{TicksToTime2(Duration)} ({AVStream->duration})": "-";
+            dump += AVStream->duration != NoTs ? $"{TicksToTime(Duration)} ({AVStream->duration})": "-";
             dump += $" | tb: {AVStream->time_base}";
         }
 

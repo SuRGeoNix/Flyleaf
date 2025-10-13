@@ -337,12 +337,12 @@
                     
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="Frames Displayed"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesDisplayed}"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesDisplayed, StringFormat={}{0:N0}}"/>
                     </StackPanel>
                     
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="Frames Dropped"/>
-                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesDropped}"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.FramesDropped, StringFormat={}{0:N0}}"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">

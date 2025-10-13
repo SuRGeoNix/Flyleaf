@@ -28,6 +28,7 @@ public class Subtitles : NotifyPropertyChanged
     /// </summary>
     public string   SubsText        { get => subsText;     internal set => Set(ref _SubsText,  value); }
     internal string _SubsText = "", subsText = "";
+    public void ClearSubsText() { subsText = ""; if (_SubsText != "") UI(() => SubsText = subsText); }
 
     public Player Player => player;
 
@@ -43,9 +44,9 @@ public class Subtitles : NotifyPropertyChanged
         uiAction = () =>
         {
             StreamIndex = streamIndex;
-            IsOpened    = IsOpened;
-            Codec       = Codec;
-            SubsText    = SubsText;
+            IsOpened    = isOpened;
+            Codec       = codec;
+            SubsText    = subsText;
         };
     }
     internal void Reset()

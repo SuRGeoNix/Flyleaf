@@ -6,8 +6,6 @@ using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 
-using static FlyleafLib.Logger;
-
 namespace FlyleafLib.MediaPlayer;
 
 public unsafe partial class Player : NotifyPropertyChanged, IDisposable
@@ -31,8 +29,6 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// </summary>
     public Commands             Commands            { get; private set; }
 
-    public Playlist             Playlist            => decoder.Playlist;
-
     /// <summary>
     /// Player's Audio (In/Out)
     /// </summary>
@@ -54,70 +50,93 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     public Data                 Data                { get; private set; }
 
     /// <summary>
-    /// Player's Renderer
-    /// (Normally you should not access this directly)
-    /// </summary>
-    public Renderer             renderer            => decoder.VideoDecoder.Renderer;
-
-    /// <summary>
     /// Player's Decoder Context
     /// (Normally you should not access this directly)
     /// </summary>
     public DecoderContext       decoder             { get; private set; }
 
     /// <summary>
+    /// Playlist
+    /// (Normally you should not access this directly)
+    /// </summary>
+    public Playlist             Playlist            { get; private set; }
+
+    /// <summary>
     /// Audio Decoder
     /// (Normally you should not access this directly)
     /// </summary>
-    public AudioDecoder         AudioDecoder        => decoder.AudioDecoder;
+    public AudioDecoder         AudioDecoder;
 
     /// <summary>
     /// Video Decoder
     /// (Normally you should not access this directly)
     /// </summary>
-    public VideoDecoder         VideoDecoder        => decoder.VideoDecoder;
+    public VideoDecoder         VideoDecoder;
+
+    /// <summary>
+    /// Player's Renderer
+    /// (Normally you should not access this directly)
+    /// </summary>
+    public Renderer             renderer            { get; private set; }
 
     /// <summary>
     /// Subtitles Decoder
     /// (Normally you should not access this directly)
     /// </summary>
-    public SubtitlesDecoder     SubtitlesDecoder    => decoder.SubtitlesDecoder;
+    public SubtitlesDecoder     SubtitlesDecoder;
 
     /// <summary>
     /// Data Decoder
     /// (Normally you should not access this directly)
     /// </summary>
-    public DataDecoder          DataDecoder         => decoder.DataDecoder;
+    public DataDecoder          DataDecoder;
 
     /// <summary>
     /// Main Demuxer (if video disabled or audio only can be AudioDemuxer instead of VideoDemuxer)
     /// (Normally you should not access this directly)
     /// </summary>
-    public Demuxer              MainDemuxer         => decoder.MainDemuxer;
+    public Demuxer              MainDemuxer;
+    internal void UpdateMainDemuxer()
+    {
+        var main = !VideoDemuxer.Disposed ? VideoDemuxer : AudioDemuxer;
+        if (main != MainDemuxer)
+        {
+            if (MainDemuxer != null)
+            {
+                main.HLSDurationChanged = null;
+                main.HLSCurTimeChanged  = null;
+            }
+
+            MainDemuxer = main;
+            main.HLSDurationChanged = UpdateDurationHLS;
+            main.HLSCurTimeChanged  = UpdateCurTimeHLS;
+            
+        }
+    }
 
     /// <summary>
     /// Audio Demuxer
     /// (Normally you should not access this directly)
     /// </summary>
-    public Demuxer              AudioDemuxer        => decoder.AudioDemuxer;
+    public Demuxer              AudioDemuxer;
 
     /// <summary>
     /// Video Demuxer
     /// (Normally you should not access this directly)
     /// </summary>
-    public Demuxer              VideoDemuxer        => decoder.VideoDemuxer;
+    public Demuxer              VideoDemuxer;
 
     /// <summary>
     /// Subtitles Demuxer
     /// (Normally you should not access this directly)
     /// </summary>
-    public Demuxer              SubtitlesDemuxer    => decoder.SubtitlesDemuxer;
+    public Demuxer              SubtitlesDemuxer;
 
     /// <summary>
     /// Data Demuxer
     /// (Normally you should not access this directly)
     /// </summary>
-    public Demuxer DataDemuxer => decoder.DataDemuxer;
+    public Demuxer              DataDemuxer;
 
 
     /// <summary>
@@ -153,7 +172,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         }
     }
 
-    Status _Status = Status.Stopped, status = Status.Stopped;
+    internal Status _Status = Status.Stopped, status = Status.Stopped;
     public bool         IsPlaying           => status == Status.Playing;
 
     /// <summary>
@@ -172,33 +191,39 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// Player's current time or user's current seek time (uses backward direction or accurate seek based on Config.Player.SeekAccurate)
     /// </summary>
     public long         CurTime             { get => curTime;           set { if (Config.Player.SeekAccurate) SeekAccurate((int) (value/10000)); else Seek((int) (value/10000), false); } } // Note: forward seeking casues issues to some formats and can have serious delays (eg. dash with h264, dash with vp9 works fine)
-    long _CurTime, curTime;
-    internal void UpdateCurTime()
+    internal long _CurTime, curTime;
+    internal void SetCurTime() => Set(ref _CurTime, curTime, true, nameof(CurTime));
+    void UpdateCurTime(long ts, bool skipRefreshType = true)
+    {
+        if (!VideoDemuxer.IsHLSLive)
+        {
+            lock (seeks)
+            {
+                if (!seeks.IsEmpty)
+                    return;
+
+                curTime = ts;
+            }
+
+            if (skipRefreshType
+                || Config.Player.UICurTime == UIRefreshType.PerFrame
+                ||(Config.Player.UICurTime == UIRefreshType.PerFrameSecond && _CurTime / 1_000_0000 != ts / 1_000_0000))
+                UI(SetCurTime);
+        }
+    }
+    void UpdateCurTimeHLS(long ts)
     {
         lock (seeks)
         {
-            if (MainDemuxer == null || !seeks.IsEmpty)
+            if (!seeks.IsEmpty)
                 return;
 
-            if (MainDemuxer.IsHLSLive)
-            {
-                curTime  = MainDemuxer.CurTime; // *speed ?
-                duration = MainDemuxer.Duration;
-                Duration = Duration;
-            }
+            curTime = ts;
         }
 
-        Set(ref _CurTime, curTime, true, nameof(CurTime));
-
-        UpdateBufferedDuration();
-    }
-    internal void UpdateBufferedDuration()
-    {
-        if (_BufferedDuration != MainDemuxer.BufferedDuration)
-        {
-            _BufferedDuration = MainDemuxer.BufferedDuration;
-            Raise(nameof(BufferedDuration));
-        }
+        if (   Config.Player.UICurTime == UIRefreshType.PerFrame
+            ||(Config.Player.UICurTime == UIRefreshType.PerFrameSecond && _CurTime / 1_000_0000 != ts / 1_000_0000))
+            UI(SetCurTime);
     }
 
     /// <summary>
@@ -206,6 +231,11 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// </summary>
     public long         Duration            { get => duration;          private set => Set(ref _Duration, value); }
     long _Duration, duration;
+    void UpdateDurationHLS(long duration)
+    {
+        this.duration = duration;
+        UI(() => Duration = this.duration);
+    }
 
     /// <summary>
     /// Forces Player's and Demuxer's Duration to allow Seek
@@ -222,22 +252,21 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         isLive = MainDemuxer.IsLive;
         UI(() =>
         {
-            Duration= Duration;
-            IsLive  = IsLive;
+            Duration= this.duration;
+            IsLive  = isLive;
         });
     }
 
     /// <summary>
     /// The current buffered duration in the demuxer
     /// </summary>
-    public long         BufferedDuration    { get => MainDemuxer == null ? 0 : MainDemuxer.BufferedDuration;
-                                                                        internal set => Set(ref _BufferedDuration, value); }
+    public long         BufferedDuration    { get => MainDemuxer.BufferedDuration; internal set => Set(ref _BufferedDuration, value); }
     long _BufferedDuration;
 
     /// <summary>
     /// Whether the input is live (duration might not be 0 on live sessions to allow live seek, eg. hls)
     /// </summary>
-    public bool         IsLive              { get => isLive;            private set => Set(ref _IsLive, value); }
+    public bool         IsLive              { get => MainDemuxer.IsLive;            private set => Set(ref _IsLive, value); }
     bool _IsLive, isLive;
 
     ///// <summary>
@@ -291,7 +320,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             renderer.ClearOverlayTexture();
             UI(() =>
             {
-                Subtitles.SubsText = Subtitles.SubsText;
+                Subtitles.SubsText = Subtitles.subsText;
                 Raise(nameof(Speed));
             });
         }
@@ -344,26 +373,24 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             _ReversePlayback = value;
             UI(() => Set(ref _ReversePlayback, value, false));
 
-            if (!Video.IsOpened || !CanPlay | IsLive)
+            if (!Video.IsOpened || !canPlay | isLive)
                 return;
 
             lock (lockActions)
             {
-                bool shouldPlay = IsPlaying || (Status == Status.Ended && Config.Player.AutoPlay);
+                bool shouldPlay = status == Status.Playing || (status == Status.Ended && Config.Player.AutoPlay);
                 Pause();
                 dFrame = null;
                 sFrame = null;
                 renderer.ClearOverlayTexture();
-                Subtitles.subsText = "";
-                if (Subtitles._SubsText != "")
-                    UI(() => Subtitles.SubsText = Subtitles.SubsText);
+                Subtitles.ClearSubsText();
                 decoder.StopThreads();
                 decoder.Flush();
 
-                if (Status == Status.Ended)
+                if (status == Status.Ended)
                 {
                     status = Status.Paused;
-                    UI(() => Status = Status);
+                    UI(() => Status = status);
                 }
 
                 if (value)
@@ -396,7 +423,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
 
     public string       LastError           { get => lastError; set => Set(ref _LastError, value); }
     string _LastError, lastError;
-    bool decoderHasEnded => decoder != null && (VideoDecoder.Status == MediaFramework.Status.Ended || (VideoDecoder.Disposed && AudioDecoder.Status == MediaFramework.Status.Ended));
+    bool decoderHasEnded => (VideoDecoder.Status == MediaFramework.Status.Ended || (VideoDecoder.Disposed && AudioDecoder.Status == MediaFramework.Status.Ended));
     #endregion
 
     #region Properties Internal
@@ -417,13 +444,13 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     internal PlayerStats    stats = new();
     internal LogHandler     Log;
 
-    internal bool requiresBuffering;
+    internal volatile bool requiresBuffering;
     bool reversePlaybackResync;
 
-    bool isVideoSwitch;
-    bool isAudioSwitch;
-    bool isSubsSwitch;
-    bool isDataSwitch;
+    volatile bool isVideoSwitch;
+    volatile bool isAudioSwitch;
+    volatile bool isSubsSwitch;
+    volatile bool isDataSwitch;
     #endregion
 
     public Player(Config config = null)
@@ -460,8 +487,20 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         decoder = new(Config, PlayerId) { Tag = this };
         Engine.AddPlayer(this);
 
-        if (decoder.VideoDecoder.Renderer != null)
-            decoder.VideoDecoder.Renderer.forceNotExtractor = true;
+        AudioDecoder    = decoder.AudioDecoder;
+        VideoDecoder    = decoder.VideoDecoder;
+        SubtitlesDecoder= decoder.SubtitlesDecoder;
+        DataDecoder     = decoder.DataDecoder;
+        AudioDemuxer    = decoder.AudioDemuxer;
+        VideoDemuxer    = decoder.VideoDemuxer;
+        SubtitlesDemuxer= decoder.SubtitlesDemuxer;
+        DataDemuxer     = decoder.DataDemuxer;
+        Playlist        = decoder.Playlist;
+        renderer        = VideoDecoder.Renderer;
+
+        UpdateMainDemuxer();
+        if (renderer != null)
+            renderer.forceNotExtractor = true;
 
         //decoder.OpenPlaylistItemCompleted              += Decoder_OnOpenExternalSubtitlesStreamCompleted;
 
@@ -474,7 +513,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         decoder.OpenExternalVideoStreamCompleted       += Decoder_OpenExternalVideoStreamCompleted;
         decoder.OpenExternalSubtitlesStreamCompleted   += Decoder_OpenExternalSubtitlesStreamCompleted;
 
-        AudioDecoder.CBufAlloc      = () => { if (aFrame != null) aFrame.dataPtr = IntPtr.Zero; aFrame = null; Audio.ClearBuffer(); aFrame = null; };
+        //AudioDecoder.CBufAlloc      = () => { if (aFrame != null) aFrame.dataPtr = IntPtr.Zero; aFrame = null; Audio.ClearBuffer(); aFrame = null; };
         AudioDecoder.CodecChanged   = Decoder_AudioCodecChanged;
         VideoDecoder.CodecChanged   = Decoder_VideoCodecChanged;
         decoder.RecordingCompleted += (o, e) => { IsRecording = false; };
@@ -536,14 +575,14 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
 
         UIAdd(() =>
         {
-            BitRate     = BitRate;
-            Duration    = Duration;
-            IsLive      = IsLive;
-            Status      = Status;
-            CanPlay     = CanPlay;
-            LastError   = LastError;
+            BitRate     = bitRate;
+            Duration    = duration;
+            IsLive      = isLive;
+            Status      = status;
+            CanPlay     = canPlay;
+            LastError   = lastError;
             BufferedDuration = 0;
-            Set(ref _CurTime, curTime, true, nameof(CurTime));
+            SetCurTime();
         });
     }
     private void Reset()
@@ -612,7 +651,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     public override int GetHashCode() => PlayerId.GetHashCode();
 
     // Avoid having this code in OnPaintBackground as it can cause designer issues (renderer will try to load FFmpeg.Autogen assembly because of HDR Data)
-    internal bool WFPresent() { if (renderer == null || renderer.SCDisposed) return false; renderer?.Present(); return true; }
+    internal bool WFPresent() { if (renderer == null || renderer.SCDisposed) return false; renderer?.RenderRequest(); return true; }
 }
 
 public enum Status

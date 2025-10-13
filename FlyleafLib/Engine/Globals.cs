@@ -18,6 +18,8 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
+using Vortice.DXGI;
+
 namespace FlyleafLib;
 
 public enum PixelFormatType
@@ -107,30 +109,28 @@ public enum HDRFormat : int
 
 public class GPUOutput
 {
-    internal static int GPUOutputIdGenerator;
-
-    public int      Id              { get; internal set; }
-    public string   DeviceName      { get; internal set; }
-    public int      Left            { get; internal set; }
-    public int      Top             { get; internal set; }
-    public int      Right           { get; internal set; }
-    public int      Bottom          { get; internal set; }
-    public int      Width           => Right- Left;
-    public int      Height          => Bottom- Top;
-    public bool     IsAttached      { get; internal set; }
-    public int      Rotation        { get; internal set; }
-    public float    MaxLuminance    { get; internal set; }
+    public nint             Hwnd            { get; internal set; }
+    public string           DeviceName      { get; internal set; }
+    public int              Left            { get; internal set; }
+    public int              Top             { get; internal set; }
+    public int              Right           { get; internal set; }
+    public int              Bottom          { get; internal set; }
+    public int              Width           => Right- Left;
+    public int              Height          => Bottom- Top;
+    public bool             IsAttached      { get; internal set; }
+    public ModeRotation     Rotation        { get; internal set; }
+    public float            MaxLuminance    { get; internal set; }
+    //public int              RefreshRate     { get; internal set; } // Currently not used
 
     public override string ToString()
     {
         int gcd = GCD(Width, Height);
-        return $"{DeviceName,-20} [Id: {Id,-4}\t, Top: {Top,-4}, Left: {Left,-4}, Width: {Width,-4}, Height: {Height,-4}, Ratio: [" + (gcd > 0 ? $"{Width/gcd}:{Height/gcd}]" : "]");
+        return $"{DeviceName,-20} [Top: {Top,-4}, Left: {Left,-4}, Width: {Width,-4}, Height: {Height,-4}, Ratio: " + (gcd > 0 ? $"{Width / gcd}:{Height / gcd}]" : "]");
     }
 }
 
 public class GPUAdapter
 {
-    public int              MaxHeight       { get; internal set; }
     public nuint            SystemMemory    { get; internal set; }
     public nuint            VideoMemory     { get; internal set; }
     public nuint            SharedMemory    { get; internal set; }
@@ -139,10 +139,12 @@ public class GPUAdapter
     public GPUVendor        Vendor          { get; internal set; }
     public string           Description     { get; internal set; }
     public long             Luid            { get; internal set; }
-    public bool             HasOutput       { get; internal set; }
-    public List<GPUOutput>  Outputs         { get; internal set; }
 
-    public override string ToString()
+    internal IDXGIAdapter   dxgiAdapter;
+
+    public List<GPUOutput>  GetGPUOutputs()    => Engine.Video.GetGPUOutputs(dxgiAdapter);
+
+    public override string  ToString()
         => (Vendor + " " + Description).PadRight(40) + $"[ID: {Id,-6}, LUID: {Luid,-6}, DVM: {GetBytesReadable(VideoMemory),-8}, DSM: {GetBytesReadable(SystemMemory),-8}, SSM: {GetBytesReadable(SharedMemory)}]";
 }
 

@@ -1,16 +1,16 @@
 ﻿using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Windows;
 
 using Vortice;
-using Vortice.DXGI;
 using Vortice.Direct3D11;
+using Vortice.DXGI;
 using Vortice.Mathematics;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
-
-using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
+using FlyleafLib.MediaPlayer;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -36,15 +36,13 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     internal Action<IDXGISwapChain2>
                             SwapChainWinUIClbk;
 
-    public ID3D11Device     Device          { get; private set; }
-    public bool             D3D11VPFailed   => vc == null;
-    public GPUAdapter       GPUAdapter      { get; private set; }
     public bool             Disposed        { get; private set; } = true;
     public bool             SCDisposed      { get; private set; } = true;
+    public bool             D3D11VPFailed   => vc == null;
     public int              MaxOffScreenTextures
                                             { get; set; } = 20;
     public VideoDecoder     VideoDecoder    { get; internal set; }
-    public VideoStream      VideoStream     => VideoDecoder.VideoStream;
+    internal VideoStream    VideoStream;
 
     public Viewport         GetViewport     { get; private set; }
     public event EventHandler ViewportChanged;
@@ -57,9 +55,9 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     CropRect cropRect; // + User's Cropping
     uint textWidth, textHeight; // Padded (Codec/Texture)
 
-    public CornerRadius     CornerRadius    { get => cornerRadius;              set { if (cornerRadius == value) return; cornerRadius = value; UpdateCornerRadius(); } }
+    public CornerRadius     CornerRadius    { get => cornerRadius;              set => UpdateCornerRadius(value); }
     CornerRadius cornerRadius = new(0);
-    CornerRadius zeroCornerRadius = new(0);
+    bool cornerRadiusNeedsUpdate;
 
     public int              SideXPixels     { get; private set; }
     public int              SideYPixels     { get; private set; }
@@ -183,87 +181,75 @@ public partial class Renderer : NotifyPropertyChanged, IDisposable
     public RawRect          VideoRect       { get; set; }
 
     LogHandler Log;
-    bool use2d;
+    Player player;
 
-    public Renderer(VideoDecoder videoDecoder, nint handle = 0, int uniqueId = -1)
-    {
-        UniqueId    = uniqueId == -1 ? GetUniqueId() : uniqueId;
-        VideoDecoder= videoDecoder;
-        Config      = videoDecoder.Config;
-        Log         = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
-        use2d       = Config.Video.Use2DGraphics;
-
-        overlayTextureDesc = new()
-        {
-            Usage       = ResourceUsage.Default,
-            Width       = 0,
-            Height      = 0,
-            Format      = Format.B8G8R8A8_UNorm,
-            ArraySize   = 1,
-            MipLevels   = 1,
-            BindFlags   = BindFlags.ShaderResource,
-            SampleDescription = new(1, 0)
-        };
-
-        singleStageDesc = new()
-        {
-            Usage       = ResourceUsage.Staging,
-            Format      = Format.B8G8R8A8_UNorm,
-            ArraySize   = 1,
-            MipLevels   = 1,
-            BindFlags   = BindFlags.None,
-            CPUAccessFlags      = CpuAccessFlags.Read,
-            SampleDescription   = new(1, 0),
-
-            Width       = 0,
-            Height      = 0
-        };
-
-        singleGpuDesc = new()
-        {
-            Usage       = ResourceUsage.Default,
-            Format      = Format.B8G8R8A8_UNorm,
-            ArraySize   = 1,
-            MipLevels   = 1,
-            BindFlags   = BindFlags.RenderTarget | BindFlags.ShaderResource,
-            SampleDescription   = new(1, 0)
-        };
-
-        wndProcDelegate = new(WndProc);
-        wndProcDelegatePtr = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
-        ControlHandle = handle;
-        Initialize();
-    }
-
-    #region Replica Renderer (Expiremental)
-    public Renderer child; // allow access to child renderer (not safe)
-    Renderer parent;
-    public Renderer(Renderer renderer, nint handle, int uniqueId = -1)
+    private Renderer(nint handle, int uniqueId, Config config)
     {
         UniqueId            = uniqueId == -1 ? GetUniqueId() : uniqueId;
-        Log                 = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer  Repl] ");
-
-        renderer.child      = this;
-        parent              = renderer;
-        Config              = renderer.Config;
         wndProcDelegate     = new(WndProc);
         wndProcDelegatePtr  = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
         ControlHandle       = handle;
-    }
+        Config              = config;
+        BGRA_OR_RGBA        = Config.Video.SwapForceR8G8B8A8 ? Format.R8G8B8A8_UNorm : Format.B8G8R8A8_UNorm;
+        player              = Config.Player.player;
 
-    public void SetChildHandle(nint handle)
-    {
-        lock (lockDevice)
+        overlayTextureDesc = new()
         {
-            if (child != null)
-                DisposeChild();
+            Usage               = ResourceUsage.Default,
+            Width               = 0,
+            Height              = 0,
+            Format              = BGRA_OR_RGBA,
+            ArraySize           = 1,
+            MipLevels           = 1,
+            BindFlags           = BindFlags.ShaderResource,
+            SampleDescription   = new(1, 0)
+        };
+        singleStageDesc = new()
+        {
+            Usage               = ResourceUsage.Staging,
+            Format              = BGRA_OR_RGBA,
+            ArraySize           = 1,
+            MipLevels           = 1,
+            BindFlags           = BindFlags.None,
+            CPUAccessFlags      = CpuAccessFlags.Read,
+            SampleDescription   = new(1, 0),
+            Width               = 0,
+            Height              = 0
+        };
+        singleGpuDesc = new()
+        {
+            Usage               = ResourceUsage.Default,
+            Format              = BGRA_OR_RGBA,
+            ArraySize           = 1,
+            MipLevels           = 1,
+            BindFlags           = BindFlags.RenderTarget | BindFlags.ShaderResource,
+            SampleDescription   = new(1, 0)
+        };
 
-            if (handle == 0)
-                return;
+        var confAdapter = Config.Video.GPUAdapter;
+        if (string.IsNullOrEmpty(confAdapter))
+            return;
 
-            child = new(this, handle, UniqueId);
-            InitializeChildSwapChain();
+        if (confAdapter.Equals("WARP", StringComparison.CurrentCultureIgnoreCase))
+            gpuForceWarp = true;
+        else
+        {
+            foreach (var gpuAdapter in Engine.Video.GPUAdapters.Values)
+                if (Regex.IsMatch(gpuAdapter.Description,      confAdapter, RegexOptions.IgnoreCase) ||
+                    Regex.IsMatch(gpuAdapter.Luid.ToString(),  confAdapter, RegexOptions.IgnoreCase))
+                {
+                    this.gpuAdapter = gpuAdapter;
+                    dxgiAdapter     = gpuAdapter.dxgiAdapter;
+                    break;
+                }
         }
     }
-    #endregion
+    public Renderer(VideoDecoder videoDecoder, nint handle = 0, int uniqueId = -1) : this(handle, uniqueId, videoDecoder.Config)
+    {
+        Log                 = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [Renderer      ] ");
+        VideoDecoder        = videoDecoder;
+        use2d               = Config.Video.Use2DGraphics;
+
+        Initialize();
+    }
 }

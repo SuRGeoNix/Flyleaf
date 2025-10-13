@@ -190,11 +190,6 @@ public class Config : NotifyPropertyChanged
                         KeyBindings                 { get; set; } = new KeysConfig();
 
         /// <summary>
-        /// Fps while the player is not playing
-        /// </summary>
-        public double   IdleFps                     { get; set; } = 60.0;
-
-        /// <summary>
         /// Zero Latency forces playback at the very last frame received (Live Video Only)
         /// </summary>
         public bool     ZeroLatency                 { get => _ZeroLatency; set { Set(ref _ZeroLatency, value); if (config != null) config.Decoder.LowDelay = value; if (player != null && player.IsPlaying) { player.Pause(); player.Play(); } } }
@@ -287,7 +282,8 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Refreshes CurTime in UI on every frame (can cause performance issues)
         /// </summary>
-        public bool     UICurTimePerFrame           { get; set; } = false;
+        public UIRefreshType
+                        UICurTime                   { get; set; } = UIRefreshType.PerFrameSecond;
 
         /// <summary>
         /// The upper limit of the volume amplifier
@@ -536,6 +532,7 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public int              MaxVideoFrames  { get => _MaxVideoFrames; set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
         int _MaxVideoFrames = 4;
+        internal void SetMaxVideoFrames(int maxVideoFrames) { _MaxVideoFrames = maxVideoFrames; RaiseUI(nameof(MaxVideoFrames)); } // can be updated by video decoder if fails to allocate them
 
         /// <summary>
         /// Maximum audio frames to be decoded and processed for playback
@@ -704,14 +701,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Whether Vsync should be enabled (0: Disabled, 1: Enabled)
         /// </summary>
-        public uint             VSync                       { get; set; }
-
-        /// <summary>
-        /// Swap chain's present flags (mainly for waitable -None- or non-waitable -DoNotWait) (default: non-waitable)<br/>
-        /// Non-waitable swap chain will reduce re-buffering and audio/video desyncs
-        /// </summary>
-        public Vortice.DXGI.PresentFlags
-                                PresentFlags                { get; set; } = Vortice.DXGI.PresentFlags.DoNotWait;
+        public uint             VSync                       { get; set; } = 1;
 
         /// <summary>
         /// Sets DeInterlace (D3D11VP only)
@@ -728,15 +718,31 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// The HDR to SDR method that will be used by the pixel shader
         /// </summary>
-        public unsafe HDRtoSDRMethod
-                                HDRtoSDRMethod              { get => _HDRtoSDRMethod;   set { if (Set(ref _HDRtoSDRMethod, value))  player?.renderer?.UpdateHDRtoSDR(); }}
+        public HDRtoSDRMethod   HDRtoSDRMethod              { get => _HDRtoSDRMethod;   set { if (Set(ref _HDRtoSDRMethod, value))  player?.renderer?.UpdateHDRtoSDR(); } }
         HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
 
-        /// <summary>
-        /// SDR Display Peak Luminance (will be used for HDR to SDR conversion)
+       /// <summary>
+        /// SDR Display Peak Luminance - tonemap for HDR to SDR (based on Auto/Custom)
         /// </summary>
-        public unsafe float     SDRDisplayNits              { get => _SDRDisplayNits;   set { if (Set(ref _SDRDisplayNits, value))  player?.renderer?.UpdateHDRtoSDR(); } }
-        float _SDRDisplayNits = Engine.Video.RecommendedLuminance;
+        [JsonIgnore]
+        public float SDRDisplayNits
+        {
+            get => SDRDisplayNitsCustom == 0 ? (SDRDisplayNitsAuto != 0 ? SDRDisplayNitsAuto : 200) : SDRDisplayNitsCustom;
+            set => SDRDisplayNitsCustom = value;
+        }
+
+        /// <summary>
+        /// SDR Display Peak Luminance - tonemap for HDR to SDR (Recommended)
+        /// </summary>
+        [JsonIgnore]
+        public float            SDRDisplayNitsAuto          { get => _SDRDisplayNitsAuto;   set { if (Set(ref _SDRDisplayNitsAuto, value) && _SDRDisplayNitsCustom == 0) { player?.renderer?.UpdateHDRtoSDR(); RaiseUI(nameof(SDRDisplayNits)); } } }
+        float _SDRDisplayNitsAuto;
+
+        /// <summary>
+        /// SDR Display Peak Luminance - tonemap for HDR to SDR (Custom)
+        /// </summary>
+        public float            SDRDisplayNitsCustom        { get => _SDRDisplayNitsCustom; set { if (Set(ref _SDRDisplayNitsCustom, value)) { player?.renderer?.UpdateHDRtoSDR(); RaiseUI(nameof(SDRDisplayNits)); } } }
+        float _SDRDisplayNitsCustom;
 
         /// <summary>
         /// Whether the renderer will use 10-bit swap chaing or 8-bit output
@@ -754,7 +760,7 @@ public class Config : NotifyPropertyChanged
         /// (TBR: causes slightly different colors with D3D11VP)
         /// </para>
         /// </summary>
-        public bool             SwapForceR8G8B8A8           { get; set; }
+        public bool             SwapForceR8G8B8A8           { get; set; } // TBR: Causes issues with NVidia Super Resolution (with some formats)
 
         /// <summary>
         /// Enables custom Direct2D drawing over playback frames
@@ -1005,16 +1011,11 @@ public class EngineConfig
     public string   PluginsPath             { get; set; } = "Plugins";
 
     /// <summary>
-    /// Updates Player.CurTime when the second changes otherwise on every UIRefreshInterval
-    /// </summary>
-    public bool     UICurTimePerSecond      { get; set; } = true;
-
-    /// <summary>
     /// <para>Activates Master Thread to monitor all the players and perform the required updates</para>
     /// <para>Required for Activity Mode, Stats &amp; Buffered Duration on Pause</para>
     /// </summary>
     public bool     UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; if (value && Engine.IsLoaded) Engine.StartThread(); } }
-    static bool _UIRefresh;
+    static bool _UIRefresh = true;
 
     /// <summary>
     /// <para>How often should update the UI in ms (low values can cause performance issues)</para>
@@ -1052,4 +1053,12 @@ public class EngineConfig
 
         File.WriteAllText(path, JsonSerializer.Serialize(this, Config.jsonOpts));
     }
+}
+
+public enum UIRefreshType
+{
+    PerFrame,
+    PerFrameSecond,
+    PerUIRefreshInterval,
+    PerUISecond
 }

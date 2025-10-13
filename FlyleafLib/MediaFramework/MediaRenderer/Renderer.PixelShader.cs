@@ -78,11 +78,17 @@ unsafe public partial class Renderer
 
             // Don't use SCDisposed as we need to allow config planes even before swapchain creation
             // TBR: Possible run ConfigPlanes after swapchain creation instead (currently we don't access any resources of the swapchain here and is safe)
-            if (Disposed || VideoStream == null)
+            if (Disposed)
                 return false;
 
             if (frame != null) // Called from Stream / Codec (requires full reset)
             {
+                VideoDecoder.DisposeFrame(LastFrame); LastFrame = null; // We could still keep it if same config? same processor?
+
+                VideoStream = VideoDecoder.VideoStream;
+                if (VideoStream == null)
+                    return false;
+
                 if (VideoDecoder.VideoAccelerated)
                 {
                     var desc    = VideoDecoder.textureFFmpeg.Description;
@@ -104,17 +110,19 @@ unsafe public partial class Renderer
                 VideoRect       = new(0, 0, (int)textWidth, (int)textHeight);
                 hasLinesizeVFlip= false;
 
-                UpdateRotation(_RotationAngle, false);
-                UpdateHDRtoSDR(false);
-                UpdateCropping(false);
+                UpdateRotationUnSafe(_RotationAngle, false);
+                UpdateHDRtoSDRUnSafe(false);
+                UpdateCroppingUnSafe(false);
             }
+            else if (VideoStream == null)
+                return false;
 
             var oldVP       = videoProcessor;
             VideoProcessor  = GetVP();
 
             if (oldVP != videoProcessor)
             {
-                VideoDecoder.DisposeFrame(LastFrame);
+                VideoDecoder.DisposeFrame(LastFrame); LastFrame = null;
                 VideoDecoder.DisposeFrames();
             }
 
@@ -147,12 +155,6 @@ unsafe public partial class Renderer
                     vd1.CreateVideoProcessorOutputView(backBuffer, vpe, vpovd, out vpov);
                     vc.VideoProcessorSetStreamColorSpace(vp, 0, inputColorSpace);
                     vc.VideoProcessorSetOutputColorSpace(vp, outputColorSpace);
-
-                    if (child != null)
-                    {
-                        child.vpov?.Dispose();
-                        vd1.CreateVideoProcessorOutputView(child.backBuffer, vpe, vpovd, out child.vpov);
-                    }
                 }
                 else if (!Config.Video.SwsForce || VideoDecoder.VideoAccelerated) // FlyleafVP
                 {
@@ -206,7 +208,7 @@ unsafe public partial class Renderer
                         else
                             psBufferData.coefsIndex = 2;
 
-                        if (VideoDecoder.VideoStream.PixelComp0Depth > 8)
+                        if (VideoStream.PixelComp0Depth > 8)
                         {
                             srvDesc[0].Format = Format.R16_UNorm;
                             srvDesc[1].Format = Format.R16G16_UNorm;
@@ -677,15 +679,6 @@ unsafe public partial class Renderer
                     SetViewport();
                 else if (!forceNotExtractor)
                     PrepareForExtract();
-
-                if (child != null)
-                {
-                    //replica.ConfigPlanes();
-                    child.curRatio      = curRatio;
-                    child.VideoRect     = VideoRect;
-                    child.videoProcessor= videoProcessor;
-                    child.SetViewport();
-                }
             }
             Monitor.Exit(lockDevice);
             Monitor.Exit(VideoDecoder.lockCodecCtx);
@@ -693,7 +686,7 @@ unsafe public partial class Renderer
     }
 
     internal VideoFrame FillPlanes(AVFrame* frame)
-    {
+    {   // TBR: lockDevice?
         try
         {
             VideoFrame mFrame = new();
@@ -781,21 +774,21 @@ unsafe public partial class Renderer
         {
             av_frame_unref(frame);
 
-            if (e.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || e.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
+            if (IsDeviceError(e.ResultCode))
             {
-                Log.Error($"Device Lost ({e.ResultCode} | {Device.DeviceRemovedReason} | {e.Message})");
+                Log.Error($"[FillPlanes] Device Lost ({e.ResultCode.NativeApiCode} | {Device.DeviceRemovedReason} | {e.Message})");
                 Thread.Sleep(100);
                 VideoDecoder.handleDeviceReset = true; // We can't stop from RunInternal
             }
             else
-                Log.Error($"Failed to process frame ({e.Message})");
+                Log.Error($"[FillPlanes] Failed ({e.Message})");
 
             return null;
         }
         catch (Exception e)
         {
             av_frame_unref(frame);
-            Log.Error($"Failed to process frame ({e.Message})");
+            Log.Error($"[FillPlanes] Failed ({e.Message})");
 
             return null;
         }
