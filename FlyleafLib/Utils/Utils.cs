@@ -88,7 +88,7 @@ public static partial class Utils
     /// Invokes the UI thread to execute the specified action
     /// </summary>
     /// <param name="action"></param>
-    public static void UIInvoke(Action action) => Application.Current.Dispatcher.Invoke(action);
+    public static void UIInvoke(Action action) => Application.Current.Dispatcher.Invoke(action, System.Windows.Threading.DispatcherPriority.DataBind);
 
     /// <summary>
     /// Invokes the UI thread if required to execute the specified action
@@ -99,7 +99,7 @@ public static partial class Utils
         if (Environment.CurrentManagedThreadId == Application.Current.Dispatcher.Thread.ManagedThreadId)
             action();
         else
-            Application.Current.Dispatcher.Invoke(action);
+            Application.Current.Dispatcher.Invoke(action, System.Windows.Threading.DispatcherPriority.DataBind);
     }
 
     public static Thread STA(Action action)
@@ -637,7 +637,6 @@ public static partial class Utils
         return hexBuilder.ToString();
     }
     public static int GCD(int a, int b) => b == 0 ? a : GCD(b, a % b);
-    public static string TicksToTime(long ticks) => new TimeSpan(ticks).ToString();
     public static void Log(string msg) { try { Debug.WriteLine($"{DateTime.Now:HH.mm.ss.fff} | {msg}"); } catch (Exception) { Debug.WriteLine($"[............] [MediaFramework] {msg}"); } }
 
     [GeneratedRegex("[^a-z0-9]extended", RegexOptions.IgnoreCase)]
@@ -702,7 +701,7 @@ public static partial class Utils
         
         return $"\t[Metadata] {dump}";
     }
-    public static string TicksToTime2(long ticks)
+    public static string TicksToTime(long ticks)
     {
         if (ticks == NoTs)
             return "-";
@@ -738,6 +737,39 @@ public static partial class Utils
             return ts.ToString(@"\-d\-hh\:mm\:ss\.fff");
     }
     public static string DoubleToTimeMini(double d) => d.ToString("#.000", CultureInfo.InvariantCulture);
+    public static string TicksToTimeMini(long ticks)
+    {
+        if (ticks == NoTs)
+            return "-";
+
+        if (ticks == 0)
+            return "00.000";
+
+        return TsToTimeMini(TimeSpan.FromTicks(ticks));
+    }
+    static string TsToTimeMini(TimeSpan ts)
+    {
+        if (ts.Ticks > 0)
+        {
+            if (ts.TotalMinutes < 1)
+                return ts.ToString(@"ss\.fff");
+            else if (ts.TotalHours < 1)
+                return ts.ToString(@"mm\:ss\.fff");
+            else if (ts.TotalDays < 1)
+                return ts.ToString(@"hh\:mm\:ss\.fff");
+            else
+                return ts.ToString(@"d\-hh\:mm\:ss\.fff");
+        }
+        
+        if (ts.TotalMinutes > -1)
+            return ts.ToString(@"\-ss\.fff");
+        else if (ts.TotalHours > -1)
+            return ts.ToString(@"\-mm\:ss\.fff");
+        else if (ts.TotalDays > -1)
+            return ts.ToString(@"\-hh\:mm\:ss\.fff");
+        else
+            return ts.ToString(@"\-d\-hh\:mm\:ss\.fff");
+    }
     public static List<T> GetFlagsAsList<T>(T value) where T : Enum
     {
         List<T> values = [];

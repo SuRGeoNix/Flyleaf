@@ -7,6 +7,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 public unsafe partial class AudioDecoder
 {
+    // TODO: Check locks (lockSpeed) - during seek and speed change (also in xaudio submit samples - we change the data len and we lose sync with submited samples vs played)
+
     AVFilterContext*        abufferCtx;
     AVFilterContext*        abufferSinkCtx;
     AVFilterGraph*          filterGraph;
@@ -286,7 +288,7 @@ public unsafe partial class AudioDecoder
 
         int ret;
 
-        if ((ret = av_buffersrc_add_frame_flags(abufferCtx, frame, AVBuffersrcFlag.KeepRef | AVBuffersrcFlag.NoCheckFormat)) < 0) // AV_BUFFERSRC_FLAG_KEEP_REF = 8, AV_BUFFERSRC_FLAG_NO_CHECK_FORMAT = 1 (we check format change manually before here)
+        if ((ret = av_buffersrc_add_frame_flags(abufferCtx, frame, AVBuffersrcFlag.KeepRef | AVBuffersrcFlag.NoCheckFormat)) < 0) // We check format change manually before here
         {
             Log.Warn($"[buffersrc] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
             Status = Status.Stopping;

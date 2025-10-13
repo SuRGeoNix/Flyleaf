@@ -14,22 +14,22 @@
         <Slider Value="{Binding Player.Zoom,Mode=TwoWay}" Minimum="0" Maximum="500" VerticalAlignment="Center" HorizontalAlignment="Left" Width="200" Margin="20 0 0 0"/>
 
         <!--As parent overlay is transparent to be able to handle mouse events requires fake transparency-->
-        <!--Testing Main's Player Replicate to another FlyleafHost-->
-        <Grid x:Name="marginTarget" Background="#01000000" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="20 60 0 0">
+        <!--Testing Main's Player Replicate to another FlyleafHost (Currently disabled)-->
+        <!--<Grid x:Name="marginTarget" Background="#01000000" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="20 60 0 0">
             <fl:FlyleafHost x:Name="FlyleafHostReplica" ReplicaPlayer="{Binding Player}"
                             KeyBindings="None" ToggleFullScreenOnDoubleClick="None" SwapOnDrop="None" OpenOnDrop="None" PanMoveOnCtrl="None" PanRotateOnShiftWheel="None" PanZoomOnCtrlWheel="None"
                             KeepRatioOnResize="True" PreferredLandscapeWidth="200" PreferredPortraitHeight="200" Width="300" Height="150"
                             AttachedDragMove="Both" AttachedResize="Both" MarginTarget="{Binding ElementName=marginTarget}">
                 <Grid>
                     <Border BorderBrush="White" BorderThickness="1"/>
-                    <!--Interactive zoom rectangle (Fill transparency to handle drag move)-->
+                    --><!--Interactive zoom rectangle (Fill transparency to handle drag move)--><!--
                     <Rectangle x:Name="ZoomRect"
                                MouseDown="ZoomRect_MouseDown" MouseMove="ZoomRect_MouseMove" MouseUp="ZoomRect_MouseUp" LostMouseCapture="ZoomRect_LostMouseCapture"
                                VerticalAlignment="Top" HorizontalAlignment="Left" Margin="20 20 0 0" Width="50" Height="50" Fill="#01000000" Stroke="Gold" StrokeThickness="2"/>
 
                 </Grid>
             </fl:FlyleafHost>
-        </Grid>
+        </Grid>-->
 
     </Grid>
 </Window>

@@ -5,8 +5,13 @@ namespace FlyleafLib.MediaPlayer;
 
 public class Video : NotifyPropertyChanged
 {
-    // TODO: Consider replacing with VideoStream and everyone (player/renderer) will update values there* (Update UI or event by groups -fill demux, fill codec/frame-)
-    // We consider this as read only? (we have also read/write Video properties on Player that point to renderer)
+    /* [TODO]
+     * 
+     * Consider replacing with VideoStream and everyone (player/renderer) will update values there* (Update UI or event by groups -fill demux, fill codec/frame-)
+     *  We consider this as read only? (we have also read/write Video properties on Player that point to renderer)
+     *  
+     * We mix Source with Output values here? (Fps in -> Fps out) - Maybe move stats
+     */
 
     /// <summary>
     /// Embedded Streams
@@ -33,25 +38,34 @@ public class Video : NotifyPropertyChanged
     internal double _BitRate, bitRate;
 
     /// <summary>
-    /// Total Dropped Frames
-    /// </summary>
-    public int          FramesDropped   { get => framesDropped;     internal set => Set(ref _FramesDropped, value); }
-    internal int    _FramesDropped, framesDropped;
-
-    /// <summary>
     /// Total Frames
+    /// Notes: Either estimated from Duration and Fps or actually announced from stream parameters
     /// </summary>
     public long         FramesTotal     { get => framesTotal;       internal set => Set(ref _FramesTotal, value); }
     internal long   _FramesTotal, framesTotal;
 
-    public int          FramesDisplayed { get => framesDisplayed;   internal set => Set(ref _FramesDisplayed, value); }
-    internal int    _FramesDisplayed, framesDisplayed;
+    /// <summary>
+    /// DWM Total Frames Presented (requires Config.Player.Stats and Engine.Config.UIRefresh)
+    /// Notes: For better count accuracy should avoid Alt+Tab and Minimize (resets per input or seek)
+    /// </summary>
+    public uint         FramesDisplayed { get => _FramesDisplayed;   internal set => Set(ref _FramesDisplayed, value); }
+    internal uint   _FramesDisplayed;
 
+    /// <summary>
+    /// DWM Total Frames Dropped (requires Config.Player.Stats and Engine.Config.UIRefresh)
+    /// Notes: For better count accuracy should avoid Alt+Tab and Minimize (resets per input or seek)
+    /// </summary>
+    public uint         FramesDropped   { get => _FramesDropped;     internal set => Set(ref _FramesDropped, value); }
+    internal uint   _FramesDropped;
+
+    /// <summary>
+    /// Source Frames Per Second (Fps)
+    /// </summary>
     public double       FPS             { get => fps;               internal set => Set(ref _FPS, value); }
     internal double _FPS, fps;
 
     /// <summary>
-    /// Actual Frames rendered per second (FPS)
+    /// DWM Current Frames Per Second (Fps)
     /// </summary>
     public double       FPSCurrent      { get => fpsCurrent;        internal set => Set(ref _FPSCurrent, value); }
     internal double _FPSCurrent, fpsCurrent;
@@ -88,17 +102,14 @@ public class Video : NotifyPropertyChanged
         uiAction = () =>
         {
             StreamIndex         = streamIndex;
-            IsOpened            = IsOpened;
-            Codec               = Codec;
-            FramesTotal         = FramesTotal;
-            FPS                 = FPS;
-            PixelFormat         = PixelFormat;
-            VideoAcceleration   = VideoAcceleration;
-            HDRFormat           = HDRFormat;
-            ColorFormat         = ColorFormat;
-
-            FramesDisplayed     = FramesDisplayed;
-            FramesDropped       = FramesDropped;
+            IsOpened            = isOpened;
+            Codec               = codec;
+            FramesTotal         = framesTotal;
+            FPS                 = fps;
+            PixelFormat         = pixelFormat;
+            VideoAcceleration   = videoAcceleration;
+            HDRFormat           = hdrFormat;
+            ColorFormat         = colorFormat;
         };
     }
 
@@ -106,7 +117,6 @@ public class Video : NotifyPropertyChanged
     {
         streamIndex         = -1;
         codec               = null;
-        bitRate             = 0;
         fps                 = 0;
         pixelFormat         = null;
         framesTotal         = 0;
@@ -114,6 +124,9 @@ public class Video : NotifyPropertyChanged
         isOpened            = false;
         hdrFormat           = HDRFormat.None;
         colorFormat         = "";
+
+        bitRate             = 0;
+        player.ResetFrameStats();
 
         player.UIAdd(uiAction);
         SetUISize(0, 0, new(0, 0));//, 0);
@@ -138,8 +151,8 @@ public class Video : NotifyPropertyChanged
         colorFormat = $"{decoder.VideoStream.ColorSpace}\r\n{decoder.VideoStream.ColorTransfer}\r\n{decoder.VideoStream.ColorRange}";
         isOpened    =!decoder.VideoDecoder.Disposed;
 
-        framesDisplayed = 0;
-        framesDropped   = 0;
+        player.ResetFrameStats();
+        bitRate         = 0;
 
         player.UIAdd(uiAction);
     }
@@ -197,9 +210,10 @@ public class Video : NotifyPropertyChanged
 
         player.Pause();
         decoder.CloseVideo();
+        player.UpdateMainDemuxer();
         player.renderer.ClearOverlayTexture();
         player.Subtitles.subsText = "";
-        player.UIAdd(() => player.Subtitles.SubsText = player.Subtitles.SubsText);
+        player.UIAdd(() => player.Subtitles.SubsText = player.Subtitles.subsText);
 
         if (!player.Audio.IsOpened)
         {

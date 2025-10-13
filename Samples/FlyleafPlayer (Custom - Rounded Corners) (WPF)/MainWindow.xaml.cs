@@ -44,7 +44,6 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
                 // Use UIRefresh to update Stats/BufferDuration (and CurTime more frequently than a second)
                 UIRefresh       = true,
                 UIRefreshInterval= 100,
-                UICurTimePerSecond = false // If set to true it updates when the actual timestamps second change rather than a fixed interval
             });
 
             FlyleafHost =  new FlyleafHost(this)
@@ -63,6 +62,7 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
 
             // Inform the lib to refresh stats
             Config.Player.Stats = true;
+            Config.Player.UICurTime = UIRefreshType.PerFrame;
 
             Player = new Player(Config);
             FlyleafHost.Player = Player;

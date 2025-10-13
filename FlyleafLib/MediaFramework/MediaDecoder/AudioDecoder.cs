@@ -27,21 +27,20 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 public unsafe partial class AudioDecoder : DecoderBase
 {
+    static readonly AVSampleFormat   AOutSampleFormat    = AVSampleFormat.S16;
+    static readonly string           AOutSampleFormatStr = av_get_sample_fmt_name(AOutSampleFormat);
+    static readonly AVChannelLayout  AOutChannelLayout   = AV_CHANNEL_LAYOUT_STEREO;
+    static readonly int              AOutChannels        = AOutChannelLayout.nb_channels;
+    static readonly int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
+
     public AudioStream      AudioStream         => (AudioStream) Stream;
     public readonly
             VideoDecoder    VideoDecoder;
     public ConcurrentQueue<AudioFrame>
                             Frames              { get; protected set; } = new();
 
-    static AVSampleFormat   AOutSampleFormat    = AVSampleFormat.S16;
-    static string           AOutSampleFormatStr = av_get_sample_fmt_name(AOutSampleFormat);
-    static AVChannelLayout  AOutChannelLayout   = AV_CHANNEL_LAYOUT_STEREO;// new() { order = AVChannelOrder.Native, nb_channels = 2, u = new AVChannelLayout_u() { mask = AVChannel.for AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT} };
-    static int              AOutChannels        = AOutChannelLayout.nb_channels;
-    static int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
-
-    public readonly object  CircularBufferLocker= new();
     internal Action         CBufAlloc;          // Informs Audio player to clear buffer pointers to avoid access violation
-    static int              cBufTimesSize       = 4;
+    static readonly int     cBufTimesSize       = 4; // Extra for draining / filters (speed)
     int                     cBufTimesCur        = 1;
     byte[]                  cBuf;
     int                     cBufPos;
@@ -63,14 +62,14 @@ public unsafe partial class AudioDecoder : DecoderBase
         DisposeSwr();
         swrCtx = swr_alloc();
 
-        av_opt_set_chlayout(swrCtx,     "in_chlayout",          &codecCtx->ch_layout,   0);
-        av_opt_set_int(swrCtx,          "in_sample_rate",       codecCtx->sample_rate,  0);
-        av_opt_set_sample_fmt(swrCtx,   "in_sample_fmt",        codecCtx->sample_fmt,   0);
+        _= av_opt_set_chlayout(swrCtx,      "in_chlayout",          &codecCtx->ch_layout,   0);
+        _= av_opt_set_int(swrCtx,           "in_sample_rate",       codecCtx->sample_rate,  0);
+        _= av_opt_set_sample_fmt(swrCtx,    "in_sample_fmt",        codecCtx->sample_fmt,   0);
 
         fixed(AVChannelLayout* ptr = &AOutChannelLayout)
-        av_opt_set_chlayout(swrCtx,     "out_chlayout",         ptr, 0);
-        av_opt_set_int(swrCtx,          "out_sample_rate",      codecCtx->sample_rate,  0);
-        av_opt_set_sample_fmt(swrCtx,   "out_sample_fmt",       AOutSampleFormat,       0);
+        _= av_opt_set_chlayout(swrCtx,      "out_chlayout",         ptr, 0);
+        _= av_opt_set_int(swrCtx,           "out_sample_rate",      codecCtx->sample_rate,  0);
+        _= av_opt_set_sample_fmt(swrCtx,    "out_sample_fmt",       AOutSampleFormat,       0);
 
         ret = swr_init(swrCtx);
         if (ret < 0)
@@ -97,9 +96,6 @@ public unsafe partial class AudioDecoder : DecoderBase
         DisposeSwr();
         DisposeFilters();
 
-        lock (CircularBufferLocker)
-        cBuf            = null;
-        cBufSamples     = 0;
         filledFromCodec = false;
         nextPts         = AV_NOPTS_VALUE;
     }
@@ -308,7 +304,11 @@ public unsafe partial class AudioDecoder : DecoderBase
                             }
                         }
 
-                        DisposeInternal();
+                        // Dispose (mini)
+                        //DisposeFrames();
+                        DisposeSwr();
+                        DisposeFilters();
+
                         filledFromCodec         = true;
                         AudioStream.Refresh(this, frame);
                         codecChanged            = false;
@@ -394,7 +394,7 @@ public unsafe partial class AudioDecoder : DecoderBase
             if (frame->nb_samples > cBufSamples)
                 AllocateCircularBuffer(frame->nb_samples);
             else if (cBufPos + Math.Max(dataLen, speedDataLen) >= cBuf.Length)
-                cBufPos     = 0;
+                cBufPos = 0;
 
             fixed (byte *circularBufferPosPtr = &cBuf[cBufPos])
             {
@@ -440,6 +440,7 @@ public unsafe partial class AudioDecoder : DecoderBase
         }
     }
 
+    Queue<byte[]> cBufHistory = [];
     private void AllocateCircularBuffer(int samples)
     {
         /* TBR
@@ -449,18 +450,22 @@ public unsafe partial class AudioDecoder : DecoderBase
         * 4. cBufTimesSize cause filters can pass the limit when we need to use lockSpeed
         */
 
-        samples = Math.Max(10000, samples); // 10K samples to ensure that currently we will not re-allocate?
+        samples     = Math.Max(10000, samples); // 10K samples to ensure that currently we will not re-allocate?
         int size    = Config.Decoder.MaxAudioFrames * samples * ASampleBytes * cBufTimesSize;
-        Log.Debug($"Re-allocating circular buffer ({samples} > {cBufSamples}) with {size}bytes");
-
-        lock (CircularBufferLocker)
+        
+        if (cBuf != null)
         {
-            DisposeFrames(); // TODO: copy data
-            CBufAlloc?.Invoke();
-            cBuf        = new byte[size];
-            cBufPos     = 0;
-            cBufSamples = samples;
+            if (CanDebug) Log.Debug($"Re-allocating circular buffer ({samples} > {cBufSamples}) with {size}bytes");
+
+            cBufHistory.Enqueue(cBuf);
+            if (cBufHistory.Count > 3)
+                cBufHistory.Dequeue();
         }
+        
+        CBufAlloc?.Invoke();
+        cBuf        = new byte[size];
+        cBufPos     = 0;
+        cBufSamples = samples;
 
     }
 

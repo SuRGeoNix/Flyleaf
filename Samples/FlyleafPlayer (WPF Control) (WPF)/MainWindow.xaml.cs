@@ -76,7 +76,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                                 = AvailableWindows.Both,
             KeepRatioOnResize   = true,
             OpenOnDrop          = AvailableWindows.Both,
-
+            
             PreferredLandscapeWidth = 800,
             PreferredPortraitHeight = 600,
 
@@ -217,24 +217,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         #else
             playerConfig = DefaultConfig();
         #endif
-
+        
         userClearScreen = playerConfig.Video.ClearScreen; // slide show disable this
 
         #if DEBUG
         // Testing audio filters
         //playerConfig.Audio.Filters = new()
         //{
-            ////new() { Name = "loudnorm", Args = "I=-24:LRA=7:TP=-2", Id = "loudnorm1" },
-            ////new() { Name = "dynaudnorm", Args = "f=4150", Id = "dynaudnorm1" },
-            ////new() { Name ="afftfilt", Args = "real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75" }, // robot
-            ////new() { Name ="tremolo", Args="f=5:d=0.5" },
-            ////new() { Name ="vibrato", Args="f=10:d=0.5" },
-            ////new() { Name ="rubberband", Args="pitch=1.5" }
+        //    //new() { Name = "loudnorm", Args = "I=-24:LRA=7:TP=-2", Id = "loudnorm1" },
+        //    //new() { Name = "dynaudnorm", Args = "f=4150", Id = "dynaudnorm1" },
+        //    //new() { Name ="afftfilt", Args = "real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75" }, // robot
+        //    //new() { Name ="tremolo", Args="f=5:d=0.5" },
+        //    //new() { Name ="vibrato", Args="f=10:d=0.5" },
+        //    //new() { Name ="rubberband", Args="pitch=1.5" }
         //};
 
         // Testing misc
         //playerConfig.Demuxer.AllowFindStreamInfo = false;
         //playerConfig.Player.ZeroLatency = true;
+        //playerConfig.Video.ClearScreen = false;
+        //playerConfig.Player.UICurTime = UIRefreshType.PerFrame;
         #endif
         
         // Initializes the Player
@@ -422,7 +424,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else
         {
             if (!e.Success)
-                Player.renderer?.ClearScreenForce();
+                Player.renderer?.ClearScreen(true);
 
             lock (slideShowLock)
                 if (SlideShow)

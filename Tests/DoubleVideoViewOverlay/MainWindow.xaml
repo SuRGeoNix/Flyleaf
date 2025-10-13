@@ -19,11 +19,11 @@
                     </StackPanel>
                 </StackPanel>
 
-                <fl:FlyleafHost x:Name="SeekView" Player="{Binding PlayerSeek}" BorderThickness="3" BorderBrush="Green" Width="100" Height="100" VerticalAlignment="Bottom" Focusable="True" Margin="0 0 0 15"
+                <fl:FlyleafHost x:Name="SeekView" Player="{Binding PlayerSeek}" BorderThickness="3" BorderBrush="Green" Width="100" Height="100" VerticalAlignment="Bottom" Focusable="True" Margin="0 0 0 45"
                               KeyBindings="None" AttachedDragMove="None" ToggleFullScreenOnDoubleClick="Both" PanMoveOnCtrl="None" PanZoomOnCtrlWheel="None" PanRotateOnShiftWheel="None"
                               />
 
-                <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center">
+                <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0 0 0 30">
                     <Slider Name="SliderSeek" Width="600" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Player.SeekOffset}" LargeChange="{Binding Player.Config.Player.SeekOffset2}" ValueChanged="Slider_ValueChanged" PreviewMouseDown="Slider_MouseDown" PreviewMouseUp="Slider_MouseUp"/>
                 </StackPanel>
             </Grid>

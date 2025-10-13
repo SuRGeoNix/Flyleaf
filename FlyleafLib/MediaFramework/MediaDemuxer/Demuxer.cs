@@ -112,6 +112,27 @@ public unsafe class Demuxer : RunThreadBase
         public string   Title       { get; set; }
     }
 
+    // CurPackets Callbacks
+    internal void SetHLSDuration(long duration)
+    {
+        if (Duration != duration)
+        {
+            Duration = duration;
+            HLSDurationChanged?.Invoke(duration);
+        }
+    }
+    internal void SetHLSCurTime(long curTime)
+    {
+        if (curTime != _hlsCurTime)
+        {
+            _hlsCurTime = curTime;
+            HLSCurTimeChanged?.Invoke(curTime);
+        }
+    }
+    long _hlsCurTime; // only to check changes
+    public Action<long> HLSDurationChanged;
+    public Action<long> HLSCurTimeChanged; // Includes BufferedDurationChanged if possible?*
+
     public event EventHandler AudioLimit;
     bool audioBufferLimitFired;
     void OnAudioLimit()
@@ -660,12 +681,6 @@ public unsafe class Demuxer : RunThreadBase
         if (fmtCtx->start_time_realtime != NoTs)
             StartRealTime = EPOCH.AddMicroseconds(fmtCtx->start_time_realtime);
 
-        if (Engine.Config.FFmpegHLSLiveSeek && Duration == 0 && Name == "hls" && Environment.Is64BitProcess) // HLSContext cast is not safe
-        {
-            hlsCtx = (HLSContext*)fmtCtx->priv_data;
-            StartTime = 0;
-        }
-
         Metadata.Clear();
         AVDictionaryEntry* b = null;
         while (true)
@@ -759,22 +774,20 @@ public unsafe class Demuxer : RunThreadBase
             }
         }
 
-        Duration = fmtCtx->duration > 0 ? fmtCtx->duration * 10 : 0;
+        var duration = fmtCtx->duration > 0 ? fmtCtx->duration * 10 : 0;
 
         // Try to fill duration when missing (not analyzed mainly) | Considers CFR
-        if (Duration == 0 && !analyzed && hlsCtx == null)
+        if (duration == 0 && !analyzed && hlsCtx == null)
         {
             foreach(var videoStream in VideoStreams)
                 if (videoStream.TotalFrames > 0 && videoStream.FrameDuration > 0)
                 {
-                    Duration = videoStream.TotalFrames * videoStream.FrameDuration;
-                    for (int i = 0; i < fmtCtx->nb_streams; i++)
-                        AVStreamToStream[i].UpdateDuration();
+                    duration = videoStream.TotalFrames * videoStream.FrameDuration;
                     break;
                 }
 
             long fileSize = 0;
-            if (Duration == 0 && fmtCtx->pb != null && (fileSize = avio_size(fmtCtx->pb)) > 0)
+            if (duration == 0 && fmtCtx->pb != null && (fileSize = avio_size(fmtCtx->pb)) > 0)
             {
                 double bitrate = fmtCtx->bit_rate;
                 if (bitrate <= 0 && fmtCtx->nb_streams == 1)
@@ -787,20 +800,22 @@ public unsafe class Demuxer : RunThreadBase
                 }
 
                 if (bitrate > 0)
-                {
-                    Duration = (long)(((fileSize * 8.0) / bitrate) * 10_000_000);
-                    for (int i = 0; i < fmtCtx->nb_streams; i++)
-                        AVStreamToStream[i].UpdateDuration();
-                }
+                    duration = (long)(((fileSize * 8.0) / bitrate) * 10_000_000);
             }
         }
-        else
+
+        Duration = duration;
+
+        if (Engine.Config.FFmpegHLSLiveSeek && Duration == 0 && Name == "hls" && Environment.Is64BitProcess) // HLSContext cast is not safe
         {
-            for (int i = 0; i < fmtCtx->nb_streams; i++)
-                AVStreamToStream[i].UpdateDuration();
+            hlsCtx = (HLSContext*)fmtCtx->priv_data;
+            StartTime = 0;
         }
 
-        IsLive = Duration == 0 || hlsCtx != null; // TODO: No true for single video stream / image (fix also total frames to 1 if not animated?*)
+        IsLive = Duration == 0; // TODO: No true for single video stream / image (fix also total frames to 1 if not animated?*) | consider updating it on proper ended? (can we trust ended?)
+
+        for (int i = 0; i < fmtCtx->nb_streams; i++)
+            AVStreamToStream[i].UpdateDuration();
 
         string dumpChapters = "";
 
@@ -848,7 +863,7 @@ public unsafe class Demuxer : RunThreadBase
             }
 
             if (CanDebug)
-                dump += $"\t#{i+1:D2}: {TicksToTime2((long)(chp->start * tb) - StartTime)} - {TicksToTime2((long)(chp->end * tb) - StartTime)} | {title}\r\n";
+                dump += $"\t#{i+1:D2}: {TicksToTime((long)(chp->start * tb) - StartTime)} - {TicksToTime((long)(chp->end * tb) - StartTime)} | {title}\r\n";
 
             Chapters.Add(new Chapter()
             {
@@ -900,9 +915,9 @@ public unsafe class Demuxer : RunThreadBase
 
             /* Seek within current bufffered queue
              *
-             * 10 seconds because of video keyframe distances or 1 seconds for other (can be fixed also with CurTime+X seek instead of timestamps)
+             * 10 seconds because of video keyframe distances (can be fixed also with CurTime+X seek instead of timestamps)
              * For subtitles it should keep (prev packet) the last presented as it can have a lot of distance with CurTime (cur packet)
-             * It doesn't work for HLS live streams
+             * It doesn't work for HLS live streams?
              * It doesn't work for decoders buffered queue (which is small only subs might be an issue if we have large decoder queue)
              */
 
@@ -914,7 +929,7 @@ public unsafe class Demuxer : RunThreadBase
                 startTime = hlsStartTime;
             }
 
-            if (ticks + (VideoStream != null && forward ? (10000 * 10000) : 1000 * 10000) > CurTime + startTime && ticks < CurTime + startTime + BufferedDuration)
+            if (ticks + (VideoStream != null && forward ? (10000 * 10000) : 0) > CurTime + startTime && ticks < CurTime + startTime + BufferedDuration)
             {
                 bool found = false;
                 while (VideoPackets.Count > 0)
@@ -922,6 +937,9 @@ public unsafe class Demuxer : RunThreadBase
                     var packet = VideoPackets.Peek();
                     if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * VideoStream.Timebase && (packet->flags & PktFlags.Key) != 0)
                     {
+                        if (!forward && ticks < (long) (packet->pts * VideoStream.Timebase)) // asked backward but the keyframe is forward
+                            break;
+
                         found = true;
                         ticks = (long) (packet->pts * VideoStream.Timebase);
 
@@ -1559,7 +1577,11 @@ public unsafe class Demuxer : RunThreadBase
         {
             if (Disposed || stream == null || !EnabledStreams.Contains(stream.StreamIndex)) return;
 
-            /* AVDISCARD_ALL causes syncing issues between streams (TBR: bandwidth?)
+            /* TBR
+             * We freeze UI here on Live Streams while demuxer is holding the lock and waits for new packets
+             *  (check maybe if it has packets before?* - can we trust it? - otherwise interrupter release lock and get it back again?)
+             * 
+             * AVDISCARD_ALL causes syncing issues between streams (TBR: bandwidth?)
              * 1) While switching video streams will not switch at the same timestamp
              * 2) By disabling video stream after a seek, audio will not seek properly
              * 3) HLS needs to update hlsCtx->first_time and read at least on package before seek to be accurate
@@ -1662,20 +1684,15 @@ public unsafe class Demuxer : RunThreadBase
             hlsStartTime = AV_NOPTS_VALUE;
 
             hlsCurDuration = 0;
-            long duration = 0;
-
-            for (long i=0; i<HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no; i++)
-            {
+            for (long i = 0; i < HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no; i++)
                 hlsCurDuration += HLSPlaylist->segments[i]->duration;
-                duration += HLSPlaylist->segments[i]->duration;
-            }
 
-            for (long i=HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no; i<HLSPlaylist->n_segments; i++)
+            long duration = hlsCurDuration;
+            for (long i = HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no; i < HLSPlaylist->n_segments; i++)
                 duration += HLSPlaylist->segments[i]->duration;
 
             hlsCurDuration *= 10;
-            duration *= 10;
-            Duration = duration;
+            Duration        = duration * 10;
         }
 
         if (hlsStartTime == AV_NOPTS_VALUE && CurPackets.LastTimestamp != AV_NOPTS_VALUE)
@@ -1897,19 +1914,19 @@ public unsafe class PacketQueue
             {
                 if (FirstTimestamp < demuxer.hlsStartTime)
                 {
-                    demuxer.Duration += demuxer.hlsStartTime - FirstTimestamp;
+                    demuxer.SetHLSDuration(demuxer.Duration + (demuxer.hlsStartTime - FirstTimestamp));
                     demuxer.hlsStartTime = FirstTimestamp;
                     CurTime = 0;
                 }
                 else
-                    CurTime = FirstTimestamp - demuxer.hlsStartTime;
+                    CurTime = Math.Max(FirstTimestamp - demuxer.hlsStartTime, 0);
+
+                if (this == demuxer.CurPackets)
+                    demuxer.SetHLSCurTime(CurTime);
             }
         }
         else
-            CurTime = FirstTimestamp - demuxer.StartTime;
-
-        if (CurTime < 0)
-            CurTime = 0;
+            CurTime = Math.Max(FirstTimestamp - demuxer.StartTime, 0);
 
         BufferedDuration = LastTimestamp - FirstTimestamp;
 

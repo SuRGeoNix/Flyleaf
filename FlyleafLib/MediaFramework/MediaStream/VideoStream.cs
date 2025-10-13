@@ -73,9 +73,17 @@ public unsafe class VideoStream : StreamBase
             FPS = Demuxer.Config.ForceFPS;
         else
         {
-            FPS = av_q2d(av_guess_frame_rate(Demuxer.FormatContext, AVStream, null));
-            if (double.IsNaN(FPS) || double.IsInfinity(FPS) || FPS < 0.0)
-                FPS = 0.0;
+            var fps1 = av_q2d(cp->framerate);
+            if (double.IsNaN(fps1) || double.IsInfinity(fps1) || fps1 <= 0.0 || fps1 > 144)
+            {
+                var fps2 = av_q2d(av_guess_frame_rate(Demuxer.FormatContext, AVStream, null));
+                if (double.IsNaN(fps2) || double.IsInfinity(fps2) || fps2 <= 0.0 || fps2 > 144)
+                    FPS = 0.0;
+                else
+                    FPS = fps2;
+            }
+            else
+                FPS = fps1;
         }
 
         if (FPS > 0)
@@ -280,23 +288,13 @@ public unsafe class VideoStream : StreamBase
         if (FPS == 0)
         {
             var newFps      = av_q2d(codecCtx->framerate);
-            FPS             = double.IsNaN(newFps) || double.IsInfinity(newFps) || newFps <= 0.0 ? 25 : newFps; // Force default to 25 fps
+            FPS             = double.IsNaN(newFps) || double.IsInfinity(newFps) || newFps <= 0.0 || newFps > 144 ? 25 : newFps; // Force default to 25 fps
             FrameDuration   = (long)(10_000_000 / FPS);
         }
 
-        // FPS2 / FrameDuration2 (DeInterlace)
-        if (FieldOrder != VideoFrameFormat.Progressive)
-        {
-            FPS2 = FPS;
-            FrameDuration2 = FrameDuration;
-            FPS /= 2;
-            FrameDuration *= 2;
-        }
-        else
-        {
-            FPS2 = FPS * 2;
-            FrameDuration2 = FrameDuration / 2;
-        }
+        // FPS2 / FrameDuration2 (DeInterlace) | we consider FPS (CFR) is progressive
+        FPS2            = FPS * 2;
+        FrameDuration2  = FrameDuration / 2;
 
         if (AVStream->nb_frames < 1)
             TotalFrames = Duration / FrameDuration;
