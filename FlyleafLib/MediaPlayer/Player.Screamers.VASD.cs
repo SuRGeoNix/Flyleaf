@@ -196,6 +196,9 @@ unsafe partial class Player
          * SecondField goes to Renderer
          * isVideoSwitch should be removed as we use requiresBuffering all time for that?*
          * Warm up to avoid initial drop frames and get accurate FrameStatistics / refresh rate sync with monitor (cpu-gpu sync, possible with Dwm?)
+         * We actually need +1 extra frame not for renderer but for the time that we TryDequeue 1 frame and at the same time we keep the LastFrame for the renderer
+         *  If we swap it directly we will not need this anymore (however this could cause losing the LastFrame if the new one is corrupted/failed etc.)
+         *  We could also get rid of vFrame (use only LastFrame) and no bother disposing it just keep the timestamp from renderframe until present
          */
 
         bool secondField = false; // To be transfered in renderer

@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.9</Version>
+	<Version>3.9.1</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,31 +17,12 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer.Device: Improves creation implementation
-		- Renderer.Swapchain: Switches to DirectComposition (DComp)
-		- Renderer.Swapchain: Gets dynamically the GPU output from the adapter during creation
-		- Renderer.Swapchain: Fixes support for RGBA (instead of BGRA) and might perform even better (currently not default as causes critical issues with Super Resolution - see Config.Video.SwapForceR8G8B8A8)
-		- Renderer.Present: Re-implementation with new rendering loops for playback and idle modes with VSync-Wait mode (deprecates DoNotWait)
-		- Renderer.Present: Separates rendering and presenting for playback to achieve less dropped frames
-		- Renderer.D3D11VP: Fixes an issue with Super Resolution during Rotation
-		- Player.Screamer: New AVSD implementation which separates A/V threads with less dropped frames, less audio crackling and better A/V sync
-		- Player.Stats: Real-time accurate frame statistics from DWM
-		- AudioDecoder: Workaround with Circular Buffer that could cause unexpected results during re-allocation
-		- VideoDecoder: Fixes issues with extra frames (+1 required for renderer and handle max allowed by the system)
-		- VideoStream: Better handling of Fps (could cause issues with interlace and formats that announce huge wrong numbers)
-		- Demuxer: Fixes an issue with IsHLSLive falsely set to true
-		- Demuxer: Fixes an issue with backwards seeking that it would return forward packets from cache
-
-		[Breaking Changes]
-		- Config.Video: Defaults VSync to 1 to avoid tearing
-		- Config.Video: Deprecates PresentFlags (no support for DoNotWait - no reason)
-		- Config.Player: Deprecates IdleFps
-		- Config.Player: Renames UICurTimePerFrame to UICurTime
-		- Engine.Config: Deprecates UICurTimePerSecond (use Config.Player.UICurTime instead)
-		- Engine.Config: Defaults UIRefresh to true (for proper UI updates/refreshes)
-		- Engine.Video: Deprecates Screens and RecommendedLuminance (use GPUAdapter.GetGPUOutputs instead)
-		- Engine.Video: Separates GPUOutput from GPUAdapter
-		- Renderer/FlyleafHost.Wpf: Deprecates replica/child (might re-include it in the future)
+		- Player.ScreamerVASD: Fixes/Improves MaxLatency with the new implementation
+		- Player.ScreamerVASD: Simplifies/Improves GetBufferedDuration calculation
+		- Player.Screamers: Few Fixes/Improvements with the new implementation
+		- Renderer: Fixes a critical crash issue during initialization when handle/control has not been assigned yet
+		- Renderer.Present: Fixes possible issues with locks to ensure stability
+		- AudioFrame: Attaches speed on audio frame which handles better speed changes
 	</PackageReleaseNotes>
   </PropertyGroup>
 
