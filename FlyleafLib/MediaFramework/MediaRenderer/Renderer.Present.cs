@@ -75,7 +75,7 @@ public unsafe partial class Renderer
                 ResizeBuffersInternal();
                 SetViewportInternal();
 
-                if (!canRenderPresent) // When control has not been created yet
+                if (!canRenderPresent)
                     return;
 
                 if (LastFrame != null)
