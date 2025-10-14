@@ -13,19 +13,17 @@ public unsafe partial class Renderer
     long            lastPresentRequestAt;
     volatile bool   isPlayerPresenting;
     volatile bool   isIdlePresenting;
-    object          lockLastFrame = new();
-    
+    object          lockRenderLoops = new();
+
     internal void RenderRequest(VideoFrame frame = null, bool forceClear = false)
     {
         // NOTE: We expect frame only from player's ShowFrameX when is already Paused
         // TODO: We use source Fps to present our updated frames which can be low (e.g. 1-10fps) | Consider passing ts to player and will act also as idle renderer? (with higher fps)
-        if (isPlayerPresenting && frame == null)
-            return;
-
-        lock (lockLastFrame)
+        lock (lockRenderLoops)
         {
             lastPresentRequestAt = DateTime.UtcNow.Ticks;
 
+            // Swap with LastFrame must be done during request (respect of extra frames)
             if ((frame != null || forceClear) && frame != LastFrame)
             {
                 VideoDecoder.DisposeFrame(LastFrame);
@@ -45,7 +43,7 @@ public unsafe partial class Renderer
         int rechecks = 1000; // Awake for ~5sec when Idle
         while (canRenderPresent)
         {
-            while (lastPresentRequestAt < lastPresentAt && rechecks-- > 0)
+            while (lastPresentRequestAt <= lastPresentAt && rechecks-- > 0)
             {
                 if (isPlayerPresenting || !canRenderPresent)
                     { rechecks = 0; break; }
@@ -56,12 +54,12 @@ public unsafe partial class Renderer
             if (rechecks < 1)
                 break;
 
+            lastPresentAt = lastPresentRequestAt;
+            rechecks = 1000;
             RenderIdle();
-
-            rechecks = 500;
         }
 
-        lock (lockLastFrame) // To avoid race condition*?
+        lock (lockRenderLoops) // To avoid race condition*?
         {
             isIdlePresenting = false;
             if (lastPresentRequestAt > lastPresentAt && !isPlayerPresenting && canRenderPresent)
@@ -72,25 +70,25 @@ public unsafe partial class Renderer
     {
         try
         {
-            ResizeBuffersInternal();
-            SetViewportInternal();
+            lock (lockRenderLoops)
+            { 
+                ResizeBuffersInternal();
+                SetViewportInternal();
 
-            lastPresentAt = DateTime.UtcNow.Ticks;
+                if (!canRenderPresent) // When control has not been created yet
+                    return;
 
-            if (canRenderPresent)
-            {
-                lock (lockLastFrame)
-                    if (LastFrame != null)
-                        RenderFrame(LastFrame, false);
-                    else
-                    {
-                        ClearOverlayTexture();
-                        context.OMSetRenderTargets(backBufferRtv);
-                        context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                    }
+                if (LastFrame != null)
+                    RenderFrame(LastFrame, false);
+                else
+                {
+                    ClearOverlayTexture();
+                    context.OMSetRenderTargets(backBufferRtv);
+                    context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                }
+            }
 
-                swapChain.Present(1, 0);
-            }            
+            swapChain.Present(1, 0);
         }
         catch (SharpGenException e)
         {
@@ -109,19 +107,20 @@ public unsafe partial class Renderer
     }
 
     internal void RenderPlayStart()  { isPlayerPresenting = true; while(isIdlePresenting) Thread.Sleep(1); } // Stop RenderIdle
-    internal void RenderPlayStop()  => isPlayerPresenting = false; // Check if last timestamp?* to start idle (we don't update it currently)
+    internal void RenderPlayStop()   { isPlayerPresenting = false; RenderRequest(); } // Check if last timestamp?* to start idle (we don't update it currently)
     internal bool RenderPlay(VideoFrame frame, bool secondField)
     {
         try
         {
-            ResizeBuffersInternal();
-            SetViewportInternal();
-
-            lock (LastFrame)
+            lock (lockRenderLoops)
             {
+                ResizeBuffersInternal();
+                SetViewportInternal();
+
                 if (canRenderPresent)
                     RenderFrame(frame, secondField);
-                else if (frame != LastFrame)
+
+                if (frame != LastFrame)
                 {
                     VideoDecoder.DisposeFrame(LastFrame);
                     LastFrame = frame;
@@ -137,7 +136,7 @@ public unsafe partial class Renderer
             Log.Error($"[RenderPlay] Device Lost ({e.ResultCode.NativeApiCode} ({e.ResultCode}) | {Device.DeviceRemovedReason} | {e.Message})");
 
             if (IsDeviceError(e.ResultCode))
-            {   
+            {
                 lock (lockDevice)
                     HandleDeviceLost();
             }
@@ -245,12 +244,6 @@ public unsafe partial class Renderer
             context.PSSetShader(ShaderPS);
             context.OMSetBlendState(VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Alpha) ? blendStateAlpha : null);
             context.RSSetViewport(GetViewport);
-        }
-
-        if (frame != LastFrame)
-        {
-            VideoDecoder.DisposeFrame(LastFrame);
-            LastFrame = frame;
         }
     }
 
