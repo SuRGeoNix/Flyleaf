@@ -275,7 +275,7 @@ unsafe public partial class Renderer
                 return;
 
             needsViewport   = true;
-            canRenderPresent= true; // TBR: should be re-calculated
+            canRenderPresent= true;
 
             if (refresh)
                 RenderRequest();
@@ -440,10 +440,7 @@ unsafe public partial class Renderer
         lock (lockRenderLoops)
         {
             if (SCDisposed || width <= 0 || height <= 0)
-            {
                 canRenderPresent = false;
-                return;
-            }
             else if (ControlWidth == width && ControlHeight == height)
             {
                 // Re-calculate of canRenderPresent
@@ -460,16 +457,16 @@ unsafe public partial class Renderer
                 }
                 else
                     canRenderPresent = true;
-
-                //RenderRequest(); // We don't refresh as we consider same view
-                return;
             }
-            
-            ControlWidth    = width;
-            ControlHeight   = height;
-            needsResize     = true;
+            else
+            {
+                ControlWidth    = width;
+                ControlHeight   = height;
+                canRenderPresent= true;
+                needsResize     = true;
 
-            RenderRequest();
+                RenderRequest();
+            }
         }
     }
     void ResizeBuffersInternal()
