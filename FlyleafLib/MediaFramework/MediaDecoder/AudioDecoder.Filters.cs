@@ -176,26 +176,27 @@ public unsafe partial class AudioDecoder
                 DrainFilters();
 
             cBufTimesCur= 1;
-            oldSpeed    = speed;
             speed       = value;
 
             var frames = Frames.ToArray();
             for (int i = 0; i < frames.Length; i++)
-                FixSample(frames[i], oldSpeed, speed);
+                FixSample(frames[i], speed);
 
             if (filterGraph != null)
                 SetupFilters();
         }
     }
-    internal void FixSample(AudioFrame frame, double oldSpeed, double speed)
+    internal void FixSample(AudioFrame frame, double newSpeed)
     {
-        var oldDataLen = frame.dataLen;
-        frame.dataLen = Align((int) (oldDataLen * oldSpeed / speed), ASampleBytes);
+        var oldSpeed    = frame.speed;
+        var oldDataLen  = frame.dataLen;
+        frame.dataLen   = Align((int) (oldDataLen * oldSpeed / newSpeed), ASampleBytes);
+        frame.speed     = newSpeed;
         fixed (byte* cBufStartPosPtr = &cBuf[0])
         {
             var curOffset = (long)frame.dataPtr - (long)cBufStartPosPtr;
 
-            if (speed < oldSpeed)
+            if (newSpeed < oldSpeed)
             {
                 if (curOffset + frame.dataLen >= cBuf.Length)
                 {
@@ -376,8 +377,9 @@ public unsafe partial class AudioDecoder
 
         AudioFrame mFrame = new()
         {
-            dataLen         = curLen,
-            timestamp       = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay)
+            dataLen     = curLen,
+            timestamp   = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay),
+            speed       = speed
         };
 
         if (CanTrace) Log.Trace($"Processes {TicksToTime(mFrame.timestamp)}");
