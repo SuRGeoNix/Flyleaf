@@ -270,6 +270,9 @@ unsafe public partial class Renderer
     {
         lock (lockRenderLoops)
         {
+            if (SCDisposed)
+                return;
+
             needsViewport   = true;
             canRenderPresent= true; // TBR: should be re-calculated
 
