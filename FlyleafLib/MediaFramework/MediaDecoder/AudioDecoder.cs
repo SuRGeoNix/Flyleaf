@@ -387,7 +387,8 @@ public unsafe partial class AudioDecoder : DecoderBase
             AudioFrame mFrame = new()
             {
                 timestamp   = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay,
-                dataLen     = speedDataLen
+                dataLen     = speedDataLen,
+                speed       = speed
             };
             if (CanTrace) Log.Trace($"Processes {TicksToTime(mFrame.timestamp)}");
 
