@@ -37,20 +37,20 @@ unsafe public partial class Renderer
     nint                    displayHwnd;
     GPUOutput               gpuOutput;
 
-    private SwapChainDescription1 GetSwapChainDesc(int width, int height, bool isComp = false, bool alpha = false)
-    => new()
-    {
-        BufferUsage         = Usage.RenderTargetOutput,
-        Format              = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : BGRA_OR_RGBA,
-        Width               = (uint)width,
-        Height              = (uint)height,
-        AlphaMode           = isComp ? AlphaMode.Premultiplied : AlphaMode.Ignore,
-        SwapEffect          = SwapEffect.FlipDiscard,
-        Scaling             = isComp ? Scaling.Stretch : Scaling.None, // DComp can't validate widhth/height?*
-        BufferCount         = Math.Max(Config.Video.SwapBuffers, 2),
-        SampleDescription   = new SampleDescription(1, 0),
-        Flags               = SwapChainFlags.None
-    };
+    private SwapChainDescription1 GetSwapChainDesc(int width, int height)
+        => new()
+        {
+            BufferUsage         = Usage.RenderTargetOutput,
+            Format              = Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : BGRA_OR_RGBA,
+            Width               = (uint)width,
+            Height              = (uint)height,
+            AlphaMode           = AlphaMode.Premultiplied,  // TBR
+            SwapEffect          = SwapEffect.FlipDiscard,   
+            Scaling             = Scaling.Stretch,          // DComp can't validate widhth/height?*
+            BufferCount         = Math.Max(Config.Video.SwapBuffers, 2),
+            SampleDescription   = new SampleDescription(1, 0),
+            Flags               = SwapChainFlags.None
+        };
 
     internal void InitializeSwapChain(nint handle)
     {
@@ -75,7 +75,7 @@ unsafe public partial class Renderer
             try
             {
                 Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain [Handle: {handle}, Buffers: {Config.Video.SwapBuffers}, Format: {(Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : BGRA_OR_RGBA)}]");
-                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(ControlWidth, ControlHeight, true, true));
+                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(ControlWidth, ControlHeight));
                 DComp.DCompositionCreateDevice(dxgiDevice, out dCompDevice).CheckError();
                 dCompDevice.CreateTargetForHwnd(handle, false, out dCompTarget).CheckError();
                 dCompDevice.CreateVisual(out dCompVisual).CheckError();
@@ -122,7 +122,7 @@ unsafe public partial class Renderer
 
             try
             {
-                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(1, 1, true));
+                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(1, 1));
             }
             catch (Exception e)
             {
@@ -150,10 +150,13 @@ unsafe public partial class Renderer
             if (SCDisposed)
                 return;
 
-            SCDisposed      = true;
+            SCDisposed = true;
 
-            lock (lockLastFrame)
-                canRenderPresent = false;
+            lock (lockRenderLoops)
+            {
+                canRenderPresent= false;
+                needsResize     = needsViewport = false;
+            }
 
             while(isIdlePresenting) Thread.Sleep(1);
             // StopPlayer (if it does not do it already before?*)
@@ -262,17 +265,17 @@ unsafe public partial class Renderer
         SetZoomAndCenter(zoom, zoomCenter);
     }
 
-    bool needsViewport = true;
+    bool needsViewport;
     public void SetViewport(bool refresh = true)
     {
-        lock (lockDevice)
+        lock (lockRenderLoops)
         {
             needsViewport   = true;
-            canRenderPresent= true; // TBR: should be re-calculated 
-        }
+            canRenderPresent= true; // TBR: should be re-calculated
 
-        if (refresh)
-            RenderRequest();
+            if (refresh)
+                RenderRequest();
+        }
     }
     public void SetViewportInternal()
     {
@@ -427,10 +430,10 @@ unsafe public partial class Renderer
         ViewportChanged?.Invoke(this, new());
     }
 
-    bool needsResize = true;
+    bool needsResize;
     public void ResizeBuffers(int width, int height)
-    {
-        lock (lockDevice)
+    {   // TBR: Fast way from resize (no locks? to avoid possible delay)
+        lock (lockRenderLoops)
         {
             if (SCDisposed || width <= 0 || height <= 0)
             {
@@ -439,7 +442,22 @@ unsafe public partial class Renderer
             }
             else if (ControlWidth == width && ControlHeight == height)
             {
-                canRenderPresent = true; // TBR with minimize*
+                // Re-calculate of canRenderPresent
+                if (videoProcessor == VideoProcessors.D3D11)
+                {
+                    Viewport view   = GetViewport;
+                    int right       = (int)(view.X + view.Width);
+                    int bottom      = (int)(view.Y + view.Height);
+
+                    if (view.Width < 1 || view.Y >= ControlHeight || view.X >= ControlWidth || bottom <= 0 || right <= 0)
+                        canRenderPresent = false;
+                    else
+                        canRenderPresent = true;
+                }
+                else
+                    canRenderPresent = true;
+
+                //RenderRequest(); // We don't refresh as we consider same view
                 return;
             }
             

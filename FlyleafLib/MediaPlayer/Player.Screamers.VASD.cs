@@ -243,7 +243,6 @@ unsafe partial class Player
                 StopScreamerVASDAudio();
                 BufferVASD();
                 requiresBuffering = false;
-                renderer.RenderPlayStart();
                 if (!seeks.IsEmpty)
                     continue;
 
@@ -256,6 +255,8 @@ unsafe partial class Player
 
                     break;
                 }
+
+                renderer.RenderPlayStart();
 
                 // Prepare 2nd Frame (after ShowOneFrame)
                 if (!renderer.RenderPlay(vFrame, false)) // interlace 2nd frame probably here

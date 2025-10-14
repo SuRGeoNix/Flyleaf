@@ -262,7 +262,7 @@ public unsafe partial class Renderer
 
             if (CanDebug) Log.Debug("Disposing");
 
-            lock (lockLastFrame)
+            lock (lockRenderLoops)
             {
                 VideoDecoder.DisposeFrame(LastFrame);
                 LastFrame = null;
