@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
 	<UseWPF>true</UseWPF>
 	<PackageIcon>Flyleaf.png</PackageIcon>
@@ -37,10 +37,20 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-windows|AnyCPU'">
     <WarningLevel>6</WarningLevel>
+    <NoWarn>1701;1702;WFO1000</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-windows|AnyCPU'">
     <WarningLevel>6</WarningLevel>
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net10.0-windows|AnyCPU'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-windows|AnyCPU'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

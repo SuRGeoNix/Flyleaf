@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <RootNamespace>FlyleafAudioPlayer__Custom___WinForms_</RootNamespace>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\bin\Plugins.NET8\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
+    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\bin\Plugins.NET10\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
   </Target>
 
 </Project>

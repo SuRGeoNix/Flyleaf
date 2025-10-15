@@ -14,7 +14,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 unsafe public partial class Renderer
 {
-    internal bool           forceViewToControl; // Makes sure that viewport will fill the exact same size with the control (mainly for keep ratio on resize)
     volatile bool           canRenderPresent;   // Don't render / present during minimize (or invalid size)
 
     ID3D11Texture2D         backBuffer;
@@ -74,7 +73,7 @@ unsafe public partial class Renderer
 
             try
             {
-                Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain [Handle: {handle}, Buffers: {Config.Video.SwapBuffers}, Format: {(Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : BGRA_OR_RGBA)}]");
+                if (CanInfo) Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain [Handle: {handle}, Buffers: {Config.Video.SwapBuffers}, Format: {(Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : BGRA_OR_RGBA)}]");
                 swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(2, 2)); // we will resize on rendering
                 DComp.DCompositionCreateDevice(dxgiDevice, out dCompDevice).CheckError();
                 dCompDevice.CreateTargetForHwnd(handle, false, out dCompTarget).CheckError();
@@ -526,7 +525,7 @@ unsafe public partial class Renderer
                 return;
 
             this.cornerRadius = cornerRadius;
-            cornerRadiusNeedsUpdate = true;
+            cornerRadiusNeedsUpdate = true; // TBR: Probably false if we reset it back to zero corner radius
 
             if (!SCDisposed)
                 UpdateCornerRadiusInternal();
