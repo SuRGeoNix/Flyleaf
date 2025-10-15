@@ -75,7 +75,7 @@ unsafe public partial class Renderer
             try
             {
                 Log.Info($"Initializing {(Config.Video.Swap10Bit ? "10-bit" : "8-bit")} swap chain [Handle: {handle}, Buffers: {Config.Video.SwapBuffers}, Format: {(Config.Video.Swap10Bit ? Format.R10G10B10A2_UNorm : BGRA_OR_RGBA)}]");
-                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(ControlWidth, ControlHeight));
+                swapChain = Engine.Video.Factory.CreateSwapChainForComposition(Device, GetSwapChainDesc(2, 2)); // we will resize on rendering
                 DComp.DCompositionCreateDevice(dxgiDevice, out dCompDevice).CheckError();
                 dCompDevice.CreateTargetForHwnd(handle, false, out dCompTarget).CheckError();
                 dCompDevice.CreateVisual(out dCompVisual).CheckError();
@@ -105,13 +105,16 @@ unsafe public partial class Renderer
             Engine.Video.Factory.MakeWindowAssociation(ControlHandle, WindowAssociationFlags.IgnoreAll);
             AddSubClass();
 
-            // ResizeBuffers will not trigger it if same width/height as before
-            fillRatio = ControlWidth / (double)ControlHeight;
-            if (Config.Video.AspectRatio == AspectRatio.Fill)
-                curRatio = fillRatio;
-
-            ResizeBuffers(ControlWidth, ControlHeight);
             UpdateDisplay(true); // don't force if we let WndProc run without our swapchain
+
+            // Ensures that it will run ResizeBuffers initially
+            lock (lockRenderLoops)
+                if (ControlWidth > 0 && ControlHeight > 0)
+                {
+                    canRenderPresent= true;
+                    needsResize     = true;
+                    RenderRequest();
+                }
         }
     }
     internal void InitializeWinUISwapChain()
