@@ -39,7 +39,6 @@ public unsafe partial class AudioDecoder : DecoderBase
     public ConcurrentQueue<AudioFrame>
                             Frames              { get; protected set; } = new();
 
-    internal Action         CBufAlloc;          // Informs Audio player to clear buffer pointers to avoid access violation
     static readonly int     cBufTimesSize       = 4; // Extra for draining / filters (speed)
     int                     cBufTimesCur        = 1;
     byte[]                  cBuf;
@@ -463,7 +462,6 @@ public unsafe partial class AudioDecoder : DecoderBase
                 cBufHistory.Dequeue();
         }
         
-        CBufAlloc?.Invoke();
         cBuf        = new byte[size];
         cBufPos     = 0;
         cBufSamples = samples;

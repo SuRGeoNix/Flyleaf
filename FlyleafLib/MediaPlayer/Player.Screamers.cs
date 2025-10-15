@@ -51,20 +51,6 @@ unsafe partial class Player
     long    onBufferingStarted;
     long    onBufferingCompleted;
 
-    int     vDistanceMs;
-    int     aDistanceMs;
-    int     sDistanceMs;
-    int     dDistanceMs;
-    int     sleepMs;
-
-    long    elapsedTicks;
-    long    startTicks;
-    long    showOneFrameTicks;
-
-    long    lastSpeedChangeTicks;
-    long    curLatency;
-    internal long curAudioDeviceDelay;
-
     Stopwatch sw = new();
 
     private void ShowOneFrame()
@@ -201,6 +187,10 @@ unsafe partial class Player
 
     private void ScreamerReverse()
     {   // TBR: Timings / Rebuffer
+
+        int vDistanceMs, sleepMs;
+        long elapsedTicks, startTicks = 0;
+
         while (status == Status.Playing)
         {
             if (seeks.TryPop(out var seekData))
