@@ -80,12 +80,14 @@ public unsafe partial class Renderer
 
                 if (LastFrame != null)
                     RenderFrame(LastFrame, false);
-                else
+                else if (Config.Video.ClearScreen)
                 {
                     ClearOverlayTexture();
                     context.OMSetRenderTargets(backBufferRtv);
                     context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
                 }
+                else
+                    return;
             }
 
             swapChain.Present(1, 0);

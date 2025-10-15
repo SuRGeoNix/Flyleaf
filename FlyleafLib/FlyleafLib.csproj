@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.9.1</Version>
+	<Version>3.9.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,12 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Player.ScreamerVASD: Fixes/Improves MaxLatency with the new implementation
-		- Player.ScreamerVASD: Simplifies/Improves GetBufferedDuration calculation
-		- Player.Screamers: Few Fixes/Improvements with the new implementation
-		- Renderer: Fixes a critical crash issue during initialization when handle/control has not been assigned yet
-		- Renderer.Present: Fixes possible issues with locks to ensure stability
-		- AudioFrame: Attaches speed on audio frame which handles better speed changes
+		- Adds .NET 10 support
+		- Renderer.SwapChain: Fixes an issue during initialization (could cause black screens and wrong aspect ratios during initialize/swap)
+		- Renderer.Present: Respects Config.Video.ClearScreen and avoids clearing the screen when not set
+		- Player: Fixes a crashing issue for Audio only
 	</PackageReleaseNotes>
   </PropertyGroup>
 
