@@ -2,10 +2,34 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <RootNamespace>FlyleafPlayer__Custom_</RootNamespace>
     <UseWindowsForms>true</UseWindowsForms>
     <Platforms>AnyCPU;x86;x64</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +41,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\bin\Plugins.NET8\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
+    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\bin\Plugins.NET10\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
   </Target>
 
 </Project>
