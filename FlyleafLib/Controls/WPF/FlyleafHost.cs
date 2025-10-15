@@ -115,11 +115,11 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     static bool         isDesignMode;
     static int          idGenerator = 1;
-    static nint         NONE_STYLE = (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE); // WS_MINIMIZEBOX required for swapchain
-    static Point        zeroPoint;
-    static POINT        zeroPOINT;
-    static Rect         zeroRect;
-    static CornerRadius zeroCornerRadius;
+    static nint         NONE_STYLE      = (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE); // WS_MINIMIZEBOX required for swapchain
+    static Point        zeroPoint       = new();
+    static POINT        zeroPOINT       = new();
+    static Rect         zeroRect        = new();
+    static CornerRadius zeroCornerRadius= new();
 
     double              curResizeRatio;
     bool                surfaceClosed, surfaceClosing, overlayClosed;

@@ -9,9 +9,18 @@ unsafe partial class Player
     const int MAX_DEQUEUE_RETRIES = 20; // (Ms) Tries to avoid re-buffering by waiting the decoder to catch up
     volatile bool isScreamerVASDAudio;
     volatile bool stopScreamerVASDAudio;
+    long startTicks, lastSpeedChangeTicks;
 
     bool BufferVASD()
     {
+        long aDeviceDelay   = 0;
+        bool gotAudio       = !Audio.IsOpened || Config.Player.MaxLatency != 0;
+        bool gotVideo       = false;
+        bool shouldStop     = false;
+        bool showOneFrame   = true;
+        int  audioRetries   = 4;
+        int  loops          = 0;
+
         if (CanTrace) Log.Trace("Buffering");
 
         while (isVideoSwitch && IsPlaying) Thread.Sleep(10);
@@ -21,7 +30,7 @@ unsafe partial class Player
 
         if (Audio.isOpened && Config.Audio.Enabled)
         {
-            curAudioDeviceDelay = Audio.GetDeviceDelay();
+            aDeviceDelay = Audio.GetDeviceDelay();
 
             if (AudioDecoder.OnVideoDemuxer)
                 AudioDecoder.Start();
@@ -55,18 +64,8 @@ unsafe partial class Player
             }
         }
 
-        VideoDecoder.DisposeFrame(vFrame);
-        vFrame = null;
-        aFrame = null;
-        sFrame = null;
-        dFrame = null;
-
-        bool gotAudio       = !Audio.IsOpened || Config.Player.MaxLatency != 0;
-        bool gotVideo       = false;
-        bool shouldStop     = false;
-        bool showOneFrame   = true;
-        int  audioRetries   = 4;
-        int  loops          = 0;
+        VideoDecoder.DisposeFrame(vFrame); // TBR: Should never be not null (check with LastFrame?)
+        vFrame = null; aFrame = null; sFrame = null; dFrame = null;
 
         if (Config.Player.MaxLatency != 0)
         {
@@ -82,7 +81,6 @@ unsafe partial class Player
             if (showOneFrame && !VideoDecoder.Frames.IsEmpty)
             {
                 ShowOneFrame();
-                showOneFrameTicks = DateTime.UtcNow.Ticks;
                 showOneFrame = false;
             }
 
@@ -109,7 +107,7 @@ unsafe partial class Player
                     for (int i = 0; i < Math.Min(20, AudioDecoder.Frames.Count); i++)
                     {
                         if (aFrame == null
-                            || aFrame.timestamp - curAudioDeviceDelay > vFrame.timestamp
+                            || aFrame.timestamp - aDeviceDelay > vFrame.timestamp
                             || vFrame.timestamp > duration)
                         {
                             gotAudio = true;
@@ -203,6 +201,8 @@ unsafe partial class Player
 
         bool secondField = false; // To be transfered in renderer
         int dequeueRetries;
+        int vDistanceMs, sDistanceMs, dDistanceMs;
+        long elapsedTicks;
         
         while (status == Status.Playing)
         {
@@ -531,13 +531,13 @@ unsafe partial class Player
     }
     private void CheckLatency()
     {
-        curLatency = GetBufferedDuration();
+        long curLatency = GetBufferedDuration();
 
         if (CanDebug) Log.Debug($"[Latency {curLatency/10000}ms] Frames: {VideoDecoder.Frames.Count} Packets: {VideoDemuxer.VideoPackets.Count} Speed: {speed}");
 
         if (curLatency <= Config.Player.MinLatency) // We've reached the down limit (back to speed x1)
         {
-            ChangeSpeedWithoutBuffering(1);
+            ChangeSpeedWithoutBuffering(1, curLatency);
             return;
         }
         else if (curLatency < Config.Player.MaxLatency)
@@ -554,9 +554,9 @@ unsafe partial class Player
             return;
         }
 
-        ChangeSpeedWithoutBuffering(newSpeed);
+        ChangeSpeedWithoutBuffering(newSpeed, curLatency);
     }
-    void ChangeSpeedWithoutBuffering(double newSpeed)
+    void ChangeSpeedWithoutBuffering(double newSpeed, long curLatency)
     {
         if (speed == newSpeed)
             return;
@@ -583,10 +583,7 @@ unsafe partial class Player
 
     void ScreamerVASDAudio()
     {
-        long bufferTicks    = 0;
-        long delayTicks     = 0;
-        long elapsedTicks   = 0;
-        long waitTicks      = 0;
+        long bufferTicks, delayTicks, elapsedTicks, waitTicks;
         long desyncMs       = 0;    // use Ms to avoid rescale inaccuracy
         long expectingPts   = NoTs; // Will be set on resync
         bool shouldResync   = true;
