@@ -104,7 +104,12 @@ unsafe public partial class Renderer
             backBufferRtv   = Device.CreateRenderTargetView(backBuffer);
             Engine.Video.Factory.MakeWindowAssociation(ControlHandle, WindowAssociationFlags.IgnoreAll);
             AddSubClass();
-            fillRatio = ControlWidth / (double)ControlHeight; // ResizeBuffers will not trigger it if same width/height as before
+
+            // ResizeBuffers will not trigger it if same width/height as before
+            fillRatio = ControlWidth / (double)ControlHeight;
+            if (Config.Video.AspectRatio == AspectRatio.Fill)
+                curRatio = fillRatio;
+
             ResizeBuffers(ControlWidth, ControlHeight);
             UpdateDisplay(true); // don't force if we let WndProc run without our swapchain
         }
