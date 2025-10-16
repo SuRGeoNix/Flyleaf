@@ -78,7 +78,7 @@ unsafe partial class Player
         {
             loops++;
 
-            if (showOneFrame && !VideoDecoder.Frames.IsEmpty)
+            if (showOneFrame && !vFrames.IsEmpty)
             {
                 ShowOneFrame();
                 showOneFrame = false;
@@ -88,11 +88,8 @@ unsafe partial class Player
             if ((!showOneFrame || loops > 8) && !seeks.IsEmpty)
                 return false;
 
-            if (!gotVideo && !showOneFrame && !VideoDecoder.Frames.IsEmpty)
-            {
-                VideoDecoder.Frames.TryDequeue(out vFrame);
-                if (vFrame != null) gotVideo = true;
-            }
+            if (!gotVideo && !showOneFrame && vFrames.TryDequeue(out vFrame))
+                gotVideo = true;
 
             if (!gotAudio && aFrame == null && !AudioDecoder.Frames.IsEmpty)
                 AudioDecoder.Frames.TryDequeue(out aFrame);
@@ -334,7 +331,7 @@ unsafe partial class Player
                 dequeueRetries = MAX_DEQUEUE_RETRIES;
                 do
                 {
-                    while (!isVideoSwitch && !VideoDecoder.Frames.TryDequeue(out vFrame) && dequeueRetries-- > 0)
+                    while (!isVideoSwitch && !vFrames.TryDequeue(out vFrame) && dequeueRetries-- > 0)
                         Thread.Sleep(1);
 
                     if (vFrame == null)
@@ -379,7 +376,7 @@ unsafe partial class Player
 
             // Present Current | Render Next
             if (CanTrace) Log.Trace($"[V] Presenting {TicksToTime(vFrame.timestamp)}{(secondField ? " | SF" : "")}");
-            if (decoder.VideoDecoder.Renderer.PresentPlay())
+            if (renderer.PresentPlay())
             {
                 framesDisplayed++;
                 UpdateCurTime(vFrame.timestamp, false);
@@ -405,7 +402,7 @@ unsafe partial class Player
                 vFrame          = null; // don't dispose (LastFrame)
                 secondField     = false;
                 dequeueRetries  = MAX_DEQUEUE_RETRIES;
-                while (!isVideoSwitch && !VideoDecoder.Frames.TryDequeue(out vFrame) && dequeueRetries-- > 0)
+                while (!isVideoSwitch && !vFrames.TryDequeue(out vFrame) && dequeueRetries-- > 0)
                     Thread.Sleep(1);
 
                 if (vFrame != null && !renderer.RenderPlay(vFrame, secondField))
@@ -533,7 +530,7 @@ unsafe partial class Player
     {
         long curLatency = GetBufferedDuration();
 
-        if (CanDebug) Log.Debug($"[Latency {curLatency/10000}ms] Frames: {VideoDecoder.Frames.Count} Packets: {VideoDemuxer.VideoPackets.Count} Speed: {speed}");
+        if (CanDebug) Log.Debug($"[Latency {curLatency/10000}ms] Frames: {vFrames.Count} Packets: {vPackets.Count} Speed: {speed}");
 
         if (curLatency <= Config.Player.MinLatency) // We've reached the down limit (back to speed x1)
         {
@@ -578,8 +575,8 @@ unsafe partial class Player
 
     long GetBufferedDuration() // No speed aware
         => renderer.FieldType != VideoFrameFormat.Progressive && Config.Video.DoubleRate ?
-        (VideoDecoder.Frames.Count + VideoDemuxer.VideoPackets.Count) * renderer.VideoStream.FrameDuration2 :
-        (VideoDecoder.Frames.Count + VideoDemuxer.VideoPackets.Count) * renderer.VideoStream.FrameDuration;
+        (vFrames.Count + vPackets.Count) * renderer.VideoStream.FrameDuration2 :
+        (vFrames.Count + vPackets.Count) * renderer.VideoStream.FrameDuration;
 
     void ScreamerVASDAudio()
     {

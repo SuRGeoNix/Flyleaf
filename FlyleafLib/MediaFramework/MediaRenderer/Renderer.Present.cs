@@ -109,7 +109,7 @@ public unsafe partial class Renderer
     }
 
     internal void RenderPlayStart()  { isPlayerPresenting = true; while(isIdlePresenting) Thread.Sleep(1); } // Stop RenderIdle
-    internal void RenderPlayStop()   { isPlayerPresenting = false; RenderRequest(); } // Check if last timestamp?* to start idle (we don't update it currently)
+    internal void RenderPlayStop()   { isPlayerPresenting = false; RenderRequest(); } // TBR: Check if last timestamp?* to start idle
     internal bool RenderPlay(VideoFrame frame, bool secondField)
     {
         try
@@ -128,8 +128,7 @@ public unsafe partial class Renderer
                     LastFrame = frame;
                 }
 
-                // Don't return false when !canRenderPresent as it will cause restarts (consider as valid)
-                return true;
+                return true; // Don't return false when !canRenderPresent as it will cause restarts (consider as valid)
             }
         }
         catch (SharpGenException e)
@@ -156,7 +155,7 @@ public unsafe partial class Renderer
         try
         {
             if (canRenderPresent)
-                swapChain?.Present(Config.Video.VSync, PresentFlags.None).CheckError();
+                swapChain.Present(Config.Video.VSync, PresentFlags.None).CheckError();
 
             return true;
         }
@@ -268,7 +267,24 @@ public unsafe partial class Renderer
         }
     }
 
-    public void ClearScreen(bool force = false) { if (Config.Video.ClearScreen || force) RenderRequest(null, true); }
+    public void ClearScreen(bool force = false)
+    {
+        if (force)
+        {
+            lock (lockDevice)
+            {
+                if (SCDisposed)
+                    return;
+
+                ClearOverlayTexture();
+                context.OMSetRenderTargets(backBufferRtv);
+                context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
+                swapChain.Present(1, 0);
+            }
+        }
+        else if (Config.Video.ClearScreen)
+            RenderRequest(null, true);
+    }
     public void ClearOverlayTexture()
     {
         if (overlayTexture == null)

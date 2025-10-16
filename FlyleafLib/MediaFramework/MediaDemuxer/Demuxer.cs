@@ -932,7 +932,7 @@ public unsafe class Demuxer : RunThreadBase
             if (ticks + (VideoStream != null && forward ? (10000 * 10000) : 0) > CurTime + startTime && ticks < CurTime + startTime + BufferedDuration)
             {
                 bool found = false;
-                while (VideoPackets.Count > 0)
+                while (!VideoPackets.IsEmpty)
                 {
                     var packet = VideoPackets.Peek();
                     if (packet->pts != AV_NOPTS_VALUE && ticks < packet->pts * VideoStream.Timebase && (packet->flags & PktFlags.Key) != 0)
@@ -950,7 +950,7 @@ public unsafe class Demuxer : RunThreadBase
                     av_packet_free(&packet);
                 }
 
-                while (AudioPackets.Count > 0)
+                while (!AudioPackets.IsEmpty)
                 {
                     var packet = AudioPackets.Peek();
                     if (packet->pts != AV_NOPTS_VALUE && (packet->pts + packet->duration) * AudioStream.Timebase >= ticks)
@@ -965,7 +965,7 @@ public unsafe class Demuxer : RunThreadBase
                     av_packet_free(&packet);
                 }
 
-                while (SubtitlesPackets.Count > 0)
+                while (!SubtitlesPackets.IsEmpty)
                 {
                     var packet = SubtitlesPackets.Peek();
                     if (packet->pts != AV_NOPTS_VALUE && ticks < (packet->pts + packet->duration) * SubtitlesStream.Timebase)
@@ -980,7 +980,7 @@ public unsafe class Demuxer : RunThreadBase
                     av_packet_free(&packet);
                 }
 
-                while (DataPackets.Count > 0)
+                while (!DataPackets.IsEmpty)
                 {
                     var packet = DataPackets.Peek();
                     if (packet->pts != AV_NOPTS_VALUE && ticks < (packet->pts + packet->duration) * DataStream.Timebase)
@@ -1753,7 +1753,7 @@ public unsafe class Demuxer : RunThreadBase
     /// <returns>0 on success</returns>
     public int GetNextVideoPacket()
     {
-        if (VideoPackets.Count > 0)
+        if (!VideoPackets.IsEmpty)
         {
             packet = VideoPackets.Dequeue();
             return 0;
@@ -1800,57 +1800,61 @@ public unsafe class Demuxer : RunThreadBase
             }
             else if (EnabledStreams.Contains(packet->stream_index))
                 return 0;
-
+            
             av_packet_unref(packet);
         }
     }
     #endregion
 }
 
-public unsafe class PacketQueue
+public unsafe class PacketQueue : Queue<nint>
 {
     // TODO: DTS might not be available without avformat_find_stream_info (should changed based on packet->duration and fallback should be removed)
     readonly Demuxer demuxer;
-    readonly ConcurrentQueue<nint> packets = [];
     public long frameDuration = 30 * 1000 * 10000; // in case of negative buffer duration calculate it based on packets count / FPS
 
     public long Bytes               { get; private set; }
     public long BufferedDuration    { get; private set; }
     public long CurTime             { get; private set; }
-    public int  Count               => packets.Count;
-    public bool IsEmpty             => packets.IsEmpty;
 
     public long FirstTimestamp      { get; private set; } = AV_NOPTS_VALUE;
     public long LastTimestamp       { get; private set; } = AV_NOPTS_VALUE;
+    public bool IsEmpty             => Count == 0;
 
-    public PacketQueue(Demuxer demuxer)
+    public PacketQueue(Demuxer demuxer) : base()
         => this.demuxer = demuxer;
 
-    public void Clear()
+    #if DEBUG
+    // Ensures we don't access base queue directly
+    public new void Enqueue     (nint _)    => throw new NotImplementedException("Use AVPacket*");
+    public new bool TryDequeue  (out nint _)=> throw new NotImplementedException("Use AVPacket*");
+    public new bool TryPeek     (out nint _)=> throw new NotImplementedException("Use AVPacket*");
+    #endif
+
+    public new void Clear()
     {
-        lock(packets)
+        lock(this)
         {
-            while (!packets.IsEmpty)
+            while (base.TryDequeue(out nint packetPtr))
             {
-                packets.TryDequeue(out nint packetPtr);
-                if (packetPtr == 0) continue;
+                if (packetPtr == 0) continue; // TBR: can be disposed?
                 AVPacket* packet = (AVPacket*)packetPtr;
                 av_packet_free(&packet);
             }
 
-            FirstTimestamp = AV_NOPTS_VALUE;
-            LastTimestamp = AV_NOPTS_VALUE;
-            Bytes = 0;
-            BufferedDuration = 0;
-            CurTime = 0;
+            FirstTimestamp  = AV_NOPTS_VALUE;
+            LastTimestamp   = AV_NOPTS_VALUE;
+            Bytes           = 0;
+            BufferedDuration= 0;
+            CurTime         = 0;
         }
     }
 
     public void Enqueue(AVPacket* packet)
     {
-        lock (packets)
+        lock (this)
         {
-            packets.Enqueue((nint)packet);
+            base.Enqueue((nint)packet);
 
             if (packet->dts != AV_NOPTS_VALUE || packet->pts != AV_NOPTS_VALUE)
             {
@@ -1867,20 +1871,20 @@ public unsafe class PacketQueue
                 {
                     BufferedDuration = LastTimestamp - FirstTimestamp;
                     if (BufferedDuration < 0)
-                        BufferedDuration = packets.Count * frameDuration;
+                        BufferedDuration = Count * frameDuration;
                 }
             }
             else
-                BufferedDuration = packets.Count * frameDuration;
+                BufferedDuration = Count * frameDuration;
 
             Bytes += packet->size;
         }
     }
 
-    public AVPacket* Dequeue()
+    public new AVPacket* Dequeue()
     {
-        lock(packets)
-            if (packets.TryDequeue(out nint packetPtr))
+        lock(this)
+            if (base.TryDequeue(out nint packetPtr))
             {
                 AVPacket* packet = (AVPacket*)packetPtr;
 
@@ -1893,7 +1897,7 @@ public unsafe class PacketQueue
                     UpdateCurTime();
                 }
                 else
-                    BufferedDuration = packets.Count * frameDuration;
+                    BufferedDuration = Count * frameDuration;
 
                 return (AVPacket*)packetPtr;
             }
@@ -1901,8 +1905,8 @@ public unsafe class PacketQueue
         return null;
     }
 
-    public AVPacket* Peek()
-        => packets.TryPeek(out nint packetPtr)
+    public new AVPacket* Peek() // Should use lock but we use it only during SeekInQueue (decoders paused)
+        => base.TryPeek(out nint packetPtr)
         ? (AVPacket*)packetPtr
         : (AVPacket*)null;
 
@@ -1931,6 +1935,6 @@ public unsafe class PacketQueue
         BufferedDuration = LastTimestamp - FirstTimestamp;
 
         if (BufferedDuration < 0)
-            BufferedDuration = packets.Count * frameDuration;
+            BufferedDuration = Count * frameDuration;
     }
 }

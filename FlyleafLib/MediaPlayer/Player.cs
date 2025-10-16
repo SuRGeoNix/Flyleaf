@@ -72,6 +72,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// (Normally you should not access this directly)
     /// </summary>
     public VideoDecoder         VideoDecoder;
+    ConcurrentQueue<VideoFrame> vFrames;
 
     /// <summary>
     /// Player's Renderer
@@ -125,6 +126,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// (Normally you should not access this directly)
     /// </summary>
     public Demuxer              VideoDemuxer;
+    PacketQueue vPackets;
 
     /// <summary>
     /// Subtitles Demuxer
@@ -188,9 +190,24 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
                         Chapters            => VideoDemuxer?.Chapters;
 
     /// <summary>
-    /// Player's current time or user's current seek time (uses backward direction or accurate seek based on Config.Player.SeekAccurate)
+    /// Player's current time or user's current seek time (useful for two-way slide bar binding)
     /// </summary>
-    public long         CurTime             { get => curTime;           set { if (Config.Player.SeekAccurate) SeekAccurate((int) (value/10000)); else Seek((int) (value/10000), false); } } // Note: forward seeking casues issues to some formats and can have serious delays (eg. dash with h264, dash with vp9 works fine)
+    public long         CurTime
+    {
+        get => curTime;
+        set
+        {
+            if (Config.Player.SeekAccurate)
+                SeekAccurate((int) (value/10000));
+            else
+                // Note: forward seeking casues issues to some formats and can have serious delays (eg. dash with h264, dash with vp9 works fine)
+                //  Seek forward only when not local file and we have a chance to find it in cache (we consider this comes from slide bars)
+                Seek((int)(value / 10000),
+                    Playlist.InputType != InputType.File && Video.isOpened &&
+                    value > VideoDemuxer.CurTime &&
+                    value < VideoDemuxer.CurTime + VideoDemuxer.BufferedDuration - TimeSpan.FromMilliseconds(300).Ticks);
+        }
+    }
     internal long _CurTime, curTime;
     internal void SetCurTime() => Set(ref _CurTime, curTime, true, nameof(CurTime));
     void UpdateCurTime(long ts, bool skipRefreshType = true)
@@ -496,7 +513,11 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         SubtitlesDemuxer= decoder.SubtitlesDemuxer;
         DataDemuxer     = decoder.DataDemuxer;
         Playlist        = decoder.Playlist;
+
+        // We keep the same instance
         renderer        = VideoDecoder.Renderer;
+        vFrames         = VideoDecoder.Frames;
+        vPackets        = VideoDemuxer.VideoPackets;
 
         UpdateMainDemuxer();
         if (renderer != null)
