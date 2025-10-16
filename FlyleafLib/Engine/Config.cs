@@ -568,10 +568,15 @@ public class Config : NotifyPropertyChanged
         bool _ShowCorrupted;
 
         /// <summary>
-        /// Forces low delay (Parses AV_CODEC_FLAG_LOW_DELAY to AVCodecContext) (auto-enabled with MaxLatency)
+        /// Forces low delay (Parses AV_CODEC_FLAG2_FAST or AV_CODEC_FLAG_LOW_DELAY -based on DropFrames- to AVCodecContext) (auto-enabled with MaxLatency)
         /// </summary>
         public bool             LowDelay        { get => _LowDelay; set => SetUI(ref _LowDelay, value); }
         bool _LowDelay;
+
+        /// <summary>
+        /// Sets AVCodecContext skip_frame to None or Default (affects also LowDelay)
+        /// </summary>
+        public bool             DropFrames      { get; set; }
 
         public Dictionary<string, string>
                                 AudioCodecOpt       { get; set; } = [];

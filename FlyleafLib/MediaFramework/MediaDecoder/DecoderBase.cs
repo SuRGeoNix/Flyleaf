@@ -93,7 +93,17 @@ public abstract unsafe class DecoderBase : RunThreadBase
                         codecCtx->flags |= CodecFlags.OutputCorrupt;
 
                     if (Config.Decoder.LowDelay)
-                        codecCtx->flags |= CodecFlags.LowDelay;
+                    {
+                        if (Config.Decoder.DropFrames)
+                            codecCtx->flags |= CodecFlags.LowDelay;
+                        else
+                        {
+                            codecCtx->skip_frame = AVDiscard.None;
+                            codecCtx->flags2 |= CodecFlags2.Fast;
+                        }
+                    }
+                    else if (!Config.Decoder.DropFrames)
+                        codecCtx->skip_frame = AVDiscard.None;
 
                     try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
                     if (ret < 0)
