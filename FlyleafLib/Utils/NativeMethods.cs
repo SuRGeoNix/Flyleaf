@@ -7,6 +7,18 @@ public static partial class Utils
 {
     public static class NativeMethods
     {
+        public static WindowStyles SetWindowLong(nint hWnd, WindowStyles style)
+            => (WindowStyles)SetWindowLong(hWnd, (int)WindowLongFlags.GWL_STYLE, (nint)style);
+
+        public static WindowStylesEx SetWindowLong(nint hWnd, WindowStylesEx style)
+            => (WindowStylesEx)SetWindowLong(hWnd, (int)WindowLongFlags.GWL_EXSTYLE, (nint)style);
+
+        public static WindowStyles GetWindowLong(nint hWnd)
+            => (WindowStyles)GetWindowLong(hWnd, (int)WindowLongFlags.GWL_STYLE);
+
+        public static WindowStylesEx GetWindowLongEx(nint hWnd)
+            => (WindowStylesEx)GetWindowLong(hWnd, (int)WindowLongFlags.GWL_EXSTYLE);
+
         public static nint GetWindowLong(nint hWnd, int nIndex)
             => IntPtr.Size == 8 ? GetWindowLongPtr64(hWnd, nIndex) : GetWindowLongPtr32(hWnd, nIndex);
 
@@ -14,16 +26,16 @@ public static partial class Utils
             => IntPtr.Size == 8 ? SetWindowLongPtr64(hWnd, nIndex, dwNewLong) : SetWindowLongPtr32(hWnd, nIndex, dwNewLong);
 
         [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
-        public static extern nint GetWindowLongPtr32(nint hWnd, int nIndex);
+        static extern nint GetWindowLongPtr32(nint hWnd, int nIndex);
 
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
-        public static extern nint GetWindowLongPtr64(nint hWnd, int nIndex);
+        static extern nint GetWindowLongPtr64(nint hWnd, int nIndex);
 
         [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
-        public static extern nint SetWindowLongPtr32(nint hWnd, int nIndex, nint dwNewLong);
+        static extern nint SetWindowLongPtr32(nint hWnd, int nIndex, nint dwNewLong);
 
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
-        public static extern nint SetWindowLongPtr64(nint hWnd, int nIndex, nint dwNewLong);
+        static extern nint SetWindowLongPtr64(nint hWnd, int nIndex, nint dwNewLong);
 
         [DllImport("user32.dll")]
         public static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);

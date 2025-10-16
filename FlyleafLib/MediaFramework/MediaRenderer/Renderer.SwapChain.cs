@@ -27,7 +27,7 @@ unsafe public partial class Renderer
     const uint              WM_SIZE                     = 0x0005;
     const uint              WM_DISPLAYCHANGE            = 0x007E;
     const uint              WM_NCDESTROY                = 0x0082;
-    const int               WS_EX_NOREDIRECTIONBITMAP   = 0x00200000;
+
     SubclassWndProc         wndProcDelegate;
     IntPtr                  wndProcDelegatePtr;
 
@@ -67,9 +67,6 @@ unsafe public partial class Renderer
             GetWindowRect(ControlHandle, ref rect);
             ControlWidth    = rect.Right  - rect.Left;
             ControlHeight   = rect.Bottom - rect.Top;
-
-            // WS_EX_NOREDIRECTIONBITMAP: Prevent DWM from creating a redirection surface (offscreen bitmap)
-            SetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE, GetWindowLong(handle, (int)WindowLongFlags.GWL_EXSTYLE).ToInt32() | WS_EX_NOREDIRECTIONBITMAP);
 
             try
             {

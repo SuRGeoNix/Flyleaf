@@ -2,6 +2,8 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+
 using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
@@ -48,10 +50,12 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
 
             FlyleafHost =  new FlyleafHost(this)
             {
-                CornerRadius = new CornerRadius(30),
-                KeyBindings = AvailableWindows.Surface,
-                DetachedResize = AvailableWindows.Surface,
-                KeepRatioOnResize = true,
+                // Enables AllowTransparency on Surface and could cause performance issues (1 from 255 alpha to be able to use mouse events)
+                VideoBackground     = new SolidColorBrush(new Color() { A = 1}),
+                CornerRadius        = new CornerRadius(30),
+                KeyBindings         = AvailableWindows.Surface,
+                DetachedResize      = AvailableWindows.Surface,
+                KeepRatioOnResize   = true,
             };
 
             ToggleDebug = new RelayCommandSimple(new Action(() => { ShowDebug = !ShowDebug; }));

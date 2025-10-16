@@ -5,6 +5,8 @@ using System.Windows.Forms;
 
 using FlyleafLib.MediaPlayer;
 
+using static FlyleafLib.Utils.NativeMethods;
+
 namespace FlyleafLib.Controls.WinForms;
 
 public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChanged
@@ -102,7 +104,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
             return;
 
         Log = new(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
-
+        
         KeyUp       += Host_KeyUp;
         KeyDown     += Host_KeyDown;
         DoubleClick += Host_DoubleClick;
@@ -111,6 +113,12 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         MouseWheel  += Host_MouseWheel;
         DragEnter   += Host_DragEnter;
         DragDrop    += Host_DragDrop;
+
+        // TBR: Should improve performance but might cause issues (not tested)
+        //SetStyle(ControlStyles.OptimizedDoubleBuffer, false);
+        //SetStyle(ControlStyles.AllPaintingInWmPaint, false);
+        //SetStyle(ControlStyles.UserPaint, false);
+        //SetStyle(ControlStyles.Opaque, true);
     }
 
     private void Host_DragDrop(object sender, DragEventArgs e)
@@ -227,10 +235,11 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         // De-assign new Player's Handle/FlyleafHost
         Player.Host?.Player_Disposed();
 
-
         // Assign new Player's (Handle/FlyleafHost)
         Log.Debug($"Assign Player #{Player.PlayerId}");
 
+        var hwnd = Handle; // ensures creation of handle?
+        SetWindowLong(hwnd, GetWindowLongEx(hwnd) | WindowStylesEx.WS_EX_NOREDIRECTIONBITMAP);
         Player.Host = this;
         Player.VideoDecoder.CreateSwapChain(Handle);
 
