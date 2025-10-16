@@ -114,7 +114,7 @@ public class FlyleafSharedOverlay : ContentControl
         Overlay.ShowInTaskbar   = false;
         Overlay.Owner           = Owner;
         SetParent(OverlayHandle, OwnerHandle);
-        SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE | WindowStyles.WS_CHILD));
+        SetWindowLong(OverlayHandle, WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE | WindowStyles.WS_CHILD);
         SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, 0, 0, (uint)(SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOOWNERZORDER));
 
         /*rectInitLast =*/ rectIntersectLast = rectRandom;

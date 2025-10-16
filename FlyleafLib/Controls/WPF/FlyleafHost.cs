@@ -115,7 +115,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     static bool         isDesignMode;
     static int          idGenerator = 1;
-    static nint         NONE_STYLE      = (nint) (WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE); // WS_MINIMIZEBOX required for swapchain
+    static WindowStyles NONE_STYLE      = WindowStyles.WS_MINIMIZEBOX | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_VISIBLE; // WS_MINIMIZEBOX required for swapchain
     static Point        zeroPoint       = new();
     static POINT        zeroPOINT       = new();
     static Rect         zeroRect        = new();
@@ -500,6 +500,14 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     }
     public static readonly DependencyProperty CornerRadiusProperty =
         DependencyProperty.Register(nameof(CornerRadius), typeof(CornerRadius), _flType, new(new CornerRadius(0), new(OnCornerRadiusChanged)));
+
+    public Brush VideoBackground
+    {
+        get => (Brush)GetValue(VideoBackgroundProperty);
+        set => SetValue(VideoBackgroundProperty, value);
+    }
+    public static readonly DependencyProperty VideoBackgroundProperty =
+        DependencyProperty.Register(nameof(VideoBackground), typeof(Brush), _flType, new(Brushes.Black, new(OnVideoBackgroundChanged)));
     #endregion
 
     #region Events
@@ -557,9 +565,9 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         if (host.DetachedShowInTaskbar)
-            SetWindowLong(host.SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, GetWindowLong(host.SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE) | (nint)WindowStylesEx.WS_EX_APPWINDOW);
+            SetWindowLong(host.SurfaceHandle, GetWindowLongEx(host.SurfaceHandle) |  WindowStylesEx.WS_EX_APPWINDOW);
         else
-            SetWindowLong(host.SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, GetWindowLong(host.SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE) & ~(nint)WindowStylesEx.WS_EX_APPWINDOW);
+            SetWindowLong(host.SurfaceHandle, GetWindowLongEx(host.SurfaceHandle) & ~WindowStylesEx.WS_EX_APPWINDOW);
     }
     private static void OnNoOwnerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -702,31 +710,20 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         if (host.Surface == null)
             return;
 
-        if (host.CornerRadius == zeroCornerRadius)
-            host.Surface.Background  = Brushes.Black;
-        else
-        {
-            host.Surface.Background  = Brushes.Transparent;
-            host.SetCornerRadiusBorder();
-        }
-
         if (host?.Player == null)
             return;
 
         host.Player.renderer.CornerRadius = (CornerRadius)e.NewValue;
 
     }
-    private void SetCornerRadiusBorder()
+    private static void OnVideoBackgroundChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        // Required to handle mouse events as the window's background will be transparent
-        // This does not set the background color we do that with the renderer (which causes some issues eg. when returning from fullscreen to normalscreen)
-        Surface.Content = new Border()
-        {
-            Background          = Brushes.Black, // TBR: for alpha channel -> Background == Brushes.Transparent || Background ==null ? new SolidColorBrush(Color.FromArgb(1,0,0,0)) : Background
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment   = VerticalAlignment.Stretch,
-            CornerRadius        = CornerRadius,
-        };
+        FlyleafHost host = d as FlyleafHost;
+        if (host.Disposed)
+            return;
+
+        if (host.Surface != null)
+            host.Surface.Background = (Brush)e.NewValue;
     }
     private static object OnContentChanging(DependencyObject d, object baseValue)
     {
@@ -860,14 +857,14 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 {
                     // Detach Overlay
                     SetParent(OverlayHandle, IntPtr.Zero);
-                    SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
+                    SetWindowLong(OverlayHandle, NONE_STYLE);
                     Overlay.Owner = null;
 
                     SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Surface.ActualWidth, (int)Surface.ActualHeight,
                         (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
 
                     // Attache Overlay
-                    SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)(WindowStyles.WS_CHILD | WindowStyles.WS_MAXIMIZE));
+                    SetWindowLong(OverlayHandle, NONE_STYLE | WindowStyles.WS_CHILD | WindowStyles.WS_MAXIMIZE);
                     Overlay.Owner = Surface;
                     SetParent(OverlayHandle, SurfaceHandle);
 
@@ -1503,14 +1500,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
         
         if (Surface != null)
-        {
-            if (CornerRadius == zeroCornerRadius)
-                Surface.Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
-            //else // TBR: this border probably not required? only when we don't have a renderer?
-                //((Border)Surface.Content).Background = new SolidColorBrush(Player.Config.Video.BackgroundColor);
-
             Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
-        }
     }
     public virtual void SetSurface(bool fromSetOverlay = false)
     {
@@ -1518,23 +1508,23 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             return;
 
         // Required for some reason (WindowStyle.None will not be updated with our style)
-        Surface             = new();
-        Surface.Name        = $"Surface_{UniqueId}";
-        Surface.Width       = Surface.Height = 1; // Will be set on loaded
-        Surface.WindowStyle = WindowStyle.None;
-        Surface.ResizeMode  = ResizeMode.NoResize;
-        Surface.ShowInTaskbar = false;
-
-        // CornerRadius must be set initially to AllowsTransparency!
-        if (_CornerRadius == zeroCornerRadius)
-            Surface.Background = Player != null ? new SolidColorBrush(Player.Config.Video.BackgroundColor) : Brushes.Black;
-        else
+        Surface = new()
         {
-            Surface.AllowsTransparency  = true;
-            Surface.Background          = Brushes.Transparent;
-            SetCornerRadiusBorder();
-        }
+            Name            = $"Surface_{UniqueId}",
+            Width           = 1,
+            Height          = 1,
+            WindowStyle     = WindowStyle.None,
+            ResizeMode      = ResizeMode.NoResize,
+            ShowInTaskbar   = false,
+            Background      = VideoBackground
+        };
 
+        // NOTE: AllowsTransparency will cause performance issues (enable only if really required)
+        if (Surface.Background is SolidColorBrush scb)
+            Surface.AllowsTransparency = scb.Color.A < 255;
+        else
+            Surface.AllowsTransparency = true; // Non-solid consider true?
+        
         // When using ItemsControl with ObservableCollection<Player> to fill DataTemplates with FlyleafHost EnsureHandle will call Host_loaded
         if (_IsAttached) Loaded -= Host_Loaded;
         SurfaceHandle = new WindowInteropHelper(Surface).EnsureHandle();
@@ -1542,20 +1532,22 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         if (_IsAttached)
         {
-            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)WindowStyles.WS_CHILD);
-            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, (nint)WindowStylesEx.WS_EX_LAYERED);
+            SetWindowLong(SurfaceHandle, NONE_STYLE | WindowStyles.WS_CHILD);
+            SetWindowLong(SurfaceHandle, WindowStylesEx.WS_EX_LAYERED);
         }
         else // Detached || StandAlone
         {
-            SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE);
+            SetWindowLong(SurfaceHandle, NONE_STYLE);
             if (DetachedShowInTaskbar || IsStandAlone)
-                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, (nint)(WindowStylesEx.WS_EX_APPWINDOW | WindowStylesEx.WS_EX_LAYERED));
+                SetWindowLong(SurfaceHandle, WindowStylesEx.WS_EX_APPWINDOW | WindowStylesEx.WS_EX_LAYERED);
             else
-                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_EXSTYLE, (nint)WindowStylesEx.WS_EX_LAYERED);
+                SetWindowLong(SurfaceHandle, WindowStylesEx.WS_EX_LAYERED);
         }
 
-        if (Player != null)
-            Player.VideoDecoder.CreateSwapChain(SurfaceHandle);
+        // AllowsTransparency = true will ignore it (if we have it with other flags it might cause issues)
+        SetWindowLong(SurfaceHandle, GetWindowLongEx(SurfaceHandle) | WindowStylesEx.WS_EX_NOREDIRECTIONBITMAP);
+
+        Player?.VideoDecoder.CreateSwapChain(SurfaceHandle);
 
         Surface.IsVisibleChanged
                             += Surface_IsVisibleChanged;
@@ -1634,7 +1626,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         Overlay.ShowInTaskbar   = false;
         Overlay.Owner           = Surface;
         SetParent(OverlayHandle, SurfaceHandle);
-        SetWindowLong(OverlayHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)(WindowStyles.WS_CHILD | WindowStyles.WS_MAXIMIZE)); // TBR: WS_MAXIMIZE required? (possible better for DWM on fullscreen?)
+        SetWindowLong(OverlayHandle, NONE_STYLE | WindowStyles.WS_CHILD | WindowStyles.WS_MAXIMIZE); // TBR: WS_MAXIMIZE required? (possible better for DWM on fullscreen?)
 
         Overlay.KeyUp       += Overlay_KeyUp;
         Overlay.KeyDown     += Overlay_KeyDown;
@@ -1772,7 +1764,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         Surface.MaxWidth    = MaxWidth;
         Surface.MaxHeight   = MaxHeight;
 
-        SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE | (nint)WindowStyles.WS_CHILD);
+        SetWindowLong(SurfaceHandle, NONE_STYLE | WindowStyles.WS_CHILD);
         Surface.Owner = Owner;
         SetParent(SurfaceHandle, OwnerHandle);
 
@@ -1845,7 +1837,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
         // Detach (Parent=Null, Owner=Null ?, ShowInTaskBar?, TopMost?)
         SetParent(SurfaceHandle, IntPtr.Zero);
-        SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE); // TBR (also in Attach/FullScren): Needs to be after SetParent. when detached and trying to close the owner will take two clicks (like mouse capture without release) //SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, GetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE) & ~(nint)WindowStyles.WS_CHILD);
+        SetWindowLong(SurfaceHandle, NONE_STYLE); // TBR (also in Attach/FullScren): Needs to be after SetParent. when detached and trying to close the owner will take two clicks (like mouse capture without release) //SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, GetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE) & ~(nint)WindowStyles.WS_CHILD);
         Surface.Owner = DetachedNoOwner ? null : Owner;
         Surface.Topmost = DetachedTopMost;
 
@@ -1870,7 +1862,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
                 ResetVisibleRect();
                 SetParent(SurfaceHandle, IntPtr.Zero);
-                SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, NONE_STYLE); // TBR (also in Attach/FullScren): Needs to be after SetParent. when detached and trying to close the owner will take two clicks (like mouse capture without release) //SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, GetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE) & ~(nint)WindowStyles.WS_CHILD);
+                SetWindowLong(SurfaceHandle, NONE_STYLE); // TBR (also in Attach/FullScren): Needs to be after SetParent. when detached and trying to close the owner will take two clicks (like mouse capture without release) //SetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE, GetWindowLong(SurfaceHandle, (int)WindowLongFlags.GWL_STYLE) & ~(nint)WindowStyles.WS_CHILD);
                 Surface.Owner   = DetachedNoOwner ? null : Owner;
                 Surface.Topmost = DetachedTopMost;
 
@@ -1879,9 +1871,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
             if (Player != null)
                 Player.renderer.CornerRadius = zeroCornerRadius;
-
-            if (CornerRadius != zeroCornerRadius)
-                ((Border)Surface.Content).CornerRadius = zeroCornerRadius;
 
             if (Overlay != null)
             {
@@ -1918,9 +1907,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             // TBR: CornerRadius background has issue it's like a mask color?
             if (Player != null)
                 Player.renderer.CornerRadius = CornerRadius;
-
-            if (CornerRadius != zeroCornerRadius)
-                ((Border)Surface.Content).CornerRadius = CornerRadius;
 
             if (!IsStandAlone) //when play with alpha video and not standalone, we need to set window state to normal last, otherwise it will be lost the background
                 Surface.WindowState = WindowState.Normal;
