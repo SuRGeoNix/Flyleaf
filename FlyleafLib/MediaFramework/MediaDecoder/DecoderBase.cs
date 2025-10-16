@@ -94,7 +94,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
 
                     if (Config.Decoder.LowDelay)
                     {
-                        if (Config.Decoder.DropFrames)
+                        if (Config.Decoder.AllowDropFrames)
                             codecCtx->flags |= CodecFlags.LowDelay;
                         else
                         {
@@ -102,7 +102,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                             codecCtx->flags2 |= CodecFlags2.Fast;
                         }
                     }
-                    else if (!Config.Decoder.DropFrames)
+                    else if (!Config.Decoder.AllowDropFrames)
                         codecCtx->skip_frame = AVDiscard.None;
 
                     try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }

@@ -280,7 +280,27 @@ public class Audio : NotifyPropertyChanged
         }
     }
     internal long GetBufferedDuration() { lock (locker) { return (long) ((submittedSamples - sourceVoice.State.SamplesPlayed) * Timebase); } }
-    internal long GetDeviceDelay()      { lock (locker) { return (long) ((xaudio2.PerformanceData.CurrentLatencyInSamples * Timebase) - 8_0000); } } // TODO: VBlack delay (8ms correction for now)
+    internal long GetDeviceDelay()
+    {
+        /* TODO
+         * Get rid of lockers during playback
+         * VBlack delay (8ms correction for now)
+         * TBR: (Very rare) Possible invalid response after quick Clear Buffers?* can return huge number ~60sec and can't even restore on next clear buffer
+         */
+        lock (locker)
+        {
+            var latency = (long) ((xaudio2.PerformanceData.CurrentLatencyInSamples * Timebase) - 8_0000);
+            if (latency > TimeSpan.FromMilliseconds(500).Ticks)
+            {
+                #if DEBUG
+                player.Log.Error($"!!! Device Latency nosense -> {TicksToTimeMini(latency)}");
+                #endif
+                return TimeSpan.FromMilliseconds(40).Ticks;
+            }
+            
+            return latency;
+        }
+    }
     internal void ClearBuffer()
     {
         lock (locker)
