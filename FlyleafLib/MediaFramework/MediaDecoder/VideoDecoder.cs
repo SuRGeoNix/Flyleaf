@@ -9,6 +9,7 @@ using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaFramework.MediaRemuxer;
+using FlyleafLib.MediaFramework.MediaDemuxer;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
@@ -44,6 +45,9 @@ public unsafe class VideoDecoder : DecoderBase
 
     bool                    checkExtraFrames; // DecodeFrameNext
     int                     curFrameWidth, curFrameHeight; // To catch 'codec changed'
+
+    // Hot paths / Same instance
+    PacketQueue             vPackets;
 
     // Reverse Playback
     ConcurrentStack<List<nint>>
@@ -283,7 +287,8 @@ public unsafe class VideoDecoder : DecoderBase
         // Ensures we have a renderer (no swap chain is required)
         CreateRenderer();
 
-        VideoAccelerated = false;
+        vPackets        = demuxer.VideoPackets;
+        VideoAccelerated= false;
 
         if (!swFallback && !Config.Video.SwsForce && Config.Video.VideoAcceleration && Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0)
         {
@@ -400,14 +405,14 @@ public unsafe class VideoDecoder : DecoderBase
             }
 
             // While Packets Queue Empty (Drain | Quit if Demuxer stopped | Wait until we get packets)
-            if (demuxer.VideoPackets.Count == 0)
+            if (vPackets.IsEmpty)
             {
                 CriticalArea = true;
 
                 lock (lockStatus)
                     if (Status == Status.Running) Status = Status.QueueEmpty;
 
-                while (demuxer.VideoPackets.Count == 0 && Status == Status.QueueEmpty)
+                while (vPackets.IsEmpty && Status == Status.QueueEmpty)
                 {
                     if (demuxer.Status == Status.Ended)
                     {
@@ -419,7 +424,7 @@ public unsafe class VideoDecoder : DecoderBase
                             var drainPacket = av_packet_alloc();
                             drainPacket->data = null;
                             drainPacket->size = 0;
-                            demuxer.VideoPackets.Enqueue(drainPacket);
+                            vPackets.Enqueue(drainPacket);
                         }
 
                         break;
@@ -467,7 +472,7 @@ public unsafe class VideoDecoder : DecoderBase
                 if (Status == Status.Stopped)
                     continue;
 
-                packet = demuxer.VideoPackets.Dequeue();
+                packet = vPackets.Dequeue();
 
                 if (packet == null)
                     continue;
@@ -515,7 +520,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                     if (ret == AVERROR_EOF)
                     {
-                        if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); continue; } // TBR: Happens on HLS while switching video streams
+                        if (!vPackets.IsEmpty) { avcodec_flush_buffers(codecCtx); continue; } // TBR: Happens on HLS while switching video streams
                         Status = Status.Ended;
                         break;
                     }
@@ -542,7 +547,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                         if (ret == AVERROR_EOF)
                         {
-                            if (demuxer.VideoPackets.Count > 0) { avcodec_flush_buffers(codecCtx); break; } // TBR: Happens on HLS while switching video streams
+                            if (!vPackets.IsEmpty) { avcodec_flush_buffers(codecCtx); break; } // TBR: Happens on HLS while switching video streams
                             Status = Status.Ended;
                             break;
                         }
@@ -1047,7 +1052,7 @@ public unsafe class VideoDecoder : DecoderBase
             if (DecodeFrameNextInternal() == 0)
                 return 0;
 
-            if (Demuxer.Status == Status.Ended && demuxer.VideoPackets.Count == 0 && Frames.IsEmpty)
+            if (Demuxer.Status == Status.Ended && vPackets.IsEmpty && Frames.IsEmpty)
             {
                 Stop();
                 Status = Status.Ended;

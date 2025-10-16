@@ -102,7 +102,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                     var codecOpts = Config.Decoder.GetCodecOptPtr(stream.Type);
                     AVDictionary* avopt = null;
                     foreach(var optKV in codecOpts)
-                        av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                        _ = av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
 
                     ret = avcodec_open2(codecCtx, null, avopt == null ? null : &avopt);
 

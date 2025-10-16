@@ -620,13 +620,13 @@ unsafe partial class Player
 
             if (resync && (Duration > 0 || stream.Demuxer.IsHLSLive))
             {
-                // Wait for at least on package before seek to update the HLS context first_time
+                // Wait for at least X packets before seek to update the HLS context first_time
                 if (stream.Demuxer.IsHLSLive)
                 {
                     var curDemuxer = stream.Demuxer;
 
                     int retries = 1000; // 20sec ? | For audio check also VideoPackets
-                    while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3 && stream.Demuxer.VideoPackets.Count < 3 && retries-- > 0)
+                    while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3 && retries-- > 0)
                         Thread.Sleep(20);
 
                     ReSync(stream, (int)((duration - fromEnd - (DateTime.UtcNow.Ticks - delay)) / 10000));
@@ -711,7 +711,7 @@ unsafe partial class Player
     internal void ReSync(StreamBase stream, int syncMs = -1, bool accurate = false)
     {
         /* TODO
-         *
+         * TBR: Audio only might have issues
          * HLS live resync on stream switch should be from the end not from the start (could have different cache/duration)
          */
 
@@ -750,7 +750,7 @@ unsafe partial class Player
             }
             else
             {
-                renderer?.ClearOverlayTexture();
+                renderer.ClearOverlayTexture();
                 Subtitles.ClearSubsText();
             }
         }

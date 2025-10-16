@@ -146,10 +146,10 @@ public class Video : NotifyPropertyChanged
         pixelFormat = decoder.VideoStream.PixelFormatStr;
         framesTotal = decoder.VideoStream.TotalFrames;
         videoAcceleration
-                    = decoder.VideoDecoder.VideoAccelerated;
+                    = player.VideoDecoder.VideoAccelerated;
         hdrFormat   = decoder.VideoStream.HDRFormat;
         colorFormat = $"{decoder.VideoStream.ColorSpace}\r\n{decoder.VideoStream.ColorTransfer}\r\n{decoder.VideoStream.ColorRange}";
-        isOpened    =!decoder.VideoDecoder.Disposed;
+        isOpened    =!player.VideoDecoder.Disposed;
 
         player.ResetFrameStats();
         bitRate         = 0;
