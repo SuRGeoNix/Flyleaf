@@ -376,101 +376,100 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Maximuim allowed packets for buffering (as an extra check along with BufferDuration)
         /// </summary>
-        public long             BufferPackets   { get; set; }
+        public long             BufferPackets       { get; set; }
 
         /// <summary>
         /// Maximuim allowed audio packets (when reached it will drop the extra packets and will fire the AudioLimit event)
         /// </summary>
-        public long             MaxAudioPackets { get; set; }
+        public long             MaxAudioPackets     { get; set; }
 
         /// <summary>
         /// Maximum allowed errors before stopping
         /// </summary>
-        public int              MaxErrors       { get; set; } = 30;
+        public int              MaxErrors           { get; set; } = 30;
 
         /// <summary>
         /// Custom IO Stream buffer size (in bytes) for the AVIO Context
         /// </summary>
-        public int              IOStreamBufferSize
-                                                { get; set; } = 0x200000;
+        public int              IOStreamBufferSize  { get; set; } = 0x200000;
 
         /// <summary>
         /// avformat_close_input timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             CloseTimeout    { get => closeTimeout; set { closeTimeout = value; closeTimeoutMs = value / 10000; } }
+        public long             CloseTimeout        { get => closeTimeout; set { closeTimeout = value; closeTimeoutMs = value / 10000; } }
         private long closeTimeout = 1 * 1000 * 10000;
         internal long closeTimeoutMs = 1 * 1000;
 
         /// <summary>
         /// avformat_open_input + avformat_find_stream_info timeout (ticks) for protocols that support interrupts (should be related to probesize/analyzeduration)
         /// </summary>
-        public long             OpenTimeout     { get => openTimeout; set { openTimeout = value; openTimeoutMs = value / 10000; } }
+        public long             OpenTimeout         { get => openTimeout; set { openTimeout = value; openTimeoutMs = value / 10000; } }
         private long openTimeout = 5 * 60 * (long)1000 * 10000;
         internal long openTimeoutMs = 5 * 60 * 1000;
 
         /// <summary>
         /// av_read_frame timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             ReadTimeout     { get => readTimeout; set { readTimeout = value; readTimeoutMs = value / 10000; } }
+        public long             ReadTimeout         { get => readTimeout; set { readTimeout = value; readTimeoutMs = value / 10000; } }
         private long readTimeout = 10 * 1000 * 10000;
         internal long readTimeoutMs = 10 * 1000;
 
         /// <summary>
         /// av_read_frame timeout (ticks) for protocols that support interrupts (for Live streams)
         /// </summary>
-        public long             ReadLiveTimeout { get => readLiveTimeout; set { readLiveTimeout = value; readLiveTimeoutMs = value / 10000; } }
+        public long             ReadLiveTimeout     { get => readLiveTimeout; set { readLiveTimeout = value; readLiveTimeoutMs = value / 10000; } }
         private long readLiveTimeout = 20 * 1000 * 10000;
         internal long readLiveTimeoutMs = 20 * 1000;
 
         /// <summary>
         /// av_seek_frame timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             SeekTimeout     { get => seekTimeout; set { seekTimeout = value; seekTimeoutMs = value / 10000; } }
+        public long             SeekTimeout         { get => seekTimeout; set { seekTimeout = value; seekTimeoutMs = value / 10000; } }
         private long seekTimeout = 8 * 1000 * 10000;
         internal long seekTimeoutMs = 8 * 1000;
 
         /// <summary>
         /// Forces Input Format
         /// </summary>
-        public string           ForceFormat     { get; set; }
+        public string           ForceFormat         { get; set; }
 
         /// <summary>
         /// Forces FPS for NoTimestamp formats (such as h264/hevc)
         /// </summary>
-        public double           ForceFPS        { get; set; }
+        public double           ForceFPS            { get; set; }
 
         /// <summary>
         /// FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
         /// eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
         /// </summary>
-        public DemuxerFlags     FormatFlags     { get; set; } = DemuxerFlags.DiscardCorrupt;// FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
+        public DemuxerFlags     FormatFlags         { get; set; } = DemuxerFlags.DiscardCorrupt;// FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
 
         /// <summary>
         /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt and HTTPQuery params to the underlying contexts)
         /// </summary>
         public bool             FormatOptToUnderlying
-                                                { get; set; }
+                                                    { get; set; }
 
         /// <summary>
         /// Passes original's Url HTTP Query String parameters to underlying
         /// </summary>
         public bool             DefaultHTTPQueryToUnderlying
-                                                { get; set; } = true;
+                                                    { get; set; } = true;
 
         /// <summary>
         /// HTTP Query String parameters to pass to underlying
         /// </summary>
         public Dictionary<string, string>
                                 ExtraHTTPQueryParamsToUnderlying
-                                                { get; set; } = [];
+                                                    { get; set; } = [];
 
         /// <summary>
         /// FFmpeg's format options for demuxer
         /// </summary>
         public Dictionary<string, string>
-                                FormatOpt       { get; set; } = DefaultVideoFormatOpt();
+                                FormatOpt           { get; set; } = DefaultVideoFormatOpt();
         public Dictionary<string, string>
-                                AudioFormatOpt  { get; set; } = DefaultVideoFormatOpt();
+                                AudioFormatOpt      { get; set; } = DefaultVideoFormatOpt();
 
         public Dictionary<string, string>
                                 SubtitlesFormatOpt  { get; set; } = DefaultVideoFormatOpt();
@@ -525,58 +524,58 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Threads that will be used from the decoder
         /// </summary>
-        public int              VideoThreads    { get; set; } = Environment.ProcessorCount;
+        public int              VideoThreads        { get; set; } = Environment.ProcessorCount;
 
         /// <summary>
         /// Maximum video frames to be decoded and processed for rendering
         /// </summary>
-        public int              MaxVideoFrames  { get => _MaxVideoFrames; set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
+        public int              MaxVideoFrames      { get => _MaxVideoFrames;   set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
         int _MaxVideoFrames = 4;
         internal void SetMaxVideoFrames(int maxVideoFrames) { _MaxVideoFrames = maxVideoFrames; RaiseUI(nameof(MaxVideoFrames)); } // can be updated by video decoder if fails to allocate them
 
         /// <summary>
         /// Maximum audio frames to be decoded and processed for playback
         /// </summary>
-        public int              MaxAudioFrames  { get; set; } = 10;
+        public int              MaxAudioFrames      { get; set; } = 10;
 
         /// <summary>
         /// Maximum subtitle frames to be decoded
         /// </summary>
-        public int              MaxSubsFrames   { get; set; } = 1;
+        public int              MaxSubsFrames       { get; set; } = 1;
 
         /// <summary>
         /// Maximum data frames to be decoded
         /// </summary>
-        public int              MaxDataFrames   { get; set; } = 100;
+        public int              MaxDataFrames       { get; set; } = 100;
 
         /// <summary>
         /// Maximum allowed errors before stopping
         /// </summary>
-        public int              MaxErrors       { get; set; } = 200;
+        public int              MaxErrors           { get; set; } = 200;
 
         /// <summary>
         /// Allows video accceleration even in codec's profile mismatch
         /// </summary>
-        public bool             AllowProfileMismatch
-                                                { get => _AllowProfileMismatch; set => SetUI(ref _AllowProfileMismatch, value); }
+        public bool             AllowProfileMismatch{ get => _AllowProfileMismatch; set => SetUI(ref _AllowProfileMismatch, value); }
         bool _AllowProfileMismatch = true;
 
         /// <summary>
         /// Allows corrupted frames (Parses AV_CODEC_FLAG_OUTPUT_CORRUPT to AVCodecContext)
         /// </summary>
-        public bool             ShowCorrupted   { get => _ShowCorrupted; set => SetUI(ref _ShowCorrupted, value); }
+        public bool             ShowCorrupted       { get => _ShowCorrupted;        set => SetUI(ref _ShowCorrupted, value); }
         bool _ShowCorrupted;
 
         /// <summary>
         /// Forces low delay (Parses AV_CODEC_FLAG2_FAST or AV_CODEC_FLAG_LOW_DELAY -based on DropFrames- to AVCodecContext) (auto-enabled with MaxLatency)
         /// </summary>
-        public bool             LowDelay        { get => _LowDelay; set => SetUI(ref _LowDelay, value); }
+        public bool             LowDelay            { get => _LowDelay;             set => SetUI(ref _LowDelay, value); }
         bool _LowDelay;
 
         /// <summary>
         /// Sets AVCodecContext skip_frame to None or Default (affects also LowDelay)
         /// </summary>
-        public bool             DropFrames      { get; set; }
+        public bool             AllowDropFrames     { get => _AllowDropFrames;      set => SetUI(ref _AllowDropFrames, value); }
+        bool _AllowDropFrames;
 
         public Dictionary<string, string>
                                 AudioCodecOpt       { get; set; } = [];
@@ -592,8 +591,8 @@ public class Config : NotifyPropertyChanged
     {
         public VideoConfig()
         {
-            BindingOperations.EnableCollectionSynchronization(Filters, lockFilters);
-            BindingOperations.EnableCollectionSynchronization(D3Filters, lockD3Filters);
+            BindingOperations.EnableCollectionSynchronization(Filters,  lockFilters);
+            BindingOperations.EnableCollectionSynchronization(D3Filters,lockD3Filters);
         }
 
         public VideoConfig Clone()
@@ -837,7 +836,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Audio languages preference by priority
         /// </summary>
-        public List<Language>   Languages { get { _Languages ??= GetSystemLanguages(); return _Languages; } set => _Languages = value; }
+        public List<Language>   Languages           { get { _Languages ??= GetSystemLanguages(); return _Languages; } set => _Languages = value; }
         List<Language> _Languages;
     }
     public class SubtitlesConfig : NotifyPropertyChanged
@@ -886,7 +885,7 @@ public class Config : NotifyPropertyChanged
         /// Allowed input types to be searched locally for subtitles (empty list allows all types)
         /// </summary>
         public List<InputType>  SearchLocalOnInputType
-                                                    { get; set; } = [ InputType.File, InputType.UNC, InputType.Torrent ];
+                                                    { get; set; } = [InputType.File, InputType.UNC, InputType.Torrent];
 
         /// <summary>
         /// Whether to use online search plugins (see also <see cref="SearchOnlineOnInputType"/>)
@@ -898,7 +897,7 @@ public class Config : NotifyPropertyChanged
         /// Allowed input types to be searched online for subtitles (empty list allows all types)
         /// </summary>
         public List<InputType>  SearchOnlineOnInputType
-                                                    { get; set; } = [ InputType.File, InputType.UNC, InputType.Torrent ];
+                                                    { get; set; } = [InputType.File, InputType.UNC, InputType.Torrent];
 
         /// <summary>
         /// Subtitles parser (can be used for custom parsing)
