@@ -656,7 +656,6 @@ unsafe public partial class Renderer
 ");
             }
 
-            context.OMSetBlendState(VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Alpha) ? blendStateAlpha : null);
             Log.Debug($"Prepared planes for {VideoStream.PixelFormatStr} with {videoProcessor} [{curPSCase}]");
 
             return true;

@@ -243,7 +243,7 @@ public unsafe partial class Renderer
 
             // restore context
             context.PSSetShader(ShaderPS);
-            context.OMSetBlendState(VideoStream.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Alpha) ? blendStateAlpha : null);
+            context.OMSetBlendState(null);
             context.RSSetViewport(GetViewport);
         }
     }

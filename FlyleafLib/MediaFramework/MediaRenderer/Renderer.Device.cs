@@ -212,7 +212,7 @@ public unsafe partial class Renderer
                 // subs
                 ShaderBGRA = ShaderCompiler.CompilePS(Device, "bgra", @"color = float4(Texture1.Sample(Sampler, input.Texture).rgba);", null);
 
-                // Blend State (currently used -mainly- for RGBA images and OverlayTexture)
+                // Blend State (currently used for OverlayTexture)
                 blendStateAlpha = Device.CreateBlendState(blendDesc);
 
                 // Rasterizer (Will change CullMode to None for H-V Flip)
