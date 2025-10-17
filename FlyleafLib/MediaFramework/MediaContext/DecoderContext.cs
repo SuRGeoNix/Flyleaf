@@ -531,7 +531,7 @@ public unsafe partial class DecoderContext : PluginHandler
                 if (packet->flags.HasFlag(PktFlags.Key) || packet->pts == VideoDecoder.startPts)
                 {
                     VideoDecoder.keyPacketRequired = false;
-                    VideoDecoder.keyFrameRequired  = true;
+                    VideoDecoder.keyFrameRequired  = Config.Decoder._KeyFrameValidation;
                 }
                 else
                 {

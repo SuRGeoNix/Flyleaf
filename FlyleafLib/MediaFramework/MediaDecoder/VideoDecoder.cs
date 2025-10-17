@@ -493,7 +493,7 @@ public unsafe class VideoDecoder : DecoderBase
                 {
                     if (packet->flags.HasFlag(PktFlags.Key) || packet->pts == startPts)
                     {
-                        keyFrameRequired  = true;
+                        keyFrameRequired  = Config.Decoder._KeyFrameValidation;
                         keyPacketRequired = false;
                     }
                     else
@@ -1086,7 +1086,7 @@ public unsafe class VideoDecoder : DecoderBase
                 if (demuxer.packet->flags.HasFlag(PktFlags.Key) || demuxer.packet->pts == startPts)
                 {
                     keyPacketRequired = false;
-                    keyFrameRequired  = true;
+                    keyFrameRequired  = Config.Decoder._KeyFrameValidation;
                 }
                 else
                 {
