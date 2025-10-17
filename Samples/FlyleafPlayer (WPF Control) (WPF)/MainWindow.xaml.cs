@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 
 using static FlyleafLib.Utils;
 using static FlyleafPlayer.AppConfig;
@@ -76,6 +77,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                                 = AvailableWindows.Both,
             KeepRatioOnResize   = true,
             OpenOnDrop          = AvailableWindows.Both,
+
+            //VideoBackground = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)), // Testing transparency
             
             PreferredLandscapeWidth = 800,
             PreferredPortraitHeight = 600,
@@ -237,6 +240,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         //playerConfig.Player.ZeroLatency = true;
         //playerConfig.Video.ClearScreen = false;
         //playerConfig.Player.UICurTime = UIRefreshType.PerFrame;
+        //playerConfig.Decoder.VideoCodec = "libvpx-vp9";
         #endif
         
         // Initializes the Player
