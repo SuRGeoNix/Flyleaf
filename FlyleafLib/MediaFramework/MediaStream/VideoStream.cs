@@ -221,8 +221,11 @@ public unsafe class VideoStream : StreamBase
             }
         }
 
-        Width   = (uint)(frame->width  - (cropRect.Left + cropRect.Right));
-        Height  = (uint)(frame->height - (cropRect.Top  + cropRect.Bottom));
+        if (Width == 0)
+        {   // Those are for info only (mainly before opening the stream, otherwise we get them from renderer at player's Video.X)
+            Width   = (uint)codecCtx->width;
+            Height  = (uint)codecCtx->height;
+        }
 
         if (frame->flags.HasFlag(FrameFlags.Interlaced))
             FieldOrder = frame->flags.HasFlag(FrameFlags.TopFieldFirst) ? VideoFrameFormat.InterlacedTopFieldFirst : VideoFrameFormat.InterlacedBottomFieldFirst;

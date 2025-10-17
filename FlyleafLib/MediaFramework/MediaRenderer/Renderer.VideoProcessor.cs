@@ -407,7 +407,7 @@ unsafe public partial class Renderer
         context.UpdateSubresource(vsBufferData, vsBuffer);
         vc?.VideoProcessorSetStreamRotation(vp, 0, true, _d3d11vpRotation);
 
-        UpdateAspectRatio(refresh);
+        UpdateAspectRatioUnSafe(refresh);
     }
 
     internal void UpdateAspectRatio(bool refresh = true)

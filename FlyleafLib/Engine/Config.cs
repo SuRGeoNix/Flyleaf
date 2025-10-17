@@ -566,7 +566,7 @@ public class Config : NotifyPropertyChanged
         bool _ShowCorrupted;
 
         /// <summary>
-        /// Ensures that after a key packet receives a also key frame (can create artifacts on some broken formats when disabled)
+        /// Ensures that after a key packet receives a also key frame (can create artifacts on some broken formats when disabled and seek issues when enabled)
         /// </summary>
         public bool             KeyFrameValidation  { get => _KeyFrameValidation;   set => SetUI(ref _KeyFrameValidation, value); }
         internal bool _KeyFrameValidation;

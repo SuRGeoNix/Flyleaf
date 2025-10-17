@@ -5,7 +5,7 @@
 		<UseWinUI>true</UseWinUI>
 		<Nullable>enable</Nullable>
 		<Authors>SuRGeoNix</Authors>
-		<Version>1.2.2</Version>
+		<Version>1.2.3</Version>
 		<Copyright>SuRGeoNix © 2025</Copyright>
 		<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
 		<PackageIcon>Flyleaf.png</PackageIcon>
@@ -13,8 +13,7 @@
 		<PackageTags>flyleaf flyleaflib flyleafhost video audio winui media player element control</PackageTags>
 		<Description>FlyleafHost.WinUI: Direct3D 11 Hardware Accelerated Media Surface (based on FlyleafLib)</Description>
 		<PackageReleaseNotes>
-			- Adds .NET 10 support
-			- Updates FlyleafLib
+			Updates FlyleafLib / Vortice / WindowsAppSDK
 		</PackageReleaseNotes>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-windows10.0.19041.0|AnyCPU'">
