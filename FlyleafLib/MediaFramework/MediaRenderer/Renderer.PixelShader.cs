@@ -284,7 +284,6 @@ unsafe public partial class Renderer
 
         float4 c1 = Texture1.Sample(Sampler, float2(pos1, input.Texture.y));
         float4 c2 = Texture1.Sample(Sampler, float2(pos2, input.Texture.y));
-
     ";
                             if (VideoStream.PixelFormat == AVPixelFormat.Yuyv422 ||
                                 VideoStream.PixelFormat == AVPixelFormat.Y210le)
@@ -451,10 +450,16 @@ unsafe public partial class Renderer
                             for (int i = 0; i < VideoStream.PixelComps.Length; i++)
                                 offsets += pixelOffsets[(int) (VideoStream.PixelComps[i].offset / Math.Ceiling(VideoStream.PixelComp0Depth / 8.0))];
 
+                            // TBR: [RGB0]32 has no alpha remove it
+                            if (VideoStream.PixelFormatStr[0] == '0')
+                                offsets = offsets[1..];
+                            else if (VideoStream.PixelFormatStr[^1] == '0')
+                                offsets = offsets[..^1];
+
                             curPSUniqueId += offsets;
 
                             string shader;
-                            if (VideoStream.PixelComps.Length > 3)
+                            if (VideoStream.PixelComps.Length > 3 && offsets.Length > 3)
                                 shader = @$"
     color = Texture1.Sample(Sampler, input.Texture).{offsets};
 ";
@@ -734,12 +739,11 @@ unsafe public partial class Renderer
                 bool vflip = false;
                 for (int i = 0; i < VideoStream.PixelPlanes; i++)
                 {
-                    if (frame->linesize[i] < 0) // Negative linesize for vertical flipping
+                    if (frame->linesize[i] < 0) // Negative linesize needs vertical flipping | [Bottom -> Top] data[i] points to last row and we need to move at first (height - 1) rows
                     {
                         vflip = true;
                         subData[0].RowPitch     = (uint)(-1 * frame->linesize[i]);
-                        subData[0].DataPointer  = frame->data[i];
-                        subData[0].DataPointer -= (nint)((subData[0].RowPitch * (VideoStream.Height - 1))); // TBR: Heigh is wrong here (needs texture's height?)
+                        subData[0].DataPointer  = frame->data[i] + (frame->linesize[i] * (frame->height - 1));
                     }
                     else
                     {
