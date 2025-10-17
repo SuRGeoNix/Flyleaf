@@ -58,6 +58,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
     protected string Open2(StreamBase stream, StreamBase prevStream, bool openStream = true)
     {
         string error = null;
+        AVCodec* codec;
 
         try
         {
@@ -73,10 +74,17 @@ public abstract unsafe class DecoderBase : RunThreadBase
 
                 if (stream is not DataStream) // if we don't open/use a data codec context why not just push the Data Frames directly from the Demuxer? no need to have DataDecoder*
                 {
-                    // avcodec_find_decoder will use libdav1d which does not support hardware decoding (software fallback with openStream = false from av1 to default:libdav1d) [#340]
-                    var codec = stream.CodecID == AVCodecID.Av1 && openStream && Config.Video.VideoAcceleration ? avcodec_find_decoder_by_name("av1") : avcodec_find_decoder(stream.CodecID);
+                    var codecStr = Config.Decoder.GetCodecPtr(stream.Type);
+                    if (string.IsNullOrEmpty(codecStr))
+                        // avcodec_find_decoder will use libdav1d which does not support hardware decoding (software fallback with openStream = false from av1 to default:libdav1d) [#340]
+                        codec = stream.CodecID == AVCodecID.Av1 && openStream && Config.Video.VideoAcceleration ? avcodec_find_decoder_by_name("av1") : avcodec_find_decoder(stream.CodecID);
+                    else
+                        codec = avcodec_find_decoder_by_name(codecStr);
+
                     if (codec == null)
-                        return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
+                        return error = $"[{Type} avcodec_find_decoder] No suitable codec found ";
+
+                    if (CanDebug) Log.Debug($"[{Type}] Using {avcodec_get_name(codec->id)} codec");
 
                     codecCtx = avcodec_alloc_context3(codec); // Pass codec to use default settings
                     if (codecCtx == null)
