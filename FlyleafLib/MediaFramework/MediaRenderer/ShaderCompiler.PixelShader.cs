@@ -347,7 +347,7 @@ float4 main(PSInput input) : SV_TARGET
     c  = Saturation(c, Config.saturation);
 #endif
     
-    return saturate(float4(c, color.a));
+    return saturate(float4(c * color.a, color.a));
 }
 "u8;
 }
