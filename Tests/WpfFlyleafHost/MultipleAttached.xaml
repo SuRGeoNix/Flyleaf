@@ -43,12 +43,12 @@
             </fl:FlyleafHost>
         </Border>
 
-        <!--Attach / Detach | TBR: Seems to cause issues when attached-->
+        <!--Attach / Detach | Currently starting with Detached will cause a UI freeze issues when you attach back -->
         <fl:FlyleafHost Player="{Binding Player1}" Margin="300 200 0 0" Width="140" Height="110" VerticalAlignment="Top" HorizontalAlignment="Left"
                         AttachedDragMove="Surface" AttachedResize="Overlay"
                         DetachedDragMove="Both" DetachedResize="Overlay" DetachedTopMost="True"
 
-                        IsAttached="False"
+                        IsAttached="True"
                         KeepRatioOnResize="True"
 
                         DetachedRememberPosition="True" DetachedRememberSize="True"
