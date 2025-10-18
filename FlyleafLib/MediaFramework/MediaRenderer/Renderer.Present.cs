@@ -9,7 +9,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
-    long            lastPresentAt;
+    long            lastRenderAt;
     long            lastPresentRequestAt;
     volatile bool   isPlayerPresenting;
     volatile bool   isIdlePresenting;
@@ -43,7 +43,7 @@ public unsafe partial class Renderer
         int rechecks = 1000; // Awake for ~5sec when Idle
         while (canRenderPresent)
         {
-            while (lastPresentRequestAt <= lastPresentAt && rechecks-- > 0)
+            while (lastPresentRequestAt <= lastRenderAt && rechecks-- > 0)
             {
                 if (isPlayerPresenting || !canRenderPresent)
                     { rechecks = 0; break; }
@@ -54,7 +54,7 @@ public unsafe partial class Renderer
             if (rechecks < 1)
                 break;
 
-            lastPresentAt = lastPresentRequestAt;
+            lastRenderAt = lastPresentRequestAt;
             rechecks = 1000;
             RenderIdle();
         }
@@ -62,7 +62,7 @@ public unsafe partial class Renderer
         lock (lockRenderLoops) // To avoid race condition*?
         {
             isIdlePresenting = false;
-            if (lastPresentRequestAt > lastPresentAt && !isPlayerPresenting && canRenderPresent)
+            if (lastPresentRequestAt > lastRenderAt && !isPlayerPresenting && canRenderPresent)
                 RenderRequest();
         }
     }
@@ -120,7 +120,10 @@ public unsafe partial class Renderer
                 SetViewportInternal();
 
                 if (canRenderPresent)
+                {
+                    lastRenderAt = DateTime.UtcNow.Ticks;
                     RenderFrame(frame, secondField);
+                }
 
                 if (frame != LastFrame)
                 {
@@ -183,6 +186,32 @@ public unsafe partial class Renderer
         }
 
         return false;
+    }
+    internal bool RefreshPlay(bool secondField)
+    {   // Tries to keep ~60fps refreshes within/during playback
+        if (lastRenderAt > lastPresentRequestAt)
+            return false;
+
+        try
+        {
+            lock (lockRenderLoops)
+            {
+                ResizeBuffersInternal();
+                SetViewportInternal();
+
+                if (!canRenderPresent || LastFrame == null) // Rare case if RenderFrame failed at first/previous call
+                    return true;
+
+                RenderFrame(LastFrame, secondField);
+                lastRenderAt = DateTime.UtcNow.Ticks;
+            }
+
+            if (canRenderPresent)
+                swapChain.Present(Config.Video.VSync, PresentFlags.None).CheckError();
+
+            return true;
+        }
+        catch { return false; }
     }
 
     void RenderFrame(VideoFrame frame, bool secondField) // From Play or Idle (No lock/try, ensure we don't run both)

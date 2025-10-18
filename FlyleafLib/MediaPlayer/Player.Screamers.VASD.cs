@@ -201,6 +201,7 @@ unsafe partial class Player
         int dequeueRetries;
         int vDistanceMs, sDistanceMs, dDistanceMs;
         long elapsedTicks;
+        bool refreshed = false;
         
         while (status == Status.Playing)
         {
@@ -356,16 +357,30 @@ unsafe partial class Player
                 continue;
             }
 
-            // Thread Sleep in Parts | Restarts on Late Frame (2sec?)
+            // Thread Sleep in Parts | 60fps Idle Refresh | Restarts on Late Frame (2sec?)
             if (vDistanceMs > 2)
             {
                 if (vDistanceMs > 11)
                 {
-                    if (vDistanceMs > 2_000) // we might need to avoid disposing vFrame here (e.g. HLS wrapped and that's a keyframe?*)
+                    if (status != Status.Playing)
+                        break;
+
+                    // Late Frame (e.g. HLS wrapped and that's a keyframe?* -we might need to avoid disposing vFrame here)
+                    if (vDistanceMs > 2_000)
                     {
                         requiresBuffering = true;
                         Log.Warn($"[V] Late Frame ({vDistanceMs})");
                     }
+
+                    // Keep ~60fps Idle refresh | TBR: We could avoid preparing frame too early -for slow fps- (as we discard it here)
+                    else if (vDistanceMs > 16 && renderer.RefreshPlay(secondField))
+                    {
+                        if (CanTrace) Log.Trace($"[V] Refreshing {TicksToTime(vFrame.timestamp)}{(secondField ? " | SF" : "")}");
+                        framesDisplayed++;
+                        refreshed = true;
+                    }
+                    
+                    // Sleep 10ms and recalculate distance
                     else
                         Thread.Sleep(10);
 
@@ -376,18 +391,24 @@ unsafe partial class Player
             }
 
             // Present Current | Render Next
-            if (CanTrace) Log.Trace($"[V] Presenting {TicksToTime(vFrame.timestamp)}{(secondField ? " | SF" : "")}");
-            if (renderer.PresentPlay())
+            if (!refreshed)
             {
-                framesDisplayed++;
-                UpdateCurTime(vFrame.timestamp, false);
+                if (CanTrace) Log.Trace($"[V] Presenting {TicksToTime(vFrame.timestamp)}{(secondField ? " | SF" : "")}");
+
+                if (renderer.PresentPlay())
+                {
+                    framesDisplayed++;
+                    UpdateCurTime(vFrame.timestamp, false);
+                }
+                else
+                    framesFailed++;
             }
             else
-                framesFailed++;
+                refreshed = false;
 
             if (Config.Player.MaxLatency != 0)
                 CheckLatency();
-            
+
             if (renderer.FieldType != VideoFrameFormat.Progressive && Config.Video.DoubleRate && !secondField)
             {
                 secondField = true;
@@ -506,7 +527,8 @@ unsafe partial class Player
 
         if (vFrame != null && vFrame != renderer.LastFrame) // TBR: lock*?
             { VideoDecoder.DisposeFrame(vFrame); vFrame = null; }
-        renderer.RenderPlayStop();
+
+        renderer.RenderPlayStop();  // Calls RenderRequest which ensure present of the last rendered frame
         StopScreamerVASDAudio();
 
         if (Config.Player.Stats)
