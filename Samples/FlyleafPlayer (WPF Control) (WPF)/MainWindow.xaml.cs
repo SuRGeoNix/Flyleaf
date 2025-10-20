@@ -19,9 +19,6 @@ using FlyleafLib.MediaPlayer;
 
 namespace FlyleafPlayer;
 
-// TODO: Popup Menu Playlist will not resize the size?
-//       Add Play Next/Prev for Playlists (Page Up/Down?) this goes down to Player
-
 /// <summary>
 /// <para>FlyleafPlayer Sample</para>
 /// <para>A stand-alone Overlay which uses a customization of FlyleafME control</para>
@@ -181,6 +178,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (App.CmdUrl != null)
             Player.OpenAsync(App.CmdUrl);
+
+        Task.Run(() =>
+        {
+            Engine.Video.RefreshCapDevices();
+            Engine.Audio.RefreshCapDevices();
+        });
 
         #if RELEASE
         // Save Player's Config (First Run)
