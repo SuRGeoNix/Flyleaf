@@ -57,6 +57,9 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
         EnumerateDevices();
     }
 
+    /// <summary>
+    /// Enumerates Audio Capture Devices which can be retrieved from <see cref="CapDevices"/>
+    /// </summary>
     public void RefreshCapDevices()
     {
         lock (lockCapDevices)
