@@ -34,6 +34,9 @@ public class VideoEngine
         GPUAdapters = GetAdapters();
     }
 
+    /// <summary>
+    /// Enumerates Video Capture Devices which can be retrieved from <see cref="CapDevices"/>
+    /// </summary>
     public void RefreshCapDevices()
     {
         lock (lockCapDevices)

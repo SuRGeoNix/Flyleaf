@@ -199,13 +199,6 @@ public static class Engine
         FFmpeg  = new();
         Plugins = new();
         IsLoaded= true;
-
-        if (Config.FFmpegLoadProfile == LoadProfile.All)
-        {
-            Audio.RefreshCapDevices();
-            Video.RefreshCapDevices();
-        }
-
         Loaded?.Invoke(null, null);
 
         if (Config.UIRefresh)
