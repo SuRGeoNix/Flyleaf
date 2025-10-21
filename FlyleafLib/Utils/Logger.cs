@@ -100,7 +100,20 @@ public static class Logger
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
 
-                fileStream = new FileStream(output, Engine.Config.LogAppend ? FileMode.Append : FileMode.Create, FileAccess.Write);
+                if (Engine.Config.LogAppend)
+                {
+                    fileStream = new FileStream(output, FileMode.Append, FileAccess.Write);
+                }
+                else if (Engine.Config.LogFileSizeMax > 0)
+                {
+                    // If we have rolling log enables and do not append, then we need to roll the log files first
+                    RollLogFiles();
+                    fileStream = new FileStream(Engine.Config.LogOutput, FileMode.Create, FileAccess.Write);
+                }
+                else
+                {
+                    fileStream = new FileStream(output, FileMode.Create, FileAccess.Write);
+                }
                 if (lastOutput != ":file")
                 {
                     Output = FilePtr;
@@ -115,8 +128,59 @@ public static class Logger
     {
         fileData.Enqueue(Encoding.UTF8.GetBytes($"{msg}\r\n"));
 
+        if (!fileTaskRunning && Engine.Config.LogFileSizeMax > 0 && fileStream.Length >= Engine.Config.LogFileSizeMax)
+        {
+            HandleLogFileRolling();
+            return;
+        }
+
         if (!fileTaskRunning && fileData.Count > Engine.Config.LogCachedLines)
+        {
             FlushFileData();
+            return;
+        }
+    }
+
+    static void RollLogFiles()
+    {
+        string name = Engine.Config.LogOutput;
+        for (long i = Engine.Config.LogMaxNumberOfBackupFiles; i > 0; i--)
+        {
+            string logFile = $"{name}.{i}";
+            string nextLogFile = $"{name}.{i + 1}";
+            if (File.Exists(logFile))
+            {
+                if (i == Engine.Config.LogMaxNumberOfBackupFiles)
+                {
+                    File.Delete(logFile);
+                }
+                else
+                {
+                    File.Move(logFile, nextLogFile);
+                }
+            }
+        }
+        if (File.Exists(name))
+            File.Move(name, $"{name}.{1}");
+    }
+
+    static void HandleLogFileRolling()
+    {
+        fileTaskRunning = true;
+
+        Task.Run(() =>
+        {
+            lock (lockFileStream)
+            {
+                fileStream.Dispose();
+
+                RollLogFiles();
+
+                fileStream = new FileStream(Engine.Config.LogOutput, FileMode.Create, FileAccess.Write);
+            }
+
+            fileTaskRunning = false;
+        });
     }
 
     static void FlushFileData()
