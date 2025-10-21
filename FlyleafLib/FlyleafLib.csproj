@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.9.3</Version>
+	<Version>3.9.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,16 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Config.Decoder: Introduces AudioCodec/VideoCodec/SubtitlesCodec to allow forcing the codec
-		- Config.Decoder: Introduces AllowDropFrames which handles decoder's skip_frame and AV_CODEC_FLAG_LOW_DELAY/AV_CODEC_FLAG2_FAST for low latency
-		- Config.Decoder: Introduces KeyFrameValidation which ensures no artifacts on some broken formats
-		- VideoDecoder: Fixes a possible issue with frame drops (with network streams) at decoder level
-		- Renderer.Present: Fixes an issue with ClearScreen when forced
-		- Renderer.PixelShader: Switching from OMSetBlendState to custom PixelShader alpha blending to avoid double blend with new transparency support
-		- Player.CurTime: Improves seeking forward when it has a chance to find it in cache
-		- FlyleafHost.Wpf: Adds full transparency support for media with alpha channel (through VideoBackground and Config.Video.BackgroundColor)
-		- FlyleafHost.Wpf: Introduces VideoBackground for Surface's Background color (deprecates Config.Video.BackgroundColor for this purpose)
-		- Updates Vortice
+		- Engine: Prevents enumeration of A/V capture devices during start to avoid delays
+		- VideoDecoder/VideoStream: Fixes an issue while FFmpeg announces 60.00x fps instead of 60fps that could cause video decoder to drop frames (based on Config.Video.MaxOutputFps limit)
+		- Player.ScreamerVASD: Adds an ~60 FPS idle renderer embedded during playback to provide smoother resize and filter updates when the source FPS or speed is low
+		- Player.Audio: Few stability improvements (mainly for non-analyzed inputs)
+		
+		[Breaking Changes]
+		- Engine: A/V captures devices will require manual enumeration with Engine.Audio/Video.RefreshCapDevices() if needed
+		- Config.Decoder: Defaults MaxAudioFrames from 10 to 5 for better syncing, smooth speed changes and resolves possible issues with MaxLatency
 	</PackageReleaseNotes>
   </PropertyGroup>
 
