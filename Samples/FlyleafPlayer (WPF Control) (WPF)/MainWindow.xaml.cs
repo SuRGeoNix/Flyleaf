@@ -244,6 +244,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         //playerConfig.Video.ClearScreen = false;
         //playerConfig.Player.UICurTime = UIRefreshType.PerFrame;
         //playerConfig.Decoder.VideoCodec = "libvpx-vp9";
+        //playerConfig.Player.MaxLatency = TimeSpan.FromMilliseconds(75).Ticks;
+        //playerConfig.Decoder.MaxAudioFrames = 5;
+        //playerConfig.Demuxer.AllowFindStreamInfo = false;
         #endif
         
         // Initializes the Player

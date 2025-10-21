@@ -163,6 +163,7 @@ public class Audio : NotifyPropertyChanged
     AudioBuffer             audioBuffer = new();
     internal double         Timebase;
     internal ulong          submittedSamples;
+    int                     curSampleRate = -1;
     #endregion
 
     public Audio(Player player)
@@ -186,7 +187,6 @@ public class Audio : NotifyPropertyChanged
         };
 
         Volume = Config.Player.VolumeMax / 2;
-        //Initialize(); TBR: required?
     }
 
     internal void Initialize()
@@ -199,8 +199,10 @@ public class Audio : NotifyPropertyChanged
                 return;
             }
 
-            sampleRate = decoder.AudioStream != null && decoder.AudioStream.SampleRate > 0 ? decoder.AudioStream.SampleRate : 48000;
-            player.Log.Info($"Initialiazing audio at {SampleRate}Hz ({Device.Id}:{Device.Name})");
+            if (!isOpened || sampleRate <= 0)
+                return;
+
+            player.Log.Info($"Initialiazing audio at {sampleRate}Hz ({Device.Id}:{Device.Name})");
 
             Dispose();
 
@@ -218,13 +220,14 @@ public class Audio : NotifyPropertyChanged
                 }
 
                 sourceVoice = xaudio2.CreateSourceVoice(waveFormat, false);
-                sourceVoice.SetSourceSampleRate((uint)SampleRate);
+                sourceVoice.SetSourceSampleRate((uint)sampleRate);
                 sourceVoice.Start();
 
                 submittedSamples        = 0;
                 Timebase                = 1000 * 10000.0 / sampleRate;
                 masteringVoice.Volume   = Config.Player.VolumeMax / 100.0f;
                 sourceVoice.Volume      = mute ? 0 : Math.Max(0, _Volume / 100.0f);
+                curSampleRate           = sampleRate;
             }
             catch (Exception e)
             {
@@ -329,9 +332,13 @@ public class Audio : NotifyPropertyChanged
         ClearBuffer();
         player.UIAdd(uiAction);
     }
-    internal void Refresh()
+    internal void Refresh(bool fromCodec = false)
     {
-        if (decoder.AudioStream == null) { Reset(); return; }
+        if (decoder.AudioStream == null)
+        {
+            Reset();
+            return;
+        }
 
         streamIndex     = decoder.AudioStream.StreamIndex;
         codec           = decoder.AudioStream.Codec;
@@ -340,13 +347,23 @@ public class Audio : NotifyPropertyChanged
         channelLayout   = decoder.AudioStream.ChannelLayoutStr;
         sampleFormat    = decoder.AudioStream.SampleFormatStr;
         isOpened        =!decoder.AudioDecoder.Disposed;
+        sampleRate      = decoder.AudioStream.SampleRate;
 
         framesDisplayed = 0;
         framesDropped   = 0;
 
-        if (sampleRate != decoder.AudioStream.SampleRate)
-            Initialize();
+        if (fromCodec)
+        {
+            if (sampleRate <= 0)
+            {   // Possible with AllowFindStreamInfo = false
+                Disable();
+                return;
+            }
 
+            if (sampleRate != curSampleRate)
+                Initialize();
+        }
+        
         player.UIAdd(uiAction);
     }
     internal void Enable()

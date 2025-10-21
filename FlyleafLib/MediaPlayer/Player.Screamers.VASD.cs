@@ -13,7 +13,11 @@ unsafe partial class Player
 
     bool BufferVASD()
     {
-        long aDeviceDelay   = 0;
+        /* [Requires recoding]
+         * We have three different statuses during A/V opening: Closed/Failed, Opening, Opened (Opened means filled from codec / valid format after 'analyze')
+         *  we currently use isOpened only (as two statuses)
+         */
+
         bool gotAudio       = !Audio.IsOpened || Config.Player.MaxLatency != 0;
         bool gotVideo       = false;
         bool shouldStop     = false;
@@ -30,8 +34,6 @@ unsafe partial class Player
 
         if (Audio.isOpened && Config.Audio.Enabled)
         {
-            aDeviceDelay = Audio.GetDeviceDelay();
-
             if (AudioDecoder.OnVideoDemuxer)
                 AudioDecoder.Start();
             else if (!decoder.RequiresResync)
@@ -100,8 +102,10 @@ unsafe partial class Player
                 if (decoder.RequiresResync)
                     decoder.Resync(vFrame.timestamp);
 
-                if (!gotAudio && aFrame != null)
+                if (!gotAudio && aFrame != null && Audio.isOpened) // Could be closed from invalid sample rate
                 {
+                    long aDeviceDelay = Audio.GetDeviceDelay();
+
                     for (int i = 0; i < Math.Min(20, AudioDecoder.Frames.Count); i++)
                     {
                         if (aFrame == null
@@ -655,9 +659,10 @@ unsafe partial class Player
 
                 if (Math.Abs(waitTicks) > 5_000_0000) // Far away
                 {
+                    // TBR: Infinite loop with AllowFindStreamInfo = false on HLS Live (FirstTimestamp different between A/V)
                     Log.Warn($"[A] Late Frame ({TicksToTimeMini(waitTicks)})");
                     requiresBuffering = true;
-                    continue;
+                    break;
                 }
                 else if (waitTicks > 10_0000) // Not yet
                     continue;
@@ -708,7 +713,7 @@ unsafe partial class Player
                 //        Thread.Sleep(1);
                 Audio.ClearBuffer();
 
-                if (CanDebug) Log.Debug($"[A] Resynced at {TicksToTimeMini(aFrame.timestamp)} [Diff: {TicksToTimeMini((long)((aFrame.timestamp - startTicks) / speed) - delayTicks)} | {TicksToTimeMini((long)(sw.ElapsedTicks * SWFREQ_TO_TICKS))}]");
+                if (CanInfo) Log.Info($"[A] Resynced at {TicksToTimeMini(aFrame.timestamp)} [Diff: {TicksToTimeMini((long)((aFrame.timestamp - startTicks) / speed) - delayTicks)} | {TicksToTimeMini((long)(sw.ElapsedTicks * SWFREQ_TO_TICKS))}]");
                 
                 // Fill Enough Samples
                 desyncMs = 0;
@@ -771,7 +776,7 @@ unsafe partial class Player
     uint showFrameCount, framesFailed, framesDisplayed, framesDisplayedDwm, framesDisplayedDwmStart, framesDisplayedDwmEnd;
     internal void ResetFrameStats()
     {
-        if (Config.Player.Stats && showFrameCount != 0)
+        if (Config.Player.Stats)
         {
             /*Video.fpsCurrent = */showFrameCount = framesFailed = framesDisplayed = framesDisplayedDwm = framesDisplayedDwmEnd = 0;
             UI(() => /*Video.FPSCurrent = */Video.FramesDropped = Video.FramesDisplayed = 0);

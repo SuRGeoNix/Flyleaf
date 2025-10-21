@@ -61,7 +61,7 @@ public unsafe class AudioStream : StreamBase
         }
 
         if (frame->sample_rate > 0)
-            SampleRate = codecCtx->sample_rate;
+            SampleRate = frame->sample_rate;
         else if (codecCtx->sample_rate > 0)
             SampleRate = codecCtx->sample_rate;
 

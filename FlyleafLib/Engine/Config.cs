@@ -536,7 +536,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Maximum audio frames to be decoded and processed for playback
         /// </summary>
-        public int              MaxAudioFrames      { get; set; } = 10;
+        public int              MaxAudioFrames      { get; set; } = 5;
 
         /// <summary>
         /// Maximum subtitle frames to be decoded
