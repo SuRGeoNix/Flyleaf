@@ -71,7 +71,7 @@ public unsafe class VideoDecoder : DecoderBase
     {
         if (VideoStream == null) return;
         speed = value;
-        skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
+        skipSpeedFrames = speed * VideoStream.FPS / (Config.Video.MaxOutputFps + 1); // Give 1 fps breath as some streams can be 60.x fps instead - cp->framerate vs av_guess_frame_rate- which one is right?)
     }
 
     /// <summary>
@@ -656,7 +656,7 @@ public unsafe class VideoDecoder : DecoderBase
             VideoStream.Refresh(this, frame);
             codecChanged    = false;
             startPts        = VideoStream.StartTimePts;
-            skipSpeedFrames = speed * VideoStream.FPS / Config.Video.MaxOutputFps;
+            skipSpeedFrames = speed * VideoStream.FPS / (Config.Video.MaxOutputFps + 1);
             
             if (VideoStream.PixelFormat == AVPixelFormat.None || !Renderer.ConfigPlanes(frame))
             {
