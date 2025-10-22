@@ -539,7 +539,7 @@ public partial class DecoderContext
             }
 
             // Open external stream
-            args.Error = OpenDemuxerInput(demuxer, extStream);
+            args.Error = OpenDemuxerInput(demuxer, extStream); // TBR: When enabling Video it will discard/close audio when on video demuxer
 
             if (!args.Success)
                 return args;
@@ -572,7 +572,7 @@ public partial class DecoderContext
                     suggestedStream = streamIndex == -1 ? SuggestAudio(demuxer.AudioStreams) : demuxer.AVStreamToStream[streamIndex];
                 else if (demuxer.Type == MediaType.Subs)
                 {
-                    System.Collections.Generic.List<Language> langs = Config.Subtitles.Languages.ToList();
+                    List<Language> langs = Config.Subtitles.Languages.ToList();
                     langs.Add(Language.Unknown);
                     suggestedStream = streamIndex == -1 ? SuggestSubtitles(demuxer.SubtitlesStreams, langs) : demuxer.AVStreamToStream[streamIndex];
                 }
