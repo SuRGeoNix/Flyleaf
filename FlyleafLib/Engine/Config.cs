@@ -584,13 +584,13 @@ public class Config : NotifyPropertyChanged
         bool _AllowDropFrames;
 
         public string           AudioCodec          { get => _AudioCodec;           set => SetUI(ref _AudioCodec, value); }
-        string _AudioCodec;
+        internal string _AudioCodec;
 
         public string           VideoCodec          { get => _VideoCodec;           set => SetUI(ref _VideoCodec, value); }
-        string _VideoCodec;
+        internal string _VideoCodec;
 
         public string           SubtitlesCodec      { get => _SubtitlesCodec;           set => SetUI(ref _SubtitlesCodec, value); }
-        string _SubtitlesCodec;
+        internal string _SubtitlesCodec;
 
         public string GetCodecPtr(MediaType type)
             => type == MediaType.Video ? _VideoCodec : type == MediaType.Audio ? _AudioCodec : _SubtitlesCodec;

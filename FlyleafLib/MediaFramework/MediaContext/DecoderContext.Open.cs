@@ -673,23 +673,18 @@ public partial class DecoderContext
                     }
 
                     // Open Codec / Enable on demuxer
-                    if (EnableDecoding)
-                    {
-                        string ret = GetDecoderPtr(stream.Type).Open(stream);
-
-                        if (ret != null)
-                        {
-                                return stream.Type == MediaType.Video
-                                ? (args = new OpenVideoStreamCompletedArgs((VideoStream)stream, (VideoStream)oldStream, $"Failed to open video stream #{stream.StreamIndex}\r\n{ret}"))
-                                : stream.Type == MediaType.Audio
-                                ? (args = new OpenAudioStreamCompletedArgs((AudioStream)stream, (AudioStream)oldStream, $"Failed to open audio stream #{stream.StreamIndex}\r\n{ret}"))
-                                : stream.Type == MediaType.Subs
-                                ? (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream, $"Failed to open subtitles stream #{stream.StreamIndex}\r\n{ret}"))
-                                : (args = new OpenDataStreamCompletedArgs((DataStream)stream, (DataStream)oldStream, $"Failed to open data stream #{stream.StreamIndex}\r\n{ret}"));
-                            }
-                    }
-                    else
+                    if (!EnableDecoding)
                         stream.Demuxer.EnableStream(stream);
+                    else if (!GetDecoderPtr(stream.Type).Open(stream))
+                    {
+                        return stream.Type == MediaType.Video
+                        ? (args = new OpenVideoStreamCompletedArgs((VideoStream)stream, (VideoStream)oldStream,             $"Failed to open video stream #{stream.StreamIndex}"))
+                        : stream.Type == MediaType.Audio
+                        ? (args = new OpenAudioStreamCompletedArgs((AudioStream)stream, (AudioStream)oldStream,             $"Failed to open audio stream #{stream.StreamIndex}"))
+                        : stream.Type == MediaType.Subs
+                        ? (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream, $"Failed to open subtitles stream #{stream.StreamIndex}"))
+                        : (args = new OpenDataStreamCompletedArgs((DataStream)stream, (DataStream)oldStream,                $"Failed to open data stream #{stream.StreamIndex}"));
+                    }
 
                     // Open Audio based on new Video Stream (if not the same suggestion)
                     if (defaultAudio && stream.Type == MediaType.Video && Config.Audio.Enabled)
