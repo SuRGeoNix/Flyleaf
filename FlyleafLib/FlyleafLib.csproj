@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.9.4</Version>
+	<Version>3.9.5</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,17 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Engine: Prevents enumeration of A/V capture devices during start to avoid delays
-		- VideoDecoder/VideoStream: Fixes an issue while FFmpeg announces 60.00x fps instead of 60fps that could cause video decoder to drop frames (based on Config.Video.MaxOutputFps limit)
-		- Player.ScreamerVASD: Adds an ~60 FPS idle renderer embedded during playback to provide smoother resize and filter updates when the source FPS or speed is low
-		- Player.Audio: Few stability improvements (mainly for non-analyzed inputs)
-		
+		- Engine.Logger: Adds File Rolling support
+		- Engine.Config: Introduces LogRollMaxFileSize and LogRollMaxFiles for the new File Rolling impelementation
+		- Demuxer: Fixes an issue with Data streams that would be falsely included as Misc/Invalid streams instead
+		- VideoDecoder: Stability and Performance improvements for Open/Setup implementation
+		- Renderer.VideoProcessor: Fixes an issue with cropping not refreshing the layout
+		- Player: Introduces OpeningVideoStream event which fires during VideoDecoder's codec open
+		- Player.Video: Codec now returns the actual codec's name in use by the decoder
+		- FlyleafHost.Wpf: Fixes an issue with MouseWheel event for attached hosts would fire twice causing Zoom and Rotation to not work properly
+
 		[Breaking Changes]
-		- Engine: A/V captures devices will require manual enumeration with Engine.Audio/Video.RefreshCapDevices() if needed
-		- Config.Decoder: Defaults MaxAudioFrames from 10 to 5 for better syncing, smooth speed changes and resolves possible issues with MaxLatency
+		- Config.Decoder: Defaults AllowProfileMismatch back to false as it seems that it causes more issues than it resolves
 	</PackageReleaseNotes>
   </PropertyGroup>
 
