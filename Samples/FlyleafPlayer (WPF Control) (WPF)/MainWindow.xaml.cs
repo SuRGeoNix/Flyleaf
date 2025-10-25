@@ -75,8 +75,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             KeepRatioOnResize   = true,
             OpenOnDrop          = AvailableWindows.Both,
 
-            //VideoBackground = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)), // Testing transparency
-            
             PreferredLandscapeWidth = 800,
             PreferredPortraitHeight = 600,
 
@@ -85,6 +83,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ConfigPath    = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.Config.json"),
             UIConfigPath  = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.UIConfig.json")
         };
+
+        if (GeneralConfig.AllowTransparency)
+            FlyleafME.VideoBackground = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
 
         InitializeComponent();
         DataContext = FlyleafME; // Allowing FlyleafHost to access our Player
@@ -254,6 +255,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         Player.Opening          += Player_Opening;
         Player.OpenCompleted    += Player_OpenCompleted;
+
+        if (GeneralConfig.AllowTransparency)
+            Player.OpeningVideoStream += (o, e) =>
+            {
+                e.Player.Config.Decoder.VideoCodec = "";
+
+                if (e.Player.VideoDemuxer.Name.Contains("webm"))
+                {
+                    if (e.VideoStream.CodecID == Flyleaf.FFmpeg.AVCodecID.Vp8)
+                        e.Player.Config.Decoder.VideoCodec = "libvpx";
+                    else if (e.VideoStream.CodecID == Flyleaf.FFmpeg.AVCodecID.Vp9)
+                        e.Player.Config.Decoder.VideoCodec = "libvpx-vp9";
+                }
+            };
 
         // If the user requests reverse playback allocate more frames once
         Player.PropertyChanged += (o, e) =>
