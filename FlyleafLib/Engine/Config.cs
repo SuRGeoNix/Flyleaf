@@ -557,7 +557,7 @@ public class Config : NotifyPropertyChanged
         /// Allows video accceleration even in codec's profile mismatch
         /// </summary>
         public bool             AllowProfileMismatch{ get => _AllowProfileMismatch; set => SetUI(ref _AllowProfileMismatch, value); }
-        bool _AllowProfileMismatch = true;
+        bool _AllowProfileMismatch = false;
 
         /// <summary>
         /// Allows corrupted frames (Parses AV_CODEC_FLAG_OUTPUT_CORRUPT to AVCodecContext)
