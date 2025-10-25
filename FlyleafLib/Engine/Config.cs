@@ -1021,6 +1021,16 @@ public class EngineConfig
     public int      LogCachedLines          { get; set; } = 20;
 
     /// <summary>
+    /// Max filesize of log before starting a new log file when <see cref="LogMaxNumberOfBackupFiles"/> is greater than 0
+    /// </summary>
+    public long     LogFileSizeMax          { get; set; } = 1024 * 1024;
+
+    /// <summary>
+    /// Max number of backup logfiles to roll over before deleting the oldest, setting this to 0 disables rollover
+    /// </summary>
+    public long     LogMaxNumberOfBackupFiles { get; set; } = 5;
+
+    /// <summary>
     /// Sets the logger's datetime string format
     /// </summary>
     public string   LogDateTimeFormat       { get; set; } = "HH.mm.ss.fff";
