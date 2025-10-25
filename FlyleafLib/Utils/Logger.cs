@@ -9,11 +9,8 @@ public static class Logger
     public static bool CanTrace => Engine.Config.LogLevel >= LogLevel.Trace;
 
 
-    public static Action<string>
-                        CustomOutput = DevNullPtr;
-    internal static Action<string>
-                        Output = DevNullPtr;
-    static string       lastOutput = "";
+    public   static Action<string> CustomOutput = DevNullPtr;
+    internal static Action<string> Output       = DevNullPtr;
 
     static ConcurrentQueue<byte[]>
                         fileData = [];
@@ -48,39 +45,15 @@ public static class Logger
         string output = Engine.Config.LogOutput;
 
         if (string.IsNullOrEmpty(output))
-        {
-            if (lastOutput != "")
-            {
-                Output = DevNullPtr;
-                lastOutput = "";
-            }
-        }
-        else if (output.StartsWith(":"))
+            Output = DevNullPtr;
+        else if (output.StartsWith(':'))
         {
             if (output == ":console")
-            {
-                if (lastOutput != ":console")
-                {
-                    Output = Console.WriteLine;
-                    lastOutput = ":console";
-                }
-            }
+                Output = Console.WriteLine;
             else if (output == ":debug")
-            {
-                if (lastOutput != ":debug")
-                {
-                    Output = DebugPtr;
-                    lastOutput = ":debug";
-                }
-            }
+                Output = DebugPtr;
             else if (output == ":custom")
-            {
-                if (lastOutput != ":custom")
-                {
-                    Output = CustomOutput;
-                    lastOutput = ":custom";
-                }
-            }
+                Output = CustomOutput;
             else
                 throw new Exception("Invalid log output");
         }
@@ -88,9 +61,8 @@ public static class Logger
         {
             lock (lockFileStream)
             {
-                // Flush File Data on Previously Opened File Stream
                 if (fileStream != null)
-                {
+                {   // Flush File Data on Previously Opened File Stream
                     while (fileData.TryDequeue(out byte[] data))
                         fileStream.Write(data, 0, data.Length);
                     fileStream.Dispose();
@@ -103,21 +75,19 @@ public static class Logger
                 if (Engine.Config.LogAppend)
                 {
                     fileStream = new FileStream(output, FileMode.Append, FileAccess.Write);
+                    Output = FilePtr;
                 }
-                else if (Engine.Config.LogFileSizeMax > 0)
+                    
+                else if (Engine.Config.LogRollMaxFiles > 0 && Engine.Config.LogRollMaxFileSize > 0)
                 {
-                    // If we have rolling log enables and do not append, then we need to roll the log files first
-                    RollLogFiles();
+                    RollLogFiles(); // If we have rolling log enables and do not append, then we need to roll the log files first
                     fileStream = new FileStream(Engine.Config.LogOutput, FileMode.Create, FileAccess.Write);
+                    Output = FileRollPtr;
                 }
                 else
                 {
                     fileStream = new FileStream(output, FileMode.Create, FileAccess.Write);
-                }
-                if (lastOutput != ":file")
-                {
                     Output = FilePtr;
-                    lastOutput = ":file";
                 }
             }
         }
@@ -128,38 +98,52 @@ public static class Logger
     {
         fileData.Enqueue(Encoding.UTF8.GetBytes($"{msg}\r\n"));
 
-        if (!fileTaskRunning && Engine.Config.LogFileSizeMax > 0 && fileStream.Length >= Engine.Config.LogFileSizeMax)
-        {
-            HandleLogFileRolling();
-            return;
-        }
+        if (!fileTaskRunning && fileData.Count > Engine.Config.LogCachedLines)
+            FlushFileData();
+    }
+
+    static void FileRollPtr(string msg)
+    {
+        fileData.Enqueue(Encoding.UTF8.GetBytes($"{msg}\r\n"));
 
         if (!fileTaskRunning && fileData.Count > Engine.Config.LogCachedLines)
         {
-            FlushFileData();
-            return;
+            if (fileStream.Length >= Engine.Config.LogRollMaxFileSize)
+            {
+                while (fileTaskRunning) Thread.Sleep(10);
+
+                lock (lockFileStream)
+                {
+                    while (fileData.TryDequeue(out byte[] data))
+                        fileStream.Write(data, 0, data.Length);
+
+                    fileStream.Flush();
+                }
+
+                HandleLogFileRolling();
+            }
+            else
+                FlushFileData();
         }
     }
 
     static void RollLogFiles()
     {
         string name = Engine.Config.LogOutput;
-        for (long i = Engine.Config.LogMaxNumberOfBackupFiles; i > 0; i--)
+
+        for (long i = Engine.Config.LogRollMaxFiles; i > 0; i--)
         {
             string logFile = $"{name}.{i}";
             string nextLogFile = $"{name}.{i + 1}";
             if (File.Exists(logFile))
             {
-                if (i == Engine.Config.LogMaxNumberOfBackupFiles)
-                {
+                if (i == Engine.Config.LogRollMaxFiles)
                     File.Delete(logFile);
-                }
                 else
-                {
                     File.Move(logFile, nextLogFile);
-                }
             }
         }
+
         if (File.Exists(name))
             File.Move(name, $"{name}.{1}");
     }
@@ -173,9 +157,7 @@ public static class Logger
             lock (lockFileStream)
             {
                 fileStream.Dispose();
-
                 RollLogFiles();
-
                 fileStream = new FileStream(Engine.Config.LogOutput, FileMode.Create, FileAccess.Write);
             }
 
