@@ -37,8 +37,6 @@ public unsafe class VideoDecoder : DecoderBase
     public long             StartTime           { get; internal set; } = AV_NOPTS_VALUE;
     public long             StartRecordTime     { get; internal set; } = AV_NOPTS_VALUE;
 
-    const AVPixelFormat     PIX_FMT_HWACCEL     = AVPixelFormat.D3d11;
-
     internal SwsContext*    swsCtx;
     nint                    swsBufferPtr;
     internal byte_ptrArray4 swsData;
@@ -112,23 +110,29 @@ public unsafe class VideoDecoder : DecoderBase
     public void DestroySwapChain() => Renderer?.DisposeSwapChain();
 
     #region Video Acceleration (Should be disposed seperately)
-    const int               AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX = 0x01;
-    const AVHWDeviceType    HW_DEVICE = AVHWDeviceType.D3d11va;
+    public CodecSpec            CurCodecSpec;
+    const AVPixelFormat         PIX_FMT_HWACCEL = AVPixelFormat.D3d11;
+    const AVHWDeviceType        HW_DEVICE       = AVHWDeviceType.D3d11va;
+    internal ID3D11Texture2D    textureFFmpeg;
+    AVCodecContext_get_format   getHWformat;
+    AVBufferRef*                hw_device_ctx, hwframes;
 
-    internal ID3D11Texture2D
-                            textureFFmpeg;
-    AVCodecContext_get_format
-                            getHWformat;
-    AVBufferRef*            hwframes;
-    AVBufferRef*            hw_device_ctx;
-
-    class CodecSpec { public string Name; public AVCodec* Codec; public bool IsHW; }
-    Dictionary<AVCodecID, CodecSpec> hwSpecs = [];
-    Dictionary<AVCodecID, CodecSpec> swSpecs = [];
-    Dictionary<string, CodecSpec> specs = [];
-    CodecSpec FindHWDecoder(AVCodecID id)
+    public class CodecSpec
     {
-        if (hwSpecs.TryGetValue(id, out var spec))
+        public string   Name;
+        public AVCodec* Codec;
+        public bool     IsHW;
+        public bool     IsEmpty => Codec == null;
+
+        public static CodecSpec Empty = new();
+    }
+    
+    static ConcurrentDictionary<AVCodecID,  CodecSpec> hwSpecs  = [];
+    static ConcurrentDictionary<AVCodecID,  CodecSpec> swSpecs  = [];
+    static ConcurrentDictionary<string,     CodecSpec> specs    = [];
+    static CodecSpec FindHWDecoder(AVCodecID id)
+    {
+        if (hwSpecs.TryGetValue(id, out CodecSpec spec))
             return spec;
 
         AVCodec* codec, found = null;
@@ -143,33 +147,36 @@ public unsafe class VideoDecoder : DecoderBase
             while((config = avcodec_get_hw_config(codec, i++)) != null)
                 if (config->pix_fmt == PIX_FMT_HWACCEL && config->methods.HasFlag(AVCodecHwConfigMethod.HwDeviceCtx))
                 {
-                    CodecSpec hwSpec = new() { Codec = codec, Name = BytePtrToStringUTF8(codec->name), IsHW = true };
-                    hwSpecs[codec->id] = hwSpec;
-                    return hwSpec;
+                    spec = new() { Codec = codec, Name = BytePtrToStringUTF8(codec->name), IsHW = true};
+                    hwSpecs[codec->id] = spec;
+                    return spec;
                 }
         }
 
-        return null;
+        hwSpecs[id] = CodecSpec.Empty;
+        return CodecSpec.Empty;
     }
-    CodecSpec FindSWDecoder(AVCodecID id)
+    static CodecSpec FindSWDecoder(AVCodecID id)
     {
-        if (swSpecs.TryGetValue(id, out var spec))
+        if (swSpecs.TryGetValue(id, out CodecSpec spec))
             return spec;
 
         AVCodec* codec = avcodec_find_decoder(id);
-        if (codec == null)
-            return null;
-
-        CodecSpec swSpec = new() { Codec = codec, Name = BytePtrToStringUTF8(codec->name) };
-        swSpecs[codec->id] = swSpec;
-
-        return swSpec;
+        spec = codec != null ? new() { Codec = codec, Name = BytePtrToStringUTF8(codec->name) } : CodecSpec.Empty;
+        swSpecs[codec->id] = spec;
+        return spec;
     }
-    CodecSpec FindDecoder(string name)
+    static CodecSpec FindDecoder(string name)
     {
+        if (specs.TryGetValue(name, out CodecSpec spec))
+            return spec;
+
         AVCodec* codec = avcodec_find_decoder_by_name(name);
         if (codec == null)
-            return null;
+        {
+            specs[name] = CodecSpec.Empty;
+            return CodecSpec.Empty;
+        }
 
         bool isHW = false;
         int i = 0;
@@ -181,7 +188,9 @@ public unsafe class VideoDecoder : DecoderBase
                 break;
             }
 
-        return new() { Codec = codec, Name = BytePtrToStringUTF8(codec->name), IsHW = isHW };
+        spec = new() { Codec = codec, Name = BytePtrToStringUTF8(codec->name), IsHW = isHW };
+        specs[name] = spec;
+        return spec;
     }
 
     bool InitVA()
@@ -215,7 +224,7 @@ public unsafe class VideoDecoder : DecoderBase
     {
         if (CanDebug)
         {
-            Log.Debug($"Codec profile '{VideoStream.Codec} {avcodec_profile_name(codecCtx->codec_id, codecCtx->profile)}'");
+            Log.Debug($"Codec profile '{avcodec_profile_name(codecCtx->codec_id, codecCtx->profile)}'");
 
             if (CanTrace)
             {
@@ -337,33 +346,32 @@ public unsafe class VideoDecoder : DecoderBase
         EnsureRenderer();
         //if (Renderer == null || Renderer.Device == null || hw_device_ctx != null) return false; // Should not happen*
 
-        CodecSpec spec      = null;
-        VideoAccelerated    =  !swFallback &&
-                               !Config.Video.SwsForce &&
-                                Config.Video.VideoAcceleration &&
-                                Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0;
+        VideoAccelerated = !swFallback &&
+                           !Config.Video.SwsForce &&
+                            Config.Video.VideoAcceleration &&
+                            Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0;
 
         if (!string.IsNullOrEmpty(Config.Decoder._VideoCodec))
-            spec = FindDecoder(Config.Decoder._VideoCodec);
+            CurCodecSpec = FindDecoder(Config.Decoder._VideoCodec);
         else if (VideoAccelerated)
         {
-            spec = FindHWDecoder(Stream.CodecID);
-            if (spec == null)
+            CurCodecSpec = FindHWDecoder(Stream.CodecID);
+            if (CurCodecSpec.IsEmpty)
             {
                 if (CanDebug) Log.Debug($"HW decoding not supported for {Stream.CodecID}");
-                spec = FindSWDecoder(Stream.CodecID);
+                CurCodecSpec = FindSWDecoder(Stream.CodecID);
             }
         }
         else
-            spec = FindSWDecoder(Stream.CodecID);
+            CurCodecSpec = FindSWDecoder(Stream.CodecID);
 
-        if (spec == null)
+        if (CurCodecSpec.IsEmpty)
         {
             Log.Error($"Decoder not found ({(!string.IsNullOrEmpty(Config.Decoder._VideoCodec) ? Config.Decoder._VideoCodec : Stream.CodecID)})");
             return false;
         }
 
-        codecCtx = avcodec_alloc_context3(spec.Codec); // Pass codec to use default settings
+        codecCtx = avcodec_alloc_context3(CurCodecSpec.Codec); // Pass codec to use default settings
         if (codecCtx == null)
         {
             Log.Error($"Failed to allocate context");
@@ -378,7 +386,7 @@ public unsafe class VideoDecoder : DecoderBase
         }
 
         codecCtx->pkt_timebase  = Stream.AVStream->time_base;
-        codecCtx->codec_id      = spec.Codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
+        codecCtx->codec_id      = CurCodecSpec.Codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
         codecCtx->apply_cropping= 0;
 
         if (Config.Decoder.ShowCorrupted)
@@ -402,7 +410,7 @@ public unsafe class VideoDecoder : DecoderBase
         foreach(var optKV in codecOpts)
             _ = av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
 
-        VideoAccelerated = VideoAccelerated && spec.IsHW && InitVA();
+        VideoAccelerated = VideoAccelerated && CurCodecSpec.IsHW && InitVA();
 
         if (VideoAccelerated)
         {
@@ -443,7 +451,7 @@ public unsafe class VideoDecoder : DecoderBase
         lastFixedPts        = 0; // TBR: might need to set this to first known pts/dts
         startPts            = VideoStream.StartTimePts;
 
-        if (CanDebug) Log.Debug($"Using {spec.Name} {(VideoAccelerated ? "(HW)" : "(SW)")}");
+        if (CanDebug) Log.Debug($"Using {CurCodecSpec.Name} {(VideoAccelerated ? "(HW)" : "(SW)")}");
 
         return true;
     }
