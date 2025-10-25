@@ -16,6 +16,8 @@ public class AppConfig
     {
         public bool     SingleInstance          { get => _SingleInstance;       set => Set(ref _SingleInstance, value); }
         bool _SingleInstance = true;
+
+        public bool     AllowTransparency       { get; set; }
     }
     public class SlideShowConfig : NotifyPropertyChanged
     {

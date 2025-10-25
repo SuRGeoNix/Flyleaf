@@ -27,6 +27,8 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 public unsafe class VideoDecoder : DecoderBase
 {
+    public Action           OpeningCodec;
+
     public ConcurrentQueue<VideoFrame>
                             Frames              { get; protected set; } = [];
     public Renderer         Renderer            { get; private set; }
@@ -350,6 +352,8 @@ public unsafe class VideoDecoder : DecoderBase
                            !Config.Video.SwsForce &&
                             Config.Video.VideoAcceleration &&
                             Renderer.Device.FeatureLevel >= Vortice.Direct3D.FeatureLevel.Level_10_0;
+
+        OpeningCodec?.Invoke();
 
         if (!string.IsNullOrEmpty(Config.Decoder._VideoCodec))
             CurCodecSpec = FindDecoder(Config.Decoder._VideoCodec);
