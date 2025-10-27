@@ -263,28 +263,25 @@ public unsafe class VideoDecoder : DecoderBase
             return PIX_FMT_HWACCEL;
         }
 
-        lock (lockCodecCtx)
+        if (!foundHWformat || !VideoAccelerated || AllocateHWFrames() != 0)
         {
-            if (!foundHWformat || !VideoAccelerated || AllocateHWFrames() != 0)
-            {
-                // TBR: Do we keep ref of texture array? do we dispose it on all refs? otherwise make sure we inform to dispose frames before re-alloc
-                Log.Info("HW decoding failed");
-                swFallback = true;
-                return avcodec_default_get_format(avctx, pix_fmts);
-            }
-
-            if (CanDebug)
-                Log.Debug("HW frame allocation completed");
-
-            if (ret == 2)                    
-            {   // TBR: It seems that codecCtx changes but upcoming frame still has previous configuration (this will fire FillFromCodec twice, could cause issues?)
-                filledFromCodec = false;
-                codecChanged    = true;
-                Log.Warn($"Codec changed {VideoStream.CodecID} {curFrameWidth}x{curFrameHeight} => {codecCtx->codec_id} {frame->width}x{frame->height}");
-            }
-
-            return PIX_FMT_HWACCEL;
+            // TBR: Do we keep ref of texture array? do we dispose it on all refs? otherwise make sure we inform to dispose frames before re-alloc
+            Log.Info("HW decoding failed");
+            swFallback = true;
+            return avcodec_default_get_format(avctx, pix_fmts);
         }
+
+        if (CanDebug)
+            Log.Debug("HW frame allocation completed");
+
+        if (ret == 2)                    
+        {   // TBR: It seems that codecCtx changes but upcoming frame still has previous configuration (this will fire FillFromCodec twice, could cause issues?)
+            filledFromCodec = false;
+            codecChanged    = true;
+            Log.Warn($"Codec changed {VideoStream.CodecID} {curFrameWidth}x{curFrameHeight} => {codecCtx->codec_id} {frame->width}x{frame->height}");
+        }
+
+        return PIX_FMT_HWACCEL;
     }
     private int ShouldAllocateNew() // 0: No, 1: Yes, 2: Yes+Codec Changed
     {
@@ -418,6 +415,11 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (VideoAccelerated)
         {
+            /* TODO: Frame threading [codecCtx->thread_type = ThreadTypeFlags.Frame]
+             * Possible requires patching FFmpeg to pass BindFlags.ShaderResource to new allocated textures (get_buffer maybe?)
+             * Seems to work fine with D3D11VP (if we pass the right texture from frame->data[0])
+             */
+
             codecCtx->thread_count      = 1;
             codecCtx->hwaccel_flags    |= HWAccelFlags.IgnoreLevel;
             if (Config.Decoder.AllowProfileMismatch)

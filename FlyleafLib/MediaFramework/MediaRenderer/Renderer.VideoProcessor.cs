@@ -276,21 +276,31 @@ unsafe public partial class Renderer
 
     VideoProcessors GetVP()
     {
+        VideoProcessors getVP;
         var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : (VideoFrameFormat)Config.Video.DeInterlace;
 
-        if (VideoDecoder.VideoAccelerated && VideoStream.ColorSpace != ColorSpace.Bt2020 && vc != null && (
-                Config.Video.VideoProcessor != VideoProcessors.Flyleaf ||
-                Config.Video.SuperResolution ||
-                (fieldType != VideoFrameFormat.Progressive && Config.Video.VideoProcessor == VideoProcessors.Auto)))
+        if (vc == null || !VideoDecoder.VideoAccelerated) // D3D11VP not supported
+            getVP = VideoProcessors.Flyleaf;
+        else if (Config.Video.VideoProcessor == VideoProcessors.Auto)
+        {
+            if (VideoStream.ColorSpace == ColorSpace.Bt2020 || actualHFlip || actualVFlip)
+                getVP = VideoProcessors.Flyleaf;
+            else
+                getVP = VideoProcessors.D3D11; // Deinterlace | Super Resolution | Extra Filters | Less power consumption
+        }
+        else
+            getVP = Config.Video.VideoProcessor;
+
+        if (getVP == VideoProcessors.D3D11)
         {
             vpsa[0].OutputIndex = vpsa[0].InputFrameOrField = 0;
             FieldType = fieldType;
             vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
-            return VideoProcessors.D3D11;
         }
+        else
+            FieldType = VideoFrameFormat.Progressive;
 
-        FieldType = VideoFrameFormat.Progressive;
-        return VideoProcessors.Flyleaf;
+        return getVP;
     }
 
     internal void UpdateBackgroundColor()
@@ -357,7 +367,7 @@ unsafe public partial class Renderer
                 UpdateRotationUnSafe(angle, refresh);
     }
     void UpdateRotationUnSafe(uint angle, bool refresh = true)
-    {
+    {   // NOTE: H/V Flip not supported by D3D11VP (TODO: Switch VP if required (Auto)?)
         _RotationAngle      = angle;
         uint newRotation    = _RotationAngle;
         if (VideoStream != null)
@@ -502,7 +512,7 @@ unsafe public partial class Renderer
 
     internal void UpdateVideoProcessor()
     {
-        if (Config.Video.VideoProcessor == videoProcessor || (Config.Video.VideoProcessor == VideoProcessors.D3D11 && D3D11VPFailed))
+        if (Config.Video.VideoProcessor == videoProcessor || (Config.Video.VideoProcessor == VideoProcessors.D3D11 && vc == null))
             return;
 
         ConfigPlanes();
