@@ -68,9 +68,9 @@ public enum VideoProcessors
 public enum Cropping
 {
     None,
-    Stream,
-    Codec,
-    Texture
+    Stream  = 1 << 0,
+    Codec   = 1 << 1,
+    Texture = 1 << 2
 }
 public enum ColorSpace : int
 {
