@@ -136,7 +136,7 @@ unsafe public partial class Renderer
 
             vd1.CreateVideoProcessorEnumerator(ref vpcd, out vpe);
             
-            if (vpe == null || Device.FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0)
+            if (vpe == null || FeatureLevel < Vortice.Direct3D.FeatureLevel.Level_10_0)
                 return false;
 
             var vpe1    = vpe.QueryInterface<ID3D11VideoProcessorEnumerator1>();
@@ -277,8 +277,7 @@ unsafe public partial class Renderer
     VideoProcessors GetVP()
     {
         VideoProcessors getVP;
-        var fieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : (VideoFrameFormat)Config.Video.DeInterlace;
-
+        
         if (vc == null || !VideoDecoder.VideoAccelerated) // D3D11VP not supported
             getVP = VideoProcessors.Flyleaf;
         else if (Config.Video.VideoProcessor == VideoProcessors.Auto)
@@ -294,7 +293,7 @@ unsafe public partial class Renderer
         if (getVP == VideoProcessors.D3D11)
         {
             vpsa[0].OutputIndex = vpsa[0].InputFrameOrField = 0;
-            FieldType = fieldType;
+            FieldType = Config.Video.DeInterlace == DeInterlace.Auto ? VideoStream.FieldOrder : (VideoFrameFormat)Config.Video.DeInterlace;
             vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
         }
         else

@@ -790,23 +790,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var keys = playerConfig.Player.KeyBindings;
         keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(SlidePosition.Prev), "tmp01");
         keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(SlidePosition.Next), "tmp02");
-        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(SlidePosition.Start), "tmp03");
-        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(SlidePosition.End), "tmp04");
         keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "tmp05");
         keys.AddCustom(Key.F5,      true,   () => SlideShowStart(true), "tmp06");
         keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(SlidePosition.NextPage), "tmp10");
         keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(SlidePosition.PrevPage), "tmp11");
+        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(SlidePosition.Start), "tmp03");
+        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(SlidePosition.End), "tmp04");
 
         ImageKeysAdd();
     }
     void VideoKeysAdd()
     {
         var keys = playerConfig.Player.KeyBindings;
-        keys.Add(Key.Left,  KeyBindingAction.SeekBackward);
-        keys.Add(Key.Right, KeyBindingAction.SeekForward);
-        keys.Add(Key.Space, KeyBindingAction.TogglePlayPause);
-        keys.Add(Key.C,     KeyBindingAction.CopyToClipboard, false, true);
-        keys.Add(Key.Q,     KeyBindingAction.Stop, false, true);
+        keys.Add(Key.Left,      KeyBindingAction.SeekBackward);
+        keys.Add(Key.Right,     KeyBindingAction.SeekForward);
+        keys.Add(Key.Space,     KeyBindingAction.TogglePlayPause);
+        keys.Add(Key.C,         KeyBindingAction.CopyToClipboard, false, true);
+        keys.Add(Key.X,         KeyBindingAction.Flush, false, true);
+        keys.Add(Key.Q,         KeyBindingAction.Stop, false, true);
+        keys.Add(Key.PageUp,    KeyBindingAction.SeekBackward3);
+        keys.Add(Key.PageDown,  KeyBindingAction.SeekForward3);
+        keys.Add(Key.Home,      KeyBindingAction.SeekToStart);
+        keys.Add(Key.End,       KeyBindingAction.SeekToEnd);
     }
     void ImageDelete()
     {

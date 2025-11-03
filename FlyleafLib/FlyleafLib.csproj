@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.9.5</Version>
+	<Version>3.9.6</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,17 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Engine.Logger: Adds File Rolling support
-		- Engine.Config: Introduces LogRollMaxFileSize and LogRollMaxFiles for the new File Rolling impelementation
-		- Demuxer: Fixes an issue with Data streams that would be falsely included as Misc/Invalid streams instead
-		- VideoDecoder: Stability and Performance improvements for Open/Setup implementation
-		- Renderer.VideoProcessor: Fixes an issue with cropping not refreshing the layout
-		- Player: Introduces OpeningVideoStream event which fires during VideoDecoder's codec open
-		- Player.Video: Codec now returns the actual codec's name in use by the decoder
-		- FlyleafHost.Wpf: Fixes an issue with MouseWheel event for attached hosts would fire twice causing Zoom and Rotation to not work properly
+		- Player: Fixes an issue with TaskSnapshot
+		- Renderer.VideoProcessor: Prioritize user's VP selection instead of supported features by VPs
+		- VideoDecoder: Reimplementation of the main decoding loop which now respects MaxVideoFrames/ExtraFrames
+		- VideoDecoder: Handles internally the key frame validation instead of Config.Decoder.KeyFrameValidation
 
 		[Breaking Changes]
-		- Config.Decoder: Defaults AllowProfileMismatch back to false as it seems that it causes more issues than it resolves
+		- Config.Decoder: Deprecates KeyFrameValidation (will be handled automatically from the decoder)
+		- Config.Decoder: MaxErrors will be reset on the first successful decoding (instead on each Start of the decoder)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
