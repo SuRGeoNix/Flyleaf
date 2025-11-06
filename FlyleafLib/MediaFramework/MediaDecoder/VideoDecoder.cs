@@ -665,7 +665,7 @@ public unsafe class VideoDecoder : DecoderBase
                     if (ret == -1234)
                         Status = Status.Stopping;
 
-                    break;
+                    break; // else EOF
                 }
             }
 
@@ -1256,8 +1256,9 @@ public unsafe class VideoDecoder : DecoderBase
             if (DecodeFrameNextInternal() == 0)
                 return 0;
 
-            if (Demuxer.Status == Status.Ended)
+            if (demuxer.Status == Status.Ended && vPackets.IsEmpty && Frames.IsEmpty)
             {
+                Stop(); // NOTE: Could be paused and will cause dead lock with Status ended
                 Status = Status.Ended;
                 return AVERROR_EOF;
             }
