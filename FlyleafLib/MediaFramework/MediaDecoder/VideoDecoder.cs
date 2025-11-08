@@ -700,7 +700,7 @@ public unsafe class VideoDecoder : DecoderBase
                 
             }
 
-            keyFrameRequired  = checkKeyFrame;
+            keyFrameRequired  = checkKeyFrame && packet->pts != startPts;
             keyPacketRequired = false;
         }
 
@@ -1287,17 +1287,15 @@ public unsafe class VideoDecoder : DecoderBase
 
             if (keyPacketRequired)
             {
-                if (demuxer.packet->flags.HasFlag(PktFlags.Key) || demuxer.packet->pts == startPts)
+                if (!demuxer.packet->flags.HasFlag(PktFlags.Key) && demuxer.packet->pts != startPts)
                 {
-                    keyPacketRequired = false;
-                    keyFrameRequired  = checkKeyFrame;
-                }
-                else
-                {
-                    if (CanWarn) Log.Warn("Ignoring non-key packet");
+                    if (CanDebug) Log.Debug("Ignoring non-key packet");
                     av_packet_unref(demuxer.packet);
                     continue;
                 }
+
+                keyFrameRequired  = checkKeyFrame && demuxer.packet->pts != startPts;
+                keyPacketRequired = false;
             }
 
             ret = avcodec_send_packet(codecCtx, demuxer.packet);
