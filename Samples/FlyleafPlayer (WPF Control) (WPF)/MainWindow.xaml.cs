@@ -248,6 +248,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         //playerConfig.Player.MaxLatency = TimeSpan.FromMilliseconds(75).Ticks;
         //playerConfig.Decoder.MaxAudioFrames = 5;
         //playerConfig.Demuxer.AllowFindStreamInfo = false;
+        //playerConfig.Video.VideoProcessor = VideoProcessors.Flyleaf;
         #endif
         
         // Initializes the Player

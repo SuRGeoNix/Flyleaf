@@ -624,6 +624,12 @@ public class Config : NotifyPropertyChanged
         public string           GPUAdapter                  { get; set; }
 
         /// <summary>
+        /// Embedded alpha channel in HW decoded split frame (horizontal/vertical)
+        /// </summary>
+        public SplitFrameAlphaPosition
+                                SplitFrameAlphaPosition          { get => _SplitFrameAlphaPosition;   set => Set(ref _SplitFrameAlphaPosition, value); }
+        internal SplitFrameAlphaPosition _SplitFrameAlphaPosition = SplitFrameAlphaPosition.Right;
+        /// <summary>
         /// Video aspect ratio
         /// </summary>
         public AspectRatio      AspectRatio                 { get => _AspectRatio;          set { if (Set(ref _AspectRatio, value))     player?.renderer?.UpdateAspectRatio(); } }
