@@ -628,7 +628,7 @@ public class Config : NotifyPropertyChanged
         /// </summary>
         public SplitFrameAlphaPosition
                                 SplitFrameAlphaPosition          { get => _SplitFrameAlphaPosition;   set => Set(ref _SplitFrameAlphaPosition, value); }
-        internal SplitFrameAlphaPosition _SplitFrameAlphaPosition = SplitFrameAlphaPosition.Right;
+        internal SplitFrameAlphaPosition _SplitFrameAlphaPosition;
         /// <summary>
         /// Video aspect ratio
         /// </summary>
