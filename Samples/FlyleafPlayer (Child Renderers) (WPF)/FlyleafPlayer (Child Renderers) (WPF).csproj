@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>FlyleafPlayer.ChildRendererSample</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>FlyleafPlayer.ChildRenderers</AssemblyName>
+    <Platforms>AnyCPU;x86;x64</Platforms>
+    <Copyright>SuRGeoNix © 2025</Copyright>
+    <Authors>SuRGeoNix</Authors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Flyleaf.FFmpeg.Bindings" Version="8.0.0" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if not exist &quot;$(SolutionDir)Samples\Plugins&quot; mkdir &quot;$(SolutionDir)Samples\Plugins&quot;&#xD;&#xA;xcopy &quot;$(SolutionDir)Plugins\bin\Plugins.NET10\*&quot; &quot;$(SolutionDir)Samples\Plugins\&quot; /E /Y" />
+  </Target>
+
+</Project>

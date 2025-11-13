@@ -158,7 +158,12 @@ public unsafe partial class Renderer
         try
         {
             if (canRenderPresent)
+            {
                 swapChain.Present(Config.Video.VSync, PresentFlags.None).CheckError();
+
+                // Present child renderers
+                PresentChildRenderers();
+            }
 
             return true;
         }
@@ -207,7 +212,12 @@ public unsafe partial class Renderer
             }
 
             if (canRenderPresent)
+            {
                 swapChain.Present(Config.Video.VSync, PresentFlags.None).CheckError();
+
+                // Present child renderers
+                PresentChildRenderers();
+            }
 
             return true;
         }
@@ -275,6 +285,9 @@ public unsafe partial class Renderer
             context.OMSetBlendState(null);
             context.RSSetViewport(GetViewport);
         }
+
+        // Render to child renderers (they share the same device and context)
+        RenderToChildRenderers(frame, secondField);
     }
 
     public FrameStatistics GetFrameStatistics()

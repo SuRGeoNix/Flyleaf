@@ -67,14 +67,14 @@ public unsafe partial class Renderer
     }
 
     internal ID3D11Device   Device;
-    IDXGIDevice1            dxgiDevice;
+    internal IDXGIDevice1   dxgiDevice;
     public FeatureLevel     FeatureLevel    { get; private set; }
     public GPUAdapter       GPUAdapter      => gpuAdapter;
     IDXGIAdapter            dxgiAdapter;
     GPUAdapter              gpuAdapter;
     bool                    gpuForceWarp;
 
-    ID3D11DeviceContext     context;
+    internal ID3D11DeviceContext context;
 
     ID3D11Buffer            vertexBuffer;
     ID3D11InputLayout       inputLayout;
@@ -269,6 +269,9 @@ public unsafe partial class Renderer
                 VideoDecoder.DisposeFrame(LastFrame);
                 LastFrame = null;
             }
+            
+            // Dispose all child renderers first
+            DisposeChildRenderers();
             
             DisposeSwapChain();
 

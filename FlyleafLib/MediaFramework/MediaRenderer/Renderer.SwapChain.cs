@@ -16,7 +16,7 @@ unsafe public partial class Renderer
 {
     volatile bool           canRenderPresent;   // Don't render / present during minimize (or invalid size)
 
-    ID3D11Texture2D         backBuffer;
+    internal ID3D11Texture2D        backBuffer;
     ID3D11RenderTargetView  backBufferRtv;
     IDXGISwapChain1         swapChain;
     IDCompositionDevice     dCompDevice;
