@@ -624,10 +624,10 @@ public class Config : NotifyPropertyChanged
         public string           GPUAdapter                  { get; set; }
 
         /// <summary>
-        /// Embedded alpha channel in HW decoded split frame (horizontal/vertical)
+        /// Embedded alpha channel in HW decoded -horizontal/vertical- split frame (FlyleafVP only)
         /// </summary>
         public SplitFrameAlphaPosition
-                                SplitFrameAlphaPosition          { get => _SplitFrameAlphaPosition;   set => Set(ref _SplitFrameAlphaPosition, value); }
+                                SplitFrameAlphaPosition     { get => _SplitFrameAlphaPosition;   set => Set(ref _SplitFrameAlphaPosition, value); }
         internal SplitFrameAlphaPosition _SplitFrameAlphaPosition;
         /// <summary>
         /// Video aspect ratio
