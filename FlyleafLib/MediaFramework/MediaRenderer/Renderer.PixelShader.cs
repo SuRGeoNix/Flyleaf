@@ -256,7 +256,7 @@ unsafe public partial class Renderer
                                 break;
 
                                 case SplitFrameAlphaPosition.Top:
-                                curPSUniqueId += "l";
+                                curPSUniqueId += "t";
                                 SetPS(curPSUniqueId, @"
     color = float4(
         Texture1.Sample(Sampler, float2(input.Texture.x, 0.5 + (input.Texture.y / 2))).r,
@@ -266,7 +266,7 @@ unsafe public partial class Renderer
                                 break;
 
                                 case SplitFrameAlphaPosition.Bottom:
-                                curPSUniqueId += "l";
+                                curPSUniqueId += "b";
                                 SetPS(curPSUniqueId, @"
     color = float4(
         Texture1.Sample(Sampler, float2(input.Texture.x, input.Texture.y / 2)).r,

@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.9.6</Version>
+	<Version>3.9.7</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Player: Fixes an issue with TaskSnapshot
-		- Renderer.VideoProcessor: Prioritize user's VP selection instead of supported features by VPs
-		- VideoDecoder: Reimplementation of the main decoding loop which now respects MaxVideoFrames/ExtraFrames
-		- VideoDecoder: Handles internally the key frame validation instead of Config.Decoder.KeyFrameValidation
-
-		[Breaking Changes]
-		- Config.Decoder: Deprecates KeyFrameValidation (will be handled automatically from the decoder)
-		- Config.Decoder: MaxErrors will be reset on the first successful decoding (instead on each Start of the decoder)
+		- VideoDecoder: Fixes a critical issue -caused by last update- with GetFrameNext
+		- VideoDecoder: Fixes an issue with Seek at start of the input with formats that missing the first key frame flag
+		- Renderer.FlyleafVP: Adds support for embedded alpha channel in HW decoded split frame
+		- Config.Video: Introduces SplitFrameAlphaPosition to set the HW decoded split frame plane's alpha position
 	</PackageReleaseNotes>
   </PropertyGroup>
 
