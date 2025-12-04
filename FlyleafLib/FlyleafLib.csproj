@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.9.7</Version>
+	<Version>3.10</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,25 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- VideoDecoder: Fixes a critical issue -caused by last update- with GetFrameNext
-		- VideoDecoder: Fixes an issue with Seek at start of the input with formats that missing the first key frame flag
-		- Renderer.FlyleafVP: Adds support for embedded alpha channel in HW decoded split frame
-		- Config.Video: Introduces SplitFrameAlphaPosition to set the HW decoded split frame plane's alpha position
+		- Renderer: New implementation (see GitHub for details)
+		- Demuxer: Fix pts for Data
+		- Demuxer: Fixes an issue with Metadata dictionary when the key exists twice
+		- Player: Fixes an issue with GetBufferedDuration for interlaced streams
+		- VideoStream: Fixes an issue with Fps for progressive streams
+		
+		[Breaking Changes]
+		- Player: TakeSnapshotToFile / TakeSnapshotToBitmap now takes uint instead of int and 0 for auto width/height calculation
+		- Player: renderer renamed to Renderer
+		- Renderer: GetViewport renamed to Viewport
+		- Transfers from Config.Player / Player / Player.Video / Player.Renderer to Config.Video (ZoomOffset / PanXOffset / PanYOffset / Zoom / Rotation / HFlip / VFlip / Toggle / ToggleKeepRatio / ToggleVideoAcceleration / ZoomIn / ZoomOut / RotateRight / RotateLeft / CornerRadius)
+		- Transfers from Config.Player / Player.Audio to Config.Audio (VolumeMax / VolumeOffset / AudioDelayOffset /AudioDelayOffset2 => renamed to DelayOffset / DelayOffset2 / Toggle / ToggleMute / VolumeUp / VolumeDown / ReloadFilters / UpdateFilter / DelayAdd / DelayAdd2 / DelayRemove / DelayRemove2)
+		- Transfers from Config.Player / Player.Subtitles to Config.Subtitles (SubtitlesDelayOffset / SubtitlesDelayOffset2 => renamed to DelayOffset / DelayOffset2 / Toggle / DelayAdd / DelayAdd2 / DelayRemove / DelayRemove2)
+		- Config.Video: Deprecates MaxFrameLatency and SwapBuffers
+		(Note: These typically shouldn’t be modified, so deprecation should not impact usage)
+		- Config.Video: Replaces Swap10Bit/SwapForceR8G8B8A8 with SwapChainFormat
+		- Config.Video: Renames Filters to FLFilters
+		- Config.Video: Renames BackgroundColor to BackColor
+		- Config.Video: Renames CustomAspectRatio to AspectRatioCustom
 	</PackageReleaseNotes>
   </PropertyGroup>
 

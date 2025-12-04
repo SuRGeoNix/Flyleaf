@@ -206,7 +206,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     if (SubtitlesStream.IsBitmap) // clear prev subs frame
                     {
                         subFrame.duration   = uint.MaxValue;
-                        subFrame.timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
+                        subFrame.Timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
                         Frames.Enqueue(subFrame);
                     }
 
@@ -217,7 +217,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 }
 
                 subFrame.duration   = subFrame.sub.end_display_time;
-                subFrame.timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
+                subFrame.Timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
 
                 if (subFrame.sub.rects[0]->type == AVSubtitleType.Ass)
                 {
@@ -241,7 +241,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                         continue;
                 }
 
-                if (CanTrace) Log.Trace($"Processes {TicksToTime(subFrame.timestamp)}");
+                if (CanTrace) Log.Trace($"Processes {TicksToTime(subFrame.Timestamp)}");
 
                 Frames.Enqueue(subFrame);
             }

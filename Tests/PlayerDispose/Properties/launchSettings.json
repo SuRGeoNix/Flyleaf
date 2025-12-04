@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PlayerDispose": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

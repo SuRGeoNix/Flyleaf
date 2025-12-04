@@ -1,9 +1,11 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Media;
+
 using MaterialDesignThemes.Wpf;
 
 namespace FlyleafLib.Controls.WPF;
@@ -48,7 +50,11 @@ public class UIConfig : NotifyPropertyChanged
         {
             float vy = 0;
             if (SubsWithinViewport && flyleaf != null && flyleaf.Player != null)
-                vy = flyleaf.Player.renderer.GetViewport.Y;
+            {
+                var renderer = flyleaf.Player.Renderer;
+                var viewport = renderer.Viewport;
+                vy = Math.Max(flyleaf.Player.Renderer.ControlHeight - (viewport.Y + viewport.Height), 0);
+            }
 
             Set(ref _SubsMargin2, new Thickness(SubsMargin.Left, SubsMargin.Top, SubsMargin.Right, SubsMargin.Bottom + vy), false, nameof(SubsMargin2));
         });
@@ -159,7 +165,7 @@ public class UITheme : NotifyPropertyChanged
             if (!Set(ref _SurfaceColor, value)) return;
             if (flyleaf == null || flyleaf.SelectedTheme == null || flyleaf.SelectedTheme.Name != Name) return;
 
-            flyleaf.Config.Video.BackgroundColor = value;
+            flyleaf.Config.Video.BackColor = value;
         }
     }
     Color _SurfaceColor;

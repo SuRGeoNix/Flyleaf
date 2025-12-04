@@ -149,7 +149,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
     }
     private void SCP_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        Player?.renderer.ResizeBuffers((int) e.NewSize.Width, (int) e.NewSize.Height);
+        Player?.Renderer.SwapChain.Resize((int)e.NewSize.Width, (int)e.NewSize.Height);
     }
 
     private void PlayerChanged(Player? oldPlayer)
@@ -157,7 +157,7 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
         if (oldPlayer != null)
         {
             Log.Debug($"De-assign Player #{oldPlayer.PlayerId}");
-            oldPlayer.VideoDecoder.DestroySwapChain();
+            oldPlayer.Renderer?.SwapChain.Dispose(rendererFrame: false);
             oldPlayer.Host = null;
         }
 
@@ -175,8 +175,8 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
         // Assign new Player's (Handle/FlyleafHost)
         Log.Debug($"Assign Player #{Player.PlayerId}");
         Player.Host = this;
-        Background = new SolidColorBrush(new() { A = Player.Config.Video.BackgroundColor.A, R = Player.Config.Video.BackgroundColor.R, G = Player.Config.Video.BackgroundColor.G, B = Player.Config.Video.BackgroundColor.B });
-        Player.VideoDecoder.CreateSwapChain(SwapChainClbk);
+        Background = new SolidColorBrush(new() { A = Player.Config.Video.BackColor.A, R = Player.Config.Video.BackColor.R, G = Player.Config.Video.BackColor.G, B = Player.Config.Video.BackColor.B });
+        Player.Renderer.SwapChain.SetupWinUI(SwapChainClbk);
     }
 
     private void SwapChainClbk(IDXGISwapChain2 swapChain)
@@ -184,7 +184,8 @@ public sealed class FlyleafHost : ContentControl, IHostPlayer
         using (var nativeObject = SharpGen.Runtime.ComObject.As<Vortice.WinUI.ISwapChainPanelNative2>(SCP))
             nativeObject.SetSwapChain(swapChain);
 
-        Player?.renderer.ResizeBuffers((int) ActualWidth , (int) ActualHeight);
+        if (swapChain != null)
+            Player?.Renderer.SwapChain.Resize((int)ActualWidth, (int)ActualHeight);
     }
     public bool Player_CanHideCursor() => Window.Current == FullScreenContainer.FSW;
     public bool Player_GetFullScreen() => FSC != null && FSC.IsFullScreen;

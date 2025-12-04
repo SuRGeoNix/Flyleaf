@@ -44,11 +44,11 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
             Config.Player.AutoPlay      = true;
 
             // Prepare Volume Max/Offset/Initial values
-            Config.Player.VolumeMax     = 200;
-            sliderVolume.Maximum        = Config.Player.VolumeMax;
+            Config.Audio.VolumeMax      = 200;
+            sliderVolume.Maximum        = Config.Audio.VolumeMax;
             Player.Audio.Volume         = 75;
-            Config.Player.VolumeOffset  = 5;
-            btnMute.Click += (o, e) => { Player.Audio.ToggleMute(); };
+            Config.Audio.VolumeOffset   = 5;
+            btnMute.Click += (o, e) => { Config.Audio.ToggleMute(); };
 
             // Prepare Seek Offsets and Commands
             Config.Player.SeekOffset    = TimeSpan.FromSeconds( 5).Ticks;
@@ -66,9 +66,9 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
             sliderVolume.KeyDown += (o, e) =>
             {
                 if (e.KeyCode == Keys.Up)
-                    Player.Audio.VolumeUp();
+                    Config.Audio.VolumeUp();
                 else if (e.KeyCode == Keys.Down)
-                    Player.Audio.VolumeDown();
+                    Config.Audio.VolumeDown();
 
                 e.Handled = true;
             };
@@ -80,9 +80,9 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
                 else if (e.KeyCode == Keys.Right)
                     Player.SeekForward();
                 else if (e.KeyCode == Keys.Up)
-                    Player.Audio.VolumeUp();
+                    Config.Audio.VolumeUp();
                 else if (e.KeyCode == Keys.Down)
-                    Player.Audio.VolumeDown();
+                    Config.Audio.VolumeDown();
 
                 e.Handled = true;
             };

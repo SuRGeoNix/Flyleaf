@@ -48,7 +48,7 @@ public partial class MainWindow : Window
     // D2Draw per frame
     private void Video_D2DDraw(object sender, ID2D1DeviceContext context)
     {
-        Viewport vp = ((Renderer)sender).GetViewport;
+        Viewport vp = ((Renderer)sender).Viewport;
 
         context.BeginDraw();
 

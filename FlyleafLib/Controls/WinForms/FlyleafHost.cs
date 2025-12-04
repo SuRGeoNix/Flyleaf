@@ -80,7 +80,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
     public bool         SwapDragEnterOnShift    { get => _SwapDragEnterOnShift; set => Set(ref _SwapDragEnterOnShift, value); }
 
 
-    int panPrevX, panPrevY;
+    double panPrevX, panPrevY;
     Point mouseLeftDownPoint = new(0, 0);
     Point mouseMoveLastPoint;
     Point oldLocation = Point.Empty;
@@ -156,16 +156,16 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         {
             System.Windows.Point curDpi = new(e.Location.X, e.Location.Y);
             if (e.Delta > 0)
-                Player.ZoomIn(curDpi);
+                Player.Config.Video.ZoomIn(curDpi);
             else
-                Player.ZoomOut(curDpi);
+                Player.Config.Video.ZoomOut(curDpi);
         }
         else if (PanRotateOnShiftWheel && ModifierKeys.HasFlag(Keys.Shift))
         {
             if (e.Delta > 0)
-                Player.RotateRight();
+                Player.Config.Video.RotateRight();
             else
-                Player.RotateLeft();
+                Player.Config.Video.RotateLeft();
         }
     }
     private void Host_MouseMove(object sender, MouseEventArgs e)
@@ -184,8 +184,8 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
 
         if (PanMoveOnCtrl && ModifierKeys.HasFlag(Keys.Control))
         {
-            Player.PanXOffset = panPrevX + e.X - mouseLeftDownPoint.X;
-            Player.PanYOffset = panPrevY + e.Y - mouseLeftDownPoint.Y;
+            Player.Config.Video.PanXOffset = panPrevX + e.X - mouseLeftDownPoint.X;
+            Player.Config.Video.PanYOffset = panPrevY + e.Y - mouseLeftDownPoint.Y;
         }
         else if (DragMove && Capture && ParentForm != null && !IsFullScreen)
         {
@@ -203,8 +203,8 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         {
             Player.Activity.RefreshFullActive();
 
-            panPrevX = Player.PanXOffset;
-            panPrevY = Player.PanYOffset;
+            panPrevX = Player.Config.Video.PanXOffset;
+            panPrevY = Player.Config.Video.PanYOffset;
 
             if (ModifierKeys.HasFlag(Keys.Shift))
             {
@@ -223,7 +223,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         {
             Log.Debug($"De-assign Player #{oldPlayer.PlayerId}");
 
-            oldPlayer.VideoDecoder.DestroySwapChain();
+            oldPlayer.Renderer?.SwapChain.Dispose(rendererFrame: false);
             oldPlayer.Host = null;
         }
 
@@ -241,9 +241,9 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         var hwnd = Handle; // ensures creation of handle?
         SetWindowLong(hwnd, GetWindowLongEx(hwnd) | WindowStylesEx.WS_EX_NOREDIRECTIONBITMAP);
         Player.Host = this;
-        Player.VideoDecoder.CreateSwapChain(Handle);
+        Player.Renderer.SwapChain.Setup(Handle);
 
-        BackColor = WPFToWinFormsColor(Player.Config.Video.BackgroundColor);
+        BackColor = WPFToWinFormsColor(Player.Config.Video.BackColor);
     }
 
     public void FullScreen()
