@@ -761,7 +761,7 @@ unsafe partial class Player
             }
             else
             {
-                renderer.ClearOverlayTexture();
+                Renderer.SubsDispose();
                 Subtitles.ClearSubsText();
             }
         }
@@ -784,7 +784,7 @@ unsafe partial class Player
             {
                 isSubsSwitch = true;
                 decoder.SeekSubtitles();
-                renderer.ClearOverlayTexture();
+                Renderer.SubsDispose();
                 sFrame = sFramePrev = null;
                 Subtitles.ClearSubsText();
                 isSubsSwitch = false;

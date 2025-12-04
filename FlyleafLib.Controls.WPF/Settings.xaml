@@ -393,7 +393,7 @@
                                 <TextBlock Text="Aspect Ratio" VerticalAlignment="Center"/>
                                 <ComboBox x:Name="cmbAspectRatio" Tag="_save" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{x:Static fl:AspectRatio.AspectRatios}" SelectedItem="{Binding Config.Video.AspectRatio, UpdateSourceTrigger=Explicit}"/>
 
-                                <TextBox Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Width="80" Text="{Binding Config.Video.CustomAspectRatio, UpdateSourceTrigger=Explicit, Converter={StaticResource StringToRational}}">
+                                <TextBox Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Width="80" Text="{Binding Config.Video.AspectRatioCustom, UpdateSourceTrigger=Explicit, Converter={StaticResource StringToRational}}">
                                     <TextBox.Resources>
                                         <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource FLTextbox}">
                                             <Setter Property="TextBox.Visibility" Value="Collapsed"></Setter>
@@ -434,7 +434,7 @@
                                 <TextBox Grid.Row="7" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
 
                                 <TextBlock Grid.Row="8" Text="Zoom Offset" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="8" Grid.Column="1" Width="80" Style="{StaticResource FLTextbox}" Text="{Binding Config.Player.ZoomOffset, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBox Grid.Row="8" Grid.Column="1" Width="80" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.ZoomOffset, UpdateSourceTrigger=LostFocus}"/>
 
                                 <TextBlock Grid.Row="9" Text="Max Latency (ms)" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="9" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Player.MaxLatency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
@@ -446,7 +446,7 @@
 
                                 <TextBlock Grid.Row="12" Text="HDR to SDR Method" VerticalAlignment="Center"/>
                                 <ComboBox Grid.Row="12" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
-                                <Button Grid.Row="12" Grid.Column="2" Content="Reset" Width="66" MaxHeight="24" HorizontalAlignment="Right" Margin="0 0 10 0" FontWeight="Normal" FontSize="12" Command="{Binding ResetFilters}"/>
+                                <Button Grid.Row="12" Grid.Column="2" Content="Reset" Width="66" MaxHeight="24" HorizontalAlignment="Right" Margin="0 0 10 0" FontWeight="Normal" FontSize="12" Command="{Binding Player.Commands.ResetFilters}"/>
 
                                 <TextBlock Grid.Row="13" Text="SDR Display Nits" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Row="13" Grid.Column="1" Text="25" Margin="-8,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
@@ -462,30 +462,12 @@
                                     <ItemsControl>
                                         <ItemsControl.Style>
                                             <Style TargetType="ItemsControl">
-                                                <Setter Property="ItemsSource" Value="{x:Null}"/>
+                                                <Setter Property="ItemsSource" Value="{Binding Config.Video.FLFilters.Values}"/>
                                                 <Style.Triggers>
-                                                    <MultiDataTrigger>
-                                                        <MultiDataTrigger.Conditions>
-                                                            <Condition Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.Auto}"/>
-                                                            <Condition Binding="{Binding Player.renderer.VideoProcessor}" Value="{x:Static fl:VideoProcessors.Flyleaf}"/>
-                                                        </MultiDataTrigger.Conditions>
-                                                        <MultiDataTrigger.Setters>
-                                                            <Setter Property="ItemsSource" Value="{Binding Config.Video.Filters.Values}"/>
-                                                        </MultiDataTrigger.Setters>
-                                                    </MultiDataTrigger>
-                                                    <MultiDataTrigger>
-                                                        <MultiDataTrigger.Conditions>
-                                                            <Condition Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.Auto}"/>
-                                                            <Condition Binding="{Binding Player.renderer.VideoProcessor}" Value="{x:Static fl:VideoProcessors.D3D11}"/>
-                                                        </MultiDataTrigger.Conditions>
-                                                        <MultiDataTrigger.Setters>
-                                                            <Setter Property="ItemsSource" Value="{Binding Config.Video.D3Filters.Values}"/>
-                                                        </MultiDataTrigger.Setters>
-                                                    </MultiDataTrigger>
-                                                    <DataTrigger Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.Flyleaf}">
-                                                        <Setter Property="ItemsSource" Value="{Binding Config.Video.Filters.Values}"/>
-                                                    </DataTrigger>
                                                     <DataTrigger Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.D3D11}">
+                                                        <Setter Property="ItemsSource" Value="{Binding Config.Video.D3Filters.Values}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Player.Renderer.VideoProcessor}" Value="{x:Static fl:VideoProcessors.D3D11}">
                                                         <Setter Property="ItemsSource" Value="{Binding Config.Video.D3Filters.Values}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>

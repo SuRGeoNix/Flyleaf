@@ -40,23 +40,19 @@ namespace FlyleafExtractor
 
             // Prepares Decoder Context's Configuration
             Config = new Config();
-            //Config.Video.VideoProcessor = VideoProcessors.Flyleaf;
-
-            //Config.Demuxer.AllowInterrupts = false;
             Config.Demuxer.AllowTimeouts = false;
-
             Config.Demuxer.BufferDuration = 99999999999999;     // We might want to use small if we use both VideoDemuxer/AudioDemuxer to avoid having a lot of audio without video
             Config.Demuxer.ReadTimeout = 60 * 1000 * 10000;     // 60 seconds to retry or fail
             Config.Video.MaxVerticalResolutionCustom = 1080;    // Default Plugins Suggest based on this
 
             // Initializes the Decoder Context
-            DecCtx = new DecoderContext(Config);
+            DecCtx = new(Config);
 
             InitializeComponent();
 
-            txtUrl.AllowDrop = true;
-            txtUrl.DragEnter += TxtUrl_DragEnter;
-            txtUrl.DragDrop += TxtUrl_DragDrop;
+            txtUrl.AllowDrop    = true;
+            txtUrl.DragEnter   += TxtUrl_DragEnter;
+            txtUrl.DragDrop    += TxtUrl_DragDrop;
 
             txtSavePath.Text = AppDomain.CurrentDomain.BaseDirectory;
         }
@@ -69,9 +65,7 @@ namespace FlyleafExtractor
         }
 
         private void TxtUrl_DragEnter(object sender, DragEventArgs e)
-        {
-            e.Effect = DragDropEffects.All;
-        }
+            => e.Effect = DragDropEffects.All;
 
         private void btnExtract_Click(object sender, EventArgs e)
         {
@@ -115,8 +109,9 @@ namespace FlyleafExtractor
             else
             {
                 btnExtract.Text = "Stop";
-                Thread thread = new Thread(() => ExtractFrames(start, end, step)); 
-                thread.IsBackground = true; thread.Start();
+                var thread = new Thread(() => ExtractFrames(start, end, step)); 
+                thread.IsBackground = true;
+                thread.Start();
             }
         }
 
@@ -126,21 +121,24 @@ namespace FlyleafExtractor
              * 
              * 1) When we have large step (greater than Keyframes distance) it is faster to seek everytime to previous keyframe
              * 2) SaveFrame (Bitmap.Save) is too heavy we should use multithreading and SaveTextureToFile from DirectX (TBR)
-             * 3) Review how fast it should decode and possible add some 'brakes' / user parameter
              */
 
-            SaveFrame(VideoDecoder.GetFrame(start), start); // Possible to get null frame?
+            var vFrame = VideoDecoder.GetFrame(start);
+            SaveFrame(vFrame, start);
+            vFrame.Dispose(); // Manually dispose as we get it directly
+
             Config.Video.MaxOutputFps = DecCtx.VideoStream.FPS; // might FPS change after fill from codec
             VideoDecoder.Speed = step;
             VideoDecoder.ResetSpeedFrame(); // make sures we skip by step (will not get the first frame as we manually do with GetFrame)
             DecCtx.Start();
+            var vFrames = VideoDecoder.Renderer.Frames;
 
             int curFrameNumber = start + step;
-            while (curFrameNumber <= end && (VideoDecoder.IsRunning || !VideoDecoder.Frames.IsEmpty))
+            while (curFrameNumber <= end && (VideoDecoder.IsRunning || !vFrames.IsEmpty))
             {
-                if (VideoDecoder.Frames.IsEmpty) { Thread.Sleep(20); continue; }
+                if (vFrames.IsEmpty) { Thread.Sleep(20); continue; }
 
-                VideoDecoder.Frames.TryDequeue(out VideoFrame frame);
+                vFrames.TryDequeue(out VideoFrame frame);
                 SaveFrame(frame, curFrameNumber);
                 curFrameNumber += step;
             }
@@ -156,11 +154,11 @@ namespace FlyleafExtractor
         public void SaveFrame(VideoFrame frame, int frameNumber)
         {
             if (frame == null) return;
-            Bitmap bmp = VideoDecoder.Renderer.ExtractFrame(frame);
+            Bitmap bmp = VideoDecoder.Renderer.GetBitmap(frame);
             string fullpath = Path.Combine(txtSavePath.Text, $"{Filename}_{frameNumber + 1}.{Extension}");
             bmp.Save(fullpath, ImageFormat);
             bmp.Dispose();
-            VideoDecoder.DisposeFrame(frame);
+            //frame.Dispose(); // TBR: Probably already in VC we don't need to manually dispose
         }
 
         private void chkSingle_CheckedChanged(object sender, EventArgs e)

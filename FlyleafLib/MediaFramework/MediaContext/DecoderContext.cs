@@ -3,6 +3,7 @@ using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaRemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
+using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins;
 
 namespace FlyleafLib.MediaFramework.MediaContext;
@@ -88,10 +89,11 @@ public unsafe partial class DecoderContext : PluginHandler
     #region Initialize
     LogHandler Log;
     bool shouldDispose;
-    public DecoderContext(Config config = null, int uniqueId = -1, bool enableDecoding = true) : base(config, uniqueId)
+    public DecoderContext(Config config = null, int uniqueId = -1, bool enableDecoding = true, Player player = null) : base(config, uniqueId)
     {
-        Log = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [DecoderContext] ");
+        Log                 = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [DecoderContext] ");
         Playlist.decoder    = this;
+        Tag                 = player;
 
         EnableDecoding      = enableDecoding;
 
@@ -102,13 +104,10 @@ public unsafe partial class DecoderContext : PluginHandler
 
         Recorder            = new(UniqueId);
 
-        VideoDecoder        = new(Config, UniqueId);
+        VideoDecoder        = new(Config, UniqueId, EnableDecoding && config.Player.Usage != Usage.Audio, player);
         AudioDecoder        = new(Config, UniqueId, VideoDecoder);
         SubtitlesDecoder    = new(Config, UniqueId);
         DataDecoder         = new(Config, UniqueId);
-
-        if (EnableDecoding && config.Player.Usage != MediaPlayer.Usage.Audio)
-            VideoDecoder.EnsureRenderer();
 
         VideoDecoder.recCompleted = RecordCompleted;
         AudioDecoder.recCompleted = RecordCompleted;
@@ -511,7 +510,7 @@ public unsafe partial class DecoderContext : PluginHandler
                 }
             }
             else
-                packet = VideoDemuxer.VideoPackets.Dequeue(); // TBR: This comes after seek, we shouldn't have packets here?*
+                packet = VideoDemuxer.VideoPackets.Dequeue(); // When found in Queue during Seek
 
             if (!VideoDemuxer.EnabledStreams.Contains(packet->stream_index)) { av_packet_free(&packet); continue; }
 
@@ -584,7 +583,7 @@ public unsafe partial class DecoderContext : PluginHandler
                             continue;
                         }
 
-                        ret = VideoDecoder.FillAVFrame();
+                        ret = VideoDecoder.FillEnqueueAVFrame();
                         if (ret == 0)
                             return; // Success
 
@@ -611,7 +610,7 @@ public unsafe partial class DecoderContext : PluginHandler
         shouldDispose = true;
         Stop();
         Interrupt = true;
-        VideoDecoder.DestroyRenderer();
+        VideoDecoder.Renderer?.Dispose();
         base.Dispose();
     }
 
@@ -624,7 +623,7 @@ public unsafe partial class DecoderContext : PluginHandler
         dump += $"\r\n AudioPackets      ({AudioDemuxer.AudioStreams.Count}): {AudioDemuxer.AudioPackets.Count} (AudioDemuxer)";
         dump += $"\r\n SubtitlesPackets  ({SubtitlesDemuxer.SubtitlesStreams.Count}): {SubtitlesDemuxer.SubtitlesPackets.Count} (SubtitlesDemuxer)";
 
-        dump += $"\r\n Video Frames         : {VideoDecoder.Frames.Count}";
+        dump += $"\r\n Video Frames         : {VideoDecoder.Renderer.Frames.Count}";
         dump += $"\r\n Audio Frames         : {AudioDecoder.Frames.Count}";
         dump += $"\r\n Subtitles Frames     : {SubtitlesDecoder.Frames.Count}";
 

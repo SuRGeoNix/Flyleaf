@@ -85,12 +85,13 @@ public sealed class FullScreenContainer : ContentControl
         foreach (IntPtr hWnd in EnumerateProcessWindowHandles(Process.GetCurrentProcess().Id))
         {
             WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
-            var appWin = AppWindow.GetFromWindowId(wndId);
 
             if (wndId == contentIsland)
             {
+                var appWin = AppWindow.GetFromWindowId(wndId);
                 OwnerHwnd = hWnd;
                 Owner = appWin;
+                break;
             }
         }
 

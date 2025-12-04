@@ -69,7 +69,7 @@
                                 </fl:PlayerDebug>
 
                                 <!--Subtitles-->
-                                <flwpf:OutlinedTextBlock Stroke="{Binding Player.Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}"
+                                <flwpf:OutlinedTextBlock Stroke="{Binding Player.Config.Video.BackColor, Converter={StaticResource ColorToBrush}}"
                                     ClipToBounds="False"
                                     Fill="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}"
                                     StrokePosition="Outside"

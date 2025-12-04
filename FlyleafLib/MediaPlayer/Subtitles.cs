@@ -35,7 +35,6 @@ public class Subtitles : NotifyPropertyChanged
     Action uiAction;
     Player player;
     DecoderContext decoder => player?.decoder;
-    Config Config => player.Config;
 
     public Subtitles(Player player)
     {
@@ -56,7 +55,7 @@ public class Subtitles : NotifyPropertyChanged
         isOpened    = false;
         subsText    = "";
         player.sFramePrev = null;
-        player.renderer?.ClearOverlayTexture();
+        player.Renderer?.SubsDispose();
 
         player.UIAdd(uiAction);
     }
@@ -69,7 +68,7 @@ public class Subtitles : NotifyPropertyChanged
         isOpened    =!decoder.SubtitlesDecoder.Disposed;
         subsText    = "";
         player.sFramePrev = null;
-        player.renderer?.ClearOverlayTexture();
+        player.Renderer.SubsDispose();
 
         player.UIAdd(uiAction);
     }
@@ -93,10 +92,4 @@ public class Subtitles : NotifyPropertyChanged
         Reset();
         player.UIAll();
     }
-
-    public void DelayRemove()   => Config.Subtitles.Delay -= Config.Player.SubtitlesDelayOffset;
-    public void DelayAdd()      => Config.Subtitles.Delay += Config.Player.SubtitlesDelayOffset;
-    public void DelayRemove2()  => Config.Subtitles.Delay -= Config.Player.SubtitlesDelayOffset2;
-    public void DelayAdd2()     => Config.Subtitles.Delay += Config.Player.SubtitlesDelayOffset2;
-    public void Toggle()        => Config.Subtitles.Enabled = !Config.Subtitles.Enabled;
 }

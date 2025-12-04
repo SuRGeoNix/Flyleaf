@@ -55,7 +55,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public MainWindow()
     {
         lock (lockTray) openedWindows++;
-
+        
         OpenWindow      = new RelayCommandSimple(() => CreateNewWindow(this));
         CloseWindow     = new RelayCommandSimple(() => BtnClose_Click(null, null));
         ShowPrevImage   = new RelayCommandSimple(() => SlideShowGoTo(SlidePosition.Prev));
@@ -248,7 +248,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         //playerConfig.Player.MaxLatency = TimeSpan.FromMilliseconds(75).Ticks;
         //playerConfig.Decoder.MaxAudioFrames = 5;
         //playerConfig.Demuxer.AllowFindStreamInfo = false;
+        //playerConfig.Video.VideoAcceleration = false;
         //playerConfig.Video.VideoProcessor = VideoProcessors.Flyleaf;
+        //playerConfig.Video.SplitFrameAlphaPosition = SplitFrameAlphaPosition.Bottom;
         #endif
         
         // Initializes the Player
@@ -281,14 +283,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
                 GetWindowFromPlayer(Player).ReversePlaybackChecked = true;
             }
-            else if (e.PropertyName == nameof(Player.Rotation))
-                GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Rotation}°";
             else if (e.PropertyName == nameof(Player.Speed))
                 GetWindowFromPlayer(Player).Msg = $"Speed x{Player.Speed}";
-            else if (e.PropertyName == nameof(Player.Zoom))
-                GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Zoom}%";
             else if (e.PropertyName == nameof(Player.Status) && Player.Activity.Mode == ActivityMode.Idle)
                 Player.Activity.ForceActive();
+        };
+
+        Player.Config.Video.PropertyChanged += (o, e) =>
+        {
+            if (e.PropertyName == nameof(Player.Config.Video.Rotation))
+                GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Config.Video.Rotation}°";
+            else if (e.PropertyName == nameof(Player.Config.Video.Zoom))
+                GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Config.Video.Zoom}%";
         };
 
         Player.Audio.PropertyChanged += (o, e) =>
@@ -449,8 +455,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ImageTitle = Player.Playlist.Selected.Title;
         else
         {
-            if (!e.Success)
-                Player.renderer?.ClearScreen(true);
+            // Consider having a status/indicator while image loading as we don't clear the prev frames to avoid confusion
+            if (!e.Success && e.Error != "Cancelled")
+                Player.Renderer?.ClearScreen(true);
 
             lock (slideShowLock)
                 if (SlideShow)
@@ -765,14 +772,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var keys = playerConfig.Player.KeyBindings;
 
-        keys.Remove(Key.Left);
         keys.Remove(Key.Right);
-        keys.Remove(Key.Home);
-        keys.Remove(Key.End);
+        keys.Remove(Key.Left);
         keys.Remove(Key.Space);
         keys.Remove(Key.F5);
         keys.Remove(Key.PageDown);
         keys.Remove(Key.PageUp);
+        keys.Remove(Key.Home);
+        keys.Remove(Key.End);
 
         ImageKeysRemove();
     }
@@ -780,23 +787,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     void ImageKeysAdd()
     {
         var keys = playerConfig.Player.KeyBindings;
-        keys.AddCustom(Key.Delete,  true,   ImageDelete, "tmp07");
-        keys.AddCustom(Key.C,       true,   () => ImageCutCopy(), "tmp08", false, true, false);
-        keys.AddCustom(Key.X,       true,   () => ImageCutCopy(false), "tmp09", false, true, false);
-        keys.AddCustom(Key.Q,       true,   () => { Player.Stop(); MediaViewer = MediaViewer.Video; }, "tmp12", false, true, false);
+        keys.AddCustom(Key.Delete,  true,   ImageDelete, "ImageDelete");
+        keys.AddCustom(Key.C,       true,   () => ImageCutCopy(), "ImageCopy", false, true, false);
+        keys.AddCustom(Key.X,       true,   () => ImageCutCopy(false), "ImageCut", false, true, false);
+        keys.AddCustom(Key.Q,       true,   () => { Player.Stop(); MediaViewer = MediaViewer.Video; }, "ImageStop", false, true, false);
     }
 
     void SlideKeysAdd()
     {
         var keys = playerConfig.Player.KeyBindings;
-        keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(SlidePosition.Prev), "tmp01");
-        keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(SlidePosition.Next), "tmp02");
-        keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "tmp05");
-        keys.AddCustom(Key.F5,      true,   () => SlideShowStart(true), "tmp06");
-        keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(SlidePosition.NextPage), "tmp10");
-        keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(SlidePosition.PrevPage), "tmp11");
-        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(SlidePosition.Start), "tmp03");
-        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(SlidePosition.End), "tmp04");
+        keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(SlidePosition.Next), "SlideNext");
+        keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(SlidePosition.Prev), "SlidePrev");
+        keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "SlideToggle");
+        keys.AddCustom(Key.F5,      true,   () => SlideShowStart(true), "SlideStart");
+        keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(SlidePosition.NextPage), "SlideNextPage");
+        keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(SlidePosition.PrevPage), "SlidePrevPage");
+        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(SlidePosition.Start), "SlideFirst");
+        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(SlidePosition.End), "SlideLast");
 
         ImageKeysAdd();
     }

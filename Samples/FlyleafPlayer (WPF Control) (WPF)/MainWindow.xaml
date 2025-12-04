@@ -93,7 +93,7 @@
                     <!--Title Bar-->
                     <Grid Grid.Row="0" x:Name="HeaderGrid" Margin="-2 0 -2 0">
                         <Grid.Background>
-                            <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                            <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.15"/>
                         </Grid.Background>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="50"/>
@@ -173,7 +173,7 @@
                         </Grid.Style>
                         <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Padding="4" Margin="10 -40 0 0" d:Text="00:00:00.000 / 01:42:23.913" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
                             <TextBlock.Background>
-                                <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                                <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.15"/>
                             </TextBlock.Background>
                             <TextBlock.Style>
                                 <Style TargetType="{x:Type TextBlock}">
@@ -193,7 +193,7 @@
                         <!--Messages-->
                         <TextBlock VerticalAlignment="Top" HorizontalAlignment="Right" Padding="4" Margin="0 10 10 0" FontWeight="Bold" d:Text="Volume 50%" FontSize="14" Text="{Binding Tag.Msg}" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
                             <TextBlock.Background>
-                                <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                                <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.15"/>
                             </TextBlock.Background>
                             <TextBlock.Style>
                                 <Style TargetType="{x:Type TextBlock}">
@@ -213,7 +213,7 @@
                         <!--Status-->
                         <TextBlock VerticalAlignment="Top" HorizontalAlignment="Right" Padding="4" Margin="0 -40 10 0" FontWeight="Bold" d:Text="Playing" FontSize="18" Text="{Binding Player.Status}" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
                             <TextBlock.Background>
-                                <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                                <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.15"/>
                             </TextBlock.Background>
                             <TextBlock.Style>
                                 <Style TargetType="{x:Type TextBlock}">
@@ -231,7 +231,7 @@
                         <materialDesign:DialogHost x:Name="PART_DialogSettings" OverlayBackground="{x:Null}"/>
 
                         <!--Subtitles-->
-                        <flwpf:OutlinedTextBlock Stroke="{Binding Player.Config.Video.BackgroundColor, Converter={StaticResource ColorToBrush}}"
+                        <flwpf:OutlinedTextBlock Stroke="{Binding Player.Config.Video.BackColor, Converter={StaticResource ColorToBrush}}"
                          ClipToBounds="False"
                          Fill="{Binding UIConfig.SubsFontColor, Converter={StaticResource ColorToBrush}}"
                          StrokePosition="Outside"
@@ -290,7 +290,7 @@
                                 <!--SlideShow ToolBar (Play|Pause, Restart, Settings)-->
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0 60 0 0">
                                     <StackPanel.Background>
-                                        <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.35"/>
+                                        <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.35"/>
                                     </StackPanel.Background>
                                     <Button Command="{Binding Tag.SlideShowToggle}" IsEnabled="{Binding Tag.CanNextImage}" Focusable="False" Foreground="White">
                                         <Button.Style>
@@ -307,7 +307,7 @@
                                     </Button>
                                     <Button Style="{StaticResource MaterialDesignIconButton}" Content="{materialDesign:PackIcon Kind=Restart,Size=34}" Command="{Binding Tag.SlideShowRestart}" IsEnabled="{Binding Tag.CanPrevImage}" Focusable="False" Foreground="White">
                                         <Button.Background>
-                                            <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.35"/>
+                                            <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.35"/>
                                         </Button.Background>
                                     </Button>
                                     <Button Style="{StaticResource MaterialDesignIconButton}" Content="{materialDesign:PackIcon Kind=GearOutline,Size=34}" Command="{x:Static materialDesign:DialogHost.OpenDialogCommand}" Focusable="False" Foreground="White">
@@ -385,7 +385,7 @@
 
                                 <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Padding="4" Margin="10 -40 0 0" Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
                                     <TextBlock.Background>
-                                        <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                                        <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.15"/>
                                     </TextBlock.Background>
                                 </TextBlock>
                                 <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Background="#AA000000"  Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" FontWeight="Bold" FontSize="14" Padding="4" Margin="44 14 0 0" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}"/>
@@ -408,7 +408,7 @@
                     <!--Error Message-->
                     <TextBox Grid.Row="0" Grid.RowSpan="2" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="10" d:Text="Error Message" FontSize="16" IsReadOnly="True" BorderThickness="0" Text="{Binding Player.LastError}" Foreground="{DynamicResource MaterialDesign.Brush.Primary}" TextWrapping="Wrap">
                         <TextBox.Background>
-                            <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                            <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.15"/>
                         </TextBox.Background>
                         <TextBox.Style>
                             <Style TargetType="{x:Type TextBox}">

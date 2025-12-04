@@ -90,9 +90,6 @@ partial class Player
                     ScreamerVASD();
                 }
 
-                if (vFrame != renderer.LastFrame) // Audio does not have renderer
-                    VideoDecoder.DisposeFrame(vFrame);
-
                 vFrame = null;
             }
 
@@ -266,7 +263,7 @@ partial class Player
                     if (sFramePrev != null)
                     {
                         sFramePrev = null;
-                        renderer.ClearOverlayTexture();
+                        Renderer.SubsDispose();
                         Subtitles.ClearSubsText();
                     }
 
@@ -350,7 +347,7 @@ partial class Player
         lock (lockActions)
         {
             Initialize();
-            renderer?.Flush();
+            Renderer.Reset();
         }
     }
 }
