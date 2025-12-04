@@ -1116,7 +1116,7 @@ public unsafe class Demuxer : RunThreadBase
         int allowedErrors = Config.MaxErrors;
         bool gotAVERROR_EXIT = false;
         audioBufferLimitFired = false;
-        long lastVideoPacketPts = 0;
+        long lastVideoPacketPts = AV_NOPTS_VALUE;
 
         do
         {
@@ -1245,7 +1245,14 @@ public unsafe class Demuxer : RunThreadBase
                             // Some data streams only have nopts, set pts to last video packet pts
                             if (packet->pts == AV_NOPTS_VALUE)
                                 packet->pts = lastVideoPacketPts;
-                            DataPackets.Enqueue(packet);
+                            if (packet->pts != AV_NOPTS_VALUE)
+                            {
+                                DataPackets.Enqueue(packet);
+                            }
+                            else
+                            {
+                                av_packet_unref(packet);
+                            }
                             packet = av_packet_alloc();
 
                             break;
