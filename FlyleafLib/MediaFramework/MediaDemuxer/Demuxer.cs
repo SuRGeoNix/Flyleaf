@@ -1228,7 +1228,8 @@ public unsafe class Demuxer : RunThreadBase
 
                         case AVMediaType.Video:
                             //Log($"Video => {TicksToTime((long)(packet->pts * VideoStream.Timebase))} | {TicksToTime(CurTime)}");
-                            lastVideoPacketPts = packet->pts;
+                            if (packet->pts != AV_NOPTS_VALUE)
+                                lastVideoPacketPts = packet->pts;
                             VideoPackets.Enqueue(packet);
                             packet = av_packet_alloc();
 
