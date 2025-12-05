@@ -316,12 +316,54 @@ color = float4(outY, outUV, 1.0f);
                 txtDesc[1].Format = srvDesc[1].Format = Format.R8G8_UNorm;
             }
 
-            SetPS(psId, @"
+            switch (ucfg._SplitFrameAlphaPosition)
+            {
+                default:
+                    SetPS(psId, @"
 color = float4(
 Texture1.Sample(Sampler, input.Texture).r,
 Texture2.Sample(Sampler, input.Texture)." + offsets + @",
 1.0);
 ", defines);
+                    break;
+                case SplitFrameAlphaPosition.Left:
+                    psId += "l";
+                    SetPS(psId, @"
+color = float4(
+Texture1.Sample(Sampler, float2(0.5 + (input.Texture.x / 2), input.Texture.y)).r,
+Texture2.Sample(Sampler, float2(0.5 + (input.Texture.x / 2), input.Texture.y))." + offsets + @",
+Texture1.Sample(Sampler, float2(input.Texture.x / 2, input.Texture.y)).r);
+", defines);
+                    break;
+                case SplitFrameAlphaPosition.Right:
+                    SetPS(psId, @"
+color = float4(
+Texture1.Sample(Sampler, float2(input.Texture.x / 2, input.Texture.y)).r,
+Texture2.Sample(Sampler, float2(input.Texture.x / 2, input.Texture.y))." + offsets + @",
+Texture1.Sample(Sampler, float2(0.5 + (input.Texture.x / 2), input.Texture.y)).r);
+", defines);
+                    psId += "r";
+                    break;
+                case SplitFrameAlphaPosition.Top:
+                    psId += "t";
+                    SetPS(psId, @"
+color = float4(
+Texture1.Sample(Sampler, float2(input.Texture.x, 0.5 + (input.Texture.y / 2))).r,
+Texture2.Sample(Sampler, float2(input.Texture.x, 0.5 + (input.Texture.y / 2)))." + offsets + @",
+Texture1.Sample(Sampler, float2(input.Texture.x, input.Texture.y / 2)).r);
+", defines);
+                    break;
+                case SplitFrameAlphaPosition.Bottom:
+                    psId += "b";
+                    SetPS(psId, @"
+color = float4(
+Texture1.Sample(Sampler, float2(input.Texture.x, input.Texture.y / 2)).r,
+Texture2.Sample(Sampler, float2(input.Texture.x, input.Texture.y / 2))." + offsets + @",
+Texture1.Sample(Sampler, float2(input.Texture.x, 0.5 + (input.Texture.y / 2))).r);
+", defines);
+                    break;
+            }
+
         }
 
         // Y_U_V
@@ -376,6 +418,51 @@ color *= pow(2, " + (maxBits - scfg.PixelComp0Depth) + @");
                 shader += @"
 color.a = 1.0f;
 ";
+
+            switch (ucfg._SplitFrameAlphaPosition)
+            {                
+                case SplitFrameAlphaPosition.Left:
+                    psId += "l";
+                    shader = @"
+float2 uv = float2(0.5 + (input.Texture.x / 2), input.Texture.y);
+color.r = Texture1.Sample(Sampler, uv).r;
+color.g = Texture2.Sample(Sampler, uv).r;
+color.b = Texture3.Sample(Sampler, uv).r;
+color.a = Texture1.Sample(Sampler, float2(input.Texture.x / 2, input.Texture.y)).r;
+";
+                    break;
+                case SplitFrameAlphaPosition.Right:
+                    psId += "r";
+                    shader = @"
+float2 uv = float2(input.Texture.x / 2, input.Texture.y);
+color.r = Texture1.Sample(Sampler, uv).r;
+color.g = Texture2.Sample(Sampler, uv).r;
+color.b = Texture3.Sample(Sampler, uv).r;
+color.a = Texture1.Sample(Sampler, float2(0.5 + (input.Texture.x / 2), input.Texture.y)).r;
+";
+                    break;
+                case SplitFrameAlphaPosition.Top:
+                    psId += "t";
+                    shader = @"
+float2 uv = float2(input.Texture.x, 0.5 + (input.Texture.y / 2));
+color.r = Texture1.Sample(Sampler, uv).r;
+color.g = Texture2.Sample(Sampler, uv).r;
+color.b = Texture3.Sample(Sampler, uv).r;
+color.a = Texture1.Sample(Sampler, float2(input.Texture.x, input.Texture.y / 2)).r;
+";
+                    break;
+                case SplitFrameAlphaPosition.Bottom:
+                    psId += "b";
+                    shader = @"
+float2 uv = float2(input.Texture.x, input.Texture.y / 2);
+color.r = Texture1.Sample(Sampler, uv).r;
+color.g = Texture2.Sample(Sampler, uv).r;
+color.b = Texture3.Sample(Sampler, uv).r;
+color.a = Texture1.Sample(Sampler, float2(input.Texture.x, 0.5 + (input.Texture.y / 2))).r;
+";
+                    break;
+            }
+
             SetPS(psId, shader, defines);
         }
 
