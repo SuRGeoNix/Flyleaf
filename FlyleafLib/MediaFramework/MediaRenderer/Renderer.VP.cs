@@ -134,6 +134,12 @@ public unsafe partial class Renderer : IVP
             if (!VideoDecoder.VideoAccelerated)
             {
                 Frames.Dispose();
+
+                // Clear Screen
+                context.OMSetRenderTargets(SwapChain.BackBufferRtv);
+                context.ClearRenderTargetView(SwapChain.BackBufferRtv, ucfg.flBackColor);
+                SwapChain.Present(1, Vortice.DXGI.PresentFlags.None);
+
                 return;
             }
 
