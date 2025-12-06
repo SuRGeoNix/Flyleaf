@@ -79,10 +79,6 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
      */
 
     /* TODO
-     * 
-     * BUG: The initial detached when attached back it will create UI freezes
-     *  Generally fix SetWindowLongs and mix with direct access to ShowInTaskbar/WindowStyle etc..
-     * 
      * 1) The surface / overlay events code is repeated
      * 2) PassWheelToOwner (Related with LayoutUpdate performance / ScrollViewer) / ActivityRefresh
      * 3) Attach to different Owner (Load/Unload) and change Overlay?
