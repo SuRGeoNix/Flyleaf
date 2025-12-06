@@ -134,8 +134,8 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
 
     RECT                curRect;
     Rect                rectDetachedDpi = Rect.Empty;
-    Rect                rectInit;
-    Rect                rectIntersect;
+    Rect                rectInit, rectInitLast;
+    Rect                rectIntersect, rectIntersectLast;
     POINT               pMLD;
     POINT               pMM;
     RECT                rectSizeMLD;
@@ -758,6 +758,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
                 return; // Check OwnerHandle changed (NOTE: Owner can be the same class/window but the handle can be different)
 
             Owner.DpiChanged    -= Owner_DpiChanged;
+            Owner.SizeChanged   -= Owner_SizeChanged;
 
             Surface.Hide();
             Overlay?.Hide();
@@ -769,6 +770,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             Surface.Icon    = Owner.Icon;
 
             Owner.DpiChanged    += Owner_DpiChanged;
+            Owner.SizeChanged   += Owner_SizeChanged;
 
             Attach();
             rectDetachedDpi = Rect.Empty; // Attach will set it wrong first time
@@ -787,6 +789,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         Surface.Icon    = Owner.Icon;
 
         Owner.DpiChanged    += Owner_DpiChanged;
+        Owner.SizeChanged   += Owner_SizeChanged;
         DataContextChanged  += Host_DataContextChanged;
         LayoutUpdated       += Host_LayoutUpdated;
         IsVisibleChanged    += Host_IsVisibleChanged;
@@ -818,10 +821,15 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         }
     }
 
+    // WindowChrome Issue #410: It will not properly move child windows when resized from top or left
+    private void Owner_SizeChanged(object sender, SizeChangedEventArgs e)
+        => rectInitLast = rectIntersectLast = Rect.Empty;
+
     private void Owner_DpiChanged(object sender, DpiChangedEventArgs e)
     {
         if (e.OriginalSource == Owner && IsAttached)
         {
+            rectInitLast = rectIntersectLast = Rect.Empty;
             DpiX = e.NewDpi.DpiScaleX;
             DpiY = e.NewDpi.DpiScaleY;
             ResizeRatio();
@@ -911,16 +919,29 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             }
 
             //Log.Error($"{rectInit} | {rectIntersect}");
-            SetRect(rectInit);
-
+            
+            if (rectInit != rectInitLast)
+            {
+                rectInitLast = rectInit;
+                SetRect(rectInit);
+            }
+            
             if (rectIntersect != Rect.Empty)
             {
                 rectIntersect.X -= rectInit.X;
                 rectIntersect.Y -= rectInit.Y;
-                SetVisibleRect(rectIntersect);
+
+                if (rectIntersectLast != rectIntersect)
+                {
+                    rectIntersectLast = rectIntersect;
+                    SetVisibleRect(rectIntersect);
+                }
             }
-            else
+            else if (rectIntersectLast != RectZero)
+            {
+                rectIntersectLast = RectZero;
                 SetVisibleRect(RectZero);
+            }
         }
         catch (Exception ex)
         {
@@ -1778,6 +1799,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
         SetParent(SurfaceHandle, OwnerHandle);
 
         ResizeRatio();
+        rectInitLast = rectIntersectLast = Rect.Empty;
         Host_LayoutUpdated(null, null);
         Owner.Activate();
         wasFocus.Focus();
@@ -2011,7 +2033,10 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
             }
 
             if (Owner != null)
-                Owner.DpiChanged -= Owner_DpiChanged;
+            {
+                Owner.DpiChanged  -= Owner_DpiChanged;
+                Owner.SizeChanged -= Owner_SizeChanged;
+            }
 
             Surface = null;
             Overlay = null;
