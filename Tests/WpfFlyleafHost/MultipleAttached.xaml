@@ -48,7 +48,7 @@
                         AttachedDragMove="Surface" AttachedResize="Overlay"
                         DetachedDragMove="Both" DetachedResize="Overlay" DetachedTopMost="True"
 
-                        IsAttached="True"
+                        IsAttached="False"
                         KeepRatioOnResize="True"
 
                         DetachedRememberPosition="True" DetachedRememberSize="True"

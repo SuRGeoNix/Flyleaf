@@ -680,12 +680,11 @@ color.rgb = (color.rgb - rgbOffset) * rgbScale;
         return true;
     }
 
-    static string SampleSplitFrameAlpha(string y, string uv) =>
-        $@"
+    static string SampleSplitFrameAlpha(string x, string y) => $@"
 #if defined(dYUVLimited)
-color.a = YUVToRGBLimited(float3(Texture1.Sample(Sampler, float2({y}, {uv})).r, float2(0.5, 0.5))).r;
+color.a = YUVToRGBLimited(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, float2(0.5, 0.5))).r;
 #else
-color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({y}, {uv})).r, float2(0.5, 0.5))).r;
+color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, float2(0.5, 0.5))).r;
 #endif
 ";
 
