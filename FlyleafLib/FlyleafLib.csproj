@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.10.1</Version>
+	<Version>3.10.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,12 +17,8 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer: Fixes issues with Split Frame Alpha and adds SW support
-		- Renderer: Fixes an issue during initialization that it wouldn't properly renderer
-		- Renderer: Adds SwsScale support for alpha channel
-		- Renderer: Clear Screen when VPSwitch clears frames cache
-		- VideoDecoder: Fixes an issue with key frame for qtrle codec
-		- FlyleafHost.Wpf: Fixes an infinite LayoutUpdated loop which could cause the UI to freeze
+		- Player.ScreamerZeroLatency: Fixes a critical issue with the new Video Frame Cache
+		- Engine.Config: Introduces KeepDisplayActive and allows -by disabling it- the system/display to sleep if required
 	</PackageReleaseNotes>
   </PropertyGroup>
 
