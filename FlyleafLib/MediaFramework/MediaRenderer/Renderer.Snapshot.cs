@@ -78,6 +78,51 @@ public unsafe partial class Renderer
         catch { return null; }   
     }
 
+    public BitmapSource TakeSnapshotBitmapSource(uint width = 0, uint height = 0)
+    {
+        try
+        {
+            if (width == 0 && height == 0)
+            {
+                width = VisibleWidth;
+                height = VisibleHeight;
+            }
+            else if (width != 0 && height == 0)
+                height = (uint)(width / curRatio);
+            else if (height != 0 && width == 0)
+                width = (uint)(height * curRatio);
+
+            var snapshot = GetSnapshot(width, height);
+
+            lock (lockRenderLoops)
+            {
+                var rFrame = Frames.RendererFrame;
+
+                if (rFrame == null)
+                    return null;
+
+                if (VideoProcessor == VideoProcessors.D3D11)
+                {
+                    vc.VideoProcessorGetStreamDestRect(vp, 0, out _, out var d3destOld);
+                    vc.VideoProcessorGetOutputTargetRect(vp, out _, out var d3outOld);
+                    D3Render(rFrame.VPIV, snapshot.d3rtv, snapshot.d3view);
+                    vc.VideoProcessorSetStreamDestRect(vp, 0, true, d3destOld);
+                    vc.VideoProcessorSetOutputTargetRect(vp, true, d3outOld);
+                }
+                else
+                {
+                    FLRender(rFrame.SRV, snapshot.rtv, snapshot.view);
+                    context.RSSetViewport(Viewport);
+                }
+            }
+
+            context.CopyResource(snapshot.txtStage, snapshot.txt);
+
+            return GetBitmapSource(snapshot.txtStage);
+        }
+        catch { return null; }
+    }
+
     #region Bitmap Helpers
     public Bitmap GetBitmap(VideoFrame frame, uint width = 0, uint height = 0)
     {   // Extractor example (should be used separate from Player-OnScreen rendering)
