@@ -30,7 +30,7 @@
                     </ControlTemplate.Resources>
                     <materialDesign:Card DataContext="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type flwpf:FlyleafBar}}}" TextElement.FontSize="14" TextElement.FontWeight="Medium" TextElement.Foreground="White" FontFamily="{materialDesign:MaterialDesignFont}" VerticalAlignment="Bottom" Focusable="False">
                         <materialDesign:Card.Background>
-                            <SolidColorBrush Color="{Binding Player.Config.Video.BackgroundColor}" Opacity="0.15"/>
+                            <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.15"/>
                         </materialDesign:Card.Background>
                         <materialDesign:Card.Style>
                             <Style TargetType="{x:Type materialDesign:Card}">
@@ -230,7 +230,7 @@
                                 </Button>
 
                                 <!--Volume Slider (Decibel)-->
-                                <Slider Grid.Column="6" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" d:Maximum="150" d:Value="75" Value="{Binding Player.Audio.Volume}"/>
+                                <Slider Grid.Column="6" Style="{DynamicResource FlyleafSlider}" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}" Focusable="False" Margin="0,0,6,6" Width="100" VerticalAlignment="Bottom" Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax, Mode=OneWay}" d:Maximum="150" d:Value="75" Value="{Binding Player.Audio.Volume}"/>
 
                                 <!--Open Settings Button-->
                                 <Button Grid.Column="7" Style="{StaticResource IconButton}" Content="{materialDesign:PackIcon Kind=SettingsOutline}" Command="{Binding OpenSettingsCmd}"/>

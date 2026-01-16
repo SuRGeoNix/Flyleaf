@@ -1,10 +1,11 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 
 using FlyleafLib.MediaPlayer;
+
+using static FlyleafLib.Utils.NativeMethods;
 
 namespace FlyleafLib.Controls.WinForms;
 
@@ -79,7 +80,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
     public bool         SwapDragEnterOnShift    { get => _SwapDragEnterOnShift; set => Set(ref _SwapDragEnterOnShift, value); }
 
 
-    int panPrevX, panPrevY;
+    double panPrevX, panPrevY;
     Point mouseLeftDownPoint = new(0, 0);
     Point mouseMoveLastPoint;
     Point oldLocation = Point.Empty;
@@ -102,8 +103,8 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         if (designMode)
             return;
 
-        Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
-
+        Log = new(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [FlyleafHost NP] ");
+        
         KeyUp       += Host_KeyUp;
         KeyDown     += Host_KeyDown;
         DoubleClick += Host_DoubleClick;
@@ -112,6 +113,12 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         MouseWheel  += Host_MouseWheel;
         DragEnter   += Host_DragEnter;
         DragDrop    += Host_DragDrop;
+
+        // TBR: Should improve performance but might cause issues (not tested)
+        //SetStyle(ControlStyles.OptimizedDoubleBuffer, false);
+        //SetStyle(ControlStyles.AllPaintingInWmPaint, false);
+        //SetStyle(ControlStyles.UserPaint, false);
+        //SetStyle(ControlStyles.Opaque, true);
     }
 
     private void Host_DragDrop(object sender, DragEventArgs e)
@@ -149,16 +156,16 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         {
             System.Windows.Point curDpi = new(e.Location.X, e.Location.Y);
             if (e.Delta > 0)
-                Player.ZoomIn(curDpi);
+                Player.Config.Video.ZoomIn(curDpi);
             else
-                Player.ZoomOut(curDpi);
+                Player.Config.Video.ZoomOut(curDpi);
         }
         else if (PanRotateOnShiftWheel && ModifierKeys.HasFlag(Keys.Shift))
         {
             if (e.Delta > 0)
-                Player.RotateRight();
+                Player.Config.Video.RotateRight();
             else
-                Player.RotateLeft();
+                Player.Config.Video.RotateLeft();
         }
     }
     private void Host_MouseMove(object sender, MouseEventArgs e)
@@ -177,8 +184,8 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
 
         if (PanMoveOnCtrl && ModifierKeys.HasFlag(Keys.Control))
         {
-            Player.PanXOffset = panPrevX + e.X - mouseLeftDownPoint.X;
-            Player.PanYOffset = panPrevY + e.Y - mouseLeftDownPoint.Y;
+            Player.Config.Video.PanXOffset = panPrevX + e.X - mouseLeftDownPoint.X;
+            Player.Config.Video.PanYOffset = panPrevY + e.Y - mouseLeftDownPoint.Y;
         }
         else if (DragMove && Capture && ParentForm != null && !IsFullScreen)
         {
@@ -196,8 +203,8 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         {
             Player.Activity.RefreshFullActive();
 
-            panPrevX = Player.PanXOffset;
-            panPrevY = Player.PanYOffset;
+            panPrevX = Player.Config.Video.PanXOffset;
+            panPrevY = Player.Config.Video.PanYOffset;
 
             if (ModifierKeys.HasFlag(Keys.Shift))
             {
@@ -216,7 +223,7 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         {
             Log.Debug($"De-assign Player #{oldPlayer.PlayerId}");
 
-            oldPlayer.VideoDecoder.DestroySwapChain();
+            oldPlayer.Renderer?.SwapChain.Dispose(rendererFrame: false);
             oldPlayer.Host = null;
         }
 
@@ -228,14 +235,15 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         // De-assign new Player's Handle/FlyleafHost
         Player.Host?.Player_Disposed();
 
-
         // Assign new Player's (Handle/FlyleafHost)
         Log.Debug($"Assign Player #{Player.PlayerId}");
 
+        var hwnd = Handle; // ensures creation of handle?
+        SetWindowLong(hwnd, GetWindowLongEx(hwnd) | WindowStylesEx.WS_EX_NOREDIRECTIONBITMAP);
         Player.Host = this;
-        Player.VideoDecoder.CreateSwapChain(Handle);
+        Player.Renderer.SwapChain.Setup(Handle);
 
-        BackColor = Utils.WPFToWinFormsColor(Player.Config.Video.BackgroundColor);
+        BackColor = WPFToWinFormsColor(Player.Config.Video.BackColor);
     }
 
     public void FullScreen()
@@ -299,11 +307,13 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         if (!check || (field == null && value != null) || (field != null && !field.Equals(value)))
         {
             field = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            PropertyChanged?.Invoke(this, new(propertyName));
             return true;
         }
 
         return false;
     }
-    protected void Raise([CallerMemberName] string propertyName = "") => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    protected void Raise([CallerMemberName] string propertyName = "") => PropertyChanged?.Invoke(this, new(propertyName));
+    public void Player_RatioChanged(double keepRatio) { }
+    public bool Player_HandlesRatioResize(int width, int height) { return false; }
 }

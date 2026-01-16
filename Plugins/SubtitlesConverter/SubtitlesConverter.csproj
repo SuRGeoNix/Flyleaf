@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows</TargetFrameworks>
     <RootNamespace>FlyleafLib.Plugins</RootNamespace>
   </PropertyGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if &quot;$(OutDir)&quot; == &quot;bin\Debug\net8.0-windows\&quot; (&#xD;&#xA;  set plugindir=Plugins.NET8&#xD;&#xA;) else if &quot;$(OutDir)&quot; == &quot;bin\Release\net8.0-windows\&quot; (&#xD;&#xA;  set plugindir=Plugins.NET8&#xD;&#xA;) else if &quot;$(OutDir)&quot; == &quot;bin\Debug\net6.0-windows\&quot; (&#xD;&#xA;  set plugindir=Plugins.NET6&#xD;&#xA;) else if &quot;$(OutDir)&quot; == &quot;bin\Release\net6.0-windows\&quot; (&#xD;&#xA;  set plugindir=Plugins.NET6&#xD;&#xA;) else if &quot;$(OutDir)&quot; == &quot;bin\Release\net472\&quot; (&#xD;&#xA;  set plugindir=Plugins.NET4&#xD;&#xA;) else if &quot;$(OutDir)&quot; == &quot;bin\Debug\net472\&quot; (&#xD;&#xA;  set plugindir=Plugins.NET4&#xD;&#xA;)&#xD;&#xA;&#xD;&#xA;set pluginname=SubtitlesConverter&#xD;&#xA;&#xD;&#xA;if not exist &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25&quot; mkdir &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25&quot;&#xD;&#xA;move &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25\&quot;" />
+    <Exec Command="set plugindir=Plugins.NET10&#xD;&#xA;set pluginname=SubtitlesConverter&#xD;&#xA;if not exist &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25&quot; mkdir &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25&quot;&#xD;&#xA;move &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25\&quot;" />
   </Target>
 
   <ItemGroup>

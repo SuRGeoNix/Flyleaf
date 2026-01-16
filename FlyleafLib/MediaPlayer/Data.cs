@@ -1,9 +1,8 @@
 ﻿using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaStream;
-using System;
-using System.Collections.ObjectModel;
 
 namespace FlyleafLib.MediaPlayer;
+
 public class Data : NotifyPropertyChanged
 {
     /// <summary>
@@ -52,7 +51,7 @@ public class Data : NotifyPropertyChanged
             return;
 
         decoder.OpenSuggestedData();
-        player.ReSync(decoder.DataStream, (int)(player.CurTime / 10000), true);
+        player.ReSync(decoder.DataStream, (int)(player.curTime / 10000), true);
 
         Refresh();
         player.UIAll();

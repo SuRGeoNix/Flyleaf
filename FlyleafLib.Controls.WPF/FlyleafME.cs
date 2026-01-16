@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
+using Vortice.Direct3D11;
 using WpfColorFontDialog;
 using MaterialDesignThemes.Wpf;
 
@@ -90,7 +91,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
 
             UIConfig.SelectedTheme = value.Name;
             if (Config != null && Config.Video != null)
-                Config.Video.BackgroundColor = value.SurfaceColor;
+                Config.Video.BackColor = value.SurfaceColor;
         }
     }
     UITheme _SelectedTheme;
@@ -147,7 +148,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
     public override void SetPlayer(Player oldPlayer)
     {
         if (oldPlayer != null)
-            oldPlayer.renderer.ViewportChanged -= ViewportChanged;
+            oldPlayer.Renderer.ViewportChanged -= ViewportChanged;
 
         base.SetPlayer(oldPlayer);
 
@@ -155,7 +156,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
             return;
 
         if (SelectedTheme != null)
-            Player.Config.Video.BackgroundColor = SelectedTheme.SurfaceColor;
+            Player.Config.Video.BackColor = SelectedTheme.SurfaceColor;
 
         // Updates the key binding actions with the new instances in case of swap or initial load
         bool SubsYUp = false, SubsYDown = false, SubsFontIncrease = false, SubsFontDecrease = false;
@@ -207,7 +208,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
                 Config.Player.KeyBindings.AddCustom(Key.Left,   false, aSubsFontDecrease,  "SubsFontDecrease", true);
         }
 
-        Player.renderer.ViewportChanged += ViewportChanged;
+        Player.Renderer.ViewportChanged += ViewportChanged;
         ViewportChanged(null, null);
         //Raise(null);
         //settings?.Raise(null);
@@ -302,7 +303,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
             };
 
             var theme = Overlay.Resources.GetTheme();
-            var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, BackgroundColor = theme.Background, SurfaceColor = Config != null && Config.Video != null ? Config.Video.BackgroundColor : Colors.Black};
+            var defaultTheme = new UITheme(this, null) { Name = "Default", PrimaryColor = theme.PrimaryMid.Color, SecondaryColor = theme.SecondaryMid.Color, BackgroundColor = theme.Background, SurfaceColor = Config != null && Config.Video != null ? Config.Video.BackColor : Colors.Black};
             UIConfig.Themes = 
             [
                 new(this, defaultTheme) { Name = "Black & White", PrimaryColor = Colors.White, SecondaryColor = Colors.White, BackgroundColor = Colors.Black, SurfaceColor = Colors.Black },
@@ -362,8 +363,8 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
                 if (aspectRatio == AspectRatio.Keep) popUpKeepAspectRatio = (MenuItem)popUpAspectRatio.Items[popUpAspectRatio.Items.Count - 1];
             }
 
-            popUpCustomAspectRatio = new MenuItem() { IsCheckable = true };
-            popUpCustomAspectRatioSet = new MenuItem() { Header = "Set Custom..." };
+            popUpCustomAspectRatio      = new() { IsCheckable = true };
+            popUpCustomAspectRatioSet   = new() { Header = "Set Custom..." };
             popUpCustomAspectRatioSet.Click += (n1, n2) => { DialogAspectRatio(); };
 
             popUpAspectRatio.Items.Add(popUpCustomAspectRatio);
@@ -375,7 +376,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
             {
                 if (Player != null) Player.Activity.IsEnabled = false;
                 CanPaste = !string.IsNullOrEmpty(Clipboard.GetText());
-                popUpCustomAspectRatio.Header = $"Custom ({Config.Video.CustomAspectRatio})";
+                popUpCustomAspectRatio.Header = $"Custom ({Config.Video.AspectRatioCustom})";
                 FixMenuSingleCheck(popUpAspectRatio, Config.Video.AspectRatio.ToString());
                 if (Config.Video.AspectRatio == AspectRatio.Custom)
                     popUpCustomAspectRatio.IsChecked = true;
@@ -396,7 +397,6 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
         ExitApplication     = new RelayCommand(ExitApplicationAction);
         SetSubsPositionY    = new RelayCommand(SetSubsPositionYAction);
         ResetSubsPositionY  = new RelayCommand(ResetSubsPositionYAction);
-        ResetFilters        = new RelayCommandSimple(ResetFiltersAction);
     }
 
     public ICommand OpenFileDialog      { get; set; }
@@ -425,12 +425,12 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
         var prevKeys = KeyBindings;
         KeyBindings = AvailableWindows.None;
 
-        Dictionary<VideoFilters, int> saveFilterValues = [];
-        Dictionary<VideoFilters, int> saveD3FilterValues = [];
-        foreach(var filter in Config.Video.Filters.Values)
+        Dictionary<FLFilters, int> saveFilterValues = [];
+        Dictionary<VideoProcessorFilter, int> saveD3FilterValues = [];
+        foreach(var filter in Config.Video.FLFilters.Values)
             saveFilterValues.Add(filter.Filter, filter.Value);
 
-        foreach(var filter in Config.Video.D3Filters.Values)
+        foreach (var filter in Config.Video.D3Filters.Values)
             saveD3FilterValues.Add(filter.Filter, filter.Value);
 
         var wasOnTop    = DetachedTopMost;
@@ -447,13 +447,13 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
 
         if (result.ToString() == "cancel")
         {
-            Config.Video.HDRtoSDRMethod = prevConfig.HDRtoSDRMethod;
-            Config.Video.SDRDisplayNits = prevConfig.SDRDisplayNits;
+            Config.Video.HDRtoSDRMethod         = prevConfig.HDRtoSDRMethod;
+            Config.Video.SDRDisplayNitsCustom   = prevConfig.SDRDisplayNitsCustom;
 
             foreach(var filter in saveFilterValues)
-                Config.Video.Filters[filter.Key].Value = filter.Value;
+                Config.Video.FLFilters[filter.Key].Value  = filter.Value;
 
-            foreach(var filter in saveD3FilterValues)
+            foreach (var filter in saveD3FilterValues)
                 Config.Video.D3Filters[filter.Key].Value = filter.Value;
         }
         else
@@ -509,21 +509,6 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
     public ICommand ResetSubsPositionY  { get; set; }
     public void ResetSubsPositionYAction(object obj = null) => UIConfig.SubsMargin = subsInitialMargin;
 
-    public ICommand ResetFilters        { get; set; }
-    public void ResetFiltersAction()
-    {
-        var vp = Config.Video.VideoProcessor == VideoProcessors.Auto ? Player.renderer.VideoProcessor : Config.Video.VideoProcessor;
-
-        if (vp == VideoProcessors.Flyleaf)
-            foreach (var kv in Config.Video.Filters)
-                kv.Value.Value = kv.Value.Default;
-        else if (vp == VideoProcessors.D3D11)
-            foreach (var kv in Config.Video.D3Filters)
-                kv.Value.Value = kv.Value.Default;
-
-            Config.Video.SDRDisplayNits = Engine.Video.RecommendedLuminance;
-    }
-
     public ICommand SetSubsPositionY    { get; set; }
     public void SetSubsPositionYAction(object y) { Thickness t = UIConfig.SubsMargin; t.Bottom += int.Parse(y.ToString()); UIConfig.SubsMargin = t; }
 
@@ -560,13 +545,13 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
         var stackHorizontal1 = new StackPanel() { Margin = new Thickness(10), Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Center};
         var stackHorizontal2 = new StackPanel() { Margin = new Thickness(10), Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center };
 
-        var textBox = new TextBox() { VerticalAlignment = VerticalAlignment.Center, Width = 70, Margin = new Thickness(10, 0, 0, 0), Text=Config.Video.CustomAspectRatio.ToString()};
+        var textBox = new TextBox() { VerticalAlignment = VerticalAlignment.Center, Width = 70, Margin = new Thickness(10, 0, 0, 0), Text=Config.Video.AspectRatioCustom.ToString()};
         textBox.PreviewTextInput += (n1, n2) => { n2.Handled = !Regex.IsMatch(n2.Text, @"^[0-9\.\,\/\:]+$"); };
 
         var buttonOK = new Button() { Content = "OK" };
         var buttonCancel = new Button() { Margin = new Thickness(10, 0, 0, 0), Content = "Cancel" };
 
-        buttonOK.Click +=       (n1, n2) => { if (textBox.Text != AspectRatio.Invalid) Config.Video.CustomAspectRatio = textBox.Text; DialogHost.Close(dialogSettingsIdentifier); };
+        buttonOK.Click +=       (n1, n2) => { if (textBox.Text != AspectRatio.Invalid) Config.Video.AspectRatioCustom = textBox.Text; DialogHost.Close(dialogSettingsIdentifier); };
         buttonCancel.Click +=   (n1, n2) => { DialogHost.Close(dialogSettingsIdentifier); };
 
         stackHorizontal1.Children.Add(new TextBlock() { VerticalAlignment = VerticalAlignment.Center, Text="Set Custom Ratio: "});

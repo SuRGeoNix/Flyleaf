@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows.Input;
-
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer;
 
@@ -303,6 +299,10 @@ public class KeysConfig
         Add(Key.Left,               KeyBindingAction.SeekBackward2, false, true);
         Add(Key.Right,              KeyBindingAction.SeekForward);
         Add(Key.Right,              KeyBindingAction.SeekForward2, false, true);
+        Add(Key.PageUp,             KeyBindingAction.SeekBackward3);
+        Add(Key.PageDown,           KeyBindingAction.SeekForward3);
+        Add(Key.Home,               KeyBindingAction.SeekToStart);
+        Add(Key.End,                KeyBindingAction.SeekToEnd);
         Add(Key.Left,               KeyBindingAction.ShowPrevFrame, false, false, true);
         Add(Key.Right,              KeyBindingAction.ShowNextFrame, false, false, true);
 
@@ -357,39 +357,39 @@ public class KeysConfig
                 return player.Activity.ForceFullActive;
 
             case KeyBindingAction.AudioDelayAdd:
-                return player.Audio.DelayAdd;
+                return player.Config.Audio.DelayAdd;
             case KeyBindingAction.AudioDelayRemove:
-                return player.Audio.DelayRemove;
+                return player.Config.Audio.DelayRemove;
             case KeyBindingAction.AudioDelayAdd2:
-                return player.Audio.DelayAdd2;
+                return player.Config.Audio.DelayAdd2;
             case KeyBindingAction.AudioDelayRemove2:
-                return player.Audio.DelayRemove2;
+                return player.Config.Audio.DelayRemove2;
             case KeyBindingAction.ToggleAudio:
-                return player.Audio.Toggle;
+                return player.Config.Audio.Toggle;
             case KeyBindingAction.ToggleMute:
-                return player.Audio.ToggleMute;
+                return player.Config.Audio.ToggleMute;
             case KeyBindingAction.VolumeUp:
-                return player.Audio.VolumeUp;
+                return player.Config.Audio.VolumeUp;
             case KeyBindingAction.VolumeDown:
-                return player.Audio.VolumeDown;
+                return player.Config.Audio.VolumeDown;
 
             case KeyBindingAction.ToggleVideo:
-                return player.Video.Toggle;
+                return player.Config.Video.Toggle;
             case KeyBindingAction.ToggleKeepRatio:
-                return player.Video.ToggleKeepRatio;
+                return player.Config.Video.ToggleKeepRatio;
             case KeyBindingAction.ToggleVideoAcceleration:
-                return player.Video.ToggleVideoAcceleration;
+                return player.Config.Video.ToggleVideoAcceleration;
 
             case KeyBindingAction.SubtitlesDelayAdd:
-                return player.Subtitles.DelayAdd;
+                return player.Config.Subtitles.DelayAdd;
             case KeyBindingAction.SubtitlesDelayRemove:
-                return player.Subtitles.DelayRemove;
+                return player.Config.Subtitles.DelayRemove;
             case KeyBindingAction.SubtitlesDelayAdd2:
-                return player.Subtitles.DelayAdd2;
+                return player.Config.Subtitles.DelayAdd2;
             case KeyBindingAction.SubtitlesDelayRemove2:
-                return player.Subtitles.DelayRemove2;
+                return player.Config.Subtitles.DelayRemove2;
             case KeyBindingAction.ToggleSubtitles:
-                return player.Subtitles.Toggle;
+                return player.Config.Subtitles.Toggle;
 
             case KeyBindingAction.OpenFromClipboard:
                 return player.OpenFromClipboard;
@@ -460,6 +460,12 @@ public class KeysConfig
             case KeyBindingAction.SeekForward3:
                 return player.SeekForward3;
 
+            case KeyBindingAction.SeekToStart:
+                return player.SeekToStart;
+
+            case KeyBindingAction.SeekToEnd:
+                return player.SeekToEnd;
+
             case KeyBindingAction.SpeedAdd:
                 return player.SpeedUp;
 
@@ -479,10 +485,10 @@ public class KeysConfig
                 return player.ShowFrameNext;
 
             case KeyBindingAction.ZoomIn:
-                return player.ZoomIn;
+                return player.Config.Video.ZoomIn;
 
             case KeyBindingAction.ZoomOut:
-                return player.ZoomOut;
+                return player.Config.Video.ZoomOut;
 
             case KeyBindingAction.ResetAll:
                 return player.ResetAll;
@@ -518,6 +524,8 @@ public class KeysConfig
         { KeyBindingAction.Stop },
         { KeyBindingAction.Flush },
         { KeyBindingAction.ToggleSeekAccurate },
+        { KeyBindingAction.SeekToStart },
+        { KeyBindingAction.SeekToEnd },
         { KeyBindingAction.SpeedAdd },
         { KeyBindingAction.SpeedAdd2 },
         { KeyBindingAction.SpeedRemove },
@@ -553,6 +561,7 @@ public class KeyBinding
     internal Action ActionInternal;
 }
 
+// NOTE: To be able to support compatibility with previous config versions add new to end?
 public enum KeyBindingAction
 {
     Custom,
@@ -577,4 +586,6 @@ public enum KeyBindingAction
 
     ResetAll,
     ZoomIn, ZoomOut,
+
+    SeekToStart, SeekToEnd,
 }

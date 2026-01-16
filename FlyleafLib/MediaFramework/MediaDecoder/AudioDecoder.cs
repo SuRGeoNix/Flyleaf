@@ -1,15 +1,13 @@
-﻿using System.Collections.Concurrent;
-using System.Threading;
-
-using FlyleafLib.MediaFramework.MediaStream;
+﻿using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRemuxer;
-
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 /* TODO
+ *
+ * Sample Rate Pre-Convert (Output)
+ * Change to fixed 48KHz and let ffmpeg filters do the convert if required (xaudio2 might cause latency while doing it)
  *
  * Circular Buffer
  * - Safe re-allocation and check also actual frames in queue (as now during draining we can overwrite them)
@@ -29,21 +27,19 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 public unsafe partial class AudioDecoder : DecoderBase
 {
+    static readonly AVSampleFormat   AOutSampleFormat    = AVSampleFormat.S16;
+    static readonly string           AOutSampleFormatStr = av_get_sample_fmt_name(AOutSampleFormat);
+    static readonly AVChannelLayout  AOutChannelLayout   = AV_CHANNEL_LAYOUT_STEREO;
+    static readonly int              AOutChannels        = AOutChannelLayout.nb_channels;
+    static readonly int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
+
     public AudioStream      AudioStream         => (AudioStream) Stream;
     public readonly
             VideoDecoder    VideoDecoder;
     public ConcurrentQueue<AudioFrame>
                             Frames              { get; protected set; } = new();
 
-    static AVSampleFormat   AOutSampleFormat    = AVSampleFormat.S16;
-    static string           AOutSampleFormatStr = av_get_sample_fmt_name(AOutSampleFormat);
-    static AVChannelLayout  AOutChannelLayout   = AV_CHANNEL_LAYOUT_STEREO;// new() { order = AVChannelOrder.Native, nb_channels = 2, u = new AVChannelLayout_u() { mask = AVChannel.for AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT} };
-    static int              AOutChannels        = AOutChannelLayout.nb_channels;
-    static int              ASampleBytes        = av_get_bytes_per_sample(AOutSampleFormat) * AOutChannels;
-
-    public readonly object  CircularBufferLocker= new();
-    internal Action         CBufAlloc;          // Informs Audio player to clear buffer pointers to avoid access violation
-    static int              cBufTimesSize       = 4;
+    static readonly int     cBufTimesSize       = 4; // Extra for draining / filters (speed)
     int                     cBufTimesCur        = 1;
     byte[]                  cBuf;
     int                     cBufPos;
@@ -57,7 +53,58 @@ public unsafe partial class AudioDecoder : DecoderBase
     public AudioDecoder(Config config, int uniqueId = -1, VideoDecoder syncDecoder = null) : base(config, uniqueId)
         => VideoDecoder = syncDecoder;
 
-    protected override int Setup(AVCodec* codec) => 0;
+    protected override bool Setup()
+    {
+        AVCodec* codec = string.IsNullOrEmpty(Config.Decoder._AudioCodec) ? avcodec_find_decoder(Stream.CodecID) : avcodec_find_decoder_by_name(Config.Decoder._AudioCodec);
+        if (codec == null)
+        {
+            Log.Error($"Codec not found ({(string.IsNullOrEmpty(Config.Decoder._AudioCodec) ? Stream.CodecID : Config.Decoder._AudioCodec)})");
+            return false;
+        }
+
+        if (CanDebug) Log.Debug($"Using {avcodec_get_name(codec->id)} codec");
+
+        codecCtx = avcodec_alloc_context3(codec); // Pass codec to use default settings
+        if (codecCtx == null)
+        {
+            Log.Error($"Failed to allocate context");
+            return false;
+        }
+
+        int ret = avcodec_parameters_to_context(codecCtx, Stream.AVStream->codecpar);
+        if (ret < 0)
+        {
+            Log.Error($"Failed to pass parameters to context - {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+            return false;
+        }
+
+        codecCtx->pkt_timebase  = Stream.AVStream->time_base;
+        codecCtx->codec_id      = codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
+
+        var codecOpts = Config.Decoder.AudioCodecOpt;
+        AVDictionary* avopt = null;
+        foreach(var optKV in codecOpts)
+            _ = av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+
+        ret = avcodec_open2(codecCtx, null, avopt == null ? null : &avopt);
+        if (ret < 0)
+        {
+            if (avopt != null) av_dict_free(&avopt);
+            Log.Error($"Failed to open codec - {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+            return false;
+        }
+
+        if (avopt != null)
+        {
+            AVDictionaryEntry *t = null;
+            while ((t = av_dict_get(avopt, "", t, DictReadFlags.IgnoreSuffix)) != null)
+                Log.Debug($"Ignoring codec option {BytePtrToStringUTF8(t->key)}");
+
+            av_dict_free(&avopt);
+        }
+
+        return true;
+    }
     private int SetupSwr()
     {
         int ret;
@@ -65,14 +112,14 @@ public unsafe partial class AudioDecoder : DecoderBase
         DisposeSwr();
         swrCtx = swr_alloc();
 
-        av_opt_set_chlayout(swrCtx,     "in_chlayout",          &codecCtx->ch_layout,   0);
-        av_opt_set_int(swrCtx,          "in_sample_rate",       codecCtx->sample_rate,  0);
-        av_opt_set_sample_fmt(swrCtx,   "in_sample_fmt",        codecCtx->sample_fmt,   0);
+        _= av_opt_set_chlayout(swrCtx,      "in_chlayout",          &codecCtx->ch_layout,   0);
+        _= av_opt_set_int(swrCtx,           "in_sample_rate",       codecCtx->sample_rate,  0);
+        _= av_opt_set_sample_fmt(swrCtx,    "in_sample_fmt",        codecCtx->sample_fmt,   0);
 
         fixed(AVChannelLayout* ptr = &AOutChannelLayout)
-        av_opt_set_chlayout(swrCtx,     "out_chlayout",         ptr, 0);
-        av_opt_set_int(swrCtx,          "out_sample_rate",      codecCtx->sample_rate,  0);
-        av_opt_set_sample_fmt(swrCtx,   "out_sample_fmt",       AOutSampleFormat,       0);
+        _= av_opt_set_chlayout(swrCtx,      "out_chlayout",         ptr, 0);
+        _= av_opt_set_int(swrCtx,           "out_sample_rate",      codecCtx->sample_rate,  0);
+        _= av_opt_set_sample_fmt(swrCtx,    "out_sample_fmt",       AOutSampleFormat,       0);
 
         ret = swr_init(swrCtx);
         if (ret < 0)
@@ -99,9 +146,6 @@ public unsafe partial class AudioDecoder : DecoderBase
         DisposeSwr();
         DisposeFilters();
 
-        lock (CircularBufferLocker)
-        cBuf            = null;
-        cBufSamples     = 0;
         filledFromCodec = false;
         nextPts         = AV_NOPTS_VALUE;
     }
@@ -130,9 +174,9 @@ public unsafe partial class AudioDecoder : DecoderBase
 
     protected override void RunInternal()
     {
-        int ret = 0;
-        int allowedErrors = Config.Decoder.MaxErrors;
-        int sleepMs = Config.Decoder.MaxAudioFrames > 5 && Config.Player.MaxLatency == 0 ? 10 : 4;
+        int allowedErrors   = Config.Decoder.MaxErrors;
+        int sleepMs         = Config.Decoder.MaxAudioFrames > 5 && Config.Player.MaxLatency == 0 ? 10 : 4;
+        int ret;
         AVPacket *packet;
 
         do
@@ -296,7 +340,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                     if (frame->duration <= 0)
                         frame->duration = av_rescale_q((long)(frame->nb_samples * sampleRateTimebase), Engine.FFmpeg.AV_TIMEBASE_Q, Stream.AVStream->time_base);
 
-                    bool codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
+                    codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout != codecCtx->ch_layout.u.mask;
 
                     if (!filledFromCodec || codecChanged)
                     {
@@ -305,20 +349,22 @@ public unsafe partial class AudioDecoder : DecoderBase
                             byte[] buf = new byte[50];
                             fixed (byte* bufPtr = buf)
                             {
-                                av_channel_layout_describe(&codecCtx->ch_layout, bufPtr, (nuint)buf.Length);
-                                Log.Warn($"Codec changed {AudioStream.CodecIDOrig} {AudioStream.SampleFormat} {AudioStream.SampleRate} {AudioStream.ChannelLayoutStr} => {codecCtx->codec_id} {codecCtx->sample_fmt} {codecCtx->sample_rate} {Utils.BytePtrToStringUTF8(bufPtr)}");
+                                _ = av_channel_layout_describe(&codecCtx->ch_layout, bufPtr, (nuint)buf.Length);
+                                Log.Warn($"Codec changed {AudioStream.CodecIDOrig} {AudioStream.SampleFormat} {AudioStream.SampleRate} {AudioStream.ChannelLayoutStr} => {codecCtx->codec_id} {codecCtx->sample_fmt} {codecCtx->sample_rate} {BytePtrToStringUTF8(bufPtr)}");
                             }
                         }
 
-                        DisposeInternal();
-                        filledFromCodec = true;
+                        // Dispose (mini)
+                        //DisposeFrames();
+                        DisposeSwr();
+                        DisposeFilters();
 
-                        avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
-                        AudioStream.AVStream->time_base = codecCtx->pkt_timebase;
-                        AudioStream.Refresh();
+                        filledFromCodec         = true;
+                        AudioStream.Refresh(this, frame);
+                        codecChanged            = false;
                         resyncWithVideoRequired = !VideoDecoder.Disposed;
-                        sampleRateTimebase = 1000 * 1000.0 / codecCtx->sample_rate;
-                        nextPts = AudioStream.StartTimePts;
+                        sampleRateTimebase      = 1000 * 1000.0 / codecCtx->sample_rate;
+                        nextPts                 = AudioStream.StartTimePts;
 
                         if (frame->pts == AV_NOPTS_VALUE)
                             frame->pts = nextPts;
@@ -351,7 +397,7 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                         if (ts < VideoDecoder.StartTime)
                         {
-                            if (CanTrace) Log.Trace($"Drops {Utils.TicksToTime(ts)} (< V: {Utils.TicksToTime(VideoDecoder.StartTime)})");
+                            if (CanTrace) Log.Trace($"Drops {TicksToTime(ts)} (< V: {TicksToTime(VideoDecoder.StartTime)})");
                             av_frame_unref(frame);
                             continue;
                         }
@@ -386,19 +432,20 @@ public unsafe partial class AudioDecoder : DecoderBase
             nextPts = frame->pts + frame->duration;
 
             var dataLen     = frame->nb_samples * ASampleBytes;
-            var speedDataLen= Utils.Align((int)(dataLen / speed), ASampleBytes);
+            var speedDataLen= Align((int)(dataLen / speed), ASampleBytes);
 
             AudioFrame mFrame = new()
             {
-                timestamp   = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay,
-                dataLen     = speedDataLen
+                Timestamp   = (long)(frame->pts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay,
+                dataLen     = speedDataLen,
+                speed       = speed
             };
-            if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(mFrame.timestamp)}");
+            if (CanTrace) Log.Trace($"Processes {TicksToTime(mFrame.Timestamp)}");
 
             if (frame->nb_samples > cBufSamples)
                 AllocateCircularBuffer(frame->nb_samples);
             else if (cBufPos + Math.Max(dataLen, speedDataLen) >= cBuf.Length)
-                cBufPos     = 0;
+                cBufPos = 0;
 
             fixed (byte *circularBufferPosPtr = &cBuf[cBufPos])
             {
@@ -444,6 +491,7 @@ public unsafe partial class AudioDecoder : DecoderBase
         }
     }
 
+    Queue<byte[]> cBufHistory = [];
     private void AllocateCircularBuffer(int samples)
     {
         /* TBR
@@ -453,18 +501,21 @@ public unsafe partial class AudioDecoder : DecoderBase
         * 4. cBufTimesSize cause filters can pass the limit when we need to use lockSpeed
         */
 
-        samples = Math.Max(10000, samples); // 10K samples to ensure that currently we will not re-allocate?
+        samples     = Math.Max(10000, samples); // 10K samples to ensure that currently we will not re-allocate?
         int size    = Config.Decoder.MaxAudioFrames * samples * ASampleBytes * cBufTimesSize;
-        Log.Debug($"Re-allocating circular buffer ({samples} > {cBufSamples}) with {size}bytes");
-
-        lock (CircularBufferLocker)
+        
+        if (cBuf != null)
         {
-            DisposeFrames(); // TODO: copy data
-            CBufAlloc?.Invoke();
-            cBuf        = new byte[size];
-            cBufPos     = 0;
-            cBufSamples = samples;
+            if (CanDebug) Log.Debug($"Re-allocating circular buffer ({samples} > {cBufSamples}) with {size}bytes");
+
+            cBufHistory.Enqueue(cBuf);
+            if (cBufHistory.Count > 3)
+                cBufHistory.Dequeue();
         }
+        
+        cBuf        = new byte[size];
+        cBufPos     = 0;
+        cBufSamples = samples;
 
     }
 

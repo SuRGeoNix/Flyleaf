@@ -7,37 +7,38 @@ public static partial class Utils
 {
     public static class NativeMethods
     {
-        static NativeMethods()
-        {
-            if (IntPtr.Size == 4)
-            {
-                GetWindowLong = GetWindowLongPtr32;
-                SetWindowLong = SetWindowLongPtr32;
-            }
-            else
-            {
-                GetWindowLong = GetWindowLongPtr64;
-                SetWindowLong = SetWindowLongPtr64;
-            }
-        }
+        public static WindowStyles SetWindowLong(nint hWnd, WindowStyles style)
+            => (WindowStyles)SetWindowLong(hWnd, (int)WindowLongFlags.GWL_STYLE, (nint)style);
 
-        public static Func<IntPtr, int, IntPtr, IntPtr> SetWindowLong;
-        public static Func<IntPtr, int, IntPtr> GetWindowLong;
+        public static WindowStylesEx SetWindowLong(nint hWnd, WindowStylesEx style)
+            => (WindowStylesEx)SetWindowLong(hWnd, (int)WindowLongFlags.GWL_EXSTYLE, (nint)style);
+
+        public static WindowStyles GetWindowLong(nint hWnd)
+            => (WindowStyles)GetWindowLong(hWnd, (int)WindowLongFlags.GWL_STYLE);
+
+        public static WindowStylesEx GetWindowLongEx(nint hWnd)
+            => (WindowStylesEx)GetWindowLong(hWnd, (int)WindowLongFlags.GWL_EXSTYLE);
+
+        public static nint GetWindowLong(nint hWnd, int nIndex)
+            => IntPtr.Size == 8 ? GetWindowLongPtr64(hWnd, nIndex) : GetWindowLongPtr32(hWnd, nIndex);
+
+        public static nint SetWindowLong(nint hWnd, int nIndex, nint dwNewLong)
+            => IntPtr.Size == 8 ? SetWindowLongPtr64(hWnd, nIndex, dwNewLong) : SetWindowLongPtr32(hWnd, nIndex, dwNewLong);
 
         [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
-        public static extern IntPtr GetWindowLongPtr32(IntPtr hWnd, int nIndex);
+        static extern nint GetWindowLongPtr32(nint hWnd, int nIndex);
 
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
-        public static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
+        static extern nint GetWindowLongPtr64(nint hWnd, int nIndex);
 
         [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
-        public static extern IntPtr SetWindowLongPtr32(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+        static extern nint SetWindowLongPtr32(nint hWnd, int nIndex, nint dwNewLong);
 
-        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")] // , SetLastError = true
-        public static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
+        static extern nint SetWindowLongPtr64(nint hWnd, int nIndex, nint dwNewLong);
 
-        [DllImport("user32.dll")]
-        public static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        //[DllImport("user32.dll")]
+        //public static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("comctl32.dll")]
         public static extern bool SetWindowSubclass(IntPtr hWnd, IntPtr pfnSubclass, UIntPtr uIdSubclass, UIntPtr dwRefData);
@@ -46,7 +47,7 @@ public static partial class Utils
         public static extern bool RemoveWindowSubclass(IntPtr hWnd, IntPtr pfnSubclass, UIntPtr uIdSubclass);
 
         [DllImport("comctl32.dll")]
-        public static extern IntPtr DefSubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+        public static extern IntPtr DefSubclassProc(IntPtr hWnd, WndProcMessages msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll")]
         public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, UInt32 uFlags);
@@ -57,6 +58,24 @@ public static partial class Utils
         [DllImport("user32.dll")]
         public static extern int ShowCursor(bool bShow);
 
+        [DllImport("user32.dll")]
+        public static extern int GetCursorPos(out POINT lpPoint);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT : IEquatable<POINT>
+        {
+            public static readonly POINT Empty = new();
+
+            public int X;
+            public int Y;
+
+            public static bool operator ==(POINT left, POINT right) => left.X == right.X && left.Y == right.Y;
+            public static bool operator !=(POINT left, POINT right) => !(left == right);
+            public override bool Equals(object obj) => obj is POINT other && this == other;
+            public bool Equals(POINT other) => this == other;
+            public override int GetHashCode() => HashCode.Combine(X, Y);
+        }
+
         [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
         public static extern uint TimeBeginPeriod(uint uMilliseconds);
 
@@ -65,8 +84,8 @@ public static partial class Utils
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         public static extern EXECUTION_STATE SetThreadExecutionState(EXECUTION_STATE esFlags);
-        [FlagsAttribute]
-        public enum EXECUTION_STATE :uint
+        [Flags]
+        public enum EXECUTION_STATE : uint
         {
             ES_AWAYMODE_REQUIRED    = 0x00000040,
             ES_CONTINUOUS           = 0x80000000,
@@ -85,6 +104,9 @@ public static partial class Utils
 
         [DllImport("user32.dll")]
         public static extern bool GetWindowRect(IntPtr hwnd, ref RECT rectangle);
+
+        [DllImport("user32.dll")]
+        public static extern bool GetClientRect(IntPtr hwnd, ref RECT rectangle);
 
         [DllImport("user32.dll")]
         public static extern bool GetWindowInfo(IntPtr hwnd, ref WINDOWINFO pwi);
@@ -122,12 +144,13 @@ public static partial class Utils
                 => cbSize = (UInt32)Marshal.SizeOf(typeof(WINDOWINFO));
 
         }
+        [StructLayout(LayoutKind.Sequential)]
         public struct RECT
         {
-            public int Left     { get; set; }
-            public int Top      { get; set; }
-            public int Right    { get; set; }
-            public int Bottom   { get; set; }
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
         }
 
         [Flags]
@@ -153,16 +176,16 @@ public static partial class Utils
         [Flags]
         public enum WindowLongFlags : int
         {
-             GWL_EXSTYLE = -20,
-             GWLP_HINSTANCE = -6,
-             GWLP_HWNDPARENT = -8,
-             GWL_ID = -12,
-             GWL_STYLE = -16,
-             GWL_USERDATA = -21,
-             GWL_WNDPROC = -4,
-             DWLP_USER = 0x8,
-             DWLP_MSGRESULT = 0x0,
-             DWLP_DLGPROC = 0x4
+            GWL_EXSTYLE = -20,
+            GWLP_HINSTANCE = -6,
+            GWLP_HWNDPARENT = -8,
+            GWL_ID = -12,
+            GWL_STYLE = -16,
+            GWL_USERDATA = -21,
+            GWL_WNDPROC = -4,
+            DWLP_USER = 0x8,
+            DWLP_MSGRESULT = 0x0,
+            DWLP_DLGPROC = 0x4
         }
 
         [Flags]
@@ -244,26 +267,44 @@ public static partial class Utils
             SW_MAX = 11
         }
 
-        public delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-        public delegate IntPtr SubclassWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData);
+        public enum WndProcMessages : uint
+        {
+            WM_MOVE         = 0x0003,
+            WM_SIZE         = 0x0005,
+            WM_DISPLAYCHANGE= 0x007E,
+            WM_NCDESTROY    = 0x0082
+        }
 
-        public static int SignedHIWORD(IntPtr n) => SignedHIWORD(unchecked((int)(long)n));
-        public static int SignedLOWORD(IntPtr n) => SignedLOWORD(unchecked((int)(long)n));
+        //public delegate nint WndProcDelegate(nint hWnd, WndProcMessages msg, nint wParam, nint lParam);
+        public delegate nint SubclassWndProc(nint hWnd, WndProcMessages msg, nint wParam, nint lParam, nint uIdSubclass, nint dwRefData);
+
+        public static int SignedHIWORD(nint n) => SignedHIWORD(unchecked((int)(long)n));
+        public static int SignedLOWORD(nint n) => SignedLOWORD(unchecked((int)(long)n));
         public static int SignedHIWORD(int n) => (short)((n >> 16) & 0xffff);
         public static int SignedLOWORD(int n) => (short)(n & 0xFFFF);
 
         [DllImport("user32.dll")]
-        public static extern IntPtr MonitorFromPoint(Point pt, uint dwFlags);
-    
+        public static extern IntPtr MonitorFromPoint(Point pt, MonitorOptions dwFlags);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromWindow(nint hwnd, MonitorOptions dwFlags);
+
+        [Flags]
+        public enum MonitorOptions : uint
+        {
+            MONITOR_DEFAULTTONULL   = 0x00000000,
+            MONITOR_DEFAULTTOPRIMARY= 0x00000001,
+            MONITOR_DEFAULTTONEAREST= 0x00000002
+        }
+
         [DllImport("shcore.dll")]
         public static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
-    
-        private const int MONITOR_DEFAULTTONEAREST = 2;
+
         private const int MDT_EFFECTIVE_DPI = 0;
         public static (double dpiX, double dpiY) GetDpiAtPoint(Point point)
         {
-            IntPtr monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
-        
+            IntPtr monitor = MonitorFromPoint(point,  MonitorOptions.MONITOR_DEFAULTTONEAREST);
+
             if (monitor != IntPtr.Zero && GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, out uint dpiX, out uint dpiY) == 0)
                 return (dpiX / 96.0, dpiY / 96.0);
 
@@ -271,5 +312,109 @@ public static partial class Utils
             using var g = Graphics.FromHwnd(IntPtr.Zero);
             return (g.DpiX / 96.0, g.DpiY / 96.0);
         }
+
+        // Currently not used (mainly for refresh rate?*)
+        //[StructLayout(LayoutKind.Sequential)]
+        //public struct DEVMODE
+        //{
+        //    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        //    public string dmDeviceName;
+        //    public ushort dmSpecVersion;
+        //    public ushort dmDriverVersion;
+        //    public ushort dmSize;
+        //    public ushort dmDriverExtra;
+        //    public int dmFields;
+        //    public int dmPositionX;
+        //    public int dmPositionY;
+        //    public int dmDisplayOrientation;
+        //    public int dmDisplayFixedOutput;
+        //    public short dmColor;
+        //    public short dmDuplex;
+        //    public short dmYResolution;
+        //    public short dmTTOption;
+        //    public short dmCollate;
+        //    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        //    public string dmFormName;
+        //    public ushort dmLogPixels;
+        //    public int dmBitsPerPel;
+        //    public int dmPelsWidth;
+        //    public int dmPelsHeight;
+        //    public int dmDisplayFlags;
+        //    public int dmDisplayFrequency; // not accurate should be ratio / float (e.g. 59.95 will be 59)
+        //    public int dmICMMethod;
+        //    public int dmICMIntent;
+        //    public int dmMediaType;
+        //    public int dmDitherType;
+        //    public int dmReserved1;
+        //    public int dmReserved2;
+        //    public int dmPanningWidth;
+        //    public int dmPanningHeight;
+
+        //    public static DEVMODE Get(string deviceName)
+        //    {
+        //        DEVMODE dev = new();
+        //        dev.dmSize = (ushort)Marshal.SizeOf(dev);
+        //        EnumDisplaySettings(deviceName, ENUM_CURRENT_SETTINGS, ref dev);
+        //        return dev;
+        //    }
+        //}
+
+        //[DllImport("user32.dll", CharSet = CharSet.Ansi)]
+        //private static extern bool EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
+
+        //private const int ENUM_CURRENT_SETTINGS = -1;
+
+
+        //[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        //public static extern bool GetMonitorInfoW(IntPtr hMonitor, ref MONITORINFOEXW lpmi);
+
+        //[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        //public struct MONITORINFOEXW
+        //{
+        //    public uint cbSize;
+        //    public RECT rcMonitor;
+        //    public RECT rcWork;
+        //    public MonitorInfoFlags dwFlags;
+
+        //    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        //    public string szDevice;
+
+        //    public static MONITORINFOEXW Create()
+        //        => new() { cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFOEXW)), szDevice = string.Empty };
+        //}
+
+        //[Flags]
+        //public enum MonitorInfoFlags : uint
+        //{
+        //    MONITORINFOF_PRIMARY = 0x00000001
+        //}
+
+        //[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        //public struct DISPLAY_DEVICE
+        //{
+        //    public int cb;
+        //    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        //    public string DeviceName;
+        //    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        //    public string DeviceString;
+        //    public int StateFlags;
+        //    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        //    public string DeviceID;
+        //    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        //    public string DeviceKey;
+
+        //    public static DISPLAY_DEVICE Create()
+        //    {
+        //        var display = new DISPLAY_DEVICE();
+        //        display.cb = Marshal.SizeOf(display);
+        //        return display;
+        //    }
+        //}
+
+        //[DllImport("user32.dll", CharSet = CharSet.Ansi)]
+        //public static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
+
+        //[DllImport("user32.dll", SetLastError = true)]
+        //public static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_DEVICE_INFO_HEADER requestPacket);
     }
 }

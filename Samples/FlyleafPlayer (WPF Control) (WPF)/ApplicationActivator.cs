@@ -33,7 +33,7 @@ public static class ApplicationActivator
         }
         else
         {
-            NamedPipeClientSendOptions(new() { CommandLineArguments = args, OpenInNewWindow = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl) });
+            NamedPipeClientSendOptions(new() { CommandLineArguments = args, OpenInNewWindow = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift) });
             return false;
         }
     }

@@ -31,6 +31,12 @@
                 <!-- Keep track of error messages -->
                 <TextBlock Text="{Binding LastError}" FontSize="20" Foreground="Red" Margin="-40"/>
 
+                <TextBlock Text="Cropping" FontSize="16" FontWeight="Bold" Foreground="Yellow" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <Slider Focusable="False" Width="150" Margin="0 0 0  80" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="TestingLeft" Minimum="0" Maximum="{Binding Player.Video.Width}" ValueChanged="TL_ValueChanged"/>
+                <Slider Focusable="False" Width="150" Margin="0 0 0 -80" IsDirectionReversed="True" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="TestingRight" Minimum="0" Maximum="{Binding Player.Video.Width}" ValueChanged="TR_ValueChanged"/>
+                <Slider Focusable="False" Height="100" Orientation="Vertical" Margin="0 0 240 0" IsDirectionReversed="True"  HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="TestingTop" Minimum="0" Maximum="{Binding Player.Video.Height}" ValueChanged="TT_ValueChanged"/>
+                <Slider Focusable="False" Height="100" Orientation="Vertical" Margin="0 0 -240 0" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="TestingBottom" Minimum="0" Maximum="{Binding Player.Video.Height}" ValueChanged="TB_ValueChanged"/>
+
                 <!-- Show/Hide Player's Debug Information -->
                 <Button Content="Show/Hide Debug" Command="{Binding ToggleDebug}" Height="20" Width="110" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="-40"/>
 

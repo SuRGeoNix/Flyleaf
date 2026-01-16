@@ -38,8 +38,6 @@ namespace FlyleafPlayer__Custom_
             label4 = new System.Windows.Forms.Label();
             label5 = new System.Windows.Forms.Label();
             label6 = new System.Windows.Forms.Label();
-            pnlReplica = new System.Windows.Forms.Panel();
-            label7 = new System.Windows.Forms.Label();
             SuspendLayout();
             // 
             // flyleaf1
@@ -146,29 +144,11 @@ namespace FlyleafPlayer__Custom_
             label6.TabIndex = 8;
             label6.Text = "status";
             // 
-            // pnlReplica
-            // 
-            pnlReplica.Location = new System.Drawing.Point(538, 317);
-            pnlReplica.Name = "pnlReplica";
-            pnlReplica.Size = new System.Drawing.Size(200, 100);
-            pnlReplica.TabIndex = 9;
-            // 
-            // label7
-            // 
-            label7.AutoSize = true;
-            label7.Location = new System.Drawing.Point(546, 426);
-            label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(185, 15);
-            label7.TabIndex = 10;
-            label7.Text = "Replica Renderer of Player 1 Panel";
-            // 
             // Form1
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(800, 450);
-            Controls.Add(label7);
-            Controls.Add(pnlReplica);
             Controls.Add(label6);
             Controls.Add(label5);
             Controls.Add(label4);
@@ -196,8 +176,6 @@ namespace FlyleafPlayer__Custom_
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.Panel pnlReplica;
-        private System.Windows.Forms.Label label7;
     }
 }
 

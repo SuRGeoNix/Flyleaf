@@ -1,8 +1,4 @@
-﻿using System.Threading;
-
-using static FlyleafLib.Logger;
-
-namespace FlyleafLib.MediaFramework;
+﻿namespace FlyleafLib.MediaFramework;
 
 public abstract class RunThreadBase : NotifyPropertyChanged
 {
@@ -13,8 +9,8 @@ public abstract class RunThreadBase : NotifyPropertyChanged
         {
             lock (lockStatus)
             {
-                if (CanDebug && _Status != Status.QueueFull && value != Status.QueueFull && _Status != Status.QueueEmpty && value != Status.QueueEmpty)
-                    Log.Debug($"{_Status} -> {value}");
+                if (CanTrace && _Status != Status.QueueFull && value != Status.QueueFull && _Status != Status.QueueEmpty && value != Status.QueueEmpty)
+                    Log.Trace($"{_Status} -> {value}");
 
                 _Status = value;
             }
@@ -29,11 +25,11 @@ public abstract class RunThreadBase : NotifyPropertyChanged
         }
     }
 
-    public bool                 CriticalArea    { get; protected set; }
     public bool                 Disposed        { get; protected set; } = true;
     public int                  UniqueId        { get; protected set; } = -1;
     public bool                 PauseOnQueueFull{ get; set; }
 
+    protected volatile bool     CriticalArea;
     protected Thread            thread;
     protected AutoResetEvent    threadARE       = new(false);
     protected string            threadName      {
@@ -41,7 +37,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
         set
         {
             _threadName = value;
-            Log = new LogHandler(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{threadName}] ");
+            Log = new(("[#" + UniqueId + "]").PadRight(8, ' ') + $" [{threadName}] ");
         }
     }
     string _threadName;
@@ -51,7 +47,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
     internal object             lockStatus      = new();
 
     public RunThreadBase(int uniqueId = -1)
-        => UniqueId = uniqueId == -1 ? Utils.GetUniqueId() : uniqueId;
+        => UniqueId = uniqueId == -1 ? GetUniqueId() : uniqueId;
 
     public void Pause()
     {
@@ -104,10 +100,15 @@ public abstract class RunThreadBase : NotifyPropertyChanged
 
                 if (thread != null && thread.IsAlive) return; // might re-check CriticalArea
 
-                thread = new Thread(() => Run());
+                thread = new(Run)
+                {
+                    #if DEBUG
+                    Name = $"[#{UniqueId}] [{threadName}]",
+                    #endif
+                    IsBackground= true,
+                };
                 Status = Status.Running;
-
-                thread.Name = $"[#{UniqueId}] [{threadName}]"; thread.IsBackground= true; thread.Start();
+                thread.Start();
                 while (!thread.IsAlive) { if (CanTrace) Log.Trace("Waiting thread to come up"); Thread.Sleep(3); }
             }
         }

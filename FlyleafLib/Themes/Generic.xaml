@@ -22,7 +22,6 @@
 
         <Setter Property="AttachedResize" Value="None"/>
         <Setter Property="DetachedResize" Value="Surface"/>
-        <Setter Property="ResizeSensitivity" Value="6"/>
         <Setter Property="KeepRatioOnResize" Value="False"/>
 
         <Setter Property="AttachedDragMove" Value="SurfaceOwner"/>

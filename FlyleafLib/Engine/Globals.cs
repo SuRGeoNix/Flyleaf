@@ -1,21 +1,27 @@
 ﻿global using System;
-global using Flyleaf.FFmpeg;
-global using static Flyleaf.FFmpeg.Raw;
+global using System.Collections.Concurrent;
+global using System.Collections.Generic;
+global using System.Collections.ObjectModel;
+global using System.IO;
+global using System.Text;
+global using System.Threading;
+global using System.Threading.Tasks;
 
-using System.Collections.Generic;
+global using Flyleaf.FFmpeg;
+
+global using static Flyleaf.FFmpeg.Raw;
+global using static FlyleafLib.Logger;
+global using static FlyleafLib.Utils;
+
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
+using Vortice.DXGI;
+
 namespace FlyleafLib;
 
-public enum PixelFormatType
-{
-    Hardware,
-    Software_Handled,
-    Software_Sws
-}
 public enum MediaType
 {
     Audio,
@@ -39,37 +45,54 @@ public enum HDRtoSDRMethod : int
     Reinhard    = 3
 }
 
-public enum DeInterlace : int
+public enum DeInterlace // Must match with VideoFrameFormat
 {
-    Auto        = -2,
-    Progressive = -1,
-    TopField    =  0,
-    BottomField =  1
+    Progressive,
+    TopField,
+    BottomField,
+    Auto
 }
 public enum VideoProcessors
 {
     Auto,
     D3D11,
     Flyleaf,
+    SwsScale
 }
-public enum ZeroCopy : int
+public enum SplitFrameAlphaPosition
 {
-    Auto        = 0,
-    Enabled     = 1,
-    Disabled    = 2
+    None,
+    Top,
+    Left,
+    Bottom,
+    Right
+}
+[Flags]
+public enum Cropping
+{
+    None,
+    Stream  = 1 << 0,
+    Codec   = 1 << 1,
+    Texture = 1 << 2
 }
 public enum ColorSpace : int
 {
     None        = 0,
-    BT601       = 1,
-    BT709       = 2,
-    BT2020      = 3
+    Bt601       = 1,
+    Bt709       = 2,
+    Bt2020      = 3
 }
 public enum ColorRange : int
 {
     None        = 0,
     Full        = 1,
     Limited     = 2
+}
+public enum ColorType
+{
+    YUV,
+    RGB,
+    Gray
 }
 public enum HDRFormat : int
 {
@@ -80,119 +103,137 @@ public enum HDRFormat : int
     HLG         = 4,
     
 }
+public enum UIRefreshType
+{
+    PerFrame,
+    PerFrameSecond,
+    PerUIRefreshInterval,
+    PerUISecond
+}
+
+public enum SwapChainFormat : uint
+{
+    BGRA        = Vortice.DXGI.Format.B8G8R8A8_UNorm,
+    RGBA        = Vortice.DXGI.Format.R8G8B8A8_UNorm,
+    RGBA10bit   = Vortice.DXGI.Format.R10G10B10A2_UNorm
+}
+
+public enum FLFilters
+{
+    Brightness,
+    Contrast,
+    Hue,
+    Saturation
+}
 
 public class GPUOutput
 {
-    internal static int GPUOutputIdGenerator;
-
-    public int      Id              { get; internal set; }
-    public string   DeviceName      { get; internal set; }
-    public int      Left            { get; internal set; }
-    public int      Top             { get; internal set; }
-    public int      Right           { get; internal set; }
-    public int      Bottom          { get; internal set; }
-    public int      Width           => Right- Left;
-    public int      Height          => Bottom- Top;
-    public bool     IsAttached      { get; internal set; }
-    public int      Rotation        { get; internal set; }
-    public float    MaxLuminance    { get; internal set; }
+    public nint             Hwnd            { get; internal set; }
+    public string           DeviceName      { get; internal set; }
+    public int              Left            { get; internal set; }
+    public int              Top             { get; internal set; }
+    public int              Right           { get; internal set; }
+    public int              Bottom          { get; internal set; }
+    public int              Width           => Right- Left;
+    public int              Height          => Bottom- Top;
+    public bool             IsAttached      { get; internal set; }
+    public ModeRotation     Rotation        { get; internal set; }
+    public float            MaxLuminance    { get; internal set; }
+    //public int              RefreshRate     { get; internal set; } // Currently not used
 
     public override string ToString()
     {
-        int gcd = Utils.GCD(Width, Height);
-        return $"{DeviceName,-20} [Id: {Id,-4}\t, Top: {Top,-4}, Left: {Left,-4}, Width: {Width,-4}, Height: {Height,-4}, Ratio: [" + (gcd > 0 ? $"{Width/gcd}:{Height/gcd}]" : "]");
+        int gcd = GCD(Width, Height);
+        return $"{DeviceName,-20} [Top: {Top,-4}, Left: {Left,-4}, Width: {Width,-4}, Height: {Height,-4}, Ratio: " + (gcd > 0 ? $"{Width / gcd}:{Height / gcd}]" : "]");
     }
 }
 
 public class GPUAdapter
 {
-    public int      MaxHeight       { get; internal set; }
-    public nuint    SystemMemory    { get; internal set; }
-    public nuint    VideoMemory     { get; internal set; }
-    public nuint    SharedMemory    { get; internal set; }
+    public nuint            SystemMemory    { get; internal set; }
+    public nuint            VideoMemory     { get; internal set; }
+    public nuint            SharedMemory    { get; internal set; }
 
+    public uint             Id              { get; internal set; }
+    public GPUVendor        Vendor          { get; internal set; }
+    public string           Description     { get; internal set; }
+    public long             Luid            { get; internal set; }
 
-    public uint     Id              { get; internal set; }
-    public string   Vendor          { get; internal set; }
-    public string   Description     { get; internal set; }
-    public long     Luid            { get; internal set; }
-    public bool     HasOutput       { get; internal set; }
-    public List<GPUOutput>
-                    Outputs         { get; internal set; }
+    internal IDXGIAdapter   dxgiAdapter;
 
-    public override string ToString()
-        => (Vendor + " " + Description).PadRight(40) + $"[ID: {Id,-6}, LUID: {Luid,-6}, DVM: {Utils.GetBytesReadable(VideoMemory),-8}, DSM: {Utils.GetBytesReadable(SystemMemory),-8}, SSM: {Utils.GetBytesReadable(SharedMemory)}]";
+    public List<GPUOutput>  GetGPUOutputs()    => Engine.Video.GetGPUOutputs(dxgiAdapter);
+
+    public override string  ToString()
+        => (Vendor + " " + Description).PadRight(40) + $"[ID: {Id,-6}, LUID: {Luid,-6}, DVM: {GetBytesReadable(VideoMemory),-8}, DSM: {GetBytesReadable(SystemMemory),-8}, SSM: {GetBytesReadable(SharedMemory)}]";
 }
-public enum VideoFilters
-{
-    // Ensure we have the same values with Vortice.Direct3D11.VideoProcessorFilterCaps (d3d11.h) | we can extended if needed with other values
 
-    Brightness          = 0x01,
-    Contrast            = 0x02,
-    Hue                 = 0x04,
-    Saturation          = 0x08,
-    NoiseReduction      = 0x10,
-    EdgeEnhancement     = 0x20,
-    AnamorphicScaling   = 0x40,
-    StereoAdjustment    = 0x80
+public enum GPUVendor : uint
+{
+    Unknown,
+    ATI         = 0x1002,
+    Intel       = 0x8086,
+    Nvidia      = 0x10DE,
+    Qualcomm    = 0x4D4F4351,
+    S3Graphics  = 0x5333,
+    VIA         = 0x1106,
 }
 
 public struct AspectRatio : IEquatable<AspectRatio>
 {
-    public static readonly AspectRatio Keep     = new(-1, 1);
-    public static readonly AspectRatio Fill     = new(-2, 1);
-    public static readonly AspectRatio Custom   = new(-3, 1);
+    public static readonly AspectRatio Keep     = new(-1,   1);
+    public static readonly AspectRatio Fill     = new(-2,   1);
+    public static readonly AspectRatio Custom   = new(-3,   1);
     public static readonly AspectRatio Invalid  = new(-999, 1);
 
-    public static readonly List<AspectRatio> AspectRatios = new()
-    {
+    public static readonly List<AspectRatio> AspectRatios =
+    [
         Keep,
         Fill,
         Custom,
-        new AspectRatio(1, 1),
-        new AspectRatio(4, 3),
-        new AspectRatio(16, 9),
-        new AspectRatio(16, 10),
-        new AspectRatio(2.35f, 1),
-    };
+        new(1,      1),
+        new(4,      3),
+        new(16,     9),
+        new(16,     10),
+        new(2.35f,  1),
+    ];
 
-    public static implicit operator AspectRatio(string value) => new AspectRatio(value);
+    public static implicit operator AspectRatio(string value) => new(value);
 
-    public float Num { get; set; }
-    public float Den { get; set; }
+    public double Num { get; set; }
+    public double Den { get; set; }
 
-    public float Value
+    public double Value
     {
-        get => Num / Den;
-        set  { Num = value; Den = 1; }
+        readonly get => Den == 0 ? 0 : Num / Den;
+        set { Num = value; Den = 1; }
     }
 
     public string ValueStr
     {
-        get => ToString();
+        readonly get => ToString();
         set => FromString(value);
     }
 
-    public AspectRatio(float value) : this(value, 1) { }
-    public AspectRatio(float num, float den) { Num = num; Den = den; }
+    public AspectRatio(double value) : this(value, 1) { }
+    public AspectRatio(double num, double den) { Num = num; Den = den; }
     public AspectRatio(string value) { Num = Invalid.Num; Den = Invalid.Den; FromString(value); }
 
-    public bool Equals(AspectRatio other) => Num == other.Num && Den == other.Den;
-    public override bool Equals(object obj) => obj is AspectRatio o && Equals(o);
-    public override int GetHashCode() => HashCode.Combine(Num, Den);
+    public readonly bool Equals(AspectRatio other) => Num == other.Num && Den == other.Den;
+    public override readonly bool Equals(object obj) => obj is AspectRatio o && Equals(o);
+    public override readonly int GetHashCode() => HashCode.Combine(Num, Den);
     public static bool operator ==(AspectRatio a, AspectRatio b) => a.Equals(b);
     public static bool operator !=(AspectRatio a, AspectRatio b) => !(a == b);
 
     public void FromString(string value)
     {
         if (value == "Keep")
-            { Num = Keep.Num; Den = Keep.Den; return; }
+            { Num = Keep.Num;       Den = Keep.Den;     return; }
         else if (value == "Fill")
-            { Num = Fill.Num; Den = Fill.Den; return; }
+            { Num = Fill.Num;       Den = Fill.Den;     return; }
         else if (value == "Custom")
-            { Num = Custom.Num; Den = Custom.Den; return; }
+            { Num = Custom.Num;     Den = Custom.Den;   return; }
         else if (value == "Invalid")
-            { Num = Invalid.Num; Den = Invalid.Den; return; }
+            { Num = Invalid.Num;    Den = Invalid.Den;  return; }
 
         string newvalue = value.ToString().Replace(',', '.');
 
@@ -202,17 +243,48 @@ public struct AspectRatio : IEquatable<AspectRatio>
             if (values.Length < 2)
                         values = newvalue.ToString().Split('/');
 
-            Num = float.Parse(values[0], NumberStyles.Any, CultureInfo.InvariantCulture);
-            Den = float.Parse(values[1], NumberStyles.Any, CultureInfo.InvariantCulture);
+            Num = double.Parse(values[0], NumberStyles.Any, CultureInfo.InvariantCulture);
+            Den = double.Parse(values[1], NumberStyles.Any, CultureInfo.InvariantCulture);
         }
 
-        else if (float.TryParse(newvalue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out float result))
+        else if (double.TryParse(newvalue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double result))
             { Num = result; Den = 1; }
 
         else
             { Num = Invalid.Num; Den = Invalid.Den; }
     }
-    public override string ToString() => this == Keep ? "Keep" : (this == Fill ? "Fill" : (this == Custom ? "Custom" : (this == Invalid ? "Invalid" : $"{Num}:{Den}")));
+    public override readonly string ToString() => this == Keep ? "Keep" : (this == Fill ? "Fill" : (this == Custom ? "Custom" : (this == Invalid ? "Invalid" : $"{Num}:{Den}")));
+}
+
+public struct CropRect(uint top = 0, uint left= 0, uint bottom= 0, uint right= 0) : IEquatable<CropRect>
+{
+    public static readonly CropRect Empty;
+
+    public uint             Top     = top;
+    public uint             Left    = left;
+    public uint             Bottom  = bottom;
+    public uint             Right   = right;
+
+    public readonly uint    Width   => Right  + Left;
+    public readonly uint    Height  => Bottom + Top;
+    public readonly bool    IsEmpty => Top == 0 && Left == 0 && Bottom == 0 && Right == 0;
+
+    public static CropRect operator +(CropRect a, CropRect b)
+        => new(a.Top + b.Top, a.Left + b.Left, a.Bottom + b.Bottom, a.Right + b.Right);
+    public static CropRect operator -(CropRect a, CropRect b)
+        => new(a.Top - b.Top, a.Left - b.Left, a.Bottom - b.Bottom, a.Right - b.Right);
+    public static bool operator ==(CropRect a, CropRect b)
+        => a.Top == b.Top && a.Bottom == b.Bottom && a.Left == b.Left && a.Right == b.Right;
+    public static bool operator !=(CropRect left, CropRect right)
+        => !(left == right);
+    public readonly bool Equals(CropRect other)
+        => this == other;
+    public override readonly bool Equals(object obj)
+        => obj is CropRect other && this == other;
+    public override readonly int GetHashCode()
+        => HashCode.Combine(Top, Bottom, Left, Right);
+    public override readonly string ToString()
+        => $"[Top: {Top}, Left: {Left}, Bottom: {Bottom}, Right: {Right}]";
 }
 
 class PlayerStats
@@ -222,6 +294,7 @@ class PlayerStats
     public long AudioBytes      { get; set; }
     public long FramesDisplayed { get; set; }
 }
+
 public class NotifyPropertyChanged : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler PropertyChanged;
@@ -232,7 +305,7 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
 
     protected bool Set<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
     {
-        //Utils.Log($"[===| {propertyName} |===] | Set | {IsUI()}");
+        //Log($"[===| {propertyName} |===] | Set | {IsUI()}");
 
         if (!check || !EqualityComparer<T>.Default.Equals(field, value))
         {
@@ -249,14 +322,14 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
 
     protected bool SetUI<T>(ref T field, T value, bool check = true, [CallerMemberName] string propertyName = "")
     {
-        //Utils.Log($"[===| {propertyName} |===] | SetUI | {IsUI()}");
+        //Log($"[===| {propertyName} |===] | SetUI | {IsUI()}");
 
         if (!check || !EqualityComparer<T>.Default.Equals(field, value))
         {
             field = value;
 
             //if (!DisableNotifications)
-            Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+            UI(() => PropertyChanged?.Invoke(this, new(propertyName)));
 
             return true;
         }
@@ -265,18 +338,18 @@ public class NotifyPropertyChanged : INotifyPropertyChanged
     }
     protected void Raise([CallerMemberName] string propertyName = "")
     {
-        //Utils.Log($"[===| {propertyName} |===] | Raise | {IsUI()}");
+        //Log($"[===| {propertyName} |===] | Raise | {IsUI()}");
 
         //if (!DisableNotifications)
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        PropertyChanged?.Invoke(this, new(propertyName));
     }
 
 
     protected void RaiseUI([CallerMemberName] string propertyName = "")
     {
-        //Utils.Log($"[===| {propertyName} |===] | RaiseUI | {IsUI()}");
+        //Log($"[===| {propertyName} |===] | RaiseUI | {IsUI()}");
 
         //if (!DisableNotifications)
-        Utils.UI(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+        UI(() => PropertyChanged?.Invoke(this, new(propertyName)));
     }
 }

@@ -1,7 +1,5 @@
 ﻿using System.Diagnostics;
 
-using static FlyleafLib.Logger;
-
 namespace FlyleafLib.MediaFramework.MediaDemuxer;
 
 public unsafe class Interrupter

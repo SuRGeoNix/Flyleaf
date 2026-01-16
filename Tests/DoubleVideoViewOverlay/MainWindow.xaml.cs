@@ -41,8 +41,7 @@ namespace DoubleFlyleafHostOverlay
 
                 // Use UIRefresh to update Stats/BufferDuration (and CurTime more frequently than a second)
                 UIRefresh       = true,
-                UIRefreshInterval= 100,
-                UICurTimePerSecond = false // If set to true it updates when the actual timestamps second change rather than a fixed interval
+                UIRefreshInterval= 100
             });
 
             InitializeComponent();

@@ -1,11 +1,5 @@
-﻿using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-
-using FlyleafLib.MediaFramework.MediaDemuxer;
+﻿using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaRemuxer;
-
-using static FlyleafLib.Logger;
 
 /* TODO
  * Don't let audio go further than video (because of large duration without video)?
@@ -279,7 +273,7 @@ public unsafe class Downloader : RunThreadBase
                         isAudioDemuxer = false;
                     }
 
-                    //Log($"[{isAudioDemuxer}] {Utils.TicksToTime(ts1)} | {Utils.TicksToTime(ts2)}");
+                    //Log($"[{isAudioDemuxer}] {TicksToTime(ts1)} | {TicksToTime(ts2)}");
                 }
             }
             else

@@ -1,22 +1,14 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.IO;
-using System.Threading.Tasks;
-
-using FlyleafLib.MediaFramework.MediaDecoder;
+﻿using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaStream;
 
-using static FlyleafLib.Logger;
 using static FlyleafLib.MediaFramework.MediaContext.DecoderContext;
-using static FlyleafLib.Utils;
 
 namespace FlyleafLib.MediaPlayer;
 
 unsafe partial class Player
 {
     #region Events
-
     public event EventHandler<OpeningArgs>                              Opening; // Will be also used for subtitles
     public event EventHandler<OpenCompletedArgs>                        OpenCompleted; // Will be also used for subtitles
     public event EventHandler<OpenPlaylistItemCompletedArgs>            OpenPlaylistItemCompleted;
@@ -30,6 +22,15 @@ unsafe partial class Player
     public event EventHandler<OpenExternalAudioStreamCompletedArgs>     OpenExternalAudioStreamCompleted;
     public event EventHandler<OpenExternalVideoStreamCompletedArgs>     OpenExternalVideoStreamCompleted;
     public event EventHandler<OpenExternalSubtitlesStreamCompletedArgs> OpenExternalSubtitlesStreamCompleted;
+
+    public event EventHandler<OpeningVideoStreamArgs>                   OpeningVideoStream;
+
+    public class OpeningVideoStreamArgs : EventArgs
+    {
+        public Player       Player              { get; set; }
+        public VideoStream  VideoStream         { get; set; }
+        public bool         VideoAcceleration   { get; set; }
+    }
 
     private void OnOpening(OpeningArgs args = null)
         => Opening?.Invoke(this, args);
@@ -55,12 +56,15 @@ unsafe partial class Player
         => OpenExternalVideoStreamCompleted?.Invoke(this, args);
     private void OnOpenExternalSubtitlesStreamCompleted(OpenExternalSubtitlesStreamCompletedArgs args = null)
         => OpenExternalSubtitlesStreamCompleted?.Invoke(this, args);
+
+    private void OnOpeningVideoStream(OpeningVideoStreamArgs args = null)
+        => OpeningVideoStream?.Invoke(this, args);
     #endregion
 
     #region Decoder Events
     private void Decoder_AudioCodecChanged(DecoderBase x)
     {
-        Audio.Refresh();
+        Audio.Refresh(true);
         UIAll();
     }
     private void Decoder_VideoCodecChanged(DecoderBase x)
@@ -73,30 +77,32 @@ unsafe partial class Player
     {
         Config.Audio.SetDelay(0);
         Audio.Refresh();
-        canPlay = Video.IsOpened || Audio.IsOpened;
-        isLive  = MainDemuxer.IsLive;
-        duration= MainDemuxer.Duration;
+        canPlay     = Video.IsOpened || Audio.IsOpened;
+        UpdateMainDemuxer();
+        isLive      = MainDemuxer.IsLive;
+        duration    = MainDemuxer.Duration;
 
         UIAdd(() =>
         {
-            IsLive  = IsLive;
-            CanPlay = CanPlay;
-            Duration=Duration;
+            IsLive  = isLive;
+            CanPlay = canPlay;
+            Duration= duration;
         });
         UIAll();
     }
     private void Decoder_OpenVideoStreamCompleted(object sender, OpenVideoStreamCompletedArgs e)
     {
         Video.Refresh();
-        canPlay = Video.IsOpened || Audio.IsOpened;
-        isLive  = MainDemuxer.IsLive;
-        duration= MainDemuxer.Duration;
+        canPlay     = Video.IsOpened || Audio.IsOpened;
+        UpdateMainDemuxer();
+        isLive      = MainDemuxer.IsLive;
+        duration    = MainDemuxer.Duration;
 
         UIAdd(() =>
         {
-            IsLive  = IsLive;
-            CanPlay = CanPlay;
-            Duration=Duration;
+            IsLive  = isLive;
+            CanPlay = canPlay;
+            Duration= duration;
         });
         UIAll();
     }
@@ -141,7 +147,7 @@ unsafe partial class Player
         if (!e.Success)
         {
             canPlay = Video.IsOpened || Audio.IsOpened;
-            UIAdd(() => CanPlay = CanPlay);
+            UIAdd(() => CanPlay = canPlay);
             UIAll();
         }
     }
@@ -150,7 +156,7 @@ unsafe partial class Player
         if (!e.Success)
         {
             canPlay = Video.IsOpened || Audio.IsOpened;
-            UIAdd(() => CanPlay = CanPlay);
+            UIAdd(() => CanPlay = canPlay);
             UIAll();
         }
     }
@@ -176,17 +182,17 @@ unsafe partial class Player
 
             if (CanInfo) Log.Info($"Opening {url_iostream}");
 
-            Initialize(Status.Opening);
+            Initialize(Status.Opening, false); // TBR: (false) Avoid initializing the decoder twice (might cause issues)
             var args2 = decoder.Open(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
-            args.Url = args2.Url;
-            args.IOStream = args2.IOStream;
-            args.Error = args2.Error;
+            args.Url        = args2.Url;
+            args.IOStream   = args2.IOStream;
+            args.Error      = args2.Error;
 
             if (!args.Success)
             {
-                status = Status.Failed;
-                lastError = args.Error;
+                status      = Status.Failed;
+                lastError   = args.Error;
             }
             else if (CanPlay)
             {
@@ -201,15 +207,15 @@ unsafe partial class Player
                 duration= MainDemuxer.Duration;
                 UIAdd(() =>
                 {
-                    IsLive  = IsLive;
-                    Duration=Duration;
+                    IsLive  = isLive;
+                    Duration= duration;
                 });
             }
 
             UIAdd(() =>
             {
-                LastError=LastError;
-                Status  = Status;
+                LastError   = lastError;
+                Status      = status;
             });
 
             UIAll();
@@ -351,8 +357,8 @@ unsafe partial class Player
 
             UIAdd(() =>
             {
-                LastError=LastError;
-                Status  = Status;
+                LastError   = lastError;
+                Status      = status;
             });
 
             UIAll();
@@ -414,15 +420,15 @@ unsafe partial class Player
                 duration= MainDemuxer.Duration;
                 UIAdd(() =>
                 {
-                    IsLive  = IsLive;
-                    Duration=Duration;
+                    IsLive  = isLive;
+                    Duration= duration;
                 });
             }
 
             UIAdd(() =>
             {
-                LastError=LastError;
-                Status  = Status;
+                LastError   = lastError;
+                Status      = status;
             });
 
             UIAll();
@@ -476,11 +482,13 @@ unsafe partial class Player
             if (LastError != null)
             {
                 lastError = null;
-                UI(() => LastError = LastError);
+                UI(() => LastError = lastError);
             }
 
             if (extStream is ExternalAudioStream)
             {
+                bool shouldStartAudioScreamerForVideo = isScreamerVASDAudio;
+                StopScreamerVASDAudio();
                 if (decoder.VideoStream == null)
                     requiresBuffering = true;
 
@@ -504,6 +512,9 @@ unsafe partial class Player
                 }
 
                 isAudioSwitch = false;
+
+                if (status == Status.Playing && !requiresBuffering && shouldStartAudioScreamerForVideo)
+                    StartScreamerVASDAudio();
             }
             else if (extStream is ExternalVideoStream)
             {
@@ -585,12 +596,14 @@ unsafe partial class Player
     /// <returns></returns>
     public StreamOpenedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
     {
+        // TBR: There is no logic of Initiliaze (at least as a switch?*) or close of the current stream
+
         StreamOpenedArgs args = new();
 
         try
         {
             long delay = DateTime.UtcNow.Ticks;
-            long fromEnd = Duration - CurTime;
+            long fromEnd = duration - curTime;
 
             if (stream.Demuxer.Type == MediaType.Video)
             {
@@ -616,18 +629,21 @@ unsafe partial class Player
                 args = decoder.OpenDataStream(dstream);
             }
 
-            if (resync)
+            if (resync && (Duration > 0 || stream.Demuxer.IsHLSLive))
             {
-                // Wait for at least on package before seek to update the HLS context first_time
+                // Wait for at least X packets before seek to update the HLS context first_time
                 if (stream.Demuxer.IsHLSLive)
                 {
-                    while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3)
-                        System.Threading.Thread.Sleep(20);
+                    var curDemuxer = stream.Demuxer;
 
-                    ReSync(stream, (int) ((Duration - fromEnd - (DateTime.UtcNow.Ticks - delay))/ 10000));
+                    int retries = 1000; // 20sec ? | For audio check also VideoPackets
+                    while (stream.Demuxer.IsRunning && stream.Demuxer.GetPacketsPtr(stream.Type).Count < 3 && retries-- > 0)
+                        Thread.Sleep(20);
+
+                    ReSync(stream, (int)((duration - fromEnd - (DateTime.UtcNow.Ticks - delay)) / 10000));
                 }
                 else
-                    ReSync(stream, (int) (CurTime / 10000), true);
+                    ReSync(stream, (int) (curTime / 10000), true);
             }
             else
                 isVideoSwitch = false;
@@ -673,11 +689,11 @@ unsafe partial class Player
     string playerSessionTag = "_session";
     private Session GetCurrentSession()
     {
-        Session session = new();
-        var item = Playlist.Selected;
+        Session session     = new();
+        var item            = Playlist.Selected;
 
-        session.Url = Playlist.Url;
-        session.PlaylistItem = item.Index;
+        session.Url         = Playlist.Url;
+        session.PlaylistItem= item.Index;
 
         if (item.ExternalAudioStream != null)
             session.ExternalAudioStream = item.ExternalAudioStream.Index;
@@ -696,9 +712,9 @@ unsafe partial class Player
         if (decoder.VideoStream != null)
             session.VideoStream = decoder.VideoStream.StreamIndex;
 
-        session.CurTime = CurTime;
-        session.AudioDelay = Config.Audio.Delay;
-        session.SubtitlesDelay = Config.Subtitles.Delay;
+        session.CurTime         = CurTime;
+        session.AudioDelay      = Config.Audio.Delay;
+        session.SubtitlesDelay  = Config.Subtitles.Delay;
 
         return session;
     }
@@ -706,7 +722,7 @@ unsafe partial class Player
     internal void ReSync(StreamBase stream, int syncMs = -1, bool accurate = false)
     {
         /* TODO
-         *
+         * TBR: Audio only might have issues
          * HLS live resync on stream switch should be from the end not from the start (could have different cache/duration)
          */
 
@@ -715,11 +731,11 @@ unsafe partial class Player
 
         if (stream.Demuxer.Type == MediaType.Video)
         {
-            isVideoSwitch = true;
-            isAudioSwitch = true;
-            isSubsSwitch = true;
-            isDataSwitch = true;
-            requiresBuffering = true;
+            isVideoSwitch       = true;
+            isAudioSwitch       = true;
+            isSubsSwitch        = true;
+            isDataSwitch        = true;
+            requiresBuffering   = true;
 
             if (accurate && Video.IsOpened)
             {
@@ -730,13 +746,12 @@ unsafe partial class Player
             else
                 decoder.Seek(syncMs, false, false);
 
-            aFrame = null;
-            isAudioSwitch = false;
-            isVideoSwitch = false;
-            sFrame = sFramePrev = null;
-            isSubsSwitch = false;
-            dFrame = null;
-            isDataSwitch = false;
+            isAudioSwitch   = false;
+            isVideoSwitch   = false;
+            sFrame          = sFramePrev = null;
+            isSubsSwitch    = false;
+            dFrame          = null;
+            isDataSwitch    = false;
 
             if (!IsPlaying)
             {
@@ -746,30 +761,32 @@ unsafe partial class Player
             }
             else
             {
-                renderer?.ClearOverlayTexture();
-                Subtitles.subsText = "";
-                if (Subtitles._SubsText != "")
-                    UI(() => Subtitles.SubsText = Subtitles.SubsText);
+                Renderer.SubsDispose();
+                Subtitles.ClearSubsText();
             }
         }
         else
         {
             if (stream.Demuxer.Type == MediaType.Audio)
             {
+                bool shouldStartAudioScreamerForVideo = isScreamerVASDAudio;
+                StopScreamerVASDAudio();
+
                 isAudioSwitch = true;
                 decoder.SeekAudio();
-                aFrame = null;
                 isAudioSwitch = false;
+
+                if (status == Status.Playing && !requiresBuffering && shouldStartAudioScreamerForVideo)
+                    StartScreamerVASDAudio();
+                
             }
             else if (stream.Demuxer.Type == MediaType.Subs)
             {
                 isSubsSwitch = true;
                 decoder.SeekSubtitles();
-                renderer.ClearOverlayTexture();
+                Renderer.SubsDispose();
                 sFrame = sFramePrev = null;
-                Subtitles.subsText = "";
-                if (Subtitles._SubsText != "")
-                    UI(() => Subtitles.SubsText = Subtitles.SubsText);
+                Subtitles.ClearSubsText();
                 isSubsSwitch = false;
             }
             else

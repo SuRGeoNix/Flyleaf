@@ -1,10 +1,5 @@
-﻿using System.Collections.Concurrent;
-using System.Threading;
-
-using FlyleafLib.MediaFramework.MediaStream;
+﻿using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
-
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
@@ -13,11 +8,62 @@ public unsafe class SubtitlesDecoder : DecoderBase
     public SubtitlesStream  SubtitlesStream     => (SubtitlesStream) Stream;
 
     public ConcurrentQueue<SubtitlesFrame>
-                            Frames              { get; protected set; } = new ConcurrentQueue<SubtitlesFrame>();
+                            Frames              { get; protected set; } = [];
 
     public SubtitlesDecoder(Config config, int uniqueId = -1) : base(config, uniqueId) { }
 
-    protected override unsafe int Setup(AVCodec* codec) => 0;
+    protected override unsafe bool Setup()
+    {
+        AVCodec* codec = string.IsNullOrEmpty(Config.Decoder._SubtitlesCodec) ? avcodec_find_decoder(Stream.CodecID) : avcodec_find_decoder_by_name(Config.Decoder._SubtitlesCodec);
+        if (codec == null)
+        {
+            Log.Error($"Codec not found ({(string.IsNullOrEmpty(Config.Decoder._SubtitlesCodec) ? Stream.CodecID : Config.Decoder._SubtitlesCodec)})");
+            return false;
+        }
+
+        if (CanDebug) Log.Debug($"Using {avcodec_get_name(codec->id)} codec");
+
+        codecCtx = avcodec_alloc_context3(codec); // Pass codec to use default settings
+        if (codecCtx == null)
+        {
+            Log.Error($"Failed to allocate context");
+            return false;
+        }
+
+        int ret = avcodec_parameters_to_context(codecCtx, Stream.AVStream->codecpar);
+        if (ret < 0)
+        {
+            Log.Error($"Failed to pass parameters to context - {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+            return false;
+        }
+
+        codecCtx->pkt_timebase  = Stream.AVStream->time_base;
+        codecCtx->codec_id      = codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
+
+        var codecOpts = Config.Decoder.SubtitlesCodecOpt;
+        AVDictionary* avopt = null;
+        foreach(var optKV in codecOpts)
+            _ = av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+
+        ret = avcodec_open2(codecCtx, null, avopt == null ? null : &avopt);
+        if (ret < 0)
+        {
+            if (avopt != null) av_dict_free(&avopt);
+            Log.Error($"Failed to open codec - {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+            return false;
+        }
+
+        if (avopt != null)
+        {
+            AVDictionaryEntry *t = null;
+            while ((t = av_dict_get(avopt, "", t, DictReadFlags.IgnoreSuffix)) != null)
+                Log.Debug($"Ignoring codec option {BytePtrToStringUTF8(t->key)}");
+
+            av_dict_free(&avopt);
+        }
+
+        return true;
+    }
 
     protected override void DisposeInternal()
         => DisposeFrames();
@@ -151,9 +197,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 if (!filledFromCodec) // TODO: CodecChanged? And when findstreaminfo is disabled as it is an external demuxer will not know the main demuxer's start time
                 {
                     filledFromCodec = true;
-                    avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
-                    SubtitlesStream.Refresh();
-
+                    SubtitlesStream.Refresh(this);
                     CodecChanged?.Invoke(this);
                 }
 
@@ -162,7 +206,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     if (SubtitlesStream.IsBitmap) // clear prev subs frame
                     {
                         subFrame.duration   = uint.MaxValue;
-                        subFrame.timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
+                        subFrame.Timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
                         Frames.Enqueue(subFrame);
                     }
 
@@ -173,11 +217,11 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 }
 
                 subFrame.duration   = subFrame.sub.end_display_time;
-                subFrame.timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
+                subFrame.Timestamp  = pts - demuxer.StartTime + Config.Subtitles.Delay;
 
                 if (subFrame.sub.rects[0]->type == AVSubtitleType.Ass)
                 {
-                    subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->ass);
+                    subFrame.text = BytePtrToStringUTF8(subFrame.sub.rects[0]->ass);
                     Config.Subtitles.Parser(subFrame);
 
                     fixed(AVSubtitle* subPtr = &subFrame.sub)
@@ -188,7 +232,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 }
                 else if (subFrame.sub.rects[0]->type == AVSubtitleType.Text)
                 {
-                    subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->text);
+                    subFrame.text = BytePtrToStringUTF8(subFrame.sub.rects[0]->text);
 
                     fixed(AVSubtitle* subPtr = &subFrame.sub)
                         avsubtitle_free(subPtr);
@@ -197,7 +241,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                         continue;
                 }
 
-                if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(subFrame.timestamp)}");
+                if (CanTrace) Log.Trace($"Processes {TicksToTime(subFrame.Timestamp)}");
 
                 Frames.Enqueue(subFrame);
             }

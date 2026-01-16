@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 using System.Windows.Data;
 
 using SharpGen.Runtime;
@@ -47,7 +44,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
 
     public event PropertyChangedEventHandler PropertyChanged;
 
-    public AudioEngine()
+    public AudioEngine() // We consider from UI here
     {
         if (Engine.Config.DisableAudio)
         {
@@ -60,6 +57,9 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
         EnumerateDevices();
     }
 
+    /// <summary>
+    /// Enumerates Audio Capture Devices which can be retrieved from <see cref="CapDevices"/>
+    /// </summary>
     public void RefreshCapDevices()
     {
         lock (lockCapDevices)
@@ -68,7 +68,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
 
             var devices = MediaFactory.MFEnumAudioDeviceSources();
                 foreach (var device in devices)
-                    try { Engine.Audio.CapDevices.Add(new AudioDevice(device.FriendlyName, device.SymbolicLink)); } catch(Exception) { }
+                    try { Engine.Audio.CapDevices.Add(new(device.FriendlyName, device.SymbolicLink)); } catch(Exception) { }
         }
     }
 
@@ -96,7 +96,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
             CurrentDevice.Id    = defaultDevice.Id;
             CurrentDevice.Name  = defaultDevice.FriendlyName;
 
-            if (Logger.CanInfo)
+            if (CanInfo)
             {
                 string dump = "";
                 foreach (var device in deviceEnum.EnumAudioEndpoints(DataFlow.Render, DeviceStates.Active))
@@ -117,7 +117,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
     }
     private void RefreshDevices()
     {
-        Utils.UIInvokeIfRequired(() => // UI Required?
+        UIInvokeIfRequired(() => // UI Required?
         {
             lock (locker)
             {
@@ -169,7 +169,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
                 {
                     CurrentDevice.Id    = defaultDevice.Id;
                     CurrentDevice.Name  = defaultDevice.FriendlyName;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentDevice)));
+                    PropertyChanged?.Invoke(this, new(nameof(CurrentDevice)));
                 }
 
                 // Fall back to DefaultDevice *Non-UI thread otherwise will freeze (not sure where and why) during xaudio.Dispose()

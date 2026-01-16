@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 
 using static FlyleafLib.Utils;
 using static FlyleafPlayer.AppConfig;
@@ -17,9 +18,6 @@ using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
 
 namespace FlyleafPlayer;
-
-// TODO: Popup Menu Playlist will not resize the size?
-//       Add Play Next/Prev for Playlists (Page Up/Down?) this goes down to Player
 
 /// <summary>
 /// <para>FlyleafPlayer Sample</para>
@@ -32,7 +30,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public static string FlyleafLibVer => "FlyleafLib v" + System.Reflection.Assembly.GetAssembly(typeof(Engine)).GetName().Version;
 
     /// <summary>
-    /// Flyleaf Player binded to FlyleafME (This can be swapped and will nto belong to this window)
+    /// Flyleaf Player binded to FlyleafME (This can be swapped and will not belong to this window)
     /// </summary>
     public Player           Player              { get; set; }
 
@@ -57,13 +55,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public MainWindow()
     {
         lock (lockTray) openedWindows++;
-
-        OpenWindow      = new RelayCommandSimple(() => new MainWindow() { Width = Width, Height = Height }.Show());
-        CloseWindow     = new RelayCommandSimple(Close);
-        ShowPrevImage   = new RelayCommandSimple(() => SlideShowGoTo(ImageIndex - 1));
-        ShowNextImage   = new RelayCommandSimple(() => SlideShowGoTo(ImageIndex + 1));
+        
+        OpenWindow      = new RelayCommandSimple(() => CreateNewWindow(this));
+        CloseWindow     = new RelayCommandSimple(() => BtnClose_Click(null, null));
+        ShowPrevImage   = new RelayCommandSimple(() => SlideShowGoTo(SlidePosition.Prev));
+        ShowNextImage   = new RelayCommandSimple(() => SlideShowGoTo(SlidePosition.Next));
         SlideShowToggle = new RelayCommandSimple(SlideShowToggleAction);
-        SlideShowRestart= new RelayCommandSimple(() => { SlideShowStart(false, false); SlideShowGoTo(0); }); // Note: When we start SlideShow with non-current ImageIndex use Start(notask) and GoTo to start the task
+        SlideShowRestart= new RelayCommandSimple(() => { SlideShowStart(false, false); SlideShowGoTo(SlidePosition.Start); }); // Note: When we start SlideShow with non-current ImageIndex use Start(notask) and GoTo to start the task
             
         FlyleafME = new(this)
         {
@@ -86,24 +84,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             UIConfigPath  = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.UIConfig.json")
         };
 
+        if (GeneralConfig.AllowTransparency)
+            FlyleafME.VideoBackground = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
+
         InitializeComponent();
         DataContext = FlyleafME; // Allowing FlyleafHost to access our Player
-
-        if (GeneralConfig.SingleInstance)
-            Closing += X_Closing;
     }
     void X_Closing(object sender, CancelEventArgs e)
     {
-        if (closed || !GeneralConfig.SingleInstance)
-            return;
+        // NOTE: FlyleafME.Player is our Player in case of Swap and not Player
 
+        if (!GeneralConfig.SingleInstance)
+        {
+            FlyleafME.Player?.Dispose();
+            return;
+        }
+        
         lock (lockTray)
         {
+            if (closed)
+                return;
+
             if (openedWindows == 1)
             {
                 e.Cancel = true;
+                FlyleafME.CloseCanceled();
+                FlyleafME.Player.Stop();
 
-                Player.Stop();
                 if (mediaViewer != MediaViewer.Video)
                     MediaViewer = MediaViewer.Video;
 
@@ -112,6 +119,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
             else
             {
+                FlyleafME.Player.Dispose();
                 closed = true;
                 openedWindows--;
             }
@@ -119,36 +127,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     void BtnMinimize_Click(object sender, RoutedEventArgs e) => FlyleafME.IsMinimized = true;
-    void BtnClose_Click(object sender, RoutedEventArgs e)
-    {
-        if (!GeneralConfig.SingleInstance)
-        {
-            Close();
-            return;
-        }
-
-        lock (lockTray)
-        {
-            if (openedWindows > 1)
-            {
-                if (!closed)
-                {
-                    closed = true;
-                    openedWindows--;
-                }
-                    
-                Close();
-                return;
-            }
-        }
-
-        Player.Stop();
-        if (mediaViewer != MediaViewer.Video)
-            MediaViewer = MediaViewer.Video;
-
-        FlyleafME.Surface.ShowInTaskbar = false;
-        FlyleafME.Surface.Hide();
-    }
+    void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
     public static MainWindow GetWindowFromPlayer(Player player)
     {
@@ -163,10 +142,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         return mw;
     }
-    static void CreateNewWindow(Player player)
+    static void CreateNewWindow(MainWindow mw)
     {
-        var mw = GetWindowFromPlayer(player);
-
         MainWindow mwNew = new()
         {
             Width   = mw.Width,
@@ -191,12 +168,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         UIInvokeIfRequired(() =>
         {
             FlyleafME.Player = Player;
-
-            if (GeneralConfig.SingleInstance)
-            {
-                FlyleafME.Overlay.Closing += X_Closing;
-                FlyleafME.Surface.Closing += X_Closing;
-            }
+            FlyleafME.Overlay.Closing += X_Closing;
+            FlyleafME.Surface.Closing += X_Closing;
         });
 
         if (runOnce)
@@ -206,6 +179,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (App.CmdUrl != null)
             Player.OpenAsync(App.CmdUrl);
+
+        Task.Run(() =>
+        {
+            Engine.Video.RefreshCapDevices();
+            Engine.Audio.RefreshCapDevices();
+        });
 
         #if RELEASE
         // Save Player's Config (First Run)
@@ -245,30 +224,54 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         #else
             playerConfig = DefaultConfig();
         #endif
-
+        
         userClearScreen = playerConfig.Video.ClearScreen; // slide show disable this
 
         #if DEBUG
         // Testing audio filters
         //playerConfig.Audio.Filters = new()
         //{
-            ////new() { Name = "loudnorm", Args = "I=-24:LRA=7:TP=-2", Id = "loudnorm1" },
-            ////new() { Name = "dynaudnorm", Args = "f=4150", Id = "dynaudnorm1" },
-            ////new() { Name ="afftfilt", Args = "real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75" }, // robot
-            ////new() { Name ="tremolo", Args="f=5:d=0.5" },
-            ////new() { Name ="vibrato", Args="f=10:d=0.5" },
-            ////new() { Name ="rubberband", Args="pitch=1.5" }
+        //    //new() { Name = "loudnorm", Args = "I=-24:LRA=7:TP=-2", Id = "loudnorm1" },
+        //    //new() { Name = "dynaudnorm", Args = "f=4150", Id = "dynaudnorm1" },
+        //    //new() { Name ="afftfilt", Args = "real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75" }, // robot
+        //    //new() { Name ="tremolo", Args="f=5:d=0.5" },
+        //    //new() { Name ="vibrato", Args="f=10:d=0.5" },
+        //    //new() { Name ="rubberband", Args="pitch=1.5" }
         //};
-        #endif
 
+        // Testing misc
+        //playerConfig.Demuxer.AllowFindStreamInfo = false;
+        //playerConfig.Player.ZeroLatency = true;
+        //playerConfig.Video.ClearScreen = false;
+        //playerConfig.Player.UICurTime = UIRefreshType.PerFrame;
+        //playerConfig.Decoder.VideoCodec = "libvpx-vp9";
+        //playerConfig.Player.MaxLatency = TimeSpan.FromMilliseconds(75).Ticks;
+        //playerConfig.Decoder.MaxAudioFrames = 5;
+        //playerConfig.Demuxer.AllowFindStreamInfo = false;
+        //playerConfig.Video.VideoAcceleration = false;
+        //playerConfig.Video.VideoProcessor = VideoProcessors.Flyleaf;
+        //playerConfig.Video.SplitFrameAlphaPosition = SplitFrameAlphaPosition.Bottom;
+        #endif
+        
         // Initializes the Player
         Player = new Player(playerConfig);
 
-        // Dispose Player on Window Close (the possible swapped player from FlyleafMe that actually belongs to us)
-        Closing += (o, e) => FlyleafME.Player?.Dispose();
-
         Player.Opening          += Player_Opening;
         Player.OpenCompleted    += Player_OpenCompleted;
+
+        if (GeneralConfig.AllowTransparency)
+            Player.OpeningVideoStream += (o, e) =>
+            {
+                e.Player.Config.Decoder.VideoCodec = "";
+
+                if (e.Player.VideoDemuxer.Name.Contains("webm"))
+                {
+                    if (e.VideoStream.CodecID == Flyleaf.FFmpeg.AVCodecID.Vp8)
+                        e.Player.Config.Decoder.VideoCodec = "libvpx";
+                    else if (e.VideoStream.CodecID == Flyleaf.FFmpeg.AVCodecID.Vp9)
+                        e.Player.Config.Decoder.VideoCodec = "libvpx-vp9";
+                }
+            };
 
         // If the user requests reverse playback allocate more frames once
         Player.PropertyChanged += (o, e) =>
@@ -280,14 +283,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
                 GetWindowFromPlayer(Player).ReversePlaybackChecked = true;
             }
-            else if (e.PropertyName == nameof(Player.Rotation))
-                GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Rotation}°";
             else if (e.PropertyName == nameof(Player.Speed))
                 GetWindowFromPlayer(Player).Msg = $"Speed x{Player.Speed}";
-            else if (e.PropertyName == nameof(Player.Zoom))
-                GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Zoom}%";
             else if (e.PropertyName == nameof(Player.Status) && Player.Activity.Mode == ActivityMode.Idle)
                 Player.Activity.ForceActive();
+        };
+
+        Player.Config.Video.PropertyChanged += (o, e) =>
+        {
+            if (e.PropertyName == nameof(Player.Config.Video.Rotation))
+                GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Config.Video.Rotation}°";
+            else if (e.PropertyName == nameof(Player.Config.Video.Zoom))
+                GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Config.Video.Zoom}%";
         };
 
         Player.Audio.PropertyChanged += (o, e) =>
@@ -312,8 +319,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         // Ctrl+ N / Ctrl + W (Open New/Close Window)
         var keys = playerConfig.Player.KeyBindings;
-        keys.AddCustom(Key.N, true, () => CreateNewWindow(Player), "New Window", false, true, false);
-        keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).Close(), "Close Window", false, true, false);
+        keys.AddCustom(Key.N, true, () => CreateNewWindow(GetWindowFromPlayer(Player)), "New Window", false, true, false);
+        keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).BtnClose_Click(null, null), "Close Window", false, true, false);
 
         // We might saved the tmp keys (restore them)
         if (Player.Config.Loaded && keys.Exists("tmp01"))
@@ -327,7 +334,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         Config config = new();
         config.Demuxer.FormatOptToUnderlying= true;     // Mainly for HLS to pass the original query which might includes session keys
-        config.Audio.FiltersEnabled         = true;     // To allow embedded atempo filter for speed
         config.Video.GPUAdapter             = "";       // Set it empty so it will include it when we save it
         config.Subtitles.SearchLocal        = true;
         return config;
@@ -448,6 +454,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else if (mediaViewer == MediaViewer.Image && imageTitle == null)
             ImageTitle = Player.Playlist.Selected.Title;
         else
+        {
+            // Consider having a status/indicator while image loading as we don't clear the prev frames to avoid confusion
+            if (!e.Success && e.Error != "Cancelled")
+                Player.Renderer?.ClearScreen(true);
+
             lock (slideShowLock)
                 if (SlideShow)
                 {
@@ -457,6 +468,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     slideShowElapsedMs = 0;
                     Task.Run(SlideShowTask, slideShowCancel.Token);
                 }
+        }
     }
 
     bool userClearScreen;
@@ -618,7 +630,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         }
 
                         if (imageIndex == -1) // Mainly from our Delete
-                            SlideShowGoTo(ImageIndex);
+                            SlideShowGoTo(SlidePosition.Refresh);
                         else
                             ImageIndex = imageIndex;
                     }
@@ -645,17 +657,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
         //});
     }
-    void SlideShowGoTo(int index, bool fromSlideShow = false)
+    enum SlidePosition
+    {
+        Start,
+        Prev,
+        Next,
+        Refresh, // Same Index
+        PrevPage,
+        NextPage,
+        End
+    }
+    void SlideShowGoTo(SlidePosition pos, bool fromSlideShow = false)
     {
         lock (slideShowLock)
         {
             if (MediaViewer != MediaViewer.Slide)
                 return;
-
-            if (index < 0)
-                index = 0;
-            else if (index > ImageFiles.Count - 1)
-                index = ImageFiles.Count - 1;
 
             if (SlideShow && !fromSlideShow)
             {
@@ -663,17 +680,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 slideShowCancel = new();
             }
 
-            ImageIndex  = index;
-            CanPrevImage= ImageIndex > 0;
-            CanNextImage= ImageIndex < ImageFiles.Count - 1;
+            if ((ImageIndex < 1                     && (pos == SlidePosition.Prev || pos == SlidePosition.PrevPage)) ||
+                (ImageIndex >= ImageFiles.Count - 1 && (pos == SlidePosition.Next || pos == SlidePosition.NextPage)))
+                return; // out of bounds
+
+            if (pos == SlidePosition.Start || ImageFiles.Count < 2)
+                ImageIndex = 0;
+            else if (pos == SlidePosition.End)
+                ImageIndex = ImageFiles.Count - 1;
+            else if (pos == SlidePosition.Prev)
+                ImageIndex--;
+            else if (pos == SlidePosition.Next)
+                ImageIndex++;
+            else if (pos == SlidePosition.PrevPage)
+                ImageIndex = Math.Max(0, ImageIndex - SlideShowConfig.PageStep);
+            else if (pos == SlidePosition.NextPage)
+                ImageIndex = Math.Min(ImageFiles.Count - 1, ImageIndex + SlideShowConfig.PageStep);
+            
+            CanPrevImage = ImageIndex > 0;
+            CanNextImage = ImageIndex < ImageFiles.Count - 1;
 
             if (SlideShow && !CanNextImage)
                 SlideShow = false;
 
-            slideShowElapsedMs = 0;
-            slideShowOpening = true;
+            slideShowElapsedMs  = 0;
+            slideShowOpening    = true;
             Player.OpenAsync(imageFolder + "\\" + ImageFiles[ImageIndex]);
-            slideShowOpening = false;
+            slideShowOpening    = false;
         }
     }
     void SlideShowStop()
@@ -723,7 +756,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (slideShowCancel.IsCancellationRequested || !SlideShow)
             return;
 
-        UI(() => SlideShowGoTo(ImageIndex + 1, true));
+        UI(() => SlideShowGoTo(SlidePosition.Next, true));
     }
 
     void ImageKeysRemove()
@@ -739,14 +772,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var keys = playerConfig.Player.KeyBindings;
 
-        keys.Remove(Key.Left);
         keys.Remove(Key.Right);
-        keys.Remove(Key.Home);
-        keys.Remove(Key.End);
+        keys.Remove(Key.Left);
         keys.Remove(Key.Space);
         keys.Remove(Key.F5);
         keys.Remove(Key.PageDown);
         keys.Remove(Key.PageUp);
+        keys.Remove(Key.Home);
+        keys.Remove(Key.End);
 
         ImageKeysRemove();
     }
@@ -754,34 +787,39 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     void ImageKeysAdd()
     {
         var keys = playerConfig.Player.KeyBindings;
-        keys.AddCustom(Key.Delete,  true,   ImageDelete, "tmp07");
-        keys.AddCustom(Key.C,       true,   () => ImageCutCopy(), "tmp08", false, true, false);
-        keys.AddCustom(Key.X,       true,   () => ImageCutCopy(false), "tmp09", false, true, false);
-        keys.AddCustom(Key.Q,       true,   () => { Player.Stop(); MediaViewer = MediaViewer.Video; }, "tmp12", false, true, false);
+        keys.AddCustom(Key.Delete,  true,   ImageDelete, "ImageDelete");
+        keys.AddCustom(Key.C,       true,   () => ImageCutCopy(), "ImageCopy", false, true, false);
+        keys.AddCustom(Key.X,       true,   () => ImageCutCopy(false), "ImageCut", false, true, false);
+        keys.AddCustom(Key.Q,       true,   () => { Player.Stop(); MediaViewer = MediaViewer.Video; }, "ImageStop", false, true, false);
     }
 
     void SlideKeysAdd()
     {
         var keys = playerConfig.Player.KeyBindings;
-        keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(ImageIndex - 1), "tmp01");
-        keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(ImageIndex + 1), "tmp02");
-        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(0), "tmp03");
-        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(ImageFiles.Count -1), "tmp04");
-        keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "tmp05");
-        keys.AddCustom(Key.F5,      true,   () => SlideShowStart(true), "tmp06");
-        keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(Math.Min(ImageFiles.Count - 1, ImageIndex + SlideShowConfig.PageStep)), "tmp10");
-        keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(Math.Max(0, ImageIndex - SlideShowConfig.PageStep)), "tmp11");
+        keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(SlidePosition.Next), "SlideNext");
+        keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(SlidePosition.Prev), "SlidePrev");
+        keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "SlideToggle");
+        keys.AddCustom(Key.F5,      true,   () => SlideShowStart(true), "SlideStart");
+        keys.AddCustom(Key.PageDown,false,  () => SlideShowGoTo(SlidePosition.NextPage), "SlideNextPage");
+        keys.AddCustom(Key.PageUp,  false,  () => SlideShowGoTo(SlidePosition.PrevPage), "SlidePrevPage");
+        keys.AddCustom(Key.Home,    true,   () => SlideShowGoTo(SlidePosition.Start), "SlideFirst");
+        keys.AddCustom(Key.End,     true,   () => SlideShowGoTo(SlidePosition.End), "SlideLast");
 
         ImageKeysAdd();
     }
     void VideoKeysAdd()
     {
         var keys = playerConfig.Player.KeyBindings;
-        keys.Add(Key.Left,  KeyBindingAction.SeekBackward);
-        keys.Add(Key.Right, KeyBindingAction.SeekForward);
-        keys.Add(Key.Space, KeyBindingAction.TogglePlayPause);
-        keys.Add(Key.C,     KeyBindingAction.CopyToClipboard, false, true);
-        keys.Add(Key.Q,     KeyBindingAction.Stop, false, true);
+        keys.Add(Key.Left,      KeyBindingAction.SeekBackward);
+        keys.Add(Key.Right,     KeyBindingAction.SeekForward);
+        keys.Add(Key.Space,     KeyBindingAction.TogglePlayPause);
+        keys.Add(Key.C,         KeyBindingAction.CopyToClipboard, false, true);
+        keys.Add(Key.X,         KeyBindingAction.Flush, false, true);
+        keys.Add(Key.Q,         KeyBindingAction.Stop, false, true);
+        keys.Add(Key.PageUp,    KeyBindingAction.SeekBackward3);
+        keys.Add(Key.PageDown,  KeyBindingAction.SeekForward3);
+        keys.Add(Key.Home,      KeyBindingAction.SeekToStart);
+        keys.Add(Key.End,       KeyBindingAction.SeekToEnd);
     }
     void ImageDelete()
     {
@@ -795,7 +833,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         try
         {
-            var droplist = new System.Collections.Specialized.StringCollection { imageFolder + "\\" + ImageFiles[ImageIndex] };
+            var filePath = ImageFiles.Count > 0 ? imageFolder + "\\" + ImageFiles[ImageIndex] : Player.Playlist.Selected.Url;
+            var droplist = new System.Collections.Specialized.StringCollection { filePath };
             var data = new DataObject();
             data.SetFileDropList(droplist);
             data.SetData("Preferred DropEffect", new MemoryStream(copy ? DragDropEffectsCopyBytes : DragDropEffectsMoveBytes));
@@ -810,7 +849,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     MediaViewer = MediaViewer.Video;
                 }
                 else
-                    SlideShowGoTo(canNextImage ? ImageIndex + 1 : (canPrevImage ? ImageIndex - 1 : 0));
+                    SlideShowGoTo(canNextImage ? SlidePosition.Next : (canPrevImage ? SlidePosition.Prev : SlidePosition.Start));
             }
                     
         } catch (Exception) {}

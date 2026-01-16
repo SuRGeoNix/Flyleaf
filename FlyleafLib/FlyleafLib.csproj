@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
 	<UseWPF>true</UseWPF>
 	<PackageIcon>Flyleaf.png</PackageIcon>
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.8.8</Version>
+	<Version>3.10.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2025</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,8 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Config: Fixes a critical issue with Load/Save (Serialization)
+		- Player.ScreamerZeroLatency: Fixes a critical issue with the new Video Frame Cache
+		- Engine.Config: Introduces KeepDisplayActive and allows -by disabling it- the system/display to sleep if required
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -32,10 +33,20 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-windows|AnyCPU'">
     <WarningLevel>6</WarningLevel>
+    <NoWarn>1701;1702;WFO1000</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-windows|AnyCPU'">
     <WarningLevel>6</WarningLevel>
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net10.0-windows|AnyCPU'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-windows|AnyCPU'">
+    <NoWarn>1701;1702;WFO1000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,12 +58,12 @@
 
   <ItemGroup>
 	<PackageReference Include="Flyleaf.FFmpeg.Bindings" Version="7.1.1" />
-	<PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
-	<PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
-	<PackageReference Include="Vortice.DirectComposition" Version="3.6.2" />
-	<PackageReference Include="Vortice.Mathematics" Version="1.9.2" />
-	<PackageReference Include="Vortice.MediaFoundation" Version="3.6.2" />
-	<PackageReference Include="Vortice.XAudio2" Version="3.6.2" />
+	<PackageReference Include="Vortice.D3DCompiler" Version="3.7.6-beta" />
+	<PackageReference Include="Vortice.Direct3D11" Version="3.7.6-beta" />
+	<PackageReference Include="Vortice.DirectComposition" Version="3.7.6-beta" />
+	<PackageReference Include="Vortice.Mathematics" Version="1.9.3" />
+	<PackageReference Include="Vortice.MediaFoundation" Version="3.7.6-beta" />
+	<PackageReference Include="Vortice.XAudio2" Version="3.7.6-beta" />
   </ItemGroup>
 
 </Project>

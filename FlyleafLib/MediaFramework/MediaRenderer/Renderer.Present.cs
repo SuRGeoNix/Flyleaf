@@ -1,286 +1,262 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-
-using SharpGen.Runtime;
-using Vortice.Direct3D11;
+﻿using SharpGen.Runtime;
 using Vortice.DXGI;
 
-using static FlyleafLib.Logger;
+using ResultCode = Vortice.DXGI.ResultCode;
 
-using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
-    bool    isPresenting;
-    long    lastPresentAt       = 0;
-    long    lastPresentRequestAt= 0;
-    object  lockPresentTask     = new();
+    long            renderRequestAt, lastRenderAt;
+    volatile bool   canIdle;
+    volatile bool   isIdleRunning;
+    object          lockRenderLoops = new();
 
-    public bool Present(VideoFrame frame, bool forceWait = true)
+    internal void RenderRequest(VideoFrame frame = null, bool forceClear = false)
     {
-        if (Monitor.TryEnter(lockDevice, frame.timestamp == 0 ? 100 : 5)) // Allow more time for first frame
+        lock (lockRenderLoops)
         {
-            try
-            {
-                PresentInternal(frame, forceWait);
-                if (frame != LastFrame) // De-interlace (Same AVFrame - Different FieldType)
-                {
-                    VideoDecoder.DisposeFrame(LastFrame);
-                    LastFrame = frame;
-                    if (child != null)
-                        child.LastFrame = frame;
-                }
+            renderRequestAt = DateTime.UtcNow.Ticks;
 
+            if ((frame != null || forceClear))
+                Frames.SetRendererFrame(frame);
+
+            if (!SwapChain.CanPresent || !canIdle || isIdleRunning)
+                return;
+
+            isIdleRunning = true;
+        }
+
+        Task.Run(RenderIdleLoop);
+    }
+    internal void RenderIdleStart(bool force = false)
+    {
+        lock (lockRenderLoops)
+        {
+            canIdle = true;
+            if (force)
+                renderRequestAt = DateTime.UtcNow.Ticks;
+
+            // TBR: Check if last timestamp?* to start idle
+            if (renderRequestAt > lastRenderAt)
+                RenderRequest();
+        }
+    }
+    internal void RenderIdleStop()
+    {
+        canIdle = false;
+        while (isIdleRunning)
+            { canIdle = false; Thread.Sleep(1); }
+    }
+    void RenderIdleLoop()
+    {
+        int rechecks = 1000; // Awake for ~5sec when Idle
+        while (SwapChain.CanPresent)
+        {
+            while (renderRequestAt <= lastRenderAt && rechecks-- > 0)
+            {
+                if (!canIdle || !SwapChain.CanPresent)
+                    { rechecks = 0; break; }
+
+                Thread.Sleep(5); // might not TimeBeginPeriod1 (can drop fps or slow down cancelation)
+            }
+
+            if (rechecks < 1)
+                break;
+
+            rechecks = 1000;
+            RenderIdle();
+        }
+
+        lock (lockRenderLoops) // To avoid race condition*?
+        {
+            isIdleRunning = false;
+            if (renderRequestAt > lastRenderAt && canIdle && SwapChain.CanPresent)
+                RenderRequest();
+        }
+    }
+    bool RenderIdle()
+    {
+        try
+        {
+            lastRenderAt = DateTime.UtcNow.Ticks;
+
+            if (!SwapChain.CanPresent)
                 return true;
 
-            }
-            catch (SharpGenException e)
+            lock (lockRenderLoops)
             {
-                try { VideoDecoder.DisposeFrame(frame); vpiv?.Dispose(); } catch { };
-                
-                if (e.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || e.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
+                bool needsClear = true;
+                if (VideoProcessor == VideoProcessors.D3D11)
                 {
-                    Log.Error($"Device Lost ({e.ResultCode} | {Device.DeviceRemovedReason} | {e.Message})");
-                    Thread.Sleep(100);
-                    
-                    HandleDeviceReset();
+                    D3ProcessRequests();
+
+                    if (VideoProcessor != VideoProcessors.D3D11)
+                        return RenderIdle();
+
+                    if (!d3CanPresent)
+                        return true;
+
+                    if (Frames.RendererFrame != null)
+                        { D3Render(Frames.RendererFrame, false); needsClear = false; }
                 }
                 else
                 {
-                    Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
-                    throw; // Force Playback Stop
+                    FLProcessRequests();
+
+                    if (VideoProcessor == VideoProcessors.D3D11)
+                        return RenderIdle();
+
+                
+                    if (Frames.RendererFrame != null)
+                        { FLRender(Frames.RendererFrame); needsClear = false; }
+                }
+
+                if (needsClear)
+                {
+                    if (!Config.Video.ClearScreen)
+                        return true;
+
+                    //SubsDispose();
+                    context.OMSetRenderTargets(SwapChain.BackBufferRtv);
+                    context.ClearRenderTargetView(SwapChain.BackBufferRtv, ucfg.flBackColor);
                 }
             }
-            catch (Exception e)
-            {
-                try { VideoDecoder.DisposeFrame(frame); vpiv?.Dispose(); } catch { };
-                Log.Warn($"Present frame failed {e.Message} | {Device?.DeviceRemovedReason}");
-            }
-            finally
-            {
-                Monitor.Exit(lockDevice);
-            }
+
+            SwapChain.Present(1, PresentFlags.None);
+
+            return true;
         }
-        else
+        catch (SharpGenException e)
         {
-            try { VideoDecoder.DisposeFrame(frame); vpiv?.Dispose(); } catch { };
-            Log.Debug("Dropped Frame - Lock timeout");
+            Log.Error($"[RenderIdle] Device Lost ({e.ResultCode.NativeApiCode} ({e.ResultCode}) | {device.DeviceRemovedReason} | {e.Message})");
+            ResetLocal();
+
+            return false;
         }
-
-        return false;
-    }
-    public void Present()
-    {
-        if (SCDisposed)
-            return;
-
-        // NOTE: We don't have TimeBeginPeriod, FpsForIdle will not be accurate
-        lock (lockPresentTask)
+        catch (Exception e)
         {
-            if ((Config.Player.player == null || !Config.Player.player.requiresBuffering) && VideoDecoder.IsRunning && (VideoStream == null || VideoStream.FPS > 10)) // With slow FPS we need to refresh as fast as possible
-                return;
+            Log.Error($"[RenderIdle] Failed ({e.Message})");
 
-            if (isPresenting)
-            {
-                lastPresentRequestAt = DateTime.UtcNow.Ticks;
-                return;
-            }
-
-            isPresenting = true;
-        }
-
-        Task.Run(() =>
-        {
-            long presentingAt;
-            do
-            {
-                long sleepMs = DateTime.UtcNow.Ticks - lastPresentAt;
-                sleepMs = sleepMs < (long)(1.0 / Config.Player.IdleFps * 1000 * 10000) ? (long) (1.0 / Config.Player.IdleFps * 1000) : 0;
-                if (sleepMs > 2)
-                    Thread.Sleep((int)sleepMs);
-
-                presentingAt = DateTime.UtcNow.Ticks;
-                RefreshLayout();
-                lastPresentAt = DateTime.UtcNow.Ticks;
-
-            } while (lastPresentRequestAt > presentingAt);
-
-            isPresenting = false;
-        });
-    }
-    internal void PresentInternal(VideoFrame frame, bool forceWait = true)
-    {
-        if (SCDisposed)
-            return;
-        
-        // TBR: Replica performance issue with D3D11 (more zoom more gpu overload)
-        if (frame.srvs == null) // videoProcessor can be FlyleafVP but the player can send us a cached frame from prev videoProcessor D3D11VP (check frame.srv instead of videoProcessor)
-        {
-            if (frame.avFrame != null)
-            {
-                vpivd.Texture2D.ArraySlice = (uint) frame.avFrame->data[1];
-                vd1.CreateVideoProcessorInputView(VideoDecoder.textureFFmpeg, vpe, vpivd, out vpiv);
-            }
-            else
-            {
-                vpivd.Texture2D.ArraySlice = 0;
-                vd1.CreateVideoProcessorInputView(frame.textures[0], vpe, vpivd, out vpiv);
-            }
-
-            if (vpiv != null)
-            {
-                vpsa[0].InputSurface = vpiv;
-                vc.VideoProcessorBlt(vp, vpov, 0, 1, vpsa);
-                swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
-
-                vpiv.Dispose();
-            }
-        }
-        else
-        {
-            context.OMSetRenderTargets(backBufferRtv);
-            context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-            context.RSSetViewport(GetViewport);
-            context.PSSetShaderResources(0, frame.srvs);
-            context.Draw(6, 0);
-
-            if (use2d)
-                Config.Video.OnD2DDraw(this, context2d);
-             
-            if (overlayTexture != null)
-            {
-                // Don't stretch the overlay (reduce height based on ratiox) | Sub's stream size might be different from video size (fix y based on percentage)
-                var ratiox = (double)GetViewport.Width / overlayTextureOriginalWidth;
-                var ratioy = (double)overlayTextureOriginalPosY / overlayTextureOriginalHeight;
-
-                context.OMSetBlendState(blendStateAlpha);
-                context.PSSetShaderResources(0, overlayTextureSRVs);
-                context.RSSetViewport((float) (GetViewport.X + (overlayTextureOriginalPosX * ratiox)), (float) (GetViewport.Y + (GetViewport.Height * ratioy)), (float) (overlayTexture.Description.Width * ratiox), (float) (overlayTexture.Description.Height * ratiox));
-                context.PSSetShader(ShaderBGRA);
-                context.Draw(6, 0);
-
-                // restore context
-                context.PSSetShader(ShaderPS);
-                context.OMSetBlendState(curPSCase == PSCase.RGBPacked ? blendStateAlpha : null);
-            }
-
-            swapChain.Present(Config.Video.VSync, forceWait ? PresentFlags.None : Config.Video.PresentFlags);
-        }
-
-        child?.PresentInternal(frame);
-    }
-
-    public void ClearOverlayTexture()
-    {
-        if (overlayTexture == null)
-            return;
-
-        overlayTexture?.Dispose();
-        overlayTextureSrv?.Dispose();
-        overlayTexture      = null;
-        overlayTextureSrv   = null;
-    }
-
-    SubresourceData subDataOverlay;
-    internal void CreateOverlayTexture(SubtitlesFrame frame, int streamWidth, int streamHeight)
-    {
-        var rect    = frame.sub.rects[0];
-        var stride  = rect->linesize[0] * 4;
-
-        overlayTextureOriginalWidth = streamWidth;
-        overlayTextureOriginalHeight= streamHeight;
-        overlayTextureOriginalPosX  = rect->x;
-        overlayTextureOriginalPosY  = rect->y;
-        overlayTextureDesc.Width    = (uint)rect->w;
-        overlayTextureDesc.Height   = (uint)rect->h;
-
-        byte[] data = new byte[rect->w * rect->h * 4];
-
-        fixed(byte* ptr = data)
-        {
-            uint[] colors   = new uint[256];
-            var colorsData  = new Span<uint>((byte*)rect->data[1], rect->nb_colors);
-
-            for (int i = 0; i < colorsData.Length; i++)
-                colors[i] = colorsData[i];
-
-            ConvertPal(colors, 256, false);
-
-            for (int y = 0; y < rect->h; y++)
-            {
-                uint* xout =(uint*) (ptr + y * stride);
-                byte* xin = ((byte*)rect->data[0]) + y * rect->linesize[0];
-
-                for (int x = 0; x < rect->w; x++)
-                    *xout++ = colors[*xin++];
-            }
-
-            subDataOverlay.DataPointer = (nint)ptr;
-            subDataOverlay.RowPitch    = (uint)stride;
-
-            overlayTexture?.Dispose();
-            overlayTextureSrv?.Dispose();
-            overlayTexture          = Device.CreateTexture2D(overlayTextureDesc, [subDataOverlay]);
-            overlayTextureSrv       = Device.CreateShaderResourceView(overlayTexture);
-            overlayTextureSRVs[0]   = overlayTextureSrv;
+            return false;
         }
     }
 
-    static void ConvertPal(uint[] colors, int count, bool gray) // subs bitmap (source: mpv)
+    internal bool RefreshPlay(bool secondField) // TODO secondfield embedded*
+    {   // Tries to keep ~60fps refreshes within/during playback
+        if (lastRenderAt >= renderRequestAt)
+            return false;
+
+        RenderIdle();
+
+        return true;
+    }
+    internal bool RenderPlay(VideoFrame frame, bool secondField)
     {
-        for (int n = 0; n < count; n++)
+        try
         {
-            uint c = colors[n];
-            uint b = c & 0xFF;
-            uint g = (c >> 8) & 0xFF;
-            uint r = (c >> 16) & 0xFF;
-            uint a = (c >> 24) & 0xFF;
+            lastRenderAt = DateTime.UtcNow.Ticks;
 
-            if (gray)
-                r = g = b = (r + g + b) / 3;
+            if (!SwapChain.CanPresent)
+                return true;
 
-            // from straight to pre-multiplied alpha
-            b = b * a / 255;
-            g = g * a / 255;
-            r = r * a / 255;
-            colors[n] = b | (g << 8) | (r << 16) | (a << 24);
+            lock (lockRenderLoops)
+            {
+                if (VideoProcessor == VideoProcessors.D3D11)
+                {
+                    D3ProcessRequests();
+
+                    if (VideoProcessor != VideoProcessors.D3D11)
+                        return RenderPlay(frame, secondField);
+
+                    if (!d3CanPresent)
+                        return true;
+
+                    D3Render(frame, secondField);
+                }
+                else
+                {
+                    FLProcessRequests();
+
+                    if (VideoProcessor == VideoProcessors.D3D11)
+                        return RenderPlay(frame, secondField);
+
+                    FLRender(frame);
+                }
+
+                Frames.SetRendererFrame(frame);
+            }
+
+            return true;
+        }
+        catch (SharpGenException e)
+        {
+            Log.Error($"[RenderPlay] Device Lost ({e.ResultCode.NativeApiCode} ({e.ResultCode}) | {device.DeviceRemovedReason} | {e.Message})");
+            ResetLocal(pausePlayer: false);
+
+            return false;
+        }
+        catch (Exception e)
+        {
+            Log.Error($"[RenderPlay] Failed ({e.Message})");
+
+            return false;
+        }
+
+    }
+    internal bool PresentPlay()
+    {
+        try
+        {
+            if (SwapChain.CanPresent) // TODO: dont present if we didnt render (or d3d11 check can present too)
+                SwapChain.Present().CheckError();
+
+            return true;
+        }
+        catch (SharpGenException e)
+        {
+            if (e.ResultCode == ResultCode.WasStillDrawing) // For DoNotWait (any reason to still support it with Config?)
+            {
+                Log.Info($"[V] Frame Dropped (GPU)");
+                return false;
+            }
+
+            Log.Error($"[PresentPlay] {e.ResultCode.NativeApiCode} ({e.ResultCode}) | {device.DeviceRemovedReason} | {e.Message}");
+            ResetLocal(pausePlayer: false);
+
+            return false;
+        }
+        catch (Exception e)
+        {
+            Log.Error($"[PresentPlay] Failed ({e.Message})");
+            throw; // Force Playback Stop
         }
     }
 
-    public void RefreshLayout()
+    public void ClearScreen(bool force = false, bool rendererFrame = true)
     {
-        if (Monitor.TryEnter(lockDevice, 5))
+        if (force)
         {
-            try
+            lock (lockDevice)
             {
-                if (SCDisposed)
+                if (SwapChain.Disposed)
                     return;
 
-                if (LastFrame != null && (LastFrame.textures != null || LastFrame.avFrame != null))
-                    PresentInternal(LastFrame);
-                else if (Config.Video.ClearScreen)
+                lock (lockRenderLoops)
                 {
-                    context.ClearRenderTargetView(backBufferRtv, Config.Video._BackgroundColor);
-                    swapChain.Present(Config.Video.VSync, PresentFlags.None);
+                    if (rendererFrame)
+                        Frames.SetRendererFrame(null);
+                    SubsDispose();
+                    context.OMSetRenderTargets(SwapChain.BackBufferRtv);
+                    context.ClearRenderTargetView(SwapChain.BackBufferRtv, ucfg.flBackColor);
                 }
-            }
-            catch (Exception e)
-            {
-                if (CanWarn) Log.Warn($"Present idle failed {e.Message} | {Device.DeviceRemovedReason}");
-            }
-            finally
-            {
-                Monitor.Exit(lockDevice);
+
+                SwapChain.Present(1, PresentFlags.None);
             }
         }
-    }
-    public void ClearScreen()
-    {
-        ClearOverlayTexture();
-        VideoDecoder.DisposeFrame(LastFrame);
-        Present();
+        else if (Config.Video.ClearScreen)
+            RenderRequest(null, true);
     }
 }

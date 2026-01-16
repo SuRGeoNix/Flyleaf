@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Threading;
-using System.Windows;
+﻿using System.Windows;
 
 using FlyleafLib.MediaPlayer;
 
@@ -45,7 +42,7 @@ public static class Engine
     /// <summary>
     /// List of active Players
     /// </summary>
-    public static List<Player>      Players         { get; private set; }
+    public static List<Player>      Players         { get; private set; } = [];
 
     public static event EventHandler
                     Loaded;
@@ -57,6 +54,7 @@ public static class Engine
     static object   lockEngine = new();
     static bool     isLoading;
     static int      timePeriod;
+    static int      threadExecutionState; // ES_CONTINUOUS
 
     /// <summary>
     /// Initializes Flyleaf's Engine (Must be called from UI thread)
@@ -71,7 +69,7 @@ public static class Engine
     public static void StartAsync(EngineConfig config = null) => StartInternal(config, true);
 
     /// <summary>
-    /// Requests timeBeginPeriod(1) - You should call TimeEndPeriod1 when not required anymore
+    /// Requests timeBeginPeriod(1)
     /// </summary>
     public static void TimeBeginPeriod1()
     {
@@ -81,8 +79,11 @@ public static class Engine
 
             if (timePeriod == 1)
             {
+                #if DEBUG
                 Log.Trace("timeBeginPeriod(1)");
-                Utils.NativeMethods.TimeBeginPeriod(1);
+                #endif
+
+                _ = NativeMethods.TimeBeginPeriod(1);
             }
         }
     }
@@ -98,33 +99,79 @@ public static class Engine
 
             if (timePeriod == 0)
             {
+                #if DEBUG
                 Log.Trace("timeEndPeriod(1)");
-                Utils.NativeMethods.TimeEndPeriod(1);
+                #endif
+
+                _ = NativeMethods.TimeEndPeriod(1);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Requests SetThreadExecutionState
+    /// </summary>
+    public static void ThreadExecutionStateBegin()
+    {
+        lock (lockEngine)
+        {
+            threadExecutionState++;
+
+            if (threadExecutionState == 1)
+            {
+                #if DEBUG
+                Log.Trace("ThreadExecutionStateBegin");
+                #endif
+
+                _ = NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_CONTINUOUS | NativeMethods.EXECUTION_STATE.ES_SYSTEM_REQUIRED | (Config.KeepDisplayActive ? NativeMethods.EXECUTION_STATE.ES_DISPLAY_REQUIRED : 0));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stops previously requested SetThreadExecutionState
+    /// </summary>
+    public static void ThreadExecutionStateEnd()
+    {
+        lock (lockEngine)
+        {
+            threadExecutionState--;
+
+            if (threadExecutionState == 0)
+            {
+                #if DEBUG
+                Log.Trace("ThreadExecutionStateEnd");
+                #endif
+
+                _ = NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
             }
         }
     }
 
     private static void StartInternal(EngineConfig config = null, bool async = false)
     {
-        lock (lockEngine)
+        if (Application.Current == null)
+            _ = new Application();
+
+        UIInvokeIfRequired(() =>
         {
-            if (isLoading)
-                return;
+            lock (lockEngine)
+            {
+                if (isLoading)
+                    return;
 
-            isLoading = true;
+                isLoading = true;
 
-            Config = config ?? new EngineConfig();
+                Config = config ?? new EngineConfig();
 
-            if (Application.Current == null)
-                new Application();
+                StartInternalUI();
 
-            StartInternalUI();
-
-            if (async)
-                Task.Run(() => StartInternalNonUI());
-            else
-                StartInternalNonUI();
-        }
+                if (async)
+                    Task.Run(() => StartInternalNonUI());
+                else
+                    StartInternalNonUI();
+            }
+        });
     }
 
     private static void StartInternalUI()
@@ -138,9 +185,10 @@ public static class Engine
                 Players[0].Dispose();
         };
 
-        Logger.SetOutput();
-        Log     = new LogHandler("[FlyleafEngine] ");
-        Audio   = new AudioEngine();
+        SetOutput();
+        Log     = new("[FlyleafEngine] ");
+        Audio   = new();
+        Video   = new();
     }
 
     private static void StartInternalNonUI()
@@ -148,19 +196,9 @@ public static class Engine
         var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         Log.Info($"FlyleafLib {version.Major }.{version.Minor}.{version.Build}");
 
-        FFmpeg  = new FFmpegEngine();
-        Video   = new VideoEngine();
-        Plugins = new PluginsEngine();
-        Players = [];
-
+        FFmpeg  = new();
+        Plugins = new();
         IsLoaded= true;
-
-        if (Config.FFmpegLoadProfile == LoadProfile.All) // Cap Devices (TBR: if UI required)
-        {
-            Audio.RefreshCapDevices();
-            Video.RefreshCapDevices();
-        }
-
         Loaded?.Invoke(null, null);
 
         if (Config.UIRefresh)
@@ -214,6 +252,7 @@ public static class Engine
     }
     internal static void MasterThread()
     {
+        // TBR: Auto Stop/Start instead of UIRefresh config (based on current Players status/mode/bufferduration/stats etc)
         Log.Info("Thread started");
 
         int curLoop     = 0;
@@ -245,29 +284,31 @@ public static class Engine
                         /* Every UIRefreshInterval */
                         player.Activity.RefreshMode();
 
-                        /* Every Second */
-                        if (curLoop == secondLoops)
+                        /* Every Second */ 
+                        if (curLoop == secondLoops) // Calculations here to be second accurate
                         {
                             if (player.Config.Player.Stats)
                             {
-                                var curStats = player.stats;
+                                var curStats        = player.stats;
                                 long curTotalBytes  = player.VideoDemuxer.TotalBytes + player.AudioDemuxer.TotalBytes + player.SubtitlesDemuxer.TotalBytes;
                                 long curVideoBytes  = player.VideoDemuxer.VideoPackets.Bytes + player.AudioDemuxer.VideoPackets.Bytes + player.SubtitlesDemuxer.VideoPackets.Bytes;
                                 long curAudioBytes  = player.VideoDemuxer.AudioPackets.Bytes + player.AudioDemuxer.AudioPackets.Bytes + player.SubtitlesDemuxer.AudioPackets.Bytes;
 
-                                player.bitRate      = (curTotalBytes - curStats.TotalBytes) * 8 / 1000.0;
-                                player.Video.bitRate= (curVideoBytes - curStats.VideoBytes) * 8 / 1000.0;
-                                player.Audio.bitRate= (curAudioBytes - curStats.AudioBytes) * 8 / 1000.0;
+                                player.bitRate      = Math.Max(curTotalBytes - curStats.TotalBytes, 0) * 8 / 1000.0;
+                                player.Video.bitRate= Math.Max(curVideoBytes - curStats.VideoBytes, 0) * 8 / 1000.0;
+                                player.Audio.bitRate= Math.Max(curAudioBytes - curStats.AudioBytes, 0) * 8 / 1000.0;
 
                                 curStats.TotalBytes = curTotalBytes;
                                 curStats.VideoBytes = curVideoBytes;
                                 curStats.AudioBytes = curAudioBytes;
 
-                                if (player.IsPlaying)
-                                {
-                                    player.Video.fpsCurrent = (player.Video.FramesDisplayed - curStats.FramesDisplayed) / curSecond;
-                                    curStats.FramesDisplayed = player.Video.FramesDisplayed;
-                                }
+                                // TBR: Let Fps enable even for Idle
+                                //if (player.status == Status.Playing)
+                                //{
+                                var presentCount = player.Renderer.SwapChain.GetFrameStatistics().PresentCount; // might cause a delay, keep it last
+                                player.Video.fpsCurrent  = (presentCount - curStats.FramesDisplayed) / curSecond;
+                                curStats.FramesDisplayed = presentCount;
+                                //}
                             }
                         }
                     }
@@ -281,41 +322,42 @@ public static class Engine
                     {
                         foreach (var player in Players)
                         {
+                            var isPlaying = player.status == Status.Playing;
                             /* Every UIRefreshInterval */
+                            var config = player.Config.Player;
 
                             // Activity Mode Refresh & Hide Mouse Cursor (FullScreen only)
                             if (player.Activity.mode != player.Activity._Mode)
                                 player.Activity.SetMode();
 
-                            // CurTime / Buffered Duration (+Duration for HLS)
-                            if (!Config.UICurTimePerSecond)
-                                player.UpdateCurTime();
-                            else if (player.Status == Status.Paused)
-                            {
-                                if (player.MainDemuxer.IsRunning)
-                                    player.UpdateCurTime();
-                                else
-                                    player.UpdateBufferedDuration();
-                            }
+                            // Buffered Duration Refresh from Demuxer (TBR: RefreshType?)
+                            player.BufferedDuration = player.MainDemuxer.BufferedDuration;
+
+                            // CurTime (PerUIRefreshInterval)
+                            if (isPlaying && config.UICurTime == UIRefreshType.PerUIRefreshInterval)
+                                player.SetCurTime();
 
                             /* Every Second */
                             if (curLoop == 0)
                             {
-                                // Stats Refresh (BitRates / FrameDisplayed / FramesDropped / FPS)
-                                if (player.Config.Player.Stats)
-                                {
-                                    player.BitRate = player.BitRate;
-                                    player.Video.BitRate = player.Video.BitRate;
-                                    player.Audio.BitRate = player.Audio.BitRate;
+                                // CurTime (PerUISecond)
+                                if (config.UICurTime == UIRefreshType.PerUISecond)
+                                    player.SetCurTime();
 
-                                    if (player.IsPlaying)
+                                // Stats Refresh (BitRates / FrameDisplayed / FramesDropped / FPS)
+                                if (config.Stats)
+                                {
+                                    player.BitRate          = player.BitRate;
+                                    player.Video.BitRate    = player.Video.BitRate;
+                                    player.Audio.BitRate    = player.Audio.BitRate;
+
+                                    player.Video.FPSCurrent = player.Video.fpsCurrent;
+
+                                    if (isPlaying) // Otherwise Screamers should fire the last update
                                     {
                                         player.Audio.FramesDisplayed= player.Audio.FramesDisplayed;
                                         player.Audio.FramesDropped  = player.Audio.FramesDropped;
-
-                                        player.Video.FramesDisplayed= player.Video.FramesDisplayed;
-                                        player.Video.FramesDropped  = player.Video.FramesDropped;
-                                        player.Video.FPSCurrent     = player.Video.FPSCurrent;
+                                        (player.Video.FramesDisplayed,player.Video.FramesDropped) = player.FramesDisplayedDropped(); // dynamic update to be closer to 'now'
                                     }
                                 }
                             }
@@ -324,7 +366,7 @@ public static class Engine
                     catch { }
                 }
 
-                Utils.UI(UIAction);
+                UI(UIAction);
                 Thread.Sleep(Config.UIRefreshInterval);
 
             } catch { curLoop = 0; }

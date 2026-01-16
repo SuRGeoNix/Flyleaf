@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace FlyleafLib.MediaFramework.MediaPlaylist;
 
@@ -17,16 +15,16 @@ public class M3UPlaylistItem
     public bool     Not_24_7    { get; set; }
     public int      Height      { get; set; }
 
-    public Dictionary<string, string> Tags { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Tags { get; set; } = [];
 }
 
 public class M3UPlaylist
 {
     public static List<M3UPlaylistItem> ParseFromHttp(string url, int timeoutMs = 30000)
     {
-        string downStr = Utils.DownloadToString(url, timeoutMs);
+        string downStr = DownloadToString(url, timeoutMs);
         if (downStr == null)
-            return new();
+            return [];
 
         using StringReader reader = new(downStr);
         return Parse(reader);

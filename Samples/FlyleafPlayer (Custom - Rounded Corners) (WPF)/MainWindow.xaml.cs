@@ -2,6 +2,8 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+
 using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
@@ -44,15 +46,16 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
                 // Use UIRefresh to update Stats/BufferDuration (and CurTime more frequently than a second)
                 UIRefresh       = true,
                 UIRefreshInterval= 100,
-                UICurTimePerSecond = false // If set to true it updates when the actual timestamps second change rather than a fixed interval
             });
 
             FlyleafHost =  new FlyleafHost(this)
             {
-                CornerRadius = new CornerRadius(30),
-                KeyBindings = AvailableWindows.Surface,
-                DetachedResize = AvailableWindows.Surface,
-                KeepRatioOnResize = true,
+                // Enables AllowTransparency on Surface and could cause performance issues (1 from 255 alpha to be able to use mouse events)
+                VideoBackground     = new SolidColorBrush(new Color() { A = 1}),
+                CornerRadius        = new CornerRadius(30),
+                KeyBindings         = AvailableWindows.Surface,
+                DetachedResize      = AvailableWindows.Surface,
+                KeepRatioOnResize   = true,
             };
 
             ToggleDebug = new RelayCommandSimple(new Action(() => { ShowDebug = !ShowDebug; }));
@@ -63,6 +66,7 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
 
             // Inform the lib to refresh stats
             Config.Player.Stats = true;
+            Config.Player.UICurTime = UIRefreshType.PerFrame;
 
             Player = new Player(Config);
             FlyleafHost.Player = Player;
