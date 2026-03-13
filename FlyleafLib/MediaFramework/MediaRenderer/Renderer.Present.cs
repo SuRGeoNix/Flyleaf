@@ -160,7 +160,14 @@ public unsafe partial class Renderer
             lastRenderAt = DateTime.UtcNow.Ticks;
 
             if (!SwapChain.CanPresent)
+            {
+                // Still track the frame for headless use (TakeSnapshot)
+                // Matches v3.9.7 behavior where LastFrame was always set
+                // Must hold lockRenderLoops to synchronize with TakeSnapshot
+                lock (lockRenderLoops)
+                    Frames.SetRendererFrame(frame);
                 return true;
+            }
 
             lock (lockRenderLoops)
             {
