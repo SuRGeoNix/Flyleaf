@@ -165,7 +165,16 @@ public unsafe partial class Renderer
                 // Matches v3.9.7 behavior where LastFrame was always set
                 // Must hold lockRenderLoops to synchronize with TakeSnapshot
                 lock (lockRenderLoops)
+                {
+                    if (vpRequestsIn != VPRequestType.Empty)
+                    {
+                        if (VideoProcessor == VideoProcessors.D3D11)
+                            D3ProcessRequests();
+                        else
+                            FLProcessRequests();
+                    }
                     Frames.SetRendererFrame(frame);
+                }
                 return true;
             }
 

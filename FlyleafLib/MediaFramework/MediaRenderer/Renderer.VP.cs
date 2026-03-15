@@ -240,7 +240,17 @@ public unsafe partial class Renderer : IVP
 
         if (player != null)
         {
-            if (request)
+            if (!SwapChain.CanPresent)
+            {
+                // Headless: process VP requests immediately since render loop won't run
+                vpRequestsIn |= vpRequests;
+                vpRequestsIn &= ~VPRequestType.Resize;
+                if (VideoProcessor == VideoProcessors.D3D11)
+                    D3ProcessRequests();
+                else
+                    FLProcessRequests();
+            }
+            else if (request)
                 VPRequest(vpRequests);
             else
                 vpRequestsIn |= vpRequests;
