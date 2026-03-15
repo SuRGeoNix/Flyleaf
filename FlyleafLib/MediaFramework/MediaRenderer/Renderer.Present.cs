@@ -168,6 +168,7 @@ public unsafe partial class Renderer
                 {
                     if (vpRequestsIn != VPRequestType.Empty)
                     {
+                        vpRequestsIn &= ~VPRequestType.Resize;
                         if (VideoProcessor == VideoProcessors.D3D11)
                             D3ProcessRequests();
                         else
