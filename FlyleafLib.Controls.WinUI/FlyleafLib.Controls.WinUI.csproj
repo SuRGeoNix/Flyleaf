@@ -5,8 +5,8 @@
 		<UseWinUI>true</UseWinUI>
 		<Nullable>enable</Nullable>
 		<Authors>SuRGeoNix</Authors>
-		<Version>1.3.2</Version>
-		<Copyright>SuRGeoNix © 2025</Copyright>
+		<Version>1.3.3</Version>
+		<Copyright>SuRGeoNix © 2026</Copyright>
 		<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
 		<PackageIcon>Flyleaf.png</PackageIcon>
 		<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
