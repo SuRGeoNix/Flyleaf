@@ -272,6 +272,11 @@ public class Config : NotifyPropertyChanged
         bool _SeekAccurate;
 
         /// <summary>
+        /// Allows off-screen (e.g. when minimized) snapshots but might affect performance
+        /// </summary>
+        public bool     SnapshotAlways              { get; set; }
+
+        /// <summary>
         /// Snapshot encoding will be used (valid formats bmp, png, jpg/jpeg)
         /// </summary>
         public string   SnapshotFormat              { get ;set; } = "bmp";

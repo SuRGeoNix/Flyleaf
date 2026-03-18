@@ -161,8 +161,21 @@ public unsafe partial class Renderer
             lastRenderAt = DateTime.UtcNow.Ticks;
 
             if (!SwapChain.CanPresent)
-                return true;
+            {
+                if (Config.Player.SnapshotAlways)
+                    lock (lockRenderLoops)
+                    {
+                        if (VideoProcessor == VideoProcessors.D3D11)
+                            D3ProcessRequests();
+                        else
+                            FLProcessRequests();
 
+                        Frames.SetRendererFrame(frame);
+                    }
+
+                return true;
+            }
+            
             lock (lockRenderLoops)
             {
                 if (VideoProcessor == VideoProcessors.D3D11)
