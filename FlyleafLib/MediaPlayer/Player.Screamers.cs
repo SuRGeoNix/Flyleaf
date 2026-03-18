@@ -291,11 +291,10 @@ unsafe partial class Player
             {
                 Renderer.PresentPlay();
                 prevFrame?.Dispose();
+                UpdateCurTime(vFrame.Timestamp, false);
             }
             else
                 vFrame.Dispose();
-
-            UpdateCurTime(vFrame.Timestamp, false);
         }
 
         vFrame = null;

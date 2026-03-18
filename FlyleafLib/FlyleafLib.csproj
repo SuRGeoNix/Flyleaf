@@ -8,17 +8,20 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.10.2</Version>
+	<Version>3.10.3</Version>
 	<Authors>SuRGeoNix</Authors>
-	<Copyright>SuRGeoNix © 2025</Copyright>
+	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
 	<PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
 	<PackageTags>flyleaf flyleaflib video audio media player engine framework download extract ffmpeg vortice directx</PackageTags>
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Player.ScreamerZeroLatency: Fixes a critical issue with the new Video Frame Cache
-		- Engine.Config: Introduces KeepDisplayActive and allows -by disabling it- the system/display to sleep if required
+		- FlyleafHost: Fixes a COM Exception issue during Drag &amp; Drop
+		- Player: Introduces TakeSnapshotToBitmapSource
+		- Render: Fixes an issue with BackColor not properly updating (mainly for D3D11VP)
+		- Render: Stability improvements
+		- RunThreadBase: Stability improvements
 	</PackageReleaseNotes>
   </PropertyGroup>
 

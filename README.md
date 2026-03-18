@@ -1,4 +1,4 @@
-﻿# *Flyleaf v3.9*: Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)
+﻿# *Flyleaf v3.10*: Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)
 
 ![alt text](Images/Flyleafv3.6.png)
 
@@ -55,6 +55,7 @@
 - *Video Processors <sub>(FlyleafVP / D3D11VP)</sub>*
 - *VSync*
 - *Zero-Copy <sub>(Crops with vertex shader)</sub>*
+- *Split-Frame / Alpha Packing <sub>(Special technique to support alpha with hardware acceleration)</sub>*
 
 ### **Audio**
 - *Enable / Disable*
