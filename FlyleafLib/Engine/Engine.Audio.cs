@@ -123,6 +123,8 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
             {
                 List<AudioEndpoint> curs     = [];
                 List<AudioEndpoint> removed  = [];
+               //Declare TargetDeviceId so we can access while device changes and set it accordingly
+                string targetDeviceId = null;
 
                 lock (lockDevices)
                 {
@@ -164,25 +166,38 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
                         Devices.Remove(device);
                 }
 
-                var defaultDevice =  deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                if (defaultDevice != null && CurrentDevice.Id != defaultDevice.Id)
-                {
-                    CurrentDevice.Id    = defaultDevice.Id;
-                    CurrentDevice.Name  = defaultDevice.FriendlyName;
-                    PropertyChanged?.Invoke(this, new(nameof(CurrentDevice)));
-                }
+                  var defaultDevice = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+
+  if (defaultDevice != null)
+  {
+      targetDeviceId = defaultDevice.Id;
+  }
+    // OceanCyan: Switched to a proactive default device sync in Task.Run below.
+//Only switch if Id has actually changed. This makes sure even if device is connected and removed repetitively, infinite loops do not occur.
+    if (targetDeviceId != null && targetDeviceId != CurrentDevice.Id)
+  {
+      Task.Run(() =>
+      {
+      //give time to refresh and then set
+          Thread.Sleep(300);
+          SetDevice(targetDeviceId);
+      });
+  }
 
                 // Fall back to DefaultDevice *Non-UI thread otherwise will freeze (not sure where and why) during xaudio.Dispose()
-                if (removed.Count > 0)
-                    Task.Run(() =>
-                    {
-                        foreach(var device in removed)
-                        {
-                            foreach(var player in Engine.Players)
-                                if (player.Audio.Device == device)
-                                    player.Audio.Device = DefaultDevice;
-                        }
-                    });
+              
+// This old logic only triggered on 'removed', whereas the new logic now handles both additons and removals of audio devices to the hardware by syncing to the current Windows default.
+
+                   //if (removed.Count > 0)
+    //    Task.Run(() =>
+    //    {
+    //        foreach(var device in removed)
+    //        {
+    //            foreach(var player in Engine.Players)
+    //                if (player.Audio.Device == device)
+    //                    player.Audio.Device = DefaultDevice;
+    //        }
+    //    });
             }
         });
     }
