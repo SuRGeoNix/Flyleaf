@@ -225,17 +225,20 @@ public static class Engine
     }
     internal static void DisposePlayer(int playerId)
     {
+        Player player;
+        Log.Trace($"Disposing {playerId}");
+
         lock (Players)
         {
-            Log.Trace($"Disposing {playerId}");
             int pos = GetPlayerPos(playerId);
             if (pos == -1) return;
 
-            var player = Players[pos];
-            player.DisposeInternal();
+            player = Players[pos];
             Players.RemoveAt(pos);
-            Log.Trace($"Disposed {playerId}");
         }
+
+        player.DisposeInternal();
+        Log.Trace($"Disposed {playerId}");
     }
 
     internal static void StartThread()
