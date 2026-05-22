@@ -197,7 +197,7 @@ public class Audio : NotifyPropertyChanged
         {
             if (Engine.Audio.Failed)
             {
-                Config.Audio.Enabled = false;
+                Task.Run(() => { Config.Audio.Enabled = false; }); // Deadlock during Stop (same thread with RunThread)
                 return;
             }
 
