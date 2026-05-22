@@ -825,10 +825,13 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     {
         if (e.OriginalSource == Owner && IsAttached)
         {
-            rectInitLast = rectIntersectLast = Rect.Empty;
-            DpiX = e.NewDpi.DpiScaleX;
-            DpiY = e.NewDpi.DpiScaleY;
-            ResizeRatio();
+            Dispatcher.InvokeAsync(() =>
+            {   // #692 - Dispatcher/Delay required to ensure it will catch the update
+                rectInitLast = rectIntersectLast = Rect.Empty;
+                DpiX = e.NewDpi.DpiScaleX;
+                DpiY = e.NewDpi.DpiScaleY;
+                ResizeRatio();
+            });
         }
     }
 
