@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.10.3</Version>
+	<Version>3.10.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- FlyleafHost: Fixes a COM Exception issue during Drag &amp; Drop
-		- Player: Introduces TakeSnapshotToBitmapSource
-		- Render: Fixes an issue with BackColor not properly updating (mainly for D3D11VP)
-		- Render: Stability improvements
-		- RunThreadBase: Stability improvements
+		- Audio: Fixes a deadlock issue when no audio devices exist
+		- Config.Player: Introduces SnapshotAlways to allow off-screen snapshots
+		- Config.VP: Fixes default back color transparency
+		- Engine: Fixes a possible deadlock during players disposal
+		- FlyleafHost.Wpf: Fixes a DPI issue
+		- Renderer: Adds support for off-screen snapshots
+		- Renderer.D3D11: Fixes an issue with WARP device
 	</PackageReleaseNotes>
   </PropertyGroup>
 
