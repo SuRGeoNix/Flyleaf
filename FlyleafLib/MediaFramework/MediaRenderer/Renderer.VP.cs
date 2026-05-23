@@ -317,6 +317,41 @@ public unsafe partial class Renderer : IVP
             yZoomPixels = newHeight - (height - sideYPixels);
         }
 
+        if (ucfg.RestrictPanning)
+        {
+            // Don't let the user pan or zoom outside of half the video's height
+            int newY = (int)(y - yZoomPixels * ucfg.zoomCenter.Y);
+            int bottom = newHeight + newY;
+            if (newY > height / 2d)
+            {
+                y = (int)((height / 2d) + yZoomPixels * ucfg.zoomCenter.Y);
+                ucfg.panYOffset = (y - SideYPixels / 2) / (double)height;
+            }
+            else if (bottom < height / 2d)
+            {
+                int newBottom = (int)(height / 2d);
+                int newNewY = newBottom - newHeight;
+                y = (int)(newNewY + yZoomPixels * ucfg.zoomCenter.Y);
+                ucfg.panYOffset = (y - SideYPixels / 2) / (double)height;
+            }
+
+            // Don't let the user pan or zoom outside of half the video's width
+            int newX = (int)(x - xZoomPixels * ucfg.zoomCenter.X);
+            int right = newWidth + newX;
+            if (newX > width / 2d)
+            {
+                x = (int)((width / 2d) + xZoomPixels * ucfg.zoomCenter.X);
+                ucfg.panXOffset = (x - SideXPixels / 2) / (double)width;
+            }
+            else if (right < width / 2d)
+            {
+                int newRight = (int)(width / 2d);
+                int newNewX = newRight - newWidth;
+                x = (int)(newNewX + xZoomPixels * (float)ucfg.zoomCenter.X);
+                ucfg.panXOffset = (x - SideXPixels / 2) / (double)width;
+            }
+        }
+
         Viewport = new((int)(x - xZoomPixels * (float)ucfg.zoomCenter.X), (int)(y - yZoomPixels * (float)ucfg.zoomCenter.Y), newWidth, newHeight);
         ViewportChanged?.Invoke(this, new());
     }
@@ -509,6 +544,16 @@ public class VPConfig : NotifyPropertyChanged
     public int              ZoomOffset              { get => zoomOffset;            set { Set(ref zoomOffset,       value); } }
     int zoomOffset = 10;
 
+    /// <summary>
+    /// Restrict panning of the video outside of half the video width or height
+    /// </summary>
+    public bool RestrictPanning { get; set; } = true;
+
+    /// <summary>
+    /// Reset pan and zoom level when zooming out to less than 100%
+    /// </summary>
+    public bool ResetPanOnZoomedOut { get; set; } = true;
+
     public void ResetViewport()
         => SetViewport(0, 0, 0, 100, new(0.5, 0.5), CropRect.Empty, AspectRatio.Keep, false, false);
 
@@ -557,6 +602,12 @@ public class VPConfig : NotifyPropertyChanged
          */
 
         zoom = SnapToInt(zoom);
+        if (ResetPanOnZoomedOut && zoom <= 1.0)
+        {
+            zoom = 1.0;
+            panXOffset = 0;
+            panYOffset = 0;
+        }
         Viewport view = vp.Viewport;
 
         if (!(p.X >= view.X && p.X < view.X + view.Width && p.Y >= view.Y && p.Y < view.Y + view.Height)) // Point out of view
