@@ -14,8 +14,15 @@ public unsafe class VideoFrame : FrameBase
     public VideoFrame Prev, Next;
     public long Id;
 
+    // Renderer that created this frame; used to deterministically untrack/dispose frames that
+    // escaped the VideoCache when the renderer switches source or is torn down (see Renderer.DisposeLiveFrames).
+    internal MediaRenderer.Renderer Owner;
+
     public void Dispose()
     {   // Manually dipose only when not in VC
+        Owner?.UntrackFrame(this);
+        Owner = null;
+
         Prev = Next = null; // Could null Next.Prev here
 
         DisposeTexture();

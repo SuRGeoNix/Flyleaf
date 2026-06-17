@@ -183,6 +183,15 @@ unsafe partial class Player
             if (CanInfo) Log.Info($"Opening {url_iostream}");
 
             Initialize(Status.Opening, false); // TBR: (false) Avoid initializing the decoder twice (might cause issues)
+
+            // Re-opening a source without a full Stop()/Renderer reset keeps the previous source's
+            // decoded frames alive (cache + frames that escaped it), so their D3D11 surfaces pile up
+            // across switches. Dispose them deterministically BEFORE the new decoder allocates, then
+            // Flush so D3D11 actually destroys them and the driver can reclaim the memory.
+            VideoDecoder?.DisposeFrames();
+            Renderer?.DisposeLiveFrames();
+            Renderer?.FlushContext();
+
             var args2 = decoder.Open(url_iostream, defaultPlaylistItem, defaultVideo, defaultAudio, defaultSubtitles);
 
             args.Url        = args2.Url;
