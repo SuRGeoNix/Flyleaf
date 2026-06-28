@@ -162,6 +162,7 @@
             </MenuItem>
             <MenuItem Header="H. Flip" IsCheckable="True" IsChecked="{Binding Config.Video.HFlip}"/>
             <MenuItem Header="V. Flip" IsCheckable="True" IsChecked="{Binding Config.Video.VFlip}"/>
+            <MenuItem Header="360 Panoramic" IsCheckable="True" IsChecked="{Binding Config.Video.Pano360.Enabled}"/>
             <MenuItem Header="Reverse Playback" IsCheckable="True" IsChecked="{Binding Player.ReversePlayback}"/>
             <MenuItem Header="Loop Playback"    IsCheckable="True" IsChecked="{Binding Player.LoopPlayback}"/>
             <MenuItem Header="{Binding Player.Speed}" HeaderStringFormat="Speed (x{0})">
