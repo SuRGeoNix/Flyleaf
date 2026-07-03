@@ -513,28 +513,30 @@ public unsafe class Demuxer : RunThreadBase
                  *  - avformat_flush will release it but messes with the initial seek position (possible seek to start to force it releasing it but still we have the delay)
                  *
                  * Consider
-                 *  - DVD/Blu-ray/mpegts only? (possible HLS -> mpegts?*)
+                 *  - DVD/Blu-ray/mpegts only? (possible HLS -> mpegts?*) | seen also with "matroska,webm"
                  *  - Re-open in case of "Consider increasing the value for the 'analyzeduration'" (catch from ffmpeg log)
+                 **
+                 *  Currently disabled to avoid increasing delay/memory and we should try to re-fill info from the decoder (currently from subs renderer)
                  *
                  *  https://github.com/SuRGeoNix/Flyleaf/issues/502
                  */
 
-                if (Name == "mpegts")
-                {
-                    bool requiresMoreAnalyse = false;
+                //if (Name == "mpegts")
+                //{
+                //    bool requiresMoreAnalyse = false;
 
-                    for (int i = 0; i < fmtCtx->nb_streams; i++)
-                        if (fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.HdmvPgsSubtitle ||
-                            fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.DvdSubtitle
-                            )
-                            { requiresMoreAnalyse = true; break; }
+                //    for (int i = 0; i < fmtCtx->nb_streams; i++)
+                //        if (fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.HdmvPgsSubtitle ||
+                //            fmtCtx->streams[i]->codecpar->codec_id == AVCodecID.DvdSubtitle
+                //            )
+                //            { requiresMoreAnalyse = true; break; }
 
-                    if (requiresMoreAnalyse)
-                    {
-                        fmtCtx->probesize = Math.Max(fmtCtx->probesize, 5000 * (long)1024 * 1024); // Bytes
-                        fmtCtx->max_analyze_duration = Math.Max(fmtCtx->max_analyze_duration, 1000 * (long)1000 * 1000); // Mcs
-                    }
-                }
+                //    if (requiresMoreAnalyse)
+                //    {
+                //        fmtCtx->probesize = Math.Max(fmtCtx->probesize, 5000 * (long)1024 * 1024); // Bytes
+                //        fmtCtx->max_analyze_duration = Math.Max(fmtCtx->max_analyze_duration, 1000 * (long)1000 * 1000); // Mcs
+                //    }
+                //}
 
                 ret = avformat_find_stream_info(fmtCtx, null);
                 if (ret == AVERROR_EXIT || Status != Status.Opening || Interrupter.ForceInterrupt == 1) return error = "Cancelled";
@@ -1296,7 +1298,7 @@ public unsafe class Demuxer : RunThreadBase
 
         curReverseStartPts = NoTs;
         Log.Trace($"reverse queue: {curReverseVideoPackets.Count} packets");
-        
+
         // To demux further for buffering (related to BufferDuration)
         int maxQueueSize = 4;
         curReverseSeekOffset = av_rescale_q(3 * 1000 * 10000 / 10, Engine.FFmpeg.AV_TIMEBASE_Q, VideoStream.AVStream->time_base);
@@ -1337,7 +1339,7 @@ public unsafe class Demuxer : RunThreadBase
                     av_packet_unref(packet); gotAVERROR_EXIT = true;
                     continue;
                 }
-                
+
                 // Possible check if interrupt/timeout and we dont seek to reset the backend pb->pos = 0?
                 if (ret != 0)
                 {
@@ -1387,7 +1389,7 @@ public unsafe class Demuxer : RunThreadBase
                         }
                         curReverseStopPts = curReverseStartPts;
                         curReverseStartPts = NoTs;
-                        
+
                         continue;
                     }
                     else if (ret == AVERROR_EXIT && this.IsCustomStream())
@@ -1408,18 +1410,18 @@ public unsafe class Demuxer : RunThreadBase
                 }
 
                 if (VideoStream.StreamIndex != packet->stream_index) { av_packet_unref(packet); continue; }
-                
+
                 if (this.IsCustomStream())
                 {
                     if ((packet->flags & PktFlags.Key) == 0 && curReverseStartPts == NoTs)
-                    {  
+                    {
                         Log.Warn($"packet belong to not completed gop, size {packet->size}");
                         av_packet_unref(packet);
                         continue;
                     }
 
                     if ((packet->flags & PktFlags.Key) != 0)
-                    {   
+                    {
                         gopStartTime = this.PictureGroupTime(VideoTimeUnit.Microseconds);
                         Log.Trace($"new gop started, ts {gopStartTime}, time {TicksToTime(gopStartTime *10)}, packets {curReverseVideoPackets.Count}, stack {curReverseVideoStack.Count}, gop queue {VideoPacketsReverse.Count}");
                     }
@@ -1458,7 +1460,7 @@ public unsafe class Demuxer : RunThreadBase
                         if (CanTrace)
                             Log.Trace($"[reverse] add reverse video packets to video stack ( count {curReverseVideoStack.Count} / {curReverseVideoPackets.Count})");
                         curReverseVideoPackets = [];
-                    }                    
+                    }
                 }
 
                 if (CanTrace)
@@ -1508,7 +1510,7 @@ public unsafe class Demuxer : RunThreadBase
                         curReverseVideoPackets.Add((nint)packet);
                         if (CanTrace)
                             Log.Trace($"[reverse] add packet to reverse packet queue ( count {curReverseVideoPackets.Count})");
- 
+
                         curReverseStopRequestedPts = curReverseStartPts;
                         curReverseStopPts = NoTs;
                         curReverseStartPts = packet->pts;
@@ -1570,7 +1572,7 @@ public unsafe class Demuxer : RunThreadBase
                 curReverseVideoPackets = [];
             }
 
-        }  
+        }
         Log.Debug("RunInternalReverse: End");
     }
 
@@ -1595,7 +1597,7 @@ public unsafe class Demuxer : RunThreadBase
         else
         {
             if (CustomIOContext.stream is ICustomVideoStream custom)
-            {  
+            {
                 long frameTime = (custom.CurrentTimestamp - custom.StartTimestamp) * Microseconds.InOneMillisecond;
                 var stream = AVStreamToStream[packet->stream_index];
                 curReverseStopRequestedPts = (long)((frameTime + Milliseconds.InOneSecond) / stream.Timebase);
@@ -2111,5 +2113,5 @@ public unsafe class PacketQueue : Queue<nint>
 
         if (BufferedDuration < 0)
             BufferedDuration = Count * frameDuration;
-    }    
+    }
 }
