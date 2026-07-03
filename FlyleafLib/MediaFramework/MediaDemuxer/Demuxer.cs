@@ -1192,6 +1192,16 @@ public unsafe class Demuxer : RunThreadBase
 
                     if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
+                    if (this.IsCustomStream() && ret == AVERROR_EXIT)
+                    {
+                        Status = Status.Stopping;
+                        
+                        if (CustomIOContext.stream is ICustomVideoStream stream)
+                            stream.ErrorByStreamingDetected(StreamingErrorCode.DemuxerError);
+                        else
+                            UIInvoke(() => Config.player?.Pause());
+                        break;
+                    }
                     gotAVERROR_EXIT = true;
                     continue;
                 }
@@ -1392,8 +1402,15 @@ public unsafe class Demuxer : RunThreadBase
                     }
                     else if (ret == AVERROR_EXIT && this.IsCustomStream())
                     {
-                        Status = Status.Stopped;
-                        UIInvoke(() => Config.player?.Pause());
+                        Status = Status.Stopping;
+
+                        if (CanWarn)
+                            Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
+
+                        if (CustomIOContext.stream is ICustomVideoStream stream)
+                            stream.ErrorByStreamingDetected(StreamingErrorCode.DemuxerError);
+                        else
+                            UIInvoke(() => Config.player?.Pause());
                         break;
                     }
 

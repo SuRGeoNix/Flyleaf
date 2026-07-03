@@ -39,5 +39,6 @@ public interface ICustomVideoStream
     int Mode { get; set; }
     double SpoolSpeed { get; set; }
     void Play(long timestamp, int playMode, double spoolSpeed);
+    void ErrorByStreamingDetected(StreamingErrorCode errorCode); 
 }
 #nullable disable

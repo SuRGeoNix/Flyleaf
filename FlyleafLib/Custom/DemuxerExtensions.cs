@@ -70,17 +70,10 @@ public unsafe static class DemuxerExtensions
 
         long frameTime = 0;
         if ((packet->flags & PktFlags.Key) != 0)
-        {
             frameTime = demuxer.PictureGroupTime(VideoTimeUnit.Ticks);
-            gopFrameIndex = 0;
-        }
         else
-        {
-            stream.PictureGroupFrameIndex = gopFrameIndex;
             frameTime = demuxer.CurCustomTime(VideoTimeUnit.Ticks);
-        }
-        gopFrameIndex++;
-
+        
         var videoStream = demuxer.AVStreamToStream[packet->stream_index];
         timeBase = videoStream.Timebase;
         long frameDuration = 1_000_000 / demuxer.CustomFramePerSecond();

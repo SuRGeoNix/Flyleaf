@@ -160,7 +160,7 @@ partial class Player
     /// <summary>
     /// Pauses AVS streams
     /// </summary>
-    public void Pause()
+    public virtual void Pause()
     {
         lock (lockActions)
         {
@@ -342,7 +342,7 @@ partial class Player
     /// <summary>
     /// Stops and Closes AVS streams
     /// </summary>
-    public void Stop()
+    public virtual void Stop()
     {
         lock (lockActions)
         {
