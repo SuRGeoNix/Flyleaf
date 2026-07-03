@@ -1,8 +1,8 @@
 ﻿
-public static class StreamingErrorCode
+public enum StreamingErrorCode
 {
-    public static int None = 0;
-    public static int DemuxerError = 1;
-    public static int DecoderError = 2;
-    public static int FrameOrderError = 3; 
+    None = 0,
+    DemuxerError = 1,
+    DecoderError = 2,
+    FrameOrderError = 3 
 }
