@@ -40,6 +40,22 @@
                 <!-- Show/Hide Player's Debug Information -->
                 <Button Content="Show/Hide Debug" Command="{Binding ToggleDebug}" Height="20" Width="110" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="-40"/>
 
+                <!-- 360 Panoramic Controls -->
+                <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Margin="-40 0 0 0">
+                    <CheckBox Content="360 Panoramic" Foreground="Cyan" FontWeight="Bold"
+                              IsChecked="{Binding Player.Config.Video.Pano360.Enabled, Mode=TwoWay}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0 4 0 0">
+                        <TextBlock Text="FOV:" Foreground="White" VerticalAlignment="Center"/>
+                        <Slider Width="100" Minimum="30" Maximum="150" 
+                                Value="{Binding Player.Config.Video.Pano360.Fov, Mode=TwoWay}" 
+                                VerticalAlignment="Center" Margin="4 0"/>
+                        <TextBlock Text="{Binding Player.Config.Video.Pano360.Fov, StringFormat={}{0:F0}°}" 
+                                   Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button Content="Reset View" Width="70" HorizontalAlignment="Left" Margin="0 4 0 0"
+                            Click="Pano360Reset_Click"/>
+                </StackPanel>
+
                 <fl:PlayerDebug VerticalAlignment="Center" HorizontalAlignment="Center"
                                Player="{Binding Player}"
                                BoxColor="#A0000000"

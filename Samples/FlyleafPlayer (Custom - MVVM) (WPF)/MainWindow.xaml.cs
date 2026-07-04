@@ -87,5 +87,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Player.Config.Video.Crop = crop;
     }
 
+    private void Pano360Reset_Click(object sender, RoutedEventArgs e)
+    {
+        Player?.Config.Video.Pano360.Reset();
+    }
+
     public event PropertyChangedEventHandler PropertyChanged;
 }
