@@ -161,7 +161,7 @@ public unsafe partial class Renderer
     }
     bool D3HWConfig()
     {
-        FillPlanes  = D3HWFillPlanes;
+        fillPlanes  = D3HWFillPlanes;
         psCase      = PSCase.HWD3;
 
         d3txtDesc.Width = scfg.txtWidth;
@@ -182,8 +182,8 @@ public unsafe partial class Renderer
         context.VSSetShader(vsSimple);
         vpivd.Texture2D.ArraySlice = 0;
 
-        D3FillPlanesStage   = FillPlanes;
-        FillPlanes          = D3SWFillPlanes;
+        D3FillPlanesStage   = fillPlanes;
+        fillPlanes          = D3SWFillPlanes;
         psCase              = PSCase.SWD3;
         d3txtDesc.Width     = scfg.txtWidth  & ~1u;
         d3txtDesc.Height    = scfg.txtHeight & ~1u;
