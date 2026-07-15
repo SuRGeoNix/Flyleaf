@@ -70,9 +70,9 @@ public unsafe static class DemuxerExtensions
 
         long frameTime = 0;
         if ((packet->flags & PktFlags.Key) != 0)
-            frameTime = demuxer.PictureGroupTime(VideoTimeUnit.Ticks);
-        else
-            frameTime = demuxer.CurCustomTime(VideoTimeUnit.Ticks);
+           demuxer.PictureGroupTime(VideoTimeUnit.Ticks); // synchronizes the current time with the time of the new GOP
+
+        frameTime = demuxer.CurCustomTime(VideoTimeUnit.Ticks);
         
         var videoStream = demuxer.AVStreamToStream[packet->stream_index];
         timeBase = videoStream.Timebase;
