@@ -1064,7 +1064,7 @@ public unsafe class Demuxer : RunThreadBase
                             ret = CustomIOContext.stream.Seek(this.LastCustomTimestamp(VideoTimeUnit.Milliseconds), SeekOrigin.End) > 0 ? 0 : AVERROR_EOF;
                         }
                         else
-                            ret = CustomIOContext.stream.Seek(ticks / 10000, SeekOrigin.Begin) > 0 ? 0 : AVERROR_EOF;
+                            ret = CustomIOContext.stream.Seek(ticks / 10000, SeekOrigin.Begin) >= 0 ? 0 : AVERROR_EOF;
                     }
                     else
                         ret = ticks == StartTime // we should also call this if we seek anywhere within the first Gop
