@@ -28,6 +28,25 @@ public unsafe partial class DecoderContext : PluginHandler
      */
 
     #region Properties
+    /// <summary>
+    /// [Local patch 2026-07-20, MultiAngleVideoPlayer stepfix] Serializes
+    /// stopped-state decode operations that touch the codec/format contexts
+    /// from DIFFERENT threads: the player's seek task (Seek + GetVideoFrame)
+    /// versus frame stepping (VideoDecoder.GetFrame/GetFrameNext via
+    /// Player.ShowFrame/ShowFrameNext/ShowFramePrev). The step functions take
+    /// no internal locks (see the VideoDecoder TBR header) and relied on
+    /// "locks at higher level" — but the seek task runs OUTSIDE
+    /// Player.lockActions, so a step's Flush/decode could run concurrently
+    /// with the seek task's avcodec_send_packet on the SAME AVCodecContext,
+    /// corrupting native state (0xC0000005 / 0xC0000374 / 0xC0000409 —
+    /// reproducible with 3-4 players rapid-stepping while seeks were still
+    /// in flight). This lock is always the OUTERMOST in both paths, so the
+    /// pre-existing (inverted) internal lock orders — DecoderContext.Seek
+    /// takes codecCtx→fmtCtx while GetVideoFrame takes fmtCtx→codecCtx —
+    /// are never composed across threads.
+    /// </summary>
+    public readonly object      StepSeekLock        = new();
+
     public object               Tag                 { get; set; } // Upper Layer Object (eg. Player, Downloader) - mainly for plugins to access it
     public bool                 EnableDecoding      { get; set; }
     public new bool             Interrupt

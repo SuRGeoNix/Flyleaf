@@ -293,12 +293,20 @@ partial class Player
                     }
                     else
                     {
+                        // [Local patch stepfix] Serialized against the frame-step
+                        // paths (see DecoderContext.StepSeekLock). SeekCompleted
+                        // fires OUTSIDE the lock — a subscriber calling back into
+                        // a lockActions-taking API must not deadlock against a
+                        // step holding lockActions and waiting for this lock.
+                        int? seekCompletedMs = null;
+                        lock (decoder.StepSeekLock)
+                        {
                         decoder.PauseDecoders();
                         ret = decoder.Seek(seekData.accurate ? Math.Max(0, seekData.ms - 3000) : seekData.ms, seekData.forward, !seekData.accurate); // 3sec ffmpeg bug for seek accurate when fails to seek backwards (see videodecoder getframe)
                         if (ret < 0)
                         {
                             if (CanWarn) Log.Warn("Seek failed");
-                            SeekCompleted?.Invoke(this, -1);
+                            seekCompletedMs = -1;
                         }
                         else if (!ReversePlayback && CanPlay)
                         {
@@ -310,8 +318,11 @@ partial class Player
                             SubtitlesDemuxer.Start();
                             DataDemuxer.Start();
                             decoder.PauseOnQueueFull();
-                            SeekCompleted?.Invoke(this, seekData.ms);
+                            seekCompletedMs = seekData.ms;
                         }
+                        }
+                        if (seekCompletedMs is int completedMs)
+                            SeekCompleted?.Invoke(this, completedMs);
                     }
 
                     Thread.Sleep(20);

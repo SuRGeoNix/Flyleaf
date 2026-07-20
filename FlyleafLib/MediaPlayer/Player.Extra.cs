@@ -96,6 +96,10 @@ unsafe partial class Player
         lock (lockActions)
         {
             Pause();
+            // [Local patch stepfix] Serialized against the seek task (see
+            // DecoderContext.StepSeekLock).
+            lock (decoder.StepSeekLock)
+            {
             dFrame = null;
             sFrame = null;
             Renderer.SubsDispose();
@@ -112,6 +116,7 @@ unsafe partial class Player
             Renderer.RenderRequest(vFrame);
             UpdateCurTime(vFrame.Timestamp);
             reversePlaybackResync = true;
+            }
         }
     }
 
@@ -133,6 +138,10 @@ unsafe partial class Player
                 UI(() => Status = status);
             }
 
+            // [Local patch stepfix] Serialized against the seek task (see
+            // DecoderContext.StepSeekLock).
+            lock (decoder.StepSeekLock)
+            {
             shouldFlushPrev = true;
             decoder.RequiresResync = true;
 
@@ -162,6 +171,7 @@ unsafe partial class Player
             Renderer.RenderRequest(vFrame);
             UpdateCurTime(vFrame.Timestamp);
             reversePlaybackResync = true;
+            }
         }
     }
     public void ShowFramePrev()
@@ -179,6 +189,10 @@ unsafe partial class Player
                 UI(() => Status = status);
             }
 
+            // [Local patch stepfix] Serialized against the seek task (see
+            // DecoderContext.StepSeekLock).
+            lock (decoder.StepSeekLock)
+            {
             shouldFlushNext = true;
             decoder.RequiresResync = true;
 
@@ -206,6 +220,7 @@ unsafe partial class Player
 
             Renderer.RenderRequest(vFrame);
             UpdateCurTime(vFrame.Timestamp);
+            }
         }
     }
 

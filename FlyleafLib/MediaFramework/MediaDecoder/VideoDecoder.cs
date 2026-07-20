@@ -1092,6 +1092,17 @@ public unsafe class VideoDecoder : DecoderBase
     /// <returns>The next VideoFrame</returns>
     public VideoFrame GetFrameNext()
     {
+        // [Local patch stepfix] ENFORCE the documented contract instead of
+        // trusting callers: after a seek, VideoDemuxer.Start() leaves the
+        // demuxer thread filling queues, and its RunInternal shares fmtCtx AND
+        // the demuxer's single packet field with GetNextPacket — concurrent
+        // av_read_frame on both corrupts native state (AV in av_read_frame,
+        // reproducible with 3-4 players forward-stepping right after seeks).
+        // GetFrame() already pauses both; GetFrameNext was the missing one
+        // (see the TBR header: "Missing locks (e.g. GetFrameNext)").
+        demuxer.Pause();
+        Pause();
+
         checkExtraFrames = true;
 
         if (DecodeFrameNext() == 0)
