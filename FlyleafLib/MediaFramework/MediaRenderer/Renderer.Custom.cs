@@ -77,7 +77,7 @@ public unsafe partial class Renderer
                 AVFrame = customFrame,
                 Timestamp = frame.Timestamp,
             };
-            custom.FillCustomPlanes(this, mFrame);
+            custom.FillCustomPlanes(this, mFrame, out var transformed);
 
             mFrame.AVFrame = null;
             mFrame.Dispose();
@@ -104,7 +104,7 @@ public unsafe partial class Renderer
                 AVFrame = customFrame,
                 Timestamp = frame.Timestamp,
             };
-            custom.FillCustomPlanes(this, mFrame);
+            custom.FillCustomPlanes(this, mFrame, out var transformed);
             mFrame.AVFrame = null;
             mFrame.Dispose();
         }
