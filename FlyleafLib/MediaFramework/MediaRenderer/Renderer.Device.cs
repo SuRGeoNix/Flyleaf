@@ -251,6 +251,7 @@ public unsafe partial class Renderer : NotifyPropertyChanged
             D3Dispose();
             FLDispose();
             CustomSwsDispose();
+            CustomTransformDispose();
 
             if (device2d != null)
             {

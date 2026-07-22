@@ -16,7 +16,7 @@ using MapFlags = Vortice.Direct3D11.MapFlags;
 namespace FlyleafLib.Custom;
 
 public unsafe class FlyleafGpuInjector : IDisposable
-{
+{   
     private ID3D11Texture2D _srcBgraTexture;
     private ID3D11VideoDevice _videoDevice;
     private ID3D11VideoContext _videoContext;
@@ -186,7 +186,7 @@ public unsafe class FlyleafGpuInjector : IDisposable
             int srcStride = bmpData.Stride;
             uint dstStride = mapped.RowPitch;
 
-            // Построчно копируем данные из оперативной памяти в память видеокарты
+            // We copy data from system memory to video card memory line by line.
             for (int y = 0; y < height; y++)
             {
                 Buffer.MemoryCopy(

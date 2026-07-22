@@ -1,7 +1,10 @@
 ﻿using FlyleafLib.Custom;
 using FlyleafLib.MediaFramework.MediaFrame;
 using System.Diagnostics;
+using System.Windows.Media.Media3D;
 using Vortice.Direct2D1;
+using Vortice.Direct3D11;
+using Vortice.DXGI;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 #nullable enable
@@ -9,9 +12,14 @@ public unsafe partial class Renderer
 {
     SwsContext*     swsCustomCtx;
     AVFrame* customFrame;
+    private Vortice.Direct3D11.ID3D11Texture2D _transformedTexture;
+    private uint _transformedWidth;
+    private uint _transformedHeight;
+    private FlyleafGpuInjector _gpuInjector;
     // ZoomOverviewRenderer fields
     public IntPtr SharedTextureHandle { get; set; }
     internal IntPtr lastSharedHandle  = IntPtr.Zero;
+    internal FlyleafGpuInjector? gpuInjector { get; set; }
 
     public event Action? CustomProcessRequests;
     public event Action? CustomSetSize;
@@ -79,6 +87,24 @@ public unsafe partial class Renderer
             };
             custom.FillCustomPlanes(this, mFrame, out var transformed);
 
+            if (transformed is System.Drawing.Bitmap bitmap && device !=  null && context != null)
+            {
+                uint width = (uint)bitmap.Width;
+                uint height = (uint)(bitmap.Height - bitmap.Height %2);
+                if (TransformContextChanged(width, height))
+                    CustomTransformInit(width, height);
+
+                gpuInjector?.InjectBitmapToD3D11Target(
+                    device,
+                    context,
+                    _transformedTexture,
+                    bitmap
+                    );
+
+                frame.Dispose();
+                frame.Texture = [_transformedTexture];
+            }
+
             mFrame.AVFrame = null;
             mFrame.Dispose();
             av_frame_free(&sw_frame);
@@ -111,6 +137,12 @@ public unsafe partial class Renderer
     }
     private bool ContextChanged(AVFrame*  frame) => customFrame == null ? true : customFrame->width != frame->width || customFrame->height != frame->height || customFrame->format != frame->format;
 
+    private bool TransformContextChanged(uint width, uint height)
+    {
+        var ret = _gpuInjector is null ? true : _transformedTexture == null ? true : false;
+
+        return ret || _transformedWidth != width || _transformedHeight != height;
+    }
     private void CustomSwsInit(int width, int height, int pxFormat)
     {
         CustomSwsDispose();
@@ -144,6 +176,36 @@ public unsafe partial class Renderer
             sws_freeContext(swsCustomCtx);
             swsCustomCtx = null;
         }
+    }
+
+    private void CustomTransformInit(uint width, uint height)
+    {
+        CustomTransformDispose();
+        
+        var texDesc = new Texture2DDescription
+        {
+            Width = (uint)width,
+            Height = (uint)height,
+            MipLevels = 1,
+            ArraySize = 1,
+            Format = Format.NV12, 
+            SampleDescription = new SampleDescription(1, 0),
+            Usage = ResourceUsage.Default,
+            BindFlags = BindFlags.ShaderResource,
+            CPUAccessFlags = CpuAccessFlags.None,
+            MiscFlags = ResourceOptionFlags.None
+        };
+        _transformedTexture = device.CreateTexture2D(texDesc);
+        _transformedWidth = width;
+        _transformedHeight = height;
+    }
+
+    private void CustomTransformDispose()
+    {
+        _transformedWidth = 0;
+        _transformedHeight = 0;
+        _transformedTexture?.Dispose();
+        _gpuInjector?.Dispose();
     }
 }
 #nullable disable
