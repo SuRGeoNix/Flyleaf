@@ -575,6 +575,19 @@ public unsafe class VideoDecoder : DecoderBase
 
         return AVERROR_EAGAIN;
     }
+    internal int SendDrainAVPacket()
+    {   /* [Local patch eofdrain 3.10.4.3] Enters codec draining (send_packet
+         * with null) so the delay-pipeline tail — including the stream's FINAL
+         * frame — becomes receivable. GetVideoFrame's accurate seek otherwise
+         * returns at demuxer EOF with those frames stuck in the codec, so an
+         * end-of-stream target presented NOTHING (while CurTime echoed the
+         * seek and SeekCompleted fired). The frame-step path already drains
+         * (DecodeFrameNext); this gives the seek path the same ability. The
+         * next Flush/Seek's avcodec_flush_buffers resets draining state.
+         * Bypasses SendAVPacket deliberately: its key-packet validation
+         * dereferences the packet, and a drain request has none. */
+        return avcodec_send_packet(codecCtx, null);
+    }
     internal int RecvAVFrame()
     {   /* Receives frame from the decoder (avcodec_receive_frame) | Should be used as tied to Run Loop (vPackets[] / Frames[])
          * - Key Frame Validation

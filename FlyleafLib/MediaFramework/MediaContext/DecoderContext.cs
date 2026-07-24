@@ -525,6 +525,10 @@ public unsafe partial class DecoderContext : PluginHandler
                 if (ret != 0)
                 {
                     av_packet_free(&packet);
+                    // [Local patch eofdrain] Demuxer EOF with the target still
+                    // ahead: the remaining frames (incl. the FINAL frame) sit
+                    // in the codec's delay pipeline — drain before giving up.
+                    DrainVideoFrame(timestamp);
                     return;
                 }
             }
@@ -623,6 +627,36 @@ public unsafe partial class DecoderContext : PluginHandler
         } // While
 
         return;
+    }
+
+    /* [Local patch eofdrain 3.10.4.3] GetVideoFrame's EOF tail: the demuxer is
+     * exhausted but the accurate-seek target lies within the codec's delay
+     * pipeline (always true for the stream's FINAL frame). Without this, an
+     * end-of-stream seek presented NOTHING while every readback claimed
+     * success. Mirrors the frame-step path's drain (VideoDecoder.
+     * DecodeFrameNext) with GetVideoFrame's own acceptance test. Caller
+     * already holds lockFmtCtx + lockCodecCtx. */
+    private void DrainVideoFrame(long timestamp)
+    {
+        if (VideoDecoder.SendDrainAVPacket() != 0)
+            return;
+
+        while (VideoDemuxer.VideoStream != null && !Interrupt)
+        {
+            if (VideoDecoder.RecvAVFrame() != 0)
+                return; // fully drained (EOF), needs input (EAGAIN) or critical
+
+            // Accurate seek with +- half frame distance (same test as above).
+            if (timestamp != -1 && !VideoDemuxer.IsLive && (long)(VideoDecoder.frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) < timestamp)
+            {
+                av_frame_unref(VideoDecoder.frame);
+                continue;
+            }
+
+            int ret = VideoDecoder.FillEnqueueAVFrame();
+            if (ret == 0 || ret == -1234)
+                return; // success or critical — done either way
+        }
     }
     public new void Dispose()
     {
