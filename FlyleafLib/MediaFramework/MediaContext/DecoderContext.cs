@@ -28,6 +28,25 @@ public unsafe partial class DecoderContext : PluginHandler
      */
 
     #region Properties
+    /// <summary>
+    /// [Local patch 2026-07-20, MultiAngleVideoPlayer stepfix] Serializes
+    /// stopped-state decode operations that touch the codec/format contexts
+    /// from DIFFERENT threads: the player's seek task (Seek + GetVideoFrame)
+    /// versus frame stepping (VideoDecoder.GetFrame/GetFrameNext via
+    /// Player.ShowFrame/ShowFrameNext/ShowFramePrev). The step functions take
+    /// no internal locks (see the VideoDecoder TBR header) and relied on
+    /// "locks at higher level" — but the seek task runs OUTSIDE
+    /// Player.lockActions, so a step's Flush/decode could run concurrently
+    /// with the seek task's avcodec_send_packet on the SAME AVCodecContext,
+    /// corrupting native state (0xC0000005 / 0xC0000374 / 0xC0000409 —
+    /// reproducible with 3-4 players rapid-stepping while seeks were still
+    /// in flight). This lock is always the OUTERMOST in both paths, so the
+    /// pre-existing (inverted) internal lock orders — DecoderContext.Seek
+    /// takes codecCtx→fmtCtx while GetVideoFrame takes fmtCtx→codecCtx —
+    /// are never composed across threads.
+    /// </summary>
+    public readonly object      StepSeekLock        = new();
+
     public object               Tag                 { get; set; } // Upper Layer Object (eg. Player, Downloader) - mainly for plugins to access it
     public bool                 EnableDecoding      { get; set; }
     public new bool             Interrupt
@@ -506,6 +525,10 @@ public unsafe partial class DecoderContext : PluginHandler
                 if (ret != 0)
                 {
                     av_packet_free(&packet);
+                    // [Local patch eofdrain] Demuxer EOF with the target still
+                    // ahead: the remaining frames (incl. the FINAL frame) sit
+                    // in the codec's delay pipeline — drain before giving up.
+                    DrainVideoFrame(timestamp);
                     return;
                 }
             }
@@ -604,6 +627,36 @@ public unsafe partial class DecoderContext : PluginHandler
         } // While
 
         return;
+    }
+
+    /* [Local patch eofdrain 3.10.4.3] GetVideoFrame's EOF tail: the demuxer is
+     * exhausted but the accurate-seek target lies within the codec's delay
+     * pipeline (always true for the stream's FINAL frame). Without this, an
+     * end-of-stream seek presented NOTHING while every readback claimed
+     * success. Mirrors the frame-step path's drain (VideoDecoder.
+     * DecodeFrameNext) with GetVideoFrame's own acceptance test. Caller
+     * already holds lockFmtCtx + lockCodecCtx. */
+    private void DrainVideoFrame(long timestamp)
+    {
+        if (VideoDecoder.SendDrainAVPacket() != 0)
+            return;
+
+        while (VideoDemuxer.VideoStream != null && !Interrupt)
+        {
+            if (VideoDecoder.RecvAVFrame() != 0)
+                return; // fully drained (EOF), needs input (EAGAIN) or critical
+
+            // Accurate seek with +- half frame distance (same test as above).
+            if (timestamp != -1 && !VideoDemuxer.IsLive && (long)(VideoDecoder.frame->pts * VideoStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) < timestamp)
+            {
+                av_frame_unref(VideoDecoder.frame);
+                continue;
+            }
+
+            int ret = VideoDecoder.FillEnqueueAVFrame();
+            if (ret == 0 || ret == -1234)
+                return; // success or critical — done either way
+        }
     }
     public new void Dispose()
     {

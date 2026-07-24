@@ -575,6 +575,19 @@ public unsafe class VideoDecoder : DecoderBase
 
         return AVERROR_EAGAIN;
     }
+    internal int SendDrainAVPacket()
+    {   /* [Local patch eofdrain 3.10.4.3] Enters codec draining (send_packet
+         * with null) so the delay-pipeline tail — including the stream's FINAL
+         * frame — becomes receivable. GetVideoFrame's accurate seek otherwise
+         * returns at demuxer EOF with those frames stuck in the codec, so an
+         * end-of-stream target presented NOTHING (while CurTime echoed the
+         * seek and SeekCompleted fired). The frame-step path already drains
+         * (DecodeFrameNext); this gives the seek path the same ability. The
+         * next Flush/Seek's avcodec_flush_buffers resets draining state.
+         * Bypasses SendAVPacket deliberately: its key-packet validation
+         * dereferences the packet, and a drain request has none. */
+        return avcodec_send_packet(codecCtx, null);
+    }
     internal int RecvAVFrame()
     {   /* Receives frame from the decoder (avcodec_receive_frame) | Should be used as tied to Run Loop (vPackets[] / Frames[])
          * - Key Frame Validation
@@ -1092,6 +1105,17 @@ public unsafe class VideoDecoder : DecoderBase
     /// <returns>The next VideoFrame</returns>
     public VideoFrame GetFrameNext()
     {
+        // [Local patch stepfix] ENFORCE the documented contract instead of
+        // trusting callers: after a seek, VideoDemuxer.Start() leaves the
+        // demuxer thread filling queues, and its RunInternal shares fmtCtx AND
+        // the demuxer's single packet field with GetNextPacket — concurrent
+        // av_read_frame on both corrupts native state (AV in av_read_frame,
+        // reproducible with 3-4 players forward-stepping right after seeks).
+        // GetFrame() already pauses both; GetFrameNext was the missing one
+        // (see the TBR header: "Missing locks (e.g. GetFrameNext)").
+        demuxer.Pause();
+        Pause();
+
         checkExtraFrames = true;
 
         if (DecodeFrameNext() == 0)
