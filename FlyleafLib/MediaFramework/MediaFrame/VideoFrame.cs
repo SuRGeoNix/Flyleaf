@@ -13,7 +13,7 @@ public unsafe class VideoFrame : FrameBase
 
     public VideoFrame Prev, Next;
     public long Id;
-
+    public bool IsCustomTexture;
     public void Dispose()
     {   // Manually dipose only when not in VC
         Prev = Next = null; // Could null Next.Prev here

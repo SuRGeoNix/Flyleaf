@@ -1,14 +1,11 @@
-﻿using System;
+﻿using FlyleafLib.MediaFramework.MediaFrame;
 using System.Drawing;
 using System.Drawing.Imaging;
-using Vortice;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
-using Vortice.Mathematics;
 using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
 using ID3D11DeviceContext = Vortice.Direct3D11.ID3D11DeviceContext;
 using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
-using ID3D11VideoContext = Vortice.Direct3D11.ID3D11VideoContext;
 using ID3D11VideoDevice = Vortice.Direct3D11.ID3D11VideoDevice;
 using MapFlags = Vortice.Direct3D11.MapFlags;
 
@@ -17,17 +14,10 @@ namespace FlyleafLib.Custom;
 
 public unsafe class FlyleafGpuInjector : IDisposable
 {   
-    private ID3D11Texture2D _srcBgraTexture;
-    private ID3D11VideoDevice _videoDevice;
-    private ID3D11VideoContext _videoContext;
-    private ID3D11VideoProcessor _videoProcessor;
-    private ID3D11VideoProcessorEnumerator _videoEnumerator;
-
     private SwsContext* _swsContext;
 
     private int _cachedWidth = 0;
     private int _cachedHeight = 0;
-
 
     private void InitSwsContext(int width, int height, AVPixelFormat dstFormat)
     {
@@ -48,60 +38,73 @@ public unsafe class FlyleafGpuInjector : IDisposable
         if (_swsContext != null)
             sws_freeContext(_swsContext);
     }
-    private void InitVideoProcessor(ID3D11Device device, ID3D11DeviceContext context, int width, int height)
+
+    public static unsafe void ConvertRgbToD3D11NV12(
+        BitmapData rgbBitmapData,
+        MappedSubresource mappedResource,
+        int width,
+        int height)
     {
-        // Clean up old resources if the size has changed.
-        ReleaseResources();
+        int gpuPitch = (int)mappedResource.RowPitch;
 
-        // 1. Creating an intermediate dynamic BGRA texture for the Bitmap.
-        var texDesc = new Texture2DDescription
+        byte* pDstBase = (byte*)mappedResource.DataPointer.ToPointer();
+        byte* pSrcBase = (byte*)rgbBitmapData.Scan0.ToPointer();
+
+        int srcStride = rgbBitmapData.Stride;
+
+        // NV12 is a YUV 4:2:0 format.
+        // We need to calculate Y for each pixel.
+        // But U and V are calculated ONCE for a 2x2 pixel block.
+
+        // 1. Parallel calculation of the Y-plane (line-by-line)
+        Parallel.For(0, height, y =>
         {
-            Width = (uint)width,
-            Height = (uint)height,
-            MipLevels = 1,
-            ArraySize = 1,
-            Format = Format.B8G8R8A8_UNorm, // Corresponds to Format32bppArgb
-            SampleDescription = new SampleDescription(1, 0),
-            Usage = ResourceUsage.Dynamic,
-            BindFlags = BindFlags.ShaderResource,
-            CPUAccessFlags = CpuAccessFlags.Write,
-            MiscFlags = ResourceOptionFlags.None
-        };
-        _srcBgraTexture = device.CreateTexture2D(texDesc);
+            byte* pSrcRow = pSrcBase + (y * srcStride);
+            byte* pDstYRow = pDstBase + (y * gpuPitch);
 
-        // 2. Obtain the interfaces for working with the video converter.
-        _videoDevice = device.QueryInterface<ID3D11VideoDevice>();
-        _videoContext = context.QueryInterface<ID3D11VideoContext>();
+            for (int x = 0; x < width; x++)
+            {
+                // In GDI+ Format32bppRgb, the byte order is B, G, R, A.
+                byte b = pSrcRow[x * 4 + 0];
+                byte g = pSrcRow[x * 4 + 1];
+                byte r = pSrcRow[x * 4 + 2];
 
-        // 3. Configuring the conversion (from BGRA to NV12)
-        var videoDesc = new VideoProcessorContentDescription
+                // BT.601 formula for Y (luma) Full Range [0..255]
+                int yVal = (int)(0.299f * r + 0.587f * g + 0.114f * b);
+
+                // Write to the Y plane of the texture
+                pDstYRow[x] = (byte)Math.Clamp(yVal, 0, 255);
+            }
+        });
+
+        // 2. Parallel calculation of the UV plane (stepping by one row and one pixel)
+        byte* pDstUVBase = pDstBase + (height * gpuPitch); // UV starts strictly after Y
+        int uvHeight = height / 2;
+
+        Parallel.For(0, uvHeight, uvY =>
         {
-            InputFrameFormat = VideoFrameFormat.Progressive,
-            InputFrameRate = new Rational(60, 1),
-            InputWidth = (uint)width,
-            InputHeight = (uint)height,
-            OutputFrameRate = new Rational(60, 1),
-            OutputWidth = (uint)width,
-            OutputHeight = (uint)height,
-            Usage = VideoUsage.PlaybackNormal
-        };
+            int srcY = uvY * 2; // Take the top row from the 2x2 block
+            byte* pSrcRow = pSrcBase + (srcY * srcStride);
+            byte* pDstUVRow = pDstUVBase + (uvY * gpuPitch);
 
-        _videoEnumerator = _videoDevice.CreateVideoProcessorEnumerator(videoDesc);
-        _videoProcessor = _videoDevice.CreateVideoProcessor(_videoEnumerator, 0);
+            for (int uvX = 0; uvX < width / 2; uvX++)
+            {
+                int srcX = uvX * 2; // Take the left pixel from the 2x2 block
 
-        _cachedWidth = width;
-        _cachedHeight = height;
+                byte b = pSrcRow[srcX * 4 + 0];
+                byte g = pSrcRow[srcX * 4 + 1];
+                byte r = pSrcRow[srcX * 4 + 2];
+
+                // BT.601 formulas for U and V with a +128 offset
+                int uVal = (int)(-0.1687f * r - 0.3313f * g + 0.5f * b + 128);
+                int vVal = (int)(0.5f * r - 0.4187f * g - 0.0813f * b + 128);
+
+                // In NV12, the U and V channels are interleaved: U, V, U, V...
+                pDstUVRow[uvX * 2 + 0] = (byte)Math.Clamp(uVal, 0, 255);
+                pDstUVRow[uvX * 2 + 1] = (byte)Math.Clamp(vVal, 0, 255);
+            }
+        });
     }
-
-    private void ReleaseResources()
-    {
-        _srcBgraTexture?.Dispose();
-        _videoProcessor?.Dispose();
-        _videoEnumerator?.Dispose();
-        _videoContext?.Dispose();
-        _videoDevice?.Dispose();
-    }
-
 
     public unsafe void InjectBitmapToFlyleafPlanes(
         Bitmap transformedBitmap,
@@ -152,105 +155,128 @@ public unsafe class FlyleafGpuInjector : IDisposable
         }
     }
 
-
-
-    public unsafe void InjectBitmapToD3D11Target(
+    public unsafe void InjectBitmapToNv12Texture(
         ID3D11Device device,
         ID3D11DeviceContext context,
-        ID3D11Texture2D flyleafTargetTexture,
-        Bitmap transformedBitmap)
+        ID3D11VideoDevice videoDevice,
+        ID3D11VideoProcessorEnumerator videoProcessorEnumerator,
+        Bitmap srcBitmap,
+        ref VideoFrame frame
+        )
     {
-        int width = transformedBitmap.Width;
-        int height = transformedBitmap.Height; // Our image: width == height
+        int width = srcBitmap.Width;
+        int height = srcBitmap.Height; // Our image: width == height
 
-        // If the size has changed or this is the first frame, initialize the pipeline.
-        if (_srcBgraTexture == null || _cachedWidth != width || _cachedHeight != height)
+        if (width % 2 != 0 || height % 2 != 0)
         {
-            InitVideoProcessor(device, context, width, height);
+            throw new ArgumentException("The width and height of NV12 must be even numbers.");
         }
+        
+        Texture2DDescription desc = new Texture2DDescription
+        {
+            Width = (uint)width,
+            Height = (uint)height,
+            MipLevels = 1,
+            ArraySize = 1,
+            Format = Format.NV12, 
+            SampleDescription = new SampleDescription(1, 0),
+            Usage = ResourceUsage.Dynamic,              
+            BindFlags = BindFlags.ShaderResource | BindFlags.Decoder,
+            CPUAccessFlags = CpuAccessFlags.Write,       // Enabling write access.
+            MiscFlags = ResourceOptionFlags.None
+        };
 
-        // STEP 1: Loading pixels from the Bitmap into our intermediate BGRA texture.
-        BitmapData bmpData = transformedBitmap.LockBits(
-        new Rectangle(0, 0, width, height),
-        ImageLockMode.ReadOnly,
-        PixelFormat.Format32bppArgb
-    );
+        ID3D11Texture2D nv12Texture = device.CreateTexture2D(desc);
 
+        BitmapData rgbData = srcBitmap.LockBits(
+            new Rectangle(0, 0, srcBitmap.Width, srcBitmap.Height),
+            ImageLockMode.ReadOnly,
+            PixelFormat.Format32bppArgb
+        );
+        MappedSubresource mappedTex = context.Map(nv12Texture, 0, MapMode.WriteDiscard, MapFlags.None);
         try
         {
-            // Map the GPU texture for writing from the CPU.
-            MappedSubresource mapped = context.Map(_srcBgraTexture, 0, MapMode.WriteDiscard, MapFlags.None);
+            ConvertRgbToD3D11NV12(rgbData, mappedTex, width, height);
+        }
+        finally
+        {
+            context.Unmap(nv12Texture, 0);
+            srcBitmap.UnlockBits(rgbData);
+        }
 
-            byte* srcPtr = (byte*)bmpData.Scan0;
-            byte* dstPtr = (byte*)mapped.DataPointer;
-            int srcStride = bmpData.Stride;
-            uint dstStride = mapped.RowPitch;
+        VideoProcessorInputViewDescription vpivd       = new()
+        {
+            FourCC          = 0, // TBR: if required to specify this (uint)Format.NV12,
+            ViewDimension   = VideoProcessorInputViewDimension.Texture2D,
+            Texture2D       = new() { MipSlice = 0, ArraySlice = 0 }
+        };
+    
+        frame.DisposeTexture();
+        frame.Texture = [nv12Texture];
+        frame.VPIV = videoDevice.CreateVideoProcessorInputView(nv12Texture, videoProcessorEnumerator, vpivd);
+        frame.IsCustomTexture = true;
+    }
 
-            // We copy data from system memory to video card memory line by line.
-            for (int y = 0; y < height; y++)
-            {
-                Buffer.MemoryCopy(
-                    srcPtr + (y * srcStride),
-                    dstPtr + (y * dstStride),
-                    dstStride,
-                    Math.Min(srcStride, dstStride)
-                );
-            }
+    public unsafe void InjectBitmapToVideoFrameAsShadowResource(
+        ID3D11Device device,        
+        Bitmap transformedBitmap,
+        ref VideoFrame frame)
+    {   
+        int width = transformedBitmap.Width;
+        int height = transformedBitmap.Height;
 
-            context.Unmap(_srcBgraTexture, 0);
+        var texDesc = new Texture2DDescription
+        {
+            Width = (uint)width,
+            Height = (uint)height,
+            MipLevels = 1,
+            ArraySize = 1,
+            Format = Format.B8G8R8A8_UNorm, // Corresponds to Format32bppArgb
+            SampleDescription = new SampleDescription(1, 0),
+            Usage = ResourceUsage.Immutable,
+            BindFlags = BindFlags.ShaderResource,
+            CPUAccessFlags = CpuAccessFlags.None
+        };
+
+        // Loading pixels from the Bitmap into BGRA texture.
+        var rect = new Rectangle(0, 0, transformedBitmap.Width, transformedBitmap.Height);
+
+        BitmapData bmpData = transformedBitmap.LockBits(
+            rect,
+            ImageLockMode.ReadOnly,
+            PixelFormat.Format32bppArgb
+        );
+
+        try
+        {   
+            var texture = device.CreateTexture2D(
+                texDesc,
+                new[]
+                {
+                    new SubresourceData
+                    {
+                        DataPointer = bmpData.Scan0,
+                        RowPitch = (uint)bmpData.Stride
+                    }
+                });
+
+            var srv = device.CreateShaderResourceView(texture);
+
+            frame.DisposeTexture();
+            frame.Texture = new[] { texture };
+            frame.SRV = new[] { srv };
+            frame.VPIV = null;
+            frame.IsCustomTexture = true;
         }
         finally
         {
             transformedBitmap.UnlockBits(bmpData);
         }
-
-        // STEP 2: Hardware Blit (BGRA -> NV12 conversion to Flyleaf texture)
-        // We create temporary View interfaces for the current conversion operation.
-        // description for input View (BGRA texture)
-        var inputDesc = new VideoProcessorInputViewDescription
-        {
-            FourCC          = 0,
-            ViewDimension   = VideoProcessorInputViewDimension.Texture2D,
-            Texture2D       = new() { MipSlice = 0, ArraySlice = 0 }
-        };        
-
-        ID3D11VideoProcessorInputView inputView = _videoDevice.CreateVideoProcessorInputView(
-            _srcBgraTexture,
-            _videoEnumerator,
-            inputDesc
-        );
-
-        // 2. description for output View (Target NV12 texture Flyleaf)
-        var outputDesc = new VideoProcessorOutputViewDescription
-        {
-            ViewDimension = VideoProcessorOutputViewDimension.Texture2D // Направление на 2D текстуру
-        };
-        outputDesc.Texture2D.MipSlice = 0;
-
-        ID3D11VideoProcessorOutputView outputView = _videoDevice.CreateVideoProcessorOutputView(
-            flyleafTargetTexture,
-            _videoEnumerator,
-            outputDesc
-        );
-
-
-        var stream = new VideoProcessorStream
-        {
-            Enable = true,
-            InputSurface = inputView
-        };
-
-        // The graphics card transforms the format and writes pixels to Flyleaf in a single pass.
-        _videoContext.VideoProcessorBlt(_videoProcessor, outputView, 0, 1, new[] { stream });
-
-        // We release the local Views (without touching the texture itself or the processor!).
-        inputView.Dispose();
-        outputView.Dispose();
     }
+
 
     public void Dispose()
     {
-        ReleaseResources();
         ReleaseSwsContext();
     }
 }

@@ -19,8 +19,7 @@ public unsafe partial class Renderer
     // ZoomOverviewRenderer fields
     public IntPtr SharedTextureHandle { get; set; }
     internal IntPtr lastSharedHandle  = IntPtr.Zero;
-    internal FlyleafGpuInjector? gpuInjector { get; set; }
-
+    
     public event Action? CustomProcessRequests;
     public event Action? CustomSetSize;
     public event Action<VideoFrame>? RenderChild;
@@ -39,7 +38,7 @@ public unsafe partial class Renderer
             zoom = MaximalZoom;
         return zoom;
     }
-    public void CustomFillPlanesAction(VideoFrame frame)
+    public void CustomFillPlanesAction(ref VideoFrame frame)
     {
         if (player is not ICustomPlayer custom)
             return;
@@ -50,9 +49,9 @@ public unsafe partial class Renderer
                 return;
 
             if (VideoDecoder.VideoAccelerated)
-                CustomFillPlanesHW(custom, frame);
+                CustomFillPlanesHW(custom, ref frame);
             else
-                CustomFillPlanesSWS(custom, frame);
+                CustomFillPlanesSWS(custom, ref frame);
         }
         catch (Exception ex)
         {
@@ -62,7 +61,7 @@ public unsafe partial class Renderer
         Log.Debug($"[CP] CustomFillPlanesAction, elapsed time {elapsedTime.TotalMicroseconds / (double) 1000} ms");
     }
 
-    private void CustomFillPlanesHW(ICustomPlayer custom, VideoFrame frame)
+    private void CustomFillPlanesHW(ICustomPlayer custom, ref VideoFrame frame)
     {
         var sw_frame   = av_frame_alloc();
         int ret     = av_hwframe_transfer_data(sw_frame, frame.AVFrame, 0);
@@ -90,28 +89,31 @@ public unsafe partial class Renderer
             if (transformed is System.Drawing.Bitmap bitmap && device !=  null && context != null)
             {
                 uint width = (uint)bitmap.Width;
-                uint height = (uint)(bitmap.Height - bitmap.Height %2);
+                uint height = (uint)bitmap.Height;
+                
                 if (TransformContextChanged(width, height))
                     CustomTransformInit(width, height);
-
-                gpuInjector?.InjectBitmapToD3D11Target(
+                                
+                _gpuInjector?.InjectBitmapToNv12Texture(
                     device,
                     context,
-                    _transformedTexture,
-                    bitmap
-                    );
-
-                frame.Dispose();
-                frame.Texture = [_transformedTexture];
+                    vd,
+                    ve,
+                    bitmap,
+                    ref frame
+                    );                
+                
+                Log.Trace("bitmap injected");
             }
 
             mFrame.AVFrame = null;
             mFrame.Dispose();
             av_frame_free(&sw_frame);
+            transformed?.Dispose();  
         }
     }
 
-    private void CustomFillPlanesSWS(ICustomPlayer custom, VideoFrame frame)
+    private void CustomFillPlanesSWS(ICustomPlayer custom, ref VideoFrame frame)
     {
         if (swsCustomCtx == null || ContextChanged(frame.AVFrame))
             CustomSwsInit(frame.AVFrame->width, frame.AVFrame->height, frame.AVFrame->format);
@@ -191,11 +193,13 @@ public unsafe partial class Renderer
             Format = Format.NV12, 
             SampleDescription = new SampleDescription(1, 0),
             Usage = ResourceUsage.Default,
-            BindFlags = BindFlags.ShaderResource,
+            BindFlags = BindFlags.ShaderResource | BindFlags.RenderTarget,
             CPUAccessFlags = CpuAccessFlags.None,
             MiscFlags = ResourceOptionFlags.None
         };
         _transformedTexture = device.CreateTexture2D(texDesc);
+        
+        _gpuInjector = new FlyleafGpuInjector();
         _transformedWidth = width;
         _transformedHeight = height;
     }

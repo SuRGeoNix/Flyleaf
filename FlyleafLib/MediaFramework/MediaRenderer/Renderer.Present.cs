@@ -1,9 +1,8 @@
-﻿using SharpGen.Runtime;
+﻿using FlyleafLib.MediaFramework.MediaFrame;
+using SharpGen.Runtime;
 using Vortice.DXGI;
-
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 using ResultCode = Vortice.DXGI.ResultCode;
-
-using FlyleafLib.MediaFramework.MediaFrame;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -100,6 +99,17 @@ public unsafe partial class Renderer
 
                     if (Frames.RendererFrame != null)
                     {
+                        if (Frames.RendererFrame.IsCustomTexture)
+                        {
+                            Log.Trace($"Renderer present custom texture, vpiv {Frames.RendererFrame.VPIV != null}");
+                            var desc = Frames.RendererFrame.Texture[0].Description;
+                            if (d3txtDesc.Width != desc.Width || d3txtDesc.Height != desc.Height)
+                            {
+                                d3txtDesc.Width = desc.Width;
+                                d3txtDesc.Height = desc.Height;
+                                D3SetViewport(ControlWidth, ControlHeight);
+                            }
+                        }
                         D3Render(Frames.RendererFrame, false);
                         needsClear = false;
                         RenderChild?.Invoke(Frames.RendererFrame);
