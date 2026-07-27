@@ -25,7 +25,7 @@ public unsafe class FlyleafGpuInjector : IDisposable
 
         SwsContext* _swsContext = sws_getContext(
                 width, height, AVPixelFormat.Bgra, // Source bitmap format 
-                width, height, dstFormat,                     // Flyleaf Target Format
+                width, height, dstFormat,          // Flyleaf Target Format
                 SwsFlags.Bilinear, null, null, null
             );
 
@@ -106,66 +106,17 @@ public unsafe class FlyleafGpuInjector : IDisposable
         });
     }
 
-    public unsafe void InjectBitmapToFlyleafPlanes(
-        Bitmap transformedBitmap,
-        byte** dstData,
-        int* dstLinesize,
-        AVFrame* frame,
-        AVPixelFormat dstFormat)
-    {
-        int width = transformedBitmap.Width;
-        int height = transformedBitmap.Height; 
-
-        BitmapData bmpData = transformedBitmap.LockBits(                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
-            new Rectangle(0, 0, width, height),
-            ImageLockMode.ReadOnly,
-            PixelFormat.Format32bppArgb
-        );
-
-        try
-        {
-            if (_swsContext == null || _cachedWidth != width || _cachedHeight != height)
-            {
-                InitSwsContext(width, height, dstFormat);
-            }
-
-            if (_swsContext == null)
-                throw new Exception("Failed to create SwsContext for the renderer.");
-
-            // Preparing pointers to the source data (Bitmap)            
-            byte_ptrArray8 srcData = new byte_ptrArray8();
-            srcData._0 = bmpData.Scan0;
-
-            int_array8 srcLinesize;
-            srcLinesize._[0] = bmpData.Stride;
-
-            sws_scale(
-                _swsContext,
-                srcData.ToRawArray(),
-                srcLinesize.ToArray(),
-                0,
-                height,
-                frame->data.ToRawArray(),
-                frame->linesize.ToArray()
-            );
-        }
-        finally
-        {   
-            transformedBitmap.UnlockBits(bmpData);
-        }
-    }
-
     public unsafe void InjectBitmapToNv12Texture(
         ID3D11Device device,
         ID3D11DeviceContext context,
         ID3D11VideoDevice videoDevice,
         ID3D11VideoProcessorEnumerator videoProcessorEnumerator,
         Bitmap srcBitmap,
-        ref VideoFrame frame
+        VideoFrame frame
         )
     {
         int width = srcBitmap.Width;
-        int height = srcBitmap.Height; // Our image: width == height
+        int height = srcBitmap.Height; 
 
         if (width % 2 != 0 || height % 2 != 0)
         {
@@ -220,7 +171,7 @@ public unsafe class FlyleafGpuInjector : IDisposable
     public unsafe void InjectBitmapToVideoFrameAsShadowResource(
         ID3D11Device device,        
         Bitmap transformedBitmap,
-        ref VideoFrame frame)
+        VideoFrame frame)
     {   
         int width = transformedBitmap.Width;
         int height = transformedBitmap.Height;

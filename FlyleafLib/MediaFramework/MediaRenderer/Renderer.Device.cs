@@ -250,8 +250,8 @@ public unsafe partial class Renderer : NotifyPropertyChanged
             Frames.Dispose();
             D3Dispose();
             FLDispose();
-            CustomSwsDispose();
-            CustomTransformDispose();
+            
+            CustomDispose();
 
             if (device2d != null)
             {

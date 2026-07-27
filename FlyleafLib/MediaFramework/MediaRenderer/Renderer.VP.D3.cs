@@ -241,7 +241,7 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
             Timestamp   = (long)(frame->pts * scfg.Timebase) - VideoDecoder.Demuxer.StartTime,
             VPIV        = vd.CreateVideoProcessorInputView(ffTexture, ve, vpivd)
         };
-        CustomFillPlanesAction(ref mFrame);
+        
         frame = av_frame_alloc();
         return mFrame;
     }

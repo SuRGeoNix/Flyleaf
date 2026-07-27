@@ -705,7 +705,7 @@ color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, floa
                 device.CreateShaderResourceView(ffTexture, srvDesc[0]),
                 device.CreateShaderResourceView(ffTexture, srvDesc[1])],
         };
-        CustomFillPlanesAction(ref mFrame);
+        
         frame = av_frame_alloc();
         return mFrame;
     }
