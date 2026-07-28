@@ -95,7 +95,7 @@ public unsafe class VideoFrameProcessor : IVideoFrameProcessor, IDisposable
                         _gpuInjector?.InjectBitmapToVideoFrameAsShadowResource(
                             device,
                             bitmap,
-                            ref frame
+                            frame
                             );
 
                     Log.Trace("bitmap injected");
