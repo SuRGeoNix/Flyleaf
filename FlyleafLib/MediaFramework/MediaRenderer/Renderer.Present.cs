@@ -98,18 +98,9 @@ public unsafe partial class Renderer
                         return true;
 
                     if (Frames.RendererFrame != null)
-                    {
-                        if (Frames.RendererFrame.IsCustomTexture)
-                        {
-                            Log.Trace($"Renderer present custom texture, vpiv {Frames.RendererFrame.VPIV != null}");
-                            var desc = Frames.RendererFrame.Texture[0].Description;
-                            if (d3txtDesc.Width != desc.Width || d3txtDesc.Height != desc.Height)
-                            {
-                                d3txtDesc.Width = desc.Width;
-                                d3txtDesc.Height = desc.Height;
-                                D3SetViewport(ControlWidth, ControlHeight);
-                            }
-                        }
+                    {   
+                        CheckFrameForTransformation(Frames.RendererFrame);
+                        
                         D3Render(Frames.RendererFrame, false);
                         needsClear = false;
                         RenderChild?.Invoke(Frames.RendererFrame);

@@ -165,7 +165,7 @@ public unsafe class FlyleafGpuInjector : IDisposable
         frame.DisposeTexture();
         frame.Texture = [nv12Texture];
         frame.VPIV = videoDevice.CreateVideoProcessorInputView(nv12Texture, videoProcessorEnumerator, vpivd);
-        frame.IsCustomTexture = true;
+        frame.IsTransformedFrame = true;
     }
 
     public unsafe void InjectBitmapToVideoFrameAsShadowResource(
@@ -217,7 +217,7 @@ public unsafe class FlyleafGpuInjector : IDisposable
             frame.Texture = new[] { texture };
             frame.SRV = new[] { srv };
             frame.VPIV = null;
-            frame.IsCustomTexture = true;
+            frame.IsTransformedFrame = true;
         }
         finally
         {

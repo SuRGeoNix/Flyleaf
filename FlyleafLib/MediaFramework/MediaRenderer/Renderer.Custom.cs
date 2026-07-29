@@ -38,7 +38,22 @@ public unsafe partial class Renderer
     public ID3D11VideoProcessorEnumerator VideoEnunerator => ve;
 
     public IVideoFrameProcessor? VideoFrameProcessor { get; set; }
-    
+
+    private void CheckFrameForTransformation(VideoFrame frame)
+    {
+        if (frame.IsTransformedFrame)
+        {
+            Log.Trace($"Transformed frame, vpiv {frame.VPIV != null}, ctrl {ControlWidth}x{ControlWidth}, viewport{ucfg.vp?.Viewport}, d3txtDesc {d3txtDesc.Width}x{d3txtDesc.Height}, vs {scfg.Width}x{scfg.Height}");
+            var desc = frame.Texture[0].Description;
+            if (d3txtDesc.Width != desc.Width || d3txtDesc.Height != desc.Height)
+            {
+                d3txtDesc.Width = desc.Width;
+                d3txtDesc.Height = desc.Height;
+                D3SetViewport(ControlWidth, ControlHeight);
+            }
+        }
+    }
+
     private void CustomDispose()
     {
         if (VideoFrameProcessor is IDisposable processor)
