@@ -112,7 +112,7 @@ public unsafe class VideoFrameProcessor : IVideoFrameProcessor, IDisposable
         TimeSpan elapsedTime = Stopwatch.GetElapsedTime(startTime);
         Log.Debug($"[CP] CustomFillPlanesAction, elapsed time {elapsedTime.TotalMicroseconds / (double)1000} ms");
 
-        return false;
+        return ret;
     }
 
     private bool CopyDataHW(VideoFrame frame)
