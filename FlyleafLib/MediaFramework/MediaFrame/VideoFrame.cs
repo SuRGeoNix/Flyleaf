@@ -51,5 +51,6 @@ public unsafe class VideoFrame : FrameBase
             VPIV.Dispose();
             VPIV = null;
         }
+        IsTransformedFrame = false;
     }
 }

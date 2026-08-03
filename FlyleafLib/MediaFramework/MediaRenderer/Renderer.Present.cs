@@ -115,15 +115,13 @@ public unsafe partial class Renderer
 
                     if (Frames.RendererFrame != null)
                     {
+                        CheckFrameForTransformation(Frames.RendererFrame);
                         FLRender(Frames.RendererFrame);
                         needsClear = false;
                         RenderChild?.Invoke(Frames.RendererFrame);
                     }
                 }
-
-                CustomProcessRequests?.Invoke();
-                needsClear = CustomProcessRequests == null && needsClear;
-
+                
                 if (needsClear)
                 {
                     if (!Config.Video.ClearScreen)

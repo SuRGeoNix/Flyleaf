@@ -1,6 +1,9 @@
-﻿using FlyleafLib.MediaFramework.MediaFrame;
+﻿using FlyleafLib.MediaFramework.MediaDecoder;
+using FlyleafLib.MediaFramework.MediaFrame;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Windows.Controls;
+using System.Xml.Linq;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
@@ -13,97 +16,45 @@ using MapFlags = Vortice.Direct3D11.MapFlags;
 namespace FlyleafLib.Custom;
 
 public unsafe class FlyleafGpuInjector : IDisposable
-{   
-    private SwsContext* _swsContext;
+{
+    private SwsConverter     _swsConverter;
+   
+    private Texture2DDescription _txtNv12Desc = new Texture2DDescription
+    {   
+        MipLevels = 1,
+        ArraySize = 1,
+        Format = Format.NV12,
+        SampleDescription = new SampleDescription(1, 0),
+        Usage = ResourceUsage.Dynamic,
+        BindFlags = BindFlags.Decoder,
+        CPUAccessFlags = CpuAccessFlags.Write,       // Enabling write access.
+        MiscFlags = ResourceOptionFlags.None
+    };
 
-    private int _cachedWidth = 0;
-    private int _cachedHeight = 0;
-
-    private void InitSwsContext(int width, int height, AVPixelFormat dstFormat)
+    private Texture2DDescription _txtBgraDesc = new Texture2DDescription
     {
-        ReleaseSwsContext();
-
-        SwsContext* _swsContext = sws_getContext(
-                width, height, AVPixelFormat.Bgra, // Source bitmap format 
-                width, height, dstFormat,          // Flyleaf Target Format
-                SwsFlags.Bilinear, null, null, null
-            );
-
-        _cachedWidth = width;
-        _cachedHeight = height;
-    }
-
-    private void ReleaseSwsContext()
+        MipLevels = 1,
+        ArraySize = 1,
+        Format = Format.B8G8R8A8_UNorm, // Corresponds to Format32bppArgb
+        SampleDescription = new SampleDescription(1, 0),
+        Usage = ResourceUsage.Immutable,
+        BindFlags = BindFlags.ShaderResource,
+        CPUAccessFlags = CpuAccessFlags.None
+    };
+    
+    private ShaderResourceViewDescription _descSrvRGB = new ShaderResourceViewDescription
     {
-        if (_swsContext != null)
-            sws_freeContext(_swsContext);
-    }
+        Format = Format.B8G8R8A8_UNorm, 
+        ViewDimension = Vortice.Direct3D.ShaderResourceViewDimension.Texture2D,
+        Texture2D = new() { MipLevels = 1, MostDetailedMip = 0 },
+        Texture2DArray = new Texture2DArrayShaderResourceView{ MipLevels = 1, ArraySize = 1 },
+    };
 
-    public static unsafe void ConvertRgbToD3D11NV12(
-        BitmapData rgbBitmapData,
-        MappedSubresource mappedResource,
-        int width,
-        int height)
+    private SubresourceData[]  _subData     = new SubresourceData[1];
+
+    public void Dispose()
     {
-        int gpuPitch = (int)mappedResource.RowPitch;
-
-        byte* pDstBase = (byte*)mappedResource.DataPointer.ToPointer();
-        byte* pSrcBase = (byte*)rgbBitmapData.Scan0.ToPointer();
-
-        int srcStride = rgbBitmapData.Stride;
-
-        // NV12 is a YUV 4:2:0 format.
-        // We need to calculate Y for each pixel.
-        // But U and V are calculated ONCE for a 2x2 pixel block.
-
-        // 1. Parallel calculation of the Y-plane (line-by-line)
-        Parallel.For(0, height, y =>
-        {
-            byte* pSrcRow = pSrcBase + (y * srcStride);
-            byte* pDstYRow = pDstBase + (y * gpuPitch);
-
-            for (int x = 0; x < width; x++)
-            {
-                // In GDI+ Format32bppRgb, the byte order is B, G, R, A.
-                byte b = pSrcRow[x * 4 + 0];
-                byte g = pSrcRow[x * 4 + 1];
-                byte r = pSrcRow[x * 4 + 2];
-
-                // BT.601 formula for Y (luma) Full Range [0..255]
-                int yVal = (int)(0.299f * r + 0.587f * g + 0.114f * b);
-
-                // Write to the Y plane of the texture
-                pDstYRow[x] = (byte)Math.Clamp(yVal, 0, 255);
-            }
-        });
-
-        // 2. Parallel calculation of the UV plane (stepping by one row and one pixel)
-        byte* pDstUVBase = pDstBase + (height * gpuPitch); // UV starts strictly after Y
-        int uvHeight = height / 2;
-
-        Parallel.For(0, uvHeight, uvY =>
-        {
-            int srcY = uvY * 2; // Take the top row from the 2x2 block
-            byte* pSrcRow = pSrcBase + (srcY * srcStride);
-            byte* pDstUVRow = pDstUVBase + (uvY * gpuPitch);
-
-            for (int uvX = 0; uvX < width / 2; uvX++)
-            {
-                int srcX = uvX * 2; // Take the left pixel from the 2x2 block
-
-                byte b = pSrcRow[srcX * 4 + 0];
-                byte g = pSrcRow[srcX * 4 + 1];
-                byte r = pSrcRow[srcX * 4 + 2];
-
-                // BT.601 formulas for U and V with a +128 offset
-                int uVal = (int)(-0.1687f * r - 0.3313f * g + 0.5f * b + 128);
-                int vVal = (int)(0.5f * r - 0.4187f * g - 0.0813f * b + 128);
-
-                // In NV12, the U and V channels are interleaved: U, V, U, V...
-                pDstUVRow[uvX * 2 + 0] = (byte)Math.Clamp(uVal, 0, 255);
-                pDstUVRow[uvX * 2 + 1] = (byte)Math.Clamp(vVal, 0, 255);
-            }
-        });
+        ConvertorDispose();
     }
 
     public unsafe void InjectBitmapToNv12Texture(
@@ -122,22 +73,16 @@ public unsafe class FlyleafGpuInjector : IDisposable
         {
             throw new ArgumentException("The width and height of NV12 must be even numbers.");
         }
-        
-        Texture2DDescription desc = new Texture2DDescription
-        {
-            Width = (uint)width,
-            Height = (uint)height,
-            MipLevels = 1,
-            ArraySize = 1,
-            Format = Format.NV12, 
-            SampleDescription = new SampleDescription(1, 0),
-            Usage = ResourceUsage.Dynamic,              
-            BindFlags = BindFlags.ShaderResource | BindFlags.Decoder,
-            CPUAccessFlags = CpuAccessFlags.Write,       // Enabling write access.
-            MiscFlags = ResourceOptionFlags.None
-        };
 
-        ID3D11Texture2D nv12Texture = device.CreateTexture2D(desc);
+        if (_txtNv12Desc.Width != (uint)width || _txtNv12Desc.Height != (uint)height)
+        {
+            _txtNv12Desc.Width = (uint)width;
+            _txtNv12Desc.Height = (uint)height;
+        }
+
+        CheckConvertor(width, height, AVPixelFormat.Bgra, AVPixelFormat.Nv12);
+        
+        ID3D11Texture2D nv12Texture = device.CreateTexture2D(_txtNv12Desc);
 
         BitmapData rgbData = srcBitmap.LockBits(
             new Rectangle(0, 0, srcBitmap.Width, srcBitmap.Height),
@@ -147,7 +92,26 @@ public unsafe class FlyleafGpuInjector : IDisposable
         MappedSubresource mappedTex = context.Map(nv12Texture, 0, MapMode.WriteDiscard, MapFlags.None);
         try
         {
-            ConvertRgbToD3D11NV12(rgbData, mappedTex, width, height);
+            // Preparing pointers to the source data (Bitmap)            
+            byte_ptrArray8 srcData = new byte_ptrArray8();
+            srcData._0 = rgbData.Scan0;
+
+            int_array8 srcLinesize;
+            srcLinesize._[0] = rgbData.Stride;
+
+            byte* dst = (byte*) mappedTex.DataPointer;
+            byte_ptrArray8 dstData = new byte_ptrArray8()
+            {
+                _0 = (IntPtr)dst,
+                _1 = (IntPtr)(dst + mappedTex.RowPitch * height),
+            };
+
+            int_array8 dstLinesize = new int_array8()
+            {
+                [0] = (int)mappedTex.RowPitch,
+                [1] = (int)mappedTex.RowPitch,
+            };
+            _swsConverter.Convert(srcData.ToRawArray(), srcLinesize.ToArray(), 0, height, dstData.ToRawArray(), dstLinesize.ToArray());
         }
         finally
         {
@@ -169,29 +133,20 @@ public unsafe class FlyleafGpuInjector : IDisposable
     }
 
     public unsafe void InjectBitmapToVideoFrameAsShadowResource(
-        ID3D11Device device,        
+        ID3D11Device device,
         Bitmap transformedBitmap,
         VideoFrame frame)
     {   
         int width = transformedBitmap.Width;
         int height = transformedBitmap.Height;
 
-        var texDesc = new Texture2DDescription
+        if (_txtBgraDesc.Width != (uint)width || _txtBgraDesc.Height != (uint)height)
         {
-            Width = (uint)width,
-            Height = (uint)height,
-            MipLevels = 1,
-            ArraySize = 1,
-            Format = Format.B8G8R8A8_UNorm, // Corresponds to Format32bppArgb
-            SampleDescription = new SampleDescription(1, 0),
-            Usage = ResourceUsage.Immutable,
-            BindFlags = BindFlags.ShaderResource,
-            CPUAccessFlags = CpuAccessFlags.None
-        };
+            _txtBgraDesc.Width = (uint)width;
+            _txtBgraDesc.Height = (uint)height;
+        }
 
-        // Loading pixels from the Bitmap into BGRA texture.
         var rect = new Rectangle(0, 0, transformedBitmap.Width, transformedBitmap.Height);
-
         BitmapData bmpData = transformedBitmap.LockBits(
             rect,
             ImageLockMode.ReadOnly,
@@ -199,35 +154,50 @@ public unsafe class FlyleafGpuInjector : IDisposable
         );
 
         try
-        {   
-            var texture = device.CreateTexture2D(
-                texDesc,
-                new[]
-                {
-                    new SubresourceData
-                    {
-                        DataPointer = bmpData.Scan0,
-                        RowPitch = (uint)bmpData.Stride
-                    }
-                });
-
-            var srv = device.CreateShaderResourceView(texture);
-
+        {
             frame.DisposeTexture();
-            frame.Texture = new[] { texture };
-            frame.SRV = new[] { srv };
+
+            _subData[0].RowPitch = (uint)bmpData.Stride;
+            _subData[0].DataPointer = bmpData.Scan0;
+
+            ID3D11Texture2D txtBGRA  = device.CreateTexture2D(_txtBgraDesc, _subData);
+            var srv = device.CreateShaderResourceView(txtBGRA, _descSrvRGB);
+
+            frame.SRV = [srv];
             frame.VPIV = null;
             frame.IsTransformedFrame = true;
+
+            txtBGRA.Dispose();
         }
         finally
-        {
+        {   
             transformedBitmap.UnlockBits(bmpData);
+            
         }
     }
-
-
-    public void Dispose()
+        
+    private void CheckConvertor(int width, int height, AVPixelFormat srcFormat, AVPixelFormat dstFormat)
     {
-        ReleaseSwsContext();
+        if (_swsConverter is not SwsConverter)
+        {
+            ConvertorInit(width, height, srcFormat, dstFormat);
+        }
+        _swsConverter.CheckContext(width, height, srcFormat, width, height, dstFormat);
+    }
+    private void ConvertorInit(int width, int height, AVPixelFormat srcFormat, AVPixelFormat dstFormat)
+    {
+        _swsConverter = new (
+                    width,
+                    height,
+                    srcFormat,
+                    width,
+                    height,
+                    dstFormat);
+    }
+
+    private void ConvertorDispose()
+    {   
+        _swsConverter?.Dispose();
+        _swsConverter = null;
     }
 }

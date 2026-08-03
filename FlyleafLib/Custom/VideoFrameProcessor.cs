@@ -1,30 +1,18 @@
-﻿using FlyleafLib.MediaFramework.MediaDecoder;
-using FlyleafLib.MediaFramework.MediaFrame;
+﻿using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using Vortice.Direct3D11;
-using Vortice.DXGI;
 using ID3D11VideoDevice = Vortice.Direct3D11.ID3D11VideoDevice;
 
 namespace FlyleafLib.Custom;
-
+#nullable enable
 public unsafe class VideoFrameProcessor : IVideoFrameProcessor, IDisposable
 {
     private readonly ICustomPlayer? _player;
-    private SwsContext*     swsCtx;
+    private readonly FlyleafGpuInjector _gpuInjector;
+    private SwsConverter? _swsConverter;
     private AVFrame* swsFrame;
-    private Renderer _renderer; 
-    private Vortice.Direct3D11.ID3D11Texture2D _transformedTexture;
-    private uint _transformedWidth;
-    private uint _transformedHeight;
-    private FlyleafGpuInjector _gpuInjector;
+    private Renderer? _renderer;    
     internal LogHandler? Log;
 
     public VideoFrameProcessor(Player player)
@@ -32,21 +20,24 @@ public unsafe class VideoFrameProcessor : IVideoFrameProcessor, IDisposable
         if (player is ICustomPlayer customPlayer)
         {
             _player = customPlayer;
+            _renderer = player.Renderer;
             Log = new(("[#" + player.PlayerId + "]").PadRight(8, ' ') + " [FrameProcessor] ");
         }
         else
             _player = null;
+
+        _gpuInjector = new FlyleafGpuInjector();
     }
     public void Dispose()
     {
         SwsDispose();
-        TransformDispose();
     }
 
     public bool Process(Renderer renderer, VideoFrame frame)
     {
         bool ret = false;
-        _renderer = renderer;
+        if (renderer != _renderer)
+            _renderer = renderer;
 
         if (_player is not ICustomPlayer custom || !custom.CustomHandlerEnabled)
             return ret;
@@ -66,51 +57,58 @@ public unsafe class VideoFrameProcessor : IVideoFrameProcessor, IDisposable
                     AVFrame = swsFrame,
                     Timestamp = frame.Timestamp,
                 };
-                custom.FillCustomPlanes(renderer, mFrame, out var transformed);
 
-                var device = renderer.Device;
-                var context = renderer.DeviceContext;
-                var vd = renderer.VideoDevice;
-                var ve = renderer.VideoEnunerator;
-
-                if (transformed is System.Drawing.Bitmap bitmap && device != null && context != null)
-                {
-                    uint width = (uint)bitmap.Width;
-                    uint height = (uint)bitmap.Height;
-
-                    if (TransformContextChanged(width, height))
-                        TransformInit(width, height);
-
-                    if (renderer.VideoDecoder.VideoAccelerated && vd != null && ve != null)
+                var toSkip = !custom.FillCustomPlanes(renderer, mFrame, out var transformed);
+                Log?.Trace($"toSkip {toSkip}, transformed {transformed is not null}, size {transformed?.Width}x{transformed?.Height}");
+                try
+                {   
+                    lock (renderer.lockDevice)
                     {
-                        _gpuInjector?.InjectBitmapToNv12Texture(
-                            device,
-                            context,
-                            vd,ve,
-                            bitmap,
-                            frame
-                            );
+                        var device = renderer.Device;
+                        var context = renderer.DeviceContext;
+                        var vd = renderer.VideoDevice;                        
+                        var ve = renderer.VideoEnumerator;
+
+                        if (transformed is System.Drawing.Bitmap bitmap && device != null && context != null)
+                        {
+                            uint width = (uint)bitmap.Width;
+                            uint height = (uint)bitmap.Height;
+
+                            if (frame.VPIV != null && vd != null && ve != null)
+                            {
+                                _gpuInjector.InjectBitmapToNv12Texture(
+                                    device,
+                                    context,
+                                    vd, ve,
+                                    bitmap,
+                                    frame
+                                    );
+                            }
+                            else if (frame.SRV.Length > 0)
+                            {
+                                _gpuInjector.InjectBitmapToVideoFrameAsShadowResource(
+                                    device,
+                                    bitmap,
+                                    frame
+                                    );
+                            }
+                        }
                     }
-                    else
-                        _gpuInjector?.InjectBitmapToVideoFrameAsShadowResource(
-                            device,
-                            bitmap,
-                            frame
-                            );
-
-                    Log.Trace("bitmap injected");
                 }
-
-                mFrame.AVFrame = null;
-                mFrame.Dispose();
+                finally
+                {
+                    transformed?.Dispose();
+                    mFrame.AVFrame = null;
+                    mFrame.Dispose();
+                }
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex.Message);
+            Log?.Error(ex.Message);
         }
         TimeSpan elapsedTime = Stopwatch.GetElapsedTime(startTime);
-        Log.Debug($"[CP] CustomFillPlanesAction, elapsed time {elapsedTime.TotalMicroseconds / (double)1000} ms");
+        Log?.Trace($"[CP] CustomFillPlanesAction, elapsed time {elapsedTime.TotalMicroseconds / (double)1000} ms");
 
         return ret;
     }
@@ -119,54 +117,49 @@ public unsafe class VideoFrameProcessor : IVideoFrameProcessor, IDisposable
     {
         var sw_frame   = av_frame_alloc();
         int ret     = av_hwframe_transfer_data(sw_frame, frame.AVFrame, 0);
+        try
+        {
+            if (ret != 0)
+                return false;
 
-        if (swsCtx == null || ContextChanged(sw_frame))
-            SwsInit(sw_frame->width, sw_frame->height, sw_frame->format);
+            if (ContextChanged(sw_frame))
+                SwsInit(sw_frame->width, sw_frame->height, sw_frame->format);
 
-        ret = sws_scale(swsCtx,
-                sw_frame->data.ToRawArray(),
-                sw_frame->linesize.ToArray(),
-                0,
-                sw_frame->height,
-                swsFrame->data.ToRawArray(),
-                swsFrame->linesize.ToArray());
+            if (_swsConverter is not SwsConverter converter)
+                return false;
 
+            ret = converter.Convert(sw_frame, 0, swsFrame->data.ToRawArray(),swsFrame->linesize.ToArray());
 
+        }
+        finally
+        {
+            av_frame_free(ref sw_frame);
+        }
         return ret > 0;
     }
 
     private bool CopyDataSW(VideoFrame frame)
     {
-        if (swsCtx == null || ContextChanged(frame.AVFrame))
+        if (ContextChanged(frame.AVFrame))
             SwsInit(frame.AVFrame->width, frame.AVFrame->height, frame.AVFrame->format);
 
-        int ret = sws_scale(swsCtx,
-                        frame.AVFrame->data.ToRawArray(),
-                        frame.AVFrame->linesize.ToArray(),
-                        0,
-                        frame.AVFrame->height,
-                        swsFrame->data.ToRawArray(),
-                        swsFrame->linesize.ToArray());
-        return ret > 0;
+        if (_swsConverter is not SwsConverter converter)
+            return false;
+
+       return converter.Convert(frame.AVFrame, 0, swsFrame->data.ToRawArray(),swsFrame->linesize.ToArray()) > 0;
     }
 
-    private bool ContextChanged(AVFrame* frame) => swsFrame == null ? true : swsFrame->width != frame->width || swsFrame->height != frame->height || swsFrame->format != frame->format;
+    private bool ContextChanged(AVFrame* frame)=> _swsConverter == null || swsFrame == null ? true : swsFrame->width != frame->width || swsFrame->height != frame->height || swsFrame->format != frame->format;
 
-    private bool TransformContextChanged(uint width, uint height)
-    {
-        var ret = _gpuInjector is null ? true : _transformedTexture == null ? true : false;
-
-        return ret || _transformedWidth != width || _transformedHeight != height;
-    }
     private void SwsInit(int width, int height, int pxFormat)
     {
         SwsDispose();
 
-        swsCtx = sws_getContext(
+        _swsConverter = new (
                     width, height,
                     (AVPixelFormat)pxFormat,
                     width, height,
-                    AVPixelFormat.Bgra, SwsFlags.None, null, null, null);
+                    AVPixelFormat.Bgra);
 
         AllocateSwsFrame(width, height);
     }
@@ -186,42 +179,8 @@ public unsafe class VideoFrameProcessor : IVideoFrameProcessor, IDisposable
             av_frame_free(ref swsFrame);
             swsFrame = null;
         }
-        if (swsCtx != null)
-        {
-            sws_freeContext(swsCtx);
-            swsCtx = null;
-        }
-    }
-
-    private void TransformInit(uint width, uint height)
-    {
-        TransformDispose();
-
-        var texDesc = new Texture2DDescription
-        {
-            Width = (uint)width,
-            Height = (uint)height,
-            MipLevels = 1,
-            ArraySize = 1,
-            Format = Format.NV12,
-            SampleDescription = new SampleDescription(1, 0),
-            Usage = ResourceUsage.Default,
-            BindFlags = BindFlags.ShaderResource | BindFlags.RenderTarget,
-            CPUAccessFlags = CpuAccessFlags.None,
-            MiscFlags = ResourceOptionFlags.None
-        };
-        _transformedTexture = _renderer.Device.CreateTexture2D(texDesc);
-
-        _gpuInjector = new FlyleafGpuInjector();
-        _transformedWidth = width;
-        _transformedHeight = height;
-    }
-
-    private void TransformDispose()
-    {
-        _transformedWidth = 0;
-        _transformedHeight = 0;
-        _transformedTexture?.Dispose();
-        _gpuInjector?.Dispose();
+        _swsConverter?.Dispose();
+        _swsConverter = null;
     }
 }
+#nullable disable

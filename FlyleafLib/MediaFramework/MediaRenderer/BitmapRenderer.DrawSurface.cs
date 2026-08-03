@@ -266,7 +266,7 @@ public partial class BitmapRenderer : NotifyPropertyChanged, IDisposable
 
         var bbWidth  = _d2dSourceBitmap.PixelSize.Width;
         var bbHeight = _d2dSourceBitmap.PixelSize.Height;
-        _curRatio = bbWidth / bbHeight;
+        _curRatio = bbWidth / (double)bbHeight;
 
         SetViewport(ControlWidth, ControlHeight);
 

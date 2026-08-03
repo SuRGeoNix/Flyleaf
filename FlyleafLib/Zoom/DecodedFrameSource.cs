@@ -19,6 +19,7 @@ namespace FlyleafLib.Zoom
     internal unsafe class DecodedFrameSource : IDisposable
     {
         private readonly Renderer _parentRenderer;
+        private readonly object _lock = new object();
         public IntPtr SharedTextureHandle { get; private set; }
         public bool HasValidFrame { get; private set; }
 
@@ -55,7 +56,7 @@ namespace FlyleafLib.Zoom
 
             if (_decoder.Renderer is not Renderer)
                 return;
-            lock (_device)
+            lock (_lock)
             {
                 _decoder.Renderer.RenderChild += OnRenderFrame;
             }
@@ -73,7 +74,7 @@ namespace FlyleafLib.Zoom
             if (decoder.Renderer is not Renderer)
                 return;
             _parentRenderer = decoder.Renderer;
-            lock (device)
+            lock (_lock)
             {
                 _parentRenderer.RenderChild += OnRenderFrame;
             }
@@ -96,6 +97,17 @@ namespace FlyleafLib.Zoom
             {
                 _device = _parentRenderer.Device;
                 _context = _parentRenderer.DeviceContext;
+
+                _vpOutputView?.Dispose();
+                _vpOutputView = null;
+                _convertedTex?.Dispose();
+                _convertedTex = null;
+
+                _videoProcessor?.Dispose();
+                _videoProcessor = null;
+                _vpEnum?.Dispose();
+                _vpEnum = null;
+                _vpReady = false;
 
                 _videoDevice?.Dispose();
                 _videoContext?.Dispose();
@@ -262,11 +274,11 @@ namespace FlyleafLib.Zoom
         }
         private void DisposeLocal()
         {
-            if (_decoder is null || _parentRenderer is not Renderer) return;
+            if (_decoder is null) return;
 
             try
             {
-                lock (_device)
+                lock (_lock)
                 {
                     _parentRenderer.RenderChild -= OnRenderFrame;
                 }

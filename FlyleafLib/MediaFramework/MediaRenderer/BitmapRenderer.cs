@@ -11,6 +11,7 @@ public partial class BitmapRenderer : IVP, ICustomRenderer
 {
     internal LogHandler Log;
     private double _curRatio = 1.0;
+    private ZoomParameters _zoomParameters = new ZoomParameters(1.0, 50.0);
     public VPConfig VideoConfig => ucfg;
     VPConfig ucfg;
     public Renderer Renderer { get; private set; }
@@ -24,16 +25,18 @@ public partial class BitmapRenderer : IVP, ICustomRenderer
     public int SideXPixels => sideXPixels;
     public int SideYPixels => sideYPixels;
 
-    public double InitialZoom { get; set; } = 1.0;
-    public double MaximalZoom { get; set; } = 50.0;
-    public double ValidateZoom(double zoom)
+    public double InitialZoom
     {
-        if (zoom < InitialZoom && InitialZoom >= 0)
-            zoom = InitialZoom;
-        if (zoom > MaximalZoom && MaximalZoom >= 0)
-            zoom = MaximalZoom;
-        return zoom;
+        get => _zoomParameters.InitialZoom;
+        set => _zoomParameters.InitialZoom = value;
     }
+    public double MaximalZoom
+    {
+        get => _zoomParameters.MaximalZoom;
+        set => _zoomParameters.MaximalZoom = value;
+    }
+    public double ValidateZoom(double zoom) => _zoomParameters.ValidateZoom(zoom);
+    
 
     int  sideXPixels, sideYPixels;
 
@@ -42,8 +45,7 @@ public partial class BitmapRenderer : IVP, ICustomRenderer
     VSBufferType            vsData    = new();
 
     VPRequestType   vpRequestsIn, vpRequests; // In: From User | ProcessRequests Copy
-
-    public event Action CustomProcessRequests;
+        
     public event Action CustomSetSize;
 
     public BitmapRenderer(Renderer renderer, VPConfig config, int uniqueId = -1)

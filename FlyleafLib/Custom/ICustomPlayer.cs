@@ -9,7 +9,7 @@ public interface ICustomPlayer
 {
     ZoomOverviewRenderer OverviewRenderer { get; set; }
     bool CustomHandlerEnabled { get; }
-    void FillCustomPlanes(Renderer sender, VideoFrame frame, out Bitmap? transformedBitmap);
+    bool FillCustomPlanes(Renderer sender, VideoFrame frame, out Bitmap? transformedBitmap);
 
     void InitStreamContext(Stream stream);
 }

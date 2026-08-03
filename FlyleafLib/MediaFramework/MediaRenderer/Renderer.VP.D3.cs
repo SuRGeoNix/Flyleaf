@@ -234,7 +234,7 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
             return null;
         }
         vpivd.Texture2D.ArraySlice = (uint)frame->data[1];
-
+        
         VideoFrame mFrame = new()
         {
             AVFrame     = frame,
