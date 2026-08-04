@@ -1,5 +1,7 @@
 ﻿using FlyleafLib.Custom;
 using FlyleafLib.MediaFramework.MediaFrame;
+using System.Windows.Forms;
+using System.Windows.Media.Media3D;
 using Vortice;
 using Vortice.Direct2D1;
 using Vortice.Direct3D11;
@@ -14,7 +16,7 @@ public unsafe partial class Renderer
     // ZoomOverviewRenderer fields
     public IntPtr SharedTextureHandle { get; set; }
     internal IntPtr lastSharedHandle  = IntPtr.Zero;
-    private ZoomParameters _zoomParameters = new(1.0, 50.0);
+    private ZoomConstraint _zoomParameters = new(1.0, 50.0);
     private bool _transformedStream;
     private int _transformedWidth;
     private int _transformedHeight;
@@ -46,10 +48,7 @@ public unsafe partial class Renderer
     public IVideoFrameProcessor? VideoFrameProcessor { get; set; }
 
     void D3SetViewport(int width, int height, int transformedWidth, int transformedHeight)
-    {
-        // if (transformedHeight == _transformedHeight && transformedWidth == _transformedWidth && _transformedStream)
-        //    return;
-
+    {   
         _transformedStream = true;
         _transformedWidth = transformedWidth;
         _transformedHeight = transformedHeight;
@@ -91,6 +90,22 @@ public unsafe partial class Renderer
         double croppedHeight    = _transformedHeight  - crop.Height;
         int dstWidth            = dst.Right  - dst.Left;
         int dstHeight           = dst.Bottom - dst.Top;
+
+        RawRect src = GetVideoProcessorSourceRect(
+            width, height,
+            croppedWidth, croppedHeight,
+            dstWidth, dstHeight
+            );
+
+        vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
+        vc.VideoProcessorSetStreamDestRect(vp, 0, true, dst);
+    }
+
+    private RawRect GetVideoProcessorSourceRect(int width, int height, double croppedWidth, double croppedHeight, int dstWidth, int dstHeight)
+    {
+        Viewport view = Viewport;
+        int right   = (int)(view.X + view.Width);
+        int bottom  = (int)(view.Y + view.Height);
 
         int     cropLeft,   cropTop,    cropRight,  cropBottom;
         int     srcLeft,    srcTop,     srcRight,   srcBottom;
@@ -151,14 +166,11 @@ public unsafe partial class Renderer
         else
             srcLeft = srcTop = srcRight = srcBottom = 0;
 
-        RawRect src = new(
+        return new(
             Math.Max(srcLeft    , 0),
             Math.Max(srcTop     , 0),
             Math.Min(srcRight   , _transformedWidth),
             Math.Min(srcBottom  , _transformedHeight));
-
-        vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
-        vc.VideoProcessorSetStreamDestRect(vp, 0, true, dst);
     }
 
     private void CheckFrameForTransformation(VideoFrame frame)

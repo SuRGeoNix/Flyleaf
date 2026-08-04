@@ -11,7 +11,7 @@ public partial class BitmapRenderer : IVP, ICustomRenderer
 {
     internal LogHandler Log;
     private double _curRatio = 1.0;
-    private ZoomParameters _zoomParameters = new ZoomParameters(1.0, 50.0);
+    private ZoomConstraint _zoomConstraint = new ZoomConstraint(1.0, 50.0);
     public VPConfig VideoConfig => ucfg;
     VPConfig ucfg;
     public Renderer Renderer { get; private set; }
@@ -27,15 +27,15 @@ public partial class BitmapRenderer : IVP, ICustomRenderer
 
     public double InitialZoom
     {
-        get => _zoomParameters.InitialZoom;
-        set => _zoomParameters.InitialZoom = value;
+        get => _zoomConstraint.InitialZoom;
+        set => _zoomConstraint.InitialZoom = value;
     }
     public double MaximalZoom
     {
-        get => _zoomParameters.MaximalZoom;
-        set => _zoomParameters.MaximalZoom = value;
+        get => _zoomConstraint.MaximalZoom;
+        set => _zoomConstraint.MaximalZoom = value;
     }
-    public double ValidateZoom(double zoom) => _zoomParameters.ValidateZoom(zoom);
+    public double ValidateZoom(double zoom) => _zoomConstraint.ValidateZoom(zoom);
     
 
     int  sideXPixels, sideYPixels;

@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace FlyleafLib.Custom;
 
-public struct ZoomParameters
+public struct ZoomConstraint
 {
-    public ZoomParameters(double initZoom, double maxZoom)
+    public ZoomConstraint(double initZoom, double maxZoom)
     {
         InitialZoom = initZoom;
         MaximalZoom = maxZoom;
