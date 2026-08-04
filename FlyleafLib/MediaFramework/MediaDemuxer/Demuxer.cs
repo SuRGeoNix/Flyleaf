@@ -817,7 +817,26 @@ public unsafe class Demuxer : RunThreadBase
             StartTime = 0;
         }
 
-        IsLive = Duration == 0; // TODO: No true for single video stream / image (fix also total frames to 1 if not animated?*) | consider updating it on proper ended? (can we trust ended?)
+        // TODO: No true for single video stream / image (fix also total frames to 1 if not animated?*) | consider updating it on proper ended? (can we trust ended?)
+        if (Duration == 0)
+        {
+            // No duration is the strongest indicator of being live
+            IsLive = true;
+        }
+        else if (avio_size(fmtCtx->pb) <= 0)
+        {
+            // If avio_size returns negative values, it indicates chunked streaming
+            IsLive = true;
+        }
+        else if (fmtCtx->pb->seekable == 0)
+        {
+            // If it's not seekable, then it's most likely live
+            IsLive = true;
+        }
+        else
+        {
+            IsLive = false;
+        }
 
         for (int i = 0; i < fmtCtx->nb_streams; i++)
             AVStreamToStream[i].UpdateDuration();
