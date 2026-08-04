@@ -71,9 +71,6 @@ public unsafe class VideoFrameProcessor : IVideoFrameProcessor, IDisposable
 
                         if (transformed is System.Drawing.Bitmap bitmap && device != null && context != null)
                         {
-                            uint width = (uint)bitmap.Width;
-                            uint height = (uint)bitmap.Height;
-
                             if (frame.VPIV != null && vd != null && ve != null)
                             {
                                 _gpuInjector.InjectBitmapToNv12Texture(
