@@ -271,8 +271,7 @@ public unsafe partial class Renderer : IVP, ICustomRenderer
     void SetSize()
     {
         SwapChain.SetSize();
-        CustomSetSize?.Invoke();
-
+        
         fillRatio = ControlWidth / (double)ControlHeight;
         if (ucfg.AspectRatio == AspectRatio.Fill)
             curRatio = fillRatio;

@@ -20,9 +20,8 @@ public unsafe partial class Renderer
     private bool _transformedStream;
     private int _transformedWidth;
     private int _transformedHeight;
-        
-    public event Action? CustomSetSize;
     public event Action<VideoFrame>? RenderChild;
+    
     public EventHandler<ID2D1DeviceContext>? Overview2DInitialized;
     public EventHandler<ID2D1DeviceContext>? Overview2DDisposing;
     public EventHandler<ID2D1DeviceContext>? Overview2DDraw;

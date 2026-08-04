@@ -45,9 +45,7 @@ public partial class BitmapRenderer : IVP, ICustomRenderer
     VSBufferType            vsData    = new();
 
     VPRequestType   vpRequestsIn, vpRequests; // In: From User | ProcessRequests Copy
-        
-    public event Action CustomSetSize;
-
+    
     public BitmapRenderer(Renderer renderer, VPConfig config, int uniqueId = -1)
     {
         ucfg = config;
