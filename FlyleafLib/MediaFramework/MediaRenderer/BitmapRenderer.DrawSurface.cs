@@ -298,9 +298,7 @@ public partial class BitmapRenderer : NotifyPropertyChanged, IDisposable
     }
 
     private VRect GetSourceRect(int width, int height)
-    {
-        var vp = Viewport;
-                
+    {          
         var zoom = (float)ValidateZoom(ucfg.zoom);
         var newWidth = width / zoom;
         var newHeight = height / zoom;
