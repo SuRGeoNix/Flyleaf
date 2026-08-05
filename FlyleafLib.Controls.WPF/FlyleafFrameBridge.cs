@@ -59,8 +59,15 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
     private ID3D11Texture2D openedTexture;
     private nint openedHandle;
 
+    private long frameGeneration;
+    private long drawnGeneration;
+    private Action onFrameReady;
+
     private int acquireCount;
     private int drawCount;
+
+    /// <summary>Invoked (on the render thread) when a new frame has been acquired.</summary>
+    public void SetFrameReadyCallback(Action callback) => onFrameReady = callback;
 
     public void Initialize(Player player, int controlWidth, int controlHeight)
     {
@@ -137,6 +144,8 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
 
     private void OnBeforePresent()
     {
+        bool notify = false;
+
         lock (sync)
         {
             if (isDisposed || !compositorSet)
@@ -155,10 +164,16 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
             if (crossAdapter)
                 ReadbackToCpu();
 
+            frameGeneration++;
+            notify = true;
+
             int n = ++acquireCount;
             if (n <= 3 || n % 120 == 0)
                 DebugLogger.Print($"[FLB] acquire #{n} {frameWidth}x{frameHeight} cross={crossAdapter}");
         }
+
+        if (notify)
+            onFrameReady?.Invoke();
     }
 
     private void ReadbackToCpu()
@@ -188,34 +203,38 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
         }
     }
 
-    /// <summary>Called from DrawingSurface.Draw on the compositor device.</summary>
-    public void CopyLatestFrameTo(DrawEventArgs args)
+    /// <summary>
+    /// Called from DrawingSurface.Draw on the compositor device. Returns true if a
+    /// new frame was copied into the ColorTexture (caller should then present).
+    /// </summary>
+    public bool CopyLatestFrameTo(DrawEventArgs args)
     {
         try
         {
             var colorTexture = args.Surface.ColorTexture;
             if (colorTexture == null)
-                return;
+                return false;
 
             var ctDesc = colorTexture.Description;
 
             lock (sync)
             {
-                if (isDisposed)
-                    return;
+                if (isDisposed || drawnGeneration == frameGeneration)
+                    return false;
 
                 if (crossAdapter)
                 {
                     if (!hasCpuFrame || cpuWidth != (int)ctDesc.Width || cpuHeight != (int)ctDesc.Height)
-                        return;
+                        return false;
 
                     args.Context.UpdateSubresource(colorTexture, 0, null, cpuBuffer, (uint)cpuRowPitch, 0);
+                    drawnGeneration = frameGeneration;
                     LogDraw();
-                    return;
+                    return true;
                 }
 
                 if (sharedHandle == IntPtr.Zero)
-                    return;
+                    return false;
 
                 if (openedTexture == null || openedHandle != sharedHandle)
                 {
@@ -226,15 +245,18 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
 
                 var srcDesc = openedTexture.Description;
                 if (srcDesc.Width != ctDesc.Width || srcDesc.Height != ctDesc.Height)
-                    return;
+                    return false;
 
                 args.Context.CopyResource(colorTexture, openedTexture);
+                drawnGeneration = frameGeneration;
                 LogDraw();
+                return true;
             }
         }
         catch (Exception ex)
         {
             DebugLogger.Print($"[FLB] CopyLatestFrameTo failed: {ex.GetType().Name} {ex.Message}");
+            return false;
         }
     }
 

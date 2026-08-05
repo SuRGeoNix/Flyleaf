@@ -63,7 +63,9 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
 
     public FlyleafView()
     {
-        surface = new DrawingSurface { AlwaysRefresh = true };
+        // Redraws are driven by new frames (see FlyleafFrameBridge), not every
+        // compositor tick, so AlwaysRefresh stays off.
+        surface = new DrawingSurface { AlwaysRefresh = false };
         surface.LoadContent += OnSurfaceLoad;
         surface.UnloadContent += OnSurfaceUnload;
         surface.Draw += OnSurfaceDraw;
@@ -211,8 +213,8 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
             }
         }
 
-        bridge.CopyLatestFrameTo(args);
-        args.InvalidateSurface();
+        if (bridge.CopyLatestFrameTo(args))
+            args.InvalidateSurface();
     }
 
     private void SetPlayer(Player oldPlayer)
@@ -243,6 +245,7 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
 
         var size = GetControlPixelSize();
         bridge = new FlyleafFrameBridge();
+        bridge.SetFrameReadyCallback(() => surface.Invalidate());
         bridge.Initialize(Player, size.Width, size.Height);
         bridge.SetCompositorDevice(compositorDevice);
         lastTextureWidth = 0;
