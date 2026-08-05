@@ -17,7 +17,9 @@ namespace FlyleafLib.Zoom
     /// Provides access to decoded frames from the video decoder to the child renderer.
     /// </summary>
     internal unsafe class DecodedFrameSource : IDisposable
-    {   
+    {
+        private readonly Renderer _parentRenderer;
+        private readonly object _lock = new object();
         public IntPtr SharedTextureHandle { get; private set; }
         public bool HasValidFrame { get; private set; }
 
@@ -40,7 +42,25 @@ namespace FlyleafLib.Zoom
 
         private bool _disposed;
 
-        
+        public DecodedFrameSource(Renderer renderer)
+        {
+            _parentRenderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+
+            _device = _parentRenderer.Device;
+            _decoder = _parentRenderer.VideoDecoder;
+            _context = _parentRenderer.DeviceContext;
+
+            // VideoDevice/Context for HW conversion
+            _videoDevice = _device.QueryInterface<ID3D11VideoDevice>();
+            _videoContext = _context.QueryInterface<ID3D11VideoContext>();
+
+            if (_decoder.Renderer is not Renderer)
+                return;
+            lock (_lock)
+            {
+                _decoder.Renderer.RenderChild += OnRenderFrame;
+            }
+        }
         public DecodedFrameSource(ID3D11Device device, VideoDecoder decoder)
         {
             _device  = device  ?? throw new ArgumentNullException(nameof(device));
@@ -53,9 +73,10 @@ namespace FlyleafLib.Zoom
 
             if (decoder.Renderer is not Renderer)
                 return;
-            lock (device)
+            _parentRenderer = decoder.Renderer;
+            lock (_lock)
             {
-                _decoder.Renderer.RenderChild += OnRenderFrame;
+                _parentRenderer.RenderChild += OnRenderFrame;
             }
         }
         public void OnRenderFrame(VideoFrame frame)
@@ -70,6 +91,32 @@ namespace FlyleafLib.Zoom
                 UpdateSW(frame);
         }
 
+        private void CheckAndUpdateContext()
+        {
+            if (_device == null || _device != _parentRenderer.Device)
+            {
+                _device = _parentRenderer.Device;
+                _context = _parentRenderer.DeviceContext;
+
+                _vpOutputView?.Dispose();
+                _vpOutputView = null;
+                _convertedTex?.Dispose();
+                _convertedTex = null;
+
+                _videoProcessor?.Dispose();
+                _videoProcessor = null;
+                _vpEnum?.Dispose();
+                _vpEnum = null;
+                _vpReady = false;
+
+                _videoDevice?.Dispose();
+                _videoContext?.Dispose();
+
+                // VideoDevice/Context for HW conversion
+                _videoDevice = _device.QueryInterface<ID3D11VideoDevice>();
+                _videoContext = _context.QueryInterface<ID3D11VideoContext>();
+            }
+        }
         // Hardware path: VPIV already finished → VideoProcessorBlt → BGRA
         private bool UpdateHW(VideoFrame frame)
         {
@@ -78,6 +125,7 @@ namespace FlyleafLib.Zoom
             int h = (int)(_decoder.VideoStream?.Height ?? 0);
             if (w == 0 || h == 0) return false;
 
+            CheckAndUpdateContext();
             EnsureConvertedTex(w, h);
             if (!EnsureVideoProcessor(w, h)) return false;
 
@@ -100,7 +148,7 @@ namespace FlyleafLib.Zoom
         {
             if (frame.SRV == null || frame.SRV.Length == 0 || frame.SRV[0] == null)
                 return false;
-
+            CheckAndUpdateContext();
             // Extract texture from SRV[0]
             var resource = frame.SRV[0].Resource;
             if (resource == null) return false;
@@ -226,13 +274,13 @@ namespace FlyleafLib.Zoom
         }
         private void DisposeLocal()
         {
-            if (_decoder is null || _decoder?.Renderer is not Renderer) return;
+            if (_decoder is null) return;
 
             try
             {
-                lock (_device)
+                lock (_lock)
                 {
-                    _decoder.Renderer.RenderChild -= OnRenderFrame;
+                    _parentRenderer.RenderChild -= OnRenderFrame;
                 }
                 
             }

@@ -165,7 +165,7 @@ float4 main(PSIn i) : SV_TARGET
             CreateSamplerAndStates();
 
             if (_frameSource is null)
-                _frameSource = new DecodedFrameSource(_player.Renderer.Device, _player.VideoDecoder);
+                _frameSource = new DecodedFrameSource(_player.Renderer);
 
             IsInitialized = true;
 

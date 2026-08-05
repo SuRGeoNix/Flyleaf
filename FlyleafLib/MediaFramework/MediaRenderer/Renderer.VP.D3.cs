@@ -234,14 +234,14 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
             return null;
         }
         vpivd.Texture2D.ArraySlice = (uint)frame->data[1];
-
+        
         VideoFrame mFrame = new()
         {
             AVFrame     = frame,
             Timestamp   = (long)(frame->pts * scfg.Timebase) - VideoDecoder.Demuxer.StartTime,
             VPIV        = vd.CreateVideoProcessorInputView(ffTexture, ve, vpivd)
         };
-        CustomFillPlanesAction(mFrame);
+        
         frame = av_frame_alloc();
         return mFrame;
     }

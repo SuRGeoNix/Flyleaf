@@ -13,7 +13,7 @@ public unsafe class VideoFrame : FrameBase
 
     public VideoFrame Prev, Next;
     public long Id;
-
+    public bool IsTransformedFrame;
     public void Dispose()
     {   // Manually dipose only when not in VC
         Prev = Next = null; // Could null Next.Prev here
@@ -51,5 +51,6 @@ public unsafe class VideoFrame : FrameBase
             VPIV.Dispose();
             VPIV = null;
         }
+        IsTransformedFrame = false;
     }
 }
