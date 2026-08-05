@@ -3,15 +3,21 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
+using Vortice.Direct3D11;
+using Vortice.Wpf;
 
 namespace FlyleafLib.Controls.WPF;
 
 /// <summary>
-/// A WPF FrameworkElement that renders a Flyleaf <see cref="Player"/> directly into the
-/// WPF visual tree via D3DImage, avoiding the Win32 airspace limitation of
-/// <see cref="FlyleafLib.Controls.WPF.FlyleafHost"/>.
+/// A WPF FrameworkElement that renders a Flyleaf <see cref="Player"/> into the
+/// WPF visual tree via a <see cref="DrawingSurface"/>, avoiding the Win32
+/// airspace limitation of <see cref="FlyleafLib.Controls.WPF.FlyleafHost"/>.
+///
+/// The player renders on its own (render) adapter; each frame is delivered into
+/// the DrawingSurface's ColorTexture by <see cref="FlyleafFrameBridge"/>, which
+/// handles the case where the render GPU differs from the adapter WPF composites
+/// on (forced discrete card / headless GPU / Optimus).
 /// </summary>
 public class FlyleafView : Decorator, IHostPlayer, IDisposable
 {
@@ -27,7 +33,11 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
     public static readonly DependencyProperty HostDataContextProperty =
         DependencyProperty.Register(nameof(HostDataContext), typeof(object), flType, new(null));
 
-    private D3DImageSurface surface;
+    private readonly DrawingSurface surface;
+    private FlyleafFrameBridge bridge;
+    private ID3D11Device1 compositorDevice;
+    private int lastTextureWidth;
+    private int lastTextureHeight;
     private bool isFullScreen;
 
     public Player Player
@@ -53,10 +63,38 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
 
     public FlyleafView()
     {
+        surface = new DrawingSurface { AlwaysRefresh = true };
+        surface.LoadContent += OnSurfaceLoad;
+        surface.UnloadContent += OnSurfaceUnload;
+        surface.Draw += OnSurfaceDraw;
+
+        AddVisualChild(surface);
+
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
-        SizeChanged += OnSizeChanged;
         MouseWheel += OnMouseWheel;
+    }
+
+    // Composite the background video surface (index 0) behind the overlay Child.
+    protected override int VisualChildrenCount => 1 + base.VisualChildrenCount;
+
+    protected override Visual GetVisualChild(int index)
+        => index == 0 ? surface : base.GetVisualChild(index - 1);
+
+    protected override Size MeasureOverride(Size constraint)
+    {
+        surface.Measure(constraint);
+        var childSize = base.MeasureOverride(constraint);
+        return new Size(
+            double.IsInfinity(constraint.Width) ? childSize.Width : constraint.Width,
+            double.IsInfinity(constraint.Height) ? childSize.Height : constraint.Height);
+    }
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        surface.Arrange(new Rect(finalSize));
+        base.ArrangeOverride(finalSize);
+        return finalSize;
     }
 
     public bool Player_CanHideCursor() => IsMouseOver;
@@ -101,7 +139,7 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
 
     public void Dispose()
     {
-        DisposeSurface();
+        DisposeBridge();
 
         if (Player == null)
             return;
@@ -109,28 +147,6 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
         var currentPlayer = Player;
         Player = null;
         currentPlayer.Host = null;
-    }
-
-    protected override void OnRender(DrawingContext dc)
-    {
-        var rect = new Rect(RenderSize);
-        if (CanDrawSurface())
-        {
-            DebugLogger.Print($"[FLV] OnRender  DrawImage D3DImage={surface.D3DImage.PixelWidth}x{surface.D3DImage.PixelHeight} rect={rect.Width:F0}x{rect.Height:F0}");
-            dc.DrawImage(surface.D3DImage, rect);
-            return;
-        }
-
-        DebugLogger.Print($"[FLV] OnRender  FALLBACK black rect  surface={(surface != null ? "set" : "null")} IsFrontBufferAvailable={surface?.D3DImage?.IsFrontBufferAvailable}");
-        dc.DrawRectangle(Brushes.Black, null, rect);
-    }
-
-    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
-    {
-        base.OnRenderSizeChanged(sizeInfo);
-
-        if (surface != null)
-            UpdateSurfaceLayout();
     }
 
     private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -141,20 +157,12 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        DebugLogger.Print($"[FLV] OnLoaded  Player={(Player != null ? "set" : "null")} surface={(surface != null ? "set" : "null")} ActualSize={ActualWidth}x{ActualHeight}");
-
-        if (Player != null && surface == null)
-            InitSurface();
+        UpdateDpi();
+        EnsureBridge();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
-        => DisposeSurface();
-
-    private void OnSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        if (surface != null)
-            UpdateSurfaceLayout();
-    }
+        => DisposeBridge();
 
     private void OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
@@ -170,22 +178,49 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
             Player.Config.Video.ZoomOut(currentDpiPoint);
     }
 
-    private void OnIsFrontBufferAvailableChanged(object sender, DependencyPropertyChangedEventArgs e)
+    private void OnSurfaceLoad(object sender, DrawingSurfaceEventArgs e)
     {
-        bool isAvailable = (bool)e.NewValue;
-        DebugLogger.Print($"[FLV] IsFrontBufferAvailableChanged  {e.OldValue} → {isAvailable}");
+        compositorDevice = e.Device;
+        DebugLogger.Print("[FLV] Surface LoadContent");
+        EnsureBridge();
+    }
 
-        if (isAvailable)
-            InvalidateVisual();
+    private void OnSurfaceUnload(object sender, DrawingSurfaceEventArgs e)
+    {
+        DebugLogger.Print("[FLV] Surface UnloadContent");
+        DisposeBridge();
+        compositorDevice = null;
+    }
+
+    private void OnSurfaceDraw(object sender, DrawEventArgs args)
+    {
+        if (bridge == null)
+            return;
+
+        var colorTexture = args.Surface.ColorTexture;
+        if (colorTexture != null)
+        {
+            var desc = colorTexture.Description;
+            int w = (int)desc.Width;
+            int h = (int)desc.Height;
+            if (w != lastTextureWidth || h != lastTextureHeight)
+            {
+                lastTextureWidth = w;
+                lastTextureHeight = h;
+                bridge.Resize(w, h);
+            }
+        }
+
+        bridge.CopyLatestFrameTo(args);
+        args.InvalidateSurface();
     }
 
     private void SetPlayer(Player oldPlayer)
     {
         if (oldPlayer != null)
         {
-            oldPlayer.Renderer?.SwapChain.Dispose(rendererFrame: false);
+            DisposeBridge();
             oldPlayer.Host = null;
-            DisposeSurface();
         }
 
         if (Player == null)
@@ -196,57 +231,32 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
             return;
 
         Player.Host = this;
-
-        if (IsLoaded && HasVisibleSize())
-            InitSurface();
+        EnsureBridge();
     }
 
-    private void InitSurface()
+    private void EnsureBridge()
     {
-        if (Player?.Renderer == null)
-        {
-            DebugLogger.Print("[FLV] InitSurface  SKIP — Player or Renderer is null");
+        if (bridge != null || Player?.Renderer == null || compositorDevice == null || !IsLoaded)
             return;
-        }
 
         UpdateDpi();
 
-        var imageSize = GetImagePixelSize();
-        var controlSize = GetControlPixelSize();
-        nint hwnd = GetWindowHandle();
+        var size = GetControlPixelSize();
+        bridge = new FlyleafFrameBridge();
+        bridge.Initialize(Player, size.Width, size.Height);
+        bridge.SetCompositorDevice(compositorDevice);
+        lastTextureWidth = 0;
+        lastTextureHeight = 0;
 
-        DebugLogger.Print($"[FLV] InitSurface  image={imageSize.Width}x{imageSize.Height} control={controlSize.Width}x{controlSize.Height} hwnd=0x{hwnd:X}");
-
-        surface = new D3DImageSurface();
-        surface.D3DImage.IsFrontBufferAvailableChanged += OnIsFrontBufferAvailableChanged;
-        surface.Initialize(Player, imageSize.Width, imageSize.Height, controlSize.Width, controlSize.Height, hwnd);
-
-        DebugLogger.Print($"[FLV] InitSurface  surface ready — IsFrontBufferAvailable={surface.D3DImage.IsFrontBufferAvailable} PixelSize={surface.D3DImage.PixelWidth}x{surface.D3DImage.PixelHeight}");
-
-        // Force OnRender to be called so WPF registers as a listener for D3DImage.Changed.
-        // Without this, the initial OnRender (before OnLoaded) drew a black fallback rect,
-        // so WPF never knows to re-render when D3DImage fires Changed.
-        InvalidateVisual();
-        DebugLogger.Print("[FLV] InitSurface  InvalidateVisual called");
+        DebugLogger.Print($"[FLV] Bridge ready control={size.Width}x{size.Height}");
     }
 
-    private void DisposeSurface()
+    private void DisposeBridge()
     {
-        if (surface == null)
-            return;
-
-        DebugLogger.Print("[FLV] DisposeSurface  called");
-        surface.D3DImage.IsFrontBufferAvailableChanged -= OnIsFrontBufferAvailableChanged;
-        surface.Dispose();
-        surface = null;
-    }
-
-    private void UpdateSurfaceLayout()
-    {
-        var imageSize = GetImagePixelSize();
-        var controlSize = GetControlPixelSize();
-
-        surface.Resize(imageSize.Width, imageSize.Height, controlSize.Width, controlSize.Height);
+        bridge?.Dispose();
+        bridge = null;
+        lastTextureWidth = 0;
+        lastTextureHeight = 0;
     }
 
     private void UpdateDpi()
@@ -260,31 +270,11 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
         DpiY = source.CompositionTarget?.TransformToDevice.M22 ?? 1;
     }
 
-    private bool HasVisibleSize() => ActualWidth > 0 && ActualHeight > 0;
-
-    private bool CanDrawSurface() => surface?.D3DImage != null && surface.D3DImage.IsFrontBufferAvailable;
-
-    private nint GetWindowHandle()
-    {
-        var window = Window.GetWindow(this);
-        return window != null ? new WindowInteropHelper(window).EnsureHandle() : IntPtr.Zero;
-    }
-
-    private Int32Size GetImagePixelSize()
+    private (int Width, int Height) GetControlPixelSize()
     {
         var dpi = VisualTreeHelper.GetDpi(this);
-        return new(
+        return (
             Math.Max(1, (int)Math.Round(ActualWidth * dpi.DpiScaleX)),
             Math.Max(1, (int)Math.Round(ActualHeight * dpi.DpiScaleY)));
     }
-
-    private Int32Size GetControlPixelSize()
-    {
-        var dpi = VisualTreeHelper.GetDpi(this);
-        return new(
-            Math.Max(1, (int)Math.Round(RenderSize.Width * dpi.DpiScaleX)),
-            Math.Max(1, (int)Math.Round(RenderSize.Height * dpi.DpiScaleY)));
-    }
-
-    private readonly record struct Int32Size(int Width, int Height);
 }
