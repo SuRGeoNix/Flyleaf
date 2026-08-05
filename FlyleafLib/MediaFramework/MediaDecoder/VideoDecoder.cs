@@ -678,6 +678,7 @@ public unsafe class VideoDecoder : DecoderBase
         try
         {
             mFrame = Renderer.FillPlanes(ref frame);
+            Renderer.VideoFrameProcessor?.Process(Renderer, mFrame);
         }
         catch(SharpGenException e)
         {

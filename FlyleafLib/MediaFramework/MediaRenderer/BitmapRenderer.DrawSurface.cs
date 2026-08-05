@@ -266,27 +266,23 @@ public partial class BitmapRenderer : NotifyPropertyChanged, IDisposable
 
         var bbWidth  = _d2dSourceBitmap.PixelSize.Width;
         var bbHeight = _d2dSourceBitmap.PixelSize.Height;
+        _curRatio = bbWidth / (double)bbHeight;
 
-        SetViewport(bbWidth, bbHeight);
+        SetViewport(ControlWidth, ControlHeight);
 
-        var vp = Viewport;
-
-        var w = Math.Min(bbWidth, ControlWidth);
-        var h = Math.Min(bbHeight, ControlHeight);
-
-        VRect dst = new((float)vp.X, vp.Y, w, h);
-        VRect src = new (0, 0, bbWidth, bbHeight);
-
+        var dstRect = GetDestinationRect();        
+        var srcRect = GetSourceRect(bbWidth, bbHeight);
+        
         if (_d2dContext is not ID2D1RenderTarget ctx)
             return;
 
         ctx.BeginDraw();
         ctx.DrawBitmap(
             _d2dSourceBitmap,
-            dst,
+            dstRect,
             1f,
             BitmapInterpolationMode.Linear,
-            src
+            srcRect
         );
         ctx.EndDraw();
     }
@@ -299,6 +295,30 @@ public partial class BitmapRenderer : NotifyPropertyChanged, IDisposable
             D2DContextDispose();
             Disposed = true;
         }
+    }
+
+    private VRect GetSourceRect(int width, int height)
+    {          
+        var zoom = (float)ValidateZoom(ucfg.zoom);
+        var newWidth = width / zoom;
+        var newHeight = height / zoom;
+
+        var x = (float)ucfg.zoomCenter.X * width - newWidth / 2;
+        var y = (float)ucfg.zoomCenter.Y * height - newHeight / 2;
+
+        return new (x, y, width/zoom, height/zoom);
+    }
+
+    private VRect GetDestinationRect()
+    {
+        var vp = Viewport;
+
+        var width = Math.Min(vp.Width, ControlWidth);
+        var height = Math.Min(vp.Height, ControlHeight);
+        var x = vp.X >= 0 ? vp.X : 0;
+        var y = vp.Y >= 0 ? vp.Y : 0;
+
+        return new(x, y, width, height);
     }
 }
 #nullable disable

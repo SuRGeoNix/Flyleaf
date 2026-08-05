@@ -1,4 +1,5 @@
-﻿using Vortice.Direct3D;
+﻿using FlyleafLib.Custom;
+using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.Mathematics;
 
@@ -6,9 +7,11 @@ using static FlyleafLib.MediaFramework.MediaRenderer.Renderer;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
-public partial class BitmapRenderer : IVP
+public partial class BitmapRenderer : IVP, ICustomRenderer
 {
     internal LogHandler Log;
+    private double _curRatio = 1.0;
+    private ZoomConstraint _zoomConstraint = new ZoomConstraint(1.0, 50.0);
     public VPConfig VideoConfig => ucfg;
     VPConfig ucfg;
     public Renderer Renderer { get; private set; }
@@ -22,6 +25,19 @@ public partial class BitmapRenderer : IVP
     public int SideXPixels => sideXPixels;
     public int SideYPixels => sideYPixels;
 
+    public double InitialZoom
+    {
+        get => _zoomConstraint.InitialZoom;
+        set => _zoomConstraint.InitialZoom = value;
+    }
+    public double MaximalZoom
+    {
+        get => _zoomConstraint.MaximalZoom;
+        set => _zoomConstraint.MaximalZoom = value;
+    }
+    public double ValidateZoom(double zoom) => _zoomConstraint.ValidateZoom(zoom);
+    
+
     int  sideXPixels, sideYPixels;
 
     Vortice.Direct3D11.ID3D11DeviceContext     _context;
@@ -29,7 +45,7 @@ public partial class BitmapRenderer : IVP
     VSBufferType            vsData    = new();
 
     VPRequestType   vpRequestsIn, vpRequests; // In: From User | ProcessRequests Copy
-
+    
     public BitmapRenderer(Renderer renderer, VPConfig config, int uniqueId = -1)
     {
         ucfg = config;
@@ -63,15 +79,16 @@ public partial class BitmapRenderer : IVP
     {
         int x, y, newWidth, newHeight, xZoomPixels, yZoomPixels;
 
-        var curRatio = (double) width / height;
         var fillRatio = (double) ControlWidth/ControlHeight;
 
-        if (curRatio < fillRatio)
+        var zoom = ValidateZoom(ucfg.zoom);
+        
+        if (_curRatio < fillRatio)
         {
-            newHeight = (int)(height * ucfg.zoom);
-            newWidth =  (int)(newHeight * curRatio);
+            newHeight = (int)(height * zoom);
+            newWidth =  (int)(newHeight * _curRatio);
 
-            sideXPixels = ((int)(width - (height * curRatio))) & ~1;
+            sideXPixels = ((int)(width - (height * _curRatio))) & ~1;
             sideYPixels = 0;
 
             y = (int)(height * ucfg.panYOffset);
@@ -82,10 +99,10 @@ public partial class BitmapRenderer : IVP
         }
         else
         {
-            newWidth = (int)(width * ucfg.zoom);
-            newHeight = (int) (newWidth / curRatio);
+            newWidth = (int)(width * zoom);
+            newHeight = (int) (newWidth / _curRatio);
 
-            sideYPixels = ((int)(height - (width / curRatio))) & ~1;
+            sideYPixels = ((int)(height - (width / _curRatio))) & ~1;
             sideXPixels = 0;
 
             x = (int)(width * ucfg.panXOffset);
@@ -95,7 +112,7 @@ public partial class BitmapRenderer : IVP
             yZoomPixels = newHeight - (height - sideYPixels);
         }
 
-        Viewport = new((int)(x - xZoomPixels * (float)ucfg.zoomCenter.X), (int)(y - yZoomPixels * (float)ucfg.zoomCenter.Y), newWidth, newHeight);
+        Viewport = new((int)(x - xZoomPixels * (float)ucfg.zoomCenter.X), (int)(y - yZoomPixels * (float)ucfg.zoomCenter.Y), newWidth, newHeight);        
     }
     public void UpdateSize(int width, int height)
     {   // TBR

@@ -1,148 +1,200 @@
 ﻿using FlyleafLib.Custom;
 using FlyleafLib.MediaFramework.MediaFrame;
-using System.Diagnostics;
+using System.Windows.Forms;
+using System.Windows.Media.Media3D;
+using Vortice;
 using Vortice.Direct2D1;
+using Vortice.Direct3D11;
+using Vortice.Mathematics;
+using ID3D11DeviceContext = Vortice.Direct3D11.ID3D11DeviceContext;
+using ID3D11VideoDevice = Vortice.Direct3D11.ID3D11VideoDevice;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 #nullable enable
 public unsafe partial class Renderer
-{
-    SwsContext*     swsCustomCtx;
-    AVFrame* customFrame;
+{   
     // ZoomOverviewRenderer fields
     public IntPtr SharedTextureHandle { get; set; }
     internal IntPtr lastSharedHandle  = IntPtr.Zero;
-
-    public event Action? CustomProcessRequests;
-    public event Action? CustomSetSize;
+    private ZoomConstraint _zoomParameters = new(1.0, 50.0);
+    private bool _transformedStream;
+    private int _transformedWidth;
+    private int _transformedHeight;
     public event Action<VideoFrame>? RenderChild;
+    
     public EventHandler<ID2D1DeviceContext>? Overview2DInitialized;
     public EventHandler<ID2D1DeviceContext>? Overview2DDisposing;
     public EventHandler<ID2D1DeviceContext>? Overview2DDraw;
 
+
     // Renderer? ParentRenderer {  set; get; }
-    public double InitialZoom { get; set; } = 1.0;
-    public double MaximalZoom { get; set; } = 50.0;
-    double ICustomRenderer.ValidateZoom(double zoom)
+    public double InitialZoom
     {
-        if (zoom < InitialZoom && InitialZoom >= 0)
-            zoom = InitialZoom;
-        if (zoom > MaximalZoom && MaximalZoom >= 0)
-            zoom = MaximalZoom;
-        return zoom;
+        get => _zoomParameters.InitialZoom;
+        set => _zoomParameters.InitialZoom = value;
     }
-    public void CustomFillPlanesAction(VideoFrame frame)
+    public double MaximalZoom
     {
-        if (player is not ICustomPlayer custom)
-            return;
-        long startTime = Stopwatch.GetTimestamp();
-        try
-        {
-            if (!custom.CustomHandlerEnabled)
-                return;
+        get => _zoomParameters.MaximalZoom;
+        set => _zoomParameters.MaximalZoom = value;
+    }
+    public double ValidateZoom(double zoom) => _zoomParameters.ValidateZoom(zoom);
 
-            if (VideoDecoder.VideoAccelerated)
-                CustomFillPlanesHW(custom, frame);
+    internal ID3D11DeviceContext DeviceContext => context;
+    internal ID3D11VideoDevice VideoDevice => vd;
+    internal ID3D11VideoProcessorEnumerator VideoEnumerator => ve;
+
+    public IVideoFrameProcessor? VideoFrameProcessor { get; set; }
+
+    void D3SetViewport(int width, int height, int transformedWidth, int transformedHeight)
+    {   
+        _transformedStream = true;
+        _transformedWidth = transformedWidth;
+        _transformedHeight = transformedHeight;
+
+        SetViewport(width, height);
+
+        Viewport view = Viewport;
+
+        if (!ucfg.SuperResolution)
+            DisableSuperRes();
+        else
+        {
+            if (scfg.PixelComp0Depth <= 8 && // Seems it crashes with 10-bit?
+               (((rotation == 0 || rotation == 180) && view.Width > VisibleWidth && view.Height > VisibleHeight) ||
+                ((rotation == 90 || rotation == 270) && view.Width > VisibleHeight && view.Height > VisibleWidth)))
+                EnableSuperRes();
             else
-                CustomFillPlanesSWS(custom, frame);
+                DisableSuperRes();
         }
-        catch (Exception ex)
+
+        int right   = (int)(view.X + view.Width);
+        int bottom  = (int)(view.Y + view.Height);
+
+        if (view.Width < 1 || view.Y >= height || view.X >= width || bottom <= 0 || right <= 0)
         {
-            Log.Error(ex.Message);
+            d3CanPresent = false;
+            return;
         }
-        TimeSpan elapsedTime = Stopwatch.GetElapsedTime(startTime);
-        Log.Debug($"[CP] CustomFillPlanesAction, elapsed time {elapsedTime.TotalMicroseconds / (double) 1000} ms");
+
+        d3CanPresent = true;
+
+        RawRect dst = new(
+                Math.Max((int)view.X, 0),
+                Math.Max((int)view.Y, 0),
+                Math.Min(right      , width),
+                Math.Min(bottom     , height));
+
+        double croppedWidth     = _transformedWidth   - crop.Width;
+        double croppedHeight    = _transformedHeight  - crop.Height;
+        int dstWidth            = dst.Right  - dst.Left;
+        int dstHeight           = dst.Bottom - dst.Top;
+
+        RawRect src = GetVideoProcessorSourceRect(
+            width, height,
+            croppedWidth, croppedHeight,
+            dstWidth, dstHeight
+            );
+
+        vc.VideoProcessorSetStreamSourceRect(vp, 0, true, src);
+        vc.VideoProcessorSetStreamDestRect(vp, 0, true, dst);
     }
 
-    private void CustomFillPlanesHW(ICustomPlayer custom, VideoFrame frame)
+    private RawRect GetVideoProcessorSourceRect(int width, int height, double croppedWidth, double croppedHeight, int dstWidth, int dstHeight)
     {
-        var sw_frame   = av_frame_alloc();
-        int ret     = av_hwframe_transfer_data(sw_frame, frame.AVFrame, 0);
+        Viewport view = Viewport;
+        int right   = (int)(view.X + view.Width);
+        int bottom  = (int)(view.Y + view.Height);
 
-        if (swsCustomCtx == null || ContextChanged(sw_frame))
-            CustomSwsInit(sw_frame->width, sw_frame->height, sw_frame->format);
+        int     cropLeft,   cropTop,    cropRight,  cropBottom;
+        int     srcLeft,    srcTop,     srcRight,   srcBottom;
+        double  scaleX,     scaleY,     scaleXRot,  scaleYRot;
 
-        ret = sws_scale(swsCustomCtx,
-                sw_frame->data.ToRawArray(),
-                sw_frame->linesize.ToArray(),
-                0,
-                sw_frame->height,
-                customFrame->data.ToRawArray(),
-                customFrame->linesize.ToArray());
-
-        if (ret > 0)
+        if (rotation == 0)
         {
-            var mFrame = new VideoFrame()
+            cropLeft = view.X < 0 ? (int)(-view.X) : 0;
+            cropTop = view.Y < 0 ? (int)(-view.Y) : 0;
+
+            scaleX = croppedWidth / view.Width;
+            scaleY = croppedHeight / view.Height;
+
+            srcLeft = (int)(crop.Left + cropLeft * scaleX);
+            srcTop = (int)(crop.Top + cropTop * scaleY);
+            srcRight = srcLeft + (int)(dstWidth * scaleX);
+            srcBottom = srcTop + (int)(dstHeight * scaleY);
+        }
+        else if (rotation == 180)
+        {
+            cropRight = right > width ? right - width : 0;
+            cropBottom = bottom > height ? bottom - height : 0;
+
+            scaleX = croppedWidth / view.Width;
+            scaleY = croppedHeight / view.Height;
+
+            srcLeft = (int)(crop.Left + cropRight * scaleX);
+            srcTop = (int)(crop.Top + cropBottom * scaleY);
+            srcRight = srcLeft + (int)(dstWidth * scaleX);
+            srcBottom = srcTop + (int)(dstHeight * scaleY);
+        }
+        else if (rotation == 90)
+        {
+            cropTop = view.Y < 0 ? (int)(-view.Y) : 0;
+            cropRight = right > width ? right - width : 0;
+
+            scaleXRot = croppedWidth / view.Height;
+            scaleYRot = croppedHeight / view.Width;
+
+            srcLeft = (int)(crop.Left + cropTop * scaleXRot);
+            srcTop = (int)(crop.Top + cropRight * scaleYRot);
+            srcRight = srcLeft + (int)(dstHeight * scaleXRot);
+            srcBottom = srcTop + (int)(dstWidth * scaleYRot);
+        }
+        else if (rotation == 270)
+        {
+            cropLeft = view.X < 0 ? (int)(-view.X) : 0;
+            cropBottom = bottom > height ? bottom - height : 0;
+
+            scaleXRot = croppedWidth / view.Height;
+            scaleYRot = croppedHeight / view.Width;
+
+            srcLeft = (int)(crop.Left + cropBottom * scaleXRot);
+            srcTop = (int)(crop.Top + cropLeft * scaleYRot);
+            srcRight = srcLeft + (int)(dstHeight * scaleXRot);
+            srcBottom = srcTop + (int)(dstWidth * scaleYRot);
+        }
+        else
+            srcLeft = srcTop = srcRight = srcBottom = 0;
+
+        return new(
+            Math.Max(srcLeft    , 0),
+            Math.Max(srcTop     , 0),
+            Math.Min(srcRight   , _transformedWidth),
+            Math.Min(srcBottom  , _transformedHeight));
+    }
+
+    private void CheckFrameForTransformation(VideoFrame frame)
+    {
+        if (frame.IsTransformedFrame && frame.Texture?.Length > 0 && VideoProcessor is VideoProcessors.D3D11)
+        {
+            Log.Trace($"Transformed frame, vpiv {frame.VPIV != null}, ctrl {ControlWidth}x{ControlHeight}, viewport{ucfg.vp?.Viewport}, d3txtDesc {d3txtDesc.Width}x{d3txtDesc.Height}, vs {scfg.Width}x{scfg.Height}");
+            var desc = frame.Texture[0].Description;
+            D3SetViewport(ControlWidth, ControlHeight, (int)desc.Width, (int)desc.Height);
+        }
+        else
+        {
+            if (frame.IsTransformedFrame && VideoProcessor is VideoProcessors.Flyleaf)
             {
-                AVFrame = customFrame,
-                Timestamp = frame.Timestamp,
-            };
-            custom.FillCustomPlanes(this, mFrame);
-
-            mFrame.AVFrame = null;
-            mFrame.Dispose();
-            av_frame_free(&sw_frame);
+                FLSetViewport();
+                context.PSSetShader(psShader["rgba"]);
+            }
         }
     }
 
-    private void CustomFillPlanesSWS(ICustomPlayer custom, VideoFrame frame)
+    private void CustomDispose()
     {
-        if (swsCustomCtx == null || ContextChanged(frame.AVFrame))
-            CustomSwsInit(frame.AVFrame->width, frame.AVFrame->height, frame.AVFrame->format);
-
-        int ret = sws_scale(swsCustomCtx,
-                        frame.AVFrame->data.ToRawArray(),
-                        frame.AVFrame->linesize.ToArray(),
-                        0,
-                        frame.AVFrame->height,
-                        customFrame->data.ToRawArray(),
-                        customFrame->linesize.ToArray());
-        if (ret > 0)
+        if (VideoFrameProcessor is IDisposable processor)
         {
-            var mFrame = new VideoFrame()
-            {
-                AVFrame = customFrame,
-                Timestamp = frame.Timestamp,
-            };
-            custom.FillCustomPlanes(this, mFrame);
-            mFrame.AVFrame = null;
-            mFrame.Dispose();
-        }
-    }
-    private bool ContextChanged(AVFrame*  frame) => customFrame == null ? true : customFrame->width != frame->width || customFrame->height != frame->height || customFrame->format != frame->format;
-
-    private void CustomSwsInit(int width, int height, int pxFormat)
-    {
-        CustomSwsDispose();
-
-        swsCustomCtx = sws_getContext(
-                    width, height,
-                    (AVPixelFormat)pxFormat,
-                    width, height,
-                    AVPixelFormat.Bgra, SwsFlags.None, null, null, null);
-
-        AllocateSwsFrame(width, height);
-    }
-    private void AllocateSwsFrame(int width, int height)
-    {
-        customFrame = av_frame_alloc();
-        customFrame->format = (int)AVPixelFormat.Bgra;
-        customFrame->width = width;
-        customFrame->height = height;
-        _ = av_frame_get_buffer(customFrame, 0);
-    }
-
-    private void CustomSwsDispose()
-    {
-        if (customFrame != null)
-        {
-            av_frame_free(ref customFrame);
-            swsFrame = null;
-        }
-        if (swsCustomCtx != null)
-        {
-            sws_freeContext(swsCustomCtx);
-            swsCustomCtx = null;
+            processor.Dispose();
         }
     }
 }

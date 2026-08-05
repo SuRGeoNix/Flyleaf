@@ -1,9 +1,8 @@
-﻿using SharpGen.Runtime;
+﻿using FlyleafLib.MediaFramework.MediaFrame;
+using SharpGen.Runtime;
 using Vortice.DXGI;
-
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 using ResultCode = Vortice.DXGI.ResultCode;
-
-using FlyleafLib.MediaFramework.MediaFrame;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -99,7 +98,9 @@ public unsafe partial class Renderer
                         return true;
 
                     if (Frames.RendererFrame != null)
-                    {
+                    {   
+                        CheckFrameForTransformation(Frames.RendererFrame);
+                        
                         D3Render(Frames.RendererFrame, false);
                         needsClear = false;
                         RenderChild?.Invoke(Frames.RendererFrame);
@@ -114,15 +115,13 @@ public unsafe partial class Renderer
 
                     if (Frames.RendererFrame != null)
                     {
+                        CheckFrameForTransformation(Frames.RendererFrame);
                         FLRender(Frames.RendererFrame);
                         needsClear = false;
                         RenderChild?.Invoke(Frames.RendererFrame);
                     }
                 }
-
-                CustomProcessRequests?.Invoke();
-                needsClear = CustomProcessRequests == null && needsClear;
-
+                
                 if (needsClear)
                 {
                     if (!Config.Video.ClearScreen)
