@@ -2,52 +2,39 @@ using System;
 using System.Runtime.InteropServices;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
-using Vortice.Wpf;
+
 using FlyleafLib.MediaPlayer;
+
 using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 using Format = Vortice.DXGI.Format;
 
 namespace FlyleafLib.Controls.WPF;
 
 /// <summary>
-/// Feeds the current player frame into a <see cref="DrawingSurface"/>'s
-/// <c>ColorTexture</c>. The player renders to its composition swap-chain on the
-/// render adapter; each frame's backbuffer is grabbed there and delivered to the
-/// DrawingSurface device (which lives on the compositor adapter).
+/// Acquires the current player frame on the render adapter and exposes it as CPU
+/// pixels for software presentation via a WPF <see cref="System.Windows.Media.Imaging.WriteableBitmap"/>.
 ///
-/// When both are the same physical GPU the frame is handed over GPU-side via a
-/// shared texture (zero CPU). When the render GPU differs from the compositor
-/// GPU (forced discrete card / headless GPU / Optimus dGPU) the frame is carried
-/// over through a CPU staging readback, because legacy D3D11/D3D9 sharing and
-/// WPF's D3DImage compositor are single-adapter.
+/// The player renders to its composition swap-chain (any adapter, incl. a forced
+/// discrete GPU); each frame's backbuffer is copied into a CPU-readable staging
+/// texture and read back into a buffer. A CPU/software presentation path is used
+/// (rather than D3DImage) so rendering works regardless of adapter topology and
+/// in environments with no D3D front buffer (RDP, headless, locked sessions).
 /// </summary>
 internal sealed unsafe class FlyleafFrameBridge : IDisposable
 {
     private readonly object sync = new();
 
     private Player player;
-
-    // Render adapter identity
-    private long renderLuid;
-    private uint renderVendorId;
-    private uint renderDeviceId;
-
-    // Compositor (DrawingSurface) device
-    private ID3D11Device1 compositorDevice;
-    private bool compositorSet;
-    private bool crossAdapter;
-
     private int controlWidth;
     private int controlHeight;
     private bool isDisposed;
 
-    // Render-side frame texture (Shared when same-adapter, Staging when cross)
-    private ID3D11Texture2D frameTexture;
-    private int frameWidth;
-    private int frameHeight;
-    private nint sharedHandle;
+    // Render-side CPU-readable staging texture
+    private ID3D11Texture2D stagingTexture;
+    private int texWidth;
+    private int texHeight;
 
-    // Cross-adapter CPU carry buffer
+    // CPU frame buffer (BGRA)
     private nint cpuBuffer;
     private int cpuBufferLen;
     private int cpuRowPitch;
@@ -55,19 +42,16 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
     private int cpuHeight;
     private bool hasCpuFrame;
 
-    // Compositor-side opened shared texture (same-adapter path)
-    private ID3D11Texture2D openedTexture;
-    private nint openedHandle;
-
     private long frameGeneration;
     private long drawnGeneration;
-    private Action onFrameReady;
 
     private int acquireCount;
-    private int drawCount;
 
-    /// <summary>Invoked (on the render thread) when a new frame has been acquired.</summary>
-    public void SetFrameReadyCallback(Action callback) => onFrameReady = callback;
+    /// <summary>True when a newly acquired frame has not yet been presented.</summary>
+    public bool HasPendingFrame
+    {
+        get { lock (sync) return !isDisposed && hasCpuFrame && frameGeneration != drawnGeneration; }
+    }
 
     public void Initialize(Player player, int controlWidth, int controlHeight)
     {
@@ -75,55 +59,10 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
         this.controlWidth = controlWidth;
         this.controlHeight = controlHeight;
 
-        var adapter = player.Renderer.GPUAdapter;
-        renderLuid = adapter?.Luid ?? 0;
-        renderVendorId = (uint)(adapter?.Vendor ?? 0);
-        renderDeviceId = adapter?.Id ?? 0;
-
-        DebugLogger.Print($"[FLB] Initialize control={controlWidth}x{controlHeight} renderLuid={renderLuid}");
+        DebugLogger.Print($"[FLB] Initialize control={controlWidth}x{controlHeight} renderLuid={player.Renderer.GPUAdapter?.Luid}");
 
         player.Renderer.SwapChain.RegisterBeforePresentCallback(OnBeforePresent);
         player.Renderer.SwapChain.SetupWinUI(OnSwapChainUpdated);
-    }
-
-    /// <summary>Called from DrawingSurface.LoadContent with the surface's device.</summary>
-    public void SetCompositorDevice(ID3D11Device1 device)
-    {
-        lock (sync)
-        {
-            compositorDevice = device;
-            crossAdapter = DetectCrossAdapter(device);
-            compositorSet = true;
-            ResetOpenedTexture();
-            DropFrameTexture();
-        }
-
-        DebugLogger.Print($"[FLB] SetCompositorDevice crossAdapter={crossAdapter}");
-    }
-
-    private bool DetectCrossAdapter(ID3D11Device device)
-    {
-        try
-        {
-            using var dxgiDevice = device.QueryInterface<IDXGIDevice>();
-            using var adapter = dxgiDevice.GetAdapter();
-            var desc = adapter.Description;
-
-            long compLuid = desc.Luid;
-            uint compVendor = desc.VendorId;
-            uint compDevice = desc.DeviceId;
-
-            if (compLuid == renderLuid)
-                return false;
-
-            // Different LUID but same physical GPU (virtual-display duplicates) is not cross-adapter.
-            return !(compVendor == renderVendorId && compDevice == renderDeviceId);
-        }
-        catch (Exception ex)
-        {
-            DebugLogger.Print($"[FLB] DetectCrossAdapter failed: {ex.Message}");
-            return false;
-        }
     }
 
     private void OnSwapChainUpdated(IDXGISwapChain2 swapChain)
@@ -131,7 +70,7 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
         try
         {
             lock (sync)
-                DropFrameTexture();
+                DropStaging();
 
             if (swapChain != null)
                 player?.Renderer?.SwapChain?.Resize(controlWidth, controlHeight);
@@ -144,127 +83,85 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
 
     private void OnBeforePresent()
     {
-        bool notify = false;
-
         lock (sync)
         {
-            if (isDisposed || !compositorSet)
+            if (isDisposed)
                 return;
 
             var swapChain = player?.Renderer?.SwapChain;
             if (swapChain == null || swapChain.Disposed)
                 return;
 
-            if (!EnsureFrameTexture(controlWidth, controlHeight))
+            if (!EnsureStaging(controlWidth, controlHeight))
                 return;
 
-            if (!swapChain.CopyBackBufferTo(frameTexture))
+            if (!swapChain.CopyBackBufferTo(stagingTexture))
                 return;
 
-            if (crossAdapter)
-                ReadbackToCpu();
+            if (!ReadbackToCpu())
+                return;
 
             frameGeneration++;
-            notify = true;
 
             int n = ++acquireCount;
             if (n <= 3 || n % 120 == 0)
-                DebugLogger.Print($"[FLB] acquire #{n} {frameWidth}x{frameHeight} cross={crossAdapter}");
+                DebugLogger.Print($"[FLB] acquire #{n} {texWidth}x{texHeight}");
         }
-
-        if (notify)
-            onFrameReady?.Invoke();
     }
 
-    private void ReadbackToCpu()
+    private bool ReadbackToCpu()
     {
         try
         {
             var context = player.Renderer.Device.ImmediateContext;
-            var map = context.Map(frameTexture, 0);
+            var map = context.Map(stagingTexture, 0);
             try
             {
-                int len = (int)map.RowPitch * frameHeight;
+                int len = (int)map.RowPitch * texHeight;
                 EnsureCpuBuffer(len);
                 Buffer.MemoryCopy((void*)map.DataPointer, (void*)cpuBuffer, len, len);
                 cpuRowPitch = (int)map.RowPitch;
-                cpuWidth = frameWidth;
-                cpuHeight = frameHeight;
+                cpuWidth = texWidth;
+                cpuHeight = texHeight;
                 hasCpuFrame = true;
+                return true;
             }
             finally
             {
-                context.Unmap(frameTexture, 0);
+                context.Unmap(stagingTexture, 0);
             }
         }
         catch (Exception ex)
         {
             DebugLogger.Print($"[FLB] ReadbackToCpu failed: {ex.GetType().Name} {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Called from DrawingSurface.Draw on the compositor device. Returns true if a
-    /// new frame was copied into the ColorTexture (caller should then present).
-    /// </summary>
-    public bool CopyLatestFrameTo(DrawEventArgs args)
-    {
-        try
-        {
-            var colorTexture = args.Surface.ColorTexture;
-            if (colorTexture == null)
-                return false;
-
-            var ctDesc = colorTexture.Description;
-
-            lock (sync)
-            {
-                if (isDisposed || drawnGeneration == frameGeneration)
-                    return false;
-
-                if (crossAdapter)
-                {
-                    if (!hasCpuFrame || cpuWidth != (int)ctDesc.Width || cpuHeight != (int)ctDesc.Height)
-                        return false;
-
-                    args.Context.UpdateSubresource(colorTexture, 0, null, cpuBuffer, (uint)cpuRowPitch, 0);
-                    drawnGeneration = frameGeneration;
-                    LogDraw();
-                    return true;
-                }
-
-                if (sharedHandle == IntPtr.Zero)
-                    return false;
-
-                if (openedTexture == null || openedHandle != sharedHandle)
-                {
-                    ResetOpenedTexture();
-                    openedTexture = compositorDevice.OpenSharedResource<ID3D11Texture2D>(sharedHandle);
-                    openedHandle = sharedHandle;
-                }
-
-                var srcDesc = openedTexture.Description;
-                if (srcDesc.Width != ctDesc.Width || srcDesc.Height != ctDesc.Height)
-                    return false;
-
-                args.Context.CopyResource(colorTexture, openedTexture);
-                drawnGeneration = frameGeneration;
-                LogDraw();
-                return true;
-            }
-        }
-        catch (Exception ex)
-        {
-            DebugLogger.Print($"[FLB] CopyLatestFrameTo failed: {ex.GetType().Name} {ex.Message}");
             return false;
         }
     }
 
-    private void LogDraw()
+    /// <summary>
+    /// Copies the latest frame into a locked WriteableBitmap back buffer. Returns
+    /// true if a new frame was written (caller should then AddDirtyRect). Must be
+    /// called on the UI thread with the bitmap locked.
+    /// </summary>
+    public bool CopyLatestFrameInto(nint dest, int destStride, int destWidth, int destHeight)
     {
-        int n = ++drawCount;
-        if (n <= 3 || n % 120 == 0)
-            DebugLogger.Print($"[FLB] draw #{n} cross={crossAdapter}");
+        lock (sync)
+        {
+            if (isDisposed || !hasCpuFrame || frameGeneration == drawnGeneration)
+                return false;
+
+            if (cpuWidth != destWidth || cpuHeight != destHeight || dest == IntPtr.Zero)
+                return false;
+
+            int rowBytes = Math.Min(cpuRowPitch, destStride);
+            byte* src = (byte*)cpuBuffer;
+            byte* dst = (byte*)dest;
+            for (int y = 0; y < destHeight; y++)
+                Buffer.MemoryCopy(src + (long)y * cpuRowPitch, dst + (long)y * destStride, destStride, rowBytes);
+
+            drawnGeneration = frameGeneration;
+            return true;
+        }
     }
 
     public void Resize(int width, int height)
@@ -279,24 +176,23 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
 
             controlWidth = width;
             controlHeight = height;
-            DropFrameTexture();
+            DropStaging();
         }
 
         player?.Renderer?.SwapChain?.Resize(width, height);
     }
 
-    private bool EnsureFrameTexture(int width, int height)
+    private bool EnsureStaging(int width, int height)
     {
         if (width <= 0 || height <= 0)
             return false;
 
-        if (frameTexture != null && frameWidth == width && frameHeight == height)
+        if (stagingTexture != null && texWidth == width && texHeight == height)
             return true;
 
-        DropFrameTexture();
+        DropStaging();
 
-        var device = player.Renderer.Device;
-        var desc = new Texture2DDescription
+        stagingTexture = player.Renderer.Device.CreateTexture2D(new Texture2DDescription
         {
             Width = (uint)width,
             Height = (uint)height,
@@ -304,26 +200,14 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
             ArraySize = 1,
             Format = Format.B8G8R8A8_UNorm,
             SampleDescription = new SampleDescription(1, 0),
-            Usage = crossAdapter ? ResourceUsage.Staging : ResourceUsage.Default,
-            BindFlags = crossAdapter ? BindFlags.None : BindFlags.RenderTarget | BindFlags.ShaderResource,
-            CPUAccessFlags = crossAdapter ? CpuAccessFlags.Read : CpuAccessFlags.None,
-            MiscFlags = crossAdapter ? ResourceOptionFlags.None : ResourceOptionFlags.Shared
-        };
+            Usage = ResourceUsage.Staging,
+            BindFlags = BindFlags.None,
+            CPUAccessFlags = CpuAccessFlags.Read,
+            MiscFlags = ResourceOptionFlags.None
+        });
 
-        frameTexture = device.CreateTexture2D(desc);
-        frameWidth = width;
-        frameHeight = height;
-
-        if (!crossAdapter)
-        {
-            using var dxgiResource = frameTexture.QueryInterface<IDXGIResource>();
-            sharedHandle = dxgiResource.SharedHandle;
-        }
-        else
-        {
-            sharedHandle = IntPtr.Zero;
-        }
-
+        texWidth = width;
+        texHeight = height;
         return true;
     }
 
@@ -339,22 +223,13 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
         cpuBufferLen = len;
     }
 
-    private void DropFrameTexture()
+    private void DropStaging()
     {
-        frameTexture?.Dispose();
-        frameTexture = null;
-        frameWidth = 0;
-        frameHeight = 0;
-        sharedHandle = IntPtr.Zero;
+        stagingTexture?.Dispose();
+        stagingTexture = null;
+        texWidth = 0;
+        texHeight = 0;
         hasCpuFrame = false;
-        ResetOpenedTexture();
-    }
-
-    private void ResetOpenedTexture()
-    {
-        openedTexture?.Dispose();
-        openedTexture = null;
-        openedHandle = IntPtr.Zero;
     }
 
     public void Dispose()
@@ -374,7 +249,7 @@ internal sealed unsafe class FlyleafFrameBridge : IDisposable
 
         lock (sync)
         {
-            DropFrameTexture();
+            DropStaging();
             if (cpuBuffer != IntPtr.Zero)
             {
                 Marshal.FreeHGlobal(cpuBuffer);

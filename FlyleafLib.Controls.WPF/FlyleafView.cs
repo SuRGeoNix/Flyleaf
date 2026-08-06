@@ -4,20 +4,20 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Vortice.Direct3D11;
-using Vortice.Wpf;
+using System.Windows.Media.Imaging;
 
 namespace FlyleafLib.Controls.WPF;
 
 /// <summary>
 /// A WPF FrameworkElement that renders a Flyleaf <see cref="Player"/> into the
-/// WPF visual tree via a <see cref="DrawingSurface"/>, avoiding the Win32
-/// airspace limitation of <see cref="FlyleafLib.Controls.WPF.FlyleafHost"/>.
+/// WPF visual tree, avoiding the Win32 airspace limitation of
+/// <see cref="FlyleafLib.Controls.WPF.FlyleafHost"/>.
 ///
-/// The player renders on its own (render) adapter; each frame is delivered into
-/// the DrawingSurface's ColorTexture by <see cref="FlyleafFrameBridge"/>, which
-/// handles the case where the render GPU differs from the adapter WPF composites
-/// on (forced discrete card / headless GPU / Optimus).
+/// The player decodes/renders on its own (render) adapter; each frame is read
+/// back to the CPU by <see cref="FlyleafFrameBridge"/> and presented through a
+/// <see cref="WriteableBitmap"/>. This software present path is adapter-agnostic
+/// and works where a D3D front buffer is unavailable (RDP, headless, locked
+/// sessions), at the cost of a per-frame CPU copy.
 /// </summary>
 public class FlyleafView : Decorator, IHostPlayer, IDisposable
 {
@@ -33,11 +33,13 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
     public static readonly DependencyProperty HostDataContextProperty =
         DependencyProperty.Register(nameof(HostDataContext), typeof(object), flType, new(null));
 
-    private readonly DrawingSurface surface;
+    private readonly Image image;
+    private WriteableBitmap bitmap;
+    private int bmpWidth;
+    private int bmpHeight;
     private FlyleafFrameBridge bridge;
-    private ID3D11Device1 compositorDevice;
-    private int lastTextureWidth;
-    private int lastTextureHeight;
+    private bool renderingHooked;
+    private int presentCount;
     private bool isFullScreen;
 
     public Player Player
@@ -63,29 +65,26 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
 
     public FlyleafView()
     {
-        // Redraws are driven by new frames (see FlyleafFrameBridge), not every
-        // compositor tick, so AlwaysRefresh stays off.
-        surface = new DrawingSurface { AlwaysRefresh = false };
-        surface.LoadContent += OnSurfaceLoad;
-        surface.UnloadContent += OnSurfaceUnload;
-        surface.Draw += OnSurfaceDraw;
+        image = new Image { Stretch = Stretch.Fill };
 
-        AddVisualChild(surface);
+        // The video is a background visual; the Decorator's Child stays free for
+        // caller-provided overlay content drawn on top of the video.
+        AddVisualChild(image);
 
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         MouseWheel += OnMouseWheel;
     }
 
-    // Composite the background video surface (index 0) behind the overlay Child.
+    // Composite the background video (index 0) behind the overlay Child.
     protected override int VisualChildrenCount => 1 + base.VisualChildrenCount;
 
     protected override Visual GetVisualChild(int index)
-        => index == 0 ? surface : base.GetVisualChild(index - 1);
+        => index == 0 ? image : base.GetVisualChild(index - 1);
 
     protected override Size MeasureOverride(Size constraint)
     {
-        surface.Measure(constraint);
+        image.Measure(constraint);
         var childSize = base.MeasureOverride(constraint);
         return new Size(
             double.IsInfinity(constraint.Width) ? childSize.Width : constraint.Width,
@@ -94,7 +93,7 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        surface.Arrange(new Rect(finalSize));
+        image.Arrange(new Rect(finalSize));
         base.ArrangeOverride(finalSize);
         return finalSize;
     }
@@ -180,41 +179,37 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
             Player.Config.Video.ZoomOut(currentDpiPoint);
     }
 
-    private void OnSurfaceLoad(object sender, DrawingSurfaceEventArgs e)
-    {
-        compositorDevice = e.Device;
-        DebugLogger.Print("[FLV] Surface LoadContent");
-        EnsureBridge();
-    }
-
-    private void OnSurfaceUnload(object sender, DrawingSurfaceEventArgs e)
-    {
-        DebugLogger.Print("[FLV] Surface UnloadContent");
-        DisposeBridge();
-        compositorDevice = null;
-    }
-
-    private void OnSurfaceDraw(object sender, DrawEventArgs args)
+    // Present pump on the WPF render loop; only touches the bitmap on new frames.
+    private void OnRendering(object sender, EventArgs e)
     {
         if (bridge == null)
             return;
 
-        var colorTexture = args.Surface.ColorTexture;
-        if (colorTexture != null)
+        var size = GetControlPixelSize();
+        if (size.Width != bmpWidth || size.Height != bmpHeight)
         {
-            var desc = colorTexture.Description;
-            int w = (int)desc.Width;
-            int h = (int)desc.Height;
-            if (w != lastTextureWidth || h != lastTextureHeight)
-            {
-                lastTextureWidth = w;
-                lastTextureHeight = h;
-                bridge.Resize(w, h);
-            }
+            bridge.Resize(size.Width, size.Height);
+            EnsureBitmap(size.Width, size.Height);
         }
 
-        if (bridge.CopyLatestFrameTo(args))
-            args.InvalidateSurface();
+        if (!bridge.HasPendingFrame || bitmap == null)
+            return;
+
+        bitmap.Lock();
+        try
+        {
+            if (bridge.CopyLatestFrameInto(bitmap.BackBuffer, bitmap.BackBufferStride, bmpWidth, bmpHeight))
+            {
+                bitmap.AddDirtyRect(new Int32Rect(0, 0, bmpWidth, bmpHeight));
+                int n = ++presentCount;
+                if (n <= 3 || n % 120 == 0)
+                    DebugLogger.Print($"[FLV] present #{n} {bmpWidth}x{bmpHeight}");
+            }
+        }
+        finally
+        {
+            bitmap.Unlock();
+        }
     }
 
     private void SetPlayer(Player oldPlayer)
@@ -238,28 +233,53 @@ public class FlyleafView : Decorator, IHostPlayer, IDisposable
 
     private void EnsureBridge()
     {
-        if (bridge != null || Player?.Renderer == null || compositorDevice == null || !IsLoaded)
+        if (bridge != null || Player?.Renderer == null || !IsLoaded)
             return;
 
         UpdateDpi();
 
         var size = GetControlPixelSize();
         bridge = new FlyleafFrameBridge();
-        bridge.SetFrameReadyCallback(() => surface.Invalidate());
         bridge.Initialize(Player, size.Width, size.Height);
-        bridge.SetCompositorDevice(compositorDevice);
-        lastTextureWidth = 0;
-        lastTextureHeight = 0;
+        EnsureBitmap(size.Width, size.Height);
+
+        if (!renderingHooked)
+        {
+            CompositionTarget.Rendering += OnRendering;
+            renderingHooked = true;
+        }
 
         DebugLogger.Print($"[FLV] Bridge ready control={size.Width}x{size.Height}");
     }
 
     private void DisposeBridge()
     {
+        if (renderingHooked)
+        {
+            CompositionTarget.Rendering -= OnRendering;
+            renderingHooked = false;
+        }
+
         bridge?.Dispose();
         bridge = null;
-        lastTextureWidth = 0;
-        lastTextureHeight = 0;
+        bitmap = null;
+        image.Source = null;
+        bmpWidth = 0;
+        bmpHeight = 0;
+    }
+
+    private void EnsureBitmap(int width, int height)
+    {
+        if (width <= 0 || height <= 0)
+            return;
+
+        if (bitmap != null && bmpWidth == width && bmpHeight == height)
+            return;
+
+        bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
+        image.Source = bitmap;
+        bmpWidth = width;
+        bmpHeight = height;
     }
 
     private void UpdateDpi()
