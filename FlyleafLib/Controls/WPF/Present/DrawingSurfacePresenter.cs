@@ -63,7 +63,7 @@ internal sealed class DrawingSurfacePresenter : IVideoPresenter
         _surface.UnloadContent -= OnUnloadContent;
         _surface.Draw -= OnDraw;
         ResetOpenedTexture();
-        (_surface as IDisposable)?.Dispose();
+        (_surface.Source as D3D11ImageSource)?.Dispose();
     }
 
     private void OnLoadContent(object sender, DrawingSurfaceEventArgs e)

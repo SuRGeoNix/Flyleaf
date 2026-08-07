@@ -378,7 +378,8 @@ public sealed class ZoomOverviewControl : FrameworkElement, IDisposable
             _surface.MouseMove -= OnMouseMove;
         }
 
-        (_surface as IDisposable)?.Dispose();
+        // DrawingSurface is an Image (not IDisposable); dispose its D3D11ImageSource source.
+        (_surface?.Source as D3D11ImageSource)?.Dispose();
         _surface = default;
     }
 }
