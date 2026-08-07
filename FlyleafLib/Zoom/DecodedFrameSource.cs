@@ -2,6 +2,7 @@ using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using System;
+using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 using Vortice.Mathematics;
@@ -22,6 +23,13 @@ namespace FlyleafLib.Zoom
         private readonly object _lock = new object();
         public IntPtr SharedTextureHandle { get; private set; }
         public bool HasValidFrame { get; private set; }
+
+        /// <summary>SRV of the converted BGRA frame, on the player render device.</summary>
+        public ID3D11ShaderResourceView FrameSrv { get; private set; }
+        public int VideoWidth { get; private set; }
+        public int VideoHeight { get; private set; }
+        /// <summary>Raised (on the render thread) after a new frame has been converted.</summary>
+        public event Action FrameReady;
 
         // D3D11
         private  ID3D11Device          _device;
@@ -64,7 +72,7 @@ namespace FlyleafLib.Zoom
         public DecodedFrameSource(ID3D11Device device, VideoDecoder decoder)
         {
             _device  = device  ?? throw new ArgumentNullException(nameof(device));
-            _decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));            
+            _decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
             _context = device.ImmediateContext;
 
             // VideoDevice/Context for HW conversion
@@ -82,13 +90,12 @@ namespace FlyleafLib.Zoom
         public void OnRenderFrame(VideoFrame frame)
         {
             if(_disposed || frame == null) return;
-            
+
             bool isHW = _decoder.VideoAccelerated && frame.VPIV != null;
 
-            if (isHW)
-                UpdateHW(frame);
-            else
-                UpdateSW(frame);
+            bool ok = isHW ? UpdateHW(frame) : UpdateSW(frame);
+            if (ok)
+                FrameReady?.Invoke();
         }
 
         private void CheckAndUpdateContext()
@@ -100,6 +107,8 @@ namespace FlyleafLib.Zoom
 
                 _vpOutputView?.Dispose();
                 _vpOutputView = null;
+                FrameSrv?.Dispose();
+                FrameSrv = null;
                 _convertedTex?.Dispose();
                 _convertedTex = null;
 
@@ -185,6 +194,7 @@ namespace FlyleafLib.Zoom
             if (_convertedTex != null && _convertedW == w && _convertedH == h) return;
 
             _vpOutputView?.Dispose();   _vpOutputView   = null;
+            FrameSrv?.Dispose();        FrameSrv        = null;
             _convertedTex?.Dispose();   _convertedTex   = null;
             _vpReady = false;
 
@@ -200,11 +210,20 @@ namespace FlyleafLib.Zoom
                 // RenderTarget: required for VideoProcessorBlt output
                 // ShaderResource: for Overview-Shader
                 BindFlags = BindFlags.RenderTarget | BindFlags.ShaderResource,
-                MiscFlags = ResourceOptionFlags.Shared,
+            });
+
+            // SRV consumed in-process by the overview shader (same render device).
+            FrameSrv = _device.CreateShaderResourceView(_convertedTex, new ShaderResourceViewDescription
+            {
+                Format = Format.B8G8R8A8_UNorm,
+                ViewDimension = ShaderResourceViewDimension.Texture2D,
+                Texture2D = new Texture2DShaderResourceView { MipLevels = 1 }
             });
 
             _convertedW = w;
             _convertedH = h;
+            VideoWidth = w;
+            VideoHeight = h;
         }
 
         // Setting up the D3D11 Video Processor
@@ -259,7 +278,7 @@ namespace FlyleafLib.Zoom
 
         // Update SRV to _convertedTex
         private void RefreshSrv()
-        {   
+        {
             if (_convertedTex == null) return;
 
             try
@@ -268,7 +287,7 @@ namespace FlyleafLib.Zoom
                 IntPtr handle = res.SharedHandle;
 
                 SharedTextureHandle = handle;
-                
+
             }
             catch { /* silently skip if not D3D11.1 */ }
         }
@@ -282,7 +301,7 @@ namespace FlyleafLib.Zoom
                 {
                     _parentRenderer.RenderChild -= OnRenderFrame;
                 }
-                
+
             }
             catch { }
         }
@@ -299,6 +318,7 @@ namespace FlyleafLib.Zoom
             _vpEnum?.Dispose();
             _videoContext?.Dispose();
             _videoDevice?.Dispose();
+            FrameSrv?.Dispose();
             _convertedTex?.Dispose();
         }
     }

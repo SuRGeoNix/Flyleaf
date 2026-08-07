@@ -14,6 +14,10 @@ namespace FlyleafLib.Controls.WPF.Present;
 /// </summary>
 public sealed class HybridVideoPresenter : FrameworkElement, IDisposable
 {
+    /// <summary>Global fallback present mode used by controls that don't override it
+    /// (e.g. set once at startup to pin Software for a customer/debug).</summary>
+    public static VideoPresentMode DefaultMode { get; set; } = VideoPresentMode.Auto;
+
     private const int SettleTicks = 60; // ~1s window for Auto to observe the front buffer
 
     private readonly VideoPresentMode _mode;
@@ -33,9 +37,9 @@ public sealed class HybridVideoPresenter : FrameworkElement, IDisposable
         Unloaded += (_, _) => UnhookPump();
     }
 
-    public void Attach(FlyleafFrameBridge bridge)
+    public void Attach(VideoFrameProviderBase provider)
     {
-        _provider = bridge;
+        _provider = provider;
 
         bool startSoftware = _mode == VideoPresentMode.Software
             || (_mode == VideoPresentMode.Auto && IsRemoteSession());
