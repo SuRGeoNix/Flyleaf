@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using FlyleafLib.Controls.WPF.Present;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Data;
 
@@ -805,7 +806,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Audio delay ticks (will be reseted to 0 for every new audio stream)
         /// </summary>
-        [JsonIgnore] // We reset this on open (TBR: Resync should be Task?* can block UI | Same for Enable) 
+        [JsonIgnore] // We reset this on open (TBR: Resync should be Task?* can block UI | Same for Enable)
         public long             Delay               { get => _Delay;            set { if (player != null && !player.Audio.IsOpened) return;  if (Set(ref _Delay, value)) player?.ReSync(player.decoder.AudioStream); } }
         long _Delay;
         internal void SetDelay(long delay)          => Set(ref _Delay, delay, true, nameof(Delay));
@@ -1086,6 +1087,11 @@ public class EngineConfig
     /// Keep display powered on while video is playing
     /// </summary>
     public bool     KeepDisplayActive       { get; set; } = true;
+
+    /// <summary>
+    /// Present mode used for presenting FlyleafView video
+    /// </summary>
+    public VideoPresentMode VideoPresentMode { get; set; } = VideoPresentMode.Auto;
 
     /// <summary>
     /// Loads engine's configuration
