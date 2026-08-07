@@ -1,7 +1,6 @@
 ﻿using FlyleafLib.Controls.WPF.Present;
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Zoom;
-using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
@@ -104,7 +103,6 @@ public sealed class ZoomOverviewControl : FrameworkElement, IDisposable
         _initialized = true;
 
         UpdateVisibility();
-        _player.ShowFrame();
     }
 
     /// <summary>Disconnects the control from the player. UI thread.</summary>
@@ -148,13 +146,8 @@ public sealed class ZoomOverviewControl : FrameworkElement, IDisposable
                            or nameof(_player.Config.Video.PanYOffset))
         {
             UpdateVisibility();
-            RequestRender();
         }
     }
-
-    // Re-render the minimap (e.g. after zoom/pan). The minimap re-renders per decoded
-    // frame; forcing a frame refreshes the viewport box even when paused.
-    private void RequestRender() => _player?.ShowFrame();
 
     private void UpdateVisibility()
     {
@@ -174,10 +167,7 @@ public sealed class ZoomOverviewControl : FrameworkElement, IDisposable
     {
         var ctrl = (ZoomOverviewControl)d;
         if (ctrl._provider?.Renderer is { } renderer && ctrl._initialized)
-        {
             renderer.ShowZoomBox = (bool)e.NewValue;
-            ctrl.RequestRender();
-        }
     }
 
     private static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
