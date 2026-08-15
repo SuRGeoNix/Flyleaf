@@ -882,7 +882,7 @@ public unsafe class Demuxer : RunThreadBase
     }
     string GetDump(string chapters) =>
         $"""
-        [Time	 ] {TicksToTime(StartTime)} / {TicksToTime(Duration)}{(fmtCtx->duration != NoTs ? $" (based on {fmtCtx->duration_estimation_method})" : "")}{(fmtCtx->start_time_realtime != NoTs ? $" [RealTime: {StartRealTime.ToLocalTime()}]" : "")}{(fmtCtx->bit_rate > 0 ? $", {fmtCtx->bit_rate/1000} kb/s" : "")}
+        [Time	 ] {TicksToTime(StartTime)} / {TicksToTime(Duration)}{(fmtCtx->start_time_realtime != NoTs ? $" [RealTime: {StartRealTime.ToLocalTime()}]" : "")}{(fmtCtx->bit_rate > 0 ? $", {fmtCtx->bit_rate/1000} kb/s" : "")}
         [Format  ] {LongName} ({Name}){(fmtCtx->iformat->flags != FmtFlags.None ? $" [Flags: {fmtCtx->iformat->flags}]" : "")}{(fmtCtx->ctx_flags != FmtCtxFlags.None ? $" [CtxFlags: {fmtCtx->ctx_flags}]" : "")}{(fmtCtx->iformat->mime_type != null ? $" [Mime: {BytePtrToStringUTF8(fmtCtx->iformat->mime_type)}]" : "")}{(Extensions != null ? $" [Ext(s): {Extensions}]" : "")}
         """;
     string GetDumpPrograms()
