@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.10.4</Version>
+	<Version>3.11</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Audio: Fixes a deadlock issue when no audio devices exist
-		- Config.Player: Introduces SnapshotAlways to allow off-screen snapshots
-		- Config.VP: Fixes default back color transparency
-		- Engine: Fixes a possible deadlock during players disposal
-		- FlyleafHost.Wpf: Fixes a DPI issue
-		- Renderer: Adds support for off-screen snapshots
-		- Renderer.D3D11: Fixes an issue with WARP device
+		- DecoderContext: Adds draining support
+		- Player: Fixes a locking issue betweek Seek and Frame Stepping
+		- Player: Fixes a possible deadlock during disposal
+		- Updates FFmpeg / Vortice
 	</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -63,12 +60,12 @@
 
   <ItemGroup>
 	<PackageReference Include="Flyleaf.FFmpeg.Bindings" Version="9.0.0" />
-	<PackageReference Include="Vortice.D3DCompiler" Version="3.7.6-beta" />
-	<PackageReference Include="Vortice.Direct3D11" Version="3.7.6-beta" />
-	<PackageReference Include="Vortice.DirectComposition" Version="3.7.6-beta" />
-	<PackageReference Include="Vortice.Mathematics" Version="1.9.3" />
-	<PackageReference Include="Vortice.MediaFoundation" Version="3.7.6-beta" />
-	<PackageReference Include="Vortice.XAudio2" Version="3.7.6-beta" />
+	<PackageReference Include="Vortice.D3DCompiler" Version="3.8.3" />
+	<PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+	<PackageReference Include="Vortice.DirectComposition" Version="3.8.3" />
+	<PackageReference Include="Vortice.Mathematics" Version="2.1.1" />
+	<PackageReference Include="Vortice.MediaFoundation" Version="3.8.3" />
+	<PackageReference Include="Vortice.XAudio2" Version="3.8.3" />
   </ItemGroup>
 
 </Project>
