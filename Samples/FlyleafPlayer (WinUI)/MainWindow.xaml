@@ -66,7 +66,7 @@
                         <TextBlock Grid.Column="1" Text="{Binding Player.Playlist.Selected.Title}" VerticalAlignment="Top" HorizontalAlignment="Center" FontSize="16"/>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <Slider IsTabStop="False" Maximum="{Binding Player.Config.Player.VolumeMax, Mode=OneWay}" Value="{Binding Player.Audio.Volume, Mode=TwoWay}" Width="100"/>
+                            <Slider IsTabStop="False" Maximum="{Binding Player.Config.Audio.VolumeMax, Mode=OneWay}" Value="{Binding Player.Audio.Volume, Mode=TwoWay}" Width="100"/>
                             <Button x:Name="btnFullScreen" IsTabStop="False" Margin="18 0 0 0" Command="{Binding Player.Commands.ToggleFullScreen}"/>
                         </StackPanel>
                     </Grid>
