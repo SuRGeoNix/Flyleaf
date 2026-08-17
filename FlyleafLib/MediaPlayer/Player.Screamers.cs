@@ -174,7 +174,7 @@ unsafe partial class Player
                         break;
 
                     Audio.AddSamples(aFrame);
-                    bufferedDuration += (long) ((aFrame.dataLen / 4) * Audio.Timebase);
+                    bufferedDuration += (long) ((aFrame.dataLen / AudioDecoder.SampleBytes) * AudioDecoder.SampleRateTimebase);
                     UpdateCurTime(aFrame.Timestamp, false);
                 } while (bufferedDuration < 100 * 10000);
 
