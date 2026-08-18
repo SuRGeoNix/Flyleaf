@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11</Version>
+	<Version>3.11.1</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,12 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- DecoderContext: Adds draining support
-		- Player: Fixes a locking issue betweek Seek and Frame Stepping
-		- Player: Fixes a possible deadlock during disposal
-		- Updates FFmpeg / Vortice
+		- Audio: Adds support for all channel layouts, sample formats and sample rates supported by XAudio
+		- Audio: Improves A/V synchronization
+
+		[Breaking Changes]
+		- Config.Audio: Deprecates FiltersEnabled (will always use filters)
+		- FFmpeg: Requires filters for proper audio playback
 	</PackageReleaseNotes>
   </PropertyGroup>
 

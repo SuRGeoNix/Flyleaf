@@ -308,7 +308,10 @@ public unsafe partial class AudioDecoder : DecoderBase
                     if (!filledFromCodec || codecChanged)
                     {
                         if (codecChanged && filledFromCodec)
-                            Log.Warn($"Codec changed {AudioStream.CodecIDOrig} {AudioStream.SampleFormat} {AudioStream.SampleRate} {AudioStream.ChannelLayoutStr} => {codecCtx->codec_id} {codecCtx->sample_fmt} {codecCtx->sample_rate} {ChannelLayoutStr}");
+                        {
+                            Log.Warn($"Codec changed {AudioStream.SampleRate / 1000:g} kHz / {AudioStream.ChannelLayoutStr} / {AudioStream.SampleFormat.ToString().ToLower()} => {codecCtx->sample_rate / 1000:g} kHz / {GetChannelLayoutStr(codecCtx->ch_layout)} / {codecCtx->sample_fmt.ToString().ToLower()}");
+                            DisposeFrames();    // as we reset XAudio we need to avoid feeding those
+                        }
 
                         DisposeFilters();
 
