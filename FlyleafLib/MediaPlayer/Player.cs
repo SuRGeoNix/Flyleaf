@@ -510,16 +510,13 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             if (IsDisposed)
                 return;
 
-            try
-            {
-                Initialize();
-                Audio.Dispose();
-                decoder.Dispose();
-            } catch (Exception e) { Log.Warn($"Disposed ({e.Message})"); }
+            Initialize();
 
             IsDisposed = true;
         }
 
+        Audio.Dispose();
+        decoder.Dispose(); // with lockActions, Deadlock with Pause (from Renderer.Dispose)
         Host?.Player_Disposed();
         Log.Info("Disposed");
     }
