@@ -59,7 +59,6 @@ unsafe partial class Player
         if (!vFrames.TryDequeue(out var vFrame))
             return;
 
-        Log.Error($"ShowOneFrame #{vFrame.Id}");
         Renderer.RenderRequest(vFrame);
         
         UpdateCurTime(vFrame.Timestamp);
