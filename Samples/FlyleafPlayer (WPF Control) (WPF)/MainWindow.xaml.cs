@@ -232,7 +232,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         //playerConfig.Audio.Filters = new()
         //{
         //    //new() { Name = "loudnorm", Args = "I=-24:LRA=7:TP=-2", Id = "loudnorm1" },
-        //    //new() { Name = "dynaudnorm", Args = "f=4150", Id = "dynaudnorm1" },
+        //    //new() { Name = "dynaudnorm", Args = "f=500:g=15:p=0.90:m=5", Id = "dynaudnorm1" },
+        //    //new() { Name = "acompressor", Args = "threshold=0.1:ratio=4:attack=20:release=250", Id = "acompressor1" },
         //    //new() { Name ="afftfilt", Args = "real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75" }, // robot
         //    //new() { Name ="tremolo", Args="f=5:d=0.5" },
         //    //new() { Name ="vibrato", Args="f=10:d=0.5" },

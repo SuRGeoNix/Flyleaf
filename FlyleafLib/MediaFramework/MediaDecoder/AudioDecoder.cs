@@ -27,11 +27,11 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 public unsafe partial class AudioDecoder : DecoderBase
 {
-    // Format (after Decoder + Filter)
+    // Sink's Format (after Decoder + Filter)
     public AVChannelLayout  ChannelLayout       { get => channelLayout; private set { channelLayout = value; } }
     AVChannelLayout channelLayout;
     public string           ChannelLayoutStr    { get; private set; }
-    public AVSampleFormat   SampleFormat        { get; private set; }
+    public AVSampleFormat   SampleFormat        { get; private set; } = AVSampleFormat.None;
     public int              SampleRate          { get; private set; }
     public int              SampleBytes         { get; private set; }
     public double           SampleRateTimebase  { get; private set; } // Ticks
@@ -51,9 +51,6 @@ public unsafe partial class AudioDecoder : DecoderBase
     int                     cBufPos;
     int                     cBufSamples;
     internal bool           resyncWithVideoRequired;
-
-    internal long           nextPts;
-    double                  codecSampleRateTimebase; // Mcs
 
     public AudioDecoder(Config config, int uniqueId = -1, VideoDecoder syncDecoder = null) : base(config, uniqueId)
         => VideoDecoder = syncDecoder;
@@ -117,7 +114,7 @@ public unsafe partial class AudioDecoder : DecoderBase
         DisposeFilters();
 
         filledFromCodec = false;
-        nextPts         = AV_NOPTS_VALUE;
+        expectingPts    = AV_NOPTS_VALUE;
     }
     public void DisposeFrames() => Frames = new();
     public void Flush()
@@ -134,7 +131,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                     Status = Status.Stopping;
 
                 resyncWithVideoRequired = !VideoDecoder.Disposed;
-                nextPts = AV_NOPTS_VALUE;
+                expectingPts = AV_NOPTS_VALUE;
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
                 if (filterGraph != null)
@@ -297,18 +294,14 @@ public unsafe partial class AudioDecoder : DecoderBase
                         frame->pts = frame->best_effort_timestamp;
                     else if (frame->pts == AV_NOPTS_VALUE)
                     {
-                        if (nextPts == AV_NOPTS_VALUE && filledFromCodec) // Possible after seek (maybe set based on pkt_pos?)
+                        if (expectingPts == AV_NOPTS_VALUE)
                         {
                             av_frame_unref(frame);
                             continue;
                         }
 
-                        frame->pts = nextPts;
+                        frame->pts = expectingPts;
                     }
-
-                    // We could fix it down to the demuxer based on size?
-                    if (frame->duration <= 0)
-                        frame->duration = av_rescale_q((long)(frame->nb_samples * codecSampleRateTimebase), Engine.FFmpeg.AV_TIMEBASE_Q, Stream.AVStream->time_base);
 
                     codecChanged = AudioStream.SampleFormat != codecCtx->sample_fmt || AudioStream.SampleRate != codecCtx->sample_rate || AudioStream.ChannelLayout.u.mask != codecCtx->ch_layout.u.mask;
 
@@ -323,11 +316,8 @@ public unsafe partial class AudioDecoder : DecoderBase
                         AudioStream.Refresh(this, frame);
                         codecChanged            = false;
                         resyncWithVideoRequired = !VideoDecoder.Disposed;
-                        codecSampleRateTimebase = 1000 * 1000.0 / codecCtx->sample_rate;
-                        nextPts                 = AudioStream.StartTimePts;
-
-                        if (frame->pts == AV_NOPTS_VALUE)
-                            frame->pts = nextPts;
+                        streamSampleRateTimebase= new() { Num = 1, Den = codecCtx->sample_rate};
+                        gapOffsetTb             = av_rescale_q((long)TimeSpan.FromMilliseconds(40).TotalMicroseconds, TIME_BASE_Q, AudioStream.AVStream->time_base);
 
                         lock (lockSpeed)
                             ret = SetupFilters();
@@ -339,12 +329,6 @@ public unsafe partial class AudioDecoder : DecoderBase
                             Status = Status.Stopping;
                             av_frame_unref(frame);
                             break;
-                        }
-
-                        if (nextPts == AV_NOPTS_VALUE)
-                        {
-                            av_frame_unref(frame);
-                            continue;
                         }
                     }
 

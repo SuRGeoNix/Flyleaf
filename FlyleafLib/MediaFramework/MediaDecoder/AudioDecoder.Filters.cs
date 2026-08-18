@@ -7,24 +7,27 @@ using FlyleafLib.MediaFramework.MediaStream;
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 public unsafe partial class AudioDecoder
-{
-    // TODO: Check locks (lockSpeed) - during seek and speed change (also in xaudio submit samples - we change the data len and we lose sync with submited samples vs played)
+{   // TODO: Check locks (lockSpeed) - during seek and speed change (also in xaudio submit samples - we change the data len and we lose sync with submited samples vs played)
+
+    static AVFilter* ATEMPO     = avfilter_get_by_name("atempo");
+    static AVFilter* ABUFFER    = avfilter_get_by_name("abuffer");
+    static AVFilter* ABUFFERSINK= avfilter_get_by_name("abuffersink");
 
     AVFilterContext*        abufferCtx;
     AVFilterContext*        abufferSinkCtx;
     AVFilterGraph*          filterGraph;
     bool                    abufferDrained;
-    long                    curSamples;
-    double                  missedSamples;
-    long                    filterFirstPts;
-    bool                    setFirstPts;
-    object                  lockSpeed = new();
-    AVRational              sinkTimebase;
+    AVRational              streamSampleRateTimebase;
     AVFrame*                filtframe;
+    object                  lockSpeed = new();
 
-    static AVFilter* ATEMPO     = avfilter_get_by_name("atempo");
-    static AVFilter* ABUFFER    = avfilter_get_by_name("abuffer");
-    static AVFilter* ABUFFERSINK= avfilter_get_by_name("abuffersink");
+    bool                    setFirstPts;                // We start a new continues session
+    long                    firstPts;                   // First valid pts of the new session
+    long                    gapOffsetTb;                // Offset that we create an actual gap-discontinuity
+    long                    decodedSamples;             // Continues decoded amples to calculate expectingPts (based on firstPts)
+    internal long           expectingPts;               // Expected next continues decoded pts
+    long                    filtSamples;                // Continues filtered samples to calculate frame's pts-timestamp
+    double                  filtMissedSamples;          // Fixes rounding issues
 
     private AVFilterContext* CreateFilter(string name, string args, AVFilterContext* prevCtx = null, string id = null)
         => CreateFilter(avfilter_get_by_name(name), args, prevCtx, id ?? name);
@@ -72,7 +75,6 @@ public unsafe partial class AudioDecoder
 
             AVFilterContext* linkCtx;
 
-            sinkTimebase    = new() { Num = 1, Den = codecCtx->sample_rate};
             filtframe       = av_frame_alloc();
             filterGraph     = avfilter_graph_alloc();
             setFirstPts     = true;
@@ -80,7 +82,7 @@ public unsafe partial class AudioDecoder
 
             // IN (abuffersrc)
             linkCtx = abufferCtx = CreateFilter(ABUFFER,
-                $"channel_layout={AudioStream.ChannelLayoutStr}:sample_fmt={AudioStream.SampleFormatStr}:sample_rate={codecCtx->sample_rate}:time_base={sinkTimebase.Num}/{sinkTimebase.Den}");
+                $"channel_layout={AudioStream.ChannelLayoutStr}:sample_fmt={AudioStream.SampleFormatStr}:sample_rate={codecCtx->sample_rate}:time_base=1/{streamSampleRateTimebase.Den}");
 
             // USER DEFINED
             if (Config.Audio.Filters != null)
@@ -216,7 +218,7 @@ public unsafe partial class AudioDecoder
                 SetupFilters();
         }
     }
-    internal void FixSample(AudioFrame frame, double newSpeed)
+    void FixSample(AudioFrame frame, double newSpeed)
     {
         var oldSpeed    = frame.speed;
         var oldDataLen  = frame.dataLen;
@@ -268,26 +270,34 @@ public unsafe partial class AudioDecoder
 
     private void ProcessFilters()
     {
+        /* NOTES
+         * We can't trust pts/duration. Even pts can have a small gap that will be corrected on the next pts (decoder's issue).
+         * So we calculte expecting pts based on samples only and when the gap is large enough we reset.
+         * Filtered frames are always continues timestamps (decoded frames will control the gaps *setFirstPts)
+         */
+
         if (setFirstPts)
         {
-            setFirstPts     = false;
-            filterFirstPts  = frame->pts;
-            curSamples      = 0;
-            missedSamples   = 0;
+            setFirstPts         = false;
+            firstPts            = frame->pts;
+            decodedSamples      = 0;
+            filtSamples         = 0;
+            filtMissedSamples   = 0;
         }
-        else if (Math.Abs(frame->pts - nextPts) * AudioStream.Timebase > 10 * 10000) // 10ms distance should resync filters (TBR: it should be 0ms however we might get 0 pkt_duration for unknown?)
+        else if (Math.Abs(frame->pts - expectingPts) > gapOffsetTb)
         {
+            Log.Warn($"Resync filters! ({TicksToTime((long)((frame->pts - expectingPts) * AudioStream.Timebase))} distance)");
+
             DrainFilters();
-            Log.Warn($"Resync filters! ({TicksToTime((long)((frame->pts - nextPts) * AudioStream.Timebase))} distance)");
-            //resyncWithVideoRequired = !VideoDecoder.Disposed;
-            DisposeFrames();
-            avcodec_flush_buffers(codecCtx);
             SetupFilters();
+            ProcessFilters(); // Recursion (don't drop the gap frame)
+
             return;
         }
 
-        nextPts = frame->pts + frame->duration;
-
+        decodedSamples += frame->nb_samples;
+        expectingPts    = firstPts + av_rescale_q(decodedSamples, streamSampleRateTimebase, AudioStream.AVStream->time_base);
+        
         int ret;
 
         if ((ret = av_buffersrc_add_frame_flags(abufferCtx, frame, AVBuffersrcFlag.KeepRef | AVBuffersrcFlag.NoCheckFormat)) < 0) // We check format change manually before here
@@ -301,12 +311,6 @@ public unsafe partial class AudioDecoder
         {
             if ((ret = av_buffersink_get_frame_flags(abufferSinkCtx, filtframe, 0)) < 0) // Sometimes we get AccessViolationException while we UpdateFilter (possible related with .NET7 debug only bug)
                 return; // EAGAIN (Some filters will send EAGAIN even if EOF currently we handled cause our Status will be Draining)
-
-            if (filtframe->pts == AV_NOPTS_VALUE) // we might desync here (we dont count frames->nb_samples) ?
-            {
-                av_frame_unref(filtframe);
-                continue;
-            }
 
             ProcessFilter();
 
@@ -350,14 +354,8 @@ public unsafe partial class AudioDecoder
 
         while (true)
         {
-            if ((ret = av_buffersink_get_frame_flags(abufferSinkCtx, filtframe, 0)) < 0)
+            if (av_buffersink_get_frame_flags(abufferSinkCtx, filtframe, 0) < 0)
                 return;
-
-            if (filtframe->pts == AV_NOPTS_VALUE)
-            {
-                av_frame_unref(filtframe);
-                return;
-            }
 
             ProcessFilter();
         }
@@ -371,10 +369,10 @@ public unsafe partial class AudioDecoder
         else if (cBufPos + curLen >= cBuf.Length)
             cBufPos = 0;
 
-        long newPts         = filterFirstPts + av_rescale_q((long)(curSamples + missedSamples), sinkTimebase, AudioStream.AVStream->time_base);
+        long newPts         = firstPts + av_rescale_q((long)(filtSamples + filtMissedSamples), streamSampleRateTimebase, AudioStream.AVStream->time_base);
         var samplesSpeed1   = filtframe->nb_samples * speed;
-        missedSamples      += samplesSpeed1 - (int)samplesSpeed1;
-        curSamples         += (int)samplesSpeed1;
+        filtMissedSamples  += samplesSpeed1 - (int)samplesSpeed1;
+        filtSamples        += (int)samplesSpeed1;
 
         AudioFrame mFrame = new()
         {
