@@ -1057,7 +1057,7 @@ public unsafe class Demuxer : RunThreadBase
                     //else
                     ret = ticks == StartTime // we should also call this if we seek anywhere within the first Gop
                         ? avformat_seek_file(fmtCtx, -1, 0, 0, 0, 0)
-                        : av_seek_frame(fmtCtx, -1, ticks / 10, forward ? SeekFlags.Frame : SeekFlags.Backward);
+                        : av_seek_frame(fmtCtx, -1, ticks / 10, forward ? SeekFlags.None : SeekFlags.Backward);
 
                     curReverseStopPts = NoTs;
                     curReverseStartPts= NoTs;
@@ -1076,7 +1076,7 @@ public unsafe class Demuxer : RunThreadBase
                     Log.Info($"Seek failed 1/2 (retrying) {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
                     ret = VideoStream != null
-                        ? av_seek_frame(fmtCtx, -1, ticks / 10, forward ? SeekFlags.Backward : SeekFlags.Frame)
+                        ? av_seek_frame(fmtCtx, -1, ticks / 10, forward ? SeekFlags.Backward : SeekFlags.None)
                         : forward ?
                             avformat_seek_file(fmtCtx, -1, long.MinValue, ticks / 10, ticks / 10    , SeekFlags.Any):
                             avformat_seek_file(fmtCtx, -1, ticks / 10   , ticks / 10, long.MaxValue , SeekFlags.Any);
