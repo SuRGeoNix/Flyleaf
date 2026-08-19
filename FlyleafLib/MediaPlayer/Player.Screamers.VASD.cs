@@ -600,10 +600,12 @@ unsafe partial class Player
         long expectingPts   = NoTs; // Will be set on resync
         bool shouldResync   = true;
         
-        const long MIN_PLAY_BUFFER  = 40_0000;  // Start fill (TBR: allow some space from MAX to avoid filling all time?*)
-        const long MAX_PLAY_BUFFER  = 80_0000;  // Stop  fill (try to keep it low so we can easier switch speed?*)
-        const long MIN_DEC_BUFFER   = 19_0000;  // Resync when enough decoded buffer (related to MaxAudioFrame, keep it low for now)
-        const long MAX_DESYNC_MS    = 50;       // A small gap between frames can create audio desync (use Ms instead to allow small diff for rescale Tb inaccuracy)
+        const long MIN_PLAY_BUFFER  = 40_0000;      // Start fill (TBR: allow some space from MAX to avoid filling all time?*)
+        const long MAX_PLAY_BUFFER  = 80_0000;      // Stop  fill (try to keep it low so we can easier switch speed?*)
+        const long MIN_DEC_BUFFER   = 19_0000;      // Resync when enough decoded buffer (related to MaxAudioFrame, keep it low for now)
+        const long MAX_DESYNC_MS    = 50;           // A small gap between frames can create audio desync (use Ms instead to allow small diff for rescale Tb inaccuracy)
+        const long LARGE_GAP_LATE   = 90_000_0000;  // Resync Late Gap - Avoid reset as it will cause infinite loops
+        const long LARGE_GAP_EARLY  = -5_000_0000;  // Resync Early Gap
 
         while (!stopScreamerVASDAudio)
         {
@@ -645,14 +647,26 @@ unsafe partial class Player
                 elapsedTicks= (long)(sw.ElapsedTicks * SWFREQ_TO_TICKS);
                 waitTicks   = (long)((aFrame.Timestamp - startTicks) / speed) - (elapsedTicks + delayTicks); // TODO: crash on AllocateCircularBuffer
 
-                if (Math.Abs(waitTicks) > 5_000_0000) // Far away
-                 {
-                    // TBR: Infinite loop with AllowFindStreamInfo = false on HLS Live (FirstTimestamp different between A/V)
-                    // This requires resync (re-seek) to fix A/V desync
-                    Log.Warn($"[A] Too Early/Late Frame ({TicksToTimeMini(waitTicks)})");
+                // TBR: Large Gap should be handled different (e.g. disable audio or try to re-seek) to avoid Infinite loops
+                // HLS bug: Seems that GOP video (seeks at key) but embedded audio stream (seeks at requested instead) | When using different A/V programs*
+                if (waitTicks > LARGE_GAP_LATE) // Too Late
+                {
+                    Log.Warn($"[A] Too Late Frame ({TicksToTimeMini(waitTicks)})");
+
                     AudioDecoder.Frames.Clear();
                     aFrame = null;
                     requiresBuffering = true;
+
+                    break;
+                }
+                else if (waitTicks < LARGE_GAP_EARLY) // Too Early
+                {
+                    Log.Warn($"[A] Too Early Frame ({TicksToTimeMini(waitTicks)})");
+
+                    AudioDecoder.Frames.Clear();
+                    aFrame = null;
+                    requiresBuffering = true;
+
                     break;
                 }
                 else if (waitTicks > 10_0000) // Not yet
