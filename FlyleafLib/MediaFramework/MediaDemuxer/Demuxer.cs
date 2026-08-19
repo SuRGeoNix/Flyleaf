@@ -1032,29 +1032,19 @@ public unsafe class Demuxer : RunThreadBase
             {
                 Interrupter.ForceInterrupt = 0;
 
-                // Flush required because of the interrupt
                 if (fmtCtx->pb != null)
-                {
+                {   // Fix pb after possible interrupt
                     savedPbPos = fmtCtx->pb->pos;
-                    avio_flush(fmtCtx->pb);
-                    fmtCtx->pb->error = 0; // AVERROR_EXIT will stay forever and will cause the demuxer to go in Status Stopped instead of Ended (after interrupted seeks)
                     fmtCtx->pb->eof_reached = 0;
+                    if (fmtCtx->pb->error == AVERROR_EXIT)
+                        fmtCtx->pb->error = 0;
                 }
-                _ = avformat_flush(fmtCtx);
-
-                // Forces seekable HLS
-                if (hlsCtx != null)
-                    fmtCtx->ctx_flags &= ~FmtCtxFlags.Unseekable;
-
+                
                 Interrupter.SeekRequest();
                 if (VideoStream != null)
                 {
                     if (CanDebug) Log.Debug($"[Seek({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
 
-                    // TODO: After proper calculation of Duration
-                    //if (VideoStream.FixTimestamps && Duration > 0)
-                        //ret = av_seek_frame(fmtCtx, -1, (long)((ticks/(double)Duration) * avio_size(fmtCtx->pb)), AVSEEK_FLAG_BYTE);
-                    //else
                     ret = ticks == StartTime // we should also call this if we seek anywhere within the first Gop
                         ? avformat_seek_file(fmtCtx, -1, 0, 0, 0, 0)
                         : av_seek_frame(fmtCtx, -1, ticks / 10, forward ? SeekFlags.None : SeekFlags.Backward);
@@ -1072,7 +1062,6 @@ public unsafe class Demuxer : RunThreadBase
 
                 if (ret < 0)
                 {
-                    if (hlsCtx != null) fmtCtx->ctx_flags &= ~FmtCtxFlags.Unseekable;
                     Log.Info($"Seek failed 1/2 (retrying) {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
                     ret = VideoStream != null
@@ -1085,9 +1074,8 @@ public unsafe class Demuxer : RunThreadBase
                     {
                         Log.Warn($"Seek failed 2/2 {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                        // Flush required because of seek failure (reset pb to last pos otherwise will be eof) - Mainly for NoTimestamps (TODO: byte seek/calc dur/percentage)
                         if (fmtCtx->pb != null)
-                        {
+                        {   // Fix pb after possible interrupt (reset pb to last pos otherwise will be eof) - Mainly for NoTimestamps (TODO: byte seek/calc dur/percentage)
                             avio_flush(fmtCtx->pb);
                             fmtCtx->pb->error = 0;
                             fmtCtx->pb->eof_reached = 0;
@@ -1116,7 +1104,7 @@ public unsafe class Demuxer : RunThreadBase
             RunInternalReverse();
             return;
         }
-
+        
         int ret = 0;
         int allowedErrors = Config.MaxErrors;
         bool gotAVERROR_EXIT = false;
@@ -1466,7 +1454,7 @@ public unsafe class Demuxer : RunThreadBase
         curReverseStopRequestedPts = av_rescale_q((StartTime + timestamp) / 10, TIME_BASE_Q, VideoStream.AVStream->time_base);
     }
     public void DisableReversePlayback() => IsReversePlayback = false;
-    #endregion
+#endregion
 
     #region Switch Programs / Streams
     public bool IsProgramEnabled(StreamBase stream)
@@ -1837,12 +1825,12 @@ public unsafe class PacketQueue : Queue<nint>
     public PacketQueue(Demuxer demuxer) : base()
         => this.demuxer = demuxer;
 
-    #if DEBUG
+#if DEBUG
     // Ensures we don't access base queue directly
     public new void Enqueue     (nint _)    => throw new NotImplementedException("Use AVPacket*");
     public new bool TryDequeue  (out nint _)=> throw new NotImplementedException("Use AVPacket*");
     public new bool TryPeek     (out nint _)=> throw new NotImplementedException("Use AVPacket*");
-    #endif
+#endif
 
     public new void Clear()
     {

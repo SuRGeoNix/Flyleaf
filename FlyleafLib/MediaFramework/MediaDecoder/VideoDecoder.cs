@@ -1036,6 +1036,8 @@ public unsafe class VideoDecoder : DecoderBase
         {
             demuxer.Pause();
             Pause();
+            if (demuxer.FormatContext->pb != null && demuxer.FormatContext->pb->error == AVERROR_EXIT)
+                demuxer.FormatContext->pb->error = 0;
             demuxer.Interrupter.SeekRequest();
             int ret = av_seek_frame(demuxer.FormatContext, -1, curSeekMcs - curFixSeekDelta, SeekFlags.Backward);
 
