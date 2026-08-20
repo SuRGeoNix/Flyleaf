@@ -43,7 +43,7 @@ public unsafe partial class Renderer
             return false;
         }
 
-        FillPlanes  = VideoDecoder.VideoAccelerated ? SwsHWFillPlanes : SwsSWFillPlanes;
+        fillPlanes  = VideoDecoder.VideoAccelerated ? SwsHWFillPlanes : SwsSWFillPlanes;
         psCase      = PSCase.SwsScale;
 
         txtDesc[0].Width   = (uint)swsFrame->width;

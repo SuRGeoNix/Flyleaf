@@ -49,6 +49,56 @@ public unsafe partial class Renderer : NotifyPropertyChanged
     ID3D11DeviceContext     context;
     bool                    forceWarp;
 
+    // All VideoFrames this renderer created and not yet disposed. A frame can escape the VideoCache
+    // (source switch / seek / screamer hand-off) and then be abandoned without Dispose(); its native
+    // surface/SRV/VPIV (and pinned AVFrame) would only be freed by non-deterministic COM finalizers,
+    // keeping the D3D11 device referenced so the driver never reclaims the surface memory. Tracking
+    // them lets us dispose any survivors deterministically on source switch and on teardown.
+    readonly HashSet<MediaFrame.VideoFrame> liveFrames = [];
+    readonly object         lockLiveFrames = new();
+
+    internal void TrackFrame(MediaFrame.VideoFrame frame)
+    {
+        frame.Owner = this;
+        lock (lockLiveFrames)
+            liveFrames.Add(frame);
+    }
+
+    internal void UntrackFrame(MediaFrame.VideoFrame frame)
+    {
+        lock (lockLiveFrames)
+            liveFrames.Remove(frame);
+    }
+
+    internal void DisposeLiveFrames()
+    {
+        MediaFrame.VideoFrame[] survivors;
+        lock (lockLiveFrames)
+        {
+            if (liveFrames.Count == 0)
+                return;
+
+            survivors = [.. liveFrames];
+            liveFrames.Clear();
+        }
+
+        foreach (var frame in survivors)
+        {
+            frame.Owner = null; // already removed from set; avoid re-entrant Untrack
+            frame.Dispose();
+        }
+    }
+
+    // Forces D3D11 to process deferred destruction of just-released resources. D3D11 defers destroying
+    // a released resource until the next Flush / GPU idle; for a paused or source-switched player there
+    // is no Present to trigger it, so the freed surface memory lingers until then.
+    internal void FlushContext()
+    {
+        lock (lockDevice)
+            if (!Disposed && context != null)
+                context.Flush();
+    }
+
     internal LogHandler     Log;
     Player                  player;
     ID2D1Device             device2d;
@@ -248,6 +298,7 @@ public unsafe partial class Renderer : NotifyPropertyChanged
             if (!isDeviceReset)
                 RenderIdleStop(); // Ensures it didn't start again (after CanPresent = false)
             Frames.Dispose();
+            DisposeLiveFrames(); // dispose any frames that escaped the cache so no native view/AVFrame keeps the device referenced
             D3Dispose();
             FLDispose();
 

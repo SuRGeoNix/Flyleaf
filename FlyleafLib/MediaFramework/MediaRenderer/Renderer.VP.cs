@@ -37,7 +37,20 @@ public unsafe partial class Renderer : IVP
     VPRequestType   vpRequestsIn, vpRequests; // In: From User | ProcessRequests Copy
 
     internal unsafe delegate VideoFrame FillPlanesDelegate(ref AVFrame* frame);
-    internal FillPlanesDelegate FillPlanes;
+    FillPlanesDelegate fillPlanes;
+
+    // Single choke point for every frame returned to consumers. Tracks the frame so a torn-down or
+    // source-switched renderer can deterministically dispose any frame that escaped the VideoCache
+    // (otherwise its native surface/SRV/VPIV is freed only by non-deterministic finalizers, pinning
+    // the D3D11 device and blocking driver memory reclamation).
+    internal unsafe VideoFrame FillPlanes(ref AVFrame* frame)
+    {
+        var mFrame = fillPlanes(ref frame);
+        if (mFrame != null)
+            TrackFrame(mFrame);
+
+        return mFrame;
+    }
 
     void IVP.VPRequest(VPRequestType request)
         => VPRequest(request);
