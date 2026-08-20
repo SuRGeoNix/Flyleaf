@@ -83,7 +83,7 @@ public class AudioEngine : CallbackBase, IMMNotificationClient, INotifyPropertyC
 
             var defaultDevice = deviceEnum.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             if (defaultDevice == null)
-            {
+            {   // TBR: New devices can be connected later on
                 Failed = true;
                 return;
             }

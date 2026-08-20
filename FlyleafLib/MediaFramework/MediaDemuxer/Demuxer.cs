@@ -1075,13 +1075,16 @@ public unsafe class Demuxer : RunThreadBase
                         Log.Warn($"Seek failed 2/2 {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
                         if (fmtCtx->pb != null)
-                        {   // Fix pb after possible interrupt (reset pb to last pos otherwise will be eof) - Mainly for NoTimestamps (TODO: byte seek/calc dur/percentage)
+                        {   // Fix pb after possible interrupt
+                            if (fmtCtx->pb->error == AVERROR_EXIT)
+                                fmtCtx->pb->error = 0;
+
+                            // TBR: Reset position (from eof?) (Mainly for NoTimestamps)
                             avio_flush(fmtCtx->pb);
-                            fmtCtx->pb->error = 0;
-                            fmtCtx->pb->eof_reached = 0;
-                            avio_seek(fmtCtx->pb, savedPbPos, 0);
+                            if (avio_seek(fmtCtx->pb, savedPbPos, IOSeekFlags.Begin) > 0)
+                                fmtCtx->io_repositioned = 1;
+                            _ = avformat_flush(fmtCtx);
                         }
-                        _ = avformat_flush(fmtCtx);
                     }
                     else
                         lastSeekTime = ticks - StartTime - (hlsCtx != null ? hlsStartTime : 0);
