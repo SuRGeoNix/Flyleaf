@@ -331,13 +331,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    static Config DefaultConfig()
+    static Config DefaultConfig() => new()
     {
-        Config config = new();
-        config.Demuxer.FormatOptToUnderlying= true;     // Mainly for HLS to pass the original query which might includes session keys
-        config.Video.GPUAdapter             = "";       // Set it empty so it will include it when we save it
-        config.Subtitles.SearchLocal        = true;
-        return config;
+        Demuxer =
+        {   // NOTE: Same Dictionary Ref for all
+            FormatOpt              = defaultFormatOpt,
+            AudioFormatOpt         = defaultFormatOpt,
+            SubtitlesFormatOpt     = defaultFormatOpt,
+            FormatOptToUnderlying  = true, // Mainly for HLS to pass the original query which might includes session keys
+        },
+        Video =
+        {
+            GPUAdapter = "", // Set it empty so it will include it when we save it
+        },
+        Subtitles =
+        {
+            SearchLocal = true,
+        },
+    };
+
+    static readonly Dictionary<string, string> defaultFormatOpt = DefaultFormatOpt();
+    static Dictionary<string, string> DefaultFormatOpt()
+    {
+        var opts = Config.DemuxerConfig.DefaultFormatOpt();
+
+        opts["probesize"]       = $"{50L * 1024 * 1024}";
+        opts["analyzeduration"] = $"{TimeSpan.FromSeconds(10).TotalMicroseconds}";
+        opts["extension_picky"] = "0";
+        opts["rtsp_transport"]  = "tcp";
+
+        return opts;
     }
 
     #region Photo Viewer / Slide Show

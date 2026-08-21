@@ -101,7 +101,7 @@ unsafe partial class Player
                     decoder.Resync(vFrame.Timestamp);
 
                 if (!gotAudio && aFrame != null && Audio.isOpened) // Could be closed from invalid sample rate
-                {
+                {   // TODO: Peek last frame and even packets (during Ads we might get a lot of early/late invalida packets)
                     long aDeviceDelay = Audio.GetDeviceDelay();
 
                     for (int i = 0; i < Math.Min(20, AudioDecoder.Frames.Count); i++)
@@ -648,7 +648,6 @@ unsafe partial class Player
                 waitTicks   = (long)((aFrame.Timestamp - startTicks) / speed) - (elapsedTicks + delayTicks); // TODO: crash on AllocateCircularBuffer
 
                 // TBR: Large Gap should be handled different (e.g. disable audio or try to re-seek) to avoid Infinite loops
-                // HLS bug: Seems that GOP video (seeks at key) but embedded audio stream (seeks at requested instead) | When using different A/V programs*
                 if (waitTicks > LARGE_GAP_LATE) // Too Late
                 {
                     Log.Warn($"[A] Too Late Frame ({TicksToTimeMini(waitTicks)})");
