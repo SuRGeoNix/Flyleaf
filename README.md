@@ -38,7 +38,7 @@
 ### **Playback**
 - *Open / Play / Pause / Stop*
 - *Speed / Reverse / Zero-Low Latency*
-- *Seek Backward / Forward <sub>(Short / Large Step)</sub>*
+- *Seek Backward / Forward <sub>(Short / Medium / Large Step)</sub>*
 - *Seek to Time / Seek to Frame / Seek to Chapter / Frame Stepping*
 
 ### **Video**
@@ -50,6 +50,7 @@
 - *Pan Move / Zoom / Rotate / HFlip-VFlip / Cropping <sub>~~(Replica Renderer/Interactive Zoom)~~</sub>*
 - *Record / Snapshot*
 - *Super Resolution <sub>(Nvidia / Intel - D3D11VP only)</sub>*
+- *360° Panoramic*
 - *Video Acceleration*
 - *Video Filters <sub>(Brightness / Contrast / Hue / Saturation)</sub>*
 - *Video Processors <sub>(FlyleafVP / D3D11VP)</sub>*
@@ -62,6 +63,7 @@
 - *Device Preference*
 - *Add / Remove Delay <sub>(Short / Large Step)</sub>*
 - *Volume <sub>(Up / Down / Mute)</sub>*
+- *Native Audio Formats <sub>(Sample Formats / Sample Rates / Channel Layouts)</sub>*
 - *Languages support <sub>System's default languages as priorities for audio streams</sub>*
 
 ### **Subtitles**
@@ -105,7 +107,7 @@
 *Flyleaf wouldn't exist without them!*
 
 * *For the Core*
-  * ***[FFmpeg](http://ffmpeg.org/)*** / ***[FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen/)*** / ***[Flyleaf.FFmpeg.Bindings](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.Generator)***
+  * ***[FFmpeg](http://ffmpeg.org/)*** / ***[Flyleaf.FFmpeg.Bindings](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.Generator)***
   * ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
   * *Major open source media players* ***[VLC](https://github.com/videolan/vlc)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[MPC-BE](https://github.com/Aleksoid1978/MPC-BE)***, ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***
 
