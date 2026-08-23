@@ -72,6 +72,9 @@ public unsafe partial class Renderer
         catch (Exception e)
         {
             Log.Error($"[PostProcess] Frame failed; using unprocessed frame ({e.Message})");
+            // The extension can use any graphics-pipeline slot. Clear everything before the
+            // fallback so stale blend/scissor/shader state cannot suppress or corrupt the copy.
+            context.ClearState();
             context.OMSetRenderTargets(output);
             context.RSSetViewport(fullViewport);
             context.IASetVertexBuffer(0, vertexBuffer, sizeof(float) * 5);
@@ -85,7 +88,9 @@ public unsafe partial class Renderer
         }
         finally
         {
-            context.PSSetShaderResource(0, null);
+            // Unbind every borrowed resource, including slots/stages chosen by the processor.
+            // This also prevents a resized intermediate from remaining alive through a context binding.
+            context.ClearState();
             context.OMSetRenderTargets(output);
             context.RSSetViewport(contentViewport);
             context.IASetVertexBuffer(0, vertexBuffer, sizeof(float) * 5);
