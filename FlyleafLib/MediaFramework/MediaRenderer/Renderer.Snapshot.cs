@@ -48,13 +48,13 @@ public unsafe partial class Renderer
                 {
                     vc.VideoProcessorGetStreamDestRect  (vp, 0, out _, out var d3destOld);
                     vc.VideoProcessorGetOutputTargetRect(vp,    out _, out var d3outOld);
-                    D3Render(rFrame.VPIV, snapshot.d3rtv, snapshot.d3view);
+                    D3RenderPostProcessed(rFrame.VPIV, snapshot);
                     vc.VideoProcessorSetStreamDestRect  (vp, 0, true, d3destOld);
                     vc.VideoProcessorSetOutputTargetRect(vp,    true, d3outOld);
                 }
                 else
                 {
-                    FLRender(rFrame.SRV, snapshot.rtv, snapshot.view);
+                    FLRenderPostProcessed(rFrame.SRV, snapshot);
                     context.RSSetViewport(Viewport);
                 }
             }
@@ -130,9 +130,9 @@ public unsafe partial class Renderer
         var snapshot = GetSnapshot(width, height);
 
         if (VideoProcessor == VideoProcessors.D3D11)
-            D3Render(frame.VPIV, snapshot.d3rtv, snapshot.d3view);
+            D3RenderPostProcessed(frame.VPIV, snapshot);
         else
-            FLRender(frame.SRV, snapshot.rtv, snapshot.view);
+            FLRenderPostProcessed(frame.SRV, snapshot);
             
         context.CopyResource(snapshot.txtStage, snapshot.txt);
 
@@ -200,6 +200,7 @@ public unsafe partial class Renderer
 
 class Snapshot
 {
+    PostProcessSurface postProcessSurface;
     public uint Width    { get; set; }
     public uint Height   { get; set; }
 
@@ -253,9 +254,14 @@ class Snapshot
 
     public void Dispose()
     {
+        postProcessSurface?.Dispose();
         d3rtv?.     Dispose();
         rtv.        Dispose();
         txtStage.   Dispose();
         txt.        Dispose();
     }
+
+    public PostProcessSurface GetPostProcessSurface(ID3D11Device device, ID3D11VideoDevice videoDevice,
+        ID3D11VideoProcessorEnumerator videoEnumerator)
+        => postProcessSurface ??= new(device, videoDevice, videoEnumerator, Width, Height);
 }

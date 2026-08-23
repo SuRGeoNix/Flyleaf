@@ -173,6 +173,7 @@ public unsafe partial class Renderer : NotifyPropertyChanged
 
         FLSetup();
         D3Setup();
+        PostProcessSetup();
 
         if (CanInfo) Log.Info($"Initialized with Feature Level {(int)FeatureLevel >> 12}.{((int)FeatureLevel >> 8) & 0xf}");
 
@@ -248,6 +249,7 @@ public unsafe partial class Renderer : NotifyPropertyChanged
             if (!isDeviceReset)
                 RenderIdleStop(); // Ensures it didn't start again (after CanPresent = false)
             Frames.Dispose();
+            PostProcessDispose();
             D3Dispose();
             FLDispose();
 

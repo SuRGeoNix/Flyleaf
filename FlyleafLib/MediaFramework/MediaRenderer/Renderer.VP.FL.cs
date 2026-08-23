@@ -286,10 +286,15 @@ public unsafe partial class Renderer
         if (frame.SRV == null)
             return; // TODO: when we dispose on switch
 
-        context.OMSetRenderTargets(SwapChain.BackBufferRtv);
-        context.ClearRenderTargetView(SwapChain.BackBufferRtv, ucfg.flBackColor);
+        var surface = PostProcessEnabled ? GetLivePostProcessSurface() : null;
+        var target = surface?.RTV ?? SwapChain.BackBufferRtv;
+        context.OMSetRenderTargets(target);
+        context.ClearRenderTargetView(target, ucfg.flBackColor);
         context.PSSetShaderResources(0, frame.SRV);
         context.Draw(6, 0);
+
+        if (surface != null)
+            RunPostProcessor(surface, SwapChain.BackBufferRtv, (uint)ControlWidth, (uint)ControlHeight, Viewport, false);
 
         if (context2d != null)
             ucfg.OnD2DDraw(this, context2d);
@@ -302,6 +307,19 @@ public unsafe partial class Renderer
         context.RSSetViewport(view);
         context.PSSetShaderResources(0, srvs);
         context.Draw(6, 0);
+    }
+
+    void FLRenderPostProcessed(ID3D11ShaderResourceView[] srvs, Snapshot target)
+    {
+        if (!PostProcessEnabled)
+        {
+            FLRender(srvs, target.rtv, target.view);
+            return;
+        }
+
+        var surface = target.GetPostProcessSurface(device, vd, ve);
+        FLRender(srvs, surface.RTV, target.view);
+        RunPostProcessor(surface, target.rtv, target.Width, target.Height, target.view, true);
     }
 
     void FLDispose()

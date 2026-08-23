@@ -592,7 +592,11 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
         */
         vpsa[0].InputSurface= frame.VPIV;
         vpsa[0].OutputIndex = vpsa[0].InputFrameOrField = secondField ? 1u : 0u;
-        vc.VideoProcessorBlt(vp, SwapChain.VPOV, 0, 1, vpsa);
+        var surface = PostProcessEnabled ? GetLivePostProcessSurface() : null;
+        vc.VideoProcessorBlt(vp, surface?.VPOV ?? SwapChain.VPOV, 0, 1, vpsa);
+
+        if (surface != null)
+            RunPostProcessor(surface, SwapChain.BackBufferRtv, (uint)ControlWidth, (uint)ControlHeight, Viewport, false);
 
         if (context2d != null)
             ucfg.OnD2DDraw(this, context2d);
@@ -607,6 +611,19 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
         vpsa[0].InputSurface= srv;
         vpsa[0].OutputIndex = vpsa[0].InputFrameOrField = secondField ? 1u : 0u;
         vc.VideoProcessorBlt(vp, rtv, 0, 1, vpsa);
+    }
+
+    void D3RenderPostProcessed(ID3D11VideoProcessorInputView srv, Snapshot target, bool secondField = false)
+    {
+        if (!PostProcessEnabled)
+        {
+            D3Render(srv, target.d3rtv, target.d3view, secondField);
+            return;
+        }
+
+        var surface = target.GetPostProcessSurface(device, vd, ve);
+        D3Render(srv, surface.VPOV, target.d3view, secondField);
+        RunPostProcessor(surface, target.rtv, target.Width, target.Height, target.view, true);
     }
 
     void D3Dispose()
