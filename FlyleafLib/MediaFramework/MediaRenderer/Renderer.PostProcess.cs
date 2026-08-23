@@ -80,6 +80,8 @@ public unsafe partial class Renderer
             context.IASetVertexBuffer(0, vertexBuffer, sizeof(float) * 5);
             context.IASetInputLayout(inputLayout);
             context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
+            context.OMSetBlendState(null);
+            context.RSSetState(null);
             context.VSSetShader(vsSimple);
             context.PSSetShader(postProcessCopyShader);
             context.PSSetSampler(0, samplerLinear);
