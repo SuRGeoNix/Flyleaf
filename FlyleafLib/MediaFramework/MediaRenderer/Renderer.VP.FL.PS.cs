@@ -105,7 +105,7 @@ color = float4(
     }
     bool FLHWConfig()
     {
-        FillPlanes = FLHWFillPlanes;
+        fillPlanes = FLHWFillPlanes;
 
         psCase = PSCase.HW;
         psId  += "1";
@@ -194,7 +194,7 @@ SampleSplitFrameAlpha("input.Texture.x", "0.5 + (input.Texture.y / 2)"), defines
         else
             ret = FLSWGrayConfig();
 
-        FillPlanes = scfg.VFlip ? FLSWFillPlanesFlip : FLSWFillPlanes;
+        fillPlanes = scfg.VFlip ? FLSWFillPlanesFlip : FLSWFillPlanes;
 
         for (int i = 0; i < scfg.PixelPlanes; i++)
             srvDesc[i].ViewDimension = ShaderResourceViewDimension.Texture2D;
