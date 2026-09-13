@@ -36,7 +36,7 @@ public unsafe partial class Renderer : IVP
     bool            canFL, canD3;
     VPRequestType   vpRequestsIn, vpRequests; // In: From User | ProcessRequests Copy
 
-    internal unsafe delegate VideoFrame FillPlanesDelegate(ref AVFrame* frame);
+    internal delegate VideoFrame FillPlanesDelegate(ref AVFrame* frame);
     internal FillPlanesDelegate FillPlanes;
 
     void IVP.VPRequest(VPRequestType request)

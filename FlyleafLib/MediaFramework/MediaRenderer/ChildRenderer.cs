@@ -8,7 +8,7 @@
  * - Separate RenderIdle
  * - Separate ProcessRequests
  * - Separate RefreshPlay
- */
+ 
 
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
@@ -76,5 +76,4 @@ class ChildRenderer : IVP
         context.Dispose();
     }
 }
-
-
+*/

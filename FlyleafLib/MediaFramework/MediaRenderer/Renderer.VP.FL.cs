@@ -7,6 +7,7 @@ using Vortice.DXGI;
 using Vortice.Mathematics;
 
 using FlyleafLib.MediaFramework.MediaFrame;
+using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -32,6 +33,12 @@ public unsafe partial class Renderer
 
     ID3D11Buffer    panoBuffer;
     PanoBufferType  panoData  = new() { PanoParams = new(0.5f, 0.5f, 0.5f, 90f), AspectRatio = 1.778f };
+
+    ID3D11ShaderResourceView
+                    iccSrv;
+    ID3D11Texture2D iccTxt;
+    static readonly nint    // TBR: But consider global support not just here* OpenMonitorProfile(SwapChain.Monitor.Hwnd)
+                    iccDst  = NativeMethods.OpenSRgbProfile();
 
     bool            vflip;
 
@@ -122,10 +129,14 @@ public unsafe partial class Renderer
         vsMain          = device.CreateVertexShader(ShaderCompiler.VSBlob);
         vsSimple        = device.CreateVertexShader(ShaderCompiler.VSSimpleBlob);
         rsStateHVFlip   = device.CreateRasterizerState(new(CullMode.None, FillMode.Solid));
-
+        
         // TBR: Currently Bitmap Subs only (possible ChildRenderer too - might separate them or create separate PS for it)
         blendStateAlpha = device.CreateBlendState(blendDesc);
         psShader["rgba"]= ShaderCompiler.CompilePS(device, "rgba", "color = float4(Texture1.Sample(Sampler, input.Texture).rgba);");
+
+        iccTxt          = device.CreateTexture2D(Format.R16G16B16A16_UNorm, 33 * 33, 33);
+        iccSrv          = device.CreateShaderResourceView(iccTxt);
+        context.PSSetShaderResource     (4, iccSrv);
         
         context.IASetVertexBuffer       (0, vertexBuffer, sizeof(float) * 5);
         context.IASetInputLayout        (inputLayout);
@@ -333,6 +344,8 @@ public unsafe partial class Renderer
         vsSimple.       Dispose();
         rsStateHVFlip.  Dispose();
         blendStateAlpha.Dispose();
+        iccSrv.         Dispose();
+        iccTxt.         Dispose();
     }
 
     static BufferDescription psDesc = new()

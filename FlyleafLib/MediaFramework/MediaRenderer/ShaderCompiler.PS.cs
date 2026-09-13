@@ -28,6 +28,7 @@ Texture2D		Texture1		: register(t0);
 Texture2D		Texture2		: register(t1);
 Texture2D		Texture3		: register(t2);
 Texture2D		Texture4		: register(t3);
+Texture2D       IccLut          : register(t4);
 
 struct ConfigData
 {
@@ -82,6 +83,39 @@ inline float2 PanoProject(float2 uv)
         (panoParams.y - 0.5) * PI_PANO, 0.0);
     float3 rd = normalize(PanoRotateXY(camDir, camRot.yx));
     return float2(atan2(rd.z, rd.x) + PI_PANO, acos(-rd.y)) / float2(2.0 * PI_PANO, PI_PANO);
+}
+#endif
+
+#if defined(dICC)
+#define ICC_LUT_SIZE 33.0
+
+inline float3 ApplyICC(float3 c)
+{
+    c = saturate(c);
+
+    float b = c.b * (ICC_LUT_SIZE - 1.0);
+
+    float b0 = floor(b);
+    float b1 = min(b0 + 1.0, ICC_LUT_SIZE - 1.0);
+    float bf = b - b0;
+
+    float r = c.r * (ICC_LUT_SIZE - 1.0);
+    float g = c.g * (ICC_LUT_SIZE - 1.0);
+
+    float width = ICC_LUT_SIZE * ICC_LUT_SIZE;
+
+    float2 uv0 = float2(
+        (b0 * ICC_LUT_SIZE + r + 0.5) / width,
+        (g + 0.5) / ICC_LUT_SIZE);
+
+    float2 uv1 = float2(
+        (b1 * ICC_LUT_SIZE + r + 0.5) / width,
+        (g + 0.5) / ICC_LUT_SIZE);
+
+    float3 c0 = IccLut.SampleLevel(Sampler, uv0, 0).rgb;
+    float3 c1 = IccLut.SampleLevel(Sampler, uv1, 0).rgb;
+
+    return lerp(c0, c1, bf);
 }
 #endif
 
@@ -332,7 +366,9 @@ float4 main(PSInput input) : SV_TARGET
 	c = YUVToRGBFull(c);
 #endif
 
-#if defined(dBT2020)
+#if defined(dICC)
+    c = ApplyICC(c);
+#elif defined(dBT2020)
     c = SRGBToLinear(c); // TODO: transferfunc
 	c = Gamut2020To709(c);
 	c = saturate(c);

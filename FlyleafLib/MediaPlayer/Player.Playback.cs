@@ -355,7 +355,7 @@ partial class Player
         lock (lockActions)
         {
             Initialize();
-            Renderer.Reset();
+            Renderer?.Reset();
         }
     }
 }
