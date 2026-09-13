@@ -1,7 +1,9 @@
-﻿using Vortice.Direct3D11;
-
-using FlyleafLib.MediaFramework.MediaDecoder;
+﻿using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
+using FlyleafLib.MediaPlayer;
+using System.Runtime.InteropServices;
+using System.Windows.Controls;
+using Vortice.Direct3D11;
 
 namespace FlyleafLib.MediaFramework.MediaStream;
 
@@ -41,6 +43,7 @@ public unsafe class VideoStream : StreamBase
 
     internal uint txtWidth, txtHeight;
     internal CropRect cropStream, Crop; // Stream Crop + Codec Padding + Texture Padding
+    internal byte[] iccData;
 
     public VideoStream(Demuxer demuxer, AVStream* st) : base(demuxer, st)
         => Type = MediaType.Video;
@@ -124,6 +127,10 @@ public unsafe class VideoStream : StreamBase
             if (cropStream != CropRect.Empty)
                 Cropping = Cropping.Stream;
         }
+
+        var iccData = av_packet_side_data_get(cp->coded_side_data, cp->nb_coded_side_data, AVPacketSideDataType.IccProfile);
+        if (iccData != null && iccData->data != null && iccData->size > 0)
+            this.iccData = new ReadOnlySpan<byte>(iccData->data, checked((int)iccData->size)).ToArray();
     }
 
     internal override void UpdateDuration()
@@ -153,7 +160,7 @@ public unsafe class VideoStream : StreamBase
 
         if (PixelFormatDesc == null)
             AnalysePixelFormat();
-
+        
         ReUpdate();
 
         if (codecCtx->bit_rate > 0)
@@ -322,6 +329,10 @@ public unsafe class VideoStream : StreamBase
             var rotation = -Math.Round(av_display_rotation_get((int*)rotData->data));
             Rotation = (uint)(rotation - (360 * Math.Floor(rotation / 360 + 0.9 / 360)));
         }
+
+        var iccData = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.IccProfile);
+        if (iccData != null && iccData->data != null && iccData->size > 0)
+            this.iccData = new ReadOnlySpan<byte>(iccData->data, checked((int)iccData->size)).ToArray();
 
         VFlip = frame->linesize[0] < 0;
         

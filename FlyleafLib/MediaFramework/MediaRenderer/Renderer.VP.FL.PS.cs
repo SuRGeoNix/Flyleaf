@@ -6,6 +6,7 @@ using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaFrame;
 
 using ID3D11Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
+using static FlyleafLib.Utils.NativeMethods;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -21,6 +22,8 @@ public unsafe partial class Renderer
     const string dHLGToLinear   = "dHLGToLinear";
     const string dTone          = "dTone";
     const string dFilters       = "dFilters";
+    const string dPano360       = "dPano360";
+    const string dICC           = "dICC";
     List<string> defines = [];
 
     static ReadOnlySpan<char> HWSAMPLE => @"
@@ -35,6 +38,7 @@ color = float4(
 
     PSCase  psCase;
     string  psId, psIdPrev;
+    nint    iccSrc;
 
     bool FLSwsConfig()
     {
@@ -45,7 +49,7 @@ color = float4(
         if (ucfg.Pano360._enabled)
         {
             psId += "P";
-            defines.Add("dPano360");
+            defines.Add(dPano360);
         }
 
         if (ucfg.hasFLFilters) // TODO: fix vp switch when set filters or unset*
@@ -69,10 +73,32 @@ color = float4(
 
             defines.Add(dTone);
         }
+
         else if (scfg.ColorSpace == ColorSpace.Bt2020)
         {
             defines.Add(dBT2020);
             psId += "b";
+        }
+
+        else if (scfg.iccData != null && iccDst != 0 && (iccSrc = OpenColorProfile(scfg.iccData)) != 0)
+        {
+            var iccTransform = CreateTransform(iccSrc, iccDst);
+            if (iccTransform != 0)
+            {
+                var iccLut = CreateIccLut(iccTransform);
+                if (iccLut.Length > 0)
+                {
+                    try
+                    {
+                        psId += "i";
+                        defines.Add(dICC);
+                        fixed (ushort* ptr = iccLut)
+                            context.UpdateSubresource(iccTxt, 0, null, (nint)ptr, 33 * 33 * 4 * sizeof(ushort), 0);
+                    } catch { }
+                }
+                DeleteColorTransform(iccTransform);
+            }
+            CloseColorProfile(iccSrc);
         }
 
         if (canFL && VideoProcessor != VideoProcessors.SwsScale)
