@@ -14,13 +14,14 @@ public unsafe partial class Renderer
 {
     static string[] pixelOffsets = ["r", "g", "b", "a"];
 
-    // TODO: PSCase flags / enum?*
     const string dYUVLimited    = "dYUVLimited";
     const string dYUVFull       = "dYUVFull";
+    const string dYUV16         = "dYUV16";
+    const string dBT1886ToLinear= "dBT1886ToLinear";
     const string dBT2020        = "dBT2020";
-    const string dPQToLinear    = "dPQToLinear";
-    const string dHLGToLinear   = "dHLGToLinear";
-    const string dTone          = "dTone";
+    const string dHLG           = "dHLG";
+    const string dPQ            = "dPQ";
+    const string dPQSpline      = "dPQSpline";
     const string dFilters       = "dFilters";
     const string dPano360       = "dPano360";
     const string dICC           = "dICC";
@@ -58,29 +59,9 @@ color = float4(
             defines.Add(dFilters);
         }
 
-        if (scfg.HDRFormat != HDRFormat.None)
-        {
-            if (scfg.HDRFormat == HDRFormat.HLG)
-            {
-                psId += "g";
-                defines.Add(dHLGToLinear);
-            }
-            else
-            {
-                psId += "p";
-                defines.Add(dPQToLinear);
-            }
+        bool iccApplied = false;
 
-            defines.Add(dTone);
-        }
-
-        else if (scfg.ColorSpace == ColorSpace.Bt2020)
-        {
-            defines.Add(dBT2020);
-            psId += "b";
-        }
-
-        else if (scfg.iccData != null && iccDst != 0 && (iccSrc = OpenColorProfile(scfg.iccData)) != 0)
+        if (scfg.iccData != null && iccDst != 0 && (iccSrc = OpenColorProfile(scfg.iccData)) != 0)
         {
             var iccTransform = CreateTransform(iccSrc, iccDst);
             if (iccTransform != 0)
@@ -94,11 +75,39 @@ color = float4(
                         defines.Add(dICC);
                         fixed (ushort* ptr = iccLut)
                             context.UpdateSubresource(iccTxt, 0, null, (nint)ptr, 33 * 33 * 4 * sizeof(ushort), 0);
+                        iccApplied = true;
                     } catch { }
                 }
                 DeleteColorTransform(iccTransform);
             }
             CloseColorProfile(iccSrc);
+        }
+
+        if (scfg.ColorSpace == ColorSpace.Bt2020 && !iccApplied)
+        {
+            vpRequestsIn |= VPRequestType.HDRtoSDR;
+            defines.Add(dBT2020);
+
+            if (scfg.HDRFormat == HDRFormat.None)
+            {
+                psId += "b";
+                defines.Add(dBT1886ToLinear);
+            }
+            else if (scfg.HDRFormat == HDRFormat.HLG)
+            {
+                psId += "g";
+                defines.Add(dHLG);
+            }
+            else if (scfg.sourcePeakNits <= ucfg.SDRDisplayNitsAuto)
+            {
+                psId += "p";
+                defines.Add(dPQ);
+            }
+            else // if (scfg.HDRFormat >= HDRFormat.HDR)
+            {
+                psId += "s";
+                defines.Add(dPQSpline);
+            }
         }
 
         if (canFL && VideoProcessor != VideoProcessors.SwsScale)
@@ -153,6 +162,8 @@ color = float4(
 
         if (scfg.PixelComp0Depth > 8)
         {
+            psId += "x";
+            defines.Add(dYUV16);
             srvDesc[0].Format = Format.R16_UNorm;
             srvDesc[1].Format = Format.R16G16_UNorm;
         }
@@ -335,6 +346,7 @@ color = float4(outY, outUV, 1.0f);
             if (scfg.PixelComp0Depth > 8)
             {
                 psId += "x";
+                defines.Add(dYUV16);
                 txtDesc[0].Format = srvDesc[0].Format = Format.R16_UNorm;
                 txtDesc[1].Format = srvDesc[1].Format = Format.R16G16_UNorm;
             }
@@ -422,6 +434,7 @@ color.a = Texture4.Sample(Sampler, input.Texture).r;
             if (scfg.PixelComp0Depth > 8)
             {
                 psId += "a";
+                defines.Add(dYUV16);
                 curFormat = Format.R16_UNorm;
                 maxBits = 16;
             }

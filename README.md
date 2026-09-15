@@ -16,7 +16,7 @@
 - *Extends FFmpeg's supported protocols and formats with additional plugins <sub>(YoutubeDL, TorrentBitSwarm)</sub>*
 - *Accepts Custom I/O Streams and Plugins to handle non-standard protocols / formats*
 	
-✅ **Play it Smoothly** <sub>(Even with high resolutions 4K / HDR)</sub>
+✅ **Play it Smoothly** <sub>(Even with high resolutions 8K / HDR)</sub>
 
 - *Coded from scratch to gain the best possible performance with FFmpeg & DirectX using video acceleration and custom pixel shaders*
 - *Threading implementation with efficient cancellation which allows fast open, play, pause, stop, seek and stream switching*
@@ -46,7 +46,8 @@
 - *Device Preference*
 - *Aspect Ratio <sub>(Keep / Fill / Custom)</sub>*
 - *Deinterlace <sub>(Supports double rate, D3D11VP only)</sub>*
-- *HDR to SDR <sub>(Aces / Hable / Reinhard - FlyleafVP only)</sub>*
+- *HDR to SDR <sub>(HDR10 / HDR10+ / HLG / Dolby Vision with Spline tonemap - FlyleafVP only)</sub>*
+- *Embedded ICC Profiles*
 - *Pan Move / Zoom / Rotate / HFlip-VFlip / Cropping <sub>~~(Replica Renderer/Interactive Zoom)~~</sub>*
 - *Record / Snapshot*
 - *Super Resolution <sub>(Nvidia / Intel - D3D11VP only)</sub>*

@@ -447,7 +447,6 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
 
         if (result.ToString() == "cancel")
         {
-            Config.Video.HDRtoSDRMethod         = prevConfig.HDRtoSDRMethod;
             Config.Video.SDRDisplayNitsCustom   = prevConfig.SDRDisplayNitsCustom;
 
             foreach(var filter in saveFilterValues)

@@ -112,12 +112,6 @@
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
 
-            <ObjectDataProvider x:Key="HDRtoSDRMethodEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
-                <ObjectDataProvider.MethodParameters>
-                    <x:Type TypeName="fl:HDRtoSDRMethod"/>
-                </ObjectDataProvider.MethodParameters>
-            </ObjectDataProvider>
-
             <ObjectDataProvider x:Key="VideoProcessorEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
                 <ObjectDataProvider.MethodParameters>
                     <x:Type TypeName="fl:VideoProcessors"/>
@@ -439,9 +433,7 @@
                                 <ToggleButton Grid.Row="10" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Player.ZeroLatency, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                                 <Separator Grid.Row="11" Grid.ColumnSpan="3"/>
-
-                                <TextBlock Grid.Row="12" Text="HDR to SDR Method" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="12" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource HDRtoSDRMethodEnum}}" SelectedItem="{Binding Config.Video.HDRtoSDRMethod}"/>
+                                
                                 <Button Grid.Row="12" Grid.Column="2" Content="Reset" Width="66" MaxHeight="24" HorizontalAlignment="Right" Margin="0 0 10 0" FontWeight="Normal" FontSize="12" Command="{Binding Player.Commands.ResetFilters}"/>
 
                                 <TextBlock Grid.Row="13" Text="SDR Display Nits" VerticalAlignment="Center"/>
