@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows;
-
+using System.Windows.Threading;
 using Microsoft.Win32;
 using Vortice.Direct3D11;
 
@@ -75,25 +75,21 @@ public static partial class Utils
     private static int uniqueId;
     public static int GetUniqueId() { Interlocked.Increment(ref uniqueId); return uniqueId; }
 
+    internal static Dispatcher uiDispatcher;
+
     /// <summary>
     /// Begin invokes the UI thread if required to execute the specified action
     /// </summary>
     /// <param name="action"></param>
     public static void UI(Action action)
-    {
-#if DEBUG
-        if (Application.Current == null)
-            return;
-#endif
-
-        Application.Current.Dispatcher.BeginInvoke(action, System.Windows.Threading.DispatcherPriority.DataBind);
-    }
+        => uiDispatcher.BeginInvoke(action, DispatcherPriority.DataBind);
 
     /// <summary>
     /// Invokes the UI thread to execute the specified action
     /// </summary>
     /// <param name="action"></param>
-    public static void UIInvoke(Action action) => Application.Current.Dispatcher.Invoke(action, System.Windows.Threading.DispatcherPriority.DataBind);
+    public static void UIInvoke(Action action)
+        => uiDispatcher.Invoke(action, DispatcherPriority.DataBind);
 
     /// <summary>
     /// Invokes the UI thread if required to execute the specified action
@@ -101,10 +97,10 @@ public static partial class Utils
     /// <param name="action"></param>
     public static void UIInvokeIfRequired(Action action)
     {
-        if (Environment.CurrentManagedThreadId == Application.Current.Dispatcher.Thread.ManagedThreadId)
+        if (Environment.CurrentManagedThreadId == uiDispatcher.Thread.ManagedThreadId)
             action();
         else
-            Application.Current.Dispatcher.Invoke(action, System.Windows.Threading.DispatcherPriority.DataBind);
+            uiDispatcher.Invoke(action, DispatcherPriority.DataBind);
     }
 
     public static Thread STA(Action action)
