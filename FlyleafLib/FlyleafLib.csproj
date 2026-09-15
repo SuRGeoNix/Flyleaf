@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.3</Version>
+	<Version>3.11.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,17 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Engine: Fixes minor memory leaks for Audio/Video devices
-		- Seek: Stability and performance improvements
-		- HTTP/HLS: Stability improvements
-		- VideoDecoder: Fixes a possible infinite loop during draining
+		- Renderer: HDR to SDR improvements for HDR10 / HDR10+ / HLG / Dolby Vision (still not dynamic changes support)
+		- Renderer: Adds Dolby Vision HDR to SDR support (for Profiles 7.1 - HDR10, 8.1 - HDR10, 8.4 - HLG)
+		- Renderer: Introduces Spline Tonemap (which replaces previous Aces, Hable, Reinhard)
+		- Renderer: Color precision improvements for YUV to RGB limited
+		- Renderer: Add embedded source ICC profile support
+		- Renderer: Fixes possible crashes with SuperResolution and non-YUV formats
+		- Player: Fixes audio only usage
+		- Engine.Audio: Handle missing default audio device gracefully
 
 		[Breaking Changes]
-		- Player.Keys: Introduces OpenPrevItem / OpenNextItem (Ctrl + Up / Down)
-		- Config.Demuxer.FormatOpt: Resets / Minimizes initial format options (Deprecates/defaults: probesize, analyzeduration, extension_picky, reconnect, reconnect_streamed, reconnect_delay_max, rtsp_transport)
+		- Config.Video: Deprecates HDRtoSDRMethod
 	</PackageReleaseNotes>
   </PropertyGroup>
 
