@@ -436,13 +436,13 @@
                                 
                                 <Button Grid.Row="12" Grid.Column="2" Content="Reset" Width="66" MaxHeight="24" HorizontalAlignment="Right" Margin="0 0 10 0" FontWeight="Normal" FontSize="12" Command="{Binding Player.Commands.ResetFilters}"/>
 
-                                <TextBlock Grid.Row="13" Text="SDR Display Nits" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Row="13" Grid.Column="1" Text="25" Margin="-8,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
-                                <Slider Grid.Row="13" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.SDRDisplayNits, Mode=TwoWay}" Minimum="25" Maximum="400"/>
-                                <TextBlock Grid.Row="13" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="400" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="13" Text="Brightness (HDR)" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="13" Grid.Column="1" Text="-100" Margin="-14,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
+                                <Slider Grid.Row="13" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.HDRBrightness, Mode=TwoWay}" Minimum="-100" Maximum="100"/>
+                                <TextBlock Grid.Row="13" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="100" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Row="13" Grid.Column="2" Margin="100 0 0 0" FontSize="12" VerticalAlignment="Center">
                                     <Run Text="("/>
-                                    <Run Text="{Binding Config.Video.SDRDisplayNits, Mode=OneWay}"/>
+                                    <Run Text="{Binding Config.Video.HDRBrightness, Mode=OneWay}"/>
                                     <Run Text=")"/>
                                 </TextBlock>
 
