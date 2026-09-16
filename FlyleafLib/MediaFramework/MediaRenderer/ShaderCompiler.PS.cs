@@ -477,7 +477,7 @@ float4 main(PSInput input) : SV_TARGET
     c = Gamut2020To709(c);
     #if !defined(dBT1886ToLinear)
         c /= max(max(c.r, max(c.g, c.b)), 1.0); // HDR Brightness could cause this
-        c = GamutCompress709(c, 1.0);
+        c = GamutCompress709(c, 0.66);
     #endif
     c = saturate(c);
     c = pow(c, 1.0 / 2.2);
