@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.7.4</Version>
+    <Version>1.7.5</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2026</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,8 +14,11 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		- Settings.Video: Deprecates HDR to SDR Method
+		- Settings.Video: Introduces Brightness (HDR)
 		- Updates FlyleafLib
+
+		[Breaking Changes]
+		- Settings.Video: Deprecates HDR to SDR Method
 	</PackageReleaseNotes>
   </PropertyGroup>
 
