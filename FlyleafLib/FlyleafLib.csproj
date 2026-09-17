@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.5</Version>
+	<Version>3.11.8</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,19 +17,9 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer: HDR to SDR improvements for HDR10 / HDR10+ / HLG / Dolby Vision (still not dynamic changes support)
-		- Renderer: Adds Dolby Vision HDR to SDR support (for Profiles 7.1 - HDR10, 8.1 - HDR10, 8.4 - HLG)
-		- Renderer: Introduces Spline Tonemap (which replaces previous Aces, Hable, Reinhard)
-		- Renderer: Color precision improvements for YUV to RGB limited
-		- Renderer: Add embedded source ICC profile support
-		- Renderer: Fixes possible crashes with SuperResolution and non-YUV formats
-		- Config.Video: Introduces HDRBrightness as the new tonemap's adjustment
-		- Player: Fixes audio only usage
-		- Engine.Audio: Handle missing default audio device gracefully
-
-		[Breaking Changes]
-		- Config.Video: Deprecates HDRtoSDRMethod
-		- Config.Video: Deprecates SDRDisplayNits
+		- Renderer: Adds per-frame HDR min/avg/peak detection for spline tone mapping
+		- Config.Video: Introduces TargetMinNits
+		- Config.Video: Introduces TargetMaxNits (renames HDRBrightness)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
