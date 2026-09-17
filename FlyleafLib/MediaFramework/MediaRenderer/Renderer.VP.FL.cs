@@ -310,7 +310,7 @@ public unsafe partial class Renderer
     }
     internal void FLUpdateTargetNits(bool request = true)
     {
-        if (scfg.HDRFormat == HDRFormat.None)
+        if (scfg == null || scfg.HDRFormat == HDRFormat.None || SwapChain.Monitor == null)
             return;
 
         FLHDRDetectReset();
