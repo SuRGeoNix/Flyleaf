@@ -447,8 +447,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
 
         if (result.ToString() == "cancel")
         {
-            Config.Video.HDRBrightness = prevConfig.HDRBrightness;
-
+            Config.Video.TargetMaxNits = prevConfig.TargetMaxNits;
             foreach(var filter in saveFilterValues)
                 Config.Video.FLFilters[filter.Key].Value  = filter.Value;
 

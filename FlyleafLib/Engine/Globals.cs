@@ -98,7 +98,6 @@ public enum HDRFormat
 {
     None,
     HDR10,
-    HDR10Plus,
     HLG
 }
 public enum UIRefreshType

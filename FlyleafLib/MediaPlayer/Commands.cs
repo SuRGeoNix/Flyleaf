@@ -174,9 +174,9 @@ public class Commands
                 kv.Value.Value = kv.Value.Default;
         else
             foreach (var kv in cfg.FLFilters)
-                kv.Value.Value = kv.Value.Default; 
+                kv.Value.Value = kv.Value.Default;
 
-        cfg.HDRBrightness = 0;
+        cfg.TargetMaxNits = 0;
     }
 
     public void SpeedSetAction(object speed)
