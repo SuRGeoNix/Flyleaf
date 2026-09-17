@@ -580,6 +580,13 @@ public class Config : NotifyPropertyChanged
     }
     public class VideoConfig : VPConfig
     {
+        /// <summary>
+        /// Optional factory for a device-scoped renderer post-processor. The factory and its
+        /// processor are runtime-only and are not serialized with the video configuration.
+        /// </summary>
+        [JsonIgnore]
+        public IVideoPostProcessorFactory PostProcessorFactory { get; set; }
+
         public VideoConfig()
         {
             UIInvokeIfRequired(() =>

@@ -360,6 +360,9 @@ unsafe partial class Player
     /// <returns></returns>
     public System.Windows.Media.Imaging.BitmapSource TakeSnapshotToBitmapSource(uint width = 0, uint height = 0) => Renderer?.TakeSnapshotBitmapSource(width, height);
 
+    /// <summary>Requests presentation of the current video frame, including while paused.</summary>
+    public void RequestRender() => Renderer?.RenderRequest();
+
     public void ResetAll()
     {
         ReversePlayback = false;
