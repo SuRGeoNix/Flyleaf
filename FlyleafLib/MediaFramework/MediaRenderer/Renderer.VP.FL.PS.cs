@@ -95,8 +95,6 @@ color = float4(
 
             else
             {
-                FLUpdateTargetNits(false);
-
                 if (scfg.HDRFormat == HDRFormat.HLG)
                 {
                     psId += "g";

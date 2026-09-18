@@ -152,7 +152,7 @@ public unsafe partial class Renderer : NotifyPropertyChanged
                     if (!gpuAdapters.TryGetValue(desc.Luid, out gpuAdapter))
                     {
                         dxgiExists  = false;
-                        gpuAdapter  = Engine.Video.GetGPUAdapter(DXGIAdapter, desc);
+                        gpuAdapter  = VideoEngine.GetGPUAdapter(DXGIAdapter, desc);
                         gpuAdapters.Add(GPUAdapter.Luid, GPUAdapter);
                     }
             }

@@ -18,7 +18,6 @@ public unsafe class SwapChain
 {
     public Renderer                 Renderer        { get; private set; }
     public bool                     Disposed        { get; private set; } = true;
-    public GPUOutput                Monitor         { get; private set; }
     public nint                     ControlHwnd     { get; private set; }
     public bool                     CanPresent      { get; internal set; } // Don't render / present during minimize (or invalid size)
 
@@ -29,7 +28,7 @@ public unsafe class SwapChain
     public ID3D11RenderTargetView   BackBufferRtv => bbRtv;
     ID3D11RenderTargetView bbRtv;
 
-    IDXGISwapChain1             sc;
+    internal IDXGISwapChain1    sc;
     IDCompositionDevice         dcDevice;
     IDCompositionVisual         dcVisual;
     IDCompositionTarget         dcTarget;
@@ -59,7 +58,7 @@ public unsafe class SwapChain
 
         Log         = renderer.Log;
         ucfg        = renderer.ucfg;
-
+        
         wndProcDelegate     = new(WndProc);
         wndProcDelegatePtr  = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
     }
@@ -202,7 +201,7 @@ public unsafe class SwapChain
         bb          = sc.GetBuffer<ID3D11Texture2D>(0);
         bbRtv       = Renderer.Device.CreateRenderTargetView(bb);
 
-        UpdateDisplay(true); // don't force if we let WndProc run without our swapchain
+        UpdateDisplay(); // don't force if we let WndProc run without our swapchain
 
         // Ensures that it will run ResizeBuffers initially
         if (controlWidth > 0 && controlHeight > 0)
@@ -446,28 +445,8 @@ public unsafe class SwapChain
         }
     }
 
-    #region Display | GPUOutput | Monitor
-    nint displayHwnd;
-    void UpdateDisplay(bool force = false)
-    {
-        nint newDisplayHwnd = MonitorFromWindow(ControlHwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
-        if (displayHwnd == newDisplayHwnd && !force)
-            return;
-
-        displayHwnd = newDisplayHwnd;
-
-        var displays = Engine.Video.GetGPUOutputs(Renderer.DXGIAdapter);
-        foreach(var display in displays)
-            if (displayHwnd == display.Hwnd)
-            {
-                Monitor = display;
-                vp.MonitorChanged(Monitor);
-                if (CanDebug) Log.Debug($"{display}");
-
-                return;
-            }
-    }
-    #endregion
+    void UpdateDisplay()
+        => vp.MonitorChanged();
 
     #region WndProc
     SubclassWndProc wndProcDelegate;
@@ -513,7 +492,7 @@ public unsafe class SwapChain
             //    break;
 
             case WndProcMessages.WM_DISPLAYCHANGE: // top-level window only (any display) - should refresh all and check if current changed
-                UpdateDisplay(true);
+                UpdateDisplay();
                 break;
 
             case WndProcMessages.WM_SIZE:

@@ -128,10 +128,13 @@ public unsafe partial class Renderer
 
         public PSBufferType()
         {
-            Brightness = 0;
-            Contrast   = 1;
-            Hue        = 0;
-            Saturation = 1;
+            Brightness      = 0;
+            Contrast        = 1;
+            Hue             = 0;
+            Saturation      = 1;
+
+            TargetMinNits   = 0.203f;
+            TargetPeakNits  = 203;
         }
     }
 
@@ -308,29 +311,15 @@ public unsafe partial class Renderer
         vpRequests &= ~VPRequestType.Crop;
         vpRequests |=  VPRequestType.Viewport | VPRequestType.UpdateVS;
     }
-    internal void FLUpdateTargetNits(bool request = true)
+    
+    internal void FLUpdateTargetNits()
     {
-        if (scfg == null || scfg.HDRFormat == HDRFormat.None || SwapChain.Monitor == null)
-            return;
-
         FLHDRDetectReset();
 
-        psData.TargetPeakNits   = GetMonitorPeakNits();
-        psData.TargetMinNits    = ucfg.TargetMinNits > 0 ? ucfg.TargetMinNits : SwapChain.Monitor.MinLuminance;
-
-        if (request)
-            VPRequest(VPRequestType.UpdatePS);
-    }
-    float GetMonitorPeakNits()
-    {
-        if (ucfg.TargetMaxNits > 0)
-            return ucfg.TargetMaxNits;
-
-        var maxLum = SwapChain.Monitor.MaxLuminance;
-        if (maxLum > 0)
-            return maxLum;
-
-        return 203;
+        psData.TargetPeakNits   = ucfg.TargetMaxNits >  0 ? ucfg.TargetMaxNits : autoPeakNits;
+        psData.TargetMinNits    = ucfg.TargetMinNits >= 0 ? ucfg.TargetMinNits : (psData.TargetPeakNits * autoMinNits / autoPeakNits); // auto min: keep contrast?
+        
+        VPRequest(VPRequestType.UpdatePS);
     }
     void FLSetPano360()
     {
