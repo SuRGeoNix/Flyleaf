@@ -650,16 +650,16 @@ public class Config : NotifyPropertyChanged
         public int              MaxVerticalResolution       => MaxVerticalResolutionCustom == 0 ? (MaxVerticalResolutionAuto != 0 ? MaxVerticalResolutionAuto : 1080) : MaxVerticalResolutionCustom;
 
         /// <summary>
-        /// Monitor's Minimum Nits (for HDRtoSDR)
+        /// Monitor's Minimum Nits (for HDRtoSDR) | Auto: <= 0
         /// </summary>
         public float            TargetMinNits               { get => _targetMinNits;    set {  if (Set(ref _targetMinNits, value)) player?.Renderer?.FLUpdateTargetNits(); } }
-        float _targetMinNits;
+        float _targetMinNits = 0;
 
         /// <summary>
-        /// Monitor's Maximum Nits (for HDRtoSDR)
+        /// Monitor's Maximum Nits (for HDRtoSDR) | Auto: < 0
         /// </summary>
         public float            TargetMaxNits               { get => _targetMaxNits;    set {  if (Set(ref _targetMaxNits, value)) player?.Renderer?.FLUpdateTargetNits(); } }
-        float _targetMaxNits;
+        float _targetMaxNits = -1;
 
         /// <summary>
         /// Sets Super Resolution (Nvidia / Intel - D3D11VP only)

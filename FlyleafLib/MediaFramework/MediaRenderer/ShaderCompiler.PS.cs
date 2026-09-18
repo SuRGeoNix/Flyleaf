@@ -340,11 +340,10 @@ inline float3 HLGToDisplayLinear(float3 c, float targetPeakNits)
     if (y <= 0.0)
         return 0.0;
 
-    float gamma = 1.2 + 0.42 * log10(targetPeakNits / 1000.0);
+    //float gamma = 1.2 + 0.42 * log10(targetPeakNits / 1000.0);    // BT.2100 (400–2000 nit)
+    float gamma = 1.2 * pow(1.111, log2(targetPeakNits / 1000.0));  // BT.2100-3 (rest)
 
-    // Normalized display-linear result.
-    // Peak white stays 1.0.
-    c *= pow(y, gamma - 1.0);
+    c *= pow(y, gamma - 1.0); // Normalized display-linear result. Peak white stays 1.0.
 
     return c;
 }
