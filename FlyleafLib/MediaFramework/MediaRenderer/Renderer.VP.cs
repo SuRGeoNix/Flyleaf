@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using System.Windows;
 
 using WPoint = System.Windows.Point;
@@ -99,11 +99,13 @@ public unsafe partial class Renderer : IVP
 
         var fieldType = ucfg.DeInterlace == DeInterlace.Auto ? scfg.FieldOrder : (VideoFrameFormat)ucfg.DeInterlace;
 
-        if (canFL &&
-            // Alpha | Split Frame Alpha | HV Flip | BT.2020
-            (!canD3 || scfg.ColorSpace == ColorSpace.Bt2020 || ucfg.hflip || ucfg.vflip || ucfg.SplitFrameAlphaPosition != SplitFrameAlphaPosition.None || scfg.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Alpha)) ||
+        bool requiresFL =
+            // Alpha | Split Frame Alpha | HV Flip | BT.2020/HDR
+            FLDoviSupported() || !canD3 || scfg.ColorSpace == ColorSpace.Bt2020 || ucfg.hflip || ucfg.vflip || ucfg.SplitFrameAlphaPosition != SplitFrameAlphaPosition.None || scfg.PixelFormatDesc->flags.HasFlag(PixFmtFlags.Alpha) ||
             // SW w/o Deinterlace | Super Resolution
-            (!VideoDecoder.VideoAccelerated && fieldType == VideoFrameFormat.Progressive && !ucfg.SuperResolution))
+            (!VideoDecoder.VideoAccelerated && fieldType == VideoFrameFormat.Progressive && !ucfg.SuperResolution);
+
+        if (canFL && requiresFL)
             return VideoProcessors.Flyleaf;
 
         if (canD3)
@@ -219,6 +221,7 @@ public unsafe partial class Renderer : IVP
         var vpRequests  = VPRequestType.RotationFlip | VPRequestType.Crop | VPRequestType.UpdatePS; // TBR: we should set them all here as we don't compare with previous states
         VideoProcessor  = VPSelection();
         isHdr           = false;
+        useDovi         = false;
 
         if (CanTrace) Log.Trace($"Preparing planes for {scfg.PixelFormatStr} with {VideoProcessor}");
 
@@ -352,12 +355,13 @@ public unsafe partial class Renderer : IVP
         {
             if (ucfg.TargetMaxNits <= 0)
             {
-                psData.TargetMinNits    = autoMinNits;
-                psData.TargetPeakNits   = autoPeakNits;
+                hdrData.TargetMinNits    = autoMinNits;
+                hdrData.TargetPeakNits   = autoPeakNits;
             }
 
             FLHDRDetectReset();
-            VPRequest(VPRequestType.UpdatePS);
+            hdrData.HLGGamma = 1.2f * MathF.Pow(1.111f, MathF.Log2(hdrData.TargetPeakNits / 1000.0f));
+            VPRequest(VPRequestType.UpdateHDR);
         }
 
     }
@@ -518,8 +522,9 @@ enum VPRequestType
 
     Deinterlace     = 1 << 7,   // D3D11
     UpdatePS        = 1 << 8,   // Flyleaf
-    UpdateVS        = 1 << 9,  // Flyleaf
-    Pano360         = 1 << 10,  // Flyleaf - 360 Panoramic params update
+    UpdateVS        = 1 << 9,   // Flyleaf
+    UpdateHDR       = 1 << 10,
+    UpdatePano      = 1 << 11,  // Flyleaf - 360 Panoramic params update
 }
 
 public class VPConfig : NotifyPropertyChanged
@@ -739,28 +744,28 @@ public class Pano360Config : NotifyPropertyChanged
     /// Horizontal rotation [0.0, 1.0], 0.5 = front
     /// </summary>
     [JsonIgnore]
-    public double RotationX { get => _rotationX; set { if (Set(ref _rotationX, value)) vp?.VPRequest(VPRequestType.Pano360); } }
+    public double RotationX { get => _rotationX; set { if (Set(ref _rotationX, value)) vp?.VPRequest(VPRequestType.UpdatePano); } }
     internal double _rotationX = 0.5;
 
     /// <summary>
     /// Vertical rotation [0.01, 0.99], 0.5 = horizon
     /// </summary>
     [JsonIgnore]
-    public double RotationY { get => _rotationY; set { if (Set(ref _rotationY, Math.Clamp(value, 0.01, 0.99))) vp?.VPRequest(VPRequestType.Pano360); } }
+    public double RotationY { get => _rotationY; set { if (Set(ref _rotationY, Math.Clamp(value, 0.01, 0.99))) vp?.VPRequest(VPRequestType.UpdatePano); } }
     internal double _rotationY = 0.5;
 
     /// <summary>
     /// Zoom level [0.1, 2.0], default 0.5
     /// </summary>
     [JsonIgnore]
-    public double Zoom { get => _zoom; set { if (Set(ref _zoom, Math.Clamp(value, 0.1, 2.0))) vp?.VPRequest(VPRequestType.Pano360); } }
+    public double Zoom { get => _zoom; set { if (Set(ref _zoom, Math.Clamp(value, 0.1, 2.0))) vp?.VPRequest(VPRequestType.UpdatePano); } }
     internal double _zoom = 0.5;
 
     /// <summary>
     /// Field of view in degrees [30, 150], default 90
     /// </summary>
     [JsonIgnore]
-    public double Fov { get => _fov; set { if (Set(ref _fov, Math.Clamp(value, 30.0, 150.0))) vp?.VPRequest(VPRequestType.Pano360); } }
+    public double Fov { get => _fov; set { if (Set(ref _fov, Math.Clamp(value, 30.0, 150.0))) vp?.VPRequest(VPRequestType.UpdatePano); } }
     internal double _fov = 90.0;
 
     /// <summary>
