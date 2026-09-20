@@ -118,12 +118,12 @@ public unsafe partial class Renderer
             AVPixelFormat.Rgba, ucfg.BitmapSubsScaleQuality, null, null, null);
 
         int ret = sws_scale(swsCtx,
-            rect->data.         ToRawArray(),
-            rect->linesize.     ToArray(),
+            (byte**)&rect->data,
+            (int*)&rect->linesize,
             0,
             rect->h,
-            swsFrame->data.     ToRawArray(),
-            swsFrame->linesize. ToArray());
+            (byte**)&swsFrame->data,
+            (int*)&swsFrame->linesize);
 
         subsTxt     = device.CreateTexture2D(subsTxtDesc, [new SubresourceData() { DataPointer = swsFrame->data[0], RowPitch = (uint)swsFrame->linesize[0] }]);
         subsSRV[0]  = device.CreateShaderResourceView(subsTxt);

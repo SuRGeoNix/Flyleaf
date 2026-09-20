@@ -22,22 +22,22 @@ public unsafe partial class Renderer
     const float hdrSceneThresholdLow= 0.01f;  // PQ 1%
     const float hdrSceneThresholdHigh=0.03f;  // PQ 3%
 
-    ID3D11PixelShader         psHdr;
-    ID3D11Texture2D           txtHdr;
-    ID3D11RenderTargetView    rtvHdr;
-    ID3D11Texture2D[]         txtStageHdr   = new ID3D11Texture2D[hdrBuffers];
-    ID3D11Query[]             queryHdr      = new ID3D11Query[hdrBuffers];
-    bool[]                    hdrPending    = new bool[hdrBuffers];
-    int[]                     hdrPendingGen = new int[hdrBuffers];
-    uint[]                    hdrHistogram  = new uint[hdrHistogramBins];
+    ID3D11PixelShader       psHdr;
+    ID3D11Texture2D         txtHdr;
+    ID3D11RenderTargetView  rtvHdr;
+    ID3D11Texture2D[]       txtStageHdr         = new ID3D11Texture2D[hdrBuffers];
+    ID3D11Query[]           queryHdr            = new ID3D11Query[hdrBuffers];
+    bool[]                  hdrPending          = new bool[hdrBuffers];
+    int[]                   hdrPendingGen       = new int[hdrBuffers];
+    uint[]                  hdrHistogram        = new uint[hdrHistogramBins];
 
-    int                       hdrWidth;
-    int                       hdrHeight;
-    int                       hdrWriteIndex;
-    int                       hdrReadIndex;
-    int                       hdrGeneration;
-    bool                      hdrHasStats;
-    bool                      hdrSyncNext;
+    int                     hdrWidth;
+    int                     hdrHeight;
+    int                     hdrWriteIndex;
+    int                     hdrReadIndex;
+    int                     hdrGeneration;
+    bool                    hdrHasStats;
+    bool                    hdrSyncNext;
 
     internal HDRLumiStats   hdrFrameStats;
     internal HDRLumiStats   hdrStats;

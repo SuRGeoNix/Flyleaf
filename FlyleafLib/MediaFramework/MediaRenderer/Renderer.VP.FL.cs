@@ -271,15 +271,15 @@ public unsafe partial class Renderer
         crop            = scfg.Crop + ucfg.crop;
         VisibleWidth    = scfg.txtWidth  - crop.Width;
         VisibleHeight   = scfg.txtHeight - crop.Height;
-
+        
         if (VideoProcessor == VideoProcessors.SwsScale &&
             (scfg.Cropping.HasFlag(Cropping.Codec) || scfg.Cropping.HasFlag(Cropping.Texture)))
-        {   // SwsScale does codec's cropping and we don't use texture cropping
+        {   // TBR: Issues with sizes | SwsScale does codec's cropping and we don't use texture cropping
             crop = scfg.cropStream + ucfg.crop;
 
             var totalWidth  = VisibleWidth  + scfg.cropStream.Width;
             var totalHeight = VisibleHeight + scfg.cropStream.Height;
-
+            
             vsData.Crop = new()
             {
                 X = crop.Left / ((float)totalWidth),
