@@ -1,4 +1,4 @@
-﻿using Vortice.Direct3D11;
+using Vortice.Direct3D11;
 using Vortice.DXGI;
 
 using ID3D11Texture2D   = Vortice.Direct3D11.ID3D11Texture2D;
@@ -366,19 +366,19 @@ public unsafe partial class Renderer
     void FLHDRApply()
     {
         float sourceMinNits     = (float)PQToNits(hdrStats.MinPQ);
-        float sourcePeakNits    = MathF.Max((float)PQToNits(hdrStats.PeakPQ), psData.TargetPeakNits);
+        float sourcePeakNits    = MathF.Max((float)PQToNits(hdrStats.PeakPQ), hdrData.TargetPeakNits);
         float sourceAvgNits     = Math.Clamp((float)PQToNits(hdrStats.AvgPQ), sourceMinNits, sourcePeakNits);
 
-        psData.SourceMinNits    = sourceMinNits;
-        psData.SourcePeakNits   = sourcePeakNits;
-        psData.Spline = GetSplineParams(
+        hdrData.SourceMinNits    = sourceMinNits;
+        hdrData.SourcePeakNits   = sourcePeakNits;
+        hdrData.Spline = GetSplineParams(
             sourceMinNits:  sourceMinNits,
             sourcePeakNits: sourcePeakNits,
             sourceAvgNits:  sourceAvgNits,
-            targetMinNits:  psData.TargetMinNits,
-            targetPeakNits: psData.TargetPeakNits);
+            targetMinNits:  hdrData.TargetMinNits,
+            targetPeakNits: hdrData.TargetPeakNits);
 
-        context.UpdateSubresource(psData, psBuffer);
+        context.UpdateSubresource(hdrData, hdrBuffer);
     }
 
     void FLHDRDisposeResources()

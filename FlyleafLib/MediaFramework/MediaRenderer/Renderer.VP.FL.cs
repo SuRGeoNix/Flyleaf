@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 using Vortice.Direct3D;
@@ -27,6 +27,11 @@ public unsafe partial class Renderer
 
     ID3D11Buffer    psBuffer;
     PSBufferType    psData    = new();
+
+    ID3D11Buffer    hdrBuffer;
+    HDRBufferType   hdrData   = new();
+
+    ID3D11Buffer    doviBuffer;
 
     ID3D11Buffer    vsBuffer;
     VSBufferType    vsData    = new();
@@ -118,7 +123,28 @@ public unsafe partial class Renderer
         public float Saturation;    //  0.0  to 2.0     (1.0 default)
 
         public float UVOffset;
+        float _pad0, _pad1;
 
+        public PSBufferType()
+        {
+            Brightness = 0;
+            Contrast   = 1;
+            Hue        = 0;
+            Saturation = 1;
+        }
+    }
+
+    static BufferDescription hdrDesc = new()
+    {
+        Usage           = ResourceUsage.Default,
+        BindFlags       = BindFlags.ConstantBuffer,
+        CPUAccessFlags  = CpuAccessFlags.None,
+        ByteWidth       = (uint)((sizeof(HDRBufferType) + 15) & ~15)
+    };
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct HDRBufferType
+    {
         public ToneSplineParams Spline;
 
         public float SourceMinNits;
@@ -126,15 +152,14 @@ public unsafe partial class Renderer
         public float TargetMinNits;
         public float TargetPeakNits;
 
-        public PSBufferType()
-        {
-            Brightness      = 0;
-            Contrast        = 1;
-            Hue             = 0;
-            Saturation      = 1;
+        public float HLGGamma;
+        float _pad0, _pad1, _pad2;
 
-            TargetMinNits   = 0.203f;
-            TargetPeakNits  = 203;
+        public HDRBufferType()
+        {
+            TargetMinNits  = 0.203f;
+            TargetPeakNits = 203;
+            HLGGamma       = 1.2f * MathF.Pow(1.111f, MathF.Log2(TargetPeakNits / 1000.0f));
         }
     }
 
@@ -210,6 +235,8 @@ public unsafe partial class Renderer
     {
         vsBuffer        = device.CreateBuffer(vsDesc);
         psBuffer        = device.CreateBuffer(psDesc);
+        hdrBuffer       = device.CreateBuffer(hdrDesc);
+        doviBuffer      = device.CreateBuffer(doviDesc);
         panoBuffer      = device.CreateBuffer(panoDesc);
         vertexBuffer    = device.CreateBuffer<float>(vertexBufferData, vertexBufferDesc);
         inputLayout     = device.CreateInputLayout(inputElements, ShaderCompiler.VSBlob);
@@ -231,7 +258,10 @@ public unsafe partial class Renderer
         context.IASetInputLayout        (inputLayout);
         context.IASetPrimitiveTopology  (PrimitiveTopology.TriangleList);
         context.PSSetConstantBuffer     (0, psBuffer);
-        context.PSSetConstantBuffer     (1, panoBuffer);
+        context.PSSetConstantBuffer     (1, hdrBuffer);
+        context.PSSetConstantBuffer     (2, doviBuffer);
+        context.PSSetConstantBuffer     (3, panoBuffer);
+        context.UpdateSubresource       (hdrData, hdrBuffer);
         context.VSSetConstantBuffer     (0, vsBuffer);
         context.VSSetShader             (vsMain);
         context.PSSetSampler            (0, samplerLinear);
@@ -246,7 +276,7 @@ public unsafe partial class Renderer
 
         // Update pano aspectRatio when viewport changes
         if (ucfg.Pano360._enabled)
-            vpRequests |= VPRequestType.Pano360;
+            vpRequests |= VPRequestType.UpdatePano;
     }
     void FLSetRotationFlip()
     {
@@ -316,10 +346,11 @@ public unsafe partial class Renderer
     {
         FLHDRDetectReset();
 
-        psData.TargetPeakNits   = ucfg.TargetMaxNits >  0 ? ucfg.TargetMaxNits : autoPeakNits;
-        psData.TargetMinNits    = ucfg.TargetMinNits >= 0 ? ucfg.TargetMinNits : (psData.TargetPeakNits * autoMinNits / autoPeakNits); // auto min: keep contrast?
-        
-        VPRequest(VPRequestType.UpdatePS);
+        hdrData.TargetPeakNits  = ucfg.TargetMaxNits >  0 ? ucfg.TargetMaxNits : autoPeakNits;
+        hdrData.TargetMinNits   = ucfg.TargetMinNits >= 0 ? ucfg.TargetMinNits : (hdrData.TargetPeakNits * autoMinNits / autoPeakNits); // auto min: keep contrast?
+        hdrData.HLGGamma        = 1.2f * MathF.Pow(1.111f, MathF.Log2(hdrData.TargetPeakNits / 1000.0f));
+
+        VPRequest(VPRequestType.UpdateHDR);
     }
     void FLSetPano360()
     {
@@ -330,7 +361,7 @@ public unsafe partial class Renderer
         panoData.AspectRatio = ControlWidth > 0 && ControlHeight > 0
             ? (float)ControlWidth / ControlHeight : 1.778f;
         context.UpdateSubresource(panoData, panoBuffer);
-        vpRequests &= ~VPRequestType.Pano360;
+        vpRequests &= ~VPRequestType.UpdatePano;
     }
     
     void FLProcessRequests()
@@ -366,14 +397,17 @@ public unsafe partial class Renderer
             if (vpRequests.HasFlag(VPRequestType.Viewport))
                 FLSetViewport();
 
-            if (vpRequests.HasFlag(VPRequestType.Pano360))
-                FLSetPano360();
-
             if (vpRequests.HasFlag(VPRequestType.UpdateVS))
                 context.UpdateSubresource(vsData, vsBuffer);
 
             if (vpRequests.HasFlag(VPRequestType.UpdatePS))
                 context.UpdateSubresource(psData, psBuffer);
+
+            if (vpRequests.HasFlag(VPRequestType.UpdateHDR))
+                context.UpdateSubresource(hdrData, hdrBuffer);
+
+            if (vpRequests.HasFlag(VPRequestType.UpdatePano))
+                FLSetPano360();
         }
     }
     void FLRender(VideoFrame frame)
@@ -384,6 +418,9 @@ public unsafe partial class Renderer
         context.OMSetRenderTargets(SwapChain.BackBufferRtv);
         context.ClearRenderTargetView(SwapChain.BackBufferRtv, ucfg.flBackColor);
         context.PSSetShaderResources(0, frame.SRV);
+        if (useDovi)
+            FLDoviApply(frame);
+
         FLHDRDetect();
         context.Draw(6, 0);
 
@@ -392,9 +429,12 @@ public unsafe partial class Renderer
 
         FLSubsRender();
     }
-    void FLRender(ID3D11ShaderResourceView[] srvs, ID3D11RenderTargetView rtv, Viewport view)
+    void FLRender(VideoFrame frame, ID3D11RenderTargetView rtv, Viewport view)
     {
-        context.PSSetShaderResources(0, srvs);
+        context.PSSetShaderResources(0, frame.SRV);
+        if (useDovi)
+            FLDoviApply(frame);
+
         FLHDRDetectReset();
         FLHDRDetect();
         context.OMSetRenderTargets(rtv);
@@ -423,6 +463,8 @@ public unsafe partial class Renderer
         
         vsBuffer.       Dispose();
         psBuffer.       Dispose();
+        hdrBuffer.      Dispose();
+        doviBuffer.     Dispose();
         panoBuffer.     Dispose();
         inputLayout.    Dispose();
         vertexBuffer.   Dispose();

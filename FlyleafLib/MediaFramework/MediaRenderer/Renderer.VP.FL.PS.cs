@@ -1,4 +1,4 @@
-﻿using Vortice.Direct3D;
+using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 
@@ -21,6 +21,7 @@ public unsafe partial class Renderer
     const string dBT2020        = "dBT2020";
     const string dHLG           = "dHLG";
     const string dPQSpline      = "dPQSpline";
+    const string dDovi          = "dDovi";
     const string dFilters       = "dFilters";
     const string dPano360       = "dPano360";
     const string dICC           = "dICC";
@@ -40,11 +41,15 @@ color = float4(
     string  psId, psIdPrev;
     nint    iccSrc;
     bool    isHdr;
+    bool    useDovi;
 
     bool FLSwsConfig()
     {
         psCase  = PSCase.None;
         psId    = "";
+        isHdr   = false;
+        useDovi = false;
+        FLDoviReset();
         defines = [];
 
         if (ucfg.Pano360._enabled)
@@ -59,9 +64,10 @@ color = float4(
             defines.Add(dFilters);
         }
 
+        useDovi = canFL && VideoProcessor != VideoProcessors.SwsScale && FLDoviSupported();
         bool iccApplied = false;
 
-        if (scfg.iccData != null && iccDst != 0 && (iccSrc = OpenColorProfile(scfg.iccData)) != 0)
+        if (!useDovi && scfg.iccData != null && iccDst != 0 && (iccSrc = OpenColorProfile(scfg.iccData)) != 0)
         {
             var iccTransform = CreateTransform(iccSrc, iccDst);
             if (iccTransform != 0)
@@ -83,7 +89,15 @@ color = float4(
             CloseColorProfile(iccSrc);
         }
 
-        if (scfg.ColorSpace == ColorSpace.Bt2020 && !iccApplied)
+        if (useDovi)
+        {
+            psId += "v";
+            defines.Add(dBT2020);
+            defines.Add(dDovi);
+            defines.Add(dPQSpline);
+            isHdr = true;
+        }
+        else if (scfg.ColorSpace == ColorSpace.Bt2020 && !iccApplied)
         {
             defines.Add(dBT2020);
 
@@ -92,21 +106,16 @@ color = float4(
                 psId += "b";
                 defines.Add(dBT1886ToLinear);
             }
-
-            else
+            else if (scfg.HDRFormat == HDRFormat.HLG)
             {
-                if (scfg.HDRFormat == HDRFormat.HLG)
-                {
-                    psId += "g";
-                    defines.Add(dHLG);
-                }
-
-                else // HDR10 / HDR10+ / Dolby Vision
-                {
-                    psId += "p";
-                    defines.Add(dPQSpline);
-                    isHdr = true;
-                }
+                psId += "g";
+                defines.Add(dHLG);
+            }
+            else // HDR10 / HDR10+
+            {
+                psId += "p";
+                defines.Add(dPQSpline);
+                isHdr = true;
             }
         }
 
@@ -754,6 +763,9 @@ color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, floa
                 device.CreateShaderResourceView(ffTexture, srvDesc[1])],
         };
 
+        if (useDovi)
+            mFrame.Dovi = FLDoviPrepare(frame);
+
         frame = av_frame_alloc();
         return mFrame;
     }
@@ -765,6 +777,9 @@ color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, floa
             Texture     = new ID3D11Texture2D            [scfg.PixelPlanes],
             SRV         = new ID3D11ShaderResourceView   [scfg.PixelPlanes]
         };
+
+        if (useDovi)
+            mFrame.Dovi = FLDoviPrepare(frame);
 
         for (int i = 0; i < scfg.PixelPlanes; i++)
         {
@@ -793,6 +808,9 @@ color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, floa
             Texture     = new ID3D11Texture2D            [scfg.PixelPlanes],
             SRV         = new ID3D11ShaderResourceView   [scfg.PixelPlanes]
         };
+
+        if (useDovi)
+            mFrame.Dovi = FLDoviPrepare(frame);
 
         for (int i = 0; i < scfg.PixelPlanes; i++)
         {
