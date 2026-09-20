@@ -139,12 +139,12 @@ Texture1.Sample(Sampler, float2(input.Texture.x, 0.5 + (input.Texture.y / 2))).r
     VideoFrame SwsFillPlanesHelper(VideoFrame mFrame, AVFrame* frame)
     {
         int ret = sws_scale(swsCtx,
-            frame->data.        ToRawArray(),
-            frame->linesize.    ToArray(),
+            (byte**)&frame->data,
+            (int*)&frame->linesize,
             0,
-            swsFrame->height,
-            swsFrame->data.     ToRawArray(),
-            swsFrame->linesize. ToArray());
+            swsFrame->height, // TBR: should be src (frame) | issues with crop
+            (byte**)&swsFrame->data,
+            (int*)&swsFrame->linesize);
 
         subData[0].DataPointer  = swsFrame->data[0];
         subData[0].RowPitch     = (uint)swsFrame->linesize[0];

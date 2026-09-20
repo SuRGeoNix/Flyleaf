@@ -95,9 +95,9 @@ public class VideoEngine
         {
             IDXGIOutput6 output6 = null;
             GPUOutput gpuOutput;
-            
-            if (OperatingSystem.IsWindowsVersionAtLeast(10))
-                output6 = output.QueryInterfaceOrNull<IDXGIOutput6>();
+
+            try { output6 = output.QueryInterfaceOrNull<IDXGIOutput6>(); } finally { }
+                
             
             if (output6 != null)
             {

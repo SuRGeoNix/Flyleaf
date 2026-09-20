@@ -306,7 +306,8 @@ public unsafe partial class Renderer : IVP
 
             DisplayConfig.TryGetHDRInfo(desc.DeviceName, out var hdr);
 
-            using var output6 = output.QueryInterfaceOrNull<IDXGIOutput6>();
+            IDXGIOutput6 output6;
+            try { output6 = output.QueryInterfaceOrNull<IDXGIOutput6>(); } finally { }
 
             if (output6 != null)
             {
@@ -322,6 +323,8 @@ public unsafe partial class Renderer : IVP
                     updated = true;
                     ucfg.MaxVerticalResolutionAuto = coord.Bottom - coord.Top;
                 }
+
+                output6.Dispose();
             }
 
             if (hdr.Enabled && hdr.SDRWhiteNits is float sdrWhite)

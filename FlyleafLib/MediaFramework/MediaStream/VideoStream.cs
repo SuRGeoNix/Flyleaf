@@ -29,7 +29,7 @@ public unsafe class VideoStream : StreamBase
     public uint                         Height              { get; set; }
     public HDRFormat                    HDRFormat           { get; set; }
 
-    public AVComponentDescriptor[]      PixelComps          { get; set; }
+    public Array4<AVComponentDescriptor>PixelComps          { get; set; }
     public int                          PixelComp0Depth     { get; set; }
     public AVPixelFormat                PixelFormat         { get; set; }
     public AVPixFmtDescriptor*          PixelFormatDesc     { get; set; }
@@ -377,7 +377,7 @@ public unsafe class VideoStream : StreamBase
     {
         PixelFormatStr  = LowerCaseFirstChar(PixelFormat.ToString());
         PixelFormatDesc = av_pix_fmt_desc_get(PixelFormat);
-        PixelComps      = PixelFormatDesc->comp.ToArray();
+        PixelComps      = PixelFormatDesc->comp;
         ColorType       = PixelComps.Length == 1 ? ColorType.Gray : ((PixelFormatDesc->flags & PixFmtFlags.Rgb) != 0 ? ColorType.RGB : ColorType.YUV);
         PixelPlanes     = 0;
         
@@ -397,18 +397,5 @@ public unsafe class VideoStream : StreamBase
         int x, y;
         _ = av_reduce(&x, &y, Width * SAR.Num, Height * SAR.Den, 1024 * 1024);
         return new(x, y);
-    }
-
-    struct AVDOVIDecoderConfigurationRecord
-    {   // TODO from bindings
-        public byte dv_version_major;
-        public byte dv_version_minor;
-        public byte dv_profile;
-        public byte dv_level;
-        public byte rpu_present_flag;
-        public byte el_present_flag;
-        public byte bl_present_flag;
-        public byte dv_bl_signal_compatibility_id;
-        public byte dv_md_compression;
     }
 }

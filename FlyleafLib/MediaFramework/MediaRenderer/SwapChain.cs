@@ -28,7 +28,7 @@ public unsafe class SwapChain
     public ID3D11RenderTargetView   BackBufferRtv => bbRtv;
     ID3D11RenderTargetView bbRtv;
 
-    internal IDXGISwapChain1    sc;
+    IDXGISwapChain1             sc;
     IDCompositionDevice         dcDevice;
     IDCompositionVisual         dcVisual;
     IDCompositionTarget         dcTarget;
