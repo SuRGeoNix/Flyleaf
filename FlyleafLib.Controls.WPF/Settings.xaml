@@ -381,6 +381,7 @@
                                     <RowDefinition Height="30"/>
                                     <RowDefinition Height="30"/>
                                     <RowDefinition Height="30"/>
+                                    <RowDefinition Height="30"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Text="Aspect Ratio" VerticalAlignment="Center"/>
@@ -471,31 +472,33 @@
                                     </ItemsControl>
                                 </StackPanel>
 
-                                <TextBlock Grid.Row="14" Text="SDR Peak (nits)" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Row="14" Grid.Column="1" Text="0" Margin="4,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
-                                <Slider Grid.Row="14" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.TargetSDRPeakNits, Mode=TwoWay}" Minimum="0" Maximum="500"/>
-                                <TextBlock Grid.Row="14" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="500" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Row="14" Grid.Column="2" Margin="104 0 0 0" FontSize="12" VerticalAlignment="Center">
+                                <Separator Grid.Row="14" Grid.ColumnSpan="3"/>
+
+                                <TextBlock Grid.Row="15" Text="SDR Peak (nits)" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="15" Grid.Column="1" Text="0" Margin="4,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
+                                <Slider Grid.Row="15" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.TargetSDRPeakNits, Mode=TwoWay}" Minimum="0" Maximum="500"/>
+                                <TextBlock Grid.Row="15" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="500" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="15" Grid.Column="2" Margin="104 0 0 0" FontSize="12" VerticalAlignment="Center">
                                     <Run Text="("/>
                                     <Run Text="{Binding Config.Video.TargetSDRPeakNits, Mode=OneWay}"/>
                                     <Run Text=")"/>
                                 </TextBlock>
 
-                                <TextBlock Grid.Row="15" Text="SDR Min (nits)" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="15" Grid.Column="1" Margin="0 0 0 0" Width="40" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.TargetSDRMinNits}"/>
+                                <TextBlock Grid.Row="16" Text="SDR Min (nits)" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="16" Grid.Column="1" Margin="0 0 0 0" Width="40" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.TargetSDRMinNits}"/>
 
-                                <TextBlock Grid.Row="16" Text="HDR Peak (Nits)" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Row="16" Grid.Column="1" Text="500" Margin="-14,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
-                                <Slider Grid.Row="16" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.TargetHDRPeakNits, Mode=TwoWay}" Minimum="500" Maximum="4000"/>
-                                <TextBlock Grid.Row="16" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="4000" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Row="16" Grid.Column="2" Margin="104 0 0 0" FontSize="12" VerticalAlignment="Center">
+                                <TextBlock Grid.Row="17" Text="HDR Peak (Nits)" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="17" Grid.Column="1" Text="500" Margin="-14,0,0,0"  VerticalAlignment="Center" HorizontalAlignment="Left" Width="24" FontSize="12"/>
+                                <Slider Grid.Row="17" Grid.Column="1" Grid.ColumnSpan="2" Margin="18 0 0 0" Width="200" VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignDiscreteSlider}" Value="{Binding Config.Video.TargetHDRPeakNits, Mode=TwoWay}" Minimum="500" Maximum="4000"/>
+                                <TextBlock Grid.Row="17" Grid.Column="2" Margin="76 0 0 0" FontSize="12" Text="4000" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="17" Grid.Column="2" Margin="104 0 0 0" FontSize="12" VerticalAlignment="Center">
                                     <Run Text="("/>
                                     <Run Text="{Binding Config.Video.TargetHDRPeakNits, Mode=OneWay}"/>
                                     <Run Text=")"/>
                                 </TextBlock>
 
-                                <TextBlock Grid.Row="17" Text="HDR Min (nits)" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="17" Grid.Column="1" Margin="0 0 0 0" Width="40" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.TargetHDRMinNits}"/>
+                                <TextBlock Grid.Row="18" Text="HDR Min (nits)" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="18" Grid.Column="1" Margin="0 0 0 0" Width="40" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.TargetHDRMinNits}"/>
 
                             </Grid>
                         </ScrollViewer>

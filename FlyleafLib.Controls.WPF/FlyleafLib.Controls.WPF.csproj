@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.7.8</Version>
+    <Version>1.7.9</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2026</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -14,7 +14,7 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
     <PackageReleaseNotes>
-		- Settings.Video: Renames Brightness (HDR) to Monitor Peak (Nits)
+		- Settings.Video: Adds Target SDR/HDR Min/Peak Nits
 		- Updates FlyleafLib
 	</PackageReleaseNotes>
   </PropertyGroup>
