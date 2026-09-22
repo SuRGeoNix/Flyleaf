@@ -1,6 +1,6 @@
 ﻿# *Flyleaf v3.11*: Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)
 
-![alt text](Images/Flyleafv3.6.png)
+![alt text](Images/Flyleafv3.11.png)
 
 ---
 
@@ -46,7 +46,7 @@
 - *Device Preference*
 - *Aspect Ratio <sub>(Keep / Fill / Custom)</sub>*
 - *Deinterlace <sub>(Supports double rate, D3D11VP only)</sub>*
-- *HDR to SDR <sub>(HDR10 / HDR10+ / HLG / Dolby Vision with Spline tonemap - FlyleafVP only)</sub>*
+- *HDR10 / HDR10+ / HLG / Dolby Vision <sub>(FlyleafVP only)</sub>*
 - *Embedded ICC Profiles*
 - *Pan Move / Zoom / Rotate / HFlip-VFlip / Cropping <sub>~~(Replica Renderer/Interactive Zoom)~~</sub>*
 - *Record / Snapshot*
@@ -54,7 +54,7 @@
 - *360° Panoramic*
 - *Video Acceleration*
 - *Video Filters <sub>(Brightness / Contrast / Hue / Saturation)</sub>*
-- *Video Processors <sub>(FlyleafVP / D3D11VP)</sub>*
+- *Video Processors <sub>(FlyleafVP / D3D11VP / SwsScale)</sub>*
 - *VSync*
 - *Zero-Copy <sub>(Crops with vertex shader)</sub>*
 - *Split-Frame / Alpha Packing <sub>(Special technique to support alpha with hardware acceleration)</sub>*
