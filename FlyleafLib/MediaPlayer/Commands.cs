@@ -176,8 +176,7 @@ public class Commands
             foreach (var kv in cfg.FLFilters)
                 kv.Value.Value = kv.Value.Default;
 
-        cfg.TargetMaxNits = 0;
-        cfg.TargetMinNits = -1;
+        cfg.TargetSDRPeakNits = cfg.TargetSDRMinNits = cfg.TargetHDRPeakNits = cfg.TargetHDRMinNits =  -1;
     }
 
     public void SpeedSetAction(object speed)

@@ -47,6 +47,7 @@ public unsafe partial class Renderer : NotifyPropertyChanged
     public GPUAdapter           GPUAdapter      => gpuAdapter;
     GPUAdapter gpuAdapter;
     ID3D11DeviceContext     context;
+    internal void UnsetRenderTargets() => context?.UnsetRenderTargets();
     bool                    forceWarp;
 
     internal LogHandler     Log;
