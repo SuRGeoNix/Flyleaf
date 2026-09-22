@@ -447,7 +447,11 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
 
         if (result.ToString() == "cancel")
         {
-            Config.Video.TargetMaxNits = prevConfig.TargetMaxNits;
+            Config.Video.TargetSDRPeakNits  = prevConfig.TargetSDRPeakNits;
+            Config.Video.TargetSDRMinNits   = prevConfig.TargetSDRMinNits;
+            Config.Video.TargetHDRPeakNits  = prevConfig.TargetHDRPeakNits;
+            Config.Video.TargetHDRMinNits   = prevConfig.TargetHDRMinNits;
+
             foreach(var filter in saveFilterValues)
                 Config.Video.FLFilters[filter.Key].Value  = filter.Value;
 
@@ -457,6 +461,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
         else
         {
             settings.ApplySettings();
+
             if (result.ToString() == "save")
             {
                 subsInitialMargin = UIConfig.SubsMargin;

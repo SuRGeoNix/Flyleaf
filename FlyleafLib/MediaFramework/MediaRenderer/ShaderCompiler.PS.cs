@@ -33,7 +33,6 @@ struct ConfigData
     float saturation;
 
     float uvOffset;
-    float2 padding;
 };
 
 cbuffer Config : register(b0)
@@ -55,8 +54,10 @@ struct HDRData
     float targetMinNits;
     float targetPeakNits;
 
+    int   nativeOutput;
     float hlgGamma;
-    float3 padding;
+    float bt1886BlackRoot;
+    float bt1886InvRange;
 };
 
 cbuffer HDRConfig : register(b1)
@@ -71,6 +72,7 @@ cbuffer DoviConfig : register(b2)
 };
 
 #define DOVI_SAMPLE_SCALE       Dovi[0].x
+#define DOVI_IDENTITY_RESHAPE   Dovi[0].y
 #define DOVI_YCC_BASE           1
 #define DOVI_LINEAR_709_BASE    4
 #define DOVI_COMPONENT_BASE     7
@@ -85,7 +87,6 @@ struct PanoData
 {
     float4 panoParams;   // rotationX, rotationY, zoom, fov
     float  aspectRatio;
-    float3 padding;
 };
 
 cbuffer PanoConfig : register(b3)
@@ -180,16 +181,12 @@ static const float3x3 coefs[3] =
 inline float3 YUVToRGBLimited(float3 yuv)
 {
     #if defined(dYUV16)
-        // P010 limited, sampled as R16_UNorm
-        yuv.x  -= 0.0625;
-        yuv.yz -= 0.5;
+        // P010 limited, sampled as R16_UNorm. Convert 10-bit MSB-aligned UNorm to the equivalent 8-bit-normalized code domain.
         yuv *= 257.0 / 256.0;
-    #else
-        // 8-bit limited, sampled as R8_UNorm
-        yuv.x  -= 16.0 / 255.0;
-        yuv.yz -= 128.0 / 255.0;
-
     #endif
+    
+    yuv.x  -= 16.0 / 255.0;
+    yuv.yz -= 128.0 / 255.0;
 
     return mul(coefs[Config.coefsIndex], yuv);
 }
@@ -246,45 +243,58 @@ inline float3 Gamut2020To709(float3 c)
     return mul(mat, c);
 }
 
-inline float3 GamutCompress709(float3 c, float knee)
+inline float3 LinearToBT1886(float3 c)
+{
+    c = pow(max(c, 0.0), 1.0 / 2.4);
+    return saturate((c - HDR.bt1886BlackRoot) * HDR.bt1886InvRange);
+}
+
+inline float3 GamutMap709(float3 c)
 {
     static const float3 luma709 =
         float3(0.2126, 0.7152, 0.0722);
 
+    if (all(c >= 0.0) && all(c <= 1.0))
+        return c;
+
     float y = saturate(dot(c, luma709));
+    float3 d = c - y.xxx;
 
-    float lo = min(c.r, min(c.g, c.b));
-    float hi = max(c.r, max(c.g, c.b));
+    // Maximum scale along the line from neutral gray (same luminance)
+    // toward the original color while remaining inside the BT.709 cube.
+    float scale = 1.0;
 
-    float limit = 1e20;
+    if (d.r > 0.0) scale = min(scale, (1.0 - y) / d.r);
+    if (d.g > 0.0) scale = min(scale, (1.0 - y) / d.g);
+    if (d.b > 0.0) scale = min(scale, (1.0 - y) / d.b);
 
-    if (hi > y)
-        limit = min(limit, (1.0 - y) / (hi - y));
+    if (d.r < 0.0) scale = min(scale, -y / d.r);
+    if (d.g < 0.0) scale = min(scale, -y / d.g);
+    if (d.b < 0.0) scale = min(scale, -y / d.b);
 
-    if (lo < y)
-        limit = min(limit, y / (y - lo));
+    scale = saturate(scale);
 
-    if (limit == 1e20)
-        return c;
+    return saturate(y.xxx + d * scale);
+}
 
-    float usage = 1.0 / max(limit, 1e-6);
+inline float3 NormalizeDisplayBlack(float3 c)
+{
+    float black =
+        saturate(HDR.targetMinNits / HDR.targetPeakNits);
 
-    if (usage <= knee)
-        return c;
+    return (c - black.xxx) / (1.0 - black);
+}
 
-    float k = 1.0 - knee;
+inline float3 RestoreDisplayBlack(float3 c)
+{
+    float black =
+        saturate(HDR.targetMinNits / HDR.targetPeakNits);
 
-    float mappedUsage =
-        1.0 - (k * k) /
-        (usage + 1.0 - 2.0 * knee);
-
-    float scale = mappedUsage / usage;
-
-    return y.xxx + (c - y.xxx) * scale;
+    return black.xxx + c * (1.0 - black);
 }
 #endif
 
-#if defined(dPQSpline) || defined(dHDRDetect)
+#if defined(dPQSpline)
 static const float ST2084_m1 = 0.1593017578125;
 static const float ST2084_m2 = 78.84375;
 static const float ST2084_c1 = 0.8359375;
@@ -300,9 +310,7 @@ inline float3 PQToLinear(float3 rgb, float factor)
     rgb *= factor;
     return rgb;
 }
-#endif
 
-#if defined(dPQSpline) || defined(dHDRDetect)
 inline float PQToNits(float pq)
 {
     pq = max(pq, 0.0);
@@ -316,6 +324,9 @@ inline float PQToNits(float pq)
 
 inline float NitsToPQ(float nits)
 {
+    if (nits <= 0.0)
+        return 0.0;
+
     float x = saturate(nits / 10000.0);
 
     x = pow(x, ST2084_m1);
@@ -437,11 +448,15 @@ inline float DoviReshapeComponent(float3 sig, int component)
 inline float3 DoviDecodeYCC(float3 c)
 {
     float3 sig = saturate(c * DOVI_SAMPLE_SCALE);
+    float3 reshaped = sig;
 
-    float3 reshaped = float3(
-        DoviReshapeComponent(sig, 0),
-        DoviReshapeComponent(sig, 1),
-        DoviReshapeComponent(sig, 2));
+    if (DOVI_IDENTITY_RESHAPE == 0.0)
+    {   // Common Profile 7 streams carry an exact identity reshape. Skip all pivot/polynomial work in that case.
+        reshaped = float3(
+            DoviReshapeComponent(sig, 0),
+            DoviReshapeComponent(sig, 1),
+            DoviReshapeComponent(sig, 2));
+    }
 
     float4 v = float4(reshaped, 1.0);
 
@@ -568,13 +583,20 @@ float4 main(PSInput input) : SV_TARGET
         float y = dot(c, luma2020);
     #endif
 
-    return float4(NitsToPQ(max(y, 0.0)), 0.0, 0.0, 1.0);
+    return float4(NitsToPQ(y), 0.0, 0.0, 1.0);
+
 #elif defined(dICC)
     c = ApplyICC(c);
+
 #elif defined(dBT1886ToLinear)
     c = BT1886ToLinear(c);
+
 #elif defined(dHLG)
     c = HLGToDisplayLinear(c);
+
+    if (HDR.nativeOutput != 0)
+        c *= HDR.targetPeakNits;
+
 #elif defined(dPQSpline)
     c = PQToLinear(c, 10000.0);
 
@@ -587,34 +609,62 @@ float4 main(PSInput input) : SV_TARGET
 
     if (y > 0.0)
     {
-        float toneY     = clamp(y, HDR.sourceMinNits, HDR.sourcePeakNits);
-        float mappedPQ  = saturate(ToneSpline(NitsToPQ(toneY)));
-        float mappedY   = PQToNits(mappedPQ);
-        float u         = saturate((mappedY - HDR.targetMinNits) / (HDR.targetPeakNits - HDR.targetMinNits));
+        float scale = 1.0;
 
-        #if defined(dDovi)
-            c = DoviTo709(c) * (u / y);
-        #else
-            c *= u / y;
-        #endif
+        if (HDR.nativeOutput != 0)
+        {
+            if (HDR.sourcePeakNits > HDR.targetPeakNits || HDR.sourceMinNits < HDR.targetMinNits)
+            {   // Preserve HDR luminance when it fits the display.
+                float toneY     = clamp(y, HDR.sourceMinNits, HDR.sourcePeakNits);
+                float mappedPQ  = saturate(ToneSpline(NitsToPQ(toneY)));
+                float mappedY   = PQToNits(mappedPQ);
+                scale           = mappedY / y;
+            }
+        }
+        else
+        {
+            float toneY     = clamp(y, HDR.sourceMinNits, HDR.sourcePeakNits);
+            float mappedPQ  = saturate(ToneSpline(NitsToPQ(toneY)));
+            float mappedY   = PQToNits(mappedPQ);
+            float u         = saturate(mappedY / HDR.targetPeakNits);
+            scale           = u / y;
+        }
+
+        c *= scale;
     }
+
     #if defined(dDovi)
-    else
-    {
         c = DoviTo709(c);
-    }
     #endif
 #endif
 
 #if defined(dBT2020)
-    #if !defined(dDovi)
-        c = Gamut2020To709(c);
-    #endif
-    #if !defined(dBT1886ToLinear)
-        c = GamutCompress709(c, 1.00);
-    #endif
-    c = saturate(c);
-    c = pow(c, 1.0 / 2.2);
+    if (HDR.nativeOutput != 0)
+    {
+        #if !defined(dDovi)
+            c = Gamut2020To709(c);
+        #endif
+
+        // scRGB is linear BT.709 and 1.0 = 80 nits.
+        c /= 80.0;
+    }
+    else
+    {
+        #if !defined(dDovi)
+            c = Gamut2020To709(c);
+        #endif
+
+        #if defined(dPQSpline)
+            c = NormalizeDisplayBlack(c);
+        #endif
+
+        //#if !defined(dBT1886ToLinear) // TBR: related to colorspace/primaries
+        c = GamutMap709(c);
+        //#endif
+
+        c = RestoreDisplayBlack(c);
+        c = LinearToBT1886(c);
+    }
 #endif
 
 #if defined(dFilters)
@@ -624,6 +674,11 @@ float4 main(PSInput input) : SV_TARGET
     c += Config.brightness;
     c  = Hue(c, Config.hue);
     c  = Saturation(c, Config.saturation);
+#endif
+
+#if defined(dBT2020)
+    if (HDR.nativeOutput != 0)
+        return float4(c * color.a, color.a);
 #endif
 
     return saturate(float4(c * color.a, color.a));

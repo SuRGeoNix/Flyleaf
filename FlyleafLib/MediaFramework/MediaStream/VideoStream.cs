@@ -23,9 +23,9 @@ public unsafe class VideoStream : StreamBase
     public uint                         Rotation            { get; set; }
     public bool                         VFlip               { get; set; }
     public double                       FPS                 { get; set; }
-    public long                         FrameDuration       { get ;set; }
+    public long                         FrameDuration       { get; set; }
     public double                       FPS2                { get; set; } // interlace
-    public long                         FrameDuration2      { get ;set; } // interlace
+    public long                         FrameDuration2      { get; set; } // interlace
     public uint                         Height              { get; set; }
     public HDRFormat                    HDRFormat           { get; set; }
     public int                          DoviProfile         { get; set; }

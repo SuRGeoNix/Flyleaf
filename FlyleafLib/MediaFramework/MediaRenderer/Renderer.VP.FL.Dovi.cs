@@ -15,7 +15,7 @@ public unsafe partial class Renderer
     const int doviMmrVectors          = 48;
     const float doviPivotSentinel     = 1e9f;
 
-    // Dovi[0]      : sampleScale, 1, 0, 0
+    // Dovi[0]      : sampleScale, identityReshape, 0, 0
     // Dovi[1..3]   : affine YCC -> nonlinear RGB rows
     // Dovi[4..6]   : linear DOVI RGB -> BT.709 rows, BT.2020 luma coefficients in .w
     // Dovi[7..]    : three reshape components, 59 float4s each
@@ -45,6 +45,16 @@ public unsafe partial class Renderer
     // Render-side cache: if consecutive frames share the prepared state, don't upload b2 again.
     DoviFrameData doviAppliedData;
     bool doviAppliedEmpty;
+
+    // Prepare-side source cache. FFmpeg attaches a fresh AVDOVIMetadata copy to
+    // every frame, so pointer identity cannot be used. Keep only the metadata
+    // that actually affects our shader and compare it before rebuilding the
+    // 184-vector GPU buffer.
+    bool                    doviSourceCached;
+    byte                    doviCachedBlBitDepth;
+    byte                    doviCachedCoefLog2Denom;
+    AVDOVIReshapingCurve    doviCachedCurve0, doviCachedCurve1, doviCachedCurve2;
+    AVDOVIColorMetadata     doviCachedColor;
 
     static ReadOnlySpan<float> DoviHpeLmsTo2020 =>
     [
@@ -93,14 +103,18 @@ public unsafe partial class Renderer
 
     void FLDoviReset()
     {
-        doviPreparedData = null;
-        doviAppliedData  = null;
-        doviAppliedEmpty = false;
+        doviPreparedData      = null;
+        doviAppliedData       = null;
+        doviAppliedEmpty      = false;
+        doviSourceCached      = false;
+        doviCachedColor       = default;
+        doviCachedCurve0      = default;
+        doviCachedCurve1      = default;
+        doviCachedCurve2      = default;
     }
 
     DoviFrameData FLDoviPrepare(AVFrame* frame)
-    {   // TBR: Whether possible to avoid checking per frame or at least reconstruding the whole data
-        
+    {
         var side = av_frame_side_data_get(
             frame->side_data,
             frame->nb_side_data,
@@ -113,6 +127,18 @@ public unsafe partial class Renderer
         var header  = (AVDOVIRpuDataHeader*)((byte*)dovi + dovi->header_offset);
         var mapping = (AVDOVIDataMapping*)  ((byte*)dovi + dovi->mapping_offset);
         var color   = (AVDOVIColorMetadata*)((byte*)dovi + dovi->color_offset);
+
+        // FFmpeg's valid coefficient denominator range is [13, 32]. Validate it
+        // before ScaleB/bit shifts below so malformed side data cannot produce
+        // invalid math or an oversized shift.
+        if (header->coef_log2_denom < 13 || header->coef_log2_denom > 32)
+            return null;
+
+        // Fast path for the overwhelmingly common case where consecutive frames
+        // reuse the same reshape/matrix state. The side-data allocation itself is
+        // new every frame, so compare the source metadata rather than pointers.
+        if (doviPreparedData != null && DoviSourceEquals(header, mapping, color))
+            return doviPreparedData;
 
         // FFmpeg defines BL depth as [8, 16]. Keep malformed/unsupported metadata
         // out of the shader rather than coercing it into a seemingly valid mapping.
@@ -135,7 +161,6 @@ public unsafe partial class Renderer
             return null;
 
         DoviBufferType buffer = default;
-        DoviSet(ref buffer, 0, new(sampleScale, 1, 0, 0));
 
         // All temporary matrix work stays on the stack. RPU metadata may be present
         // on every frame, so avoid creating managed 3x3 arrays in this hot path.
@@ -185,6 +210,7 @@ public unsafe partial class Renderer
         // Seven possible internal pivots. Allocate once for the whole method, not
         // inside the component loop (avoids CA2014 and repeated stack growth).
         Span<float> pivots = stackalloc float[7];
+        bool identityReshape = true;
 
         for (int component = 0; component < 3; component++)
         {
@@ -221,6 +247,17 @@ public unsafe partial class Renderer
                 new(pivots[0], pivots[1], pivots[2], pivots[3]));
             DoviSet(ref buffer, componentBase + 2,
                 new(pivots[4], pivots[5], pivots[6], doviPivotSentinel));
+
+            // Common Profile 7 mappings are exact identity transforms. Signal
+            // this to HLSL so it can bypass all pivot/polynomial work per pixel.
+            identityReshape &=
+                numPivots == 2 &&
+                curve.pivots[0] == 0 &&
+                curve.pivots[1] == blMax &&
+                curve.mapping_idc[0] == AVDOVIMappingMethod.Polynomial &&
+                curve.poly_order[0] == 1 &&
+                curve.poly_coef[0][0] == 0 &&
+                curve.poly_coef[0][1] == (1L << header->coef_log2_denom);
 
             int mmrIndex = 0;
             int pieces   = numPivots - 1;
@@ -296,12 +333,9 @@ public unsafe partial class Renderer
             }
         }
 
-        // Most streams repeat the same mapping over many consecutive frames.
-        // Compare the final packed representation so caching covers every field
-        // that can affect the shader, without relying on scene_refresh_flag.
-        if (doviPreparedData != null && DoviEquals(ref buffer, ref doviPreparedData.Buffer))
-            return doviPreparedData;
+        DoviSet(ref buffer, 0, new(sampleScale, identityReshape ? 1.0f : 0.0f, 0, 0));
 
+        DoviCacheSource(header, mapping, color);
         doviPreparedData = new() { Buffer = buffer };
         return doviPreparedData;
     }
@@ -316,7 +350,8 @@ public unsafe partial class Renderer
                 return;
 
             context.UpdateSubresource(data.Buffer, doviBuffer);
-            doviAppliedData = data;
+            doviAppliedData  = data;
+            doviAppliedEmpty = false;
             return;
         }
 
@@ -353,22 +388,54 @@ public unsafe partial class Renderer
             ((Vector4*)p)[index] = value;
     }
 
-    static bool DoviEquals(ref DoviBufferType a, ref DoviBufferType b)
+    bool DoviSourceEquals(AVDOVIRpuDataHeader* header, AVDOVIDataMapping* mapping, AVDOVIColorMetadata* color)
     {
-        fixed (float* pa = a.Data)
-        fixed (float* pb = b.Data)
-        {
-            ulong* a64 = (ulong*)pa;
-            ulong* b64 = (ulong*)pb;
-            int count = sizeof(DoviBufferType) / sizeof(ulong);
+        if (!doviSourceCached ||
+            header->bl_bit_depth    != doviCachedBlBitDepth ||
+            header->coef_log2_denom != doviCachedCoefLog2Denom)
+            return false;
 
-            for (int i = 0; i < count; i++)
-                if (a64[i] != b64[i])
-                    return false;
+        ref var curve0 = ref mapping->curves[0];
+        ref var curve1 = ref mapping->curves[1];
+        ref var curve2 = ref mapping->curves[2];
 
-            return true;
-        }
+        if (!DoviCurveEquals(ref curve0, ref doviCachedCurve0) ||
+            !DoviCurveEquals(ref curve1, ref doviCachedCurve1) ||
+            !DoviCurveEquals(ref curve2, ref doviCachedCurve2))
+            return false;
+
+        for (int i = 0; i < 9; i++)
+            if (!DoviRationalEquals(color->ycc_to_rgb_matrix[i], doviCachedColor.ycc_to_rgb_matrix[i]) ||
+                !DoviRationalEquals(color->rgb_to_lms_matrix[i], doviCachedColor.rgb_to_lms_matrix[i]))
+                return false;
+
+        for (int i = 0; i < 3; i++)
+            if (!DoviRationalEquals(color->ycc_to_rgb_offset[i], doviCachedColor.ycc_to_rgb_offset[i]))
+                return false;
+
+        return true;
     }
+
+    void DoviCacheSource(AVDOVIRpuDataHeader* header, AVDOVIDataMapping* mapping, AVDOVIColorMetadata* color)
+    {
+        doviCachedBlBitDepth     = header->bl_bit_depth;
+        doviCachedCoefLog2Denom  = header->coef_log2_denom;
+        doviCachedCurve0         = mapping->curves[0];
+        doviCachedCurve1         = mapping->curves[1];
+        doviCachedCurve2         = mapping->curves[2];
+        doviCachedColor          = *color;
+        doviSourceCached         = true;
+    }
+
+    static bool DoviCurveEquals(ref AVDOVIReshapingCurve a, ref AVDOVIReshapingCurve b)
+    {
+        var ba = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref a, 1));
+        var bb = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref b, 1));
+        return ba.SequenceEqual(bb);
+    }
+
+    static bool DoviRationalEquals(AVRational a, AVRational b)
+        => a.Num == b.Num && a.Den == b.Den;
 
     static void DoviMul3x3(ReadOnlySpan<float> a, ReadOnlySpan<float> b, Span<float> dst)
     {

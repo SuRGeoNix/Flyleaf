@@ -125,6 +125,12 @@ public unsafe partial class Renderer
             (byte**)&swsFrame->data,
             (int*)&swsFrame->linesize);
 
+        if (subsTxt != null)
+        {
+            subsSRV[0]?.Dispose(); subsSRV[0]   = null;
+            subsTxt.    Dispose(); subsTxt      = null;
+        }
+
         subsTxt     = device.CreateTexture2D(subsTxtDesc, [new SubresourceData() { DataPointer = swsFrame->data[0], RowPitch = (uint)swsFrame->linesize[0] }]);
         subsSRV[0]  = device.CreateShaderResourceView(subsTxt);
 
