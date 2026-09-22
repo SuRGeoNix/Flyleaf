@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.8</Version>
+	<Version>3.11.9</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,9 +17,18 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer: Adds per-frame HDR min/avg/peak detection for spline tone mapping
-		- Config.Video: Introduces TargetMinNits
-		- Config.Video: Introduces TargetMaxNits (renames HDRBrightness)
+		- Renderer.HDR: Improves Dolby Vision caching and adds RPU source reconstruction (polynomial/MMR reshaping and color reconstruction)
+		- Renderer.HDR: Extends Dolby Vision for Profiles 5.0/7.0/7.6/8.0/8.1/8.2/8.4/8.6/10.0/10.1/10.2/10.4 and BL fallbacks
+		- Renderer.HDR: HDR Detect performance improvements and analysis support also for Dolby Vision
+		- Renderer.HDR: Pixels shader improvements (replaces pure gamma 2.2 with finite-black inverse BT.1886 with actual min/peak nits)
+		- Renderer.HDR: Adds native support (experimental)
+		- Renderer.HDR: HLG improvements by using BT.2100/BT.2100-3 based on target peak nits
+		- Renderer.VP: Improves Display Config detection
+		- Renderer.Subs: Fixes a possible leak issue
+		- Renderer.Sws: Fixes stability, format, colorspace &amp; cropping issues
+		- Renderer.ShaderCompiler: Cache improvements
+		- Config.Video: Introduces Target SDR/HDR Min/Peak Nits
+		- Dependencies: Updates Flyleaf.FFmpeg.Bindings to v9.0.2
 	</PackageReleaseNotes>
   </PropertyGroup>
 
