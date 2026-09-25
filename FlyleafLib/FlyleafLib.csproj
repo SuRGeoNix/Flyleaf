@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.10</Version>
+	<Version>3.11.11</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,7 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		Renderer.HDR: Replaces the previous BT.2020 to BT.709 gamut mapping with an IPTPQc4-based perceptual gamut mapper
+		Renderer.HDR: Fixes a critical lifecycle issue with gamut that it will not be properly restored after disposal
 	</PackageReleaseNotes>
   </PropertyGroup>
 
