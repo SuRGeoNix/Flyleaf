@@ -40,6 +40,7 @@ public unsafe class VideoDecoder : DecoderBase
 
     bool                    checkExtraFrames; // DecodeFrameNext
     int                     curFrameWidth, curFrameHeight; // To catch 'codec changed'
+    AVPixelFormat           curFrameFormat = AVPixelFormat.None; // Pixel format can change mid-stream too (e.g. MJPEG 4:2:2 -> 4:2:0)
 
     // Hot paths / Same instance
     VideoCache              Frames;
@@ -631,10 +632,11 @@ public unsafe class VideoDecoder : DecoderBase
             keyFrameRequired = false;
         }
 
-        if ((frame->height != curFrameHeight || frame->width != curFrameWidth) && filledFromCodec)
-        {
+        if ((frame->height != curFrameHeight || frame->width != curFrameWidth || (AVPixelFormat)frame->format != curFrameFormat) && filledFromCodec)
+        {   // A pixel format change needs the same renderer reconfiguration as a size change, otherwise
+            // the textures keep the old plane layout and FLSWFillPlanes reads past the new planes
             filledFromCodec = false;
-            Log.Warn($"Codec changed {VideoStream.CodecID} {curFrameWidth}x{curFrameHeight} => {codecCtx->codec_id} {frame->width}x{frame->height}");
+            Log.Warn($"Codec changed {VideoStream.CodecID} {curFrameWidth}x{curFrameHeight} {curFrameFormat} => {codecCtx->codec_id} {frame->width}x{frame->height} {(AVPixelFormat)frame->format}");
         }
 
         if (frame->best_effort_timestamp != AV_NOPTS_VALUE)
@@ -740,6 +742,7 @@ public unsafe class VideoDecoder : DecoderBase
         curFixSeekDelta = 0;
         curFrameWidth   = frame->width;
         curFrameHeight  = frame->height;
+        curFrameFormat  = (AVPixelFormat)frame->format;
 
         VideoStream.Refresh(this, frame);
         startPts        = VideoStream.StartTimePts;
