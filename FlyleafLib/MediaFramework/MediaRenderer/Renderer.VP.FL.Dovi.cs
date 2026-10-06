@@ -116,7 +116,7 @@ public unsafe partial class Renderer
 
     DoviFrameData FLDoviPrepare(AVFrame* frame)
     {
-        var side = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.DoviMetadata);
+        var side = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.DOVIMetadata);
 
         if (side == null || side->data == null)
             return null;
@@ -468,7 +468,7 @@ public unsafe partial class Renderer
         if (frame == null)
             return null;
 
-        var side = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.DoviMetadata);
+        var side = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.DOVIMetadata);
 
         if (side == null || side->data == null)
             return null;

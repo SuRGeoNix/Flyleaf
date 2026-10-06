@@ -16,6 +16,7 @@ using static FlyleafPlayer.AppConfig;
 using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
+using Flyleaf.FFmpeg.ABI;
 
 namespace FlyleafPlayer;
 
@@ -267,9 +268,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
                 if (e.Player.VideoDemuxer.Name.Contains("webm"))
                 {
-                    if (e.VideoStream.CodecID == Flyleaf.FFmpeg.AVCodecID.Vp8)
+                    if (e.VideoStream.CodecID == AVCodecID.Vp8)
                         e.Player.Config.Decoder.VideoCodec = "libvpx";
-                    else if (e.VideoStream.CodecID == Flyleaf.FFmpeg.AVCodecID.Vp9)
+                    else if (e.VideoStream.CodecID == AVCodecID.Vp9)
                         e.Player.Config.Decoder.VideoCodec = "libvpx-vp9";
                 }
             };

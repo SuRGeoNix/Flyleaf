@@ -73,10 +73,10 @@ public unsafe class VideoDecoder : DecoderBase
 
     #region Video Acceleration (Should be disposed seperately)
     public CodecSpec CurCodecSpec;
-    AVCodecContext_get_format getHWformat;
+    AVCodecContext.GetFormat getHWformat;
 
-    internal const AVPixelFormat    HW_PIX_FMT  = AVPixelFormat.D3d11;
-    internal const AVHWDeviceType   HW_DEVICE   = AVHWDeviceType.D3d11va;
+    internal const AVPixelFormat    HW_PIX_FMT  = AVPixelFormat.D3D11;
+    internal const AVHWDeviceType   HW_DEVICE   = AVHWDeviceType.D3D11VA;
 
     public class CodecSpec
     {
@@ -105,7 +105,7 @@ public unsafe class VideoDecoder : DecoderBase
             int i = 0;
             AVCodecHWConfig* config;
             while((config = avcodec_get_hw_config(codec, i++)) != null)
-                if (config->pix_fmt == HW_PIX_FMT && config->methods.HasFlag(AVCodecHwConfigMethod.HwDeviceCtx))
+                if (config->pix_fmt == HW_PIX_FMT && config->methods.HasFlag(AVCodecHWConfigMethod.HWDeviceCtx))
                 {
                     spec = new() { Codec = codec, Name = BytePtrToStringUTF8(codec->name), IsHW = true};
                     hwSpecs[codec->id] = spec;
@@ -142,7 +142,7 @@ public unsafe class VideoDecoder : DecoderBase
         int i = 0;
         AVCodecHWConfig* config;
         while((config = avcodec_get_hw_config(codec, i++)) != null)
-            if (config->pix_fmt == HW_PIX_FMT && config->methods.HasFlag(AVCodecHwConfigMethod.HwDeviceCtx))
+            if (config->pix_fmt == HW_PIX_FMT && config->methods.HasFlag(AVCodecHWConfigMethod.HWDeviceCtx))
             {
                 isHW = true;
                 break;
@@ -157,7 +157,7 @@ public unsafe class VideoDecoder : DecoderBase
     {
         if (CanDebug)
         {
-            Log.Debug($"Codec profile '{avcodec_profile_name(codecCtx->codec_id, codecCtx->profile)}'");
+            Log.Debug($"Codec profile '{avcodec_profile_name_str(codecCtx->codec_id, codecCtx->profile)}'");
 
             if (CanTrace)
             {
@@ -267,7 +267,7 @@ public unsafe class VideoDecoder : DecoderBase
         var codecOpts = Config.Decoder.VideoCodecOpt;
         AVDictionary* avopt = null;
         foreach(var optKV in codecOpts)
-            _ = av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+            _ = av_dict_set(ref avopt, optKV.Key, optKV.Value, 0);
 
         VideoAccelerated = VideoAccelerated && CurCodecSpec.IsHW;
 

@@ -33,7 +33,7 @@
 - *HLS Live Seeking <sub>Might the 1st FFmpeg player which does that</sub>*
 - *Pached for [.NET](https://developercommunity.microsoft.com/t/Proper-handling-of-MS_VC_EXCEPTION-0x40/10961029) issues <sub>Use recommended FFmpeg libraries which can be found on GitHub releases</sub>*
 - *Capture Devices <sub>Pass the format, input and options with a single Url eg. fmt://gdigrab?desktop&framerate=30</sub>*
-- *Supports FFmpeg v9.0 <sub>(use updated Flyleaf.FFmpeg.Bindings at your project if required)</sub>*
+- *Supports FFmpeg v9.0 <sub>(use updated Flyleaf.FFmpeg.ABI at your project if required)</sub>*
 
 ### **Playback**
 - *Open / Play / Pause / Stop*
@@ -108,7 +108,7 @@
 *Flyleaf wouldn't exist without them!*
 
 * *For the Core*
-  * ***[FFmpeg](http://ffmpeg.org/)*** / ***[Flyleaf.FFmpeg.Bindings](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.Generator)***
+  * ***[FFmpeg](http://ffmpeg.org/)*** / ***[Flyleaf.FFmpeg.ABI](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.ABI)***
   * ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
   * *Major open source media players* ***[VLC](https://github.com/videolan/vlc)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[MPC-BE](https://github.com/Aleksoid1978/MPC-BE)***, ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***
 

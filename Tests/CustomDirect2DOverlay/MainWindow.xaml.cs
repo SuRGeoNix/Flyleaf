@@ -24,7 +24,7 @@ public partial class MainWindow : Window
             #if DEBUG
             LogOutput       = ":debug",
             LogLevel        = LogLevel.Debug,
-            FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warn,
+            FFmpegLogLevel  = Flyleaf.FFmpeg.ABI.LogLevel.Warning,
             #endif
 
             PluginsPath     = ":Plugins",
