@@ -75,7 +75,7 @@ public unsafe class Demuxer : RunThreadBase
     public DataStream               DataStream      { get; private set; }
 
     // Audio/Video Stream's HLSPlaylist
-    internal playlist*              HLSPlaylist     { get; private set; }
+    internal HLSPlaylist*           HLSPlaylist     { get; private set; }
 
     // Media Packets
     public PacketQueue              Packets         { get; private set; }
@@ -175,8 +175,8 @@ public unsafe class Demuxer : RunThreadBase
     long                    curReverseSeekOffset;
 
     // Required for passing AV Options and HTTP Query params to the underlying contexts
-    AVFormatContext_io_open ioopen;
-    AVFormatContext_io_open ioopenDefault;
+    AVFormatContext.IOOpen  ioopen;
+    AVFormatContext.IOOpen  ioopenDefault;
     AVDictionary*           avoptCopy;
     Dictionary<string, string>
                             queryParams;
@@ -481,7 +481,7 @@ public unsafe class Demuxer : RunThreadBase
             // Nesting the io_open (to pass the options to the underlying formats)
             if (Config.FormatOptToUnderlying)
             {
-                ioopenDefault = (AVFormatContext_io_open)Marshal.GetDelegateForFunctionPointer(fmtCtx->io_open.Pointer, typeof(AVFormatContext_io_open));
+                ioopenDefault = (AVFormatContext.IOOpen)Marshal.GetDelegateForFunctionPointer(fmtCtx->io_open.Pointer, typeof(AVFormatContext.IOOpen));
                 fmtCtx->io_open = ioopen;
             }
 
@@ -585,7 +585,7 @@ public unsafe class Demuxer : RunThreadBase
         if (avoptCopy != null)
         {
             while ((t = av_dict_get(avoptCopy, "", t, DictReadFlags.IgnoreSuffix)) != null)
-                _ = av_dict_set(avFmtOpts, BytePtrToStringUTF8(t->key), BytePtrToStringUTF8(t->value), 0);
+                _ = av_dict_set(avFmtOpts, t->key, t->value, DictWriteFlags.None);
         }
 
         if (queryParams == null)
@@ -650,18 +650,18 @@ public unsafe class Demuxer : RunThreadBase
 
         if (curOpt != null)
             foreach (var optKV in curOpt)
-                _ = av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                _ = av_dict_set(ref avopt, optKV.Key, optKV.Value, 0);
 
         if (opt != null)
             foreach (var optKV in opt)
-                _ = av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                _ = av_dict_set(ref avopt, optKV.Key, optKV.Value, 0);
 
         if (Config.FormatOptToUnderlying)
             fixed(AVDictionary** ptr = &avoptCopy)
                 _ = av_dict_copy(ptr, avopt, 0);
 
         fixed(AVFormatContext** fmtCtxPtr = &fmtCtx)
-            ret = avformat_open_input(fmtCtxPtr, url, inFmt, avopt == null ? null : &avopt);
+            ret = avformat_open_input(ref fmtCtx, url, inFmt, ref avopt);
 
         if (avopt != null)
         {

@@ -171,7 +171,7 @@ public unsafe partial class Renderer
     }
     bool D3SWConfig(AVFrame* frame)
     {
-        if (scfg.ColorType == ColorType.RGB && scfg.PixelFormat != AVPixelFormat.Rgba)
+        if (scfg.ColorType == ColorType.RGB && scfg.PixelFormat != AVPixelFormat.RGBA)
         {   // TBR: re-ordered RGB offsets?* extra pass*
             SwsConfig(frame);
             canFL = false;
