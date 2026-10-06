@@ -203,7 +203,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (!Engine.Config.Loaded)
         {
             Engine.Config.LogOutput      = null;
-            Engine.Config.LogLevel       = LogLevel.Quiet;
+            Engine.Config.LogLevel       = FlyleafLib.LogLevel.Quiet;
             //Engine.Config.FFmpegDevices  = false;
 
             try { Engine.Config.Save(App.EnginePath); } catch { }
