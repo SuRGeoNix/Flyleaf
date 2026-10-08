@@ -80,6 +80,9 @@ public unsafe partial class Renderer
 
         return scfg.DoviProfile switch
         {
+            // Unknown profile; DOVI metadata confirmed on decoded frame
+            -1 => true,
+
             // Profile 5 has no standards-compatible BL and therefore requires
             // Dolby reconstruction for correct playback. Compatibility ID must be 0.
             5 => scfg.DoviCompatibility == 0,
