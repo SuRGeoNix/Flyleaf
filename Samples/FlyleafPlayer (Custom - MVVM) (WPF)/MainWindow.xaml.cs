@@ -33,7 +33,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             #if DEBUG
             LogOutput       = ":debug",
             LogLevel        = LogLevel.Debug,
-            FFmpegLogLevel  = Flyleaf.FFmpeg.ABI.LogLevel.Warning,
+            FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warning,
             #endif
 
             PluginsPath     = ":Plugins",

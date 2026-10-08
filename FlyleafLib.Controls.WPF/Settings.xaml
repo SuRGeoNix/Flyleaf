@@ -6,7 +6,7 @@
 
              xmlns:local="clr-namespace:FlyleafLib.Controls.WPF"
              xmlns:fl="clr-namespace:FlyleafLib;assembly=FlyleafLib"
-             xmlns:ffmpeg="clr-namespace:Flyleaf.FFmpeg.ABI;assembly=Flyleaf.FFmpeg.ABI"
+             xmlns:ffmpeg="clr-namespace:Flyleaf.FFmpeg;assembly=Flyleaf.FFmpeg.ABI"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:dragablz="clr-namespace:Dragablz;assembly=Dragablz"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"

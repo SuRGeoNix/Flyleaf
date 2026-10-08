@@ -137,7 +137,7 @@ public partial class App : Application
         FFmpegPath          = ":FFmpeg",
         FFmpegHLSLiveSeek   = true,
         UIRefresh           = true,
-        FFmpegLoadProfile   = Flyleaf.FFmpeg.ABI.LoadProfile.All,
+        FFmpegLoadProfile   = Flyleaf.FFmpeg.LoadProfile.All,
 
         #if RELEASE
         LogOutput           = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Flyleaf.FirstRun.log"),
@@ -145,7 +145,7 @@ public partial class App : Application
         #else
         LogOutput           = ":debug",
         LogLevel            = LogLevel.Debug,
-        FFmpegLogLevel      = Flyleaf.FFmpeg.ABI.LogLevel.Warning,
+        FFmpegLogLevel      = Flyleaf.FFmpeg.LogLevel.Warning,
         #endif
     };
 }
