@@ -16,7 +16,7 @@ using static FlyleafPlayer.AppConfig;
 using FlyleafLib;
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaPlayer;
-using Flyleaf.FFmpeg.ABI;
+using Flyleaf.FFmpeg;
 
 namespace FlyleafPlayer;
 

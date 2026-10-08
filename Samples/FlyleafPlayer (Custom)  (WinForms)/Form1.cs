@@ -22,7 +22,7 @@ namespace FlyleafPlayer__Custom_
                 #if DEBUG
                 LogOutput       = ":debug",
                 LogLevel        = LogLevel.Debug,
-                FFmpegLogLevel  = Flyleaf.FFmpeg.ABI.LogLevel.Warning,
+                FFmpegLogLevel  = Flyleaf.FFmpeg.LogLevel.Warning,
                 #endif
 
                 UIRefresh       = true, // For Activity Mode usage
