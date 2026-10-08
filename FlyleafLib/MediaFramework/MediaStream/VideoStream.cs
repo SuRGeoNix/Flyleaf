@@ -350,6 +350,20 @@ public unsafe class VideoStream : StreamBase
                 ColorTransfer = codecCtx->color_trc;
         }
 
+        if (!DoviRpuPresent)
+        {
+            var doviData = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.DOVIMetadata);
+            if (doviData != null && doviData->data != null)
+            {
+                DoviProfile     = -1;   // Unknown profile
+                DoviRpuPresent  = true;
+                DoviBlPresent   = true;
+
+                if (ColorTransfer == AVColorTransferCharacteristic.Unspecified)
+                    ColorTransfer = AVColorTransferCharacteristic.SMPTE2084;
+            }
+        }
+
         if (ColorRange == ColorRange.None)
         {
             if (frame->color_range == AVColorRange.Mpeg)
