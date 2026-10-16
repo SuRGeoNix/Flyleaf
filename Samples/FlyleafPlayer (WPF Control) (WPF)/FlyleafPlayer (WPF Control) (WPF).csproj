@@ -8,25 +8,17 @@
     <AssemblyName>FlyleafPlayer</AssemblyName>
     <ApplicationIcon>Flyleaf.ico</ApplicationIcon>
     <Platforms>AnyCPU;x86;x64</Platforms>
-    <Copyright>SuRGeoNix © 2025</Copyright>
+    <Copyright>SuRGeoNix © 2026</Copyright>
     <Authors>SuRGeoNix</Authors>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Remove="Flyleaf.ico" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\FlyleafLib.Controls.WPF\FlyleafLib.Controls.WPF.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <_DeploymentManifestIconFile Remove="Flyleaf.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Resource Include="Flyleaf.ico" />
+	<Resource Include="Flyleaf_TitleBar_128.png" />
   </ItemGroup>
 
   <Target Name="PostPublish" AfterTargets="Publish">

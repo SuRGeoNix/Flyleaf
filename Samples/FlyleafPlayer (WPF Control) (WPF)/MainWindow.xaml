@@ -19,7 +19,7 @@
         Title="Flyleaf" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent"
 
         MinWidth="150" MinHeight="80"
-        Height="450" Width="800" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded" Icon="/Flyleaf.ico">
+        Height="450" Width="800" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded">
 
     <Window.Resources>
         <d:ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesignColors.xaml"/>
@@ -130,7 +130,7 @@
                         </Grid.Style>
 
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="Flyleaf.ico" Stretch="UniformToFill" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="{Binding Tag.FlyleafLibVer}"/>
+                            <Image Source="Flyleaf_TitleBar_128.png" Width="40" Height="40" Margin="5 0 0 0" VerticalAlignment="Center" ToolTip="{Binding Tag.FlyleafLibVer}"/>
                         </StackPanel>
                         <TextBlock Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" Text="Flyleaf" FontStyle="Italic" FontSize="30" Foreground="{DynamicResource MaterialDesign.Brush.Primary}"/>
 
@@ -382,12 +382,7 @@
                                         </Style.Triggers>
                                     </Style>
                                 </Grid.Style>
-
-                                <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Padding="4" Margin="10 -40 0 0" Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}">
-                                    <TextBlock.Background>
-                                        <SolidColorBrush Color="{Binding Player.Config.Video.BackColor}" Opacity="0.15"/>
-                                    </TextBlock.Background>
-                                </TextBlock>
+                                
                                 <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Background="#AA000000"  Text="{Binding Tag.ImageTitle}" d:Text="Test.jpg" FontWeight="Bold" FontSize="14" Padding="4" Margin="44 14 0 0" Foreground="{DynamicResource MaterialDesign.Brush.Secondary}"/>
 
                                 <!--Index / Total-->

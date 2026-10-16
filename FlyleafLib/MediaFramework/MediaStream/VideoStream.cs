@@ -112,8 +112,12 @@ public unsafe class VideoStream : StreamBase
         var rotData = av_packet_side_data_get(cp->coded_side_data, cp->nb_coded_side_data, AVPacketSideDataType.Displaymatrix);
         if (rotData != null && rotData->data != null)
         {
-            double rotation = -Math.Round(av_display_rotation_get((int*)rotData->data));
-            Rotation = (uint)(rotation - (360 * Math.Floor(rotation / 360 + 0.9 / 360))); // TBR: fixed 0 - 90 - 180 - 270
+            double rotation = av_display_rotation_get((int*)rotData->data);
+            if (!double.IsNaN(rotation))
+            {
+                rotation = -Math.Round(rotation);
+                Rotation = (uint)(rotation - (360 * Math.Floor(rotation / 360 + 0.9 / 360))); // TBR: fixed 0 - 90 - 180 - 270
+            }
         }
 
         var cropData= av_packet_side_data_get(cp->coded_side_data, cp->nb_coded_side_data, AVPacketSideDataType.FrameCropping);
@@ -428,8 +432,12 @@ public unsafe class VideoStream : StreamBase
         var rotData = av_frame_get_side_data(frame, AVFrameSideDataType.Displaymatrix);
         if (rotData != null && rotData->data != null)
         {
-            var rotation = -Math.Round(av_display_rotation_get((int*)rotData->data));
-            Rotation = (uint)(rotation - (360 * Math.Floor(rotation / 360 + 0.9 / 360)));
+            double rotation = av_display_rotation_get((int*)rotData->data);
+            if (!double.IsNaN(rotation))
+            {
+                rotation = -Math.Round(rotation);
+                Rotation = (uint)(rotation - (360 * Math.Floor(rotation / 360 + 0.9 / 360)));
+            }
         }
 
         var iccData = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.IccProfile);
