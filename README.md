@@ -1,4 +1,4 @@
-﻿# <img src="Images/Flyleaf.png" width="28"> *Flyleaf v3.11*: Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)
+﻿# <img src="Images/Flyleaf_TitleBar_128.png" width="32">*lyleaf v3.11*: Media Player .NET Library
 
 ![alt text](Images/Flyleafv3.11.png)
 
