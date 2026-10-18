@@ -113,6 +113,11 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Dynamic Range"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Renderer.TargetDynamicRange}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="FullScreen"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Host.IsFullScreen}"/>
                     </StackPanel>
@@ -254,7 +259,12 @@
                         <TextBlock Style="{StaticResource TextInfo}" Text="Aspect Ratio"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.AspectRatio}"/>
                     </StackPanel>
-                    
+
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource TextInfo}" Text="Dynamic Range"/>
+                        <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Renderer.DynamicRange}"/>
+                    </StackPanel>
+
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource TextInfo}" Text="Pixel Format"/>
                         <TextBlock Style="{StaticResource TextValue}" Text="{Binding Player.Video.PixelFormat}"/>

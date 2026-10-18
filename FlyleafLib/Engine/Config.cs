@@ -503,7 +503,7 @@ public class Config : NotifyPropertyChanged
         /// Maximum video frames to be decoded and processed for rendering
         /// </summary>
         public int              MaxVideoFrames      { get => _MaxVideoFrames;   set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
-        int _MaxVideoFrames = 3;
+        int _MaxVideoFrames = 4; // At least 4 required for smooth playback (can cause audio crackling)
         internal void SetMaxVideoFrames(int maxVideoFrames) { _MaxVideoFrames = maxVideoFrames; RaiseUI(nameof(MaxVideoFrames)); } // can be updated by video decoder if fails to allocate them
 
         /// <summary>
