@@ -405,6 +405,9 @@ public unsafe partial class Renderer
         }
         else
             vpRequestsIn |= VPRequestType.UpdateHDR;
+
+        TargetDynamicRange = $"{(hdrSwapchain ? "HDR" : "SDR")} ({hdrData.TargetMinNits:F1}/{hdrData.TargetPeakNits:F0})";
+        RaiseUI(nameof(TargetDynamicRange));
     }
     void FLSetPano360()
     {
