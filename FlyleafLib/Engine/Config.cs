@@ -367,7 +367,7 @@ public class Config : NotifyPropertyChanged
                    config.Player.MinBufferDuration = value;
             }
         }
-        long _BufferDuration = 1 * (long)1000 * 10000;
+        long _BufferDuration = 3 * (long)1000 * 10000; // At least 3 sec. required for weird/delayed interleaved audio with video
 
         /// <summary>
         /// Maximuim allowed packets for buffering (as an extra check along with BufferDuration)
