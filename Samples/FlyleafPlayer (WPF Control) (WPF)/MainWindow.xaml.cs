@@ -356,10 +356,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var opts = Config.DemuxerConfig.DefaultFormatOpt();
 
-        opts["probesize"]       = $"{50L * 1024 * 1024}";
-        opts["analyzeduration"] = $"{TimeSpan.FromSeconds(10).TotalMicroseconds}";
-        opts["extension_picky"] = "0";
-        opts["rtsp_transport"]  = "tcp";
+        opts["probesize"]           = $"{50L * 1024 * 1024}";
+        opts["analyzeduration"]     = $"{TimeSpan.FromSeconds(10).TotalMicroseconds}";
+        opts["extension_picky"]     = "0";
+        opts["rtsp_transport"]      = "tcp";
+
+        // HTTP | Bounded requests (YT throttling)
+        opts["multiple_requests"]   = "1";
+        opts["request_size"]        = "8388608";
+
+        // HTTP | Recover premature disconnections (YT external audio)
+        opts["reconnect"]           = "1";
 
         return opts;
     }
