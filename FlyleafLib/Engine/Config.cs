@@ -367,7 +367,7 @@ public class Config : NotifyPropertyChanged
                    config.Player.MinBufferDuration = value;
             }
         }
-        long _BufferDuration = 30 * (long)1000 * 10000;
+        long _BufferDuration = 1 * (long)1000 * 10000;
 
         /// <summary>
         /// Maximuim allowed packets for buffering (as an extra check along with BufferDuration)
@@ -503,7 +503,7 @@ public class Config : NotifyPropertyChanged
         /// Maximum video frames to be decoded and processed for rendering
         /// </summary>
         public int              MaxVideoFrames      { get => _MaxVideoFrames;   set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
-        int _MaxVideoFrames = 4;
+        int _MaxVideoFrames = 3;
         internal void SetMaxVideoFrames(int maxVideoFrames) { _MaxVideoFrames = maxVideoFrames; RaiseUI(nameof(MaxVideoFrames)); } // can be updated by video decoder if fails to allocate them
 
         /// <summary>
