@@ -784,7 +784,7 @@ color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, floa
         };
 
         if (isDovi)
-            mFrame.Dovi = FLDoviPrepare(frame);
+            (mFrame.Dovi, mFrame.DoviL1Nits) = FLDoviPrepare(frame);
 
         frame = av_frame_alloc();
         return mFrame;
@@ -799,7 +799,7 @@ color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, floa
         };
 
         if (isDovi)
-            mFrame.Dovi = FLDoviPrepare(frame);
+            (mFrame.Dovi, mFrame.DoviL1Nits) = FLDoviPrepare(frame);
 
         for (int i = 0; i < scfg.PixelPlanes; i++)
         {
@@ -830,7 +830,7 @@ color.a = YUVToRGBFull(float3(Texture1.Sample(Sampler, float2({x}, {y})).r, floa
         };
 
         if (isDovi)
-            mFrame.Dovi = FLDoviPrepare(frame);
+            (mFrame.Dovi, mFrame.DoviL1Nits) = FLDoviPrepare(frame);
 
         for (int i = 0; i < scfg.PixelPlanes; i++)
         {

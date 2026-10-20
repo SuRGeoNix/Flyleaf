@@ -9,6 +9,9 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
+    public bool ForceDoviWithHDRDetect; // TBR: config ? (avoids HDR Detect and respects L1 authoritative metadata instead)
+    bool doviNeedsHDRDetect; 
+
     const int doviVectors             = 187;
     const int doviComponentVectors    = 59;
     const int doviComponentBase       = 10;
@@ -42,6 +45,7 @@ public unsafe partial class Renderer
     // Prepare-side cache: consecutive frames commonly repeat the same RPU mapping.
     // Reuse the immutable DoviFrameData instead of allocating one object per frame.
     DoviFrameData doviPreparedData;
+    (float Min, float Avg, float Max)? doviL1Nits;
 
     // Render-side cache: if consecutive frames share the prepared state, don't upload b2 again.
     DoviFrameData doviAppliedData;
@@ -107,22 +111,24 @@ public unsafe partial class Renderer
 
     void FLDoviReset()
     {
-        doviPreparedData      = null;
-        doviAppliedData       = null;
-        doviAppliedEmpty      = false;
-        doviSourceCached      = false;
-        doviCachedColor       = default;
-        doviCachedCurve0      = default;
-        doviCachedCurve1      = default;
-        doviCachedCurve2      = default;
+        doviL1Nits          = null;
+        doviPreparedData    = null;
+        doviAppliedData     = null;
+        doviAppliedEmpty    = false;
+        doviSourceCached    = false;
+        doviCachedColor     = default;
+        doviCachedCurve0    = default;
+        doviCachedCurve1    = default;
+        doviCachedCurve2    = default;
+        doviNeedsHDRDetect  = ForceDoviWithHDRDetect;
     }
 
-    DoviFrameData FLDoviPrepare(AVFrame* frame)
+    (DoviFrameData, (float Min, float Avg, float Max)?) FLDoviPrepare(AVFrame* frame)
     {
         var side = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.DOVIMetadata);
 
         if (side == null || side->data == null)
-            return null;
+            return (null, null);
 
         var dovi    = (AVDOVIMetadata*)side->data;
         var header  = (AVDOVIRpuDataHeader*)((byte*)dovi + dovi->header_offset);
@@ -133,22 +139,22 @@ public unsafe partial class Renderer
         // before ScaleB/bit shifts below so malformed side data cannot produce
         // invalid math or an oversized shift.
         if (header->coef_log2_denom < 13 || header->coef_log2_denom > 32)
-            return null;
+            return (null, null);
 
         // Fast path for the overwhelmingly common case where consecutive frames
         // reuse the same reshape/matrix state. The side-data allocation itself is
         // new every frame, so compare the source metadata rather than pointers.
         if (doviPreparedData != null && DoviSourceEquals(header, mapping, color))
-            return doviPreparedData;
-
+            return (doviPreparedData, FLDoviL1Nits(dovi));
+        
         // FFmpeg defines BL depth as [8, 16]. Keep malformed/unsupported metadata
         // out of the shader rather than coercing it into a seemingly valid mapping.
         if (header->bl_bit_depth < 8 || header->bl_bit_depth > 16)
-            return null;
+            return (null, null);
 
         int sampleBits = scfg.PixelComp0Depth > 8 ? 16 : 8;
         if (header->bl_bit_depth > sampleBits)
-            return null;
+            return (null, null);
 
         uint sampleMax = (1u << sampleBits) - 1u;
         uint blMax     = (1u << header->bl_bit_depth) - 1u;
@@ -159,7 +165,7 @@ public unsafe partial class Renderer
         float pivotScale  = 1.0f / blMax;
 
         if (!float.IsFinite(sampleScale) || !float.IsFinite(coefScale))
-            return null;
+            return (null, null);
 
         DoviBufferType buffer = default;
 
@@ -175,13 +181,13 @@ public unsafe partial class Renderer
         for (int r = 0; r < 3; r++)
         {
             if (!DoviTryFloat(color->ycc_to_rgb_offset[r], out offset[r]))
-                return null;
+                return (null, null);
 
             for (int c = 0; c < 3; c++)
             {
                 if (!DoviTryFloat(color->ycc_to_rgb_matrix[r * 3 + c], out ycc[r * 3 + c]) ||
                     !DoviTryFloat(color->rgb_to_lms_matrix[r * 3 + c], out rgbToLms[r * 3 + c]))
-                    return null;
+                    return (null, null);
             }
         }
 
@@ -208,7 +214,7 @@ public unsafe partial class Renderer
             Vector4 row709  = new(doviTo709[i],  doviTo709[i + 1],  doviTo709[i + 2],  0);
 
             if (!DoviFinite(row2020) || !DoviFinite(row709))
-                return null;
+                return (null, null);
 
             DoviSet(ref buffer, 4 + r, row2020);
             DoviSet(ref buffer, 7 + r, row709);
@@ -226,17 +232,17 @@ public unsafe partial class Renderer
 
             // FFmpeg contract: [2, 9], strictly sorted ascending.
             if (numPivots < 2 || numPivots > 9)
-                return null;
+                return (null, null);
 
             ushort previous = curve.pivots[0];
             if (previous > blMax)
-                return null;
+                return (null, null);
 
             for (int i = 1; i < numPivots; i++)
             {
                 ushort current = curve.pivots[i];
                 if (current <= previous || current > blMax)
-                    return null;
+                    return (null, null);
                 previous = current;
             }
 
@@ -277,14 +283,14 @@ public unsafe partial class Renderer
                     {
                         int order = curve.poly_order[p];
                         if (order < 1 || order > 2)
-                            return null;
+                            return (null, null);
 
                         float c0 = curve.poly_coef[p][0] * coefScale;
                         float c1 = curve.poly_coef[p][1] * coefScale;
                         float c2 = order == 2 ? curve.poly_coef[p][2] * coefScale : 0;
 
                         if (!float.IsFinite(c0) || !float.IsFinite(c1) || !float.IsFinite(c2))
-                            return null;
+                            return (null, null);
 
                         DoviSet(ref buffer, componentBase + 3 + p, new(c0, c1, c2, 0));
                         break;
@@ -294,15 +300,15 @@ public unsafe partial class Renderer
                     {
                         int order = curve.mmr_order[p];
                         if (order < 1 || order > 3)
-                            return null;
+                            return (null, null);
 
                         int vectors = order * 2;
                         if (mmrIndex + vectors > doviMmrVectors)
-                            return null;
+                            return (null, null);
 
                         float constant = curve.mmr_constant[p] * coefScale;
                         if (!float.IsFinite(constant))
-                            return null;
+                            return (null, null);
 
                         DoviSet(ref buffer, componentBase + 3 + p,
                             new(constant, mmrIndex, 0, order));
@@ -324,7 +330,7 @@ public unsafe partial class Renderer
                                 curve.mmr_coef[p][o][6] * coefScale);
 
                             if (!DoviFinite(a) || !DoviFinite(b))
-                                return null;
+                                return (null, null);
 
                             DoviSet(ref buffer, mmrBase,     a);
                             DoviSet(ref buffer, mmrBase + 1, b);
@@ -335,7 +341,7 @@ public unsafe partial class Renderer
                     }
 
                     default:
-                        return null;
+                        return (null, null);
                 }
             }
         }
@@ -344,7 +350,26 @@ public unsafe partial class Renderer
 
         DoviCacheSource(header, mapping, color);
         doviPreparedData = new() { Buffer = buffer };
-        return doviPreparedData;
+        return (doviPreparedData, FLDoviL1Nits(dovi));
+    }
+
+    (float Min, float Avg, float Max)? FLDoviL1Nits(AVDOVIMetadata* dovi)
+    {
+        if (doviNeedsHDRDetect)
+            return null;
+
+        for (int i = 0; i < dovi->num_ext_blocks; i++)
+        {
+            var dm = (AVDOVIDmData*)((byte*)dovi +dovi->ext_block_offset +dovi->ext_block_size * (nuint)i);
+
+            if (dm->level == 1)
+            {
+                var l = dm->union0.l1;
+                return (PQToNitsDovi(l.min_pq), PQToNitsDovi(l.avg_pq), PQToNitsDovi(l.max_pq));
+            }
+        }
+
+        return null;
     }
 
     void FLDoviApply(VideoFrame frame)
@@ -353,6 +378,29 @@ public unsafe partial class Renderer
 
         if (data != null)
         {
+            if (doviNeedsHDRDetect)
+                FLHDRDetect();
+            else if (frame.DoviL1Nits is { } l1 && doviL1Nits != l1)
+            {
+                doviL1Nits = l1;
+
+                hdrData.SourceMinNits  = l1.Min;
+                hdrData.SourcePeakNits = l1.Max;
+                hdrData.Spline = GetSplineParams(
+                    sourceMinNits:  l1.Min,
+                    sourcePeakNits: l1.Max,
+                    sourceAvgNits:  l1.Avg,
+                    targetMinNits:  hdrData.TargetMinNits,
+                    targetPeakNits: hdrData.TargetPeakNits);
+
+                context.UpdateSubresource(hdrData, hdrBuffer);
+            }
+            else if (doviL1Nits == null)
+            {   // RPU without L1 (HDR Detect fallback)
+                doviNeedsHDRDetect = true;
+                FLHDRDetect();
+            }
+
             if (ReferenceEquals(data, doviAppliedData))
                 return;
 

@@ -406,7 +406,7 @@ public unsafe partial class Renderer
         else
             vpRequestsIn |= VPRequestType.UpdateHDR;
 
-        TargetDynamicRange = $"{(hdrSwapchain ? "HDR" : "SDR")} ({hdrData.TargetMinNits:F1}/{hdrData.TargetPeakNits:F0})";
+        TargetDynamicRange = $"{(hdrSwapchain ? "HDR" : "SDR")} ({hdrData.TargetMinNits:F2}/{hdrData.TargetPeakNits:F0})";
         RaiseUI(nameof(TargetDynamicRange));
     }
     void FLSetPano360()
@@ -480,8 +480,8 @@ public unsafe partial class Renderer
         {
             if (isDovi)
                 FLDoviApply(frame);
-
-            FLHDRDetect();
+            else
+                FLHDRDetect();
         }
         
         context.Draw(6, 0);
@@ -497,11 +497,12 @@ public unsafe partial class Renderer
 
         if (isPQSpline)
         {
+            FLHDRDetectReset();
+
             if (isDovi)
                 FLDoviApply(frame);
-
-            FLHDRDetectReset();
-            FLHDRDetect();
+            else
+                FLHDRDetect();
         }
         
         context.OMSetRenderTargets(rtv);
