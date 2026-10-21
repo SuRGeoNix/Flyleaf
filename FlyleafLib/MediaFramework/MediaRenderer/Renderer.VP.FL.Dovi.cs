@@ -9,7 +9,16 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
-    public bool ForceDoviWithHDRDetect; // TBR: config ? (avoids HDR Detect and respects L1 authoritative metadata instead)
+    /// <summary>
+    /// Whether to use Dolby Vision reconstruction or the compatible base layer
+    /// </summary>
+    public bool DoviPreferBaseLayer;
+
+    /// <summary>
+    /// Whether to use Dolby L1 metadata or Flyleaf's histogram for tone mapping
+    /// </summary>
+    public bool DoviUseHDRDetect;
+
     bool doviNeedsHDRDetect; 
 
     const int doviVectors             = 187;
@@ -79,9 +88,9 @@ public unsafe partial class Renderer
 
     bool FLDoviSupported()
     {
-        if (scfg == null || !scfg.DoviRpuPresent || !scfg.DoviBlPresent)
+        if (scfg == null || !scfg.DoviRpuPresent || !scfg.DoviBlPresent || (DoviPreferBaseLayer && scfg.HDRFormat != HDRFormat.None))
             return false;
-
+        
         return scfg.DoviProfile switch
         {
             // Unknown profile; DOVI metadata confirmed on decoded frame
@@ -120,7 +129,7 @@ public unsafe partial class Renderer
         doviCachedCurve0    = default;
         doviCachedCurve1    = default;
         doviCachedCurve2    = default;
-        doviNeedsHDRDetect  = ForceDoviWithHDRDetect;
+        doviNeedsHDRDetect  = DoviUseHDRDetect;
     }
 
     (DoviFrameData, (float Min, float Avg, float Max)?) FLDoviPrepare(AVFrame* frame)
@@ -358,18 +367,37 @@ public unsafe partial class Renderer
         if (doviNeedsHDRDetect)
             return null;
 
+        AVDOVIDmData* l1 = null;
+        AVDOVIDmData* l3 = null;
+
         for (int i = 0; i < dovi->num_ext_blocks; i++)
         {
-            var dm = (AVDOVIDmData*)((byte*)dovi +dovi->ext_block_offset +dovi->ext_block_size * (nuint)i);
+            var dm = (AVDOVIDmData*)((byte*)dovi + dovi->ext_block_offset + dovi->ext_block_size * (nuint)i);
 
             if (dm->level == 1)
-            {
-                var l = dm->union0.l1;
-                return (PQToNitsDovi(l.min_pq), PQToNitsDovi(l.avg_pq), PQToNitsDovi(l.max_pq));
-            }
+                l1 = dm;
+            else if (dm->level == 3)
+                l3 = dm;
+
+            if (l1 != null && l3 != null)
+                break;
         }
 
-        return null;
+        if (l1 == null)
+            return null;
+
+        var a = l1->union0.l1;
+
+        if (l3 == null)
+            return (PQToNitsDovi(a.min_pq),
+                    PQToNitsDovi(a.avg_pq),
+                    PQToNitsDovi(a.max_pq));
+
+        var b = l3->union0.l3;
+
+        return (L1L3ToNitsDovi(a.min_pq, b.min_pq_offset),
+                L1L3ToNitsDovi(a.avg_pq, b.avg_pq_offset),
+                L1L3ToNitsDovi(a.max_pq, b.max_pq_offset));
     }
 
     void FLDoviApply(VideoFrame frame)
@@ -384,12 +412,14 @@ public unsafe partial class Renderer
             {
                 doviL1Nits = l1;
 
-                hdrData.SourceMinNits  = l1.Min;
-                hdrData.SourcePeakNits = l1.Max;
+                hdrData.SourceMinNits   = l1.Min;
+                hdrData.SourcePeakNits  = l1.Max;
+                float splinePeakNits    = MathF.Max(l1.Max, hdrData.TargetPeakNits);
+
                 hdrData.Spline = GetSplineParams(
                     sourceMinNits:  l1.Min,
-                    sourcePeakNits: l1.Max,
                     sourceAvgNits:  l1.Avg,
+                    sourcePeakNits: splinePeakNits,
                     targetMinNits:  hdrData.TargetMinNits,
                     targetPeakNits: hdrData.TargetPeakNits);
 
@@ -749,7 +779,7 @@ public unsafe partial class Renderer
             switch (dm->level)
             {
                 case 1:
-                {
+                {   // Min / Mid / Max brightness
                     var l = dm->union0.l1;
 
                     sb.AppendLine($"    min_pq  = {l.min_pq}");
@@ -759,7 +789,7 @@ public unsafe partial class Renderer
                 }
 
                 case 2:
-                {
+                {   // CM 2.9 creative trims per target display
                     var l = dm->union0.l2;
 
                     sb.AppendLine($"    target_max_pq        = {l.target_max_pq}");
@@ -773,7 +803,7 @@ public unsafe partial class Renderer
                 }
 
                 case 3:
-                {
+                {   // Corrections to L1 statistics
                     var l = dm->union0.l3;
 
                     sb.AppendLine($"    min_pq_offset = {l.min_pq_offset}");
@@ -783,7 +813,7 @@ public unsafe partial class Renderer
                 }
 
                 case 4:
-                {
+                {   // Anchor PQ / power metadata
                     var l = dm->union0.l4;
 
                     sb.AppendLine($"    anchor_pq    = {l.anchor_pq}");
@@ -792,7 +822,7 @@ public unsafe partial class Renderer
                 }
 
                 case 5:
-                {
+                {   // Active picture area / black-bar boundaries
                     var l = dm->union0.l5;
 
                     sb.AppendLine($"    left_offset   = {l.left_offset}");
@@ -803,7 +833,7 @@ public unsafe partial class Renderer
                 }
 
                 case 6:
-                {
+                {   // Static HDR10 mastering and content metadata
                     var l = dm->union0.l6;
 
                     sb.AppendLine($"    max_luminance = {l.max_luminance}");
@@ -814,7 +844,7 @@ public unsafe partial class Renderer
                 }
 
                 case 8:
-                {
+                {   // CM 4.0 extended creative trims
                     var l = dm->union0.l8;
 
                     sb.AppendLine($"    target_display_index = {l.target_display_index}");
@@ -850,7 +880,7 @@ public unsafe partial class Renderer
                 }
 
                 case 9:
-                {
+                {   // Source mastering-display primaries
                     var l = dm->union0.l9;
 
                     sb.AppendLine($"    source_primary_index = {l.source_primary_index}");
@@ -861,7 +891,7 @@ public unsafe partial class Renderer
                 }
 
                 case 10:
-                {
+                {   // Target-display characteristics
                     var l = dm->union0.l10;
 
                     sb.AppendLine($"    target_display_index = {l.target_display_index}");
@@ -875,7 +905,7 @@ public unsafe partial class Renderer
                 }
 
                 case 11:
-                {
+                {   // Content type / white-point intent (APO)
                     var l = dm->union0.l11;
 
                     sb.AppendLine($"    content_type        = {l.content_type}");
@@ -885,7 +915,7 @@ public unsafe partial class Renderer
                 }
 
                 case 254:
-                {
+                {   // Content-mapping version information
                     var l = dm->union0.l254;
 
                     sb.AppendLine($"    dm_mode          = {l.dm_mode}");
@@ -894,7 +924,7 @@ public unsafe partial class Renderer
                 }
 
                 case 255:
-                {
+                {   // Debug metadata
                     var l = dm->union0.l255;
 
                     sb.AppendLine($"    dm_run_mode    = {l.dm_run_mode}");
