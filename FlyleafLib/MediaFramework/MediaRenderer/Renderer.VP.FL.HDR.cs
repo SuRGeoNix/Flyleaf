@@ -382,10 +382,7 @@ public unsafe partial class Renderer
     {
         float sourceMinNits     = (float)PQToNits(hdrStats.MinPQ);
         float sourcePeakNits    = (float)PQToNits(hdrStats.PeakPQ);
-        float sourceAvgNits     = Math.Clamp(
-            (float)PQToNits(hdrStats.AvgPQ),
-            sourceMinNits,
-            MathF.Max(sourcePeakNits, sourceMinNits));
+        float sourceAvgNits     = Math.Clamp((float)PQToNits(hdrStats.AvgPQ), sourceMinNits, MathF.Max(sourcePeakNits, sourceMinNits));
 
         hdrData.SourceMinNits   = sourceMinNits;
         hdrData.SourcePeakNits  = sourcePeakNits;
@@ -393,8 +390,8 @@ public unsafe partial class Renderer
 
         hdrData.Spline = GetSplineParams(
             sourceMinNits:  sourceMinNits,
-            sourcePeakNits: splinePeakNits,
             sourceAvgNits:  Math.Clamp(sourceAvgNits, sourceMinNits, splinePeakNits),
+            sourcePeakNits: splinePeakNits,
             targetMinNits:  hdrData.TargetMinNits,
             targetPeakNits: hdrData.TargetPeakNits);
 
@@ -505,6 +502,9 @@ public unsafe partial class Renderer
     // Dolby Vision L1: 12-bit PQ code -> nits
     static float PQToNitsDovi(ushort pq)
         => PQToNits(pq / 4095f);
+
+    static float L1L3ToNitsDovi(ushort l1, ushort l3)
+        => (float) PQToNits(Math.Clamp(l1 / 4095.0 + l3 / 2048.0 - 1.0, 0.0, 1.0));
     
     static ToneSplineParams GetSplineParams(
         double sourceMinNits,
