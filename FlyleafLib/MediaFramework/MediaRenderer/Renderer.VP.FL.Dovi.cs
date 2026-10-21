@@ -154,7 +154,7 @@ public unsafe partial class Renderer
         // reuse the same reshape/matrix state. The side-data allocation itself is
         // new every frame, so compare the source metadata rather than pointers.
         if (doviPreparedData != null && DoviSourceEquals(header, mapping, color))
-            return (doviPreparedData, FLDoviL1Nits(dovi));
+            return (doviPreparedData, FLDoviL1L3Nits(dovi));
         
         // FFmpeg defines BL depth as [8, 16]. Keep malformed/unsupported metadata
         // out of the shader rather than coercing it into a seemingly valid mapping.
@@ -359,10 +359,10 @@ public unsafe partial class Renderer
 
         DoviCacheSource(header, mapping, color);
         doviPreparedData = new() { Buffer = buffer };
-        return (doviPreparedData, FLDoviL1Nits(dovi));
+        return (doviPreparedData, FLDoviL1L3Nits(dovi));
     }
 
-    (float Min, float Avg, float Max)? FLDoviL1Nits(AVDOVIMetadata* dovi)
+    (float Min, float Avg, float Max)? FLDoviL1L3Nits(AVDOVIMetadata* dovi)
     {
         if (doviNeedsHDRDetect)
             return null;
