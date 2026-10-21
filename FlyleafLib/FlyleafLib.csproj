@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.12</Version>
+	<Version>3.11.13</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,13 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer.D3D11VP: Fixes a minor rotation issue
-		- Renderer.HDR: Adds support for Dovi metadata without stream config
-		- VideoDecoder: Adds support when pixel format change mid-stream
-		- Dependencies: Replaces Flyleaf.FFmpeg.Bindings with the new Flyleaf.FFmpeg.ABI
+		- Renderer.HDR.Dovi: Adds and prefers L1/L3 luminance per-frame metadata when available for PQSpline instead of HDRDetect
+		- Controls.Wpf.PlayerDebug: Introduces I/O Dynamic Range for new HDR implementation
+
+		[Breaking Changes]
+		- Config.Demuxer: Reduces BufferDuration from 30 sec to 3 sec (avoids large memory by default)
+		- Player.Video: Deprecates HDRFormat
+		- ColorSpace Enum: Few renames (uppercases)
 	</PackageReleaseNotes>
   </PropertyGroup>
 
