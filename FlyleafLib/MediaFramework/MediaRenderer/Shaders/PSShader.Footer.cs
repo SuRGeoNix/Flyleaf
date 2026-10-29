@@ -50,6 +50,7 @@ internal static partial class ShaderCompiler
     // From here on HDR10/HDR10+/Dovi share one domain | absolute linear BT.2020 nits
     #if defined(dDovi)
         c = DoviTo2020(c);
+        float3 doviSource2020Nits = c;
     #endif
 
     if (HDR.nativeOutput != 0)
@@ -68,6 +69,13 @@ internal static partial class ShaderCompiler
         else
             c = ToneMapLuma2020ToTarget(c); // Peak fits, but keep the spline's perceptual brightness adaptation
     }
+
+    #if defined(dDovi)
+        c = DoviApplyL2(doviSource2020Nits, c);
+        #if defined(dDoviMSDetail)
+            c = DoviToneDetail(doviSource2020Nits, c, input.Texture);
+        #endif
+    #endif
 #endif
 
 #if defined(dBT2020)
