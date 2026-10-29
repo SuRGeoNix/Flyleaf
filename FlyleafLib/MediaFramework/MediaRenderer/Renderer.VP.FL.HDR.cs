@@ -30,6 +30,7 @@ public unsafe partial class Renderer
     bool[]                  hdrPending          = new bool[hdrBuffers];
     int[]                   hdrPendingGen       = new int[hdrBuffers];
     uint[]                  hdrHistogram        = new uint[hdrHistogramBins];
+    uint[]                  hdrMaxRgbHistogram  = new uint[hdrHistogramBins];
 
     int                     hdrWidth;
     int                     hdrHeight;
@@ -48,13 +49,15 @@ public unsafe partial class Renderer
     {
         public float MinPQ;
         public float AvgPQ;
-        public float PeakPQ;
+        public float PeakPQ;    // CIE Y
+        public float MaxRgbPQ;  // maxRGB
 
-        public HDRLumiStats(float minPQ, float avgPQ, float peakPQ)
+        public HDRLumiStats(float minPQ, float avgPQ, float peakPQ, float maxRgbPQ)
         {
-            MinPQ  = MathF.Min(minPQ, avgPQ);
-            AvgPQ  = Math.Clamp(avgPQ, MinPQ, peakPQ);
-            PeakPQ = MathF.Max(peakPQ, AvgPQ);
+            MinPQ    = MathF.Min(minPQ, avgPQ);
+            AvgPQ    = Math.Clamp(avgPQ, MinPQ, peakPQ);
+            PeakPQ   = MathF.Max(peakPQ, AvgPQ);
+            MaxRgbPQ = MathF.Max(maxRgbPQ, PeakPQ);
         }
     }
 
@@ -213,7 +216,7 @@ public unsafe partial class Renderer
             Height              = (uint)height,
             MipLevels           = 1,
             ArraySize           = 1,
-            Format              = Format.R16_Float,
+            Format              = Format.R16G16_Float,
             SampleDescription   = new(1, 0),
             Usage               = ResourceUsage.Default,
             BindFlags           = BindFlags.RenderTarget,
@@ -268,6 +271,7 @@ public unsafe partial class Renderer
     void FLHDRRead(MappedSubresource db)
     {
         Array.Clear(hdrHistogram);
+        Array.Clear(hdrMaxRgbHistogram);
 
         double sumPQ = 0;
         long   count = 0;
@@ -279,12 +283,14 @@ public unsafe partial class Renderer
 
             for (int x = 0; x < hdrWidth; x++)
             {
-                float pq = (float)src[x];
+                float pq       = (float)src[x * 2];
+                float maxRgbPQ = (float)src[x * 2 + 1];
 
-                if (!float.IsFinite(pq))
+                if (!float.IsFinite(pq) || !float.IsFinite(maxRgbPQ))
                     continue;
 
-                pq = Math.Clamp(pq, 0, 1);
+                pq       = Math.Clamp(pq, 0, 1);
+                maxRgbPQ = Math.Clamp(maxRgbPQ, 0, 1);
 
                 if (pq < hdrBlackCutoff)
                 {
@@ -297,6 +303,8 @@ public unsafe partial class Renderer
 
                 int bin = Math.Min((int)(pq * hdrHistogramBins), hdrHistogramBins - 1);
                 hdrHistogram[bin]++;
+                int maxRgbBin = Math.Min((int)(maxRgbPQ * hdrHistogramBins), hdrHistogramBins - 1);
+                hdrMaxRgbHistogram[maxRgbBin]++;
 
                 sumPQ += pq;
                 count++;
@@ -312,19 +320,20 @@ public unsafe partial class Renderer
 
         float avgPQ = (float)(sumPQ / count);
         float lowPQ = FLHDRBlack(count, avgPQ);
-        float peakPQ= hdrPeakPercentile <= 0 || hdrPeakPercentile >= 100 ? maxPQ : FLHDRPercentile(count, hdrPeakPercentile);
+        float peakPQ = hdrPeakPercentile <= 0 || hdrPeakPercentile >= 100 ? maxPQ : FLHDRPercentile(hdrHistogram, count, hdrPeakPercentile);
+        float maxRgbPeakPQ = FLHDRPercentile(hdrMaxRgbHistogram, count, hdrPeakPercentile);
 
-        FLHDRUpdate(new(lowPQ, avgPQ, peakPQ));
+        FLHDRUpdate(new(lowPQ, avgPQ, peakPQ, maxRgbPeakPQ));
     }
 
-    float FLHDRPercentile(long count, float percentile)
+    float FLHDRPercentile(uint[] histogram, long count, float percentile)
     {
         long target = (long)Math.Ceiling((percentile / 100.0) * count);
         long sum    = 0;
 
         for (int i = 0; i < hdrHistogramBins; i++)
         {
-            sum += hdrHistogram[i];
+            sum += histogram[i];
 
             if (sum >= target)
                 return (i + 0.5f) / hdrHistogramBins;
@@ -335,7 +344,7 @@ public unsafe partial class Renderer
 
     float FLHDRBlack(long count, float avgPQ)
     {
-        float minPQ = FLHDRPercentile(count, hdrBlackPercentile);
+        float minPQ = FLHDRPercentile(hdrHistogram, count, hdrBlackPercentile);
         minPQ       = MathF.Min(minPQ, hdrBlackMaxAdvance);
 
         float bright = MathF.Min(avgPQ * avgPQ * 4.0f, 1.0f);
@@ -364,9 +373,10 @@ public unsafe partial class Renderer
             coeff       = coeff + (1.0f - coeff) * scene;
 
             hdrStats = new(
-                hdrStats.MinPQ  + coeff * (frame.MinPQ  - hdrStats.MinPQ),
-                hdrStats.AvgPQ  + coeff * (frame.AvgPQ  - hdrStats.AvgPQ),
-                hdrStats.PeakPQ + coeff * (frame.PeakPQ - hdrStats.PeakPQ));
+                hdrStats.MinPQ      + coeff * (frame.MinPQ      - hdrStats.MinPQ),
+                hdrStats.AvgPQ      + coeff * (frame.AvgPQ      - hdrStats.AvgPQ),
+                hdrStats.PeakPQ     + coeff * (frame.PeakPQ     - hdrStats.PeakPQ),
+                hdrStats.MaxRgbPQ   + coeff * (frame.MaxRgbPQ   - hdrStats.MaxRgbPQ));
         }
 
         FLHDRApply();
@@ -384,9 +394,11 @@ public unsafe partial class Renderer
         float sourcePeakNits    = (float)PQToNits(hdrStats.PeakPQ);
         float sourceAvgNits     = Math.Clamp((float)PQToNits(hdrStats.AvgPQ), sourceMinNits, MathF.Max(sourcePeakNits, sourceMinNits));
 
+        // Extend the spline to cover saturated RGB channel peaks.
+        float channelPeakNits   = (float)PQToNits(hdrStats.MaxRgbPQ);
         hdrData.SourceMinNits   = sourceMinNits;
-        hdrData.SourcePeakNits  = sourcePeakNits;
-        float splinePeakNits    = MathF.Max(sourcePeakNits, hdrData.TargetPeakNits);
+        hdrData.SourcePeakNits  = MathF.Max(sourcePeakNits, channelPeakNits);
+        float splinePeakNits    = MathF.Max(hdrData.SourcePeakNits, hdrData.TargetPeakNits);
 
         hdrData.Spline = GetSplineParams(
             sourceMinNits:  sourceMinNits,

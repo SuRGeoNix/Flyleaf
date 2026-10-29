@@ -182,16 +182,6 @@ inline float3 DoviDecodeYCC(float3 c)
 		dot(Dovi[DOVI_YCC_BASE + 2], v));
 }
 
-inline float DoviLuma(float3 linearRgb)
-{
-	float3 luma = float3(
-		Dovi[DOVI_LINEAR_2020_BASE + 0].w,
-		Dovi[DOVI_LINEAR_2020_BASE + 1].w,
-		Dovi[DOVI_LINEAR_2020_BASE + 2].w);
-
-	return dot(luma, linearRgb);
-}
-
 inline float3 DoviTo2020(float3 linearRgb)
 {
 	return float3(

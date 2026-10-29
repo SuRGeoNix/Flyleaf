@@ -23,12 +23,13 @@ internal static partial class ShaderCompiler
     c = PQToLinear(c, 10000.0);
 
     #if defined(dDovi)
-        float y = DoviLuma(c);
-    #else
-        float y = Luma2020(c);
+        c = DoviTo2020(c);
     #endif
 
-    return float4(NitsToPQ(y), 0.0, 0.0, 1.0);
+    float y = Luma2020(c);
+    float maxRGB = max(c.r, max(c.g, c.b));
+
+    return float4(NitsToPQ(y), NitsToPQ(maxRGB), 0.0, 1.0);
 
 #else // HDRDetect
 
@@ -56,7 +57,7 @@ internal static partial class ShaderCompiler
     if (HDR.nativeOutput != 0)
     {
         if (HDR.sourcePeakNits > HDR.targetPeakNits)
-            c = ToneMapIPTPQ2020Absolute(c); // Source exceeds the HDR display | tone-map in IPTPQc4 but stay in absolute nits
+            c = ToneMapCone2020Absolute(c); // Source exceeds the HDR display
         else if (HDR.sourceMinNits < HDR.targetMinNits)
             c = ToneMapLuma2020Absolute(c); // Peak fits; only the lower end needs adaptation. Keep chromaticity scalar
 
@@ -65,7 +66,7 @@ internal static partial class ShaderCompiler
     else
     {
         if (HDR.sourcePeakNits > HDR.targetPeakNits)
-            c = ToneMapIPTPQ2020(c); // Real HDR -> SDR compression. Output is already physical target-relative BT.2020.
+            c = ToneMapCone2020(c);         // Real HDR -> SDR compression
         else
             c = ToneMapLuma2020ToTarget(c); // Peak fits, but keep the spline's perceptual brightness adaptation
     }
