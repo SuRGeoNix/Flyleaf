@@ -19,6 +19,7 @@ public unsafe partial class Renderer
     /// </summary>
     public bool DoviUseHDRDetect;
     bool doviNeedsHDRDetect;
+    bool? doviIsCM4;
 
     const int doviVectors             = 190; // 187 reconstruction + 3 L2 trim vectors
     const int doviTrimInfo            = 187;
@@ -123,7 +124,7 @@ public unsafe partial class Renderer
         };
     }
 
-    void FLDoviReset()
+    void FLDoviReset(AVFrame* frame)
     {
         doviL1Nits          = null;
         doviPreparedData    = null;
@@ -134,7 +135,29 @@ public unsafe partial class Renderer
         doviCachedCurve0    = default;
         doviCachedCurve1    = default;
         doviCachedCurve2    = default;
-        doviNeedsHDRDetect  = DoviUseHDRDetect;
+        doviIsCM4           = FLDoviIsCM4(frame);
+        doviNeedsHDRDetect  = DoviUseHDRDetect || doviIsCM4 != false;
+    }
+
+    static bool? FLDoviIsCM4(AVFrame* frame)
+    {
+        if (frame == null)
+            return null;
+
+        var side = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.DOVIMetadata);
+        if (side == null || side->data == null)
+            return null;
+
+        var dovi = (AVDOVIMetadata*)side->data;
+        for (int i = 0; i < dovi->num_ext_blocks; i++)
+        {
+            var dm = (AVDOVIDmData*)((byte*)dovi + dovi->ext_block_offset +
+                dovi->ext_block_size * (nuint)i);
+            if (dm->level is 3 or 8 or 254)
+                return true;
+        }
+
+        return false;
     }
 
     (DoviFrameData, (float Min, float Avg, float Max)?) FLDoviPrepare(AVFrame* frame)
@@ -153,7 +176,8 @@ public unsafe partial class Renderer
         if (header->coef_log2_denom < 13 || header->coef_log2_denom > 32)
             return (null, null);
 
-        var trim = FLDoviSelectTrim(dovi);  // Select per-frame L2 trims for the current output type.
+        // Apply L2 only for CM 2.9; CM 4.x uses HDRDetect until L8 is supported.
+        var trim = doviIsCM4 == false ? FLDoviSelectTrim(dovi) : default;
 
         // Reuse cached reconstruction state when only per-frame trim values change.
         if (doviPreparedData != null && DoviSourceEquals(header, mapping, color))
@@ -165,7 +189,7 @@ public unsafe partial class Renderer
                 DoviWriteTrim(ref nextBuffer, trim);
                 doviPreparedData = new() { Buffer = nextBuffer, Trim = trim };
             }
-            return (doviPreparedData, FLDoviL1L3Nits(dovi));
+            return (doviPreparedData, FLDoviL1Nits(dovi));
         }
         
         // Guard malformed BL depth
@@ -371,45 +395,28 @@ public unsafe partial class Renderer
 
         DoviCacheSource(header, mapping, color);
         doviPreparedData = new() { Buffer = buffer, Trim = trim };
-        return (doviPreparedData, FLDoviL1L3Nits(dovi));
+        return (doviPreparedData, FLDoviL1Nits(dovi));
     }
 
-    (float Min, float Avg, float Max)? FLDoviL1L3Nits(AVDOVIMetadata* dovi)
+    (float Min, float Avg, float Max)? FLDoviL1Nits(AVDOVIMetadata* dovi)
     {
         if (doviNeedsHDRDetect)
             return null;
 
-        AVDOVIDmData* l1 = null;
-        AVDOVIDmData* l3 = null;
-
         for (int i = 0; i < dovi->num_ext_blocks; i++)
         {
-            var dm = (AVDOVIDmData*)((byte*)dovi + dovi->ext_block_offset + dovi->ext_block_size * (nuint)i);
+            var dm = (AVDOVIDmData*)((byte*)dovi + dovi->ext_block_offset +
+                dovi->ext_block_size * (nuint)i);
+            if (dm->level != 1)
+                continue;
 
-            if (dm->level == 1)
-                l1 = dm;
-            else if (dm->level == 3)
-                l3 = dm;
-
-            if (l1 != null && l3 != null)
-                break;
+            var l1 = dm->union0.l1;
+            return (PQToNitsDovi(l1.min_pq),
+                    PQToNitsDovi(l1.avg_pq),
+                    PQToNitsDovi(l1.max_pq));
         }
 
-        if (l1 == null)
-            return null;
-
-        var a = l1->union0.l1;
-
-        if (l3 == null)
-            return (PQToNitsDovi(a.min_pq),
-                    PQToNitsDovi(a.avg_pq),
-                    PQToNitsDovi(a.max_pq));
-
-        var b = l3->union0.l3;
-
-        return (L1L3ToNitsDovi(a.min_pq, b.min_pq_offset),
-                L1L3ToNitsDovi(a.avg_pq, b.avg_pq_offset),
-                L1L3ToNitsDovi(a.max_pq, b.max_pq_offset));
+        return null;
     }
 
     static float DoviTrimSigned(ushort code) => code / 4096f - 0.5f;
