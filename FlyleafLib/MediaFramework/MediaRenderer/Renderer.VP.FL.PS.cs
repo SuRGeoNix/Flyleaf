@@ -106,7 +106,7 @@ color = float4(
             defines.Add(dPQSpline);
             isPQSpline = true;
             FLHDRDetectReset();
-            FLDoviReset();
+            FLDoviReset(frame);
             if (CanTrace)
                 Log.Trace(FLDoviDump(frame));
 
