@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.13</Version>
+	<Version>3.11.14</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer.HDR.Dovi: Adds and prefers L1/L3 luminance per-frame metadata when available for PQSpline instead of HDRDetect
-		- Controls.Wpf.PlayerDebug: Introduces I/O Dynamic Range for new HDR implementation
+		- Renderer.HDR: Improve tone mapping with LMS cone-channel processing
+		- Renderer.HDR: Replaces polynomial PQSpline with hyperbolic segments to prevent overshoot and highlight clipping
+		- Renderer.HDR: Extends HDRDetect with maxRGB scene average for more accurate tone-mapping adaptation
+		- Renderer.HDR.Dovi: Adds L2 (CM 2.9) trims support (slope, offset, power, saturation, chroma weight, MS weight)
+		- Controls.WPF.PlayerDebug: Fixes an issue with Video Processor was not visible
 
 		[Breaking Changes]
-		- Config.Demuxer: Reduces BufferDuration from 30 sec to 3 sec (avoids large memory by default)
-		- Player.Video: Deprecates HDRFormat
-		- ColorSpace Enum: Few renames (uppercases)
+		- Config.Demuxer: Increases default timeouts for read, seek, and close operations
 	</PackageReleaseNotes>
   </PropertyGroup>
 
