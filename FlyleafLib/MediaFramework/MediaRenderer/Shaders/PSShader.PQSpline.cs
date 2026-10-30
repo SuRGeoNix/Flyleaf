@@ -59,7 +59,6 @@ inline float3 IPTPQToAbsolute2020(float3 c)
 	return mul(GamutLmsTo2020, lms) * 10000.0;
 }
 
-
 // Cone-channel tone mapping with the existing PQ spline
 static const float TONE_FILM_STRENGTH = 0.30;
 

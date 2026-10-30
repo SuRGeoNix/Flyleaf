@@ -535,9 +535,6 @@ public unsafe partial class Renderer
     static float PQToNitsDovi(ushort pq)
         => PQToNits(pq / 4095f);
 
-    static float L1L3ToNitsDovi(ushort l1, ushort l3)
-        => (float) PQToNits(Math.Clamp(l1 / 4095.0 + l3 / 2048.0 - 1.0, 0.0, 1.0));
-    
     static ToneSplineParams GetSplineParams(
         double sourceMinNits,
         double sourcePeakNits,
