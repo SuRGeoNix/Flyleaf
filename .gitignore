@@ -345,6 +345,3 @@ FlyleafLib/FlyleafLib.xml
 
 # NuGet Pack
 *.nuspec
-
-# YT-DLP
-yt-dlp.exe
