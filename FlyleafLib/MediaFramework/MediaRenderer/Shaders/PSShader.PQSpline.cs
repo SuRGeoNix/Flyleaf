@@ -40,21 +40,11 @@ inline float NitsToPQ(float nits)
 
 inline float ToneSpline(float x)
 {
-	x -= HDR.splineSrcPivot;
+    x -= HDR.splineSrcPivot;
 
-	if (x > 0.0)
-	{
-		x = ((HDR.splineQa * x +
-				HDR.splineQb) * x +
-				HDR.splineSlope) * x;
-	}
-	else
-	{
-		x = (HDR.splinePa * x +
-			    HDR.splineSlope) * x;
-	}
+    float k = x > 0.0 ? HDR.splineQa : HDR.splinePa;
 
-	return x + HDR.splineDstPivot;
+    return HDR.splineDstPivot + HDR.splineSlope * x / (1.0 + k * x);
 }
 	
 inline float3 Absolute2020ToIPTPQ(float3 c)
